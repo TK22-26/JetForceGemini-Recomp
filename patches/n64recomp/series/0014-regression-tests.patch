@@ -1,0 +1,641 @@
+diff --git a/.gitignore b/.gitignore
+index 014e033..37ec290 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -10,0 +11,3 @@ tests
++!tests/
++tests/*
++!tests/phase4_regression_test.cpp
+diff --git a/tests/phase4_regression_test.cpp b/tests/phase4_regression_test.cpp
+new file mode 100644
+index 0000000..288b4ed
+--- /dev/null
++++ b/tests/phase4_regression_test.cpp
+@@ -0,0 +1,627 @@
++#include <cstdint>
++#include <filesystem>
++#include <fstream>
++#include <limits>
++#include <sstream>
++#include <string>
++#include <utility>
++#include <vector>
++
++#include "rabbitizer.hpp"
++#include "recomp.h"
++#include "analysis.h"
++#include "recompiler/generator.h"
++#include "recompiler/live_recompiler.h"
++#include "recompiler/safe_read.h"
++
++namespace {
++unsigned cop0_read_calls = 0;
++unsigned status_read_calls = 0;
++uint32_t last_cop0_reg = 0;
++uint32_t last_cop0_write_reg = 0;
++gpr last_cop0_write_value = 0;
++gpr last_status_write_value = 0;
++uint32_t last_cache_operation = 0;
++gpr last_cache_address = 0;
++uint8_t* last_cache_rdram = nullptr;
++
++bool parse_symbol_text(const std::string& text, N64Recomp::Context* output = nullptr) {
++    const std::filesystem::path path =
++        std::filesystem::temp_directory_path() / "n64recomp_phase4_relocation_test.toml";
++    {
++        std::ofstream stream(path, std::ios::binary | std::ios::trunc);
++        if (!stream) {
++            return false;
++        }
++        stream << text;
++    }
++    N64Recomp::Context parsed{};
++    const bool result = N64Recomp::Context::from_symbol_file(path, {}, parsed, true);
++    std::error_code remove_error;
++    std::filesystem::remove(path, remove_error);
++    if (result && output != nullptr) {
++        *output = std::move(parsed);
++    }
++    return result;
++}
++
++gpr test_cop0_read(recomp_context*, uint32_t cop0_reg) {
++    ++cop0_read_calls;
++    last_cop0_reg = cop0_reg;
++    return UINT64_C(0xFEDCBA9876543210);
++}
++
++gpr test_status_read(recomp_context*) {
++    ++status_read_calls;
++    return UINT64_C(0x89ABCDEF01234567);
++}
++
++void test_cop0_write(recomp_context*, uint32_t cop0_reg, gpr value) {
++    last_cop0_write_reg = cop0_reg;
++    last_cop0_write_value = value;
++}
++
++void test_status_write(recomp_context*, gpr value) {
++    last_status_write_value = value;
++}
++
++void test_cache_op(uint8_t* rdram, recomp_context*, uint32_t operation, gpr address) {
++    last_cache_rdram = rdram;
++    last_cache_operation = operation;
++    last_cache_address = address;
++}
++}
++
++int main() {
++    const std::vector<uint8_t> bytes{0xFF, 0x12, 0x34, 0x56, 0x78, 0x9A};
++    uint32_t value = 0;
++    if (!N64Recomp::read_be_u32(bytes, 1, value) || value != UINT32_C(0x12345678)) {
++        return 1;
++    }
++    if (!N64Recomp::read_be_u32(bytes, bytes.size() - 4, value) ||
++        value != UINT32_C(0x3456789A)) {
++        return 2;
++    }
++    if (N64Recomp::read_be_u32(bytes, bytes.size() - 3, value) ||
++        N64Recomp::read_be_u32(bytes, std::numeric_limits<uint64_t>::max(), value)) {
++        return 3;
++    }
++
++    N64Recomp::Context analysis_context{};
++    analysis_context.rom.resize(0x40);
++    analysis_context.rom[0] = 0x80;
++    analysis_context.rom[1] = 0x00;
++    analysis_context.rom[2] = 0x00;
++    analysis_context.rom[3] = 0x18;
++    analysis_context.sections.resize(1);
++    analysis_context.sections[0].rom_addr = 0;
++    analysis_context.sections[0].ram_addr = UINT32_C(0x80000000);
++    analysis_context.sections[0].size = 0x40;
++    const std::vector<uint32_t> analysis_words{
++        UINT32_C(0x3C088000), // lui  t0, 0x8000
++        UINT32_C(0x01094021), // addu t0, t0, t1
++        UINT32_C(0x8D0A0000), // lw   t2, 0(t0)
++        UINT32_C(0xAFAA0000), // sw   t2, 0(sp)
++        UINT32_C(0xAFA00002), // sw   zero, 2(sp), untrackable overlap
++        UINT32_C(0x8FAB0000), // lw   t3, 0(sp)
++        UINT32_C(0x01600008), // jr   t3
++    };
++    N64Recomp::Function analysis_function(
++        UINT32_C(0x80000000), 0, analysis_words, "stack_invalidation", 0);
++    std::vector<rabbitizer::InstructionCpu> analysis_instructions;
++    for (size_t i = 0; i < analysis_words.size(); ++i) {
++        analysis_instructions.emplace_back(
++            analysis_words[i], UINT32_C(0x80000000) + static_cast<uint32_t>(i * 4));
++    }
++    N64Recomp::FunctionStats analysis_stats{};
++    if (!N64Recomp::analyze_function(
++            analysis_context, analysis_function, analysis_instructions, analysis_stats) ||
++        !analysis_stats.jump_tables.empty()) {
++        return 4;
++    }
++
++    std::ostringstream output;
++    N64Recomp::CGenerator generator(output);
++    N64Recomp::InstructionContext context{};
++    const N64Recomp::BinaryOp binary{
++        N64Recomp::BinaryOpType::Add32,
++        N64Recomp::Operand::Rd,
++        {{N64Recomp::UnaryOpType::None, N64Recomp::UnaryOpType::None},
++         {N64Recomp::Operand::Zero, N64Recomp::Operand::Zero}},
++    };
++    const N64Recomp::UnaryOp unary{
++        N64Recomp::UnaryOpType::None,
++        N64Recomp::Operand::Rt,
++        N64Recomp::Operand::Zero,
++    };
++    generator.process_binary_op(binary, context);
++    generator.process_unary_op(unary, context);
++    if (!output.str().empty()) {
++        return 5;
++    }
++
++    context.rd = 1;
++    generator.process_binary_op(binary, context);
++    if (output.str() != "ctx->r1 = U64(ADD32(0, 0));\n") {
++        return 6;
++    }
++
++    std::ostringstream store_output;
++    N64Recomp::CGenerator store_generator(store_output);
++    N64Recomp::InstructionContext store_context{};
++    store_context.rs = 2;
++    store_context.rt = 3;
++    store_context.imm16 = 4;
++    store_generator.process_store_op(
++        {N64Recomp::StoreOpType::SW, N64Recomp::Operand::Rt}, store_context);
++    store_generator.process_store_op(
++        {N64Recomp::StoreOpType::SH, N64Recomp::Operand::Rt}, store_context);
++    store_generator.process_store_op(
++        {N64Recomp::StoreOpType::SB, N64Recomp::Operand::Rt}, store_context);
++    store_context.ft = 4;
++    store_generator.process_store_op(
++        {N64Recomp::StoreOpType::SWC1, N64Recomp::Operand::FtU32L}, store_context);
++    const std::string store_code = store_output.str();
++    const size_t first_word_cast = store_code.find("= (int32_t)(");
++    if (store_code.find("= (int32_t)(ctx->r3)") == std::string::npos ||
++        first_word_cast == std::string::npos ||
++        store_code.find("= (int32_t)(", first_word_cast + 1) == std::string::npos ||
++        store_code.find("= (int16_t)(ctx->r3)") == std::string::npos ||
++        store_code.find("= (int8_t)(ctx->r3)") == std::string::npos) {
++        return 38;
++    }
++
++    std::ostringstream abi_output;
++    N64Recomp::CGenerator abi_generator(abi_output);
++    N64Recomp::InstructionContext abi_context{};
++    abi_context.rs = 2;
++    abi_context.rt = 3;
++    abi_context.fs = 4;
++    abi_context.imm16 = static_cast<uint16_t>(-16);
++    abi_generator.process_unary_op(
++        {N64Recomp::UnaryOpType::None,
++         N64Recomp::Operand::FsU32L,
++         N64Recomp::Operand::Rt},
++        abi_context);
++    abi_generator.emit_cop1_cs_write(3);
++    const N64Recomp::BinaryOp doubleword_load{
++        N64Recomp::BinaryOpType::LD,
++        N64Recomp::Operand::Rt,
++        {{N64Recomp::UnaryOpType::None, N64Recomp::UnaryOpType::None},
++         {N64Recomp::Operand::Base, N64Recomp::Operand::ImmS16}},
++    };
++    abi_generator.process_binary_op(doubleword_load, abi_context);
++    for (const N64Recomp::BinaryOpType load_type : {
++             N64Recomp::BinaryOpType::LDL,
++             N64Recomp::BinaryOpType::LDR,
++             N64Recomp::BinaryOpType::LWL,
++             N64Recomp::BinaryOpType::LWR,
++         }) {
++        N64Recomp::BinaryOp helper_load = doubleword_load;
++        helper_load.type = load_type;
++        abi_generator.process_binary_op(helper_load, abi_context);
++    }
++    abi_context.ft = 6;
++    N64Recomp::BinaryOp cop1_word_load = doubleword_load;
++    cop1_word_load.type = N64Recomp::BinaryOpType::LW;
++    cop1_word_load.output = N64Recomp::Operand::FtU32L;
++    abi_generator.process_binary_op(cop1_word_load, abi_context);
++    for (const N64Recomp::StoreOpType store_type : {
++             N64Recomp::StoreOpType::SD,
++             N64Recomp::StoreOpType::SDL,
++             N64Recomp::StoreOpType::SDR,
++             N64Recomp::StoreOpType::SWL,
++             N64Recomp::StoreOpType::SWR,
++         }) {
++        abi_generator.process_store_op(
++            {store_type, N64Recomp::Operand::Rt}, abi_context);
++    }
++    abi_generator.emit_switch_error(UINT32_C(0x1000), UINT32_C(0x2000));
++    const std::string abi_code = abi_output.str();
++    if (abi_code.find("ctx->f4.u32l = U32(ctx->r3);") == std::string::npos ||
++        abi_code.find("set_cop1_cs(U32(ctx->r3));") == std::string::npos ||
++        abi_code.find("LD(ctx->r2, U64(S64(-0X10)))") == std::string::npos ||
++        abi_code.find("do_ldl(rdram, ctx->r3, ctx->r2, U64(S64(-0X10)))") == std::string::npos ||
++        abi_code.find("do_ldr(rdram, ctx->r3, ctx->r2, U64(S64(-0X10)))") == std::string::npos ||
++        abi_code.find("do_lwl(rdram, ctx->r3, ctx->r2, U64(S64(-0X10)))") == std::string::npos ||
++        abi_code.find("do_lwr(rdram, ctx->r3, ctx->r2, U64(S64(-0X10)))") == std::string::npos ||
++        abi_code.find("ctx->f6.u32l = U32(MEM_W(ctx->r2, -0X10));") == std::string::npos ||
++        abi_code.find("SD(ctx->r3, U64(S64(-0X10)), ctx->r2);") == std::string::npos ||
++        abi_code.find("do_sdl(rdram, U64(S64(-0X10)), ctx->r2, ctx->r3);") == std::string::npos ||
++        abi_code.find("do_sdr(rdram, U64(S64(-0X10)), ctx->r2, ctx->r3);") == std::string::npos ||
++        abi_code.find("do_swl(rdram, U64(S64(-0X10)), ctx->r2, ctx->r3);") == std::string::npos ||
++        abi_code.find("do_swr(rdram, U64(S64(-0X10)), ctx->r2, ctx->r3);") == std::string::npos ||
++        abi_code.find("switch_error((const char*)0, 0x00001000, 0x00002000)") == std::string::npos ||
++        abi_code.find("__func__") != std::string::npos ||
++        abi_code.find("\"") != std::string::npos) {
++        return 41;
++    }
++
++    std::ostringstream load_output;
++    N64Recomp::CGenerator load_generator(load_output);
++    context = {};
++    context.rs = 2;
++    context.rt = 0;
++    context.imm16 = 4;
++    const N64Recomp::BinaryOp load{
++        N64Recomp::BinaryOpType::LW,
++        N64Recomp::Operand::Rt,
++        {{N64Recomp::UnaryOpType::None, N64Recomp::UnaryOpType::None},
++         {N64Recomp::Operand::Base, N64Recomp::Operand::ImmS16}},
++    };
++    load_generator.process_binary_op(load, context);
++    const std::string discarded_load = load_output.str();
++    if (discarded_load.find("MEM_W(ctx->r2, 0X4)") == std::string::npos ||
++        discarded_load.find("volatile uint64_t discarded_load") == std::string::npos ||
++        discarded_load.find("0 =") != std::string::npos ||
++        discarded_load.find("ctx->r0") != std::string::npos) {
++        return 7;
++    }
++
++    std::ostringstream cop0_output;
++    N64Recomp::CGenerator cop0_generator(cop0_output);
++    cop0_generator.emit_cop0_read(0, 9);
++    cop0_generator.emit_cop0_status_read(0);
++    if (cop0_output.str().find("cop0_read(ctx, 9)") == std::string::npos ||
++        cop0_output.str().find("cop0_status_read(ctx)") == std::string::npos ||
++        cop0_output.str().find("volatile uint64_t discarded_read") == std::string::npos ||
++        cop0_output.str().find("0 =") != std::string::npos) {
++        return 8;
++    }
++
++    std::ostringstream division_output;
++    N64Recomp::CGenerator division_generator(division_output);
++    division_generator.emit_muldiv(rabbitizer::InstrId::UniqueId::cpu_div, 1, 2);
++    division_generator.emit_muldiv(rabbitizer::InstrId::UniqueId::cpu_divu, 1, 2);
++    division_generator.emit_muldiv(rabbitizer::InstrId::UniqueId::cpu_ddiv, 1, 2);
++    division_generator.emit_muldiv(rabbitizer::InstrId::UniqueId::cpu_ddivu, 1, 2);
++    const std::string division_code = division_output.str();
++    if (division_code.find("DIV32(S32(ctx->r1), S32(ctx->r2), &lo, &hi)") == std::string::npos ||
++        division_code.find("DIVU32(U32(ctx->r1), U32(ctx->r2), &lo, &hi)") == std::string::npos ||
++        division_code.find("DDIV(S64(ctx->r1), S64(ctx->r2), &lo, &hi)") == std::string::npos ||
++        division_code.find("DDIVU(U64(ctx->r1), U64(ctx->r2), &lo, &hi)") == std::string::npos ||
++        division_code.find(" / ") != std::string::npos || division_code.find(" % ") != std::string::npos) {
++        return 9;
++    }
++
++    uint64_t lo = 0;
++    uint64_t hi = 0;
++    DIV32(7, 0, &lo, &hi);
++    if (lo != UINT64_MAX || hi != UINT64_C(7)) {
++        return 10;
++    }
++    DIV32(-7, 0, &lo, &hi);
++    if (lo != UINT64_C(1) || hi != static_cast<uint64_t>(static_cast<int64_t>(-7))) {
++        return 11;
++    }
++    DIV32(INT32_MIN, -1, &lo, &hi);
++    if (lo != UINT64_C(0xFFFFFFFF80000000) || hi != 0) {
++        return 12;
++    }
++    DIVU32(UINT32_C(0x80000000), 0, &lo, &hi);
++    if (lo != UINT64_MAX || hi != UINT64_C(0xFFFFFFFF80000000)) {
++        return 13;
++    }
++    DDIV(7, 0, &lo, &hi);
++    if (lo != UINT64_MAX || hi != UINT64_C(7)) {
++        return 14;
++    }
++    DDIV(-7, 0, &lo, &hi);
++    if (lo != UINT64_C(1) || hi != static_cast<uint64_t>(static_cast<int64_t>(-7))) {
++        return 15;
++    }
++    DDIV(INT64_MIN, -1, &lo, &hi);
++    if (lo != static_cast<uint64_t>(INT64_MIN) || hi != 0) {
++        return 16;
++    }
++    DDIVU(UINT64_C(0xFEDCBA9876543210), 0, &lo, &hi);
++    if (lo != UINT64_MAX || hi != UINT64_C(0xFEDCBA9876543210)) {
++        return 17;
++    }
++
++    N64Recomp::live_recompiler_init();
++    N64Recomp::LiveGeneratorInputs live_inputs{};
++    live_inputs.cop0_status_write = test_status_write;
++    live_inputs.cop0_status_read = test_status_read;
++    live_inputs.cop0_write = test_cop0_write;
++    live_inputs.cop0_read = test_cop0_read;
++    live_inputs.cache_op = test_cache_op;
++    N64Recomp::LiveGenerator live_generator(1, live_inputs);
++    N64Recomp::Context live_context{};
++    live_generator.emit_function_start("phase4_hook_signature_test", 0);
++    live_generator.emit_cop0_read(1, 7);
++    live_generator.emit_cop0_read(0, 11);
++    live_generator.emit_cop0_status_read(2);
++    live_generator.emit_cop0_status_read(0);
++    live_generator.emit_cop0_write(3, 13);
++    live_generator.emit_cop0_status_write(3);
++    live_generator.emit_cache(4, 5, -8);
++    auto copy_special = [&](N64Recomp::Operand input, int destination) {
++        N64Recomp::InstructionContext copy_context{};
++        copy_context.rd = destination;
++        const N64Recomp::UnaryOp copy{
++            N64Recomp::UnaryOpType::None,
++            N64Recomp::Operand::Rd,
++            input,
++        };
++        live_generator.process_unary_op(copy, copy_context);
++    };
++    live_generator.emit_muldiv(rabbitizer::InstrId::UniqueId::cpu_div, 7, 8);
++    copy_special(N64Recomp::Operand::Hi, 5);
++    copy_special(N64Recomp::Operand::Lo, 6);
++    live_generator.emit_muldiv(rabbitizer::InstrId::UniqueId::cpu_divu, 9, 8);
++    copy_special(N64Recomp::Operand::Hi, 10);
++    copy_special(N64Recomp::Operand::Lo, 11);
++    live_generator.emit_muldiv(rabbitizer::InstrId::UniqueId::cpu_ddiv, 12, 8);
++    copy_special(N64Recomp::Operand::Hi, 13);
++    copy_special(N64Recomp::Operand::Lo, 14);
++    live_generator.emit_muldiv(rabbitizer::InstrId::UniqueId::cpu_ddivu, 15, 8);
++    copy_special(N64Recomp::Operand::Hi, 16);
++    copy_special(N64Recomp::Operand::Lo, 17);
++    live_generator.emit_muldiv(rabbitizer::InstrId::UniqueId::cpu_ddiv, 18, 19);
++    copy_special(N64Recomp::Operand::Hi, 20);
++    copy_special(N64Recomp::Operand::Lo, 21);
++    live_generator.emit_return(live_context, 0);
++    live_generator.emit_function_end();
++    auto live_output = live_generator.finish();
++    if (!live_output.good || live_output.functions.size() != 1 || live_output.functions[0] == nullptr) {
++        return 18;
++    }
++    uint8_t live_rdram[64]{};
++    recomp_context live_ctx{};
++    live_ctx.r3 = UINT64_C(0xFEDCBA9800000001);
++    live_ctx.r4 = UINT64_C(0x1234567800000010);
++    live_ctx.r7 = UINT64_C(7);
++    live_ctx.r8 = 0;
++    live_ctx.r9 = UINT64_C(0x80000000);
++    live_ctx.r12 = static_cast<uint64_t>(static_cast<int64_t>(-7));
++    live_ctx.r15 = UINT64_C(0xFEDCBA9876543210);
++    live_ctx.r18 = static_cast<uint64_t>(INT64_MIN);
++    live_ctx.r19 = UINT64_MAX;
++    live_output.functions[0](live_rdram, &live_ctx);
++    if (cop0_read_calls != 2 || last_cop0_reg != 11 ||
++        status_read_calls != 2 ||
++        live_ctx.r1 != UINT64_C(0xFEDCBA9876543210) ||
++        live_ctx.r2 != UINT64_C(0x89ABCDEF01234567) ||
++        last_cop0_write_reg != 13 || last_cop0_write_value != live_ctx.r3 ||
++        last_status_write_value != live_ctx.r3 ||
++        last_cache_rdram != live_rdram || last_cache_operation != 5 ||
++        last_cache_address != UINT64_C(0x1234567800000008) ||
++        live_ctx.r5 != UINT64_C(7) || live_ctx.r6 != UINT64_MAX ||
++        live_ctx.r10 != UINT64_C(0xFFFFFFFF80000000) || live_ctx.r11 != UINT64_MAX ||
++        live_ctx.r13 != static_cast<uint64_t>(static_cast<int64_t>(-7)) || live_ctx.r14 != UINT64_C(1) ||
++        live_ctx.r16 != UINT64_C(0xFEDCBA9876543210) || live_ctx.r17 != UINT64_MAX ||
++        live_ctx.r20 != 0 || live_ctx.r21 != static_cast<uint64_t>(INT64_MIN)) {
++        return 19;
++    }
++
++    N64Recomp::LiveGenerator load_live_generator(4, N64Recomp::LiveGeneratorInputs{});
++    N64Recomp::InstructionContext zero_write_context{};
++    const N64Recomp::BinaryOp zero_add{
++        N64Recomp::BinaryOpType::Add32,
++        N64Recomp::Operand::Rd,
++        {{N64Recomp::UnaryOpType::None, N64Recomp::UnaryOpType::None},
++         {N64Recomp::Operand::Zero, N64Recomp::Operand::Zero}},
++    };
++    const N64Recomp::BinaryOp aligned_load{
++        N64Recomp::BinaryOpType::LW,
++        N64Recomp::Operand::Rt,
++        {{N64Recomp::UnaryOpType::None, N64Recomp::UnaryOpType::None},
++         {N64Recomp::Operand::Base, N64Recomp::Operand::ImmS16}},
++    };
++    const N64Recomp::BinaryOp unaligned_load{
++        N64Recomp::BinaryOpType::LWL,
++        N64Recomp::Operand::Rt,
++        {{N64Recomp::UnaryOpType::None, N64Recomp::UnaryOpType::None},
++         {N64Recomp::Operand::Base, N64Recomp::Operand::ImmS16}},
++    };
++    N64Recomp::InstructionContext load_context{};
++    load_context.rs = 22;
++    load_context.rt = 0;
++    load_live_generator.emit_function_start("zero_write_baseline", 0);
++    load_live_generator.process_binary_op(zero_add, zero_write_context);
++    load_live_generator.emit_return(live_context, 0);
++    load_live_generator.emit_function_end();
++    load_live_generator.emit_function_start("aligned_load_to_zero", 1);
++    load_live_generator.process_binary_op(aligned_load, load_context);
++    load_live_generator.emit_return(live_context, 1);
++    load_live_generator.emit_function_end();
++    load_live_generator.emit_function_start("unaligned_load_to_zero", 2);
++    load_live_generator.process_binary_op(unaligned_load, load_context);
++    load_live_generator.emit_return(live_context, 2);
++    load_live_generator.emit_function_end();
++    load_live_generator.emit_function_start("load_size_sentinel", 3);
++    load_live_generator.emit_return(live_context, 3);
++    load_live_generator.emit_function_end();
++    auto load_live_output = load_live_generator.finish();
++    if (!load_live_output.good || load_live_output.functions.size() != 4) {
++        return 20;
++    }
++    const auto function_address = [&](size_t index) {
++        return reinterpret_cast<uintptr_t>(load_live_output.functions[index]);
++    };
++    const uintptr_t baseline_size = function_address(1) - function_address(0);
++    const uintptr_t aligned_size = function_address(2) - function_address(1);
++    const uintptr_t unaligned_size = function_address(3) - function_address(2);
++    if (aligned_size <= baseline_size || unaligned_size <= baseline_size) {
++        return 21;
++    }
++    alignas(8) uint8_t load_rdram[16]{};
++    recomp_context load_ctx{};
++    load_ctx.r0 = UINT64_C(0xA5A5A5A5A5A5A5A5);
++    load_ctx.r22 = UINT64_C(0xFFFFFFFF80000000);
++    load_live_output.functions[1](load_rdram, &load_ctx);
++    load_ctx.r22 = UINT64_C(0xFFFFFFFF80000001);
++    load_live_output.functions[2](load_rdram, &load_ctx);
++    if (load_ctx.r0 != UINT64_C(0xA5A5A5A5A5A5A5A5)) {
++        return 22;
++    }
++
++    DMULT(-2, 3, &lo, &hi);
++    if (lo != static_cast<uint64_t>(-6) || hi != UINT64_MAX) {
++        return 23;
++    }
++    DDIV(-7, 3, &lo, &hi);
++    if (lo != static_cast<uint64_t>(-2) || hi != UINT64_MAX) {
++        return 24;
++    }
++
++    const std::string relocation_prefix =
++        "[[section]]\n"
++        "name = \"target\"\n"
++        "rom = 0\n"
++        "vram = 0x1000\n"
++        "size = 4\n";
++    const std::string relocation_suffix =
++        "functions = []\n"
++        "relocs = [{ type = \"R_MIPS_32\", vram = 0x1000, target_section = 0, ";
++    if (!parse_symbol_text(
++            relocation_prefix + "relocation_size = 8\n" + relocation_suffix +
++            "target_section_offset = 7 }]\n")) {
++        return 25;
++    }
++    if (parse_symbol_text(
++            relocation_prefix + "relocation_size = 8\n" + relocation_suffix +
++            "target_section_offset = 8 }]\n")) {
++        return 26;
++    }
++    if (!parse_symbol_text(
++            relocation_prefix + relocation_suffix + "target_section_offset = 3 }]\n")) {
++        return 27;
++    }
++    if (parse_symbol_text(
++            "[[section]]\n"
++            "name = \"wrapping\"\n"
++            "rom = 0\n"
++            "vram = 0xFFFFFFF0\n"
++            "size = 4\n"
++            "relocation_size = 0x20\n"
++            "functions = []\n"
++            "relocs = []\n")) {
++        return 28;
++    }
++
++    N64Recomp::Context provenance_context{};
++    if (!parse_symbol_text(
++            "[[section]]\n"
++            "name = \"relative\"\n"
++            "rom = 0\n"
++            "vram = 0x1000\n"
++            "size = 4\n"
++            "relocation_size = 0x5000\n"
++            "functions = []\n"
++            "relocs = [{ type = \"R_MIPS_32\", vram = 0x1000, target_section = 0, target_section_offset = 0x2000 }]\n",
++            &provenance_context) ||
++        provenance_context.sections[0].relocs[0].target_section != 0 ||
++        provenance_context.sections[0].relocs[0].target_section_offset != 0x2000) {
++        return 29;
++    }
++    if (parse_symbol_text(
++            relocation_prefix + "relocation_size = 8\n" +
++            "functions = []\n"
++            "relocs = [{ type = \"R_MIPS_26\", vram = 0x1000, target_section = 0, target_section_offset = 2 }]\n")) {
++        return 30;
++    }
++    if (parse_symbol_text(
++            relocation_prefix + "relocation_size = 8\n" +
++            "functions = []\n"
++            "relocs = [{ type = \"R_MIPS_32\", vram = 0x1001, target_section = 0, target_section_offset = 0 }]\n")) {
++        return 31;
++    }
++    if (parse_symbol_text(
++            relocation_prefix + "relocation_size = 8\n" +
++            "functions = []\n"
++            "relocs = [{ type = \"R_MIPS_32\", vram = 0x1004, target_section = 0, target_section_offset = 0 }]\n")) {
++        return 32;
++    }
++    if (parse_symbol_text(
++            "[[section]]\n"
++            "name = \"duplicates\"\n"
++            "rom = 0\n"
++            "vram = 0x1000\n"
++            "size = 8\n"
++            "functions = []\n"
++            "relocs = [\n"
++            "  { type = \"R_MIPS_32\", vram = 0x1000, target_section = 0, target_section_offset = 0 },\n"
++            "  { type = \"R_MIPS_32\", vram = 0x1000, target_section = 0, target_section_offset = 0 },\n"
++            "]\n")) {
++        return 33;
++    }
++    if (parse_symbol_text(
++            "[[section]]\n"
++            "name = \"unordered\"\n"
++            "rom = 0\n"
++            "vram = 0x1000\n"
++            "size = 8\n"
++            "functions = []\n"
++            "relocs = [\n"
++            "  { type = \"R_MIPS_32\", vram = 0x1004, target_section = 0, target_section_offset = 0 },\n"
++            "  { type = \"R_MIPS_32\", vram = 0x1000, target_section = 0, target_section_offset = 0 },\n"
++            "]\n")) {
++        return 34;
++    }
++    if (parse_symbol_text(
++            relocation_prefix + "relocation_size = \"bad\"\nfunctions = []\nrelocs = []\n") ||
++        parse_symbol_text(relocation_prefix + "functions = []\nrelocs = \"bad\"\n") ||
++        parse_symbol_text(
++            relocation_prefix + "functions = []\n"
++            "relocs = [{ type = \"R_MIPS_32\", vram = 0x1000, target_vram = \"bad\", target_section = 0, target_section_offset = 0 }]\n")) {
++        return 35;
++    }
++    if (parse_symbol_text(
++            "[[section]]\n"
++            "name = \"source_wrap\"\n"
++            "rom = 0\n"
++            "vram = 0xFFFFFFFF\n"
++            "size = 4\n"
++            "functions = []\n"
++            "relocs = []\n")) {
++        return 36;
++    }
++    std::string oversized_inventory = "section = [";
++    for (size_t index = 0; index <= N64Recomp::RegularSectionLimit; ++index) {
++        oversized_inventory += "{},";
++    }
++    oversized_inventory += "]\n";
++    if (parse_symbol_text(oversized_inventory)) {
++        return 37;
++    }
++
++    N64Recomp::Context transfer_context{};
++    transfer_context.sections.resize(1);
++    transfer_context.sections[0].ram_addr = 0x1000;
++    transfer_context.sections[0].size = 24;
++    transfer_context.sections[0].relocation_size = 24;
++    transfer_context.section_functions.resize(1);
++    transfer_context.section_functions[0].push_back(0);
++    transfer_context.functions.emplace_back(
++        0x1000,
++        0,
++        std::vector<uint32_t>{
++            byteswap(UINT32_C(0x08000404)), // j 0x1010
++            byteswap(UINT32_C(0xAC220000)), // sw v0, 0(at), observable delay slot
++            byteswap(UINT32_C(0x24030001)), // dead fallthrough before the target label
++            byteswap(UINT32_C(0x24040002)), // dead fallthrough before the target label
++            byteswap(UINT32_C(0x03E00008)), // jr ra
++            byteswap(UINT32_C(0x00000000)), // nop delay slot
++        },
++        "transfer_order_regression",
++        0);
++    std::vector<std::vector<uint32_t>> static_functions(1);
++    std::ostringstream transfer_output;
++    if (!N64Recomp::recompile_function(
++            transfer_context, 0, transfer_output, static_functions, false)) {
++        return 39;
++    }
++    const std::string transfer_code = transfer_output.str();
++    const size_t delay_store = transfer_code.find("MEM_W(");
++    const size_t transfer = transfer_code.find("goto L_00001010;");
++    const size_t dead_fallthrough = transfer_code.find("ctx->r3 =", transfer);
++    const size_t target_label = transfer_code.find("L_00001010:");
++    if (delay_store == std::string::npos || transfer == std::string::npos ||
++        dead_fallthrough == std::string::npos || target_label == std::string::npos ||
++        !(delay_store < transfer && transfer < dead_fallthrough && dead_fallthrough < target_label)) {
++        return 40;
++    }
++    return 0;
++}

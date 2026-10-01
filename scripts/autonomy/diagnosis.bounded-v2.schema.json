@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "classification": {"type": "string", "enum": ["capture_misalignment", "code_divergence", "insufficient_evidence", "other"]},
+    "alignment": {"type": "string", "enum": ["validated", "unvalidated", "contradicted"]},
+    "first_supported_retrace": {"type": ["integer", "null"], "minimum": 0},
+    "evidence": {"type": "array", "maxItems": 12, "items": {"type": "string", "minLength": 1, "maxLength": 500}},
+    "hypothesis": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "next_test": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "confidence": {"type": "string", "enum": ["low", "medium", "high"]}
+  },
+  "required": ["classification", "alignment", "first_supported_retrace", "evidence", "hypothesis", "next_test", "confidence"],
+  "additionalProperties": false
+}

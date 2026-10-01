@@ -1,0 +1,137 @@
+#include "jfg/runtime/input_replay.hpp"
+
+#include <atomic>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+
+namespace {
+
+int failures = 0;
+
+void check(const bool condition, const std::string_view message) {
+    if (!condition) {
+        ++failures;
+        std::cerr << "FAIL: " << message << '\n';
+    }
+}
+
+class TemporaryReplay final {
+public:
+    explicit TemporaryReplay(const std::string_view contents) {
+        static std::atomic<std::uint64_t> sequence{0U};
+        const auto nonce =
+            std::chrono::steady_clock::now().time_since_epoch().count();
+        path_ = std::filesystem::temp_directory_path() /
+            ("jfg-input-replay-" + std::to_string(nonce) + "-" +
+             std::to_string(sequence.fetch_add(1U)) + ".txt");
+        std::ofstream stream(path_, std::ios::binary);
+        stream.write(contents.data(),
+                     static_cast<std::streamsize>(contents.size()));
+        if (!stream) {
+            throw std::runtime_error("failed to write input replay fixture");
+        }
+    }
+
+    ~TemporaryReplay() noexcept {
+        std::error_code ignored;
+        std::filesystem::remove(path_, ignored);
+    }
+
+    [[nodiscard]] const std::filesystem::path& path() const noexcept {
+        return path_;
+    }
+
+private:
+    std::filesystem::path path_;
+};
+
+void test_valid_replay() {
+    const TemporaryReplay fixture(
+        "jfg-phase8-input-v1\r\n"
+        "1800,1810,1000,0,0\r\n"
+        "2050,2060,8000,-12,34\r\n");
+    jfg::DeterministicInputReplay replay;
+    check(jfg::DeterministicInputReplay::load(fixture.path(), replay) ==
+              jfg::InputReplayError::none,
+          "valid replay should load");
+    check(replay.events().size() == 2U, "valid replay event count");
+    check(replay.sample_at(1799U).neutral(), "pre-event sample is neutral");
+    check(replay.sample_at(1800U).buttons == 0x1000U,
+          "first boundary is inclusive");
+    check(replay.sample_at(1809U).buttons == 0x1000U,
+          "event remains active before end");
+    check(replay.sample_at(1810U).neutral(), "end boundary is exclusive");
+    check(replay.sample_at(2055U) ==
+              jfg::ControllerReplaySample{true, 0x8000U, -12, 34},
+          "later event preserves buttons and stick values");
+}
+
+void test_connection_transitions() {
+    const TemporaryReplay fixture(
+        "jfg-phase8-input-v2\n"
+        "100,110,0,0000,0,0\n"
+        "120,130,1,8000,12,-34\n");
+    jfg::DeterministicInputReplay replay;
+    check(jfg::DeterministicInputReplay::load(fixture.path(), replay) ==
+              jfg::InputReplayError::none,
+          "connection replay should load");
+    check(!replay.sample_at(105U).connected,
+          "disconnect window is observable");
+    check(replay.sample_at(110U).connected,
+          "controller reconnects after disconnect window");
+    check(replay.sample_at(125U) ==
+              jfg::ControllerReplaySample{true, 0x8000U, 12, -34},
+          "connected v2 sample preserves controls");
+}
+
+void test_poll_replay_eof_is_neutral() {
+    const TemporaryReplay fixture(
+        "jfg-phase8-input-v2\n"
+        "0,1,1,0000,0,0\n"
+        "1,100,1,8000,12,-34\n");
+    jfg::DeterministicInputReplay replay;
+    check(jfg::DeterministicInputReplay::load(fixture.path(), replay) ==
+              jfg::InputReplayError::none,
+          "poll replay should load");
+    check(replay.sample_by_poll(0U).neutral(), "first poll is neutral");
+    check(replay.sample_by_poll(1U) ==
+              jfg::ControllerReplaySample{true, 0x8000U, 12, -34},
+          "last recorded poll preserves buttons and stick");
+    check(replay.sample_by_poll(2U).neutral(),
+          "first poll after EOF is neutral despite long final interval");
+    check(replay.sample_by_poll(100U).neutral(),
+          "later polls after EOF remain neutral");
+}
+
+void test_rejects_invalid_records() {
+    for (const std::string_view contents : {
+             "wrong-header\n1800,1810,1000,0,0\n",
+             "jfg-phase8-input-v1\n1800,1800,1000,0,0\n",
+             "jfg-phase8-input-v1\n1800,1810,10000,0,0\n",
+             "jfg-phase8-input-v1\n1800,1810,1000,-129,0\n",
+             "jfg-phase8-input-v1\n1800,1810,1000,0,0\n1809,1820,0,0,0\n",
+             "jfg-phase8-input-v2\n1800,1810,2,0000,0,0\n",
+             "jfg-phase8-input-v2\n1800,1810,0,8000,0,0\n",
+         }) {
+        const TemporaryReplay fixture(contents);
+        jfg::DeterministicInputReplay replay;
+        check(jfg::DeterministicInputReplay::load(fixture.path(), replay) !=
+                  jfg::InputReplayError::none,
+              "invalid replay should fail closed");
+    }
+}
+
+}  // namespace
+
+int main() {
+    test_valid_replay();
+    test_connection_transitions();
+    test_poll_replay_eof_is_neutral();
+    test_rejects_invalid_records();
+    return failures == 0 ? 0 : 1;
+}

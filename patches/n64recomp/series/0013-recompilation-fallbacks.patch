@@ -1,0 +1,167 @@
+diff --git a/src/recompilation.cpp b/src/recompilation.cpp
+index c228433..b3379e2 100644
+--- a/src/recompilation.cpp
++++ b/src/recompilation.cpp
+@@ -173,0 +174,4 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
++            if (reloc_section >= context.sections.size()) {
++                fmt::print(stderr, "Relocation in {} has an invalid target section\n", func.name);
++                return false;
++            }
+@@ -174,0 +179,9 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
++            const uint64_t relocation_size = target_section.relocation_size != 0
++                ? target_section.relocation_size
++                : uint64_t(target_section.size) + target_section.bss_size;
++            const uint64_t target_address =
++                uint64_t(target_section.ram_addr) + reloc.target_section_offset;
++            if (reloc.target_section_offset >= relocation_size || target_address > UINT32_MAX) {
++                fmt::print(stderr, "Relocation in {} has an out-of-range target offset\n", func.name);
++                return false;
++            }
+@@ -301 +314 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
+-                if (has_reloc && reloc_section < 65500) {
++                if (has_reloc && reloc_section < N64Recomp::RegularSectionLimit) {
+@@ -302,0 +316,12 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
++                    // Explicit R_MIPS_26 metadata is authoritative. The raw JAL target
++                    // inherits its upper address bits from the caller, which is not a
++                    // valid lookup key when relocatable sections use synthetic linked
++                    // addresses in different jump regions.
++                    if (reloc_type == N64Recomp::RelocType::R_MIPS_26) {
++                        const uint64_t explicit_target_address =
++                            uint64_t(context.sections[target_section].ram_addr) + reloc_target_section_offset;
++                        if (explicit_target_address > UINT32_MAX) {
++                            return false;
++                        }
++                        target_func_vram = static_cast<uint32_t>(explicit_target_address);
++                    }
+@@ -308,2 +333,9 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
+-                        fmt::print(stderr, "No function found for jal target: 0x{:08X}\n", target_func_vram);
+-                        return false;
++                        if (context.use_lookup_for_all_function_calls) {
++                            fmt::print("[Info] Direct call target 0x{:08X} is outside known functions; using checked function lookup\n", target_func_vram);
++                            call_by_lookup = true;
++                        }
++                        else {
++                            fmt::print(stderr, "No function found for jal target: 0x{:08X}\n", target_func_vram);
++                            return false;
++                        }
++                        break;
+@@ -376,0 +409,10 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
++            if (context.use_lookup_for_all_function_calls) {
++                fmt::print("[Info] Out-of-function branch in {} to 0x{:08X}; using checked tail lookup\n", func.name, branch_target);
++                if (!print_func_call_by_address(branch_target, true, true)) {
++                    return false;
++                }
++                print_indent();
++                generator.emit_return(context, func_index);
++                return true;
++            }
++
+@@ -427,2 +469,3 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
+-                fmt::print(stderr, "Unhandled cop0 register in mfc0: {}\n", (int)reg);
+-                return false;
++                print_indent();
++                generator.emit_cop0_read(rt, (int)reg);
++                break;
+@@ -441,2 +484,3 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
+-                fmt::print(stderr, "Unhandled cop0 register in mtc0: {}\n", (int)reg);
+-                return false;
++                print_indent();
++                generator.emit_cop0_write(rt, (int)reg);
++                break;
+@@ -520,0 +565,8 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
++            else if (context.use_lookup_for_all_function_calls) {
++                fmt::print("[Info] Out-of-function jump in {} to 0x{:08X}; using checked tail lookup\n", func.name, branch_target);
++                if (!print_func_call_by_address(branch_target, true)) {
++                    return false;
++                }
++                print_indent();
++                generator.emit_return(context, func_index);
++            }
+@@ -562,0 +615,38 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
++    case InstrId::cpu_eret:
++        print_indent();
++        generator.emit_eret();
++        break;
++    case InstrId::cpu_cache:
++        print_indent();
++        generator.emit_cache(rs, rt, (int16_t)imm);
++        break;
++    case InstrId::cpu_tlbp:
++        print_indent();
++        generator.emit_tlb(0);
++        break;
++    case InstrId::cpu_tlbr:
++        print_indent();
++        generator.emit_tlb(1);
++        break;
++    case InstrId::cpu_tlbwi:
++        print_indent();
++        generator.emit_tlb(2);
++        break;
++    case InstrId::cpu_tlbwr:
++        print_indent();
++        generator.emit_tlb(3);
++        break;
++    case InstrId::cpu_INVALID:
++    case InstrId::cpu_cfc2:
++    case InstrId::cpu_ctc2:
++    case InstrId::cpu_ldc2:
++    case InstrId::cpu_lwc2:
++    case InstrId::cpu_mfc2:
++    case InstrId::cpu_mtc2:
++    case InstrId::cpu_sdc2:
++    case InstrId::cpu_swc2:
++        print_indent();
++        generator.emit_reserved_instruction(instr_vram, instr.getRaw());
++        print_indent();
++        generator.emit_return(context, func_index);
++        break;
+@@ -749 +839 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
+-        fmt::print(stderr, "Unhandled instruction: {}\n", instr.getOpcodeName());
++        fmt::print(stderr, "Unhandled instruction: {} at 0x{:08X}\n", instr.getOpcodeName(), instr_vram);
+@@ -761,0 +852,39 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
++static bool validate_section_relocations(
++    const N64Recomp::Context& context, const N64Recomp::Section& section)
++{
++    const uint64_t source_end = uint64_t(section.ram_addr) + section.size;
++    if (source_end > UINT64_C(0x100000000)) {
++        return false;
++    }
++    bool have_previous_address = false;
++    uint32_t previous_address = 0;
++    for (const N64Recomp::Reloc& reloc : section.relocs) {
++        if (reloc.address < section.ram_addr ||
++            uint64_t(reloc.address) + sizeof(uint32_t) > source_end ||
++            (reloc.address & 3) != 0 ||
++            (have_previous_address && reloc.address <= previous_address)) {
++            return false;
++        }
++        previous_address = reloc.address;
++        have_previous_address = true;
++
++        if (!reloc.reference_symbol && reloc.target_section != N64Recomp::SectionAbsolute) {
++            if (reloc.target_section >= context.sections.size() ||
++                reloc.target_section >= N64Recomp::RegularSectionLimit) {
++                return false;
++            }
++            const N64Recomp::Section& target = context.sections[reloc.target_section];
++            const uint64_t target_extent = target.relocation_size != 0
++                ? target.relocation_size
++                : uint64_t(target.size) + target.bss_size;
++            const uint64_t target_address = uint64_t(target.ram_addr) + reloc.target_section_offset;
++            if (reloc.target_section_offset >= target_extent ||
++                target_address > UINT32_MAX ||
++                (reloc.type == N64Recomp::RelocType::R_MIPS_26 && (target_address & 3) != 0)) {
++                return false;
++            }
++        }
++    }
++    return true;
++}
++
+@@ -764,0 +894,5 @@ bool recompile_function_impl(GeneratorType& generator, const N64Recomp::Context&
++    if (func.section_index >= context.sections.size() ||
++        !validate_section_relocations(context, context.sections[func.section_index])) {
++        fmt::print(stderr, "Function {} has invalid section relocation metadata\n", func.name);
++        return false;
++    }

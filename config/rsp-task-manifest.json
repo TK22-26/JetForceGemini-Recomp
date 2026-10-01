@@ -1,0 +1,155 @@
+{
+  "$schema": "../schemas/rsp-task-manifest.schema.json",
+  "schema_version": 1,
+  "kind": "jfg-rsp-task-manifest",
+  "privacy": "public-safe-aggregate-only",
+  "supported_input_id": "jfg-us-retail",
+  "pins": {
+    "jfg_decomp": "b49aa4791e8fb1e7acd3bba10346876358d0a9a7",
+    "n64recomp": "ffb39cdad1da5de07eaaa48bd1db4a89a7986771",
+    "n64modernruntime": "589bbf018a3e6d3646ddf7de1e7919f1b7e99bb1",
+    "rt64": "5473732a822a4423b5696e7cb18fecc425a59875",
+    "bizhawk": "bdddf4a58aa1a022afb11dc73294a81a5aa7bbd5",
+    "gliden64_executed": "4f1f88a415630481a9ce58f11279e6ec94bbe2d1",
+    "gliden64_inspected": "020b6ab5de1f13d8e673c0a23529f1de1e507c9d"
+  },
+  "inventory": [
+    {
+      "id": "boot-loader",
+      "task_class": "boot",
+      "container_bytes": 384,
+      "captured_active_bytes": 0,
+      "captured_data_bytes": 0,
+      "overlay": {
+        "status": "none",
+        "slot_count": 0,
+        "variant_count": 0,
+        "switch_execution": "not-applicable"
+      }
+    },
+    {
+      "id": "audio-primary",
+      "task_class": "audio",
+      "container_bytes": 6208,
+      "captured_active_bytes": 4096,
+      "captured_data_bytes": 2048,
+      "overlay": {
+        "status": "confirmed",
+        "slot_count": 1,
+        "variant_count": 2,
+        "switch_execution": "not-observed"
+      }
+    },
+    {
+      "id": "graphics-primary",
+      "task_class": "graphics",
+      "container_bytes": 4752,
+      "captured_active_bytes": 4096,
+      "captured_data_bytes": 2048,
+      "overlay": {
+        "status": "suspected",
+        "slot_count": 0,
+        "variant_count": 0,
+        "switch_execution": "not-observed"
+      }
+    }
+  ],
+  "capture_evidence": {
+    "classification": "PRIVATE_REGENERABLE",
+    "status": "attested-complete",
+    "verification": "maintainer-attested",
+    "regeneration_script_tracked": false,
+    "emulator_version": "2.11.1",
+    "core": "mupen64plus",
+    "rsp_mode": "hle",
+    "graphics_plugin": "gliden64",
+    "emulator_package_sha256": "dd7cbd5e205b09c5bce6afabc4f8aa525acc0bbeb9753b198a8db3fe6a5e5717",
+    "graphics_plugin_binary_sha256": "cf6c4b96bc10b0dbe87c895ce8df241c139912f751da10251a18888ebff76466",
+    "unique_task_count": 205,
+    "task_classes": [
+      {
+        "task_class": "graphics",
+        "count": 9,
+        "first_frame": 48,
+        "last_frame": 668,
+        "unique_task_data_count": 9,
+        "unique_ucode_count": 1,
+        "unique_ucode_data_count": 1
+      },
+      {
+        "task_class": "audio",
+        "count": 196,
+        "first_frame": 34,
+        "last_frame": 900,
+        "unique_task_data_count": 196,
+        "unique_ucode_count": 1,
+        "unique_ucode_data_count": 1
+      }
+    ],
+    "graphics_fingerprint": {
+      "algorithm": "sha256-logical-4096",
+      "digest_disclosed": false,
+      "oracle_match": true
+    },
+    "frame_progression_observed": true,
+    "render_output_validation": "not-established",
+    "tracked_body_policy": "defense-in-depth-git-index-scan"
+  },
+  "audio_path": {
+    "backend": "pinned-rsp-recompiler",
+    "status": "representative-control-flow-observed",
+    "verification": "maintainer-attested",
+    "regeneration_harness_tracked": false,
+    "generation_passed": true,
+    "compile_passed": true,
+    "representative_task_count": 196,
+    "normal_exit_count": 196,
+    "overlay_switch_count": 0,
+    "referenced_memory_closure": false,
+    "output_validation": "not-established",
+    "second_overlay_variant_executed": false,
+    "limitations": "Boot-window command streams exited normally, but generated audio samples were not compared with a reference and the second overlay variant was not exercised."
+  },
+  "graphics_path": {
+    "family": "f3ddkr-jfg",
+    "primary": {
+      "backend": "pinned-rt64",
+      "status": "implementation-required",
+      "native_handler_present": false
+    },
+    "recompiler_probe": {
+      "status": "blocked",
+      "reason_id": "unsupported-dp-register-read"
+    },
+    "tested_fallback": {
+      "backend": "mupen64plus-gliden64",
+      "status": "task-path-progressed",
+      "bizhawk_commit": "bdddf4a58aa1a022afb11dc73294a81a5aa7bbd5",
+      "commit": "4f1f88a415630481a9ce58f11279e6ec94bbe2d1",
+      "license": "GPL-2.0-only",
+      "use": "local-oracle-only",
+      "representative_task_count": 9,
+      "detector_match": true,
+      "frame_progression_observed": true,
+      "render_output_validation": "not-established"
+    },
+    "source_inspection_candidate": {
+      "backend": "gliden64",
+      "commit": "020b6ab5de1f13d8e673c0a23529f1de1e507c9d",
+      "license": "GPL-2.0-only",
+      "use": "newer-local-source-inspection-only"
+    },
+    "clean_room_scope": {
+      "source_commit": "020b6ab5de1f13d8e673c0a23529f1de1e507c9d",
+      "base_custom_handler_count": 7,
+      "game_variant_override_count": 1,
+      "strategy": "independently-authored-rt64-extension"
+    }
+  },
+  "decision": {
+    "spike_status": "graphics-output-blocked",
+    "audio_gate": "blocked-output-unvalidated",
+    "graphics_gate": "blocked-render-output-unvalidated",
+    "next_gate": "Implement the bounded custom graphics family in the candidate renderer, then compare sanitized render and audio hashes against private local references."
+  }
+}

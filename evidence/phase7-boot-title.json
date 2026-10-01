@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "kind": "jfg-phase7-scene-evidence",
+  "status": "pass",
+  "scene": "boot-title",
+  "renderer": {
+    "id": "rt64",
+    "revision": "5473732a822a4423b5696e7cb18fecc425a59875",
+    "developer_debugger_available": true
+  },
+  "capture": {
+    "boundary": "exact-osSpTaskStartGo",
+    "presented_after_vi_buffer_swap": true,
+    "real_task_count": 1
+  },
+  "task": {
+    "parsed_command_count": 732,
+    "custom_handler_command_count": 66,
+    "unsupported_command_count": 0
+  },
+  "boundary": {
+    "independent_semantic_oracle_match": true,
+    "completion_committed_after_oracle": true,
+    "framebuffer_contract_verified": true
+  },
+  "frame": {
+    "rt64_width": 640,
+    "rt64_height": 480,
+    "vi_width": 320,
+    "vi_height": 240,
+    "repeat_count": 3,
+    "pixel_output_byte_identical": true
+  },
+  "comparison": {
+    "method": "scripts/compare_phase7_frames.py",
+    "normalization": "fit-height-or-width-bilinear-centered-black",
+    "ssim_prefilter": "gaussian-one-reference-pixel",
+    "worst_case_metrics": {
+      "ssim_millionths": 910110,
+      "foreground_iou_millionths": 838980,
+      "mean_absolute_error_millionths": 43152,
+      "psnr_millidecibels": 17155
+    },
+    "thresholds": {
+      "minimum_ssim_millionths": 800000,
+      "minimum_foreground_iou_millionths": 800000,
+      "maximum_mean_absolute_error_millionths": 60000
+    }
+  },
+  "claims": {
+    "counts_toward_scene_gate": true,
+    "phase7_complete": true
+  }
+}

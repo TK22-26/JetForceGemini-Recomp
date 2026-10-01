@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/g2-completion-evidence.schema.json",
+  "title": "Public-safe G2 completion evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "privacy",
+    "record_class",
+    "pins",
+    "requirements",
+    "evidence_set_sha256",
+    "gate"
+  ],
+  "properties": {
+    "$schema": { "const": "../schemas/g2-completion-evidence.schema.json" },
+    "schema_version": { "const": 2 },
+    "kind": { "const": "jfg-g2-completion-evidence" },
+    "privacy": { "const": "public-safe-aggregate-only" },
+    "record_class": { "const": "maintainer-reviewed-public-aggregate" },
+    "pins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jfg_decomp_commit",
+        "n64recomp_commit",
+        "supported_input_id",
+        "dependency_lock_sha256",
+        "architecture_decision_sha256"
+      ],
+      "properties": {
+        "jfg_decomp_commit": { "$ref": "#/$defs/commit" },
+        "n64recomp_commit": { "$ref": "#/$defs/commit" },
+        "supported_input_id": { "const": "jfg-us-retail" },
+        "dependency_lock_sha256": { "$ref": "#/$defs/sha256" },
+        "architecture_decision_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpu-sections",
+        "overlay-lifecycle",
+        "rsp-programs",
+        "graphics-tasks",
+        "audio-tasks",
+        "save-round-trip",
+        "runtime-traps",
+        "dependency-legal-selection"
+      ],
+      "properties": {
+        "cpu-sections": { "$ref": "#/$defs/requirement" },
+        "overlay-lifecycle": { "$ref": "#/$defs/requirement" },
+        "rsp-programs": { "$ref": "#/$defs/requirement" },
+        "graphics-tasks": { "$ref": "#/$defs/requirement" },
+        "audio-tasks": { "$ref": "#/$defs/requirement" },
+        "save-round-trip": { "$ref": "#/$defs/requirement" },
+        "runtime-traps": { "$ref": "#/$defs/requirement" },
+        "dependency-legal-selection": { "$ref": "#/$defs/requirement" }
+      }
+    },
+    "evidence_set_sha256": { "$ref": "#/$defs/sha256" },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "decision",
+        "broad_phase4_authorized",
+        "all_required_checks_passed"
+      ],
+      "properties": {
+        "id": { "const": "G2" },
+        "decision": { "const": "go" },
+        "broad_phase4_authorized": { "const": true },
+        "all_required_checks_passed": { "const": true }
+      }
+    }
+  },
+  "$defs": {
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "positiveCount": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 33554432
+    },
+    "nonNegativeCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 33554432
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "passed",
+        "evidence_record_count",
+        "executable_evidence_count",
+        "unresolved_count",
+        "result_sha256"
+      ],
+      "properties": {
+        "passed": { "const": true },
+        "evidence_record_count": { "$ref": "#/$defs/positiveCount" },
+        "executable_evidence_count": { "$ref": "#/$defs/nonNegativeCount" },
+        "unresolved_count": { "const": 0 },
+        "result_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

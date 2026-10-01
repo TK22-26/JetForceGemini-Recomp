@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "kind": "jfg-phase8-completion",
+  "status": "pass",
+  "scenarios": [
+    {
+      "scenario": "launch-to-title",
+      "oracle_checkpoint_match": true,
+      "repeat_state_hashes": [
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b",
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b",
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b"
+      ],
+      "repeat_journal_hashes": [
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0",
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0",
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0"
+      ]
+    },
+    {
+      "scenario": "title-menu-new-game",
+      "oracle_checkpoint_match": true,
+      "repeat_state_hashes": [
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b",
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b",
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b"
+      ],
+      "repeat_journal_hashes": [
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0",
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0",
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0"
+      ]
+    },
+    {
+      "scenario": "first-gameplay-input",
+      "oracle_checkpoint_match": true,
+      "repeat_state_hashes": [
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b",
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b",
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b"
+      ],
+      "repeat_journal_hashes": [
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0",
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0",
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0"
+      ]
+    },
+    {
+      "scenario": "save-exit-relaunch-resume",
+      "oracle_checkpoint_match": true,
+      "repeat_state_hashes": [
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b",
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b",
+        "a1c91618d99c9ca4e335c55a4197b4b53aeb5207da3d8b1a0621a4b4d77cdc3b"
+      ],
+      "repeat_journal_hashes": [
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0",
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0",
+        "c7385a725de761069a4819b9d7f38bf6301ffdc78c4400334db3908676874db0"
+      ]
+    }
+  ],
+  "runtime": {
+    "generated_cpu": true,
+    "continuous_rt64": true,
+    "presented_frames": 4400,
+    "unsupported_boundaries": 0
+  },
+  "input": {
+    "sample_count": 4375,
+    "timestamped": true,
+    "disconnect_reconnect": true,
+    "controlled_gameplay_response": true
+  },
+  "audio": {
+    "decoded_task_count": 4399,
+    "device_consumed_seconds": 146,
+    "underrun_count": 0,
+    "overrun_count": 0,
+    "unsupported_command_count": 0
+  },
+  "persistence": {
+    "fresh_profile": true,
+    "save_committed": true,
+    "process_count": 4,
+    "save_reloaded": true,
+    "configuration_reloaded": true,
+    "controller_pak_exercised": true
+  },
+  "gates": {
+    "live_generated_cpu_execution": true,
+    "continuous_rt64_presentation": true,
+    "controller_input_callbacks": true,
+    "input_sampling_timing_verified": true,
+    "controller_disconnect_reconnect": true,
+    "title_menu_navigation": true,
+    "new_game_reaches_controlled_gameplay": true,
+    "audio_rsp_tasks_decoded": true,
+    "audio_device_output_verified": true,
+    "audio_soak_verified": true,
+    "save_device_integrated": true,
+    "native_filesystem_mapping": true,
+    "configuration_persistence": true,
+    "rom_selection_validation": true,
+    "controller_pak_accessory_path": true,
+    "process_restart_resume": true,
+    "deterministic_replays_match": true,
+    "unsupported_runtime_boundaries_zero": true
+  }
+}

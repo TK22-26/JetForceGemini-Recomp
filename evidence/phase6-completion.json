@@ -1,0 +1,88 @@
+{
+  "acceptance_contract": "docs/planning/phase6-acceptance.md",
+  "authentication": {
+    "algorithm": "openssh-ed25519",
+    "namespace": "jfg-phase6-completion-v1",
+    "payload_sha256": "40ddae1989988efeb361d5dbc13c86fb46cfd1432e5a5594703ea4ef837ddbad",
+    "signature_hex_chunks": [
+      "2d2d2d2d2d424547494e20535348205349474e41545552452d2d2d2d2d0a5531",
+      "4e4955306c48414141414151414141444d414141414c63334e6f4c57566b4d6a",
+      "55314d546b4141414167356576706f6e67526b4d49462b4a55525637714a3464",
+      "4d3261390a35307567365061543350723877623731594141414159616d5a6e4c",
+      "58426f59584e6c4e69316a6232317762475630615739754c5859784141414141",
+      "41414141415a7a614745310a4d544941414142544141414143334e7a6143316c",
+      "5a4449314e5445354141414151457852765274796e3459627642667163715765",
+      "754f6451576c327839724533596a69726e370a785856487370774a373043797a",
+      "704932785a6568366e66796b376a4a4c2f314b665063766f7559413263796f53",
+      "575a51773d0a2d2d2d2d2d454e4420535348205349474e41545552452d2d2d2d",
+      "2d0a"
+    ]
+  },
+  "bound_files": {
+    ".github/workflows/ci.yml": "409e74f12b66c048a4d81a9e5c83959df0ed922c7f121c53e357fe52a14743cb",
+    "CMakeLists.txt": "24876c00a39454cd490b2c5542a922f778ccf592dd686bf896f3c64133bbfa9b",
+    "cmake/GeneratedCode.cmake": "61b0b884cbc9a13a7588c5597425459100c5cf28efc1776c5dc764394aba9559",
+    "config/phase6-completion-signing.json": "0a4d82acba2308044e3abdd3164537412abdd359921b2f936d56dc932ed0d63a",
+    "docs/planning/phase6-acceptance.md": "65b831d827f0bb656708cc6231a37bb95094607c48deb693603ccfbd5b307e8e",
+    "docs/planning/phase6-native-boot-addendum.md": "56e09f62f62419aac613b9c5533a0c86961b9aea2eaec19f83efbf372f770cac",
+    "docs/planning/phase6-native-boot-remaining.md": "1794b70023a5eea15a2b42a5c63045e41959ff075066b1972ea638af41804909",
+    "evidence/phase6-native-boot-summary.json": "23b765d6e2acbb6200cd6b19587f34faccb09ab7aa3804d4bc3cb59e0527b161",
+    "evidence/phase6-native-stub-ledger.json": "0134a7049f739de0ce483217789eefcadda5bc20a294ae93da031a02d5018a8f",
+    "include/jfg/boot/driver.hpp": "a47f8221bf30873cafa6e2e02c8b01985d10b72214728cfb2c8dd7ef4c943249",
+    "include/jfg/boot/executor.hpp": "4f2746f4771183c19f1dd05a3fcfcb6387ea44c451117e17e3b5d759747fd0f9",
+    "include/jfg/boot/hle.hpp": "58ce2ed7dd2b72c9e547ab210728a3b4e33b4d544ffb84df5bd3105ed637ebe4",
+    "include/jfg/boot/representative.hpp": "b6077b443d134cf1f5ceeb19b1a9c83ce2f8535b4edd96e26e3d95031cb77ef4",
+    "include/jfg/boot/reset_handoff.hpp": "722cafd38ed6e333625e1b7905e9a7f830c805470ac783b44841d91d220f03d1",
+    "include/jfg/boot/runtime.hpp": "79f02fa0e8a178df7ac88e269e76977d21a1bbbb5e5e240cd14b6d4c1bc3eddb",
+    "include/jfg/boot/thread_scheduler.hpp": "cd0c1211ae0f90ed84b378fccd89bbae8a35381949a1eab618833254769fa8f2",
+    "scripts/build_phase6_completion_manifest.py": "da0da65b3cf549cf2274604177ad210df403bf56e9b8f8c9c5aedab72d7b7108",
+    "scripts/prepare_phase6_native_dispatch_table.py": "7e12f2a9bd911bf542ba405fe5735d47a66f4df6c8ca3f4ead74b5ac6c664d22",
+    "scripts/verify_phase6_native_boot.py": "25d0a59f00a7d23bf90f80d4240eb31fb3b0254f0243d4032817f0d31cdcc3b4",
+    "src/app/jfg_boot_main.cpp": "11f2b7d5be24e431240aeb48ac27ac5fc2b6bde8814f4e1ed71e5b11d402f1cd",
+    "src/app/jfg_native_boot_main.cpp": "a9af12951147cf6cee5b9b68b2932362cca29dcc59fafd8edc1b9f25c89992f3",
+    "src/boot/PHASE6_NATIVE_PROVENANCE.md": "2c3b9955aa64bd6d8bf86840698c372d183a57c534c1be2cbd39e83b2ae85e7f",
+    "src/boot/PROVENANCE.md": "3a1ad407a2bb0ecb519fc28dc5ce5ac6d5e23f135836cc1d04ff5a6819134b3b",
+    "src/boot/executor.cpp": "2e965baee190dcae72517a190d0aa87f560b916c0d8a7ccf72950e2b3c8240fd",
+    "src/boot/hle.cpp": "8e6f0c669dfcb16f63eb0922a85475e3582e6a5b11b0f20be40cc3ab8c99afce",
+    "src/boot/native_boot.cpp": "7e80166c3df92a2419a225cc1067fc576c101326af8235233873c198ec50b68f",
+    "src/boot/reset_handoff.cpp": "5a905c7791ef676094ab54411923150eb736af4a854c76e8bb8352d2f23bb360",
+    "src/boot/runtime.cpp": "05ccd8af7e6256e85a5d779215be0c71a9e6cdd9fa7165b68e2efa8a5c3ff3ef",
+    "src/boot/thread_scheduler.cpp": "d44e5b00329eda6fd362f88396b8e5df022ad4d49f00c7736ab3155bf40ade05",
+    "src/runtime/recomp_support/minimal_runtime.cpp": "f87870c1eb6486b82faa24dad69fe3383e6113e4033a91d0b47042458e0b484c",
+    "tests/CMakeLists.txt": "a4d4e79a7022d6dce8fa816522dacd338539f8b01654a68d8a762b91ca09061e",
+    "tests/boot_tests.cpp": "576bf974c267c45c7be6819969efd5f252fe654380508661114472a7c672dad9",
+    "tests/hle_tests.cpp": "15454ef62a2673239a91886b57f46d5d37c215295723470ecde9ba16d6a84d82",
+    "tests/reset_handoff_tests.cpp": "bb922020d9bdfa67db5126fdaca2016229d2dc47936480a75c3d78632c8e7ac4",
+    "tests/test_phase6_cmake_behavior.py": "4af96715e3c88cc0586faa6b3b950ce6df9ab5998426d50be2b399b1e0173efd",
+    "tests/test_phase6_policy.py": "0d732e7b13d6809aff9596bcbb200087b3b74d3fe2b005c41ad89aa9d338048a",
+    "tests/test_prepare_phase6_native_dispatch_table.py": "b65b9de2eba3b624b3f10e09b3e59d1c045d43d40aaf83d381c096aa6b03ee53",
+    "tests/test_verify_phase6_native_boot.py": "01ba7a5d2d67f83464582723d75c2193010a59f8aa6f97b54d4b97ab95cd5791"
+  },
+  "kind": "jfg-phase6-completion",
+  "native_boot_status": {
+    "distribution_authorized": false,
+    "private_evidence_sha256": "d8a107cae856c8dcc567cbfed91447aa8e8f5ce4a58f9ffa6f20618730d6849a",
+    "state": "complete-local-m2",
+    "summary": "evidence/phase6-native-boot-summary.json",
+    "tracked_by": "docs/planning/phase6-native-boot-remaining.md"
+  },
+  "representative_boot": {
+    "acceptance_proof": false,
+    "checkpoint": "status=1;vi=5;events=14;threads=2;rsp=1;stubs=0;journal=2f8f8e185e7f380e643e64910d64bb88f77fb46def622cb6277e1f5c6f836800;state=4edff7780cc9a41302f9fa52fef8d054f5aff4cf57d7a7fe76983753eb77025f",
+    "reached_stable_vi": true,
+    "role": "rom-free-regression-only"
+  },
+  "required_ctest_names": [
+    "jfg.boot",
+    "jfg.boot_self_check",
+    "jfg.boot_repeat",
+    "jfg.boot_invalid_rom",
+    "jfg.phase6_native_m2"
+  ],
+  "runtime_authorship": {
+    "independently_authored": true,
+    "provenance": "src/boot/PROVENANCE.md",
+    "third_party_source_copied": false
+  },
+  "schema_version": 1
+}

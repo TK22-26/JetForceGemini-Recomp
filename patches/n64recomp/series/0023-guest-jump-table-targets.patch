@@ -1,0 +1,69 @@
+diff --git a/include/recompiler/generator.h b/include/recompiler/generator.h
+index c647fee..8d1d444 100644
+--- a/include/recompiler/generator.h
++++ b/include/recompiler/generator.h
+@@ -78,0 +79,2 @@ namespace N64Recomp {
++        void emit_guest_switch_capture(const Context& context, const JumpTable& jtbl, int reg) const;
++        void emit_guest_switch(const Context& context, const JumpTable& jtbl) const;
+diff --git a/src/cgenerator.cpp b/src/cgenerator.cpp
+index cf9419f..241b657 100644
+--- a/src/cgenerator.cpp
++++ b/src/cgenerator.cpp
+@@ -1,0 +2 @@
++#include <algorithm>
+@@ -453,0 +455,28 @@ void N64Recomp::CGenerator::emit_function_call_by_register(int reg) const {
++void N64Recomp::CGenerator::emit_guest_switch_capture(const Context& context, const JumpTable& jtbl, int reg) const {
++    emit_indirect_target_capture(reg);
++    if (context.sections[jtbl.section_index].relocatable) {
++        fmt::print(output_file, "    const int32_t guest_switch_base = section_addresses[{}];\n", jtbl.section_index);
++    }
++}
++
++void N64Recomp::CGenerator::emit_guest_switch(const Context& context, const JumpTable& jtbl) const {
++    const auto& section = context.sections[jtbl.section_index];
++    // The finite member set is still authoritative, but the runtime table is
++    // not immutable. Dispatch on JR's captured target, never its old index.
++    std::vector<uint32_t> targets = jtbl.entries;
++    std::sort(targets.begin(), targets.end());
++    targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
++    if (!section.relocatable) fmt::print(output_file, "switch (guest_call_target) {{\n");
++    for (uint32_t target : targets) {
++        if (section.relocatable) {
++            fmt::print(output_file, "    if (guest_call_target == U64(ADD32(guest_switch_base, 0x{:08X}U))) goto L_{:08X};\n",
++                target - section.ram_addr, target);
++        }
++        else {
++            fmt::print(output_file, "    case U64(S32(0x{:08X}U)): goto L_{:08X};\n", target, target);
++        }
++    }
++    if (!section.relocatable) fmt::print(output_file, "    default: break;\n    }}\n");
++    fmt::print(output_file, "    switch_error((const char*)0, 0x{:08X}, 0x{:08X});\n    return;\n    }}\n", jtbl.jr_vram, jtbl.vram);
++}
++
+diff --git a/src/recompilation.cpp b/src/recompilation.cpp
+index a696c00..9b8aab5 100644
+--- a/src/recompilation.cpp
++++ b/src/recompilation.cpp
+@@ -184 +184 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
+-    if (jtbl_lw_instructions.contains(instr_vram)) {
++    if (!context.emit_guest_cpu_state && jtbl_lw_instructions.contains(instr_vram)) {
+@@ -609 +609 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
+-            if (find_result != stats.jump_tables.end()) {
++            if (!context.emit_guest_cpu_state && find_result != stats.jump_tables.end()) {
+@@ -719,0 +720,16 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
++                if constexpr (std::is_same_v<GeneratorType, N64Recomp::CGenerator>) {
++                    if (context.emit_guest_cpu_state) {
++                        // Architectural LW remains a real memory read. Capture JR's
++                        // actual loaded target before observers and delay-slot work.
++                        print_indent();
++                        generator.emit_guest_switch_capture(context, cur_jtbl, rs);
++                        if (!process_delay_slot(false)) return false;
++                        print_indent();
++                        generator.emit_guest_switch(context, cur_jtbl);
++                        if (!N64Recomp::record_indirect_decision(context, func, instr_vram, rs,
++                                N64Recomp::IndirectDecisionClassification::BoundedSwitch, &cur_jtbl)) {
++                            return false;
++                        }
++                        break;
++                    }
++                }

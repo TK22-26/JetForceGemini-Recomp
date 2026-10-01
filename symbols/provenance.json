@@ -1,0 +1,15 @@
+{
+  "$schema": "../schemas/provenance.schema.json",
+  "schema_version": 1,
+  "rom": {
+    "region": "us",
+    "sha1": "493ced9008dbe932d6e91179b68e8630cf23a023"
+  },
+  "repositories": {
+    "jfg_decomp": "b49aa4791e8fb1e7acd3bba10346876358d0a9a7",
+    "n64recomp": "ffb39cdad1da5de07eaaa48bd1db4a89a7986771",
+    "n64modernruntime": "589bbf018a3e6d3646ddf7de1e7919f1b7e99bb1",
+    "rt64": "5473732a822a4423b5696e7cb18fecc425a59875"
+  },
+  "symbol_export_version": 1
+}

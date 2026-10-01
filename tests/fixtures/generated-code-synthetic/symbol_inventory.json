@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "baseline_body_symbols": [
+    "synthetic_core_recomp",
+    "synthetic_replaceable_recomp"
+  ],
+  "baseline_body_data_symbols": [
+    "jfg_synthetic_body_data"
+  ],
+  "normal_callable_symbols": [
+    "synthetic_core",
+    "synthetic_replaceable"
+  ],
+  "normal_wrapper_data_symbols": [
+    "jfg_synthetic_wrapper_data"
+  ],
+  "patch_symbols": [
+    "synthetic_replaceable"
+  ],
+  "patch_data_symbols": [
+    "jfg_synthetic_patch_data"
+  ],
+  "support_lifecycle_symbols": [
+    "jfg_generated_initialize_sections",
+    "jfg_generated_lookup_function",
+    "jfg_generated_section_count"
+  ],
+  "support_data_symbols": [
+    "jfg_synthetic_support_data"
+  ],
+  "runtime_bridge_symbols": [
+    "cache_op",
+    "cop0_eret",
+    "cop0_read",
+    "cop0_status_read",
+    "cop0_status_write",
+    "cop0_tlb_op",
+    "cop0_write",
+    "do_break",
+    "get_function",
+    "jfg_minimal_runtime_bind_cpu",
+    "jfg_minimal_runtime_bind_dispatch",
+    "jfg_minimal_runtime_initialize",
+    "jfg_minimal_runtime_section_capacity",
+    "jfg_minimal_runtime_unbind_cpu",
+    "jfg_minimal_runtime_unbind_dispatch",
+    "pause_self",
+    "recomp_syscall_handler",
+    "reserved_instruction",
+    "switch_error"
+  ],
+  "runtime_data_symbols": [
+    "section_addresses"
+  ],
+  "link_smoke_entry_symbols": [
+    "jfg_generated_link_smoke"
+  ],
+  "coverage_symbol_count": 31,
+  "coverage_sha256": "91c1999b9e48b463a4e0214e1ca48021b76559c082fa5456c170e8a8136db120",
+  "section_count": 2
+}

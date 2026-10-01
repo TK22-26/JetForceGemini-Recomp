@@ -1,0 +1,101 @@
+diff --git a/include/recompiler/context.h b/include/recompiler/context.h
+index c81560f..15b8543 100644
+--- a/include/recompiler/context.h
++++ b/include/recompiler/context.h
+@@ -248,0 +249 @@ namespace N64Recomp {
++        bool emit_guest_dynamic_returns = false;
+diff --git a/include/recompiler/generator.h b/include/recompiler/generator.h
+index c7e5e59..c647fee 100644
+--- a/include/recompiler/generator.h
++++ b/include/recompiler/generator.h
+@@ -74,2 +74,2 @@ namespace N64Recomp {
+-        CGenerator(std::ostream& output_file, bool guest_cpu_state = false)
+-            : output_file(output_file), guest_cpu_state(guest_cpu_state) {};
++        CGenerator(std::ostream& output_file, bool guest_cpu_state = false, bool guest_dynamic_returns = false)
++            : output_file(output_file), guest_cpu_state(guest_cpu_state), guest_dynamic_returns(guest_dynamic_returns) {};
+@@ -78 +78 @@ namespace N64Recomp {
+-        void emit_captured_indirect_call() const;
++        void emit_captured_indirect_call(bool check_return = false) const;
+@@ -122,0 +123 @@ namespace N64Recomp {
++        bool guest_dynamic_returns;
+diff --git a/include/recompiler/indirect_decisions.h b/include/recompiler/indirect_decisions.h
+index 47746e6..da4b4c3 100644
+--- a/include/recompiler/indirect_decisions.h
++++ b/include/recompiler/indirect_decisions.h
+@@ -26,0 +27 @@ namespace N64Recomp {
++        DynamicTailOrReturn,
+diff --git a/src/config.h b/src/config.h
+index fb9f0e9..b547129 100644
+--- a/src/config.h
++++ b/src/config.h
+@@ -47,0 +48 @@ namespace N64Recomp {
++        bool emit_guest_dynamic_returns = false;
+diff --git a/src/config.cpp b/src/config.cpp
+index bf55ac1..7247470 100644
+--- a/src/config.cpp
++++ b/src/config.cpp
+@@ -424,0 +425,8 @@ N64Recomp::Config::Config(const char* path) {
++        const auto guest_returns = input_data["emit_guest_dynamic_returns"];
++        if (guest_returns && !guest_returns.is_boolean()) {
++            throw toml::parse_error("emit_guest_dynamic_returns must be a boolean", guest_returns.node()->source());
++        }
++        emit_guest_dynamic_returns = guest_returns.value<bool>().value_or(false);
++        if (emit_guest_dynamic_returns && !emit_guest_link_registers) {
++            throw toml::parse_error("guest dynamic returns require guest link registers", guest_returns.node()->source());
++        }
+diff --git a/src/main.cpp b/src/main.cpp
+index 7d6adfd..59fec55 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -558,0 +559 @@ int main(int argc, char** argv) {
++    context.emit_guest_dynamic_returns = config.emit_guest_dynamic_returns;
+diff --git a/src/cgenerator.cpp b/src/cgenerator.cpp
+index 90d595d..a91188d 100644
+--- a/src/cgenerator.cpp
++++ b/src/cgenerator.cpp
+@@ -407,0 +408 @@ void N64Recomp::CGenerator::emit_function_start(const std::string& function_name
++        if (guest_dynamic_returns) fmt::print(output_file, "    const gpr guest_return_link = ctx->r31;\n    (void)guest_return_link;\n");
+@@ -415,0 +417 @@ void N64Recomp::CGenerator::emit_function_start(const std::string& function_name
++    if (guest_dynamic_returns) fmt::print(output_file, "    const gpr guest_return_link = ctx->r31;\n    (void)guest_return_link;\n");
+@@ -439 +441,4 @@ void N64Recomp::CGenerator::emit_indirect_target_capture(int reg) const {
+-void N64Recomp::CGenerator::emit_captured_indirect_call() const {
++void N64Recomp::CGenerator::emit_captured_indirect_call(bool check_return) const {
++    if (check_return) {
++        fmt::print(output_file, "if (guest_call_target == guest_return_link) return;\n    ");
++    }
+diff --git a/src/recompilation.cpp b/src/recompilation.cpp
+index ccd0140..58662a2 100644
+--- a/src/recompilation.cpp
++++ b/src/recompilation.cpp
+@@ -285 +285 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
+-                generator.emit_captured_indirect_call();
++                generator.emit_captured_indirect_call(context.emit_guest_dynamic_returns && instr_id == InstrId::cpu_jr);
+@@ -716,0 +717 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
++                    context.emit_guest_dynamic_returns ? N64Recomp::IndirectDecisionClassification::DynamicTailOrReturn :
+@@ -1011,0 +1013,4 @@ bool recompile_function_impl(GeneratorType& generator, const N64Recomp::Context&
++    if (context.emit_guest_dynamic_returns && !context.emit_guest_link_registers) {
++        fmt::print(stderr, "Guest dynamic returns require guest link registers\n");
++        return false;
++    }
+@@ -1013 +1018 @@ bool recompile_function_impl(GeneratorType& generator, const N64Recomp::Context&
+-        if (context.emit_guest_link_registers || context.emit_guest_cpu_state) {
++        if (context.emit_guest_link_registers || context.emit_guest_cpu_state || context.emit_guest_dynamic_returns) {
+@@ -1136 +1141 @@ bool N64Recomp::recompile_function(const N64Recomp::Context& context, size_t fun
+-    CGenerator generator{output_file, context.emit_guest_cpu_state};
++    CGenerator generator{output_file, context.emit_guest_cpu_state, context.emit_guest_dynamic_returns};
+diff --git a/src/indirect_decisions.cpp b/src/indirect_decisions.cpp
+index 11ad627..73793a8 100644
+--- a/src/indirect_decisions.cpp
++++ b/src/indirect_decisions.cpp
+@@ -131,0 +132,2 @@ namespace {
++        case N64Recomp::IndirectDecisionClassification::DynamicTailOrReturn:
++            return "dynamic-tail-or-return";
+@@ -583,0 +586,5 @@ bool N64Recomp::write_indirect_decision_sidecar(
++        else if (emission.classification == IndirectDecisionClassification::DynamicTailOrReturn) {
++            if (!context.emit_guest_dynamic_returns || !context.emit_guest_link_registers ||
++                emission.source_register == 31 || !emission.target_members.empty()) return false;
++            output << "\"kind\":\"generated-callable-or-matching-incoming-link\"";
++        }
+@@ -700 +707 @@ bool N64Recomp::write_indirect_decision_sidecar(
+-        "\"schema_version\":1}";
++        "\"schema_version\":" << (context.emit_guest_dynamic_returns ? 2 : 1) << '}';

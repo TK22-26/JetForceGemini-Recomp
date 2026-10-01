@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "kind": "jfg-phase7-rt64-task-smoke",
+  "status": "pass",
+  "renderer": {
+    "id": "rt64",
+    "revision": "5473732a822a4423b5696e7cb18fecc425a59875",
+    "developer_debugger_available": true
+  },
+  "task": {
+    "source": "ignored-private-phase4-capture",
+    "scene": "unclassified",
+    "real_task_count": 1,
+    "parsed_command_count": 583,
+    "custom_handler_command_count": 58,
+    "unsupported_command_count": 0
+  },
+  "boundary": {
+    "callbacks_registered": true,
+    "brokered_rdram_snapshot": true,
+    "live_simulation_memory_exposed": false,
+    "independent_semantic_oracle_match": true,
+    "completion_committed_after_oracle": true,
+    "rt64_internal_interrupt_isolated": true
+  },
+  "claims": {
+    "f3ddkr_task_submitted_to_rt64": true,
+    "rendered_pixels_observed": false,
+    "frame_presented": false,
+    "visual_correctness": false,
+    "counts_toward_required_scene_pair": false
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "$schema": "../schemas/audio-task-bridge.schema.json",
+  "schema_version": 4,
+  "kind": "jfg-audio-task-bridge",
+  "privacy": "public-safe-aggregate",
+  "pins": {
+    "n64recomp": "ffb39cdad1da5de07eaaa48bd1db4a89a7986771",
+    "n64modernruntime": "589bbf018a3e6d3646ddf7de1e7919f1b7e99bb1"
+  },
+  "upstream_contract": {
+    "generated_memory_surface": "raw-full-guest-memory",
+    "runtime_success_predicate": "expected-exit-reason-only",
+    "completion_after_runtime_success": true,
+    "real_second_variant_executed": false,
+    "generated_secondary_fallback_executed": true
+  },
+  "bridge": {
+    "implementation": "project-authored-rom-free-host-boundary",
+    "active_program_max_bytes": 4096,
+    "program_data_max_bytes": 4096,
+    "command_stream_max_bytes": 1048576,
+    "output_max_bytes": 1048576,
+    "referenced_region_max_bytes": 8388608,
+    "referenced_region_max_count": 32,
+    "referenced_memory_max_bytes": 16777216,
+    "memory_operation_max_count": 1048576,
+    "memory_traffic_max_bytes": 67108864,
+    "instruction_alignment_bytes": 4,
+    "command_alignment_bytes": 8,
+    "output_frame_bytes": 4,
+    "parsed_command_max_count": 131072,
+    "transactional_output": true,
+    "transactional_referenced_writes": true,
+    "runtime_worker_installation_boundary": true,
+    "runtime_worker_owned_program_lifetime": true,
+    "runtime_worker_stale_identity_rejected": true,
+    "completion_prepare_commit_split": true,
+    "completion_commit_noexcept": true,
+    "backend_raw_memory_spans_exposed": false,
+    "memory_aliases_rejected": true,
+    "report_ledger_exact_match": true,
+    "independent_output_validator": true,
+    "backend_exceptions_fail_closed": true,
+    "synthetic_execution_passed": true
+  },
+  "variant_surface": {
+    "program_variant_count": 2,
+    "primary_synthetic_execution_passed": true,
+    "secondary_synthetic_execution_passed": true,
+    "broker_only_referenced_memory_required": true,
+    "unknown_commands_fail_closed": true,
+    "rsp_adapter_implemented": true,
+    "primary_real_execution_passed": true,
+    "secondary_real_execution_passed": false,
+    "secondary_generated_fail_closed_execution_passed": true
+  },
+  "evidence": {
+    "classification": "public-safe-aggregate",
+    "synthetic_task_count": 2,
+    "real_task_count": 1,
+    "private_body_present": false,
+    "synthetic_referenced_memory_closure": "broker-contract-established",
+    "real_referenced_memory_closure": "bounded-broker-contract-established",
+    "synthetic_output_validation": "exact-reference-established",
+    "real_output_validation": "exact-private-oracle-established",
+    "private_output_oracle_compared": true,
+    "real_scheduler_completion_order": "validated-output-before-single-signal",
+    "real_installed_worker_execution_passed": true,
+    "secondary_search_task_count": 2984,
+    "secondary_search_overlay_swap_task_count": 0,
+    "secondary_fallback_probe_count": 1,
+    "secondary_fallback_brokered_write_count": 1,
+    "secondary_fallback_completion_count": 0,
+    "secondary_fallback_transactional_rollback": true
+  },
+  "decision": {
+    "status": "g2-audio-native-path-proven",
+    "g2_gate": "pass",
+    "remaining_blocker_count": 0,
+    "next_gate": "Integrate the proven worker with the later scheduler while retaining the broker and fail-closed secondary fallback."
+  }
+}

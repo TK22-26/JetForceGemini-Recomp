@@ -1,0 +1,18 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 55f10a5..65a2626 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -207,0 +208,13 @@ target_link_libraries(LiveRecompTest LiveRecomp)
++
++include(CTest)
++if(BUILD_TESTING)
++    add_executable(N64RecompPhase4RegressionTest
++        tests/phase4_regression_test.cpp
++        src/config.cpp
++    )
++    target_include_directories(N64RecompPhase4RegressionTest PRIVATE
++        "${CMAKE_CURRENT_SOURCE_DIR}/src"
++    )
++    target_link_libraries(N64RecompPhase4RegressionTest LiveRecomp)
++    add_test(NAME N64Recomp.phase4_regressions COMMAND N64RecompPhase4RegressionTest)
++endif()

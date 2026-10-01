@@ -1,0 +1,9 @@
+{
+  "$schema": "../../schemas/execution-profile.schema.json",
+  "schema_version": 1,
+  "id": "compatibility",
+  "behavior": "compatibility",
+  "execution_backend": "production",
+  "presentation": "rendered",
+  "feature_flags": []
+}

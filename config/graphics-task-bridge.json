@@ -1,0 +1,72 @@
+{
+  "$schema": "../schemas/graphics-task-bridge.schema.json",
+  "schema_version": 6,
+  "kind": "jfg-graphics-task-bridge",
+  "privacy": "public-safe-aggregate-private-backed",
+  "pins": {
+    "rt64": "5473732a822a4423b5696e7cb18fecc425a59875",
+    "n64modernruntime": "589bbf018a3e6d3646ddf7de1e7919f1b7e99bb1"
+  },
+  "upstream_contract": {
+    "renderer_task_result": "void",
+    "sp_completion_timing": "before-renderer-call",
+    "unknown_command_behavior": "log-and-continue",
+    "pin_was_upstream_main_at_review": true
+  },
+  "bridge": {
+    "implementation": "project-authored-rom-free-host-boundary",
+    "native_adapter_path": "project-bounded-semantic",
+    "active_program_max_bytes": 4096,
+    "program_data_max_bytes": 4096,
+    "command_stream_max_bytes": 1048576,
+    "instruction_alignment_bytes": 4,
+    "command_alignment_bytes": 8,
+    "parsed_command_max_count": 131072,
+    "referenced_region_min_count": 1,
+    "referenced_region_max_count": 256,
+    "referenced_memory_max_bytes": 8388608,
+    "memory_access_max_count": 1048576,
+    "memory_access_max_bytes": 67108864,
+    "output_dimension_max": 8192,
+    "output_max_bytes": 67108864,
+    "memory_reads_brokered": true,
+    "all_declared_regions_must_be_observed": true,
+    "independent_output_oracle_required": true,
+    "backend_oracle_distinct_object_required": true,
+    "completion_policy": "prepare-then-noexcept-commit-after-validation",
+    "renderer_completion_sink_order": "oracle-then-prepare-then-commit",
+    "backend_exceptions_fail_closed": true,
+    "bounded_custom_fallback_implemented": true,
+    "command_prefix_verified_through_broker": true,
+    "semantic_output_kind_distinct": true,
+    "semantic_output_payload_comparison": "exact-bytes",
+    "visual_output_produced": false,
+    "synthetic_execution_passed": true
+  },
+  "family_surface": {
+    "base_custom_handler_count": 7,
+    "variant_override_count": 1,
+    "shared_base_delegate_required": true,
+    "unknown_commands_fail_closed": true,
+    "custom_handler_translation_implemented": true,
+    "semantic_renderer_implemented": true,
+    "shared_base_visual_renderer_implemented": false,
+    "real_task_full_surface_coverage": false,
+    "rt64_adapter_implemented": false
+  },
+  "evidence": {
+    "classification": "public-safe-aggregate-private-backed",
+    "real_task_count": 1,
+    "private_body_present": false,
+    "referenced_memory_closure": "established-for-one-private-task",
+    "semantic_output_validation": "exact-match-for-one-private-task",
+    "visual_output_validation": "not-established",
+    "completion_after_oracle": true
+  },
+  "decision": {
+    "status": "g2-graphics-native-fallback-proven",
+    "g2_gate": "pass",
+    "remaining_blocker_count": 0,
+    "next_gate": "Bind the proven fallback execution into the trusted G2 bundle; integrate scheduler and visual presentation in Phases 6 and 7."
+  }
+}

@@ -1,0 +1,245 @@
+{
+  "$schema": "../../schemas/phase1-build-evidence.schema.json",
+  "build_summary_sha256": "cb9a0f226e885a195615383b6a3c79bd8d3eb20fcada6e897f4408db5115b656",
+  "build_summary_sha256_by_environment": {
+    "ubuntu-22.04": "732bc42b2fd4effbbd13d288b04dc38d720344a993d37e07768a0cca568dc37b",
+    "ubuntu-24.04": "732bc42b2fd4effbbd13d288b04dc38d720344a993d37e07768a0cca568dc37b"
+  },
+  "decomp_commit": "b49aa4791e8fb1e7acd3bba10346876358d0a9a7",
+  "elf": {
+    "allocated_section_count": 167,
+    "conflicting_export_name_count": 0,
+    "map": {
+      "consistent": true,
+      "coverage_complete": false,
+      "coverage_verdict": "partial",
+      "section_candidate_count": 167,
+      "section_checked_count": 167,
+      "section_mismatch_count": 0,
+      "section_missing_count": 0,
+      "sha256_by_environment": {
+        "ubuntu-22.04": "d05f90f321c19b6ef5c235e8821d929cd62fdf53561f75d74ced5a3b437a8565",
+        "ubuntu-24.04": "2bb962c3c8b8272c972bc56fbad4ececbf7be585a6b488e6b42a9f9fa0233a63"
+      },
+      "symbol_candidate_count": 14603,
+      "symbol_checked_count": 9933,
+      "symbol_mismatch_count": 0,
+      "symbol_missing_count": 4670
+    },
+    "relocation_count": 0,
+    "section_count": 326,
+    "section_table_sha256": "3910d0530f9a8f770c83a6dea6aaa6e235cf4c0449153b6359467f03b077615f",
+    "sha256": "ea06a1f7fd54454fbf65f9dbe0bb6d731d5a44f732c16c8d157b475cb8078f1b",
+    "symbol_bindings": {
+      "GLOBAL": 14597,
+      "LOCAL": 1408,
+      "WEAK": 6
+    },
+    "symbol_count": 16011,
+    "symbol_types": {
+      "FILE": 181,
+      "FUNC": 3740,
+      "NOTYPE": 5461,
+      "OBJECT": 6307,
+      "SECTION": 322
+    },
+    "unexpected_section_overlap_count": 0
+  },
+  "environment_ids": [
+    "ubuntu-22.04",
+    "ubuntu-24.04"
+  ],
+  "environment_toolchains": [
+    {
+      "artifacts": {
+        "ido_recomp_manifest_sha256": "814749d074de6628bd3159e75041217f9d28f67a126e49d1d6b42af44e1d042a",
+        "n64crc_sha256": "f6a5da38420a1b1917fc3c210ab22a0cafdad6e664100cf279538cce0744003a",
+        "objdiff_cli_sha256": "1a4412f13bec86a2df757a943c8f2dfa85c28056ef85d19f26bcdd1054d8ad67"
+      },
+      "distribution": "Ubuntu 22.04.5 LTS",
+      "environment_id": "ubuntu-22.04",
+      "versions": {
+        "gcc": "gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+        "git": "git version 2.34.1",
+        "make": "GNU Make 4.3",
+        "mips_as": "GNU assembler (GNU Binutils for Ubuntu) 2.38",
+        "mips_ld": "GNU ld (GNU Binutils for Ubuntu) 2.38",
+        "mips_objcopy": "GNU objcopy (GNU Binutils for Ubuntu) 2.38",
+        "python": "3.10.12",
+        "python_packages": {
+          "PyYAML": "6.0.3",
+          "mapfile-parser": "2.13.0",
+          "spimdisasm": "1.42.3",
+          "splat64": "0.50.0"
+        },
+        "readelf": "GNU readelf (GNU Binutils for Ubuntu) 2.38"
+      }
+    },
+    {
+      "artifacts": {
+        "ido_recomp_manifest_sha256": "814749d074de6628bd3159e75041217f9d28f67a126e49d1d6b42af44e1d042a",
+        "n64crc_sha256": "2c38b9053c645c71501cb87679b4db4c64b390f7b008a958f240daa0235430b6",
+        "objdiff_cli_sha256": "1a4412f13bec86a2df757a943c8f2dfa85c28056ef85d19f26bcdd1054d8ad67"
+      },
+      "distribution": "Ubuntu 24.04.4 LTS",
+      "environment_id": "ubuntu-24.04",
+      "versions": {
+        "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+        "git": "git version 2.43.0",
+        "make": "GNU Make 4.3",
+        "mips_as": "GNU assembler (GNU Binutils for Ubuntu) 2.42",
+        "mips_ld": "GNU ld (GNU Binutils for Ubuntu) 2.42",
+        "mips_objcopy": "GNU objcopy (GNU Binutils for Ubuntu) 2.42",
+        "python": "3.12.3",
+        "python_packages": {
+          "PyYAML": "6.0.3",
+          "mapfile-parser": "2.13.0",
+          "spimdisasm": "1.42.3",
+          "splat64": "0.50.0"
+        },
+        "readelf": "GNU readelf (GNU Binutils for Ubuntu) 2.42"
+      }
+    }
+  ],
+  "equivalent": true,
+  "verdict": "equivalent",
+  "divergence_reasons": [],
+  "input_rom_sha1": "493ced9008dbe932d6e91179b68e8630cf23a023",
+  "kind": "phase1-cross-environment-equivalence",
+  "overlays": {
+    "rom_table": {
+      "bss_bytes": 80880,
+      "data_bytes": 72224,
+      "detailed_manifest_sha256": "cd53ccba02233f19bc42ab10a722c7ec6767e5ad3f5c6ecc4f5cd49028781c15",
+      "dynamic_vram_overlay_count": 155,
+      "empty_overlay_count": 2,
+      "fixed_vram_overlay_count": 0,
+      "all_rom_ranges_in_bounds": true,
+      "overlay_table_sha256": "a9bce4f77d6f2762662391aa94f2b8e83b0cc55985f922fe33f07e04f961244f",
+      "populated_overlay_count": 155,
+      "primary_relocation_bytes": 88608,
+      "relocation_entry_count": 11076,
+      "rom_overlap_pair_count": 0,
+      "schema_version": 1,
+      "secondary_relocation_bytes": 131512,
+      "secondary_relocation_entry_count": 16439,
+      "table_slot_count": 157,
+      "text_bytes": 851744
+    },
+    "splat_layout": {
+      "detailed_manifest_sha256": "9e37afc8967562b7c72ac280cdc8d993b1b15610d444d1f83eaee83960a45fb5",
+      "empty_slot_count": 2,
+      "overlay_count": 155,
+      "all_rom_ranges_well_formed": true,
+      "all_synthetic_vram_ranges_nonoverlapping": true,
+      "schema_version": 1
+    }
+  },
+  "report": {
+    "categories": [
+      {
+        "id": "asm",
+        "measures": {
+          "matched_data": 64,
+          "matched_data_percent": 0.014916259,
+          "total_code": 19984,
+          "total_data": 429062,
+          "total_functions": 22,
+          "total_units": 211
+        }
+      },
+      {
+        "id": "assets",
+        "measures": {
+          "complete_code_percent": 100.0,
+          "fuzzy_match_percent": 100.0,
+          "matched_code_percent": 100.0,
+          "matched_data": 31907424,
+          "matched_data_percent": 100.0,
+          "matched_functions_percent": 100.0,
+          "total_data": 31907424,
+          "total_units": 161
+        }
+      },
+      {
+        "id": "libultra",
+        "measures": {
+          "fuzzy_match_percent": 48.750156,
+          "matched_code": 48368,
+          "matched_code_percent": 48.750202,
+          "matched_data": 4976,
+          "matched_data_percent": 82.933334,
+          "matched_functions": 210,
+          "matched_functions_percent": 62.31454,
+          "total_code": 99216,
+          "total_data": 6000,
+          "total_functions": 337,
+          "total_units": 175
+        }
+      },
+      {
+        "id": "overlays",
+        "measures": {
+          "complete_data_percent": 100.0,
+          "matched_data_percent": 100.0,
+          "total_code": 851744,
+          "total_functions": 1274,
+          "total_units": 155
+        }
+      },
+      {
+        "id": "src",
+        "measures": {
+          "fuzzy_match_percent": 4.864028,
+          "matched_code": 66692,
+          "matched_code_percent": 4.6330876,
+          "matched_data": 38126,
+          "matched_data_percent": 73.16446,
+          "matched_functions": 396,
+          "matched_functions_percent": 14.607155,
+          "total_code": 1439472,
+          "total_data": 52110,
+          "total_functions": 2711,
+          "total_units": 262
+        }
+      }
+    ],
+    "measures": {
+      "fuzzy_match_percent": 7.6200814,
+      "matched_code": 114884,
+      "matched_code_percent": 7.6200814,
+      "matched_data": 31950590,
+      "matched_data_percent": 98.6325,
+      "matched_functions": 594,
+      "matched_functions_percent": 20.26612,
+      "total_code": 1507648,
+      "total_data": 32393572,
+      "total_functions": 2931,
+      "total_units": 761
+    },
+    "report_sha256": "7412b03016fb66c8d4da1c5e06d4a6559a7f4f6656601343e6632c8ae359e71e",
+    "report_version": 2,
+    "schema_version": 1
+  },
+  "schema_version": 1,
+  "source": {
+    "decomp_tree": "ed666db275db0f44142c41cc186b5e11bf332bbe",
+    "requirements_sha256": "4ce7ab34a922694b615b2245b5abc04fa2fcc984a3cfaed8d2592ca05f9360e4",
+    "submodule_pins_sha256": "86715da5030868edd78bec3c1f0b317a30d03f3b0a59fc2a7f25a58d167ee2f0"
+  },
+  "tool_artifacts_sha256": "3df460dc640b92c76554c2a73e71c47182730593ccda0997605f3da0150c05b0",
+  "verification": {
+    "ci_verifiable": {
+      "environment_correspondence": true,
+      "rebuilds_private_artifacts": false,
+      "schema_validation": true,
+      "semantic_invariants": true
+    },
+    "maintainer_attestation": {
+      "clean_build_count": 4,
+      "environment_record_count": 2,
+      "private_rom_required": true,
+      "status": "passed"
+    }
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "default_disposition": "fail-closed-unsupported-register",
+  "entries": [
+    {
+      "address": "0xa4400000",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 2
+    },
+    {
+      "address": "0xa4400004",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4400008",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa440000c",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4400010",
+      "disposition": "deterministic-register-shadow",
+      "reads": 2,
+      "writes": 0
+    },
+    {
+      "address": "0xa4400014",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4400018",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa440001c",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4400020",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4400024",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4400028",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa440002c",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4400030",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4400034",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4500000",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4500004",
+      "disposition": "deterministic-register-shadow",
+      "reads": 1,
+      "writes": 1
+    },
+    {
+      "address": "0xa4500008",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa450000c",
+      "disposition": "deterministic-register-shadow",
+      "reads": 1,
+      "writes": 0
+    },
+    {
+      "address": "0xa4500010",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4500014",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4800000",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 2
+    },
+    {
+      "address": "0xa4800004",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4800010",
+      "disposition": "deterministic-register-shadow",
+      "reads": 0,
+      "writes": 1
+    },
+    {
+      "address": "0xa4800018",
+      "disposition": "deterministic-register-shadow",
+      "reads": 2,
+      "writes": 0
+    }
+  ],
+  "instrumentation": "page-guard-register-whitelist-v1",
+  "kind": "jfg-phase6-native-stub-ledger",
+  "mmio_trace_sha256": "c8751ffb681ef574519f6ff0b5ccf4dd93bf77d6c376a5fc456980f7db4ba0b6",
+  "observed_unsupported_accesses": 0,
+  "schema_version": 2,
+  "scope": "supported-original-entry-to-stable-vi"
+}

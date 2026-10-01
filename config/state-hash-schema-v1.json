@@ -1,0 +1,11 @@
+{
+  "$comment": "Pinned Phase 5 state hash schema v1. Human-approved; any edit is a new approved revision per docs/planning/phase5-acceptance.md. Must stay equivalent to `jfg-test print-schema`.",
+  "version": 1,
+  "page_bytes": 4096,
+  "include_context": true,
+  "exclusions": [],
+  "approval": {
+    "owner_role": "project-owner",
+    "rationale": "Kernel v0 hashes every RDRAM byte and the full guest context. No exclusions are approved; excluding state requires a new revision of this file."
+  }
+}

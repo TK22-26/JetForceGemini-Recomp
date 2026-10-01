@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/rsp-task-manifest.schema.json",
+  "title": "Public-safe RSP task and execution-path manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "privacy",
+    "supported_input_id",
+    "pins",
+    "inventory",
+    "capture_evidence",
+    "audio_path",
+    "graphics_path",
+    "decision"
+  ],
+  "properties": {
+    "$schema": { "const": "../schemas/rsp-task-manifest.schema.json" },
+    "schema_version": { "const": 1 },
+    "kind": { "const": "jfg-rsp-task-manifest" },
+    "privacy": { "const": "public-safe-aggregate-only" },
+    "supported_input_id": { "const": "jfg-us-retail" },
+    "pins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jfg_decomp", "n64recomp", "n64modernruntime", "rt64", "bizhawk", "gliden64_executed", "gliden64_inspected"],
+      "properties": {
+        "jfg_decomp": { "$ref": "#/$defs/sha1" },
+        "n64recomp": { "$ref": "#/$defs/sha1" },
+        "n64modernruntime": { "$ref": "#/$defs/sha1" },
+        "rt64": { "$ref": "#/$defs/sha1" },
+        "bizhawk": { "$ref": "#/$defs/sha1" },
+        "gliden64_executed": { "$ref": "#/$defs/sha1" },
+        "gliden64_inspected": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "inventory": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/program" }
+    },
+    "capture_evidence": { "$ref": "#/$defs/captureEvidence" },
+    "audio_path": { "$ref": "#/$defs/audioPath" },
+    "graphics_path": { "$ref": "#/$defs/graphicsPath" },
+    "decision": { "$ref": "#/$defs/decision" }
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,63}$"
+    },
+    "safeText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "pattern": "^(?!.*[A-Za-z0-9]{32})[A-Za-z0-9][A-Za-z0-9 .,;:'()/-]*$"
+    },
+    "program": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "task_class",
+        "container_bytes",
+        "captured_active_bytes",
+        "captured_data_bytes",
+        "overlay"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "task_class": { "enum": ["boot", "audio", "graphics"] },
+        "container_bytes": { "type": "integer", "minimum": 1, "maximum": 65536 },
+        "captured_active_bytes": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "captured_data_bytes": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "overlay": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "slot_count", "variant_count", "switch_execution"],
+          "properties": {
+            "status": { "enum": ["none", "confirmed", "suspected"] },
+            "slot_count": { "type": "integer", "minimum": 0, "maximum": 8 },
+            "variant_count": { "type": "integer", "minimum": 0, "maximum": 32 },
+            "switch_execution": {
+              "enum": ["not-applicable", "not-observed", "observed"]
+            }
+          }
+        }
+      }
+    },
+    "taskClassEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_class",
+        "count",
+        "first_frame",
+        "last_frame",
+        "unique_task_data_count",
+        "unique_ucode_count",
+        "unique_ucode_data_count"
+      ],
+      "properties": {
+        "task_class": { "enum": ["audio", "graphics"] },
+        "count": { "type": "integer", "minimum": 1 },
+        "first_frame": { "type": "integer", "minimum": 0 },
+        "last_frame": { "type": "integer", "minimum": 0 },
+        "unique_task_data_count": { "type": "integer", "minimum": 1 },
+        "unique_ucode_count": { "type": "integer", "minimum": 1 },
+        "unique_ucode_data_count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "captureEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "status",
+        "verification",
+        "regeneration_script_tracked",
+        "emulator_version",
+        "core",
+        "rsp_mode",
+        "graphics_plugin",
+        "emulator_package_sha256",
+        "graphics_plugin_binary_sha256",
+        "unique_task_count",
+        "task_classes",
+        "graphics_fingerprint",
+        "frame_progression_observed",
+        "render_output_validation",
+        "tracked_body_policy"
+      ],
+      "properties": {
+        "classification": { "const": "PRIVATE_REGENERABLE" },
+        "status": { "const": "attested-complete" },
+        "verification": { "const": "maintainer-attested" },
+        "regeneration_script_tracked": { "const": false },
+        "emulator_version": { "const": "2.11.1" },
+        "core": { "const": "mupen64plus" },
+        "rsp_mode": { "const": "hle" },
+        "graphics_plugin": { "const": "gliden64" },
+        "emulator_package_sha256": { "$ref": "#/$defs/sha256" },
+        "graphics_plugin_binary_sha256": { "$ref": "#/$defs/sha256" },
+        "unique_task_count": { "type": "integer", "minimum": 1 },
+        "task_classes": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/taskClassEvidence" }
+        },
+        "graphics_fingerprint": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["algorithm", "digest_disclosed", "oracle_match"],
+          "properties": {
+            "algorithm": { "const": "sha256-logical-4096" },
+            "digest_disclosed": { "const": false },
+            "oracle_match": { "type": "boolean" }
+          }
+        },
+        "frame_progression_observed": { "const": true },
+        "render_output_validation": { "const": "not-established" },
+        "tracked_body_policy": { "const": "defense-in-depth-git-index-scan" }
+      }
+    },
+    "audioPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backend",
+        "status",
+        "verification",
+        "regeneration_harness_tracked",
+        "generation_passed",
+        "compile_passed",
+        "representative_task_count",
+        "normal_exit_count",
+        "overlay_switch_count",
+        "referenced_memory_closure",
+        "output_validation",
+        "second_overlay_variant_executed",
+        "limitations"
+      ],
+      "properties": {
+        "backend": { "const": "pinned-rsp-recompiler" },
+        "status": { "const": "representative-control-flow-observed" },
+        "verification": { "const": "maintainer-attested" },
+        "regeneration_harness_tracked": { "const": false },
+        "generation_passed": { "const": true },
+        "compile_passed": { "const": true },
+        "representative_task_count": { "type": "integer", "minimum": 1 },
+        "normal_exit_count": { "type": "integer", "minimum": 1 },
+        "overlay_switch_count": { "type": "integer", "minimum": 0 },
+        "referenced_memory_closure": { "const": false },
+        "output_validation": { "const": "not-established" },
+        "second_overlay_variant_executed": { "const": false },
+        "limitations": { "$ref": "#/$defs/safeText" }
+      }
+    },
+    "graphicsPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "primary", "recompiler_probe", "tested_fallback", "source_inspection_candidate", "clean_room_scope"],
+      "properties": {
+        "family": { "const": "f3ddkr-jfg" },
+        "primary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["backend", "status", "native_handler_present"],
+          "properties": {
+            "backend": { "const": "pinned-rt64" },
+            "status": { "const": "implementation-required" },
+            "native_handler_present": { "const": false }
+          }
+        },
+        "recompiler_probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "reason_id"],
+          "properties": {
+            "status": { "const": "blocked" },
+            "reason_id": { "const": "unsupported-dp-register-read" }
+          }
+        },
+        "tested_fallback": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "backend",
+            "bizhawk_commit",
+            "status",
+            "commit",
+            "license",
+            "use",
+            "representative_task_count",
+            "detector_match",
+            "frame_progression_observed",
+            "render_output_validation"
+          ],
+          "properties": {
+            "backend": { "const": "mupen64plus-gliden64" },
+            "bizhawk_commit": { "$ref": "#/$defs/sha1" },
+            "status": { "const": "task-path-progressed" },
+            "commit": { "$ref": "#/$defs/sha1" },
+            "license": { "const": "GPL-2.0-only" },
+            "use": { "const": "local-oracle-only" },
+            "representative_task_count": { "type": "integer", "minimum": 1 },
+            "detector_match": { "const": true },
+            "frame_progression_observed": { "const": true },
+            "render_output_validation": { "const": "not-established" }
+          }
+        },
+        "source_inspection_candidate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["backend", "commit", "license", "use"],
+          "properties": {
+            "backend": { "const": "gliden64" },
+            "commit": { "$ref": "#/$defs/sha1" },
+            "license": { "const": "GPL-2.0-only" },
+            "use": { "const": "newer-local-source-inspection-only" }
+          }
+        },
+        "clean_room_scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source_commit", "base_custom_handler_count", "game_variant_override_count", "strategy"],
+          "properties": {
+            "source_commit": { "$ref": "#/$defs/sha1" },
+            "base_custom_handler_count": { "const": 7 },
+            "game_variant_override_count": { "const": 1 },
+            "strategy": { "const": "independently-authored-rt64-extension" }
+          }
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spike_status", "audio_gate", "graphics_gate", "next_gate"],
+      "properties": {
+        "spike_status": { "const": "graphics-output-blocked" },
+        "audio_gate": { "const": "blocked-output-unvalidated" },
+        "graphics_gate": { "const": "blocked-render-output-unvalidated" },
+        "next_gate": { "$ref": "#/$defs/safeText" }
+      }
+    }
+  }
+}

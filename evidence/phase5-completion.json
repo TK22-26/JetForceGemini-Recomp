@@ -1,0 +1,66 @@
+{
+  "acceptance_contract": "docs/planning/phase5-acceptance.md",
+  "authentication": {
+    "algorithm": "openssh-ed25519",
+    "namespace": "jfg-phase5-completion-v1",
+    "payload_sha256": "220b58e67acace1937549c9cf8890ae7840cf3445244660bbba61dd961125ecf",
+    "signature_hex_chunks": [
+      "2d2d2d2d2d424547494e20535348205349474e41545552452d2d2d2d2d0a5531",
+      "4e4955306c48414141414151414141444d414141414c63334e6f4c57566b4d6a",
+      "55314d546b4141414167356576706f6e67526b4d49462b4a55525637714a3464",
+      "4d3261390a35307567365061543350723877623731594141414159616d5a6e4c",
+      "58426f59584e6c4e53316a6232317762475630615739754c5859784141414141",
+      "41414141415a7a614745310a4d544941414142544141414143334e7a6143316c",
+      "5a4449314e54453541414141514a586c354d36303846556d6e6b6a3235434777",
+      "497848786d4a494c4d565a476339533244360a754c786757646d436c4a6b4877",
+      "732b746b6759442b6f4145504531544e47356c6d464a704a74382b4373646934",
+      "414f41593d0a2d2d2d2d2d454e4420535348205349474e41545552452d2d2d2d",
+      "2d0a"
+    ]
+  },
+  "bound_files": {
+    "config/divergence-tolerance-v1.json": "54b66e787e953e744d18742cef463211723cb4bcc3bf33ff56a6d614cdcb066f",
+    "config/phase5-completion-signing.json": "32760aee9e02412ce089d07aed181dcb207efb0f98bf95d6db67a802de664c97",
+    "config/state-hash-schema-v1.json": "9dc73cd37378f30e74d0f33a5f116b8152cf2fc7d04874c058a5d9e912dcfb28",
+    "docs/planning/phase5-acceptance.md": "ccabaea0d63cf0c07689bdfefa8301c56e286d42a1c2d4cadeaf78567efc3898",
+    "include/jfg/testkernel/capture.hpp": "c16eac8ab42d0e2b1eafb0a1f5255ee9d6184ba1645bdd86c86c9d31f2458cb1",
+    "include/jfg/testkernel/corpus.hpp": "a7c5f744d8abc27804079524adea688813ab67ea235ab2bb2926018abb1bfb47",
+    "include/jfg/testkernel/fakes.hpp": "514d3a7c90de54e6d6b922f8d28b95af4766855533c716706efd61d307a0f88a",
+    "include/jfg/testkernel/journal.hpp": "50d29351f85e3913b30485c4bae1973c5185c775565aee111fe7719e04724a7e",
+    "include/jfg/testkernel/scheduler.hpp": "6a3f03c89859a207d1b567970b1ca5767b1ae0259895b255c9ba57b1528caa7a",
+    "include/jfg/testkernel/sha256.hpp": "a325233fa7a8c8eb79c27c74b7d1abd309ce090e77f8866583430f4d03345f3c",
+    "include/jfg/testkernel/world.hpp": "97ae0fa1cc83ee1e7c0ca68a0e1930c38695b306c8e8bdbc362dcfc8ab67445d",
+    "scripts/prepare_phase5_capture_table.py": "3cd6b09b7eee215ddd69b612890dd1dde3f1452273d78705264ad4dbd13501ca",
+    "scripts/run_phase5_boundary_captures.py": "60d28a18b7c0a1c59e77bbbadba94c3672bdc91eee6e4841e8d7bcb5aeec984d",
+    "src/app/jfg_test_main.cpp": "e531b5513b48f31831cddd0da38401a583e55b2da325f5f0e81554a207d01491",
+    "src/evidence/phase5_capture_producer.cpp": "ab64991d03d292b67df6b90f6567da088804581b9d3fe0da09aecfafbfe2325b",
+    "src/testkernel/capture.cpp": "56deecff8fe7eb15cc1921cc2dd9e7183adf3a2c1d6b02f314a725f1937e11f7",
+    "src/testkernel/corpus.cpp": "fea616e1368048d79fbd70d59d42f9ce17c601a421b79dcc9f53737c94a75e8b",
+    "src/testkernel/fakes.cpp": "8bd67d930743674931c5bb82eab2093eb1f45b00cc6835cfdd2377f9a6906411",
+    "src/testkernel/journal.cpp": "190384e6de0aa871478bb6475cb64c4e80df9a686345ee5bf9ce9f18c4278551",
+    "src/testkernel/scheduler.cpp": "dfa00a97cd48df9eff720c615336a4e8e9f09a9a20b2a34f8dc1ddbf7296ea32",
+    "src/testkernel/world.cpp": "4bf8e604a8317909a7983f6f1d4fa1dd9733476afb78190ac74e81c498283336",
+    "tests/test_phase5_policy.py": "bf0c001d080906ca89854ff4bb765ddb46b57852816e5eed5f6b9271081dd437",
+    "tests/testkernel_tests.cpp": "7be67f06ab6751c7c07eb9c31812baf1c39c76e06e70f290430e375e8aa65d09"
+  },
+  "boundary_capture_summary": {
+    "captured_functions": 20,
+    "excluded_functions": 68,
+    "exclusion_reasons": [
+      "exit-3221225477",
+      "exit-3221226505"
+    ],
+    "generated_root_inventory_sha256": "0ad7216b07ab51d4218af65ceb8ce905e8ec0a306286a37f7494aeacf0f98001",
+    "kind": "jfg-phase5-boundary-capture-summary",
+    "private_ledger_sha256": "ec1baa83f77a2d44bf5b201eb3e8a638e17d1877abafdd3e87e0db1a7c11eedd",
+    "schema_version": 1,
+    "selection_policy": "boot-boundary-and-overlay-leaders-v1"
+  },
+  "kind": "jfg-phase5-completion",
+  "required_ctest_names": [
+    "jfg.testkernel",
+    "jfg.testkernel_self_check",
+    "jfg.testkernel_repeat"
+  ],
+  "schema_version": 1
+}

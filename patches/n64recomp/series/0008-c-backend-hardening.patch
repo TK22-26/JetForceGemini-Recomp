@@ -1,0 +1,170 @@
+diff --git a/src/cgenerator.cpp b/src/cgenerator.cpp
+index 94f85c5..65fd215 100644
+--- a/src/cgenerator.cpp
++++ b/src/cgenerator.cpp
+@@ -356,0 +357,8 @@ void N64Recomp::CGenerator::get_binary_expr_string(BinaryOpType type, const Bina
++
++    // These helpers take their displacement as a gpr. Preserve the MIPS
++    // signed 16-bit displacement explicitly before crossing that boundary.
++    if (type == BinaryOpType::LD || type == BinaryOpType::LDL ||
++        type == BinaryOpType::LDR || type == BinaryOpType::LWL ||
++        type == BinaryOpType::LWR) {
++        input_b = "U64(S64(" + input_b + "))";
++    }
+@@ -477 +485 @@ void N64Recomp::CGenerator::emit_switch_error(uint32_t instr_vram, uint32_t jtbl
+-    fmt::print(output_file, "default: switch_error(__func__, 0x{:08X}, 0x{:08X});\n", instr_vram, jtbl_vram);
++    fmt::print(output_file, "default: switch_error((const char*)0, 0x{:08X}, 0x{:08X});\n", instr_vram, jtbl_vram);
+@@ -497 +505,63 @@ void N64Recomp::CGenerator::emit_cop0_status_read(int reg) const {
+-    fmt::print(output_file, "{} = cop0_status_read(ctx);\n", gpr_to_string(reg));
++    if (reg == 0) {
++        fmt::print(output_file,
++            "do {{ volatile uint64_t discarded_read = (uint64_t)cop0_status_read(ctx); (void)discarded_read; }} while (0);\n");
++    }
++    else {
++        fmt::print(output_file, "{} = cop0_status_read(ctx);\n", gpr_to_string(reg));
++    }
++}
++
++static bool outputs_to_zero(N64Recomp::Operand output, const N64Recomp::InstructionContext& context) {
++    return (output == N64Recomp::Operand::Rd && context.rd == 0)
++        || (output == N64Recomp::Operand::Rt && context.rt == 0)
++        || (output == N64Recomp::Operand::Rs && context.rs == 0);
++}
++
++static bool binary_op_reads_memory(N64Recomp::BinaryOpType type) {
++    switch (type) {
++        case N64Recomp::BinaryOpType::LD:
++        case N64Recomp::BinaryOpType::LW:
++        case N64Recomp::BinaryOpType::LWU:
++        case N64Recomp::BinaryOpType::LH:
++        case N64Recomp::BinaryOpType::LHU:
++        case N64Recomp::BinaryOpType::LB:
++        case N64Recomp::BinaryOpType::LBU:
++        case N64Recomp::BinaryOpType::LDL:
++        case N64Recomp::BinaryOpType::LDR:
++        case N64Recomp::BinaryOpType::LWL:
++        case N64Recomp::BinaryOpType::LWR:
++            return true;
++        default:
++            return false;
++    }
++}
++
++void N64Recomp::CGenerator::emit_cop0_read(int reg, int cop0_reg) const {
++    if (reg == 0) {
++        fmt::print(output_file,
++            "do {{ volatile uint64_t discarded_read = (uint64_t)cop0_read(ctx, {}); (void)discarded_read; }} while (0);\n",
++            cop0_reg);
++    }
++    else {
++        fmt::print(output_file, "{} = cop0_read(ctx, {});\n", gpr_to_string(reg), cop0_reg);
++    }
++}
++
++void N64Recomp::CGenerator::emit_cop0_write(int reg, int cop0_reg) const {
++    fmt::print(output_file, "cop0_write(ctx, {}, {});\n", cop0_reg, gpr_to_string(reg));
++}
++
++void N64Recomp::CGenerator::emit_eret() const {
++    fmt::print(output_file, "cop0_eret(rdram, ctx);\n    return;\n");
++}
++
++void N64Recomp::CGenerator::emit_cache(int base_reg, int operation, int16_t offset) const {
++    fmt::print(output_file, "cache_op(rdram, ctx, {}, {} + {});\n", operation, gpr_to_string(base_reg), offset);
++}
++
++void N64Recomp::CGenerator::emit_tlb(uint32_t operation) const {
++    fmt::print(output_file, "cop0_tlb_op(ctx, {});\n", operation);
++}
++
++void N64Recomp::CGenerator::emit_reserved_instruction(uint32_t vram, uint32_t word) const {
++    fmt::print(output_file, "reserved_instruction(rdram, ctx, 0x{:08X}, 0x{:08X});\n", vram, word);
+@@ -509 +579 @@ void N64Recomp::CGenerator::emit_cop1_cs_write(int reg) const {
+-    fmt::print(output_file, "set_cop1_cs({});\n", gpr_to_string(reg));
++    fmt::print(output_file, "set_cop1_cs(U32({}));\n", gpr_to_string(reg));
+@@ -527,2 +597 @@ void N64Recomp::CGenerator::emit_muldiv(InstrId instr_id, int reg1, int reg2) co
+-            // Cast to 64-bits before division to prevent artihmetic exception for s32(0x80000000) / -1
+-            fmt::print(output_file, "lo = S32(S64(S32({0})) / S64(S32({1}))); hi = S32(S64(S32({0})) % S64(S32({1})));\n", gpr_to_string(reg1), gpr_to_string(reg2));
++            fmt::print(output_file, "DIV32(S32({}), S32({}), &lo, &hi);\n", gpr_to_string(reg1), gpr_to_string(reg2));
+@@ -534 +603 @@ void N64Recomp::CGenerator::emit_muldiv(InstrId instr_id, int reg1, int reg2) co
+-            fmt::print(output_file, "lo = S32(U32({0}) / U32({1})); hi = S32(U32({0}) % U32({1}));\n", gpr_to_string(reg1), gpr_to_string(reg2));
++            fmt::print(output_file, "DIVU32(U32({}), U32({}), &lo, &hi);\n", gpr_to_string(reg1), gpr_to_string(reg2));
+@@ -565,0 +635,6 @@ void N64Recomp::CGenerator::process_binary_op(const BinaryOp& op, const Instruct
++    const bool discard_output = outputs_to_zero(op.output, ctx);
++    // Pure MIPS writes to $zero can be omitted, but loads must still perform
++    // their memory access (faults and memory-mapped reads are observable).
++    if (discard_output && !binary_op_reads_memory(op.type)) {
++        return;
++    }
+@@ -572 +647,24 @@ void N64Recomp::CGenerator::process_binary_op(const BinaryOp& op, const Instruct
+-    fmt::print(output_file, "{} = {};\n", output, expression);
++    if (discard_output) {
++        fmt::print(output_file,
++            "do {{ volatile uint64_t discarded_load = (uint64_t)({}); (void)discarded_load; }} while (0);\n",
++            expression);
++    }
++    else {
++        switch (op.output) {
++            case Operand::Rd:
++            case Operand::Rs:
++            case Operand::Rt:
++            case Operand::Hi:
++            case Operand::Lo:
++                fmt::print(output_file, "{} = U64({});\n", output, expression);
++                break;
++            case Operand::FdU32L:
++            case Operand::FsU32L:
++            case Operand::FtU32L:
++                fmt::print(output_file, "{} = U32({});\n", output, expression);
++                break;
++            default:
++                fmt::print(output_file, "{} = {};\n", output, expression);
++                break;
++        }
++    }
+@@ -575,0 +674,4 @@ void N64Recomp::CGenerator::process_unary_op(const UnaryOp& op, const Instructio
++    // MIPS writes to $zero are discarded.
++    if (outputs_to_zero(op.output, ctx)) {
++        return;
++    }
+@@ -582 +684,17 @@ void N64Recomp::CGenerator::process_unary_op(const UnaryOp& op, const Instructio
+-    fmt::print(output_file, "{} = {};\n", output, input);
++    switch (op.output) {
++        case Operand::Rd:
++        case Operand::Rs:
++        case Operand::Rt:
++        case Operand::Hi:
++        case Operand::Lo:
++            fmt::print(output_file, "{} = U64({});\n", output, input);
++            break;
++        case Operand::FdU32L:
++        case Operand::FsU32L:
++        case Operand::FtU32L:
++            fmt::print(output_file, "{} = U32({});\n", output, input);
++            break;
++        default:
++            fmt::print(output_file, "{} = {};\n", output, input);
++            break;
++    }
+@@ -651 +769 @@ void N64Recomp::CGenerator::process_store_op(const StoreOp& op, const Instructio
+-            fmt::print(output_file, "{}({}, {}, {});\n", func_text, value_input, imm_str, base_str);
++            fmt::print(output_file, "{}({}, U64(S64({})), {});\n", func_text, value_input, imm_str, base_str);
+@@ -654 +772 @@ void N64Recomp::CGenerator::process_store_op(const StoreOp& op, const Instructio
+-            fmt::print(output_file, "{}(rdram, {}, {}, {});\n", func_text, imm_str, base_str, value_input);
++            fmt::print(output_file, "{}(rdram, U64(S64({})), {}, {});\n", func_text, imm_str, base_str, value_input);
+@@ -657 +775,14 @@ void N64Recomp::CGenerator::process_store_op(const StoreOp& op, const Instructio
+-            fmt::print(output_file, "{}({}, {}) = {};\n", func_text, imm_str, base_str, value_input);
++            switch (op.type) {
++                case StoreOpType::SW:
++                case StoreOpType::SWC1:
++                    fmt::print(output_file, "{}({}, {}) = (int32_t)({});\n", func_text, imm_str, base_str, value_input);
++                    break;
++                case StoreOpType::SH:
++                    fmt::print(output_file, "{}({}, {}) = (int16_t)({});\n", func_text, imm_str, base_str, value_input);
++                    break;
++                case StoreOpType::SB:
++                    fmt::print(output_file, "{}({}, {}) = (int8_t)({});\n", func_text, imm_str, base_str, value_input);
++                    break;
++                default:
++                    throw std::runtime_error("Unhandled assignment store op");
++            }

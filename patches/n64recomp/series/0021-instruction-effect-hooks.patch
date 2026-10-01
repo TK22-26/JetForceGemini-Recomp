@@ -1,0 +1,94 @@
+diff --git a/include/recompiler/context.h b/include/recompiler/context.h
+--- a/include/recompiler/context.h
++++ b/include/recompiler/context.h
+@@ -34,0 +35,3 @@
++        // C-only observations after ordinary effects / branch decisions,
++        // before executing a transfer's delay slot. Not hardware retirement.
++        std::unordered_map<int32_t, std::string> instruction_effect_hooks;
+diff --git a/src/config.h b/src/config.h
+--- a/src/config.h
++++ b/src/config.h
+@@ -18,0 +19 @@
++        bool after_effect = false;
+diff --git a/src/config.cpp b/src/config.cpp
+--- a/src/config.cpp
++++ b/src/config.cpp
+@@ -220,0 +221,5 @@
++                std::optional<uint32_t> after_vram = cur_hook["after_vram"].value<uint32_t>();
++                if (cur_hook["after_vram"] &&
++                    (!after_vram.has_value() || after_vram.value() == 0 || cur_hook["before_vram"])) {
++                    throw toml::parse_error("after_vram requires a nonzero uint32 address and no before_vram", el.source());
++                }
+@@ -231,0 +237,3 @@
++                if (after_vram.has_value() && (after_vram.value() & 0b11)) {
++                    throw toml::parse_error("after_vram is not word-aligned", el.source());
++                }
+@@ -235 +243,2 @@
+-                    .before_vram = before_vram.has_value() ? (int32_t)before_vram.value() : 0,
++                    .before_vram = (int32_t)after_vram.value_or(before_vram.value_or(0)),
++                    .after_effect = after_vram.has_value(),
+diff --git a/src/main.cpp b/src/main.cpp
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -603 +603 @@
+-        // No after_vram means this will be placed at the start of the function
++        // An omitted address retains the existing function-entry hook.
+@@ -612,2 +612,3 @@
+-        auto hook_find = func.function_hooks.find(instruction_index);
+-        if (hook_find != func.function_hooks.end()) {
++        auto& hooks = patch.after_effect ? func.instruction_effect_hooks : func.function_hooks;
++        auto hook_find = hooks.find(instruction_index);
++        if (hook_find != hooks.end()) {
+@@ -617 +618 @@
+-        func.function_hooks[instruction_index] = patch.text;
++        hooks[instruction_index] = patch.text;
+diff --git a/src/recompilation.cpp b/src/recompilation.cpp
+--- a/src/recompilation.cpp
++++ b/src/recompilation.cpp
+@@ -125,0 +126,30 @@
++
++    const auto effect_hook = func.instruction_effect_hooks.find(instr_index);
++    if (effect_hook != func.instruction_effect_hooks.end()) {
++        if constexpr (!std::is_same_v<GeneratorType, N64Recomp::CGenerator>) {
++            fmt::print(stderr, "Instruction effect hooks require the offline C generator\n");
++            return false;
++        }
++        // These operations can transfer/abort inside a runtime callback.
++        // A textual hook after the emitted statement cannot certify them.
++        switch (instr_id) {
++        case InstrId::cpu_eret: case InstrId::cpu_syscall: case InstrId::cpu_break:
++        case InstrId::cpu_INVALID: case InstrId::cpu_cfc2: case InstrId::cpu_ctc2:
++        case InstrId::cpu_ldc2: case InstrId::cpu_lwc2: case InstrId::cpu_mfc2:
++        case InstrId::cpu_mtc2: case InstrId::cpu_sdc2: case InstrId::cpu_swc2:
++            fmt::print(stderr, "Instruction effect hook is unqualified for {} at 0x{:08X}\n",
++                instr.getOpcodeName(), instr_vram);
++            return false;
++        default: break;
++        }
++        if ((instr_id == InstrId::cpu_j || instr_id == InstrId::cpu_b) &&
++            instr.getBranchVramGeneric() == instr_vram && !context.emit_guest_idle_loops) {
++            fmt::print(stderr, "Instruction effect hook requires executable guest idle loops\n");
++            return false;
++        }
++    }
++    auto emit_effect_hook = [&]() {
++        if (effect_hook != func.instruction_effect_hooks.end()) {
++            fmt::print(output_file, "    {}\n", effect_hook->second);
++        }
++    };
+@@ -224,0 +255,4 @@
++        // Transfer operands/condition and any architectural link have been
++        // evaluated at each caller. Report that effect before the slot, not
++        // after the callee/target returns through a host C call stack.
++        emit_effect_hook();
+@@ -939,0 +974,4 @@
++
++        // Taken paths transfer through print_branch/print_func_call and emit
++        // in process_delay_slot. Only the non-taken path reaches this hook.
++        emit_effect_hook();
+@@ -960,0 +999,5 @@
++    }
++
++    if (!instr.isBranch() && instr_id != InstrId::cpu_j &&
++        instr_id != InstrId::cpu_jal && instr_id != InstrId::cpu_jr && instr_id != InstrId::cpu_jalr) {
++        emit_effect_hook();

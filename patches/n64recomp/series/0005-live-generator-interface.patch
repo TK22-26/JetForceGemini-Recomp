@@ -1,0 +1,22 @@
+diff --git a/include/recompiler/live_recompiler.h b/include/recompiler/live_recompiler.h
+index d155b83..32c5101 100644
+--- a/include/recompiler/live_recompiler.h
++++ b/include/recompiler/live_recompiler.h
+@@ -72,0 +73,6 @@ namespace N64Recomp {
++        void (*cop0_write)(recomp_context* ctx, uint32_t cop0_reg, gpr value);
++        gpr (*cop0_read)(recomp_context* ctx, uint32_t cop0_reg);
++        void (*cop0_eret)(uint8_t* rdram, recomp_context* ctx);
++        void (*cache_op)(uint8_t* rdram, recomp_context* ctx, uint32_t operation, gpr address);
++        void (*cop0_tlb_op)(recomp_context* ctx, uint32_t operation);
++        void (*reserved_instruction)(uint8_t* rdram, recomp_context* ctx, uint32_t vram, uint32_t word);
+@@ -124,0 +131,6 @@ namespace N64Recomp {
++        void emit_cop0_read(int reg, int cop0_reg) const final;
++        void emit_cop0_write(int reg, int cop0_reg) const final;
++        void emit_eret() const final;
++        void emit_cache(int base_reg, int operation, int16_t offset) const final;
++        void emit_tlb(uint32_t operation) const final;
++        void emit_reserved_instruction(uint32_t vram, uint32_t word) const final;
+@@ -159 +171 @@ namespace N64Recomp {
+-#endif
+\ No newline at end of file
++#endif

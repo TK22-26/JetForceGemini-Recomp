@@ -1,0 +1,64 @@
+{
+  "schema_version": 4,
+  "g3_product_binding_sha256": "7172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f90",
+  "compiler_products": [
+    {
+      "compiler_id": "clang-test",
+      "compiler_executable_sha256": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+    },
+    {
+      "compiler_id": "gcc-test",
+      "compiler_executable_sha256": "1112030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+    },
+    {
+      "compiler_id": "msvc-test",
+      "compiler_executable_sha256": "2112030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+    }
+  ],
+  "sections": [
+    {
+      "section_id": "main-core",
+      "kind": 0,
+      "expected": 3,
+      "attempted": 3,
+      "generated": 3,
+      "excluded": 0,
+      "failures": 0,
+      "lookups": 3,
+      "lifecycle": 0,
+      "relocations": 1
+    },
+    {
+      "section_id": "overlay-core",
+      "kind": 1,
+      "expected": 2,
+      "attempted": 2,
+      "generated": 2,
+      "excluded": 0,
+      "failures": 0,
+      "lookups": 2,
+      "lifecycle": 1,
+      "relocations": 1
+    }
+  ],
+  "overlay_slots": [
+    {
+      "slot_id": "slot-001",
+      "disposition": 0,
+      "section_id": "overlay-core"
+    },
+    {
+      "slot_id": "slot-002",
+      "disposition": 1,
+      "section_id": null
+    }
+  ],
+  "link_audit": [2, 5, 5, 5, 0, 0, 0, 2, 2],
+  "tools": [
+    {"tool_id": 1, "exit_code": 0, "finding_count": 0},
+    {"tool_id": 2, "exit_code": 0, "finding_count": 0},
+    {"tool_id": 3, "exit_code": 0, "finding_count": 0},
+    {"tool_id": 4, "exit_code": 0, "finding_count": 0},
+    {"tool_id": 5, "exit_code": 0, "finding_count": 0}
+  ]
+}

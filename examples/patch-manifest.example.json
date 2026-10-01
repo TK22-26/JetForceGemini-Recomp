@@ -1,0 +1,17 @@
+{
+  "$schema": "../schemas/patch-manifest.schema.json",
+  "schema_version": 1,
+  "id": "JFG-PATCH-0001",
+  "symbol": "ExampleOnly",
+  "category": "debug",
+  "reason": "Exercise schema validation without modifying game behavior.",
+  "original_behavior": "No game behavior is changed by this schema-only example.",
+  "upstream_reference": "Independent example with no copied upstream body.",
+  "owner": "maintainer",
+  "compatibility_impact": "none",
+  "feature_flag": "debug.example-only",
+  "tests": [
+    "schema-validation"
+  ],
+  "rollback": "Delete the example manifest."
+}

@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/runtime-capability-matrix.schema.json",
+  "title": "Public-safe Phase 3 runtime capability matrix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "privacy",
+    "pins",
+    "gate",
+    "capabilities",
+    "save_devices",
+    "trap_inventory"
+  ],
+  "properties": {
+    "$schema": { "const": "../schemas/runtime-capability-matrix.schema.json" },
+    "schema_version": { "const": 1 },
+    "kind": { "const": "jfg-runtime-capability-matrix" },
+    "privacy": { "const": "public-safe-aggregate-only" },
+    "pins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jfg_decomp", "n64recomp", "n64modernruntime"],
+      "properties": {
+        "jfg_decomp": {
+          "const": "b49aa4791e8fb1e7acd3bba10346876358d0a9a7"
+        },
+        "n64recomp": {
+          "const": "ffb39cdad1da5de07eaaa48bd1db4a89a7986771"
+        },
+        "n64modernruntime": {
+          "const": "589bbf018a3e6d3646ddf7de1e7919f1b7e99bb1"
+        }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "decision",
+        "broad_phase4_authorized",
+        "required_blocker_ids"
+      ],
+      "properties": {
+        "id": { "const": "G2" },
+        "decision": { "const": "no-go-current-pin" },
+        "broad_phase4_authorized": { "const": false },
+        "required_blocker_ids": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/capability" }
+    },
+    "save_devices": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/saveDevice" }
+    },
+    "trap_inventory": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/trapRecord" }
+    }
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,63}$"
+    },
+    "safeText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!.*[A-Za-z0-9]{32})[A-Za-z0-9][A-Za-z0-9 .,;:'()/-]*$"
+    },
+    "status": {
+      "enum": ["supported", "partial", "unsupported", "unverified"]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "confidence", "summary"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": {
+          "enum": [
+            "pinned-source-inspection",
+            "private-static-aggregate",
+            "private-dynamic-aggregate",
+            "synthetic-contract"
+          ]
+        },
+        "confidence": { "enum": ["observed", "candidate", "inferred"] },
+        "candidate_count": { "type": "integer", "minimum": 0 },
+        "gate_effect": {
+          "enum": [
+            "oracle-only-does-not-clear-g2",
+            "supports-synthetic-contract"
+          ]
+        },
+        "summary": { "$ref": "#/$defs/safeText" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "const": "private-dynamic-aggregate" } },
+            "required": ["kind"]
+          },
+          "then": { "required": ["gate_effect"] }
+        }
+      ]
+    },
+    "fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "test_id", "strategy", "limitations"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "status": { "const": "synthetic-tested" },
+        "test_id": { "$ref": "#/$defs/id" },
+        "strategy": { "$ref": "#/$defs/safeText" },
+        "limitations": { "$ref": "#/$defs/safeText" },
+        "verified_properties": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "unproven_properties": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "runtime_status",
+        "fundamental_blocker",
+        "target_evidence",
+        "runtime_evidence",
+        "fallback",
+        "next_gate"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "runtime_status": { "$ref": "#/$defs/status" },
+        "fundamental_blocker": { "type": "boolean" },
+        "target_evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence" }
+        },
+        "runtime_evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence" }
+        },
+        "fallback": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/fallback" }
+          ]
+        },
+        "next_gate": { "$ref": "#/$defs/safeText" }
+      }
+    },
+    "saveDevice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "target_usage",
+        "candidate_count",
+        "runtime_status",
+        "fallback",
+        "next_gate"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "target_usage": { "enum": ["observed", "unverified", "not-observed"] },
+        "candidate_count": { "type": "integer", "minimum": 0 },
+        "runtime_status": { "$ref": "#/$defs/status" },
+        "fallback": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/fallback" }
+          ]
+        },
+        "next_gate": { "$ref": "#/$defs/safeText" }
+      }
+    },
+    "trapRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "candidate_count",
+        "confidence",
+        "runtime_disposition",
+        "fundamental_blocker",
+        "fallback_contract_id",
+        "fallback_test_id",
+        "next_gate"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "candidate_count": { "type": "integer", "minimum": 0 },
+        "confidence": { "enum": ["observed", "candidate", "generated-contract"] },
+        "runtime_disposition": {
+          "enum": ["supported", "abort-only", "missing-handler", "unhandled"]
+        },
+        "fundamental_blocker": { "type": "boolean" },
+        "fallback_contract_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/id" }
+          ]
+        },
+        "fallback_test_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/id" }
+          ]
+        },
+        "next_gate": { "$ref": "#/$defs/safeText" }
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+diff --git a/include/recompiler/generator.h b/include/recompiler/generator.h
+index 145bcd0..0d5e206 100644
+--- a/include/recompiler/generator.h
++++ b/include/recompiler/generator.h
+@@ -55,0 +56,6 @@ namespace N64Recomp {
++        virtual void emit_cop0_read(int reg, int cop0_reg) const = 0;
++        virtual void emit_cop0_write(int reg, int cop0_reg) const = 0;
++        virtual void emit_eret() const = 0;
++        virtual void emit_cache(int base_reg, int operation, int16_t offset) const = 0;
++        virtual void emit_tlb(uint32_t operation) const = 0;
++        virtual void emit_reserved_instruction(uint32_t vram, uint32_t word) const = 0;
+@@ -92,0 +99,6 @@ namespace N64Recomp {
++        void emit_cop0_read(int reg, int cop0_reg) const final;
++        void emit_cop0_write(int reg, int cop0_reg) const final;
++        void emit_eret() const final;
++        void emit_cache(int base_reg, int operation, int16_t offset) const final;
++        void emit_tlb(uint32_t operation) const final;
++        void emit_reserved_instruction(uint32_t vram, uint32_t word) const final;

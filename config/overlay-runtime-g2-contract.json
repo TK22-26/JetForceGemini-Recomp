@@ -1,0 +1,108 @@
+{
+  "$schema": "../schemas/overlay-runtime-g2-contract.schema.json",
+  "schema_version": 1,
+  "kind": "jfg-overlay-runtime-g2-contract",
+  "privacy": "public-safe-contract-only",
+  "overlay_lifecycle": {
+    "model": "caller-ordered-overlay-lifecycle-v2",
+    "evidence_class": "rom-free-synthetic-contract",
+    "required_events": [
+      "load_begin",
+      "copy_complete",
+      "bss_cleared",
+      "relocation_applied",
+      "instruction_cache_invalidated",
+      "module_published",
+      "callback_enter",
+      "callback_complete",
+      "lookup",
+      "unpublish",
+      "external_invalidated",
+      "unload_complete",
+      "external_rebound",
+      "stale_pointer_rejected",
+      "reload_verified"
+    ],
+    "relocation_classes": [
+      "full-word",
+      "jump-target",
+      "hi16",
+      "lo16"
+    ],
+    "requires_generated_lookup_integration": true,
+    "requires_bss_clear": true,
+    "requires_full_mapped_extent_validation": true,
+    "requires_callback_reentry_rejection": true,
+    "requires_reload_api_for_prior_lifetime": true,
+    "requires_same_base_reload": true,
+    "requires_semantic_state_match": true,
+    "requires_stale_pointer_rejection": true,
+    "requires_cross_overlay_invalidation": true,
+    "requires_cross_overlay_rebind": true,
+    "test_id": "closed-overlay-lifecycle-and-reload",
+    "real_overlay_execution_count": 0,
+    "generated_lookup_integration_complete": false,
+    "status": "synthetic-contract-only"
+  },
+  "scheduler_boundary": {
+    "mode": "caller-ordered-synchronous",
+    "operation_token_required": true,
+    "callback_completion": "before-operation-return",
+    "wall_clock_used": false,
+    "virtual_time_provided": false,
+    "thread_scheduler_provided": false,
+    "phase5_scheduler_claimed": false
+  },
+  "runtime_traps": {
+    "model": "opaque-trap-classification-ledger-v2",
+    "evidence_class": "rom-free-synthetic-contract",
+    "required_kinds": [
+      "cpu-break",
+      "cpu-syscall",
+      "switch-bounds",
+      "boot-self-check",
+      "dangling-jump-workaround",
+      "checksum",
+      "anti-tamper"
+    ],
+    "allowed_dispositions": [
+      "abort",
+      "emulate",
+      "defer-to-reviewed-handler",
+      "not-applicable"
+    ],
+    "reachability_states": [
+      "unclassified",
+      "reachable",
+      "unreachable"
+    ],
+    "requires_closed_candidate_denominator": true,
+    "requires_owned_mitigation": true,
+    "requires_bounded_estimate": true,
+    "requires_private_oracle_and_native_trace_for_reachable": true,
+    "requires_private_review_for_unreachable": true,
+    "unknown_or_duplicate_fails_closed": true,
+    "test_id": "trap-classification-denominator-and-ownership",
+    "real_trace_count": 0,
+    "private_reachability_complete": false,
+    "status": "synthetic-contract-only"
+  },
+  "claims": {
+    "synthetic_only": true,
+    "real_evidence_present": false,
+    "phase5_scheduler_implemented": false,
+    "g2_complete": false,
+    "phase4_completion_authorized": false
+  },
+  "g2": {
+    "id": "G2",
+    "decision": "no-go",
+    "blockers": [
+      "most-complex-real-overlay-lifecycle",
+      "generated-lookup-runtime-integration",
+      "dynamic-runlink-private-trace",
+      "reachable-trap-private-replay",
+      "owned-non-stub-trap-mitigations"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+diff --git a/src/cgenerator.cpp b/src/cgenerator.cpp
+index a91188d..cf9419f 100644
+--- a/src/cgenerator.cpp
++++ b/src/cgenerator.cpp
+@@ -233 +233,3 @@ void N64Recomp::CGenerator::get_operand_string(Operand operand, UnaryOpType oper
+-            operand_string = "S32(" + operand_string + " << 16)"; 
++            // Form the 32-bit bit pattern before sign extension. Shifting a
++            // signed C int into its sign bit is undefined in generated C.
++            operand_string = "S32(U32(" + operand_string + ") << 16)";

@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/patch-manifest.schema.json",
+  "title": "JFG patch manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "symbol",
+    "category",
+    "reason",
+    "original_behavior",
+    "upstream_reference",
+    "owner",
+    "compatibility_impact",
+    "feature_flag",
+    "tests",
+    "rollback"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^JFG-PATCH-[0-9]{4}$"
+    },
+    "symbol": {
+      "type": "string",
+      "minLength": 1
+    },
+    "category": {
+      "enum": [
+        "required",
+        "compatibility",
+        "widescreen",
+        "hfr",
+        "input",
+        "save",
+        "fix",
+        "mod",
+        "debug"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "original_behavior": {
+      "type": "string",
+      "minLength": 1
+    },
+    "upstream_reference": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "compatibility_impact": {
+      "enum": [
+        "none",
+        "restores-parity",
+        "intentional-change"
+      ]
+    },
+    "feature_flag": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ]
+    },
+    "tests": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "rollback": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "category": {
+            "enum": ["widescreen", "hfr", "input", "mod", "debug"]
+          }
+        },
+        "required": ["category"]
+      },
+      "then": {
+        "properties": {
+          "feature_flag": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  ]
+}

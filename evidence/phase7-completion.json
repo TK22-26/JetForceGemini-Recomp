@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "kind": "jfg-phase7-completion",
+  "status": "pass",
+  "pins": {
+    "rt64": "5473732a822a4423b5696e7cb18fecc425a59875",
+    "n64modernruntime": "589bbf018a3e6d3646ddf7de1e7919f1b7e99bb1"
+  },
+  "producer": {
+    "reference_runner": "windows-d3d12-release",
+    "pixel_comparator": "scripts/compare_phase7_frames.py",
+    "private_artifact_policy": "ignored-local-only"
+  },
+  "scenes": [
+    {
+      "scene": "boot-title",
+      "real_task_count": 1,
+      "parsed_command_count": 732,
+      "custom_handler_command_count": 66,
+      "unsupported_command_count": 0,
+      "independent_semantic_oracle_match": true,
+      "completion_committed_after_oracle": true,
+      "repeat_count": 3,
+      "pixel_output_byte_identical": true,
+      "dimensions": {
+        "rt64_width": 640,
+        "rt64_height": 480,
+        "vi_width": 320,
+        "vi_height": 240
+      },
+      "ssim_prefilter": "gaussian-one-reference-pixel",
+      "worst_case_metrics": {
+        "ssim_millionths": 910110,
+        "foreground_iou_millionths": 838980,
+        "mean_absolute_error_millionths": 43152,
+        "psnr_millidecibels": 17155
+      }
+    },
+    {
+      "scene": "representative-gameplay",
+      "real_task_count": 1,
+      "parsed_command_count": 3261,
+      "custom_handler_command_count": 1391,
+      "unsupported_command_count": 0,
+      "independent_semantic_oracle_match": true,
+      "completion_committed_after_oracle": true,
+      "repeat_count": 3,
+      "pixel_output_byte_identical": true,
+      "dimensions": {
+        "rt64_width": 640,
+        "rt64_height": 480,
+        "vi_width": 320,
+        "vi_height": 240
+      },
+      "ssim_prefilter": "gaussian-one-reference-pixel",
+      "worst_case_metrics": {
+        "ssim_millionths": 821580,
+        "foreground_iou_millionths": 970458,
+        "mean_absolute_error_millionths": 50134,
+        "psnr_millidecibels": 19360
+      }
+    }
+  ],
+  "simulation_isolation": {
+    "hash_schema": "sha256-rdram-snapshot-v1",
+    "modes": [
+      "disabled",
+      "bounded-semantic",
+      "rt64"
+    ],
+    "renderer_disabled_hash_equal": true,
+    "backend_hash_equal": true,
+    "source_snapshots_unchanged": true,
+    "scene_hashes": [
+      {
+        "scene": "boot-title",
+        "disabled": "79a7d6eeff2eb123b2fb732df9aea9c08e760ab66373748319f2a1a5dba87815",
+        "bounded_semantic": "79a7d6eeff2eb123b2fb732df9aea9c08e760ab66373748319f2a1a5dba87815",
+        "rt64": "79a7d6eeff2eb123b2fb732df9aea9c08e760ab66373748319f2a1a5dba87815"
+      },
+      {
+        "scene": "representative-gameplay",
+        "disabled": "8715fbaded57b34bc009dcbbb9f5ef3121518a1f7464f86e1166975dd358f49c",
+        "bounded_semantic": "8715fbaded57b34bc009dcbbb9f5ef3121518a1f7464f86e1166975dd358f49c",
+        "rt64": "8715fbaded57b34bc009dcbbb9f5ef3121518a1f7464f86e1166975dd358f49c"
+      }
+    ]
+  },
+  "gates": {
+    "rt64_shell_integrated": true,
+    "renderer_callbacks_registered": true,
+    "f3ddkr_path_supported": true,
+    "framebuffer_contract_verified": true,
+    "rsp_rdp_sync_verified": true,
+    "graphics_command_log_verified": true,
+    "real_tasks_submitted": true,
+    "boot_title_compared": true,
+    "gameplay_compared": true,
+    "repeat_determinism_verified": true,
+    "renderer_disabled_hash_equal": true,
+    "backend_hash_equal": true,
+    "developer_debugger_available": true,
+    "unsupported_commands_zero": true
+  }
+}

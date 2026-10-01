@@ -1,0 +1,20 @@
+# Public-safe baseline N64Recomp input for the pinned Phase 4 toolchain.
+# This tracked file intentionally omits target entry coordinates. A maintainer
+# supplies private symbol, section, and relocation metadata through ignored
+# local orchestration.
+
+[input]
+elf_path = "../tools/upstream/Jet-Force-Gemini/build/jfg.us.elf"
+output_func_path = "../build/generated/jfg.us"
+functions_per_output_file = 1
+single_file_output = false
+use_lookup_for_all_function_calls = true
+strict_patch_mode = true
+use_mdebug = false
+use_absolute_symbols = false
+unpaired_lo16_warnings = true
+allow_exports = false
+
+[patches]
+stubs = []
+ignored = []

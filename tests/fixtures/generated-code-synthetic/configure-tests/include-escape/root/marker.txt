@@ -1,0 +1,1 @@
+This directory is the containment boundary for a configure-time negative test.

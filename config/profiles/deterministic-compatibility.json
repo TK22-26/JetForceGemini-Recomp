@@ -1,0 +1,9 @@
+{
+  "$schema": "../../schemas/execution-profile.schema.json",
+  "schema_version": 1,
+  "id": "deterministic-compatibility",
+  "behavior": "compatibility",
+  "execution_backend": "deterministic",
+  "presentation": "headless",
+  "feature_flags": []
+}

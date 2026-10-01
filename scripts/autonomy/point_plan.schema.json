@@ -1,0 +1,160 @@
+{
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": [
+        "point-state",
+        "needs-instrumentation"
+      ]
+    },
+    "hypothesis": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600
+    },
+    "alternative": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600
+    },
+    "probe": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "entry_pc": {
+              "type": "string",
+              "pattern": "^0x80[0-3][0-9a-f]{5}$"
+            },
+            "call_pc": {
+              "type": "string",
+              "pattern": "^0x80[0-3][0-9a-f]{5}$"
+            },
+            "pcs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^0x80[0-3][0-9a-f]{5}$"
+              },
+              "minItems": 2,
+              "maxItems": 16
+            },
+            "words": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^0x80[0-3][0-9a-f]{5}$"
+              },
+              "maxItems": 16
+            }
+          },
+          "required": [
+            "entry_pc",
+            "call_pc",
+            "pcs",
+            "words"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "prediction": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "event-count",
+                "register",
+                "word"
+              ]
+            },
+            "pc": {
+              "type": "string",
+              "pattern": "^0x80[0-3][0-9a-f]{5}$"
+            },
+            "update": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "occurrence": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4096
+                }
+              ]
+            },
+            "register": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 31
+                }
+              ]
+            },
+            "address": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^0x80[0-3][0-9a-f]{5}$"
+                }
+              ]
+            },
+            "relation": {
+              "type": "string",
+              "enum": [
+                "equal",
+                "different"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "pc",
+            "update",
+            "occurrence",
+            "register",
+            "address",
+            "relation"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": [
+    "operation",
+    "hypothesis",
+    "alternative",
+    "reason",
+    "probe",
+    "prediction"
+  ],
+  "additionalProperties": false
+}

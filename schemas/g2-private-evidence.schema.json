@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/g2-private-evidence.schema.json",
+  "title": "Local-only G2 executable evidence bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "pins",
+    "requirements",
+    "evidence_set_sha256"
+  ],
+  "properties": {
+    "$schema": { "const": "../../../schemas/g2-private-evidence.schema.json" },
+    "schema_version": { "const": 2 },
+    "kind": { "const": "jfg-g2-private-executable-evidence" },
+    "pins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jfg_decomp_commit",
+        "n64recomp_commit",
+        "supported_input_id",
+        "input_rom_sha256",
+        "dependency_lock_sha256",
+        "architecture_decision_sha256"
+      ],
+      "properties": {
+        "jfg_decomp_commit": { "$ref": "#/$defs/commit" },
+        "n64recomp_commit": { "$ref": "#/$defs/commit" },
+        "supported_input_id": { "const": "jfg-us-retail" },
+        "input_rom_sha256": { "$ref": "#/$defs/sha256" },
+        "dependency_lock_sha256": { "$ref": "#/$defs/sha256" },
+        "architecture_decision_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpu-sections",
+        "overlay-lifecycle",
+        "rsp-programs",
+        "graphics-tasks",
+        "audio-tasks",
+        "save-round-trip",
+        "runtime-traps",
+        "dependency-legal-selection"
+      ],
+      "properties": {
+        "cpu-sections": { "$ref": "#/$defs/requirement" },
+        "overlay-lifecycle": { "$ref": "#/$defs/requirement" },
+        "rsp-programs": { "$ref": "#/$defs/requirement" },
+        "graphics-tasks": { "$ref": "#/$defs/requirement" },
+        "audio-tasks": { "$ref": "#/$defs/requirement" },
+        "save-round-trip": { "$ref": "#/$defs/requirement" },
+        "runtime-traps": { "$ref": "#/$defs/requirement" },
+        "dependency-legal-selection": { "$ref": "#/$defs/requirement" }
+      }
+    },
+    "evidence_set_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "identifier": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 72,
+      "pattern": "^[a-z0-9][a-z0-9._-]*[a-z0-9]$"
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)*$"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment_id",
+        "platform_id",
+        "architecture_id",
+        "toolchain_sha256"
+      ],
+      "properties": {
+        "environment_id": { "$ref": "#/$defs/identifier" },
+        "platform_id": { "$ref": "#/$defs/identifier" },
+        "architecture_id": { "$ref": "#/$defs/identifier" },
+        "toolchain_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "role", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relativePath" },
+        "role": {
+          "enum": [
+            "configuration",
+            "input",
+            "output",
+            "result",
+            "log",
+            "decision"
+          ]
+        },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "evidence_class",
+        "harness_id",
+        "harness_sha256",
+        "case_id",
+        "subject_sha256",
+        "source_input_sha256",
+        "pins_sha256",
+        "environment",
+        "environment_sha256",
+        "input_set_sha256",
+        "output_set_sha256",
+        "artifact_set_sha256",
+        "result_sha256",
+        "observed_exit_code",
+        "passed",
+        "artifacts"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "evidence_class": {
+          "enum": [
+            "private-native-execution",
+            "private-oracle-execution",
+            "private-g3-compiler-product-binding",
+            "pinned-source-inspection",
+            "human-approved-decision"
+          ]
+        },
+        "harness_id": { "$ref": "#/$defs/identifier" },
+        "harness_sha256": { "$ref": "#/$defs/sha256" },
+        "case_id": { "$ref": "#/$defs/identifier" },
+        "subject_sha256": { "$ref": "#/$defs/sha256" },
+        "source_input_sha256": { "$ref": "#/$defs/sha256" },
+        "pins_sha256": { "$ref": "#/$defs/sha256" },
+        "environment": { "$ref": "#/$defs/environment" },
+        "environment_sha256": { "$ref": "#/$defs/sha256" },
+        "input_set_sha256": { "$ref": "#/$defs/sha256" },
+        "output_set_sha256": { "$ref": "#/$defs/sha256" },
+        "artifact_set_sha256": { "$ref": "#/$defs/sha256" },
+        "result_sha256": { "$ref": "#/$defs/sha256" },
+        "observed_exit_code": { "const": 0 },
+        "passed": { "const": true },
+        "artifacts": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/artifact" }
+        }
+      }
+    },
+    "nonNegativeCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 33554432
+    },
+    "positiveCount": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 33554432
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_record_count",
+        "executable_evidence_count",
+        "executions",
+        "unresolved"
+      ],
+      "properties": {
+        "evidence_record_count": { "$ref": "#/$defs/positiveCount" },
+        "executable_evidence_count": { "$ref": "#/$defs/nonNegativeCount" },
+        "executions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": { "$ref": "#/$defs/execution" }
+        },
+        "unresolved": {
+          "type": "array",
+          "maxItems": 0
+        }
+      }
+    }
+  }
+}

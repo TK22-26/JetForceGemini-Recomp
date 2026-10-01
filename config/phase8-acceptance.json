@@ -1,0 +1,47 @@
+{
+  "$schema": "../schemas/phase8-acceptance.schema.json",
+  "schema_version": 1,
+  "kind": "jfg-phase8-acceptance",
+  "status": "complete",
+  "scope": {
+    "milestone": "M4-interactive-build",
+    "required_scenarios": [
+      "launch-to-title",
+      "title-menu-new-game",
+      "first-gameplay-input",
+      "save-exit-relaunch-resume"
+    ],
+    "required_input_replays": 3,
+    "minimum_audio_seconds": 60,
+    "maximum_unsupported_runtime_boundaries": 0
+  },
+  "evidence_format": {
+    "private_artifact_policy": "ignored-local-only",
+    "public_summary": "evidence/phase8-completion.json",
+    "oracle": "independent-emulator-record-and-replay",
+    "checkpoint_policy": "event-and-state-hash",
+    "input_policy": "timestamped-deterministic-replay",
+    "save_policy": "fresh-profile-process-restart",
+    "audio_policy": "decoded-pcm-and-device-consumption"
+  },
+  "gates": {
+    "live_generated_cpu_execution": true,
+    "continuous_rt64_presentation": true,
+    "controller_input_callbacks": true,
+    "input_sampling_timing_verified": true,
+    "controller_disconnect_reconnect": true,
+    "title_menu_navigation": true,
+    "new_game_reaches_controlled_gameplay": true,
+    "audio_rsp_tasks_decoded": true,
+    "audio_device_output_verified": true,
+    "audio_soak_verified": true,
+    "save_device_integrated": true,
+    "native_filesystem_mapping": true,
+    "configuration_persistence": true,
+    "rom_selection_validation": true,
+    "controller_pak_accessory_path": true,
+    "process_restart_resume": true,
+    "deterministic_replays_match": true,
+    "unsupported_runtime_boundaries_zero": true
+  }
+}

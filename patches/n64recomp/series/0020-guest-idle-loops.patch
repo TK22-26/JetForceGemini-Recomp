@@ -1,0 +1,40 @@
+diff --git a/include/recompiler/context.h b/include/recompiler/context.h
+index 15b8543..95320f6 100644
+--- a/include/recompiler/context.h
++++ b/include/recompiler/context.h
+@@ -249,0 +250,3 @@ namespace N64Recomp {
++        // Keep branch-to-self and its delay slot as guest execution. A CPU
++        // owner, not a host permanent park, is responsible for interrupts.
++        bool emit_guest_idle_loops = false;
+diff --git a/src/config.h b/src/config.h
+index b547129..983b94b 100644
+--- a/src/config.h
++++ b/src/config.h
+@@ -48,0 +49 @@ namespace N64Recomp {
++        bool emit_guest_idle_loops = false;
+diff --git a/src/config.cpp b/src/config.cpp
+index 7247470..aae354d 100644
+--- a/src/config.cpp
++++ b/src/config.cpp
+@@ -429,0 +430,5 @@ N64Recomp::Config::Config(const char* path) {
++        const auto guest_idle = input_data["emit_guest_idle_loops"];
++        if (guest_idle && !guest_idle.is_boolean()) {
++            throw toml::parse_error("emit_guest_idle_loops must be a boolean", guest_idle.node()->source());
++        }
++        emit_guest_idle_loops = guest_idle.value<bool>().value_or(false);
+diff --git a/src/main.cpp b/src/main.cpp
+index 59fec55..0f50e88 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -559,0 +560 @@ int main(int argc, char** argv) {
++    context.emit_guest_idle_loops = config.emit_guest_idle_loops;
+diff --git a/src/recompilation.cpp b/src/recompilation.cpp
+index 58662a2..22a006f 100644
+--- a/src/recompilation.cpp
++++ b/src/recompilation.cpp
+@@ -622 +622 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
+-            if (branch_target == instr_vram) {
++            if (branch_target == instr_vram && !context.emit_guest_idle_loops) {
+@@ -1018 +1018 @@ bool recompile_function_impl(GeneratorType& generator, const N64Recomp::Context&
+-        if (context.emit_guest_link_registers || context.emit_guest_cpu_state || context.emit_guest_dynamic_returns) {
++        if (context.emit_guest_link_registers || context.emit_guest_cpu_state || context.emit_guest_dynamic_returns || context.emit_guest_idle_loops) {

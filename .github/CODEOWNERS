@@ -1,0 +1,8 @@
+* @TK22-26
+
+/.github/ @TK22-26
+/docs/adr/ @TK22-26
+/docs/legal/ @TK22-26
+/schemas/ @TK22-26
+/dependencies.lock.json @TK22-26
+/scripts/check_repository_hygiene.py @TK22-26

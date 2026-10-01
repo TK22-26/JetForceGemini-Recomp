@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/phase4-completion-signing.schema.json",
+  "title": "Phase 4 completion signing policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "algorithm",
+    "key_id",
+    "principal",
+    "namespace",
+    "public_key_file"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "kind": { "const": "jfg-phase4-completion-signing-policy" },
+    "algorithm": { "const": "openssh-ed25519" },
+    "key_id": { "const": "jfg-phase4-completion-v1" },
+    "principal": { "const": "jfg-phase4-completion-v1" },
+    "namespace": { "const": "jfg-phase4-completion-v1" },
+    "public_key_file": { "const": "phase4-completion-signing-key.pub" }
+  }
+}

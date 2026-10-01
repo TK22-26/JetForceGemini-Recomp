@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/overlay-runtime-g2-contract.schema.json",
+  "title": "Overlay lifecycle and runtime trap G2 contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "privacy",
+    "overlay_lifecycle",
+    "scheduler_boundary",
+    "runtime_traps",
+    "claims",
+    "g2"
+  ],
+  "properties": {
+    "$schema": { "const": "../schemas/overlay-runtime-g2-contract.schema.json" },
+    "schema_version": { "const": 1 },
+    "kind": { "const": "jfg-overlay-runtime-g2-contract" },
+    "privacy": { "const": "public-safe-contract-only" },
+    "overlay_lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "evidence_class",
+        "required_events",
+        "relocation_classes",
+        "requires_generated_lookup_integration",
+        "requires_bss_clear",
+        "requires_full_mapped_extent_validation",
+        "requires_callback_reentry_rejection",
+        "requires_reload_api_for_prior_lifetime",
+        "requires_same_base_reload",
+        "requires_semantic_state_match",
+        "requires_stale_pointer_rejection",
+        "requires_cross_overlay_invalidation",
+        "requires_cross_overlay_rebind",
+        "test_id",
+        "real_overlay_execution_count",
+        "generated_lookup_integration_complete",
+        "status"
+      ],
+      "properties": {
+        "model": { "const": "caller-ordered-overlay-lifecycle-v2" },
+        "evidence_class": { "const": "rom-free-synthetic-contract" },
+        "required_events": {
+          "const": [
+            "load_begin",
+            "copy_complete",
+            "bss_cleared",
+            "relocation_applied",
+            "instruction_cache_invalidated",
+            "module_published",
+            "callback_enter",
+            "callback_complete",
+            "lookup",
+            "unpublish",
+            "external_invalidated",
+            "unload_complete",
+            "external_rebound",
+            "stale_pointer_rejected",
+            "reload_verified"
+          ]
+        },
+        "relocation_classes": {
+          "const": ["full-word", "jump-target", "hi16", "lo16"]
+        },
+        "requires_generated_lookup_integration": { "const": true },
+        "requires_bss_clear": { "const": true },
+        "requires_full_mapped_extent_validation": { "const": true },
+        "requires_callback_reentry_rejection": { "const": true },
+        "requires_reload_api_for_prior_lifetime": { "const": true },
+        "requires_same_base_reload": { "const": true },
+        "requires_semantic_state_match": { "const": true },
+        "requires_stale_pointer_rejection": { "const": true },
+        "requires_cross_overlay_invalidation": { "const": true },
+        "requires_cross_overlay_rebind": { "const": true },
+        "test_id": { "const": "closed-overlay-lifecycle-and-reload" },
+        "real_overlay_execution_count": { "const": 0 },
+        "generated_lookup_integration_complete": { "const": false },
+        "status": { "const": "synthetic-contract-only" }
+      }
+    },
+    "scheduler_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "operation_token_required",
+        "callback_completion",
+        "wall_clock_used",
+        "virtual_time_provided",
+        "thread_scheduler_provided",
+        "phase5_scheduler_claimed"
+      ],
+      "properties": {
+        "mode": { "const": "caller-ordered-synchronous" },
+        "operation_token_required": { "const": true },
+        "callback_completion": { "const": "before-operation-return" },
+        "wall_clock_used": { "const": false },
+        "virtual_time_provided": { "const": false },
+        "thread_scheduler_provided": { "const": false },
+        "phase5_scheduler_claimed": { "const": false }
+      }
+    },
+    "runtime_traps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "evidence_class",
+        "required_kinds",
+        "allowed_dispositions",
+        "reachability_states",
+        "requires_closed_candidate_denominator",
+        "requires_owned_mitigation",
+        "requires_bounded_estimate",
+        "requires_private_oracle_and_native_trace_for_reachable",
+        "requires_private_review_for_unreachable",
+        "unknown_or_duplicate_fails_closed",
+        "test_id",
+        "real_trace_count",
+        "private_reachability_complete",
+        "status"
+      ],
+      "properties": {
+        "model": { "const": "opaque-trap-classification-ledger-v2" },
+        "evidence_class": { "const": "rom-free-synthetic-contract" },
+        "required_kinds": {
+          "const": ["cpu-break", "cpu-syscall", "switch-bounds", "boot-self-check", "dangling-jump-workaround", "checksum", "anti-tamper"]
+        },
+        "allowed_dispositions": {
+          "const": ["abort", "emulate", "defer-to-reviewed-handler", "not-applicable"]
+        },
+        "reachability_states": {
+          "const": ["unclassified", "reachable", "unreachable"]
+        },
+        "requires_closed_candidate_denominator": { "const": true },
+        "requires_owned_mitigation": { "const": true },
+        "requires_bounded_estimate": { "const": true },
+        "requires_private_oracle_and_native_trace_for_reachable": { "const": true },
+        "requires_private_review_for_unreachable": { "const": true },
+        "unknown_or_duplicate_fails_closed": { "const": true },
+        "test_id": { "const": "trap-classification-denominator-and-ownership" },
+        "real_trace_count": { "const": 0 },
+        "private_reachability_complete": { "const": false },
+        "status": { "const": "synthetic-contract-only" }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "synthetic_only",
+        "real_evidence_present",
+        "phase5_scheduler_implemented",
+        "g2_complete",
+        "phase4_completion_authorized"
+      ],
+      "properties": {
+        "synthetic_only": { "const": true },
+        "real_evidence_present": { "const": false },
+        "phase5_scheduler_implemented": { "const": false },
+        "g2_complete": { "const": false },
+        "phase4_completion_authorized": { "const": false }
+      }
+    },
+    "g2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "decision", "blockers"],
+      "properties": {
+        "id": { "const": "G2" },
+        "decision": { "const": "no-go" },
+        "blockers": {
+          "const": [
+            "most-complex-real-overlay-lifecycle",
+            "generated-lookup-runtime-integration",
+            "dynamic-runlink-private-trace",
+            "reachable-trap-private-replay",
+            "owned-non-stub-trap-mitigations"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,1492 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -84,2 +84,3 @@
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/cgenerator.cpp
++    ${CMAKE_CURRENT_SOURCE_DIR}/src/indirect_decisions.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/recompilation.cpp
+diff --git a/include/recompiler/indirect_decisions.h b/include/recompiler/indirect_decisions.h
+new file mode 100644
+--- /dev/null
++++ b/include/recompiler/indirect_decisions.h
+@@ -0,0 +1,107 @@
++#ifndef __RECOMP_INDIRECT_DECISIONS_H__
++#define __RECOMP_INDIRECT_DECISIONS_H__
++
++#include <cstddef>
++#include <cstdint>
++#include <filesystem>
++#include <string>
++#include <vector>
++
++namespace N64Recomp {
++    class Context;
++    struct Function;
++    struct JumpTable;
++
++    inline constexpr size_t MaxIndirectDecisionEmissions = 1U << 20;
++    inline constexpr size_t MaxDirectCallEmissions = 1U << 20;
++    inline constexpr size_t MaxIndirectTargetMembers = 1U << 22;
++    inline constexpr size_t MaxGeneratedCallableMembers = 1U << 20;
++    inline constexpr size_t MaxGeneratedFunctionNameBytes = 4096;
++    inline constexpr size_t MaxDirectCallInstructionClassBytes = 64;
++    inline constexpr size_t MaxIndirectDecisionSidecarBytes = 64U << 20;
++
++    enum class IndirectDecisionClassification : uint8_t {
++        NativeReturn,
++        DynamicCall,
++        DynamicTail,
++        BoundedSwitch,
++    };
++
++    struct IndirectTargetMember {
++        uint16_t section_index;
++        uint32_t section_offset;
++
++        bool operator==(const IndirectTargetMember&) const = default;
++    };
++
++    struct IndirectDecisionEmission {
++        uint16_t source_section;
++        uint32_t source_offset;
++        uint8_t source_register;
++        IndirectDecisionClassification classification;
++        std::string generated_function;
++        std::vector<IndirectTargetMember> target_members;
++    };
++
++    enum class DirectCallClassification : uint8_t {
++        GeneratedCallable,
++        CheckedAddressLookup,
++        ReferenceSymbol,
++        EventSymbol,
++    };
++
++    enum class DirectCallTransferRole : uint8_t {
++        LinkedCall,
++        DirectTail,
++    };
++
++    struct DirectCallTarget {
++        uint32_t address = 0;
++        uint16_t section_index = 0;
++        uint32_t symbol_index = 0;
++        std::string generated_function;
++    };
++
++    struct DirectCallEmission {
++        uint16_t source_section;
++        uint32_t source_offset;
++        std::string instruction_class;
++        DirectCallTransferRole transfer_role;
++        DirectCallClassification classification;
++        std::string generated_function;
++        DirectCallTarget target;
++    };
++
++    // Capture is disabled by default so ordinary N64Recomp users pay no
++    // collection or output cost unless the CLI configuration opts in.
++    void configure_indirect_decision_capture(bool enabled);
++
++    bool record_indirect_decision(
++        const Context& context,
++        const Function& function,
++        uint32_t instruction_vram,
++        int source_register,
++        IndirectDecisionClassification classification,
++        const JumpTable* jump_table = nullptr
++    );
++
++    bool record_direct_call(
++        const Context& context,
++        const Function& function,
++        uint32_t instruction_vram,
++        std::string instruction_class,
++        DirectCallTransferRole transfer_role,
++        DirectCallClassification classification,
++        DirectCallTarget target
++    );
++
++    std::vector<IndirectDecisionEmission> get_indirect_decision_emissions();
++    std::vector<DirectCallEmission> get_direct_call_emissions();
++
++    bool write_indirect_decision_sidecar(
++        const std::filesystem::path& path,
++        const Context& context
++    );
++}
++
++#endif
+diff --git a/src/config.cpp b/src/config.cpp
+--- a/src/config.cpp
++++ b/src/config.cpp
+@@ -336,2 +336,33 @@
+             throw toml::parse_error("Missing output_func_path in config file", input_data.node()->source());
++        }
++
++        const toml::node_view indirect_decision_sidecar_data =
++            input_data["indirect_decision_sidecar_path"];
++        if (indirect_decision_sidecar_data) {
++            const std::optional<std::string> sidecar_path_opt =
++                indirect_decision_sidecar_data.value<std::string>();
++            if (!sidecar_path_opt.has_value() || sidecar_path_opt->empty()) {
++                throw toml::parse_error(
++                    "Invalid indirect_decision_sidecar_path in config file",
++                    indirect_decision_sidecar_data.node()->source());
++            }
++            const std::filesystem::path candidate =
++                concat_if_not_empty(basedir, sidecar_path_opt.value());
++            std::error_code output_path_error;
++            std::error_code sidecar_path_error;
++            const std::filesystem::path normalized_output =
++                std::filesystem::absolute(output_func_path, output_path_error).lexically_normal();
++            const std::filesystem::path normalized_sidecar =
++                std::filesystem::absolute(candidate, sidecar_path_error).lexically_normal();
++            if (output_path_error || sidecar_path_error ||
++                normalized_sidecar.filename().empty() ||
++                normalized_sidecar.parent_path() != normalized_output) {
++                throw toml::parse_error(
++                    "indirect_decision_sidecar_path must name a direct child of output_func_path",
++                    indirect_decision_sidecar_data.node()->source());
++            }
++            indirect_decision_sidecar_path = normalized_sidecar;
++        }
++        else {
++            indirect_decision_sidecar_path.clear();
+         }
+diff --git a/src/config.h b/src/config.h
+--- a/src/config.h
++++ b/src/config.h
+@@ -56,2 +56,3 @@
+         std::filesystem::path output_func_path;
++        std::filesystem::path indirect_decision_sidecar_path;
+         std::filesystem::path relocatable_sections_path;
+diff --git a/src/indirect_decisions.cpp b/src/indirect_decisions.cpp
+new file mode 100644
+--- /dev/null
++++ b/src/indirect_decisions.cpp
+@@ -0,0 +1,738 @@
++#include "recompiler/indirect_decisions.h"
++
++#include <algorithm>
++#include <fstream>
++#include <limits>
++#include <mutex>
++#include <sstream>
++#include <string_view>
++#include <tuple>
++#include <unordered_set>
++
++#include "recompiler/context.h"
++
++namespace {
++    struct CaptureState {
++        std::mutex mutex;
++        bool enabled = false;
++        size_t target_member_count = 0;
++        std::vector<N64Recomp::IndirectDecisionEmission> emissions;
++        std::vector<N64Recomp::DirectCallEmission> direct_calls;
++    };
++
++    struct CallableMember {
++        uint16_t source_section;
++        uint32_t source_offset;
++        uint32_t size;
++        std::string generated_function;
++    };
++
++    CaptureState capture_state;
++
++    bool callable_less(const CallableMember& left, const CallableMember& right) {
++        if (left.source_section != right.source_section) {
++            return left.source_section < right.source_section;
++        }
++        if (left.source_offset != right.source_offset) {
++            return left.source_offset < right.source_offset;
++        }
++        if (left.size != right.size) {
++            return left.size > right.size;
++        }
++        return left.generated_function < right.generated_function;
++    }
++
++    bool emission_less(
++        const N64Recomp::IndirectDecisionEmission& left,
++        const N64Recomp::IndirectDecisionEmission& right
++    ) {
++        return std::tie(
++            left.source_section,
++            left.source_offset,
++            left.generated_function,
++            left.classification,
++            left.source_register
++        ) < std::tie(
++            right.source_section,
++            right.source_offset,
++            right.generated_function,
++            right.classification,
++            right.source_register
++        );
++    }
++
++    bool direct_call_less(
++        const N64Recomp::DirectCallEmission& left,
++        const N64Recomp::DirectCallEmission& right
++    ) {
++        return std::tie(
++            left.source_section,
++            left.source_offset,
++            left.generated_function,
++            left.instruction_class,
++            left.transfer_role,
++            left.classification
++        ) < std::tie(
++            right.source_section,
++            right.source_offset,
++            right.generated_function,
++            right.instruction_class,
++            right.transfer_role,
++            right.classification
++        );
++    }
++
++    bool bounded_add(size_t& total, size_t amount, size_t limit) {
++        if (amount > limit || total > limit - amount) {
++            return false;
++        }
++        total += amount;
++        return true;
++    }
++
++    bool write_json_string(std::ostream& output, std::string_view value) {
++        if (value.size() > N64Recomp::MaxGeneratedFunctionNameBytes) {
++            return false;
++        }
++        static constexpr char hex[] = "0123456789abcdef";
++        output.put('"');
++        for (unsigned char character : value) {
++            switch (character) {
++            case '"': output << "\\\""; break;
++            case '\\': output << "\\\\"; break;
++            case '\b': output << "\\b"; break;
++            case '\f': output << "\\f"; break;
++            case '\n': output << "\\n"; break;
++            case '\r': output << "\\r"; break;
++            case '\t': output << "\\t"; break;
++            default:
++                if (character < 0x20) {
++                    output << "\\u00" << hex[character >> 4] << hex[character & 0x0F];
++                }
++                else {
++                    output.put(static_cast<char>(character));
++                }
++                break;
++            }
++        }
++        output.put('"');
++        return output.good();
++    }
++
++    std::string_view classification_name(
++        N64Recomp::IndirectDecisionClassification classification
++    ) {
++        switch (classification) {
++        case N64Recomp::IndirectDecisionClassification::NativeReturn:
++            return "native-return";
++        case N64Recomp::IndirectDecisionClassification::DynamicCall:
++            return "dynamic-call";
++        case N64Recomp::IndirectDecisionClassification::DynamicTail:
++            return "dynamic-tail";
++        case N64Recomp::IndirectDecisionClassification::BoundedSwitch:
++            return "bounded-switch";
++        }
++        return {};
++    }
++
++    std::string_view direct_call_classification_name(
++        N64Recomp::DirectCallClassification classification
++    ) {
++        switch (classification) {
++        case N64Recomp::DirectCallClassification::GeneratedCallable:
++            return "generated-call";
++        case N64Recomp::DirectCallClassification::CheckedAddressLookup:
++            return "checked-lookup-call";
++        case N64Recomp::DirectCallClassification::ReferenceSymbol:
++            return "reference-symbol-call";
++        case N64Recomp::DirectCallClassification::EventSymbol:
++            return "event-symbol-call";
++        }
++        return {};
++    }
++
++    bool valid_direct_call_instruction_class(std::string_view instruction_class) {
++        return !instruction_class.empty() &&
++            instruction_class.size() <= N64Recomp::MaxDirectCallInstructionClassBytes &&
++            std::all_of(
++                instruction_class.begin(),
++                instruction_class.end(),
++                [](unsigned char character) {
++                    return (character >= 'a' && character <= 'z') ||
++                        (character >= '0' && character <= '9') ||
++                        character == '_' || character == '.' || character == '-';
++                });
++    }
++
++    std::string_view direct_call_transfer_role_name(
++        N64Recomp::DirectCallTransferRole transfer_role
++    ) {
++        switch (transfer_role) {
++        case N64Recomp::DirectCallTransferRole::LinkedCall:
++            return "linked-call";
++        case N64Recomp::DirectCallTransferRole::DirectTail:
++            return "direct-tail";
++        }
++        return {};
++    }
++
++    bool same_direct_call(
++        const N64Recomp::DirectCallEmission& left,
++        const N64Recomp::DirectCallEmission& right
++    ) {
++        return left.source_section == right.source_section &&
++            left.source_offset == right.source_offset &&
++            left.instruction_class == right.instruction_class &&
++            left.transfer_role == right.transfer_role &&
++            left.classification == right.classification &&
++            left.target.address == right.target.address &&
++            left.target.section_index == right.target.section_index &&
++            left.target.symbol_index == right.target.symbol_index &&
++            left.target.generated_function == right.target.generated_function;
++    }
++
++    bool same_site_decision(
++        const N64Recomp::IndirectDecisionEmission& left,
++        const N64Recomp::IndirectDecisionEmission& right
++    ) {
++        return left.source_section == right.source_section &&
++            left.source_offset == right.source_offset &&
++            left.source_register == right.source_register &&
++            left.classification == right.classification &&
++            left.target_members == right.target_members;
++    }
++
++    bool output_within_limit(std::ostream& output) {
++        const std::streampos position = output.tellp();
++        return position >= 0 &&
++            static_cast<uint64_t>(position) <= N64Recomp::MaxIndirectDecisionSidecarBytes;
++    }
++}
++
++void N64Recomp::configure_indirect_decision_capture(bool enabled) {
++    std::lock_guard lock(capture_state.mutex);
++    capture_state.enabled = enabled;
++    capture_state.target_member_count = 0;
++    capture_state.emissions.clear();
++    capture_state.direct_calls.clear();
++}
++
++bool N64Recomp::record_indirect_decision(
++    const Context& context,
++    const Function& function,
++    uint32_t instruction_vram,
++    int source_register,
++    IndirectDecisionClassification classification,
++    const JumpTable* jump_table
++) {
++    std::lock_guard lock(capture_state.mutex);
++    if (!capture_state.enabled) {
++        return true;
++    }
++    if (capture_state.emissions.size() >= MaxIndirectDecisionEmissions ||
++        function.section_index >= context.sections.size() ||
++        source_register < 0 || source_register > 31 ||
++        function.name.empty() ||
++        function.name.size() > MaxGeneratedFunctionNameBytes) {
++        return false;
++    }
++    const Section& source_section = context.sections[function.section_index];
++    if (instruction_vram < source_section.ram_addr ||
++        instruction_vram < function.vram ||
++        function.words.size() > std::numeric_limits<uint32_t>::max() / sizeof(uint32_t)) {
++        return false;
++    }
++    const uint32_t function_size =
++        static_cast<uint32_t>(function.words.size() * sizeof(uint32_t));
++    if (instruction_vram - function.vram >= function_size) {
++        return false;
++    }
++    const uint32_t source_offset = instruction_vram - source_section.ram_addr;
++    if (source_offset >= source_section.size || (source_offset & 3U) != 0) {
++        return false;
++    }
++
++    std::vector<IndirectTargetMember> members;
++    if (classification == IndirectDecisionClassification::BoundedSwitch) {
++        if (jump_table == nullptr || jump_table->entries.empty() ||
++            jump_table->section_index != function.section_index ||
++            jump_table->entries.size() > MaxIndirectTargetMembers) {
++            return false;
++        }
++        members.reserve(jump_table->entries.size());
++        for (uint32_t target_vram : jump_table->entries) {
++            if (target_vram < source_section.ram_addr) {
++                return false;
++            }
++            const uint32_t target_offset = target_vram - source_section.ram_addr;
++            if (target_offset >= source_section.size || (target_offset & 3U) != 0) {
++                return false;
++            }
++            members.push_back({function.section_index, target_offset});
++        }
++        std::sort(
++            members.begin(),
++            members.end(),
++            [](const auto& left, const auto& right) {
++                return std::tie(left.section_index, left.section_offset) <
++                    std::tie(right.section_index, right.section_offset);
++            }
++        );
++        members.erase(std::unique(members.begin(), members.end()), members.end());
++        if (members.size() > MaxIndirectTargetMembers - capture_state.target_member_count) {
++            return false;
++        }
++    }
++    else if (jump_table != nullptr) {
++        return false;
++    }
++
++    capture_state.target_member_count += members.size();
++    capture_state.emissions.push_back({
++        function.section_index,
++        source_offset,
++        static_cast<uint8_t>(source_register),
++        classification,
++        function.name,
++        std::move(members),
++    });
++    return true;
++}
++
++std::vector<N64Recomp::IndirectDecisionEmission>
++N64Recomp::get_indirect_decision_emissions() {
++    std::lock_guard lock(capture_state.mutex);
++    return capture_state.emissions;
++}
++
++bool N64Recomp::record_direct_call(
++    const Context& context,
++    const Function& function,
++    uint32_t instruction_vram,
++    std::string instruction_class,
++    DirectCallTransferRole transfer_role,
++    DirectCallClassification classification,
++    DirectCallTarget target
++) {
++    std::lock_guard lock(capture_state.mutex);
++    if (!capture_state.enabled) {
++        return true;
++    }
++    if (capture_state.direct_calls.size() >= MaxDirectCallEmissions ||
++        function.section_index >= context.sections.size() ||
++        function.name.empty() ||
++        function.name.size() > MaxGeneratedFunctionNameBytes ||
++        instruction_vram < function.vram ||
++        function.words.size() > std::numeric_limits<uint32_t>::max() / sizeof(uint32_t)) {
++        return false;
++    }
++    const Section& source_section = context.sections[function.section_index];
++    if (instruction_vram < source_section.ram_addr) {
++        return false;
++    }
++    const uint32_t function_size =
++        static_cast<uint32_t>(function.words.size() * sizeof(uint32_t));
++    const uint32_t source_offset = instruction_vram - source_section.ram_addr;
++    if (instruction_vram - function.vram >= function_size ||
++        source_offset >= source_section.size || (source_offset & 3U) != 0) {
++        return false;
++    }
++
++    switch (classification) {
++    case DirectCallClassification::GeneratedCallable:
++        if (target.generated_function.empty() ||
++            target.generated_function.size() > MaxGeneratedFunctionNameBytes) {
++            return false;
++        }
++        break;
++    case DirectCallClassification::CheckedAddressLookup:
++        if (!target.generated_function.empty()) {
++            return false;
++        }
++        break;
++    case DirectCallClassification::ReferenceSymbol:
++        if (!target.generated_function.empty() ||
++            target.section_index == SectionEvent) {
++            return false;
++        }
++        break;
++    case DirectCallClassification::EventSymbol:
++        if (!target.generated_function.empty() || target.section_index != SectionEvent) {
++            return false;
++        }
++        break;
++    default:
++        return false;
++    }
++    if (!valid_direct_call_instruction_class(instruction_class) ||
++        direct_call_transfer_role_name(transfer_role).empty()) {
++        return false;
++    }
++
++    capture_state.direct_calls.push_back({
++        function.section_index,
++        source_offset,
++        std::move(instruction_class),
++        transfer_role,
++        classification,
++        function.name,
++        std::move(target),
++    });
++    return true;
++}
++
++std::vector<N64Recomp::DirectCallEmission>
++N64Recomp::get_direct_call_emissions() {
++    std::lock_guard lock(capture_state.mutex);
++    return capture_state.direct_calls;
++}
++
++bool N64Recomp::write_indirect_decision_sidecar(
++    const std::filesystem::path& path,
++    const Context& context
++) {
++    if (path.empty()) {
++        return false;
++    }
++    std::vector<IndirectDecisionEmission> emissions = get_indirect_decision_emissions();
++    std::vector<DirectCallEmission> direct_calls = get_direct_call_emissions();
++    if (emissions.size() > MaxIndirectDecisionEmissions ||
++        direct_calls.size() > MaxDirectCallEmissions) {
++        return false;
++    }
++    std::sort(emissions.begin(), emissions.end(), emission_less);
++    std::sort(direct_calls.begin(), direct_calls.end(), direct_call_less);
++
++    size_t target_member_count = 0;
++    std::unordered_set<std::string> emission_identities;
++    for (size_t index = 0; index < emissions.size(); ++index) {
++        const auto& emission = emissions[index];
++        if (classification_name(emission.classification).empty() ||
++            emission.generated_function.empty() ||
++            emission.generated_function.size() > MaxGeneratedFunctionNameBytes ||
++            emission.target_members.size() > MaxIndirectTargetMembers - target_member_count) {
++            return false;
++        }
++        target_member_count += emission.target_members.size();
++        const std::string identity = std::to_string(emission.source_section) + ":" +
++            std::to_string(emission.source_offset) + ":" + emission.generated_function;
++        if (!emission_identities.emplace(identity).second) {
++            return false;
++        }
++        if (index != 0 &&
++            emissions[index - 1].source_section == emission.source_section &&
++            emissions[index - 1].source_offset == emission.source_offset &&
++            !same_site_decision(emissions[index - 1], emission)) {
++            return false;
++        }
++    }
++
++    std::unordered_set<std::string> direct_call_identities;
++    for (size_t index = 0; index < direct_calls.size(); ++index) {
++        const auto& direct_call = direct_calls[index];
++        if (direct_call_classification_name(direct_call.classification).empty() ||
++            !valid_direct_call_instruction_class(direct_call.instruction_class) ||
++            direct_call_transfer_role_name(direct_call.transfer_role).empty() ||
++            direct_call.generated_function.empty() ||
++            direct_call.generated_function.size() > MaxGeneratedFunctionNameBytes ||
++            direct_call.target.generated_function.size() > MaxGeneratedFunctionNameBytes) {
++            return false;
++        }
++        const std::string identity = std::to_string(direct_call.source_section) + ":" +
++            std::to_string(direct_call.source_offset) + ":" + direct_call.generated_function;
++        if (!direct_call_identities.emplace(identity).second) {
++            return false;
++        }
++        if (index != 0 &&
++            direct_calls[index - 1].source_section == direct_call.source_section &&
++            direct_calls[index - 1].source_offset == direct_call.source_offset &&
++            !same_direct_call(direct_calls[index - 1], direct_call)) {
++            return false;
++        }
++    }
++
++    std::vector<CallableMember> callable_members;
++    callable_members.reserve(std::min(context.functions.size(), MaxGeneratedCallableMembers));
++    std::unordered_set<std::string> callable_names;
++    for (const Function& function : context.functions) {
++        if (function.ignored || function.words.empty()) {
++            continue;
++        }
++        if (callable_members.size() >= MaxGeneratedCallableMembers ||
++            function.section_index >= context.sections.size() ||
++            function.name.empty() ||
++            function.name.size() > MaxGeneratedFunctionNameBytes ||
++            !callable_names.emplace(function.name).second ||
++            function.words.size() > std::numeric_limits<uint32_t>::max() / sizeof(uint32_t)) {
++            return false;
++        }
++        const Section& section = context.sections[function.section_index];
++        if (function.vram < section.ram_addr) {
++            return false;
++        }
++        const uint32_t source_offset = function.vram - section.ram_addr;
++        const uint32_t function_size =
++            static_cast<uint32_t>(function.words.size() * sizeof(uint32_t));
++        if (source_offset >= section.size || function_size > section.size - source_offset) {
++            return false;
++        }
++        callable_members.push_back({
++            function.section_index,
++            source_offset,
++            function_size,
++            function.name,
++        });
++    }
++    std::sort(callable_members.begin(), callable_members.end(), callable_less);
++    for (const auto& emission : emissions) {
++        if (!callable_names.contains(emission.generated_function)) {
++            return false;
++        }
++    }
++    for (const auto& direct_call : direct_calls) {
++        if (!callable_names.contains(direct_call.generated_function) ||
++            (direct_call.classification == DirectCallClassification::GeneratedCallable &&
++             !callable_names.contains(direct_call.target.generated_function))) {
++            return false;
++        }
++    }
++
++    size_t estimated_bytes = 256;
++    for (const auto& member : callable_members) {
++        if (!bounded_add(
++                estimated_bytes,
++                128 + member.generated_function.size(),
++                MaxIndirectDecisionSidecarBytes)) {
++            return false;
++        }
++    }
++    for (const auto& emission : emissions) {
++        if (!bounded_add(
++                estimated_bytes,
++                256 + emission.generated_function.size(),
++                MaxIndirectDecisionSidecarBytes) ||
++            emission.target_members.size() >
++                (MaxIndirectDecisionSidecarBytes - estimated_bytes) / 80 ||
++            !bounded_add(
++                estimated_bytes,
++                emission.target_members.size() * 80,
++                MaxIndirectDecisionSidecarBytes)) {
++            return false;
++        }
++    }
++    for (const auto& direct_call : direct_calls) {
++        if (!bounded_add(
++                estimated_bytes,
++                320 + direct_call.generated_function.size() +
++                    direct_call.instruction_class.size() +
++                    direct_call.target.generated_function.size(),
++                MaxIndirectDecisionSidecarBytes)) {
++            return false;
++        }
++    }
++
++    std::ostringstream output;
++    output << "{\"decisions\":[";
++    for (size_t index = 0; index < emissions.size(); ++index) {
++        const auto& emission = emissions[index];
++        const std::string_view classification = classification_name(emission.classification);
++        if (index != 0) {
++            output.put(',');
++        }
++        output << "{\"classification\":";
++        if (!write_json_string(output, classification)) {
++            return false;
++        }
++        output << ",\"default_disposition\":";
++        const std::string_view default_disposition =
++            emission.classification == IndirectDecisionClassification::BoundedSwitch
++                ? "fail-closed-switch-error"
++                : emission.classification == IndirectDecisionClassification::NativeReturn
++                    ? "fail-closed-return-context"
++                    : "fail-closed-lookup-miss";
++        if (!write_json_string(output, default_disposition)) {
++            return false;
++        }
++        output << ",\"generated_function\":";
++        if (!write_json_string(output, emission.generated_function)) {
++            return false;
++        }
++        output << ",\"range\":{";
++        if (emission.classification == IndirectDecisionClassification::BoundedSwitch) {
++            if (emission.target_members.empty()) {
++                return false;
++            }
++            output << "\"kind\":\"exact-target-member-set\",\"members\":[";
++            for (size_t member_index = 0;
++                 member_index < emission.target_members.size();
++                 ++member_index) {
++                const auto& member = emission.target_members[member_index];
++                if (member_index != 0) {
++                    output.put(',');
++                }
++                output << "{\"target_offset\":" << member.section_offset
++                    << ",\"target_section\":" << member.section_index << '}';
++            }
++            output << ']';
++        }
++        else if (emission.classification == IndirectDecisionClassification::NativeReturn) {
++            if (!emission.target_members.empty()) {
++                return false;
++            }
++            output << "\"kind\":\"active-native-return-continuation\"";
++        }
++        else {
++            if (!emission.target_members.empty()) {
++                return false;
++            }
++            output << "\"kind\":\"generated-callable-set\"";
++        }
++        output << "},\"source_offset\":" << emission.source_offset
++            << ",\"source_register\":" << static_cast<uint32_t>(emission.source_register)
++            << ",\"source_section\":" << emission.source_section << '}';
++        if (!output_within_limit(output)) {
++            return false;
++        }
++    }
++
++    output << "],\"direct_calls\":[";
++    for (size_t index = 0; index < direct_calls.size(); ++index) {
++        const auto& direct_call = direct_calls[index];
++        if (index != 0) {
++            output.put(',');
++        }
++        output << "{\"classification\":";
++        if (!write_json_string(
++                output,
++                direct_call_classification_name(direct_call.classification))) {
++            return false;
++        }
++        output << ",\"default_disposition\":";
++        switch (direct_call.classification) {
++        case DirectCallClassification::GeneratedCallable:
++            if (!write_json_string(output, "resolved-generated-callable")) {
++                return false;
++            }
++            break;
++        case DirectCallClassification::CheckedAddressLookup:
++            if (!write_json_string(output, "fail-closed-lookup-miss")) {
++                return false;
++            }
++            break;
++        case DirectCallClassification::ReferenceSymbol:
++            if (!write_json_string(output, "resolved-reference-symbol")) {
++                return false;
++            }
++            break;
++        case DirectCallClassification::EventSymbol:
++            if (!write_json_string(output, "resolved-event-symbol")) {
++                return false;
++            }
++            break;
++        }
++        output << ",\"generated_function\":";
++        if (!write_json_string(output, direct_call.generated_function)) {
++            return false;
++        }
++        output << ",\"instruction_class\":";
++        if (!write_json_string(output, direct_call.instruction_class)) {
++            return false;
++        }
++        output << ",\"source_offset\":" << direct_call.source_offset
++            << ",\"source_section\":" << direct_call.source_section
++            << ",\"target\":{";
++        switch (direct_call.classification) {
++        case DirectCallClassification::GeneratedCallable:
++            output << "\"address\":" << direct_call.target.address
++                << ",\"generated_function\":";
++            if (!write_json_string(output, direct_call.target.generated_function)) {
++                return false;
++            }
++            output << ",\"kind\":\"generated-callable\"";
++            break;
++        case DirectCallClassification::CheckedAddressLookup:
++            output << "\"address\":" << direct_call.target.address
++                << ",\"kind\":\"runtime-address\"";
++            break;
++        case DirectCallClassification::ReferenceSymbol:
++            output << "\"kind\":\"reference-symbol\","
++                "\"section\":" << direct_call.target.section_index
++                << ",\"section_offset\":" << direct_call.target.address
++                << ",\"symbol\":" << direct_call.target.symbol_index;
++            break;
++        case DirectCallClassification::EventSymbol:
++            output << "\"kind\":\"event-symbol\","
++                "\"symbol\":" << direct_call.target.symbol_index;
++            break;
++        }
++        output << "},\"transfer_role\":";
++        if (!write_json_string(
++                output,
++                direct_call_transfer_role_name(direct_call.transfer_role))) {
++            return false;
++        }
++        output << '}';
++        if (!output_within_limit(output)) {
++            return false;
++        }
++    }
++
++    output << "],\"generated_callable_set\":{"
++        "\"kind\":\"exact-generated-callable-entry-set\","
++        "\"member_count\":" << callable_members.size() << ",\"members\":[";
++    for (size_t index = 0; index < callable_members.size(); ++index) {
++        const auto& member = callable_members[index];
++        if (index != 0) {
++            output.put(',');
++        }
++        output << "{\"generated_function\":";
++        if (!write_json_string(output, member.generated_function)) {
++            return false;
++        }
++        output << ",\"size\":" << member.size
++            << ",\"source_offset\":" << member.source_offset
++            << ",\"source_section\":" << member.source_section << '}';
++        if (!output_within_limit(output)) {
++            return false;
++        }
++    }
++    output << "]},\"kind\":\"n64recomp-indirect-decision-sidecar\","
++        "\"schema_version\":1}";
++    if (!output.good() || !output_within_limit(output)) {
++        return false;
++    }
++
++    const std::string payload = output.str();
++    if (payload.size() > MaxIndirectDecisionSidecarBytes) {
++        return false;
++    }
++    std::filesystem::path temporary_path = path;
++    temporary_path += ".tmp";
++    std::error_code remove_error;
++    std::filesystem::remove(temporary_path, remove_error);
++    std::ofstream output_file(temporary_path, std::ios::binary | std::ios::trunc);
++    if (!output_file.good()) {
++        return false;
++    }
++    output_file.write(payload.data(), static_cast<std::streamsize>(payload.size()));
++    output_file.flush();
++    const bool write_succeeded = output_file.good();
++    output_file.close();
++    if (!write_succeeded) {
++        std::filesystem::remove(temporary_path, remove_error);
++        return false;
++    }
++
++    std::filesystem::remove(path, remove_error);
++    if (remove_error) {
++        std::filesystem::remove(temporary_path, remove_error);
++        return false;
++    }
++    std::error_code rename_error;
++    std::filesystem::rename(temporary_path, path, rename_error);
++    if (rename_error) {
++        std::filesystem::remove(temporary_path, remove_error);
++        return false;
++    }
++    return true;
++}
+diff --git a/src/main.cpp b/src/main.cpp
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -13,2 +13,3 @@
+ #include "recompiler/context.h"
++#include "recompiler/indirect_decisions.h"
+ #include "config.h"
+@@ -736,3 +737,19 @@
+     bool failed_strict_mode = false;
+-
++    const bool emit_indirect_decision_sidecar =
++        !config.indirect_decision_sidecar_path.empty();
++    if (emit_indirect_decision_sidecar) {
++        std::error_code remove_error;
++        std::filesystem::remove(config.indirect_decision_sidecar_path, remove_error);
++        if (remove_error) {
++            exit_failure("Failed to clear the configured indirect decision sidecar.\n");
++        }
++        std::filesystem::path temporary_sidecar_path =
++            config.indirect_decision_sidecar_path;
++        temporary_sidecar_path += ".tmp";
++        std::filesystem::remove(temporary_sidecar_path, remove_error);
++        if (remove_error) {
++            exit_failure("Failed to clear the temporary indirect decision sidecar.\n");
++        }
++    }
++    N64Recomp::configure_indirect_decision_capture(emit_indirect_decision_sidecar);
+     //#pragma omp parallel for
+@@ -894,2 +911,9 @@
+         }
++    }
++
++    if (emit_indirect_decision_sidecar &&
++        !N64Recomp::write_indirect_decision_sidecar(
++            config.indirect_decision_sidecar_path,
++            context)) {
++        exit_failure("Failed to write the configured indirect decision sidecar.\n");
+     }
+diff --git a/src/recompilation.cpp b/src/recompilation.cpp
+--- a/src/recompilation.cpp
++++ b/src/recompilation.cpp
+@@ -11,2 +11,3 @@
+ #include "recompiler/context.h"
++#include "recompiler/indirect_decisions.h"
+ #include "analysis.h"
+@@ -273,4 +274,3 @@
+     };
+-
+-    auto print_func_call_by_address = [&generator, reloc_target_section_offset, has_reloc, reloc_section, reloc_reference_symbol, reloc_type, &context, &func, &static_funcs_out, &needs_link_branch, &print_indent, &process_delay_slot, &print_link_branch]
++    auto print_func_call_by_address = [&generator, &instr, instr_id, instr_vram, reloc_target_section_offset, has_reloc, reloc_section, reloc_reference_symbol, reloc_type, &context, &func, &static_funcs_out, &needs_link_branch, &print_indent, &process_delay_slot, &print_link_branch]
+         (uint32_t target_func_vram, bool tail_call = false, bool indent = false)
+@@ -279,4 +279,16 @@
+         bool call_by_name = false;
++        N64Recomp::DirectCallClassification direct_call_classification =
++            N64Recomp::DirectCallClassification::CheckedAddressLookup;
++        N64Recomp::DirectCallTarget direct_call_target{};
++        direct_call_target.address = target_func_vram;
+         // Event symbol, emit a call to the runtime to trigger this event.
+         if (reloc_section == N64Recomp::SectionEvent) {
++            if (reloc_reference_symbol > UINT32_MAX) {
++                return false;
++            }
++            direct_call_classification =
++                N64Recomp::DirectCallClassification::EventSymbol;
++            direct_call_target.section_index = reloc_section;
++            direct_call_target.symbol_index =
++                static_cast<uint32_t>(reloc_reference_symbol);
+             needs_link_branch = !tail_call;
+@@ -297,2 +309,5 @@
+             if (reloc_reference_symbol != (size_t)-1) {
++                if (reloc_reference_symbol > UINT32_MAX) {
++                    return false;
++                }
+                 if (reloc_type != N64Recomp::RelocType::R_MIPS_26) {
+@@ -309,2 +324,8 @@
+                 }
++                direct_call_classification =
++                    N64Recomp::DirectCallClassification::ReferenceSymbol;
++                direct_call_target.address = reloc_target_section_offset;
++                direct_call_target.section_index = reloc_section;
++                direct_call_target.symbol_index =
++                    static_cast<uint32_t>(reloc_reference_symbol);
+             }
+@@ -335,2 +356,5 @@
+                             call_by_lookup = true;
++                            direct_call_classification =
++                                N64Recomp::DirectCallClassification::CheckedAddressLookup;
++                            direct_call_target.address = target_func_vram;
+                         }
+@@ -343,2 +367,6 @@
+                         jal_target_name = context.functions[matched_func_index].name;
++                        direct_call_classification =
++                            N64Recomp::DirectCallClassification::GeneratedCallable;
++                        direct_call_target.address = target_func_vram;
++                        direct_call_target.generated_function = jal_target_name;
+                         break;
+@@ -349,2 +377,6 @@
+                         call_by_name = true;
++                        direct_call_classification =
++                            N64Recomp::DirectCallClassification::GeneratedCallable;
++                        direct_call_target.address = target_func_vram;
++                        direct_call_target.generated_function = jal_target_name;
+                         break;
+@@ -359,2 +391,5 @@
+                         call_by_lookup = true;
++                        direct_call_classification =
++                            N64Recomp::DirectCallClassification::CheckedAddressLookup;
++                        direct_call_target.address = target_func_vram;
+                         break;
+@@ -386,2 +421,16 @@
+             print_link_branch();
++        }
++        if (!N64Recomp::record_direct_call(
++                context,
++                func,
++                instr_vram,
++                tail_call && instr_id != InstrId::cpu_j
++                    ? "conditional-branch"
++                    : instr.getOpcodeName(),
++                tail_call
++                    ? N64Recomp::DirectCallTransferRole::DirectTail
++                    : N64Recomp::DirectCallTransferRole::LinkedCall,
++                direct_call_classification,
++                std::move(direct_call_target))) {
++            return false;
+         }
+@@ -530,3 +579,11 @@
+         needs_link_branch = true;
+-        print_func_call_by_register(rs);
++        if (!print_func_call_by_register(rs) ||
++            !N64Recomp::record_indirect_decision(
++                context,
++                func,
++                instr_vram,
++                rs,
++                N64Recomp::IndirectDecisionClassification::DynamicCall)) {
++            return false;
++        }
+         break;
+@@ -580,3 +637,11 @@
+         if (rs == (int)rabbitizer::Registers::Cpu::GprO32::GPR_O32_ra) {
+-            print_return_with_delay_slot();
++            if (!print_return_with_delay_slot() ||
++                !N64Recomp::record_indirect_decision(
++                    context,
++                    func,
++                    instr_vram,
++                    rs,
++                    N64Recomp::IndirectDecisionClassification::NativeReturn)) {
++                return false;
++            }
+         } else {
+@@ -604,2 +669,11 @@
+                 generator.emit_switch_close();
++                if (!N64Recomp::record_indirect_decision(
++                        context,
++                        func,
++                        instr_vram,
++                        rs,
++                        N64Recomp::IndirectDecisionClassification::BoundedSwitch,
++                        &cur_jtbl)) {
++                    return false;
++                }
+                 break;
+@@ -608,3 +682,11 @@
+             fmt::print("[Info] Indirect tail call in {}\n", func.name);
+-            print_func_call_by_register(rs);
++            if (!print_func_call_by_register(rs) ||
++                !N64Recomp::record_indirect_decision(
++                    context,
++                    func,
++                    instr_vram,
++                    rs,
++                    N64Recomp::IndirectDecisionClassification::DynamicTail)) {
++                return false;
++            }
+             print_indent();
+diff --git a/tests/phase4_regression_test.cpp b/tests/phase4_regression_test.cpp
+--- a/tests/phase4_regression_test.cpp
++++ b/tests/phase4_regression_test.cpp
+@@ -3,3 +3,6 @@
+ #include <fstream>
++#include <iterator>
+ #include <limits>
++#include <optional>
++#include <random>
+ #include <sstream>
+@@ -12,3 +15,5 @@
+ #include "analysis.h"
++#include "config.h"
+ #include "recompiler/generator.h"
++#include "recompiler/indirect_decisions.h"
+ #include "recompiler/live_recompiler.h"
+@@ -26,3 +31,12 @@
+ uint8_t* last_cache_rdram = nullptr;
+-
++struct CreatedDirectoryCleanup {
++    std::filesystem::path path;
++
++    ~CreatedDirectoryCleanup() {
++        if (!path.empty()) {
++            std::error_code ignored_error;
++            std::filesystem::remove_all(path, ignored_error);
++        }
++    }
++};
+ bool parse_symbol_text(const std::string& text, N64Recomp::Context* output = nullptr) {
+@@ -611,2 +625,3 @@
+     std::ostringstream transfer_output;
++    N64Recomp::configure_indirect_decision_capture(true);
+     if (!N64Recomp::recompile_function(
+@@ -614,2 +629,12 @@
+         return 39;
++    }
++    const std::vector<N64Recomp::IndirectDecisionEmission> transfer_decisions =
++        N64Recomp::get_indirect_decision_emissions();
++    N64Recomp::configure_indirect_decision_capture(false);
++    if (transfer_decisions.size() != 1 ||
++        transfer_decisions[0].classification !=
++            N64Recomp::IndirectDecisionClassification::NativeReturn ||
++        transfer_decisions[0].source_register != 31 ||
++        transfer_decisions[0].source_offset != 16) {
++        return 55;
+     }
+@@ -625,2 +650,361 @@
+     }
++
++    N64Recomp::Context direct_context{};
++    direct_context.sections.resize(1);
++    direct_context.sections[0].ram_addr = 0x1000;
++    direct_context.sections[0].size = 0x40;
++    direct_context.section_functions.resize(1);
++    direct_context.section_functions[0] = {0, 1};
++    direct_context.functions.emplace_back(
++        0x1000,
++        0,
++        std::vector<uint32_t>{
++            byteswap(UINT32_C(0x0C000408)), // jal 0x1020
++            byteswap(UINT32_C(0x00000000)), // nop delay slot
++        },
++        "direct_caller",
++        0);
++    direct_context.functions.emplace_back(
++        0x1020,
++        0x20,
++        std::vector<uint32_t>{
++            byteswap(UINT32_C(0x03E00008)), // jr ra
++            byteswap(UINT32_C(0x00000000)), // nop delay slot
++        },
++        "direct_target",
++        0);
++    direct_context.functions_by_vram[0x1000].push_back(0);
++    direct_context.functions_by_vram[0x1020].push_back(1);
++    std::vector<std::vector<uint32_t>> direct_static_functions(1);
++    std::ostringstream direct_output;
++    N64Recomp::configure_indirect_decision_capture(true);
++    if (!N64Recomp::recompile_function(
++            direct_context, 0, direct_output, direct_static_functions, false)) {
++        return 56;
++    }
++    const std::vector<N64Recomp::DirectCallEmission> direct_calls =
++        N64Recomp::get_direct_call_emissions();
++    N64Recomp::configure_indirect_decision_capture(false);
++    if (direct_calls.size() != 1 ||
++        direct_calls[0].instruction_class != "jal" ||
++        direct_calls[0].transfer_role !=
++            N64Recomp::DirectCallTransferRole::LinkedCall ||
++        direct_calls[0].classification !=
++            N64Recomp::DirectCallClassification::GeneratedCallable ||
++        direct_calls[0].source_offset != 0 ||
++        direct_calls[0].target.generated_function != "direct_target" ||
++        direct_calls[0].target.address != 0x1020) {
++        return 57;
++    }
++
++    direct_context.use_lookup_for_all_function_calls = true;
++    std::ostringstream checked_direct_output;
++    N64Recomp::configure_indirect_decision_capture(true);
++    if (!N64Recomp::recompile_function(
++            direct_context, 0, checked_direct_output, direct_static_functions, false)) {
++        return 58;
++    }
++    const std::vector<N64Recomp::DirectCallEmission> checked_direct_calls =
++        N64Recomp::get_direct_call_emissions();
++    N64Recomp::configure_indirect_decision_capture(false);
++    if (checked_direct_calls.size() != 1 ||
++        checked_direct_calls[0].instruction_class != "jal" ||
++        checked_direct_calls[0].transfer_role !=
++            N64Recomp::DirectCallTransferRole::LinkedCall ||
++        checked_direct_calls[0].classification !=
++            N64Recomp::DirectCallClassification::CheckedAddressLookup ||
++        checked_direct_calls[0].source_offset != 0 ||
++        !checked_direct_calls[0].target.generated_function.empty() ||
++        checked_direct_calls[0].target.address != 0x1020) {
++        return 59;
++    }
++
++    direct_context.functions[0].words[0] = byteswap(UINT32_C(0x04110007)); // bgezal zero, 0x1020
++    std::ostringstream linked_branch_output;
++    N64Recomp::configure_indirect_decision_capture(true);
++    if (!N64Recomp::recompile_function(
++            direct_context, 0, linked_branch_output, direct_static_functions, false)) {
++        return 60;
++    }
++    const std::vector<N64Recomp::DirectCallEmission> linked_branch_calls =
++        N64Recomp::get_direct_call_emissions();
++    N64Recomp::configure_indirect_decision_capture(false);
++    if (linked_branch_calls.size() != 1 ||
++        linked_branch_calls[0].instruction_class != "bgezal" ||
++        linked_branch_calls[0].transfer_role !=
++            N64Recomp::DirectCallTransferRole::LinkedCall ||
++        linked_branch_calls[0].classification !=
++            N64Recomp::DirectCallClassification::CheckedAddressLookup ||
++        linked_branch_calls[0].source_offset != 0 ||
++        linked_branch_calls[0].target.address != 0x1020) {
++        return 61;
++    }
++
++    direct_context.functions[0].words[0] = byteswap(UINT32_C(0x08000408)); // j 0x1020
++    std::ostringstream direct_tail_output;
++    N64Recomp::configure_indirect_decision_capture(true);
++    if (!N64Recomp::recompile_function(
++            direct_context, 0, direct_tail_output, direct_static_functions, false)) {
++        return 62;
++    }
++    const std::vector<N64Recomp::DirectCallEmission> direct_tail_calls =
++        N64Recomp::get_direct_call_emissions();
++    N64Recomp::configure_indirect_decision_capture(false);
++    if (direct_tail_calls.size() != 1 ||
++        direct_tail_calls[0].instruction_class != "j" ||
++        direct_tail_calls[0].transfer_role !=
++            N64Recomp::DirectCallTransferRole::DirectTail ||
++        direct_tail_calls[0].classification !=
++            N64Recomp::DirectCallClassification::CheckedAddressLookup ||
++        direct_tail_calls[0].target.address != 0x1020) {
++        return 63;
++    }
++
++    std::filesystem::path sidecar_test_root;
++    CreatedDirectoryCleanup sidecar_test_cleanup;
++    std::error_code sidecar_test_error;
++    std::random_device sidecar_test_random;
++    for (size_t attempt = 0; attempt < 32 && sidecar_test_root.empty(); ++attempt) {
++        const std::filesystem::path candidate =
++            std::filesystem::temp_directory_path() /
++            ("n64recomp_phase4_sidecar_test_" +
++             std::to_string(sidecar_test_random()) + "_" + std::to_string(attempt));
++        if (std::filesystem::create_directory(candidate, sidecar_test_error)) {
++            sidecar_test_root = candidate;
++        }
++        else if (sidecar_test_error) {
++            return 41;
++        }
++    }
++    if (sidecar_test_root.empty()) {
++        return 41;
++    }
++    sidecar_test_cleanup.path = sidecar_test_root;
++    if (!std::filesystem::create_directory(sidecar_test_root / "generated")) {
++        return 41;
++    }
++    const std::filesystem::path config_path = sidecar_test_root / "config.toml";
++    {
++        std::ofstream config_stream(config_path, std::ios::binary | std::ios::trunc);
++        config_stream << "[input]\noutput_func_path = \"generated\"\n";
++    }
++    N64Recomp::Config default_config(config_path.string().c_str());
++    if (!default_config.good() || !default_config.indirect_decision_sidecar_path.empty()) {
++        return 42;
++    }
++    {
++        std::ofstream config_stream(config_path, std::ios::binary | std::ios::trunc);
++        config_stream <<
++            "[input]\n"
++            "output_func_path = \"generated\"\n"
++            "indirect_decision_sidecar_path = \"generated/indirect_decisions.json\"\n";
++    }
++    N64Recomp::Config enabled_config(config_path.string().c_str());
++    if (!enabled_config.good() ||
++        enabled_config.indirect_decision_sidecar_path !=
++            std::filesystem::absolute(
++                sidecar_test_root / "generated" / "indirect_decisions.json").lexically_normal()) {
++        return 43;
++    }
++    {
++        std::ofstream config_stream(config_path, std::ios::binary | std::ios::trunc);
++        config_stream <<
++            "[input]\n"
++            "output_func_path = \"generated\"\n"
++            "indirect_decision_sidecar_path = \"outside.json\"\n";
++    }
++    N64Recomp::Config escaped_config(config_path.string().c_str());
++    if (escaped_config.good()) {
++        return 44;
++    }
++
++    N64Recomp::Context sidecar_context{};
++    sidecar_context.sections.resize(1);
++    sidecar_context.sections[0].ram_addr = 0x1000;
++    sidecar_context.sections[0].size = 0x40;
++    sidecar_context.functions.emplace_back(
++        0x1000,
++        0,
++        std::vector<uint32_t>(8, byteswap(UINT32_C(0))),
++        "wide",
++        0);
++    sidecar_context.functions.emplace_back(
++        0x1008,
++        8,
++        std::vector<uint32_t>(6, byteswap(UINT32_C(0))),
++        "narrow",
++        0);
++    sidecar_context.functions.emplace_back(
++        0x1020,
++        32,
++        std::vector<uint32_t>(2, byteswap(UINT32_C(0))),
++        "tail",
++        0);
++
++    N64Recomp::configure_indirect_decision_capture(false);
++    if (!N64Recomp::record_indirect_decision(
++            sidecar_context,
++            sidecar_context.functions[0],
++            0x1000,
++            9,
++            N64Recomp::IndirectDecisionClassification::DynamicCall) ||
++        !N64Recomp::get_indirect_decision_emissions().empty()) {
++        return 45;
++    }
++
++    N64Recomp::configure_indirect_decision_capture(true);
++    if (!N64Recomp::record_indirect_decision(
++            sidecar_context,
++            sidecar_context.functions[0],
++            0x1000,
++            9,
++            N64Recomp::IndirectDecisionClassification::DynamicCall)) {
++        return 46;
++    }
++    N64Recomp::DirectCallTarget generated_call_target{};
++    generated_call_target.address = 0x1020;
++    generated_call_target.generated_function = "tail";
++    if (!N64Recomp::record_direct_call(
++            sidecar_context,
++            sidecar_context.functions[0],
++            0x1004,
++            "jal",
++            N64Recomp::DirectCallTransferRole::LinkedCall,
++            N64Recomp::DirectCallClassification::GeneratedCallable,
++            std::move(generated_call_target))) {
++        return 46;
++    }
++    N64Recomp::DirectCallTarget checked_call_target{};
++    checked_call_target.address = 0x1030;
++    if (!N64Recomp::record_direct_call(
++            sidecar_context,
++            sidecar_context.functions[0],
++            0x1008,
++            "bgezal",
++            N64Recomp::DirectCallTransferRole::LinkedCall,
++            N64Recomp::DirectCallClassification::CheckedAddressLookup,
++            std::move(checked_call_target))) {
++        return 46;
++    }
++    N64Recomp::DirectCallTarget direct_tail_target{};
++    direct_tail_target.address = 0x1034;
++    if (!N64Recomp::record_direct_call(
++            sidecar_context,
++            sidecar_context.functions[0],
++            0x100C,
++            "conditional-branch",
++            N64Recomp::DirectCallTransferRole::DirectTail,
++            N64Recomp::DirectCallClassification::CheckedAddressLookup,
++            std::move(direct_tail_target))) {
++        return 46;
++    }
++    if (!N64Recomp::record_indirect_decision(
++            sidecar_context,
++            sidecar_context.functions[2],
++            0x1020,
++            31,
++            N64Recomp::IndirectDecisionClassification::NativeReturn)) {
++        return 46;
++    }
++    std::vector<uint32_t> switch_entries{0x101C, 0x1010, 0x101C};
++    N64Recomp::JumpTable switch_table(
++        0x1004,
++        8,
++        4,
++        0x1004,
++        0x1008,
++        0x100C,
++        0,
++        std::nullopt,
++        std::move(switch_entries));
++    for (size_t function_index : {size_t{0}, size_t{1}}) {
++        if (!N64Recomp::record_indirect_decision(
++                sidecar_context,
++                sidecar_context.functions[function_index],
++                0x100C,
++                8,
++                N64Recomp::IndirectDecisionClassification::BoundedSwitch,
++                &switch_table)) {
++            return 47;
++        }
++    }
++    N64Recomp::Function oversized_name_function(
++        0x1020,
++        32,
++        std::vector<uint32_t>(2, byteswap(UINT32_C(0))),
++        std::string(N64Recomp::MaxGeneratedFunctionNameBytes + 1, 'x'),
++        0);
++    if (N64Recomp::record_indirect_decision(
++            sidecar_context,
++            oversized_name_function,
++            0x1020,
++            10,
++            N64Recomp::IndirectDecisionClassification::DynamicTail)) {
++        return 48;
++    }
++
++    const std::filesystem::path sidecar_path =
++        sidecar_test_root / "generated" / "indirect_decisions.json";
++    if (!N64Recomp::write_indirect_decision_sidecar(sidecar_path, sidecar_context)) {
++        return 49;
++    }
++    std::ifstream sidecar_stream(sidecar_path, std::ios::binary);
++    const std::string first_sidecar{
++        std::istreambuf_iterator<char>(sidecar_stream),
++        std::istreambuf_iterator<char>()};
++    if (first_sidecar.empty() || first_sidecar.find('\n') != std::string::npos ||
++        first_sidecar.find("\"member_count\":3") == std::string::npos ||
++        first_sidecar.find("\"range\":{\"kind\":\"generated-callable-set\"}") == std::string::npos ||
++        first_sidecar.find("\"classification\":\"native-return\"") == std::string::npos ||
++        first_sidecar.find("\"direct_calls\":[{\"classification\":\"generated-call\"") == std::string::npos ||
++        first_sidecar.find("\"default_disposition\":\"resolved-generated-callable\"") == std::string::npos ||
++        first_sidecar.find("\"target\":{\"address\":4128,\"generated_function\":\"tail\",\"kind\":\"generated-callable\"}") == std::string::npos ||
++        first_sidecar.find("\"instruction_class\":\"jal\"") == std::string::npos ||
++        first_sidecar.find("\"classification\":\"checked-lookup-call\"") == std::string::npos ||
++        first_sidecar.find("\"instruction_class\":\"bgezal\"") == std::string::npos ||
++        first_sidecar.find("\"instruction_class\":\"conditional-branch\"") == std::string::npos ||
++        first_sidecar.find("\"transfer_role\":\"linked-call\"") == std::string::npos ||
++        first_sidecar.find("\"transfer_role\":\"direct-tail\"") == std::string::npos ||
++        first_sidecar.find("\"default_disposition\":\"fail-closed-lookup-miss\"") == std::string::npos ||
++        first_sidecar.find("\"target\":{\"address\":4144,\"kind\":\"runtime-address\"}") == std::string::npos ||
++        first_sidecar.find("\"target\":{\"address\":4148,\"kind\":\"runtime-address\"}") == std::string::npos ||
++        first_sidecar.find("\"default_disposition\":\"fail-closed-return-context\"") == std::string::npos ||
++        first_sidecar.find("\"range\":{\"kind\":\"active-native-return-continuation\"}") == std::string::npos ||
++        first_sidecar.find(
++            "{\"generated_function\":\"wide\",\"size\":32,\"source_offset\":0,\"source_section\":0}") ==
++            std::string::npos ||
++        first_sidecar.find(
++            "{\"generated_function\":\"narrow\",\"size\":24,\"source_offset\":8,\"source_section\":0}") ==
++            std::string::npos ||
++        first_sidecar.find("\"target_offset\":16,\"target_section\":0") == std::string::npos ||
++        first_sidecar.find("\"target_offset\":28,\"target_section\":0") == std::string::npos) {
++        return 50;
++    }
++    const size_t wide_member = first_sidecar.find(
++        "{\"generated_function\":\"wide\",\"size\":32");
++    const size_t narrow_member = first_sidecar.find(
++        "{\"generated_function\":\"narrow\",\"size\":24");
++    const size_t tail_member = first_sidecar.find(
++        "{\"generated_function\":\"tail\",\"size\":8");
++    if (!(wide_member < narrow_member && narrow_member < tail_member)) {
++        return 51;
++    }
++    if (!N64Recomp::write_indirect_decision_sidecar(sidecar_path, sidecar_context)) {
++        return 52;
++    }
++    std::ifstream repeated_sidecar_stream(sidecar_path, std::ios::binary);
++    const std::string repeated_sidecar{
++        std::istreambuf_iterator<char>(repeated_sidecar_stream),
++        std::istreambuf_iterator<char>()};
++    if (repeated_sidecar != first_sidecar ||
++        std::filesystem::file_size(sidecar_path) >
++            N64Recomp::MaxIndirectDecisionSidecarBytes) {
++        return 53;
++    }
++    N64Recomp::configure_indirect_decision_capture(false);
++    std::filesystem::remove_all(sidecar_test_root, sidecar_test_error);
++    if (sidecar_test_error) {
++        return 54;
++    }
++    sidecar_test_cleanup.path.clear();
+     return 0;

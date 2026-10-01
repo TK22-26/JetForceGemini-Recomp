@@ -1,0 +1,452 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tk22-26.invalid/schemas/phase3-cpu-overlay-evidence.schema.json",
+  "title": "Phase 3 CPU and overlay feasibility evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "privacy",
+    "derivation",
+    "pins",
+    "inputs",
+    "cpu",
+    "overlays",
+    "conclusions"
+  ],
+  "properties": {
+    "$schema": { "const": "../../schemas/phase3-cpu-overlay-evidence.schema.json" },
+    "schema_version": { "const": 1 },
+    "kind": { "const": "jfg-phase3-cpu-overlay-evidence" },
+    "privacy": { "const": "public-safe-aggregate-only" },
+    "derivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpu_aggregate",
+        "overlay_aggregate",
+        "runtime_contract",
+        "initial_config_parse",
+        "jump_table_asan",
+        "public_aggregate_lock"
+      ],
+      "properties": {
+        "cpu_aggregate": { "const": "generated-from-ignored-pinned-local-probe" },
+        "overlay_aggregate": { "const": "generated-from-ignored-pinned-local-analyzer" },
+        "runtime_contract": { "const": "rom-free-synthetic-model-tests" },
+        "initial_config_parse": { "const": "maintainer-attested-local-observation" },
+        "jump_table_asan": { "const": "maintainer-attested-local-observation" },
+        "public_aggregate_lock": { "const": "validator-pinned-canonical-sha256" }
+      }
+    },
+    "pins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jfg_decomp", "n64recomp"],
+      "properties": {
+        "jfg_decomp": { "$ref": "#/$defs/commit" },
+        "n64recomp": { "$ref": "#/$defs/commit" }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supported_rom_sha1",
+        "supported_rom_size",
+        "elf_sha256",
+        "n64recomp_executable_sha256",
+        "n64recomp_identity_methods",
+        "initial_config_pinned_parse_passed"
+      ],
+      "properties": {
+        "supported_rom_sha1": { "$ref": "#/$defs/sha1" },
+        "supported_rom_size": { "$ref": "#/$defs/positiveCount" },
+        "elf_sha256": { "$ref": "#/$defs/sha256" },
+        "n64recomp_executable_sha256": { "$ref": "#/$defs/sha256" },
+        "n64recomp_identity_methods": {
+          "const": ["source-commit", "executable-sha256"]
+        },
+        "initial_config_pinned_parse_passed": { "const": true }
+      }
+    },
+    "cpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boot_entry_probe",
+        "functions",
+        "data",
+        "context_dump",
+        "coverage_gate",
+        "conservative_generation_probe",
+        "unbounded_jump_table_probe"
+      ],
+      "properties": {
+        "boot_entry_probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "private_input_supplied",
+            "elf_header_entry_present",
+            "direct_n64recomp_probe_passed",
+            "manual_fallback_generated"
+          ],
+          "properties": {
+            "private_input_supplied": { "const": true },
+            "elf_header_entry_present": { "const": false },
+            "direct_n64recomp_probe_passed": { "const": false },
+            "manual_fallback_generated": { "const": true }
+          }
+        },
+        "functions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "executable_symbol_count",
+            "sized_count",
+            "zero_size_count",
+            "covered_zero_size_alias_count",
+            "uncovered_zero_size_count",
+            "inferred_size_override_count",
+            "unaligned_address_count",
+            "unaligned_size_count"
+          ],
+          "properties": {
+            "executable_symbol_count": { "$ref": "#/$defs/count" },
+            "sized_count": { "$ref": "#/$defs/count" },
+            "zero_size_count": { "$ref": "#/$defs/count" },
+            "covered_zero_size_alias_count": { "$ref": "#/$defs/count" },
+            "uncovered_zero_size_count": { "$ref": "#/$defs/count" },
+            "inferred_size_override_count": { "$ref": "#/$defs/count" },
+            "unaligned_address_count": { "$ref": "#/$defs/count" },
+            "unaligned_size_count": { "$ref": "#/$defs/count" }
+          }
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidate_symbol_count",
+            "valid_section_symbol_count",
+            "absolute_or_special_symbol_count",
+            "zero_size_symbol_count",
+            "invalid_section_range_count",
+            "invalid_ranges_all_zero_size",
+            "conflicting_name_count",
+            "standard_elf_relocation_section_count",
+            "standard_elf_relocation_entry_count"
+          ],
+          "properties": {
+            "candidate_symbol_count": { "$ref": "#/$defs/count" },
+            "valid_section_symbol_count": { "$ref": "#/$defs/count" },
+            "absolute_or_special_symbol_count": { "$ref": "#/$defs/count" },
+            "zero_size_symbol_count": { "$ref": "#/$defs/count" },
+            "invalid_section_range_count": { "$ref": "#/$defs/count" },
+            "invalid_ranges_all_zero_size": { "type": "boolean" },
+            "conflicting_name_count": { "$ref": "#/$defs/count" },
+            "standard_elf_relocation_section_count": { "$ref": "#/$defs/count" },
+            "standard_elf_relocation_entry_count": { "$ref": "#/$defs/count" }
+          }
+        },
+        "context_dump": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "executable_section_count",
+            "function_count_after_size_overrides",
+            "data_section_count",
+            "data_symbol_count_after_size_overrides"
+          ],
+          "properties": {
+            "executable_section_count": { "$ref": "#/$defs/count" },
+            "function_count_after_size_overrides": { "$ref": "#/$defs/count" },
+            "data_section_count": { "$ref": "#/$defs/count" },
+            "data_symbol_count_after_size_overrides": { "$ref": "#/$defs/count" }
+          }
+        },
+        "coverage_gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "context_executable_sections_inventoried",
+            "all_executable_sections_individually_attempted",
+            "all_candidate_functions_individually_classified",
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "id": { "const": "G2" },
+            "context_executable_sections_inventoried": { "$ref": "#/$defs/count" },
+            "all_executable_sections_individually_attempted": { "const": false },
+            "all_candidate_functions_individually_classified": { "const": false },
+            "status": { "const": "open" },
+            "reason": { "const": "conservative-prestub-partition-is-not-individual-coverage" }
+          }
+        },
+        "conservative_generation_probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "placeholder_jal_site_count",
+            "placeholder_function_count",
+            "indirect_transfer_candidate_site_count",
+            "indirect_transfer_candidate_function_count",
+            "additional_missing_direct_target_function_count",
+            "additional_out_of_range_branch_function_count",
+            "unavailable_stub_count",
+            "excluded_n64recomp_builtin_count",
+            "total_stubbed_function_count",
+            "generated_c_file_count",
+            "final_probe_passed",
+            "transfer_inventory_sha256"
+          ],
+          "properties": {
+            "placeholder_jal_site_count": { "$ref": "#/$defs/count" },
+            "placeholder_function_count": { "$ref": "#/$defs/count" },
+            "indirect_transfer_candidate_site_count": { "$ref": "#/$defs/count" },
+            "indirect_transfer_candidate_function_count": { "$ref": "#/$defs/count" },
+            "additional_missing_direct_target_function_count": { "$ref": "#/$defs/count" },
+            "additional_out_of_range_branch_function_count": { "$ref": "#/$defs/count" },
+            "unavailable_stub_count": { "const": 0 },
+            "excluded_n64recomp_builtin_count": { "$ref": "#/$defs/count" },
+            "total_stubbed_function_count": { "$ref": "#/$defs/count" },
+            "generated_c_file_count": { "$ref": "#/$defs/count" },
+            "final_probe_passed": { "const": true },
+            "transfer_inventory_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "unbounded_jump_table_probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "asan_crash_reproduced",
+            "source_file",
+            "source_line",
+            "failure",
+            "conservative_indirect_stub_fallback_passed"
+          ],
+          "properties": {
+            "asan_crash_reproduced": { "const": true },
+            "source_file": { "const": "src/analysis.cpp" },
+            "source_line": { "const": 325 },
+            "failure": { "const": "out-of-bounds read while scanning an unbounded jump-table candidate" },
+            "conservative_indirect_stub_fallback_passed": { "const": true }
+          }
+        }
+      }
+    },
+    "overlays": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "headers",
+        "reference_table",
+        "relocations",
+        "dependencies",
+        "runtime_contract",
+        "detailed_inventory_sha256"
+      ],
+      "properties": {
+        "headers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "slot_count",
+            "populated_count",
+            "empty_count",
+            "dynamic_vram_count",
+            "fixed_vram_count",
+            "init_callback_count",
+            "resume_callback_count",
+            "invalid_callback_count",
+            "rom_overlap_pair_count"
+          ],
+          "properties": {
+            "slot_count": { "$ref": "#/$defs/count" },
+            "populated_count": { "$ref": "#/$defs/count" },
+            "empty_count": { "$ref": "#/$defs/count" },
+            "dynamic_vram_count": { "$ref": "#/$defs/count" },
+            "fixed_vram_count": { "$ref": "#/$defs/count" },
+            "init_callback_count": { "$ref": "#/$defs/count" },
+            "resume_callback_count": { "$ref": "#/$defs/count" },
+            "invalid_callback_count": { "$ref": "#/$defs/count" },
+            "rom_overlap_pair_count": { "$ref": "#/$defs/count" }
+          }
+        },
+        "reference_table": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "entry_count",
+            "target_class_counts",
+            "invalid_overlay_number_count",
+            "invalid_overlay_offset_count",
+            "empty_overlay_target_count"
+          ],
+          "properties": {
+            "entry_count": { "$ref": "#/$defs/count" },
+            "target_class_counts": { "$ref": "#/$defs/targetClassCounts" },
+            "invalid_overlay_number_count": { "$ref": "#/$defs/count" },
+            "invalid_overlay_offset_count": { "$ref": "#/$defs/count" },
+            "empty_overlay_target_count": { "$ref": "#/$defs/count" }
+          }
+        },
+        "relocations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "main_entry_count",
+            "primary_entry_count",
+            "secondary_entry_count",
+            "total_entry_count",
+            "source_type_counts",
+            "patch_type_counts",
+            "external_target_class_counts",
+            "unknown_source_type_count",
+            "unknown_patch_type_count",
+            "invalid_symbol_index_count",
+            "invalid_local_offset_count",
+            "invalid_patch_target_count",
+            "unaligned_patch_target_count",
+            "paired_hi16_lo16_count",
+            "unpaired_hi16_count",
+            "standalone_lo16_count",
+            "hi16_lo16_reference_mismatch_count",
+            "hi16_lo16_same_patch_target_count",
+            "referenced_anomaly_count"
+          ],
+          "properties": {
+            "main_entry_count": { "$ref": "#/$defs/count" },
+            "primary_entry_count": { "$ref": "#/$defs/count" },
+            "secondary_entry_count": { "$ref": "#/$defs/count" },
+            "total_entry_count": { "$ref": "#/$defs/count" },
+            "source_type_counts": { "$ref": "#/$defs/sourceTypeCounts" },
+            "patch_type_counts": { "$ref": "#/$defs/patchTypeCounts" },
+            "external_target_class_counts": { "$ref": "#/$defs/targetClassCounts" },
+            "unknown_source_type_count": { "$ref": "#/$defs/count" },
+            "unknown_patch_type_count": { "$ref": "#/$defs/count" },
+            "invalid_symbol_index_count": { "$ref": "#/$defs/count" },
+            "invalid_local_offset_count": { "$ref": "#/$defs/count" },
+            "invalid_patch_target_count": { "$ref": "#/$defs/count" },
+            "unaligned_patch_target_count": { "$ref": "#/$defs/count" },
+            "paired_hi16_lo16_count": { "$ref": "#/$defs/count" },
+            "unpaired_hi16_count": { "$ref": "#/$defs/count" },
+            "standalone_lo16_count": { "$ref": "#/$defs/count" },
+            "hi16_lo16_reference_mismatch_count": { "$ref": "#/$defs/count" },
+            "hi16_lo16_same_patch_target_count": { "$ref": "#/$defs/count" },
+            "referenced_anomaly_count": { "$ref": "#/$defs/count" }
+          }
+        },
+        "dependencies": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "main_to_overlay_edge_count",
+            "overlay_to_overlay_edge_count",
+            "self_overlay_reference_count"
+          ],
+          "properties": {
+            "main_to_overlay_edge_count": { "$ref": "#/$defs/count" },
+            "overlay_to_overlay_edge_count": { "$ref": "#/$defs/count" },
+            "self_overlay_reference_count": { "$ref": "#/$defs/count" }
+          }
+        },
+        "runtime_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "model",
+            "synthetic_tested",
+            "generation_monotonic_per_overlay",
+            "same_base_reload_rejects_stale_pointer",
+            "overlapping_publish_rejected",
+            "stale_unpublish_rejected",
+            "generated_code_integration_complete"
+          ],
+          "properties": {
+            "model": { "const": "active-overlay-registry-v1" },
+            "synthetic_tested": { "const": true },
+            "generation_monotonic_per_overlay": { "const": true },
+            "same_base_reload_rejects_stale_pointer": { "const": true },
+            "overlapping_publish_rejected": { "const": true },
+            "stale_unpublish_rejected": { "const": true },
+            "generated_code_integration_complete": { "const": false }
+          }
+        },
+        "detailed_inventory_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "conclusions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "standard_elf_metadata_is_sufficient",
+        "custom_relocation_ingestion_required",
+        "active_overlay_function_lookup_required",
+        "overlay_unload_reload_invalidation_required",
+        "runtime_dynamic_code_generation_observed",
+        "dynamic_code_conclusion_is_provisional",
+        "initial_code_generation_enabled",
+        "g2_complete",
+        "generated_code_overlay_registry_integration_complete"
+      ],
+      "properties": {
+        "standard_elf_metadata_is_sufficient": { "const": false },
+        "custom_relocation_ingestion_required": { "const": true },
+        "active_overlay_function_lookup_required": { "const": true },
+        "overlay_unload_reload_invalidation_required": { "const": true },
+        "runtime_dynamic_code_generation_observed": { "const": false },
+        "dynamic_code_conclusion_is_provisional": { "const": true },
+        "initial_code_generation_enabled": { "const": false },
+        "g2_complete": { "const": false },
+        "generated_code_overlay_registry_integration_complete": { "const": false }
+      }
+    }
+  },
+  "$defs": {
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "count": { "type": "integer", "minimum": 0, "maximum": 33554432 },
+    "positiveCount": { "type": "integer", "minimum": 1, "maximum": 33554432 },
+    "sourceTypeCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["0", "1", "2", "3"],
+      "properties": {
+        "0": { "$ref": "#/$defs/count" },
+        "1": { "$ref": "#/$defs/count" },
+        "2": { "$ref": "#/$defs/count" },
+        "3": { "$ref": "#/$defs/count" }
+      }
+    },
+    "patchTypeCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["2", "4", "5", "6"],
+      "properties": {
+        "2": { "$ref": "#/$defs/count" },
+        "4": { "$ref": "#/$defs/count" },
+        "5": { "$ref": "#/$defs/count" },
+        "6": { "$ref": "#/$defs/count" }
+      }
+    },
+    "targetClassCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["main", "overlay", "main-data", "main-bss", "special-reserved", "anomalous"],
+      "properties": {
+        "main": { "$ref": "#/$defs/count" },
+        "overlay": { "$ref": "#/$defs/count" },
+        "main-data": { "$ref": "#/$defs/count" },
+        "main-bss": { "$ref": "#/$defs/count" },
+        "special-reserved": { "$ref": "#/$defs/count" },
+        "anomalous": { "$ref": "#/$defs/count" }
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "../schemas/phase7-acceptance.schema.json",
+  "schema_version": 1,
+  "kind": "jfg-phase7-acceptance",
+  "status": "complete",
+  "pins": {
+    "rt64": "5473732a822a4423b5696e7cb18fecc425a59875",
+    "n64modernruntime": "589bbf018a3e6d3646ddf7de1e7919f1b7e99bb1"
+  },
+  "scope": {
+    "milestone": "M3-first-frame",
+    "renderer": "pinned-rt64",
+    "graphics_family": "f3ddkr-jfg",
+    "required_scenes": [
+      "boot-title",
+      "representative-gameplay"
+    ],
+    "minimum_real_task_count": 2
+  },
+  "evidence_format": {
+    "private_artifact_policy": "ignored-local-only",
+    "public_summary": "evidence/phase7-completion.json",
+    "pixel_comparison": "independent-emulator-oracle",
+    "pixel_comparator": "scripts/compare_phase7_frames.py",
+    "ssim_prefilter": "gaussian-one-reference-pixel",
+    "minimum_ssim_millionths": 800000,
+    "minimum_foreground_iou_millionths": 800000,
+    "maximum_mean_absolute_error_millionths": 60000,
+    "repeat_count": 3,
+    "command_log_policy": "aggregate-counts-no-command-bodies"
+  },
+  "gates": {
+    "rt64_shell_integrated": true,
+    "renderer_callbacks_registered": true,
+    "f3ddkr_path_supported": true,
+    "framebuffer_contract_verified": true,
+    "rsp_rdp_sync_verified": true,
+    "graphics_command_log_verified": true,
+    "real_tasks_submitted": true,
+    "boot_title_compared": true,
+    "gameplay_compared": true,
+    "repeat_determinism_verified": true,
+    "renderer_disabled_hash_equal": true,
+    "backend_hash_equal": true,
+    "developer_debugger_available": true,
+    "unsupported_commands_zero": true
+  }
+}

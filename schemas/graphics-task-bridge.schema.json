@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/graphics-task-bridge.schema.json",
+  "title": "Public-safe graphics task bridge evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "privacy",
+    "pins",
+    "upstream_contract",
+    "bridge",
+    "family_surface",
+    "evidence",
+    "decision"
+  ],
+  "properties": {
+    "$schema": { "const": "../schemas/graphics-task-bridge.schema.json" },
+    "schema_version": { "const": 6 },
+    "kind": { "const": "jfg-graphics-task-bridge" },
+    "privacy": { "const": "public-safe-aggregate-private-backed" },
+    "pins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rt64", "n64modernruntime"],
+      "properties": {
+        "rt64": { "$ref": "#/$defs/sha1" },
+        "n64modernruntime": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "upstream_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "renderer_task_result",
+        "sp_completion_timing",
+        "unknown_command_behavior",
+        "pin_was_upstream_main_at_review"
+      ],
+      "properties": {
+        "renderer_task_result": { "const": "void" },
+        "sp_completion_timing": { "const": "before-renderer-call" },
+        "unknown_command_behavior": { "const": "log-and-continue" },
+        "pin_was_upstream_main_at_review": { "const": true }
+      }
+    },
+    "bridge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implementation",
+        "native_adapter_path",
+        "active_program_max_bytes",
+        "program_data_max_bytes",
+        "command_stream_max_bytes",
+        "instruction_alignment_bytes",
+        "command_alignment_bytes",
+        "parsed_command_max_count",
+        "referenced_region_min_count",
+        "referenced_region_max_count",
+        "referenced_memory_max_bytes",
+        "memory_access_max_count",
+        "memory_access_max_bytes",
+        "output_dimension_max",
+        "output_max_bytes",
+        "memory_reads_brokered",
+        "all_declared_regions_must_be_observed",
+        "independent_output_oracle_required",
+        "backend_oracle_distinct_object_required",
+        "completion_policy",
+        "renderer_completion_sink_order",
+        "backend_exceptions_fail_closed",
+        "bounded_custom_fallback_implemented",
+        "command_prefix_verified_through_broker",
+        "semantic_output_kind_distinct",
+        "semantic_output_payload_comparison",
+        "visual_output_produced",
+        "synthetic_execution_passed"
+      ],
+      "properties": {
+        "implementation": { "const": "project-authored-rom-free-host-boundary" },
+        "native_adapter_path": { "const": "project-bounded-semantic" },
+        "active_program_max_bytes": { "const": 4096 },
+        "program_data_max_bytes": { "const": 4096 },
+        "command_stream_max_bytes": { "const": 1048576 },
+        "instruction_alignment_bytes": { "const": 4 },
+        "command_alignment_bytes": { "const": 8 },
+        "parsed_command_max_count": { "const": 131072 },
+        "referenced_region_min_count": { "const": 1 },
+        "referenced_region_max_count": { "const": 256 },
+        "referenced_memory_max_bytes": { "const": 8388608 },
+        "memory_access_max_count": { "const": 1048576 },
+        "memory_access_max_bytes": { "const": 67108864 },
+        "output_dimension_max": { "const": 8192 },
+        "output_max_bytes": { "const": 67108864 },
+        "memory_reads_brokered": { "const": true },
+        "all_declared_regions_must_be_observed": { "const": true },
+        "independent_output_oracle_required": { "const": true },
+        "backend_oracle_distinct_object_required": { "const": true },
+        "completion_policy": { "const": "prepare-then-noexcept-commit-after-validation" },
+        "renderer_completion_sink_order": { "const": "oracle-then-prepare-then-commit" },
+        "backend_exceptions_fail_closed": { "const": true },
+        "bounded_custom_fallback_implemented": { "const": true },
+        "command_prefix_verified_through_broker": { "const": true },
+        "semantic_output_kind_distinct": { "const": true },
+        "semantic_output_payload_comparison": { "const": "exact-bytes" },
+        "visual_output_produced": { "const": false },
+        "synthetic_execution_passed": { "const": true }
+      }
+    },
+    "family_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_custom_handler_count",
+        "variant_override_count",
+        "shared_base_delegate_required",
+        "unknown_commands_fail_closed",
+        "custom_handler_translation_implemented",
+        "semantic_renderer_implemented",
+        "shared_base_visual_renderer_implemented",
+        "real_task_full_surface_coverage",
+        "rt64_adapter_implemented"
+      ],
+      "properties": {
+        "base_custom_handler_count": { "const": 7 },
+        "variant_override_count": { "const": 1 },
+        "shared_base_delegate_required": { "const": true },
+        "unknown_commands_fail_closed": { "const": true },
+        "custom_handler_translation_implemented": { "const": true },
+        "semantic_renderer_implemented": { "const": true },
+        "shared_base_visual_renderer_implemented": { "const": false },
+        "real_task_full_surface_coverage": { "const": false },
+        "rt64_adapter_implemented": { "const": false }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "real_task_count",
+        "private_body_present",
+        "referenced_memory_closure",
+        "semantic_output_validation",
+        "visual_output_validation",
+        "completion_after_oracle"
+      ],
+      "properties": {
+        "classification": { "const": "public-safe-aggregate-private-backed" },
+        "real_task_count": { "const": 1 },
+        "private_body_present": { "const": false },
+        "referenced_memory_closure": { "const": "established-for-one-private-task" },
+        "semantic_output_validation": { "const": "exact-match-for-one-private-task" },
+        "visual_output_validation": { "const": "not-established" },
+        "completion_after_oracle": { "const": true }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "g2_gate", "remaining_blocker_count", "next_gate"],
+      "properties": {
+        "status": { "const": "g2-graphics-native-fallback-proven" },
+        "g2_gate": { "const": "pass" },
+        "remaining_blocker_count": { "const": 0 },
+        "next_gate": { "$ref": "#/$defs/safeText" }
+      }
+    }
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "safeText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "pattern": "^(?!.*[A-Za-z0-9]{32})[A-Za-z0-9][A-Za-z0-9 .,;:'()/-]*$"
+    }
+  }
+}

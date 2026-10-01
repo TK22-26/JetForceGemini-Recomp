@@ -1,0 +1,184 @@
+{
+  "$schema": "../../schemas/phase3-cpu-overlay-evidence.schema.json",
+  "schema_version": 1,
+  "kind": "jfg-phase3-cpu-overlay-evidence",
+  "privacy": "public-safe-aggregate-only",
+  "derivation": {
+    "cpu_aggregate": "generated-from-ignored-pinned-local-probe",
+    "overlay_aggregate": "generated-from-ignored-pinned-local-analyzer",
+    "runtime_contract": "rom-free-synthetic-model-tests",
+    "initial_config_parse": "maintainer-attested-local-observation",
+    "jump_table_asan": "maintainer-attested-local-observation",
+    "public_aggregate_lock": "validator-pinned-canonical-sha256"
+  },
+  "pins": {
+    "jfg_decomp": "b49aa4791e8fb1e7acd3bba10346876358d0a9a7",
+    "n64recomp": "ffb39cdad1da5de07eaaa48bd1db4a89a7986771"
+  },
+  "inputs": {
+    "supported_rom_sha1": "493ced9008dbe932d6e91179b68e8630cf23a023",
+    "supported_rom_size": 33554432,
+    "elf_sha256": "ea06a1f7fd54454fbf65f9dbe0bb6d731d5a44f732c16c8d157b475cb8078f1b",
+    "n64recomp_executable_sha256": "34958d6ae8c047adb772090c75fdcc051036646a1db58595694f814c3a4a09b6",
+    "n64recomp_identity_methods": [
+      "source-commit",
+      "executable-sha256"
+    ],
+    "initial_config_pinned_parse_passed": true
+  },
+  "cpu": {
+    "boot_entry_probe": {
+      "private_input_supplied": true,
+      "elf_header_entry_present": false,
+      "direct_n64recomp_probe_passed": false,
+      "manual_fallback_generated": true
+    },
+    "functions": {
+      "executable_symbol_count": 3729,
+      "sized_count": 2899,
+      "zero_size_count": 830,
+      "covered_zero_size_alias_count": 824,
+      "uncovered_zero_size_count": 6,
+      "inferred_size_override_count": 6,
+      "unaligned_address_count": 0,
+      "unaligned_size_count": 0
+    },
+    "data": {
+      "candidate_symbol_count": 11767,
+      "valid_section_symbol_count": 8771,
+      "absolute_or_special_symbol_count": 2996,
+      "zero_size_symbol_count": 5950,
+      "invalid_section_range_count": 155,
+      "invalid_ranges_all_zero_size": true,
+      "conflicting_name_count": 0,
+      "standard_elf_relocation_section_count": 0,
+      "standard_elf_relocation_entry_count": 0
+    },
+    "context_dump": {
+      "executable_section_count": 156,
+      "function_count_after_size_overrides": 2905,
+      "data_section_count": 324,
+      "data_symbol_count_after_size_overrides": 12605
+    },
+    "coverage_gate": {
+      "id": "G2",
+      "context_executable_sections_inventoried": 156,
+      "all_executable_sections_individually_attempted": false,
+      "all_candidate_functions_individually_classified": false,
+      "status": "open",
+      "reason": "conservative-prestub-partition-is-not-individual-coverage"
+    },
+    "conservative_generation_probe": {
+      "placeholder_jal_site_count": 7414,
+      "placeholder_function_count": 970,
+      "indirect_transfer_candidate_site_count": 205,
+      "indirect_transfer_candidate_function_count": 139,
+      "additional_missing_direct_target_function_count": 57,
+      "additional_out_of_range_branch_function_count": 1,
+      "unavailable_stub_count": 0,
+      "excluded_n64recomp_builtin_count": 5,
+      "total_stubbed_function_count": 1091,
+      "generated_c_file_count": 55,
+      "final_probe_passed": true,
+      "transfer_inventory_sha256": "b922998546878dc89801bf81b7166363f665c0a8475ae8fcec1bd98cde7c990d"
+    },
+    "unbounded_jump_table_probe": {
+      "asan_crash_reproduced": true,
+      "source_file": "src/analysis.cpp",
+      "source_line": 325,
+      "failure": "out-of-bounds read while scanning an unbounded jump-table candidate",
+      "conservative_indirect_stub_fallback_passed": true
+    }
+  },
+  "overlays": {
+    "headers": {
+      "slot_count": 157,
+      "populated_count": 155,
+      "empty_count": 2,
+      "dynamic_vram_count": 155,
+      "fixed_vram_count": 0,
+      "init_callback_count": 4,
+      "resume_callback_count": 12,
+      "invalid_callback_count": 0,
+      "rom_overlap_pair_count": 0
+    },
+    "reference_table": {
+      "entry_count": 2372,
+      "target_class_counts": {
+        "main": 1291,
+        "overlay": 797,
+        "main-data": 110,
+        "main-bss": 172,
+        "special-reserved": 1,
+        "anomalous": 1
+      },
+      "invalid_overlay_number_count": 1,
+      "invalid_overlay_offset_count": 0,
+      "empty_overlay_target_count": 0
+    },
+    "relocations": {
+      "main_entry_count": 520,
+      "primary_entry_count": 11076,
+      "secondary_entry_count": 16439,
+      "total_entry_count": 28035,
+      "source_type_counts": {
+        "0": 12107,
+        "1": 14835,
+        "2": 1090,
+        "3": 3
+      },
+      "patch_type_counts": {
+        "2": 2028,
+        "4": 8980,
+        "5": 8478,
+        "6": 8549
+      },
+      "external_target_class_counts": {
+        "main": 6510,
+        "overlay": 1618,
+        "main-data": 1386,
+        "main-bss": 2593,
+        "special-reserved": 2,
+        "anomalous": 1
+      },
+      "unknown_source_type_count": 0,
+      "unknown_patch_type_count": 0,
+      "invalid_symbol_index_count": 0,
+      "invalid_local_offset_count": 0,
+      "invalid_patch_target_count": 0,
+      "unaligned_patch_target_count": 0,
+      "paired_hi16_lo16_count": 8478,
+      "unpaired_hi16_count": 0,
+      "standalone_lo16_count": 71,
+      "hi16_lo16_reference_mismatch_count": 0,
+      "hi16_lo16_same_patch_target_count": 0,
+      "referenced_anomaly_count": 1
+    },
+    "dependencies": {
+      "main_to_overlay_edge_count": 134,
+      "overlay_to_overlay_edge_count": 156,
+      "self_overlay_reference_count": 514
+    },
+    "runtime_contract": {
+      "model": "active-overlay-registry-v1",
+      "synthetic_tested": true,
+      "generation_monotonic_per_overlay": true,
+      "same_base_reload_rejects_stale_pointer": true,
+      "overlapping_publish_rejected": true,
+      "stale_unpublish_rejected": true,
+      "generated_code_integration_complete": false
+    },
+    "detailed_inventory_sha256": "b75767673e668ebbdf13236ebd848644fc502bedd89e13a8bbc37878c40e113b"
+  },
+  "conclusions": {
+    "standard_elf_metadata_is_sufficient": false,
+    "custom_relocation_ingestion_required": true,
+    "active_overlay_function_lookup_required": true,
+    "overlay_unload_reload_invalidation_required": true,
+    "runtime_dynamic_code_generation_observed": false,
+    "dynamic_code_conclusion_is_provisional": true,
+    "initial_code_generation_enabled": false,
+    "g2_complete": false,
+    "generated_code_overlay_registry_integration_complete": false
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "verdict": {"type": "string", "enum": ["approve", "reject", "needs_evidence"]},
+    "findings": {"type": "array", "items": {"type": "string"}},
+    "confidence": {"type": "string", "enum": ["low", "medium", "high"]}
+  },
+  "required": ["verdict", "findings", "confidence"],
+  "additionalProperties": false
+}

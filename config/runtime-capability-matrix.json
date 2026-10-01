@@ -1,0 +1,473 @@
+{
+  "$schema": "../schemas/runtime-capability-matrix.schema.json",
+  "schema_version": 1,
+  "kind": "jfg-runtime-capability-matrix",
+  "privacy": "public-safe-aggregate-only",
+  "pins": {
+    "jfg_decomp": "b49aa4791e8fb1e7acd3bba10346876358d0a9a7",
+    "n64recomp": "ffb39cdad1da5de07eaaa48bd1db4a89a7986771",
+    "n64modernruntime": "589bbf018a3e6d3646ddf7de1e7919f1b7e99bb1"
+  },
+  "gate": {
+    "id": "G2",
+    "decision": "no-go-current-pin",
+    "broad_phase4_authorized": false,
+    "required_blocker_ids": [
+      "anti-tamper-traps",
+      "cache-operations",
+      "controller-pak-save",
+      "decompression",
+      "direct-rcp-registers",
+      "kseg-aliases",
+      "pi-dma",
+      "tlb-mappings"
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "direct-rcp-registers",
+      "runtime_status": "unsupported",
+      "fundamental_blocker": true,
+      "target_evidence": [
+        {
+          "id": "target-rcp-static-candidates",
+          "kind": "private-static-aggregate",
+          "confidence": "candidate",
+          "candidate_count": 106,
+          "summary": "Static decoding found hardware-segment upper-immediate candidates; individual sites remain private and require classification."
+        }
+      ],
+      "runtime_evidence": [
+        {
+          "id": "runtime-no-general-register-broker",
+          "kind": "pinned-source-inspection",
+          "confidence": "observed",
+          "summary": "The pinned runtime exposes subsystem bridges but no general fail-closed broker for arbitrary direct hardware-register access."
+        }
+      ],
+      "fallback": {
+        "id": "strict-register-broker",
+        "status": "synthetic-tested",
+        "test_id": "unknown-register-fails-closed",
+        "strategy": "Route classified direct accesses through an allowlisted broker and reject every unknown register identifier.",
+        "limitations": "The synthetic test proves fail-closed dispatch only; every target candidate still needs private classification and a behavioral oracle."
+      },
+      "next_gate": "Classify every candidate by subsystem and prove that each required read and write has an explicit emulation contract."
+    },
+    {
+      "id": "kseg-aliases",
+      "runtime_status": "partial",
+      "fundamental_blocker": true,
+      "target_evidence": [
+        {
+          "id": "target-kseg-static-candidates",
+          "kind": "private-static-aggregate",
+          "confidence": "candidate",
+          "candidate_count": 130,
+          "summary": "Static decoding found direct-mapped alias candidates; the aggregate includes hardware-register candidates and is not a proven execution count."
+        }
+      ],
+      "runtime_evidence": [
+        {
+          "id": "runtime-kseg-translation",
+          "kind": "pinned-source-inspection",
+          "confidence": "observed",
+          "summary": "The runtime translates both direct-mapped aliases in its address helper, while generated ordinary memory access assumes the cached alias base."
+        }
+      ],
+      "fallback": {
+        "id": "central-address-translator",
+        "status": "synthetic-tested",
+        "test_id": "kseg-alias-translation",
+        "strategy": "Normalize both direct-mapped aliases at a checked address boundary before host memory access.",
+        "limitations": "The synthetic translator does not prove that every generated memory operation is routed through the boundary."
+      },
+      "next_gate": "Run generated-code probes for both aliases and reject any access that bypasses the checked translator."
+    },
+    {
+      "id": "tlb-mappings",
+      "runtime_status": "unsupported",
+      "fundamental_blocker": true,
+      "target_evidence": [
+        {
+          "id": "target-tlb-static-candidates",
+          "kind": "private-static-aggregate",
+          "confidence": "candidate",
+          "candidate_count": 4,
+          "summary": "Static decoding found a small set of TLB-instruction candidates, while the inspected project source had no direct high-level mapping calls."
+        }
+      ],
+      "runtime_evidence": [
+        {
+          "id": "runtime-tlb-stub",
+          "kind": "pinned-source-inspection",
+          "confidence": "observed",
+          "summary": "The pinned runtime leaves its all-entry unmap bridge empty and the pinned recompiler describes relocation support for mapped code as future work."
+        }
+      ],
+      "fallback": {
+        "id": "explicit-static-mappings",
+        "status": "synthetic-tested",
+        "test_id": "explicit-tlb-mapping",
+        "strategy": "Represent only proven mappings in a bounded translation table and fail closed outside those ranges.",
+        "limitations": "The synthetic mapping test does not establish whether any candidate executes or whether runtime remapping is required."
+      },
+      "next_gate": "Classify the instruction candidates and prove either non-execution or a complete mapping and relocation set."
+    },
+    {
+      "id": "cache-operations",
+      "runtime_status": "partial",
+      "fundamental_blocker": true,
+      "target_evidence": [
+        {
+          "id": "target-cache-instructions",
+          "kind": "private-static-aggregate",
+          "confidence": "candidate",
+          "candidate_count": 9,
+          "summary": "Static decoding found cache-instruction candidates."
+        },
+        {
+          "id": "target-cache-api-occurrences",
+          "kind": "private-static-aggregate",
+          "confidence": "observed",
+          "candidate_count": 12,
+          "summary": "Lexical inspection found cache-maintenance API occurrences, including use around code and overlay mutation."
+        }
+      ],
+      "runtime_evidence": [
+        {
+          "id": "runtime-cache-noops",
+          "kind": "pinned-source-inspection",
+          "confidence": "observed",
+          "summary": "The pinned runtime implements the standard cache-maintenance bridges as no-ops."
+        }
+      ],
+      "fallback": {
+        "id": "host-code-coherency-gate",
+        "status": "synthetic-tested",
+        "test_id": "cache-coherency-gate",
+        "strategy": "Count every native-code mutation by region and require one subsequent host invalidation per recorded write before execution.",
+        "limitations": "The synthetic gate proves per-write accounting and rejection only; native code-page integration and all target mutation sites remain unproven.",
+        "verified_properties": [
+          "per-write-invalidation-accounting",
+          "reject-execution-while-dirty"
+        ],
+        "unproven_properties": [
+          "native-code-page-integration",
+          "target-mutation-site-coverage"
+        ]
+      },
+      "next_gate": "Prove every code mutation and overlay relocation reaches a host invalidation hook before execution."
+    },
+    {
+      "id": "pi-dma",
+      "runtime_status": "partial",
+      "fundamental_blocker": true,
+      "target_evidence": [
+        {
+          "id": "target-pi-api-occurrences",
+          "kind": "private-static-aggregate",
+          "confidence": "observed",
+          "candidate_count": 1,
+          "summary": "Lexical inspection found a direct standard PI transfer occurrence; additional calls may remain in unmatched or library code."
+        }
+      ],
+      "runtime_evidence": [
+        {
+          "id": "runtime-pi-standard-path",
+          "kind": "pinned-source-inspection",
+          "confidence": "observed",
+          "summary": "Standard and handle-based transfers are implemented, but raw variants terminate and alignment or device-range gaps remain."
+        }
+      ],
+      "fallback": {
+        "id": "bounded-dma-broker",
+        "status": "synthetic-tested",
+        "test_id": "bounded-dma-copy",
+        "strategy": "Use a checked byte-copy broker with explicit device bounds and exactly one completion event.",
+        "limitations": "The synthetic broker does not yet reproduce hardware timing, priority, alignment quirks, or every device region."
+      },
+      "next_gate": "Replay representative aligned and unaligned transfers and prove completion-message ordering against the private oracle."
+    },
+    {
+      "id": "decompression",
+      "runtime_status": "unverified",
+      "fundamental_blocker": true,
+      "target_evidence": [
+        {
+          "id": "target-decompression-occurrences",
+          "kind": "private-static-aggregate",
+          "confidence": "observed",
+          "candidate_count": 11,
+          "summary": "Lexical inspection confirms a game-specific compressed-asset path with a hand-written low-level component."
+        }
+      ],
+      "runtime_evidence": [
+        {
+          "id": "runtime-decompression-callback",
+          "kind": "pinned-source-inspection",
+          "confidence": "observed",
+          "summary": "The pinned runtime has an optional project callback boundary for compressed code, not a proven implementation of the target asset format."
+        }
+      ],
+      "fallback": {
+        "id": "bounded-decompression-callback",
+        "status": "synthetic-tested",
+        "test_id": "decompressor-callback-boundary",
+        "strategy": "Supply an independently reviewed callback behind strict input and output bounds, output-type validation, and missing-handler rejection.",
+        "limitations": "Only the bounded callback contract is tested; target algorithm correctness and target-byte compatibility remain unproven.",
+        "verified_properties": [
+          "input-bound",
+          "missing-handler-rejection",
+          "output-bound",
+          "output-type-check"
+        ],
+        "unproven_properties": [
+          "target-algorithm",
+          "target-byte-compatibility"
+        ]
+      },
+      "next_gate": "Prove the low-level routine recompiles correctly or implement a clean-room callback and compare only private output hashes."
+    },
+    {
+      "id": "timers",
+      "runtime_status": "partial",
+      "fundamental_blocker": false,
+      "target_evidence": [
+        {
+          "id": "target-timer-api-occurrences",
+          "kind": "private-static-aggregate",
+          "confidence": "observed",
+          "candidate_count": 4,
+          "summary": "Lexical inspection confirms timer API use."
+        }
+      ],
+      "runtime_evidence": [
+        {
+          "id": "runtime-timer-implementation",
+          "kind": "pinned-source-inspection",
+          "confidence": "observed",
+          "summary": "Timer creation, stopping, and time queries are implemented, but count-setting and one stop return-value detail remain incomplete."
+        }
+      ],
+      "fallback": null,
+      "next_gate": "Run deterministic one-shot, periodic, cancellation, wrap, and queue-order probes."
+    },
+    {
+      "id": "message-queues",
+      "runtime_status": "supported",
+      "fundamental_blocker": false,
+      "target_evidence": [
+        {
+          "id": "target-queue-api-occurrences",
+          "kind": "private-static-aggregate",
+          "confidence": "observed",
+          "candidate_count": 41,
+          "summary": "Lexical inspection confirms extensive queue API use."
+        }
+      ],
+      "runtime_evidence": [
+        {
+          "id": "runtime-queue-implementation",
+          "kind": "pinned-source-inspection",
+          "confidence": "observed",
+          "summary": "Create, send, jam, receive, blocking, and external-message paths are implemented in the pinned runtime."
+        }
+      ],
+      "fallback": null,
+      "next_gate": "Verify blocking, jam order, full and empty behavior, and external completion delivery with deterministic tests."
+    },
+    {
+      "id": "controller-pak-save",
+      "runtime_status": "unsupported",
+      "fundamental_blocker": true,
+      "target_evidence": [
+        {
+          "id": "target-controller-pak-occurrences",
+          "kind": "private-static-aggregate",
+          "confidence": "observed",
+          "candidate_count": 18,
+          "summary": "Lexical inspection confirms file allocation, enumeration, deletion, read, write, capacity, and repair operations."
+        },
+        {
+          "id": "target-controller-pak-boot-roundtrip",
+          "kind": "private-dynamic-aggregate",
+          "confidence": "observed",
+          "candidate_count": 1,
+          "gate_effect": "oracle-only-does-not-clear-g2",
+          "summary": "A supported-image emulator boot exercised checker persistence and fresh-process reload as oracle evidence only; it did not execute the proposed native implementation and does not clear G2."
+        }
+      ],
+      "runtime_evidence": [
+        {
+          "id": "runtime-controller-pak-no-device",
+          "kind": "pinned-source-inspection",
+          "confidence": "observed",
+          "summary": "The pinned runtime returns a no-device result for the Controller Pak file-operation family."
+        }
+      ],
+      "fallback": {
+        "id": "native-controller-pak-layer",
+        "status": "synthetic-tested",
+        "test_id": "synthetic-controller-pak-lifecycle",
+        "strategy": "Implement a bounded logical note store with allocate, enumerate, read, write, delete, capacity, failure, and logical snapshot reload behavior.",
+        "limitations": "The synthetic model proves only in-memory operations and fresh-model logical snapshot reload; controller discovery, atomic durable persistence, native format compatibility, repair, corruption handling, and target parity remain unproven.",
+        "verified_properties": [
+          "allocation",
+          "bounds",
+          "capacity",
+          "delete",
+          "enumeration",
+          "logical-snapshot-reload",
+          "read",
+          "write"
+        ],
+        "unproven_properties": [
+          "atomic-durable-host-persistence",
+          "controller-discovery",
+          "native-format-compatibility",
+          "repair-and-corruption",
+          "target-parity"
+        ]
+      },
+      "next_gate": "G2 remains blocked: run allocation, enumeration, deletion, read, write, capacity, persistence/reload, and failure paths through the proposed native implementation and compare aggregate results with the private oracle."
+    },
+    {
+      "id": "anti-tamper-traps",
+      "runtime_status": "partial",
+      "fundamental_blocker": true,
+      "target_evidence": [
+        {
+          "id": "target-trap-static-candidates",
+          "kind": "private-static-aggregate",
+          "confidence": "candidate",
+          "candidate_count": 826,
+          "summary": "Static decoding and source inspection expose many trap-like candidates plus a boot-time self-check path; candidates are not proven executions."
+        }
+      ],
+      "runtime_evidence": [
+        {
+          "id": "runtime-trap-hooks",
+          "kind": "pinned-source-inspection",
+          "confidence": "observed",
+          "summary": "Break and switch-bound hooks terminate, while the base runtime lacks the syscall handler emitted by the pinned recompiler."
+        }
+      ],
+      "fallback": {
+        "id": "strict-trap-manifest",
+        "status": "synthetic-tested",
+        "test_id": "trap-inventory-completeness",
+        "strategy": "Assign every proven trap an opaque ID and explicit abort, emulate, or defer disposition; reject unknown and duplicate sites.",
+        "limitations": "The synthetic inventory proves completeness enforcement only; all static candidates require private reachability and intent classification."
+      },
+      "next_gate": "Classify every reachable trap and boot self-check path, then prove a non-stub disposition with private replay evidence."
+    }
+  ],
+  "save_devices": [
+    {
+      "id": "flashram",
+      "target_usage": "observed",
+      "candidate_count": 4,
+      "runtime_status": "supported",
+      "fallback": null,
+      "next_gate": "Probe erase, buffered write, array write, read, status, persistence, and interrupted-operation behavior."
+    },
+    {
+      "id": "controller-pak",
+      "target_usage": "observed",
+      "candidate_count": 18,
+      "runtime_status": "unsupported",
+      "fallback": {
+        "id": "native-controller-pak-layer",
+        "status": "synthetic-tested",
+        "test_id": "synthetic-controller-pak-lifecycle",
+        "strategy": "Provide a bounded logical note store with deterministic errors, enumeration, and fresh-model logical snapshot reload using only synthetic test bodies.",
+        "limitations": "No target save body is tracked; controller discovery, atomic durable persistence, native format compatibility, repair, corruption handling, and target parity remain unproven.",
+        "verified_properties": [
+          "allocation",
+          "bounds",
+          "capacity",
+          "delete",
+          "enumeration",
+          "logical-snapshot-reload",
+          "read",
+          "write"
+        ],
+        "unproven_properties": [
+          "atomic-durable-host-persistence",
+          "controller-discovery",
+          "native-format-compatibility",
+          "repair-and-corruption",
+          "target-parity"
+        ]
+      },
+      "next_gate": "The emulator checker result is oracle-only and does not clear G2; G2 requires a persistence/reload round-trip through the proposed native implementation plus operation and error parity."
+    },
+    {
+      "id": "rumble-pak",
+      "target_usage": "observed",
+      "candidate_count": 8,
+      "runtime_status": "supported",
+      "fallback": null,
+      "next_gate": "Probe discovery, start, stop, disconnect, and Controller Pak versus Rumble Pak switching."
+    },
+    {
+      "id": "eeprom",
+      "target_usage": "not-observed",
+      "candidate_count": 0,
+      "runtime_status": "supported",
+      "fallback": null,
+      "next_gate": "Confirm the selected game mode never selects EEPROM before excluding it from the shipped matrix."
+    },
+    {
+      "id": "sram",
+      "target_usage": "unverified",
+      "candidate_count": 1,
+      "runtime_status": "partial",
+      "fallback": null,
+      "next_gate": "Classify the generic transfer occurrence and test SRAM only if a reachable mode selects it."
+    }
+  ],
+  "trap_inventory": [
+    {
+      "id": "cpu-break",
+      "candidate_count": 552,
+      "confidence": "candidate",
+      "runtime_disposition": "abort-only",
+      "fundamental_blocker": true,
+      "fallback_contract_id": "strict-trap-manifest",
+      "fallback_test_id": "trap-inventory-completeness",
+      "next_gate": "Distinguish executable traps from padding or decoder false positives and assign each reachable site a disposition."
+    },
+    {
+      "id": "cpu-syscall",
+      "candidate_count": 273,
+      "confidence": "candidate",
+      "runtime_disposition": "missing-handler",
+      "fundamental_blocker": true,
+      "fallback_contract_id": "strict-trap-manifest",
+      "fallback_test_id": "trap-inventory-completeness",
+      "next_gate": "Classify every reachable candidate and implement the emitted handler contract before generated code can link."
+    },
+    {
+      "id": "switch-bounds",
+      "candidate_count": 0,
+      "confidence": "generated-contract",
+      "runtime_disposition": "abort-only",
+      "fundamental_blocker": false,
+      "fallback_contract_id": null,
+      "fallback_test_id": null,
+      "next_gate": "Keep the fail-closed diagnostic and prove valid jump-table inputs never reach it."
+    },
+    {
+      "id": "boot-self-check",
+      "candidate_count": 1,
+      "confidence": "observed",
+      "runtime_disposition": "unhandled",
+      "fundamental_blocker": true,
+      "fallback_contract_id": "strict-trap-manifest",
+      "fallback_test_id": "trap-inventory-completeness",
+      "next_gate": "Reproduce the self-check in private replay and implement an explicit compatibility behavior without blind stubbing."
+    }
+  ]
+}

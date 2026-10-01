@@ -1,0 +1,126 @@
+diff --git a/include/recompiler/context.h b/include/recompiler/context.h
+index e7b4431..d39fdd5 100644
+--- a/include/recompiler/context.h
++++ b/include/recompiler/context.h
+@@ -79,0 +80,2 @@ namespace N64Recomp {
++    // Indices at or above this value are reserved for special/non-regular sections.
++    constexpr uint16_t RegularSectionLimit = 65500;
+@@ -98,0 +101,4 @@ namespace N64Recomp {
++        // Valid byte extent for relocation targets. Symbol files populate this
++        // explicitly; zero falls back to the section's loaded size for contexts
++        // constructed by older programmatic callers.
++        uint32_t relocation_size = 0;
+diff --git a/src/config.cpp b/src/config.cpp
+index 1066aff..1dad4cc 100644
+--- a/src/config.cpp
++++ b/src/config.cpp
+@@ -378,0 +379,5 @@ N64Recomp::Config::Config(const char* path) {
++        std::optional<bool> use_lookup_for_all_function_calls_opt =
++            input_data["use_lookup_for_all_function_calls"].value<bool>();
++        use_lookup_for_all_function_calls =
++            use_lookup_for_all_function_calls_opt.value_or(false);
++
+@@ -559,0 +565,3 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
++        if (config_sections->size() > N64Recomp::RegularSectionLimit) {
++            return false;
++        }
+@@ -562 +570 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
+-        config_sections->for_each([&ret, &rom, with_relocs](auto&& el) {
++        config_sections->for_each([&ret, &rom, with_relocs, config_sections](auto&& el) {
+@@ -566,0 +575 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
++                std::optional<uint32_t> relocation_size = el["relocation_size"].template value<uint32_t>();
+@@ -572,0 +582,3 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
++                if (el.contains("relocation_size") && !relocation_size.has_value()) {
++                    throw toml::parse_error("Section relocation_size must be a 32-bit unsigned integer", el.source());
++                }
+@@ -579,0 +592 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
++                section.relocation_size = relocation_size.value_or(size.value());
+@@ -583,0 +597,5 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
++                if (uint64_t(section.ram_addr) + section.size > UINT64_C(0x100000000) ||
++                    uint64_t(section.ram_addr) + section.relocation_size > UINT64_C(0x100000000)) {
++                    throw toml::parse_error("Section relocation extent is invalid", el.source());
++                }
++
+@@ -648,0 +667,3 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
++                if (el.contains("relocs") && !relocs_value.is_array()) {
++                    throw toml::parse_error("Section relocs must be an array", el.source());
++                }
+@@ -656 +677 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
+-                        relocs_array->for_each([&ret, &rom, &section, section_index](auto&& reloc_el) {
++                        relocs_array->for_each([&ret, &rom, &section, section_index, config_sections](auto&& reloc_el) {
+@@ -659,0 +681,2 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
++                                std::optional<uint32_t> target_section = reloc_el["target_section"].template value<uint32_t>();
++                                std::optional<uint32_t> target_section_offset = reloc_el["target_section_offset"].template value<uint32_t>();
+@@ -662 +685 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
+-                                if (!vram.has_value() || !target_vram.has_value() || !type_string.has_value()) {
++                                if (!vram.has_value() || !type_string.has_value()) {
+@@ -665,0 +689,17 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
++                                const bool has_legacy_target = reloc_el.contains("target_vram");
++                                const bool has_target_section = reloc_el.contains("target_section");
++                                const bool has_target_section_offset = reloc_el.contains("target_section_offset");
++                                const bool has_explicit_target = has_target_section && has_target_section_offset;
++                                const bool has_partial_explicit_target = has_target_section != has_target_section_offset;
++
++                                if (has_partial_explicit_target || has_legacy_target == has_explicit_target) {
++                                    throw toml::parse_error(
++                                        "Reloc entry must contain exactly one target form: target_vram, or target_section plus target_section_offset",
++                                        reloc_el.source());
++                                }
++                                if ((has_legacy_target && !target_vram.has_value()) ||
++                                    (has_target_section && !target_section.has_value()) ||
++                                    (has_target_section_offset && !target_section_offset.has_value())) {
++                                    throw toml::parse_error("Reloc target fields must be 32-bit unsigned integers", reloc_el.source());
++                                }
++
+@@ -674 +713,0 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
+-                                cur_reloc.target_section_offset = target_vram.value() - section.ram_addr;
+@@ -676 +714,0 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
+-                                cur_reloc.target_section = section_index;
+@@ -678,0 +717,16 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
++                                if (has_explicit_target) {
++                                    if (target_section.value() >= config_sections->size() ||
++                                        target_section.value() >= N64Recomp::RegularSectionLimit) {
++                                        throw toml::parse_error("Reloc target section index is out of bounds", reloc_el.source());
++                                    }
++                                    cur_reloc.target_section = (uint16_t)target_section.value();
++                                    cur_reloc.target_section_offset = target_section_offset.value();
++                                }
++                                else {
++                                    if (target_vram.value() < section.ram_addr) {
++                                        throw toml::parse_error("Reloc target vram precedes the source section", reloc_el.source());
++                                    }
++                                    cur_reloc.target_section = section_index;
++                                    cur_reloc.target_section_offset = target_vram.value() - section.ram_addr;
++                                }
++
+@@ -699,0 +754,30 @@ bool N64Recomp::Context::from_symbol_file(const std::filesystem::path& symbol_fi
++    // Validate explicit and legacy targets only after every section has been
++    // parsed so forward section references can be checked against their extent.
++    // Offsets are byte positions; a one-past-the-end sentinel is not valid.
++    for (const Section& source_section : ret.sections) {
++        const uint64_t source_end = uint64_t(source_section.ram_addr) + source_section.size;
++        bool have_previous_address = false;
++        uint32_t previous_address = 0;
++        for (const Reloc& reloc : source_section.relocs) {
++            if (reloc.address < source_section.ram_addr ||
++                uint64_t(reloc.address) + sizeof(uint32_t) > source_end ||
++                (reloc.address & 3) != 0 ||
++                (have_previous_address && reloc.address <= previous_address)) {
++                return false;
++            }
++            previous_address = reloc.address;
++            have_previous_address = true;
++            if (reloc.target_section >= ret.sections.size()) {
++                return false;
++            }
++            const Section& target_section = ret.sections[reloc.target_section];
++            const uint64_t target_address =
++                uint64_t(target_section.ram_addr) + reloc.target_section_offset;
++            if (reloc.target_section_offset >= target_section.relocation_size ||
++                target_address > UINT32_MAX ||
++                (reloc.type == RelocType::R_MIPS_26 && (target_address & 3) != 0)) {
++                return false;
++            }
++        }
++    }
++

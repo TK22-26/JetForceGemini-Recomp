@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/phase8-acceptance.schema.json",
+  "title": "Phase 8 interactive build acceptance contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "status",
+    "scope",
+    "evidence_format",
+    "gates"
+  ],
+  "properties": {
+    "$schema": { "const": "../schemas/phase8-acceptance.schema.json" },
+    "schema_version": { "const": 1 },
+    "kind": { "const": "jfg-phase8-acceptance" },
+    "status": { "enum": ["in-progress", "complete"] },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "milestone",
+        "required_scenarios",
+        "required_input_replays",
+        "minimum_audio_seconds",
+        "maximum_unsupported_runtime_boundaries"
+      ],
+      "properties": {
+        "milestone": { "const": "M4-interactive-build" },
+        "required_scenarios": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "launch-to-title" },
+            { "const": "title-menu-new-game" },
+            { "const": "first-gameplay-input" },
+            { "const": "save-exit-relaunch-resume" }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "required_input_replays": { "type": "integer", "minimum": 3 },
+        "minimum_audio_seconds": { "type": "integer", "minimum": 60 },
+        "maximum_unsupported_runtime_boundaries": { "const": 0 }
+      }
+    },
+    "evidence_format": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "private_artifact_policy",
+        "public_summary",
+        "oracle",
+        "checkpoint_policy",
+        "input_policy",
+        "save_policy",
+        "audio_policy"
+      ],
+      "properties": {
+        "private_artifact_policy": { "const": "ignored-local-only" },
+        "public_summary": { "const": "evidence/phase8-completion.json" },
+        "oracle": { "const": "independent-emulator-record-and-replay" },
+        "checkpoint_policy": { "const": "event-and-state-hash" },
+        "input_policy": { "const": "timestamped-deterministic-replay" },
+        "save_policy": { "const": "fresh-profile-process-restart" },
+        "audio_policy": { "const": "decoded-pcm-and-device-consumption" }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "live_generated_cpu_execution",
+        "continuous_rt64_presentation",
+        "controller_input_callbacks",
+        "input_sampling_timing_verified",
+        "controller_disconnect_reconnect",
+        "title_menu_navigation",
+        "new_game_reaches_controlled_gameplay",
+        "audio_rsp_tasks_decoded",
+        "audio_device_output_verified",
+        "audio_soak_verified",
+        "save_device_integrated",
+        "native_filesystem_mapping",
+        "configuration_persistence",
+        "rom_selection_validation",
+        "controller_pak_accessory_path",
+        "process_restart_resume",
+        "deterministic_replays_match",
+        "unsupported_runtime_boundaries_zero"
+      ],
+      "properties": {
+        "live_generated_cpu_execution": { "type": "boolean" },
+        "continuous_rt64_presentation": { "type": "boolean" },
+        "controller_input_callbacks": { "type": "boolean" },
+        "input_sampling_timing_verified": { "type": "boolean" },
+        "controller_disconnect_reconnect": { "type": "boolean" },
+        "title_menu_navigation": { "type": "boolean" },
+        "new_game_reaches_controlled_gameplay": { "type": "boolean" },
+        "audio_rsp_tasks_decoded": { "type": "boolean" },
+        "audio_device_output_verified": { "type": "boolean" },
+        "audio_soak_verified": { "type": "boolean" },
+        "save_device_integrated": { "type": "boolean" },
+        "native_filesystem_mapping": { "type": "boolean" },
+        "configuration_persistence": { "type": "boolean" },
+        "rom_selection_validation": { "type": "boolean" },
+        "controller_pak_accessory_path": { "type": "boolean" },
+        "process_restart_resume": { "type": "boolean" },
+        "deterministic_replays_match": { "type": "boolean" },
+        "unsupported_runtime_boundaries_zero": { "type": "boolean" }
+      }
+    }
+  }
+}

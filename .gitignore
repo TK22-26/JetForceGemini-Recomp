@@ -1,0 +1,35 @@
+# User-supplied ROMs and extracted/derived game data
+/roms/
+/private-data/
+/extracted/
+/assets/private/
+/corpus/private/
+
+# External tools and cloned upstream repositories
+/tools/
+
+# Local build output and caches
+/build/
+/build-*/
+/out/
+/generated/
+/src/generated/
+/.cache/
+__pycache__/
+*.py[cod]
+/.vs/
+/.vscode/
+/CMakeUserPresets.json
+
+# Local test artifacts
+/artifacts/private/
+/captures/private/
+/test-results/
+/Testing/
+
+# Platform/editor noise
+.DS_Store
+Thumbs.db
+*.user
+*.suo
+*.swp

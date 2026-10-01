@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/audio-task-bridge.schema.json",
+  "title": "Public-safe audio task bridge evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "privacy",
+    "pins",
+    "upstream_contract",
+    "bridge",
+    "variant_surface",
+    "evidence",
+    "decision"
+  ],
+  "properties": {
+    "$schema": { "const": "../schemas/audio-task-bridge.schema.json" },
+    "schema_version": { "const": 4 },
+    "kind": { "const": "jfg-audio-task-bridge" },
+    "privacy": { "const": "public-safe-aggregate" },
+    "pins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n64recomp", "n64modernruntime"],
+      "properties": {
+        "n64recomp": { "$ref": "#/$defs/sha1" },
+        "n64modernruntime": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "upstream_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generated_memory_surface",
+        "runtime_success_predicate",
+        "completion_after_runtime_success",
+        "real_second_variant_executed",
+        "generated_secondary_fallback_executed"
+      ],
+      "properties": {
+        "generated_memory_surface": { "const": "raw-full-guest-memory" },
+        "runtime_success_predicate": { "const": "expected-exit-reason-only" },
+        "completion_after_runtime_success": { "const": true },
+        "real_second_variant_executed": { "const": false },
+        "generated_secondary_fallback_executed": { "const": true }
+      }
+    },
+    "bridge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implementation",
+        "active_program_max_bytes",
+        "program_data_max_bytes",
+        "command_stream_max_bytes",
+        "output_max_bytes",
+        "referenced_region_max_bytes",
+        "referenced_region_max_count",
+        "referenced_memory_max_bytes",
+        "memory_operation_max_count",
+        "memory_traffic_max_bytes",
+        "instruction_alignment_bytes",
+        "command_alignment_bytes",
+        "output_frame_bytes",
+        "parsed_command_max_count",
+        "transactional_output",
+        "transactional_referenced_writes",
+        "runtime_worker_installation_boundary",
+        "runtime_worker_owned_program_lifetime",
+        "runtime_worker_stale_identity_rejected",
+        "completion_prepare_commit_split",
+        "completion_commit_noexcept",
+        "backend_raw_memory_spans_exposed",
+        "memory_aliases_rejected",
+        "report_ledger_exact_match",
+        "independent_output_validator",
+        "backend_exceptions_fail_closed",
+        "synthetic_execution_passed"
+      ],
+      "properties": {
+        "implementation": { "const": "project-authored-rom-free-host-boundary" },
+        "active_program_max_bytes": { "const": 4096 },
+        "program_data_max_bytes": { "const": 4096 },
+        "command_stream_max_bytes": { "const": 1048576 },
+        "output_max_bytes": { "const": 1048576 },
+        "referenced_region_max_bytes": { "const": 8388608 },
+        "referenced_region_max_count": { "const": 32 },
+        "referenced_memory_max_bytes": { "const": 16777216 },
+        "memory_operation_max_count": { "const": 1048576 },
+        "memory_traffic_max_bytes": { "const": 67108864 },
+        "instruction_alignment_bytes": { "const": 4 },
+        "command_alignment_bytes": { "const": 8 },
+        "output_frame_bytes": { "const": 4 },
+        "parsed_command_max_count": { "const": 131072 },
+        "transactional_output": { "const": true },
+        "transactional_referenced_writes": { "const": true },
+        "runtime_worker_installation_boundary": { "const": true },
+        "runtime_worker_owned_program_lifetime": { "const": true },
+        "runtime_worker_stale_identity_rejected": { "const": true },
+        "completion_prepare_commit_split": { "const": true },
+        "completion_commit_noexcept": { "const": true },
+        "backend_raw_memory_spans_exposed": { "const": false },
+        "memory_aliases_rejected": { "const": true },
+        "report_ledger_exact_match": { "const": true },
+        "independent_output_validator": { "const": true },
+        "backend_exceptions_fail_closed": { "const": true },
+        "synthetic_execution_passed": { "const": true }
+      }
+    },
+    "variant_surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "program_variant_count",
+        "primary_synthetic_execution_passed",
+        "secondary_synthetic_execution_passed",
+        "broker_only_referenced_memory_required",
+        "unknown_commands_fail_closed",
+        "rsp_adapter_implemented",
+        "primary_real_execution_passed",
+        "secondary_real_execution_passed",
+        "secondary_generated_fail_closed_execution_passed"
+      ],
+      "properties": {
+        "program_variant_count": { "const": 2 },
+        "primary_synthetic_execution_passed": { "const": true },
+        "secondary_synthetic_execution_passed": { "const": true },
+        "broker_only_referenced_memory_required": { "const": true },
+        "unknown_commands_fail_closed": { "const": true },
+        "rsp_adapter_implemented": { "const": true },
+        "primary_real_execution_passed": { "const": true },
+        "secondary_real_execution_passed": { "const": false },
+        "secondary_generated_fail_closed_execution_passed": { "const": true }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "synthetic_task_count",
+        "real_task_count",
+        "private_body_present",
+        "synthetic_referenced_memory_closure",
+        "real_referenced_memory_closure",
+        "synthetic_output_validation",
+        "real_output_validation",
+        "private_output_oracle_compared",
+        "real_scheduler_completion_order",
+        "real_installed_worker_execution_passed",
+        "secondary_search_task_count",
+        "secondary_search_overlay_swap_task_count",
+        "secondary_fallback_probe_count",
+        "secondary_fallback_brokered_write_count",
+        "secondary_fallback_completion_count",
+        "secondary_fallback_transactional_rollback"
+      ],
+      "properties": {
+        "classification": { "const": "public-safe-aggregate" },
+        "synthetic_task_count": { "const": 2 },
+        "real_task_count": { "const": 1 },
+        "private_body_present": { "const": false },
+        "synthetic_referenced_memory_closure": { "const": "broker-contract-established" },
+        "real_referenced_memory_closure": { "const": "bounded-broker-contract-established" },
+        "synthetic_output_validation": { "const": "exact-reference-established" },
+        "real_output_validation": { "const": "exact-private-oracle-established" },
+        "private_output_oracle_compared": { "const": true },
+        "real_scheduler_completion_order": { "const": "validated-output-before-single-signal" },
+        "real_installed_worker_execution_passed": { "const": true },
+        "secondary_search_task_count": { "const": 2984 },
+        "secondary_search_overlay_swap_task_count": { "const": 0 },
+        "secondary_fallback_probe_count": { "const": 1 },
+        "secondary_fallback_brokered_write_count": { "const": 1 },
+        "secondary_fallback_completion_count": { "const": 0 },
+        "secondary_fallback_transactional_rollback": { "const": true }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "g2_gate", "remaining_blocker_count", "next_gate"],
+      "properties": {
+        "status": { "const": "g2-audio-native-path-proven" },
+        "g2_gate": { "const": "pass" },
+        "remaining_blocker_count": { "const": 0 },
+        "next_gate": { "$ref": "#/$defs/safeText" }
+      }
+    }
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "safeText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "pattern": "^(?!.*[A-Za-z0-9]{32})[A-Za-z0-9][A-Za-z0-9 .,;:'()/-]*$"
+    }
+  }
+}

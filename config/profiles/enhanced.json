@@ -1,0 +1,11 @@
+{
+  "$schema": "../../schemas/execution-profile.schema.json",
+  "schema_version": 1,
+  "id": "enhanced",
+  "behavior": "enhanced",
+  "execution_backend": "production",
+  "presentation": "rendered",
+  "feature_flags": [
+    "modern_input"
+  ]
+}

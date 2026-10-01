@@ -1,0 +1,14 @@
+{
+  "$comment": "Pinned Phase 5 divergence tolerance policy v1. Human-approved; any loosening is a new approved revision per docs/planning/phase5-acceptance.md.",
+  "version": 1,
+  "deterministic_mode": {
+    "rdram_tolerated_byte_differences": 0,
+    "context_tolerated_slot_differences": 0,
+    "journal_tolerated_byte_differences": 0,
+    "checkpoint_hash_tolerance": "exact"
+  },
+  "approval": {
+    "owner_role": "project-owner",
+    "rationale": "Kernel v0 determinism is exact: zero tolerated divergence of any kind in deterministic mode."
+  }
+}

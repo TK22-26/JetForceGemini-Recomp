@@ -1,0 +1,25 @@
+{
+  "$schema": "../schemas/task-packet.schema.json",
+  "schema_version": 1,
+  "id": "JFG-DOCS-0001",
+  "title": "Validate the ROM-free repository skeleton",
+  "goal": "Prove the host shell and policy checks run without private game data.",
+  "scope": {
+    "subsystem": "foundation",
+    "allowed_files": [
+      "scripts/validate_project.py",
+      "tests/test_project_scripts.py"
+    ]
+  },
+  "tests_required": [
+    "python-unit-tests",
+    "repository-hygiene"
+  ],
+  "exit_criteria": [
+    "all-validation-checks-pass"
+  ],
+  "stop_conditions": [
+    "validation-requires-rom-derived-data"
+  ],
+  "risk": "low"
+}

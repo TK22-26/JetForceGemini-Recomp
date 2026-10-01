@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/phase7-acceptance.schema.json",
+  "title": "Phase 7 first rendered frame acceptance contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "status",
+    "pins",
+    "scope",
+    "evidence_format",
+    "gates"
+  ],
+  "properties": {
+    "$schema": { "const": "../schemas/phase7-acceptance.schema.json" },
+    "schema_version": { "const": 1 },
+    "kind": { "const": "jfg-phase7-acceptance" },
+    "status": { "enum": ["in-progress", "complete"] },
+    "pins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rt64", "n64modernruntime"],
+      "properties": {
+        "rt64": { "$ref": "#/$defs/sha1" },
+        "n64modernruntime": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "milestone",
+        "renderer",
+        "graphics_family",
+        "required_scenes",
+        "minimum_real_task_count"
+      ],
+      "properties": {
+        "milestone": { "const": "M3-first-frame" },
+        "renderer": { "const": "pinned-rt64" },
+        "graphics_family": { "const": "f3ddkr-jfg" },
+        "required_scenes": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "boot-title" },
+            { "const": "representative-gameplay" }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "minimum_real_task_count": { "type": "integer", "minimum": 2 }
+      }
+    },
+    "evidence_format": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "private_artifact_policy",
+        "public_summary",
+        "pixel_comparison",
+        "pixel_comparator",
+        "ssim_prefilter",
+        "minimum_ssim_millionths",
+        "minimum_foreground_iou_millionths",
+        "maximum_mean_absolute_error_millionths",
+        "repeat_count",
+        "command_log_policy"
+      ],
+      "properties": {
+        "private_artifact_policy": { "const": "ignored-local-only" },
+        "public_summary": { "const": "evidence/phase7-completion.json" },
+        "pixel_comparison": { "const": "independent-emulator-oracle" },
+        "pixel_comparator": { "const": "scripts/compare_phase7_frames.py" },
+        "ssim_prefilter": { "const": "gaussian-one-reference-pixel" },
+        "minimum_ssim_millionths": { "const": 800000 },
+        "minimum_foreground_iou_millionths": { "const": 800000 },
+        "maximum_mean_absolute_error_millionths": { "const": 60000 },
+        "repeat_count": { "type": "integer", "minimum": 3 },
+        "command_log_policy": { "const": "aggregate-counts-no-command-bodies" }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rt64_shell_integrated",
+        "renderer_callbacks_registered",
+        "f3ddkr_path_supported",
+        "framebuffer_contract_verified",
+        "rsp_rdp_sync_verified",
+        "graphics_command_log_verified",
+        "real_tasks_submitted",
+        "boot_title_compared",
+        "gameplay_compared",
+        "repeat_determinism_verified",
+        "renderer_disabled_hash_equal",
+        "backend_hash_equal",
+        "developer_debugger_available",
+        "unsupported_commands_zero"
+      ],
+      "properties": {
+        "rt64_shell_integrated": { "type": "boolean" },
+        "renderer_callbacks_registered": { "type": "boolean" },
+        "f3ddkr_path_supported": { "type": "boolean" },
+        "framebuffer_contract_verified": { "type": "boolean" },
+        "rsp_rdp_sync_verified": { "type": "boolean" },
+        "graphics_command_log_verified": { "type": "boolean" },
+        "real_tasks_submitted": { "type": "boolean" },
+        "boot_title_compared": { "type": "boolean" },
+        "gameplay_compared": { "type": "boolean" },
+        "repeat_determinism_verified": { "type": "boolean" },
+        "renderer_disabled_hash_equal": { "type": "boolean" },
+        "backend_hash_equal": { "type": "boolean" },
+        "developer_debugger_available": { "type": "boolean" },
+        "unsupported_commands_zero": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    }
+  }
+}

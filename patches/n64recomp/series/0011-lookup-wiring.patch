@@ -1,0 +1,7 @@
+diff --git a/src/main.cpp b/src/main.cpp
+index 669c4a1..206c733 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -553,0 +554,2 @@ int main(int argc, char** argv) {
++    context.use_lookup_for_all_function_calls =
++        config.use_lookup_for_all_function_calls;

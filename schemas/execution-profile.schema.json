@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/execution-profile.schema.json",
+  "title": "JFG execution profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "behavior",
+    "execution_backend",
+    "presentation",
+    "feature_flags"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "behavior": {
+      "enum": [
+        "compatibility",
+        "enhanced"
+      ]
+    },
+    "execution_backend": {
+      "enum": [
+        "production",
+        "deterministic"
+      ]
+    },
+    "presentation": {
+      "enum": [
+        "rendered",
+        "headless"
+      ]
+    },
+    "feature_flags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      }
+    }
+  }
+}

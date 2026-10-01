@@ -1,0 +1,20 @@
+diff --git a/src/operations.cpp b/src/operations.cpp
+index ca2f095..a61c12b 100644
+--- a/src/operations.cpp
++++ b/src/operations.cpp
+@@ -34,0 +35,2 @@ namespace N64Recomp {
++        { InstrId::cpu_trunc_l_s, { UnaryOpType::TruncateLFromS, Operand::FdU64,    Operand::Fs,       true } },
++        { InstrId::cpu_trunc_l_d, { UnaryOpType::TruncateLFromD, Operand::FdU64,    Operand::FsDouble, true } },
+@@ -36,0 +39,2 @@ namespace N64Recomp {
++        { InstrId::cpu_round_l_s, { UnaryOpType::RoundLFromS,    Operand::FdU64,    Operand::Fs,       true } },
++        { InstrId::cpu_round_l_d, { UnaryOpType::RoundLFromD,    Operand::FdU64,    Operand::FsDouble, true } },
+@@ -38,0 +43,2 @@ namespace N64Recomp {
++        { InstrId::cpu_ceil_l_s,  { UnaryOpType::CeilLFromS,     Operand::FdU64,    Operand::Fs,       true } },
++        { InstrId::cpu_ceil_l_d,  { UnaryOpType::CeilLFromD,     Operand::FdU64,    Operand::FsDouble, true } },
+@@ -40,0 +47,2 @@ namespace N64Recomp {
++        { InstrId::cpu_floor_l_s, { UnaryOpType::FloorLFromS,    Operand::FdU64,    Operand::Fs,       true } },
++        { InstrId::cpu_floor_l_d, { UnaryOpType::FloorLFromD,    Operand::FdU64,    Operand::FsDouble, true } },
+@@ -194 +202 @@ namespace N64Recomp {
+-}
+\ No newline at end of file
++}

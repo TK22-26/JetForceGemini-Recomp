@@ -1,0 +1,385 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/phase1-build-evidence.schema.json",
+  "title": "Safe Phase 1 cross-environment build evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "environment_ids",
+    "equivalent",
+    "verdict",
+    "divergence_reasons",
+    "build_summary_sha256_by_environment",
+    "environment_toolchains",
+    "verification"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "const": 1 },
+    "kind": { "const": "phase1-cross-environment-equivalence" },
+    "environment_ids": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/environmentId" }
+    },
+    "decomp_commit": { "$ref": "#/$defs/sha1" },
+    "input_rom_sha1": {
+      "const": "493ced9008dbe932d6e91179b68e8630cf23a023"
+    },
+    "equivalent": { "type": "boolean" },
+    "verdict": { "enum": ["equivalent", "divergent"] },
+    "divergence_reasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "build_summary_sha256_by_environment": {
+      "type": "object",
+      "minProperties": 2,
+      "maxProperties": 2,
+      "propertyNames": { "$ref": "#/$defs/environmentId" },
+      "additionalProperties": { "$ref": "#/$defs/sha256" }
+    },
+    "build_summary_sha256": { "$ref": "#/$defs/sha256" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decomp_tree",
+        "requirements_sha256",
+        "submodule_pins_sha256"
+      ],
+      "properties": {
+        "decomp_tree": { "$ref": "#/$defs/sha1" },
+        "requirements_sha256": { "$ref": "#/$defs/sha256" },
+        "submodule_pins_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "tool_artifacts_sha256": { "$ref": "#/$defs/sha256" },
+    "environment_toolchains": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["environment_id", "distribution", "versions", "artifacts"],
+        "properties": {
+          "environment_id": { "$ref": "#/$defs/environmentId" },
+          "distribution": { "type": "string", "minLength": 1 },
+          "artifacts": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ido_recomp_manifest_sha256",
+              "objdiff_cli_sha256",
+              "n64crc_sha256"
+            ],
+            "properties": {
+              "ido_recomp_manifest_sha256": { "$ref": "#/$defs/sha256" },
+              "objdiff_cli_sha256": { "$ref": "#/$defs/sha256" },
+              "n64crc_sha256": { "$ref": "#/$defs/sha256" }
+            }
+          },
+          "versions": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "git",
+              "make",
+              "gcc",
+              "readelf",
+              "mips_as",
+              "mips_ld",
+              "mips_objcopy",
+              "python",
+              "python_packages"
+            ],
+            "properties": {
+              "git": { "type": "string" },
+              "make": { "type": "string" },
+              "gcc": { "type": "string" },
+              "readelf": { "type": "string" },
+              "mips_as": { "type": "string" },
+              "mips_ld": { "type": "string" },
+              "mips_objcopy": { "type": "string" },
+              "python": { "type": "string" },
+              "python_packages": {
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ci_verifiable", "maintainer_attestation"],
+      "properties": {
+        "ci_verifiable": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_validation",
+            "semantic_invariants",
+            "environment_correspondence",
+            "rebuilds_private_artifacts"
+          ],
+          "properties": {
+            "schema_validation": { "type": "boolean" },
+            "semantic_invariants": { "type": "boolean" },
+            "environment_correspondence": { "type": "boolean" },
+            "rebuilds_private_artifacts": { "type": "boolean" }
+          }
+        },
+        "maintainer_attestation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "private_rom_required",
+            "environment_record_count",
+            "clean_build_count"
+          ],
+          "properties": {
+            "status": { "enum": ["passed", "failed", "unverified"] },
+            "private_rom_required": { "type": "boolean" },
+            "environment_record_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "clean_build_count": { "$ref": "#/$defs/nonnegativeInteger" }
+          }
+        }
+      }
+    },
+    "elf": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "section_table_sha256",
+        "section_count",
+        "allocated_section_count",
+        "symbol_count",
+        "symbol_types",
+        "symbol_bindings",
+        "relocation_count",
+        "unexpected_section_overlap_count",
+        "conflicting_export_name_count",
+        "map"
+      ],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "section_table_sha256": { "$ref": "#/$defs/sha256" },
+        "section_count": { "$ref": "#/$defs/positiveInteger" },
+        "allocated_section_count": { "$ref": "#/$defs/positiveInteger" },
+        "symbol_count": { "$ref": "#/$defs/positiveInteger" },
+        "symbol_types": { "$ref": "#/$defs/countsByCategory" },
+        "symbol_bindings": { "$ref": "#/$defs/countsByCategory" },
+        "relocation_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "unexpected_section_overlap_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "conflicting_export_name_count": { "$ref": "#/$defs/nonnegativeInteger" },
+        "map": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "consistent",
+            "coverage_verdict",
+            "coverage_complete",
+            "section_candidate_count",
+            "section_checked_count",
+            "section_missing_count",
+            "section_mismatch_count",
+            "symbol_candidate_count",
+            "symbol_checked_count",
+            "symbol_missing_count",
+            "symbol_mismatch_count",
+            "sha256_by_environment"
+          ],
+          "properties": {
+            "consistent": { "type": "boolean" },
+            "coverage_verdict": {
+              "enum": ["complete", "partial", "insufficient", "inconsistent"]
+            },
+            "coverage_complete": { "type": "boolean" },
+            "section_candidate_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "section_checked_count": { "$ref": "#/$defs/positiveInteger" },
+            "section_missing_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "section_mismatch_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "symbol_candidate_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "symbol_checked_count": { "$ref": "#/$defs/positiveInteger" },
+            "symbol_missing_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "symbol_mismatch_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "sha256_by_environment": {
+              "type": "object",
+              "minProperties": 2,
+              "maxProperties": 2,
+              "propertyNames": { "$ref": "#/$defs/environmentId" },
+              "additionalProperties": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        }
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "report_sha256",
+        "report_version",
+        "measures",
+        "categories"
+      ],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "report_sha256": { "$ref": "#/$defs/sha256" },
+        "report_version": { "const": 2 },
+        "measures": { "$ref": "#/$defs/measures" },
+        "categories": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "measures"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+              },
+              "measures": { "$ref": "#/$defs/measures" }
+            }
+          }
+        }
+      }
+    },
+    "overlays": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rom_table", "splat_layout"],
+      "properties": {
+        "rom_table": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "table_slot_count",
+            "populated_overlay_count",
+            "empty_overlay_count",
+            "dynamic_vram_overlay_count",
+            "fixed_vram_overlay_count",
+            "all_rom_ranges_in_bounds",
+            "text_bytes",
+            "data_bytes",
+            "bss_bytes",
+            "primary_relocation_bytes",
+            "relocation_entry_count",
+            "secondary_relocation_bytes",
+            "secondary_relocation_entry_count",
+            "rom_overlap_pair_count",
+            "detailed_manifest_sha256",
+            "overlay_table_sha256"
+          ],
+          "properties": {
+            "schema_version": { "const": 1 },
+            "table_slot_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "populated_overlay_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "empty_overlay_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "dynamic_vram_overlay_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "fixed_vram_overlay_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "all_rom_ranges_in_bounds": { "const": true },
+            "text_bytes": { "$ref": "#/$defs/nonnegativeInteger" },
+            "data_bytes": { "$ref": "#/$defs/nonnegativeInteger" },
+            "bss_bytes": { "$ref": "#/$defs/nonnegativeInteger" },
+            "primary_relocation_bytes": { "$ref": "#/$defs/nonnegativeInteger" },
+            "relocation_entry_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "secondary_relocation_bytes": { "$ref": "#/$defs/nonnegativeInteger" },
+            "secondary_relocation_entry_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "rom_overlap_pair_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "detailed_manifest_sha256": { "$ref": "#/$defs/sha256" },
+            "overlay_table_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "splat_layout": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "overlay_count",
+            "empty_slot_count",
+            "all_rom_ranges_well_formed",
+            "all_synthetic_vram_ranges_nonoverlapping",
+            "detailed_manifest_sha256"
+          ],
+          "properties": {
+            "schema_version": { "const": 1 },
+            "overlay_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "empty_slot_count": { "$ref": "#/$defs/nonnegativeInteger" },
+            "all_rom_ranges_well_formed": { "const": true },
+            "all_synthetic_vram_ranges_nonoverlapping": { "const": true },
+            "detailed_manifest_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "equivalent": { "const": true } },
+        "required": ["equivalent"]
+      },
+      "then": {
+        "required": [
+          "decomp_commit",
+          "input_rom_sha1",
+          "build_summary_sha256",
+          "source",
+          "tool_artifacts_sha256",
+          "elf",
+          "report",
+          "overlays"
+        ],
+        "properties": {
+          "verdict": { "const": "equivalent" },
+          "divergence_reasons": { "maxItems": 0 }
+        }
+      },
+      "else": {
+        "properties": {
+          "verdict": { "const": "divergent" },
+          "divergence_reasons": { "minItems": 1 }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "environmentId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"
+    },
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "nonnegativeInteger": { "type": "integer", "minimum": 0 },
+    "positiveInteger": { "type": "integer", "minimum": 1 },
+    "countsByCategory": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[A-Z][A-Z0-9_]*$" },
+      "additionalProperties": { "$ref": "#/$defs/nonnegativeInteger" }
+    },
+    "measures": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" },
+      "additionalProperties": { "type": "number", "minimum": 0 }
+    }
+  }
+}

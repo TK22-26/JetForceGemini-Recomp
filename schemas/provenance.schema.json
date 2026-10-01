@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/jfg/schemas/provenance.schema.json",
+  "title": "JFG upstream provenance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "rom",
+    "repositories",
+    "symbol_export_version"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "rom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "region",
+        "sha1"
+      ],
+      "properties": {
+        "region": {
+          "const": "us"
+        },
+        "sha1": {
+          "const": "493ced9008dbe932d6e91179b68e8630cf23a023"
+        }
+      }
+    },
+    "repositories": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{40}$"
+      },
+      "required": [
+        "jfg_decomp",
+        "n64recomp",
+        "n64modernruntime",
+        "rt64"
+      ]
+    },
+    "symbol_export_version": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

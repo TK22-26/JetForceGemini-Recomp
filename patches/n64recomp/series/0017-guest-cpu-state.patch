@@ -1,0 +1,136 @@
+diff --git a/include/recomp.h b/include/recomp.h
+index 31f0cd5..5181cd4 100644
+--- a/include/recomp.h
++++ b/include/recomp.h
+@@ -473,0 +474,3 @@ typedef struct {
++    // Used only by the explicit offline guest-CPU-state profile. Arithmetic
++    // exception generation is not supplied by storing this register.
++    uint32_t fcr31;
+diff --git a/include/recompiler/context.h b/include/recompiler/context.h
+index bd087b6..c81560f 100644
+--- a/include/recompiler/context.h
++++ b/include/recompiler/context.h
+@@ -245,0 +246,3 @@ namespace N64Recomp {
++        // Offline C profile: HI/LO and FP condition/control belong to the CPU
++        // context, not a generated function's host locals.
++        bool emit_guest_cpu_state = false;
+diff --git a/include/recompiler/generator.h b/include/recompiler/generator.h
+index 7116f20..c7e5e59 100644
+--- a/include/recompiler/generator.h
++++ b/include/recompiler/generator.h
+@@ -74 +74,2 @@ namespace N64Recomp {
+-        CGenerator(std::ostream& output_file) : output_file(output_file) {};
++        CGenerator(std::ostream& output_file, bool guest_cpu_state = false)
++            : output_file(output_file), guest_cpu_state(guest_cpu_state) {};
+@@ -120,0 +122 @@ namespace N64Recomp {
++        bool guest_cpu_state;
+diff --git a/src/config.h b/src/config.h
+index 177feb3..fb9f0e9 100644
+--- a/src/config.h
++++ b/src/config.h
+@@ -46,0 +47 @@ namespace N64Recomp {
++        bool emit_guest_cpu_state = false;
+diff --git a/src/config.cpp b/src/config.cpp
+index 87445ce..bf55ac1 100644
+--- a/src/config.cpp
++++ b/src/config.cpp
+@@ -419,0 +420,5 @@ N64Recomp::Config::Config(const char* path) {
++        const auto guest_cpu = input_data["emit_guest_cpu_state"];
++        if (guest_cpu && !guest_cpu.is_boolean()) {
++            throw toml::parse_error("emit_guest_cpu_state must be a boolean", guest_cpu.node()->source());
++        }
++        emit_guest_cpu_state = guest_cpu.value<bool>().value_or(false);
+diff --git a/src/main.cpp b/src/main.cpp
+index 55e057a..7d6adfd 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -557,0 +558 @@ int main(int argc, char** argv) {
++    context.emit_guest_cpu_state = config.emit_guest_cpu_state;
+diff --git a/src/cgenerator.cpp b/src/cgenerator.cpp
+index 0243836..90d595d 100644
+--- a/src/cgenerator.cpp
++++ b/src/cgenerator.cpp
+@@ -205 +205 @@ void N64Recomp::CGenerator::get_operand_string(Operand operand, UnaryOpType oper
+-            operand_string = fmt::format("c1cs");
++            operand_string = guest_cpu_state ? "((ctx->fcr31 >> 23) & 1U)" : "c1cs";
+@@ -208 +208 @@ void N64Recomp::CGenerator::get_operand_string(Operand operand, UnaryOpType oper
+-            operand_string = "hi";
++            operand_string = guest_cpu_state ? "ctx->hi" : "hi";
+@@ -211 +211 @@ void N64Recomp::CGenerator::get_operand_string(Operand operand, UnaryOpType oper
+-            operand_string = "lo";
++            operand_string = guest_cpu_state ? "ctx->lo" : "lo";
+@@ -404,0 +405,5 @@ void N64Recomp::CGenerator::emit_function_start(const std::string& function_name
++    if (guest_cpu_state) {
++        fmt::print(output_file, "RECOMP_FUNC void {}(uint8_t* rdram, recomp_context* ctx) {{\n"
++            "    uint64_t result = 0;\n", function_name);
++        return;
++    }
+@@ -591,0 +597,9 @@ void N64Recomp::CGenerator::emit_cop1_cs_read(int reg) const {
++    if (guest_cpu_state) {
++        if (reg == 0) {
++            fmt::print(output_file, "do {{ volatile uint32_t discarded_control = ctx->fcr31; (void)discarded_control; }} while (0);\n");
++        }
++        else {
++            fmt::print(output_file, "{} = U64(S32(ctx->fcr31));\n", gpr_to_string(reg));
++        }
++        return;
++    }
+@@ -595,0 +610,3 @@ void N64Recomp::CGenerator::emit_cop1_cs_write(int reg) const {
++    if (guest_cpu_state) {
++        fmt::print(output_file, "ctx->fcr31 = U32({});\n    ", gpr_to_string(reg));
++    }
+@@ -599,0 +617,2 @@ void N64Recomp::CGenerator::emit_muldiv(InstrId instr_id, int reg1, int reg2) co
++    const char* hi = guest_cpu_state ? "ctx->hi" : "hi";
++    const char* lo = guest_cpu_state ? "ctx->lo" : "lo";
+@@ -602 +621,5 @@ void N64Recomp::CGenerator::emit_muldiv(InstrId instr_id, int reg1, int reg2) co
+-            fmt::print(output_file, "result = S64(S32({})) * S64(S32({})); lo = S32(result >> 0); hi = S32(result >> 32);\n", gpr_to_string(reg1), gpr_to_string(reg2));
++            if (!guest_cpu_state) {
++                fmt::print(output_file, "result = S64(S32({})) * S64(S32({})); lo = S32(result >> 0); hi = S32(result >> 32);\n", gpr_to_string(reg1), gpr_to_string(reg2));
++                break;
++            }
++            fmt::print(output_file, "result = S64(S32({})) * S64(S32({})); {} = U64(S32(result >> 0)); {} = U64(S32(result >> 32));\n", gpr_to_string(reg1), gpr_to_string(reg2), lo, hi);
+@@ -605 +628 @@ void N64Recomp::CGenerator::emit_muldiv(InstrId instr_id, int reg1, int reg2) co
+-            fmt::print(output_file, "DMULT(S64({}), S64({}), &lo, &hi);\n", gpr_to_string(reg1), gpr_to_string(reg2));
++            fmt::print(output_file, "DMULT(S64({}), S64({}), &{}, &{});\n", gpr_to_string(reg1), gpr_to_string(reg2), lo, hi);
+@@ -608 +631,5 @@ void N64Recomp::CGenerator::emit_muldiv(InstrId instr_id, int reg1, int reg2) co
+-            fmt::print(output_file, "result = U64(U32({})) * U64(U32({})); lo = S32(result >> 0); hi = S32(result >> 32);\n", gpr_to_string(reg1), gpr_to_string(reg2));
++            if (!guest_cpu_state) {
++                fmt::print(output_file, "result = U64(U32({})) * U64(U32({})); lo = S32(result >> 0); hi = S32(result >> 32);\n", gpr_to_string(reg1), gpr_to_string(reg2));
++                break;
++            }
++            fmt::print(output_file, "result = U64(U32({})) * U64(U32({})); {} = U64(S32(result >> 0)); {} = U64(S32(result >> 32));\n", gpr_to_string(reg1), gpr_to_string(reg2), lo, hi);
+@@ -611 +638 @@ void N64Recomp::CGenerator::emit_muldiv(InstrId instr_id, int reg1, int reg2) co
+-            fmt::print(output_file, "DMULTU(U64({}), U64({}), &lo, &hi);\n", gpr_to_string(reg1), gpr_to_string(reg2));
++            fmt::print(output_file, "DMULTU(U64({}), U64({}), &{}, &{});\n", gpr_to_string(reg1), gpr_to_string(reg2), lo, hi);
+@@ -614 +641 @@ void N64Recomp::CGenerator::emit_muldiv(InstrId instr_id, int reg1, int reg2) co
+-            fmt::print(output_file, "DIV32(S32({}), S32({}), &lo, &hi);\n", gpr_to_string(reg1), gpr_to_string(reg2));
++            fmt::print(output_file, "DIV32(S32({}), S32({}), &{}, &{});\n", gpr_to_string(reg1), gpr_to_string(reg2), lo, hi);
+@@ -617 +644 @@ void N64Recomp::CGenerator::emit_muldiv(InstrId instr_id, int reg1, int reg2) co
+-            fmt::print(output_file, "DDIV(S64({}), S64({}), &lo, &hi);\n", gpr_to_string(reg1), gpr_to_string(reg2));
++            fmt::print(output_file, "DDIV(S64({}), S64({}), &{}, &{});\n", gpr_to_string(reg1), gpr_to_string(reg2), lo, hi);
+@@ -620 +647 @@ void N64Recomp::CGenerator::emit_muldiv(InstrId instr_id, int reg1, int reg2) co
+-            fmt::print(output_file, "DIVU32(U32({}), U32({}), &lo, &hi);\n", gpr_to_string(reg1), gpr_to_string(reg2));
++            fmt::print(output_file, "DIVU32(U32({}), U32({}), &{}, &{});\n", gpr_to_string(reg1), gpr_to_string(reg2), lo, hi);
+@@ -623 +650 @@ void N64Recomp::CGenerator::emit_muldiv(InstrId instr_id, int reg1, int reg2) co
+-            fmt::print(output_file, "DDIVU(U64({}), U64({}), &lo, &hi);\n", gpr_to_string(reg1), gpr_to_string(reg2));
++            fmt::print(output_file, "DDIVU(U64({}), U64({}), &{}, &{});\n", gpr_to_string(reg1), gpr_to_string(reg2), lo, hi);
+@@ -663,0 +691,4 @@ void N64Recomp::CGenerator::process_binary_op(const BinaryOp& op, const Instruct
++    if (guest_cpu_state && op.output == Operand::Cop1cs) {
++        fmt::print(output_file, "ctx->fcr31 = (ctx->fcr31 & ~0x00800000U) | ((uint32_t)!!({}) << 23);\n", expression);
++        return;
++    }
+@@ -700,0 +732,4 @@ void N64Recomp::CGenerator::process_unary_op(const UnaryOp& op, const Instructio
++    if (guest_cpu_state && op.output == Operand::Cop1cs) {
++        fmt::print(output_file, "ctx->fcr31 = (ctx->fcr31 & ~0x00800000U) | ((uint32_t)!!({}) << 23);\n", input);
++        return;
++    }
+diff --git a/src/recompilation.cpp b/src/recompilation.cpp
+index 9e306ec..ccd0140 100644
+--- a/src/recompilation.cpp
++++ b/src/recompilation.cpp
+@@ -1013 +1013 @@ bool recompile_function_impl(GeneratorType& generator, const N64Recomp::Context&
+-        if (context.emit_guest_link_registers) {
++        if (context.emit_guest_link_registers || context.emit_guest_cpu_state) {
+@@ -1136 +1136 @@ bool N64Recomp::recompile_function(const N64Recomp::Context& context, size_t fun
+-    CGenerator generator{output_file};
++    CGenerator generator{output_file, context.emit_guest_cpu_state};

@@ -1,0 +1,358 @@
+{
+  "$schema": "../schemas/phase4-generated-manifest.schema.json",
+  "schema_version": 2,
+  "kind": "jfg-phase4-generated-manifest",
+  "privacy": "public-safe-aggregate-only",
+  "record_class": "synthetic-example",
+  "pins": {
+    "jfg_decomp_commit": "1111111111111111111111111111111111111111",
+    "n64recomp_commit": "2222222222222222222222222222222222222222",
+    "minimal_runtime_source_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "n64recomp_patch_set_sha256": "3434343434343434343434343434343434343434343434343434343434343434",
+    "supported_input_id": "jfg-us-retail",
+    "dependency_lock_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "config_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "input_elf_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "generator_executable_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "symbols": {
+    "expected_count": 3729,
+    "generated_count": 2905,
+    "replaceable_function_count": 2905,
+    "alternate_entry_thunk_count": 30,
+    "excluded_count": 824,
+    "unclassified_count": 0,
+    "duplicate_native_symbol_count": 0,
+    "exclusion_category_counts": {
+      "covered-alias": 824,
+      "validated-non-code": 0,
+      "runtime-abi": 0
+    },
+    "covered_alias_ledger_sha256": "5656565656565656565656565656565656565656565656565656565656565656",
+    "manual_size_recovery_count": 6,
+    "manual_size_recovery_ledger_sha256": "5757575757575757575757575757575757575757575757575757575757575757",
+    "manual_size_recovery_approval_set_sha256": "5858585858585858585858585858585858585858585858585858585858585858",
+    "inventory_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+    "approval_set_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "calls": {
+    "direct": {
+      "candidate_count": 14038,
+      "transfer_role_counts": {
+        "linked-call": 13949,
+        "direct-tail": 89
+      },
+      "instruction_class_counts": {
+        "jal": 13948,
+        "bgezal": 1,
+        "j": 76,
+        "conditional-branch": 13
+      },
+      "expected_count": 14038,
+      "resolved_count": 13848,
+      "approved_exception_count": 190,
+      "unexplained_count": 0,
+      "approved_exception_category_counts": {
+        "runtime-abi": 0,
+        "fail-closed-disposition": 190
+      },
+      "ledger_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "approval_set_sha256": "1010101010101010101010101010101010101010101010101010101010101010"
+    },
+    "indirect_ranges": {
+      "expected_count": 3620,
+      "resolved_count": 3620,
+      "native_return_count": 3415,
+      "decision_range_count": 205,
+      "approved_exception_count": 0,
+      "unexplained_count": 0,
+      "approved_exception_category_counts": {
+        "fail-closed-disposition": 0
+      },
+      "ledger_sha256": "1212121212121212121212121212121212121212121212121212121212121212",
+      "approval_set_sha256": "1313131313131313131313131313131313131313131313131313131313131313"
+    }
+  },
+  "relocations": {
+    "instructions": {
+      "expected_count": 25,
+      "resolved_count": 24,
+      "approved_fail_closed_count": 1,
+      "unexplained_count": 0,
+      "hi_lo_pair_count": 1,
+      "atomic_hi_lo_pair_count": 1,
+      "partial_hi_lo_pair_count": 0,
+      "ledger_sha256": "1414141414141414141414141414141414141414141414141414141414141414",
+      "approval_set_sha256": "1515151515151515151515151515151515151515151515151515151515151515"
+    },
+    "data_r32": {
+      "expected_count": 2028,
+      "resolved_count": 2028,
+      "approved_fail_closed_count": 0,
+      "unexplained_count": 0,
+      "ledger_sha256": "1616161616161616161616161616161616161616161616161616161616161616",
+      "approval_set_sha256": "1717171717171717171717171717171717171717171717171717171717171717"
+    }
+  },
+  "overlays": {
+    "executable_section_count": 156,
+    "expected_slot_count": 157,
+    "populated_slot_count": 155,
+    "empty_slot_count": 2,
+    "listed_slot_count": 157,
+    "lookup_table_slot_count": 157,
+    "lifecycle_table_slot_count": 157,
+    "generated_populated_module_count": 155,
+    "relocation_table_entry_count": 2028,
+    "resolved_relocation_entry_count": 2028,
+    "lookup_table_member_count": 2,
+    "lifecycle_table_member_count": 1,
+    "relocation_table_member_count": 5,
+    "unresolved_relocation_entry_count": 0,
+    "missing_slot_count": 0,
+    "duplicate_slot_count": 0,
+    "forced_object_link_passed": true,
+    "manifest_sha256": "1818181818181818181818181818181818181818181818181818181818181818",
+    "slot_inventory_sha256": "5959595959595959595959595959595959595959595959595959595959595959",
+    "lookup_table_sha256": "1919191919191919191919191919191919191919191919191919191919191919",
+    "lifecycle_table_sha256": "2020202020202020202020202020202020202020202020202020202020202020",
+    "relocation_table_sha256": "2121212121212121212121212121212121212121212121212121212121212121"
+  },
+  "stubs": {
+    "policy_id": "zero-generated-game-stubs-v1",
+    "generated_game_function_stub_count": 0,
+    "unexplained_count": 0,
+    "ledger_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "compilers": [
+    {
+      "compiler_id": "clang-18",
+      "family": "clang",
+      "target_id": "linux-x64",
+      "configuration_id": "release",
+      "compiler_executable_sha256": "2323232323232323232323232323232323232323232323232323232323232323",
+      "option_set_sha256": "2424242424242424242424242424242424242424242424242424242424242424",
+      "source_inventory_sha256": "3737373737373737373737373737373737373737373737373737373737373737",
+      "generated_compile_passed": true,
+      "overlay_table_compile_passed": true,
+      "minimal_runtime_link_passed": true,
+      "forced_object_audit_passed": true,
+      "result_sha256": "2525252525252525252525252525252525252525252525252525252525252525"
+    },
+    {
+      "compiler_id": "gcc-14",
+      "family": "gcc",
+      "target_id": "linux-x64",
+      "configuration_id": "release",
+      "compiler_executable_sha256": "2626262626262626262626262626262626262626262626262626262626262626",
+      "option_set_sha256": "2727272727272727272727272727272727272727272727272727272727272727",
+      "source_inventory_sha256": "3737373737373737373737373737373737373737373737373737373737373737",
+      "generated_compile_passed": true,
+      "overlay_table_compile_passed": true,
+      "minimal_runtime_link_passed": true,
+      "forced_object_audit_passed": true,
+      "result_sha256": "2828282828282828282828282828282828282828282828282828282828282828"
+    },
+    {
+      "compiler_id": "msvc-19.40",
+      "family": "msvc",
+      "target_id": "windows-x64",
+      "configuration_id": "release",
+      "compiler_executable_sha256": "2929292929292929292929292929292929292929292929292929292929292929",
+      "option_set_sha256": "3030303030303030303030303030303030303030303030303030303030303030",
+      "source_inventory_sha256": "3737373737373737373737373737373737373737373737373737373737373737",
+      "generated_compile_passed": true,
+      "overlay_table_compile_passed": true,
+      "minimal_runtime_link_passed": true,
+      "forced_object_audit_passed": true,
+      "result_sha256": "3131313131313131313131313131313131313131313131313131313131313131"
+    }
+  ],
+  "analysis": {
+    "source_inventory_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "handwritten_bridge_unit_count": 2,
+    "clang_static_analysis": {
+      "tool_id": "clang-analyzer",
+      "undefined_behavior_issue_count": 0,
+      "passed": true,
+      "result_sha256": "3232323232323232323232323232323232323232323232323232323232323232"
+    },
+    "sanitizers": [
+      {
+        "sanitizer_id": "address",
+        "compiler_family": "clang",
+        "target_id": "linux-x64",
+        "run_count": 1,
+        "issue_count": 0,
+        "passed": true,
+        "source_inventory_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "result_sha256": "3434343434343434343434343434343434343434343434343434343434343434"
+      },
+      {
+        "sanitizer_id": "undefined-behavior",
+        "compiler_family": "clang",
+        "target_id": "linux-x64",
+        "run_count": 1,
+        "issue_count": 0,
+        "passed": true,
+        "source_inventory_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "result_sha256": "3535353535353535353535353535353535353535353535353535353535353535"
+      }
+    ],
+    "available_sanitizer_matrix_sha256": "3636363636363636363636363636363636363636363636363636363636363636",
+    "all_available_sanitizers_passed": true
+  },
+  "libraries": {
+    "baseline": {
+      "unmodified_body_member_count": 2905,
+      "callable_wrapper_member_count": 2905,
+      "alternate_entry_thunk_member_count": 30,
+      "section_address_member_count": 3,
+      "lookup_table_member_count": 2,
+      "lifecycle_table_member_count": 1,
+      "relocation_table_member_count": 5,
+      "other_support_member_count": 0,
+      "support_member_count": 41,
+      "member_count": 5851,
+      "one_function_per_body_member_verified": true,
+      "wrapper_to_body_mapping_verified": true,
+      "alternate_entry_mapping_verified": true,
+      "forced_object_link_passed": true,
+      "compile_passed": true,
+      "link_passed": true,
+      "archive_sha256": "3838383838383838383838383838383838383838383838383838383838383838",
+      "member_inventory_sha256": "3939393939393939393939393939393939393939393939393939393939393939",
+      "result_sha256": "4040404040404040404040404040404040404040404040404040404040404040"
+    },
+    "patch": {
+      "approved_replacement_member_count": 0,
+      "callable_wrapper_member_count": 0,
+      "anchor_member_count": 1,
+      "other_support_member_count": 0,
+      "support_member_count": 1,
+      "member_count": 1,
+      "one_function_per_replacement_member_verified": true,
+      "forced_object_link_passed": true,
+      "compile_passed": true,
+      "link_passed": true,
+      "archive_sha256": "4141414141414141414141414141414141414141414141414141414141414141",
+      "member_inventory_sha256": "4242424242424242424242424242424242424242424242424242424242424242",
+      "result_sha256": "4343434343434343434343434343434343434343434343434343434343434343"
+    },
+    "aliases": {
+      "expected_count": 2905,
+      "emitted_count": 2905,
+      "duplicate_count": 0,
+      "baseline_callable_test_passed": true,
+      "ledger_sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    "strict_patch_mode": {
+      "enabled": true,
+      "approved_patch_function_count": 0,
+      "unapproved_patch_rejection_passed": true,
+      "duplicate_override_rejection_passed": true,
+      "missing_baseline_alias_rejection_passed": true,
+      "unsupported_instruction_patch_rejection_passed": true,
+      "result_sha256": "4545454545454545454545454545454545454545454545454545454545454545"
+    },
+    "minimal_runtime": {
+      "target_runtime_abi_exclusion_count": 0,
+      "required_host_function_export_count": 15,
+      "resolved_host_function_export_count": 15,
+      "required_host_data_export_count": 1,
+      "resolved_host_data_export_count": 1,
+      "unresolved_host_export_count": 0,
+      "handwritten_bridge_unit_count": 2,
+      "section_address_count": 156,
+      "section_address_capacity": 4096,
+      "initialized_section_address_count": 156,
+      "section_address_support_member_count": 3,
+      "section_initialization_passed": true,
+      "section_exact_capacity_test_passed": true,
+      "section_over_capacity_rejection_passed": true,
+      "object_symbol_ownership_verified": true,
+      "host_function_inventory_sha256": "5353535353535353535353535353535353535353535353535353535353535353",
+      "host_data_inventory_sha256": "5454545454545454545454545454545454545454545454545454545454545454",
+      "relocation_table_entry_count": 2028,
+      "forced_object_link_passed": true,
+      "result_sha256": "4646464646464646464646464646464646464646464646464646464646464646"
+    },
+    "language_contract": {
+      "generated_language": "c",
+      "bridge_linkage": "c-abi",
+      "abi_audit_passed": true,
+      "result_sha256": "4747474747474747474747474747474747474747474747474747474747474747"
+    }
+  },
+  "reproducibility": {
+    "normalization_policy_id": "phase4-run-payload-v1",
+    "generation_run_count": 2,
+    "distinct_normalized_run_digest_count": 1,
+    "normalized_run_payload_sha256": "4848484848484848484848484848484848484848484848484848484848484848",
+    "generated_inventory_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+    "cpu_section_inventory_sha256": "4545454545454545454545454545454545454545454545454545454545454545",
+    "overlay_table_sha256": "1919191919191919191919191919191919191919191919191919191919191919",
+    "lifecycle_table_sha256": "2020202020202020202020202020202020202020202020202020202020202020",
+    "relocation_table_sha256": "2121212121212121212121212121212121212121212121212121212121212121",
+    "report_set_sha256": "4949494949494949494949494949494949494949494949494949494949494949",
+    "source_file_inventory_sha256": "3737373737373737373737373737373737373737373737373737373737373737",
+    "baseline_member_inventory_sha256": "3939393939393939393939393939393939393939393939393939393939393939",
+    "patch_member_inventory_sha256": "4242424242424242424242424242424242424242424242424242424242424242",
+    "all_artifact_classes_match": true,
+    "byte_equivalent_inventory": true,
+    "passed": true
+  },
+  "config_diff": {
+    "mutation_case_count": 2,
+    "base_config_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "mutated_config_set_sha256": "5050505050505050505050505050505050505050505050505050505050505050",
+    "predeclared_expectation_sha256": "e355f8da590a87625c4e66644d3e070c755a15c6a887725789bad9aabe84332b",
+    "expected_change_count": 2,
+    "observed_change_count": 2,
+    "expected_category_counts": {
+      "symbol-addition": 0,
+      "symbol-removal": 0,
+      "symbol-rename": 0,
+      "section-movement": 0,
+      "lookup-change": 1,
+      "patch-change": 0,
+      "compiler-option-change": 1
+    },
+    "observed_category_counts": {
+      "symbol-addition": 0,
+      "symbol-removal": 0,
+      "symbol-rename": 0,
+      "section-movement": 0,
+      "lookup-change": 1,
+      "patch-change": 0,
+      "compiler-option-change": 1
+    },
+    "unexpected_change_count": 0,
+    "unexpected_category_counts": {
+      "symbol-addition": 0,
+      "symbol-removal": 0,
+      "symbol-rename": 0,
+      "section-movement": 0,
+      "lookup-change": 0,
+      "patch-change": 0,
+      "compiler-option-change": 0
+    },
+    "containment_passed": true,
+    "result_sha256": "5252525252525252525252525252525252525252525252525252525252525252"
+  },
+  "attestation": {
+    "evidence_class": "synthetic-fixture",
+    "body_policy": "local-only-not-exported",
+    "authentication": {
+      "algorithm": "none"
+    }
+  },
+  "gate": {
+    "id": "G3-M1",
+    "scope": "whole-program",
+    "claim": "not-evidence",
+    "predecessor_g2_complete": false,
+    "g3_complete": false,
+    "all_required_checks_passed": false
+  }
+}

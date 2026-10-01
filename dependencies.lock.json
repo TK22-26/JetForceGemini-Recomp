@@ -1,0 +1,125 @@
+{
+  "$schema": "./schemas/dependency-lock.schema.json",
+  "schema_version": 1,
+  "source_date_epoch": 1785729247,
+  "github_actions": {
+    "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+    "actions/setup-python": "ece7cb06caefa5fff74198d8649806c4678c61a1"
+  },
+  "repositories": [
+    {
+      "id": "jfg-decomp",
+      "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini.git",
+      "commit": "b49aa4791e8fb1e7acd3bba10346876358d0a9a7",
+      "license": "NOASSERTION",
+      "use": "local-analysis-only",
+      "recursive_submodules": {
+        "tools/asm-differ": "5074289a13ced3a4ca4359c94d3f337d760a93ca",
+        "tools/asm-processor": "b29ff12bf1d7cd1f49bf9a47b03e3ff3972ed973",
+        "tools/m2c": "2853e096eb2368f601cd0f05119e98d74c2edca6"
+      }
+    },
+    {
+      "id": "n64recomp",
+      "url": "https://github.com/N64Recomp/N64Recomp.git",
+      "commit": "ffb39cdad1da5de07eaaa48bd1db4a89a7986771",
+      "license": "MIT",
+      "use": "local-build-tool",
+      "recursive_submodules": {
+        "lib/ELFIO": "ad8b641f9682b6091ba8b9f7c8152255c1a2c803",
+        "lib/fmt": "407c905e45ad75fc29bf0f9bb7c5c2fd3475976f",
+        "lib/rabbitizer": "e0d8003047938e2ec3697eaf8d61a84d11d17b43",
+        "lib/sljit": "f6326087b3404efb07c6d3deed97b3c3b8098c0c",
+        "lib/tomlplusplus": "1f7884e59165e517462f922e7b6de131bd9844f3"
+      }
+    },
+    {
+      "id": "n64modernruntime",
+      "url": "https://github.com/N64Recomp/N64ModernRuntime.git",
+      "commit": "589bbf018a3e6d3646ddf7de1e7919f1b7e99bb1",
+      "license": "GPL-3.0-only",
+      "use": "candidate-runtime",
+      "recursive_submodules": {
+        "N64Recomp": "81213c1831fab2521a6a5459c67b63437d67e253",
+        "thirdparty/miniz": "8573fd7cd6f49b262a0ccc447f3c6acfc415e556",
+        "thirdparty/o1heap": "a124b850791db2a33f7354d2b0aa7da821cef6f5",
+        "thirdparty/xxHash": "ac3a25da3d957d9ef3e4114d9f8332d34ce83a46"
+      }
+    },
+    {
+      "id": "rt64",
+      "url": "https://github.com/rt64/rt64.git",
+      "commit": "5473732a822a4423b5696e7cb18fecc425a59875",
+      "license": "MIT",
+      "use": "candidate-renderer",
+      "recursive_submodules": {
+        "src/contrib/ddspp": "21ca0c4319dfd5a161c5f2a0c406e8f60194ea6c",
+        "src/contrib/dxc": "cc15e715ee378a4f675b335bd1071ff105873fc8",
+        "src/contrib/hlslpp": "6f5274c66132e8f951c400103d897582b8f21491",
+        "src/contrib/im3d": "d03941725fd0bd08c78c46e3e5b0265526e9d060",
+        "src/contrib/imgui": "277ae93c41314ba5f4c7444f37c4319cdf07e8cf",
+        "src/contrib/implot": "f156599faefe316f7dd20fe6c783bf87c8bb6fd9",
+        "src/contrib/mupen64plus-core": "860fac3fbae94194a392c1d9857e185eda6d083e",
+        "src/contrib/mupen64plus-win32-deps": "de8111fdcb89144abc16c85650ce4e21e028bfb5",
+        "src/contrib/nativefiledialog-extended": "17b6e8ce219c0677f94b63636abb9296b28841ca",
+        "src/contrib/plume": "d890ac899e505fb30040e037a4037cdeca68f033",
+        "src/contrib/re-spirv": "5d6b756ee62760f71b65d37e41a0b5a3dab90507",
+        "src/contrib/spirv-cross": "6173e24b31f09a0c3217103a130e74c4ddec14a6",
+        "src/contrib/stb": "ae721c50eaf761660b4f90cc590453cdb0c2acd0",
+        "src/contrib/xxHash": "1864a50c9b5cf8500d8e9e61ed92aa0dd3772750",
+        "src/contrib/zstd": "0ff651dd876823b99fa5c5f53292be28381aee9b"
+      }
+    },
+    {
+      "id": "recompfrontend",
+      "url": "https://github.com/N64Recomp/RecompFrontend.git",
+      "commit": "9ef9cdfdead7649247ab4957f43517f44c33931d",
+      "license": "NOASSERTION",
+      "use": "excluded-pending-permission",
+      "recursive_submodules": {
+        "recompui/lib/RmlUi": "7a06f27db04fe5d13a5dacc19b2b4544673a4eca",
+        "recompui/lib/freetype-windows-binaries": "9124a2073f3a7055726be46bab1d54bf14f68f63",
+        "recompui/lib/lunasvg": "83c58df8103dc7dca423dfd824992af94d49bed6"
+      }
+    },
+    {
+      "id": "bizhawk",
+      "url": "https://github.com/TASEmulators/BizHawk.git",
+      "commit": "bdddf4a58aa1a022afb11dc73294a81a5aa7bbd5",
+      "license": "LicenseRef-BizHawk-Mixed",
+      "use": "local-emulator-oracle-only",
+      "recursive_submodules": {
+        "libmupen64plus/GLideN64": "4f1f88a415630481a9ce58f11279e6ec94bbe2d1"
+      },
+      "artifacts": {
+        "bizhawk-2.11.1-win-x64.zip": "dd7cbd5e205b09c5bce6afabc4f8aa525acc0bbeb9753b198a8db3fe6a5e5717",
+        "mupen64plus-video-gliden64.dll": "cf6c4b96bc10b0dbe87c895ce8df241c139912f751da10251a18888ebff76466"
+      }
+    },
+    {
+      "id": "gliden64-executed",
+      "url": "https://github.com/gonetz/GLideN64.git",
+      "commit": "4f1f88a415630481a9ce58f11279e6ec94bbe2d1",
+      "license": "GPL-2.0-only",
+      "use": "executed-local-oracle-component",
+      "recursive_submodules": {}
+    },
+    {
+      "id": "gliden64-inspected",
+      "url": "https://github.com/gonetz/GLideN64.git",
+      "commit": "020b6ab5de1f13d8e673c0a23529f1de1e507c9d",
+      "license": "GPL-2.0-only",
+      "use": "newer-local-source-inspection-only",
+      "recursive_submodules": {}
+    }
+  ],
+  "python_packages": {
+    "splat64[mips]": "0.50.0",
+    "spimdisasm": "1.42.3"
+  },
+  "release_tools": {
+    "ido-static-recomp": "v1.2",
+    "objdiff": "v3.4.5",
+    "llvm-clang-windows": "llvmorg-22.1.8 sha256:d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234"
+  }
+}

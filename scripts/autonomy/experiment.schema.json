@@ -1,0 +1,37 @@
+{
+  "type": "object",
+  "properties": {
+    "operation": {"type": "string", "enum": ["state-words", "needs-instrumentation"]},
+    "hypothesis": {"type": "string", "minLength": 1, "maxLength": 600},
+    "alternative": {"type": "string", "minLength": 1, "maxLength": 600},
+    "reason": {"type": "string", "minLength": 1, "maxLength": 600},
+    "observations": {
+      "type": "array", "maxItems": 12,
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$"},
+          "address": {"type": "string", "pattern": "^0x80[0-3][0-9a-f]{5}$"},
+          "width": {"type": "integer", "enum": [1, 2, 4]}
+        },
+        "required": ["label", "address", "width"], "additionalProperties": false
+      }
+    },
+    "prediction": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "properties": {
+            "label": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$"},
+            "update": {"type": "integer", "minimum": 1},
+            "relation": {"type": "string", "enum": ["equal", "different"]}
+          },
+          "required": ["label", "update", "relation"], "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": ["operation", "hypothesis", "alternative", "reason", "observations", "prediction"],
+  "additionalProperties": false
+}

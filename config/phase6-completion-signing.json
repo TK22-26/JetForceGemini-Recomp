@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "kind": "jfg-phase6-completion-signing-policy",
+  "algorithm": "openssh-ed25519",
+  "key_id": "jfg-phase4-completion-v1",
+  "principal": "jfg-phase4-completion-v1",
+  "namespace": "jfg-phase6-completion-v1",
+  "public_key_file": "phase4-completion-signing-key.pub"
+}
