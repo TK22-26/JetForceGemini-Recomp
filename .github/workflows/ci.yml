@@ -143,3 +143,26 @@ jobs:
         run: |
           cmake --build build/asan
           ctest --test-dir build/asan -E "^jfg\.g2_trap_probe_runtime$" --output-on-failure
+
+  launcher:
+    name: Windows launcher preview
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - name: Check out trusted source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Compile and test the standalone launcher
+        shell: powershell
+        run: ./scripts/build_launcher.ps1 -Test
+      - name: Validate bootstrap derivation with ROM-free fixtures
+        shell: powershell
+        run: python -m unittest discover -s tests -p test_rom_bootstrap.py
+      - name: Verify the launcher-only package
+        shell: powershell
+        run: python scripts/package_launcher.py

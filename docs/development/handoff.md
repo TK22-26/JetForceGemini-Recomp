@@ -2,8 +2,9 @@
 
 Prepared 2026-10-01 for a new contributor or interested playtester. This checkout
 preserves the current development source; it does not include a ready-to-run
-game package. Start with the ROM-free build below. Playtesting needs a separate
-local setup and a selected runtime revision.
+game package. For playtesting, follow the
+[ROM-to-build prototype](rom-bootstrap.md) and [launcher guide](launcher.md).
+The first build needs developer tools and your own supported ROM.
 
 ## What works and what remains open
 
@@ -21,7 +22,8 @@ Historical milestone evidence does not certify every later working-tree change.
 
 ## Build from a source checkout
 
-Use the `main` branch of the public snapshot. Record `git rev-parse HEAD`
+Use `launcher-preview` for the ROM-to-build prototype, or `main` for the initial
+public snapshot. Record `git rev-parse HEAD`
 when reporting a result. This repository begins with a fresh history and omits
 five emulator diagnostic patches. Historical commit references and local
 evidence describe the private development repository and are not public refs.
@@ -58,17 +60,17 @@ Each tester must supply their own supported North American retail ROM. Keep it
 outside Git, in an ignored local directory or an explicit external location.
 Do not attach it to an issue or send it with a source checkout.
 
-The playable target is `jfg-native-boot` with the live runtime enabled. Its
-build needs the local CPU generation pipeline, private graphics/audio adapter
-inputs, pinned external dependencies, and a compatible ROM. The source setup
-documents upstream generation, but an unattended clone-to-play workflow is not
-currently established. A source clone alone does not reproduce the maintainer's
-private generated inputs, saved checkpoints, executable, or evidence bodies.
+The playable target is `jfg-native-boot` with the live runtime enabled. The
+[bootstrap recipe](rom-bootstrap.md) downloads pinned dependencies, extracts
+your ROM, builds a matching ELF, recovers the required OS symbol metadata,
+generates CPU/audio code, and compiles the Windows runtime. The launcher's
+**Build from ROM** button invokes that recipe. It needs no maintainer-generated
+ELF, overlay layout, CPU output, audio output, or save file.
 
 The existing [manual launcher](../../scripts/launch_phase9_manual_test.ps1)
 expects a particular private build layout and existing Flash/Controller Pak
 files. It also configures local crash dumps and a scheduled task. Treat it as a
-maintainer diagnostic tool until a portable tester launcher has been prepared.
+maintainer diagnostic tool. Use the new launcher for this prototype.
 
 Before asking someone to play, select and identify the executable and runtime
 profile, establish local input generation or an approved binary handoff, verify

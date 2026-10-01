@@ -14,10 +14,11 @@ See [the source audit](../legal/publication-audit.md) for the exact boundary.
 ## What a collaborator can test
 
 A normal clone builds the ROM-free host shell and synthetic tests. The `jfg`
-shell does not execute the game. Playtesting still requires a separately
-prepared local build, a tester-supplied ROM and generated inputs. No portable
-game package or clone-to-play workflow is included. Start with
-[the contributor handoff](../development/handoff.md).
+shell does not execute the game. The `launcher-preview` branch adds a Windows
+[ROM-to-build recipe](../development/rom-bootstrap.md) and graphical launcher.
+Testers install its developer-tool prerequisites and supply their own supported
+ROM; generation and compilation run locally. The launcher package contains no
+game runtime or assets. Start with [the contributor handoff](../development/handoff.md).
 
 ## Validation
 

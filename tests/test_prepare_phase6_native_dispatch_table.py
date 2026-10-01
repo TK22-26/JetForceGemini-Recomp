@@ -109,6 +109,21 @@ class TableTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertFalse(output.exists())
 
+    def test_allows_only_native_output_within_private_bootstrap_workspace(self) -> None:
+        parent = ROOT / "tools" / "private" / "local-builds"
+        parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=parent, prefix="dispatch-fixture-") as temporary:
+            directory = Path(temporary)
+            self.assertTrue(directory.resolve().is_relative_to(parent.resolve()))
+            identification = directory / "in.json"
+            identification.write_text(json.dumps(document()), encoding="utf-8")
+            for subdir, accepted in (("native/phase6-private", True), ("other", False)):
+                output = directory / subdir / "native-dispatch-table.inc"
+                result = subprocess.run([sys.executable, str(SCRIPT), "--identification", str(identification),
+                    "--output", str(output)], capture_output=True, text=True, check=False)
+                self.assertEqual(result.returncode == 0, accepted, result.stderr)
+                self.assertEqual(output.exists(), accepted)
+
 
 if __name__ == "__main__":
     unittest.main()

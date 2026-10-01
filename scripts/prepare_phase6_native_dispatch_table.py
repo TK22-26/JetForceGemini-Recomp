@@ -79,8 +79,11 @@ def validate_output_path(output: Path, repo: Path) -> None:
         return
 
     relative_output = Path(os.path.relpath(output, repo))
-    if not relative_output.parts or not _BUILD_OUTPUT.fullmatch(relative_output.parts[0]):
-        fail("output inside repository must be a top-level build output")
+    parts = relative_output.parts
+    local_bootstrap = (len(parts) >= 6 and parts[:3] == ("tools", "private", "local-builds")
+                       and parts[4] == "native")
+    if not parts or not (_BUILD_OUTPUT.fullmatch(parts[0]) or local_bootstrap):
+        fail("output inside repository must be a build output or private local-build native output")
 
     relative_text = relative_output.as_posix()
     ignored = subprocess.run(
