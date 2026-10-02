@@ -20,7 +20,8 @@ int main(int argc, char **argv) {
     const auto mesh = decode_mesh(m, m.u32(0x800A0D60U));
     const auto list = actors(m);
     const auto doors = exits(m, list);
-    for (const auto &item : item_markers(m, list)) std::cout << item.label << "\n";
+    for (const auto &item : item_markers(m, list))
+      std::cout << item.label << "\n";
     std::ofstream out(argv[2]);
     write_mesh(out, mesh, m.u32(0x800FB114U), 1);
     std::cout << "blocks=" << mesh.blocks
@@ -121,7 +122,8 @@ int main(int argc, char **argv) {
     put32(chest + 0x68U, chest_control);
     std::vector<Actor> chest_list{{chest, 98U, {10, 20, 30}}};
     auto items = item_markers(m, chest_list);
-    check(items.size() == 1U && items[0].label == "Chest: Shotgun" && !items[0].opened);
+    check(items.size() == 1U && items[0].label == "Chest: Shotgun" &&
+          !items[0].opened);
     put8(chest_control + 4U, 5U);
     items = item_markers(m, chest_list);
     check(items[0].opened && items[0].kind == "opened");
@@ -133,11 +135,73 @@ int main(int argc, char **argv) {
     const std::uint32_t key_header = chest + 0x200U;
     put32(chest + 0x40U, key_header);
     m.put16(chest + 0x4AU, 0x258U);
-    put8(key_header + 4U, 'K'); put8(key_header + 5U, 'e'); put8(key_header + 6U, 'y');
+    put8(key_header + 4U, 'K');
+    put8(key_header + 5U, 'e');
+    put8(key_header + 6U, 'y');
     chest_list[0].behavior = 100U;
-    check(item_markers(m, chest_list).size() == 1U && item_markers(m, chest_list)[0].kind == "key");
+    check(item_markers(m, chest_list).size() == 1U &&
+          item_markers(m, chest_list)[0].kind == "key");
     m.put16(chest + 0x4AU, 0x500U);
     check(item_markers(m, chest_list).empty());
+
+    // NPC markers never mutate memory and never classify enemies as friendlies.
+    const std::uint32_t guide = 0x80130000U, gc = guide + 0x100U,
+                        gp = guide + 0x200U;
+    put32(guide + 0x68U, gc);
+    put32(guide + 0x4CU, gp);
+    m.put16(guide + 0x4AU, 350U);
+    m.put16(gp + 6U, 256U);
+    std::vector<Actor> characters{{guide, 90U, {20, 30, 40}},
+                                  {enemy, 24U, {100, 200, 300}}};
+    m.put16(ep + 6U, 1024U);
+    m.put16(sd + 0x2CU, 0x11CU);
+    auto before_npcs = bytes;
+    auto npcs = npc_markers(m, characters);
+    check(npcs.size() == 2U && std::string(npcs[0].label) == "NPC: Guide" &&
+          std::string(npcs[1].kind) == "tribal" &&
+          npcs[1].squad_type == 0x11C && npcs[1].position.x == 100.0F &&
+          bytes == before_npcs);
+    for (auto type : {0x11C, 0x11D, 0x11E, 0x11F, 0x120, 0x66, 0x70, 0x90, 0x97,
+                      0x157, 0xA5}) {
+      m.put16(sd + 0x2CU, static_cast<std::uint16_t>(type));
+      check(npc_markers(m, characters).size() == 2U);
+    }
+    m.put16(sd + 0x2CU, 45U);
+    check(npc_markers(m, characters).size() == 1U); // Ordinary hostile.
+    m.put16(sd + 0x2CU, 0x11CU);
+    m.put16(ep + 6U, 0U);
+    check(npc_markers(m, characters).size() == 1U); // Dead Tribal.
+    m.put16(ep + 6U, 1024U);
+    put32(ec + 0x24U, 0xFFFFFFFFU);
+    check(npc_markers(m, characters).size() == 1U);
+    put32(ec + 0x24U, squad);
+    characters[0].behavior = 51U;
+    characters[1].behavior = 54U;
+    check(npc_markers(m, characters).empty()); // Cutscene/scenery.
+    characters[0].behavior = 90U;
+    put32(guide + 0x68U, 0xFFFFFFFFU);
+    check(npc_markers(m, characters).empty());
+    put32(guide + 0x68U, gc);
+    for (auto object :
+         {350, 476, 486, 487, 488, 489, 490, 550, 551, 612, 772, 999}) {
+      m.put16(guide + 0x4AU, static_cast<std::uint16_t>(object));
+      check(npc_markers(m, characters).size() == 1U);
+    }
+    std::ostringstream npc_json;
+    write_npcs(npc_json, npc_markers(m, characters));
+    check(npc_json.str().find("\"kind\":\"npc\"") != std::string::npos);
+    m.put16(gp + 6U, 0U);
+    check(npc_markers(m, characters).empty());
+
+    // The block named ForestCrate has no verified contents and is not an item.
+    const char *block_name = "ForestCrate";
+    for (unsigned n = 0; n < 16U; ++n)
+      put8(key_header + 4U + n,
+           n < 11U ? static_cast<std::uint8_t>(block_name[n]) : 0U);
+    m.put16(chest + 0x4AU, 135U);
+    chest_list[0].behavior = 54U;
+    check(item_markers(m, chest_list).empty());
+
     const std::uint32_t track = 0x80110000U, block = track + 0x100U,
                         verts = track + 0x200U, faces = track + 0x300U,
                         batches = track + 0x400U, indices = track + 0x500U,

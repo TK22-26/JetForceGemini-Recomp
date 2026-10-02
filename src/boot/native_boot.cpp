@@ -4,6 +4,7 @@
 #include "jfg/boot/ipl_handoff.hpp"
 #include "jfg/boot/gameplay_trace.hpp"
 #include "jfg/mod/navigation_mod.hpp"
+#include "jfg/audio/master_volume.hpp"
 #include "jfg/boot/runlink_module_table.hpp"
 #include "jfg/boot/thread_scheduler.hpp"
 #include "jfg/boot/guest_thread_transport.hpp"
@@ -610,6 +611,7 @@ public:
         (!initialized_ && !initialize(frequency)) || frequency_ != frequency)
       return false;
 
+    refresh_volume(frequency);
     update_metrics();
     converted_.resize(length);
     for (std::uint32_t offset = 0U; offset < length; offset += 2U) {
@@ -620,6 +622,7 @@ public:
       converted_[offset] = static_cast<std::uint8_t>(sample);
       converted_[offset + 1U] = static_cast<std::uint8_t>(sample >> 8U);
     }
+    master_volume_.apply(converted_);
     if (device_ != 0U &&
         SDL_QueueAudio(device_, converted_.data(), length) != 0)
       return false;
@@ -698,6 +701,39 @@ public:
   }
 
 private:
+  void refresh_volume(const std::uint32_t frequency) {
+    if (!volume_path_checked_) {
+      volume_path_checked_ = true;
+      wchar_t *path = nullptr;
+      std::size_t length = 0;
+      if (_wdupenv_s(&path, &length, L"JFG_MASTER_VOLUME_CONFIG") == 0 && path) {
+        volume_path_ = std::filesystem::path(path);
+        std::free(path);
+      }
+    }
+    if (volume_path_.empty()) return;
+    const auto now = std::chrono::steady_clock::now();
+    if (now < volume_next_read_) return;
+    volume_next_read_ = now + std::chrono::milliseconds(100);
+    // Runs on the existing producer thread, never an SDL audio callback.
+    // Missing/partial replacements keep the last accepted preference.
+    const HANDLE file = CreateFileW(volume_path_.c_str(), GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return;
+    std::array<char, 129> buffer{};
+    DWORD count = 0;
+    const bool read = ReadFile(file, buffer.data(),
+        static_cast<DWORD>(buffer.size()), &count, nullptr) != 0;
+    CloseHandle(file);
+    if (!read || count > 128U) return;
+    if (const auto settings = jfg::audio::parse_volume(
+            std::string_view(buffer.data(), count))) {
+      master_volume_.configure(*settings, frequency, !volume_received_);
+      volume_received_ = true;
+    }
+  }
+
   bool initialize(const std::uint32_t frequency) {
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0)
       return false;
@@ -846,6 +882,10 @@ private:
 
   GameplayTrace *gameplay_trace_ = nullptr;
   SDL_AudioDeviceID device_ = 0U;
+  jfg::audio::MasterVolume master_volume_;
+  std::filesystem::path volume_path_;
+  std::chrono::steady_clock::time_point volume_next_read_{};
+  bool volume_path_checked_ = false, volume_received_ = false;
   std::vector<std::uint8_t> converted_;
   std::ofstream capture_pcm_;
   std::ofstream capture_events_;

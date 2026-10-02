@@ -100,6 +100,21 @@ namespace JfgLauncher
                 ProcessStartInfo start = LocalSetup.StartInfo(game, wrongRom, directory);
                 Check(!start.UseShellExecute && start.CreateNoWindow, "launch uses shell or console");
                 Check(!start.EnvironmentVariables.ContainsKey("JFG_PHASE9_INPUT_RECORD"), "diagnostic environment inherited");
+                Check(start.EnvironmentVariables["JFG_MASTER_VOLUME_CONFIG"] == AudioPreferences.FileName(directory), "audio preferences not forwarded");
+                AudioPreferences audio = AudioPreferences.Load(directory);
+                Check(audio.Volume == 100 && !audio.Muted, "default audio settings changed");
+                audio.Volume = 37; audio.Muted = true; audio.Save(directory);
+                audio = AudioPreferences.Load(directory);
+                Check(audio.Volume == 37 && audio.Muted, "mute or retained volume did not persist");
+                audio.Muted = false; audio.Save(directory);
+                Check(AudioPreferences.Load(directory).Volume == 37 && !AudioPreferences.Load(directory).Muted, "unmute lost prior volume");
+                Check(AudioPreferences.Parse("version=1\r\nvolume=0\r\nmuted=0\r\n").Volume == 0, "zero volume or CRLF rejected");
+                foreach (string invalidAudio in new string[] {
+                    "version=1\nvolume=101\nmuted=0\n", "version=1\nvolume=-1\nmuted=0\n",
+                    "version=1\nvolume=01\nmuted=0\n", "version=1\nvolume=50\nmuted=2\n",
+                    "version=1\nvolume=50\nmuted=0\nextra", new string('x',129) })
+                    Reject(delegate { AudioPreferences.Parse(invalidAudio); }, "invalid audio settings accepted");
+
                 Check(start.WorkingDirectory == directory && start.Arguments.EndsWith(" --play"), "incorrect game launch plan");
                 Check(start.Arguments.Contains(LocalSetup.Quote(flash)), "save path not isolated");
                 Check(!LocalSetup.FriendlyError(new IOException("PRIVATE-PATH-CANARY")).Contains("PRIVATE-PATH-CANARY"), "exception discloses path");
@@ -134,6 +149,7 @@ namespace JfgLauncher
                 Check(modProfile != normalProfile && modStart.Arguments.Contains(LocalSetup.Quote(Path.Combine(modProfile, "jfg.flash"))), "mod shares normal saves");
                 Check(File.ReadAllText(Path.Combine(modProfile, "jfg.flash")) == "normal campaign", "mod did not copy initial progress");
                 Check(modStart.EnvironmentVariables["JFG_NAVIGATION_MOD"] == "1", "mod not enabled explicitly");
+                Check(modStart.EnvironmentVariables["JFG_MASTER_VOLUME_CONFIG"] == AudioPreferences.FileName(normalProfile), "mod must share normal volume settings");
                 Check(modStart.EnvironmentVariables["JFG_MOD_OUTPUT"].StartsWith(Path.Combine(modProfile, "maps")), "map export outside mod profile");
                 Check(modStart.EnvironmentVariables["JFG_CONTROLLER_CONFIG"] == ControllerProfile.FileName(modProfile), "mod controller profile missing");
                 File.WriteAllText(Path.Combine(modProfile, "jfg.flash"), "mod progress");
@@ -225,6 +241,19 @@ namespace JfgLauncher
                 File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture);
                 MapSnapshot map = MapSnapshot.Load(mapDirectory, null);
                 Check(map.IsLive && map.Live.markers.Length == 1 && map.Live.exits.Length == 1, "live map markers missing");
+                Check(map.Live.npcs.Length == 0, "legacy maps should have no NPC markers");
+                string npcFixture = ",\"npcs\":[{\"position\":[25,0,40],\"kind\":\"npc\",\"label\":\"NPC: Guide\"},{\"position\":[40,0,65],\"kind\":\"tribal\",\"label\":\"Tribal\"}]}";
+                liveFixture = liveFixture.Substring(0, liveFixture.Length - 1) + npcFixture;
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture);
+                map = MapSnapshot.Load(mapDirectory, map.Mesh);
+                Check(map.Live.npcs.Length == 2 && map.Live.npcs[1].kind == "tribal", "NPC and Tribal markers missing");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture.Replace("[25,0,40]", "[25,0]"));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "malformed NPC position accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture.Replace("\"kind\":\"npc\"", "\"kind\":\"enemy\""));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "unknown NPC category accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture.Replace("NPC: Guide", new string('x', 81)));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "oversized NPC label accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture);
                 Check(Object.ReferenceEquals(map.Mesh, MapSnapshot.Load(mapDirectory, map.Mesh).Mesh), "map cache not reused");
                 File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture.Replace("\"generation\":2", "\"generation\":3"));
                 Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "map mixed two room generations");

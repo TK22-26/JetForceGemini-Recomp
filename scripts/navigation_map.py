@@ -65,6 +65,20 @@ def load_snapshot(directory: Path, *, allow_stale: bool = False) -> tuple[dict, 
         if (type(exit_data.get("destination_code")) is not int or
                 not 0 <= exit_data["destination_code"] <= 65535):
             raise ValueError("Invalid exit destination code")
+    for field in ("markers", "npcs"):
+        entries = live.get(field, [])
+        if not isinstance(entries, list) or len(entries) > 1024:
+            raise ValueError("Invalid marker list")
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise ValueError("Invalid marker")
+            _point(entry.get("position"))
+            if (not isinstance(entry.get("label"), str) or
+                    not 0 < len(entry["label"]) <= 80 or
+                    not isinstance(entry.get("kind"), str) or len(entry["kind"]) > 32):
+                raise ValueError("Invalid marker label or kind")
+            if field == "npcs" and entry["kind"] not in ("npc", "tribal"):
+                raise ValueError("Invalid NPC category")
     return mesh, live
 
 
@@ -79,6 +93,7 @@ def write_obj(path: Path, mesh: dict) -> None:
 
 def write_svg(path: Path, mesh: dict, live: dict) -> None:
     points = mesh["vertices"] + [live["player"]["position"]] + [e["position"] for e in live["exits"]]
+    points += [e["position"] for field in ("markers", "npcs") for e in live.get(field, [])]
     xs, zs = [v[0] for v in points], [v[2] for v in points]
     left, top = min(xs), min(zs)
     scale = 940 / max(max(xs) - left, max(zs) - top, 1)
@@ -97,6 +112,19 @@ def write_svg(path: Path, mesh: dict, live: dict) -> None:
             label = html.escape(f'Exit {index}: 0x{exit_data["destination_code"]:04x}')
             out.write(f'<circle cx="{x}" cy="{z}" r="5" fill="#ffd45b"/>\n')
             out.write(f'<text x="{float(x)+8:.2f}" y="{z}" fill="#ffd45b" font-family="sans-serif" font-size="13">{label}</text>\n')
+        colors = {"npc": "#6495ed", "tribal": "#ffffff", "weapon": "#ffa500",
+                  "key": "#dda0dd", "opened": "#808080"}
+        for field in ("markers", "npcs"):
+            for marker in live.get(field, []):
+                x, z = map(float, project(marker["position"]).split(","))
+                color = colors.get(marker["kind"], "#90ee90")
+                label = html.escape(marker["label"])
+                if field == "npcs":
+                    shape = f"{x},{z-6} {x+6},{z} {x},{z+6} {x-6},{z}"
+                    out.write(f'<polygon points="{shape}" fill="{color}"/>\n')
+                else:
+                    out.write(f'<rect x="{x-4}" y="{z-4}" width="8" height="8" fill="{color}"/>\n')
+                out.write(f'<text x="{x+8:.2f}" y="{z}" fill="{color}" font-family="sans-serif" font-size="13">{label}</text>\n')
         x, z = project(live["player"]["position"]).split(",")
         out.write(f'<circle cx="{x}" cy="{z}" r="6" fill="#50edff"/>\n</svg>\n')
 
@@ -116,7 +144,8 @@ def main() -> int:
             write_svg(args.svg, mesh, live)
         print(json.dumps({"level": live["level"], "generation": live["generation"],
                           "vertices": len(mesh["vertices"]), "triangles": len(mesh["triangles"]),
-                          "player": live["player"], "exits": live["exits"]}, indent=2))
+                          "player": live["player"], "exits": live["exits"],
+                          "npcs": live.get("npcs", []), "items": live.get("markers", [])}, indent=2))
     except (OSError, ValueError, KeyError, TypeError) as error:
         parser.exit(1, f"Map export unavailable: {error}\n")
     return 0

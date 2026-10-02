@@ -44,6 +44,7 @@ namespace JfgLauncher
         [DataMember] public MapPlayer player = null;
         [DataMember] public MapMarker[] exits = null;
         [DataMember] public MapMarker[] markers = null;
+        [DataMember] public MapMarker[] npcs = null;
     }
     internal sealed class MapSnapshot
     {
@@ -100,13 +101,21 @@ namespace JfgLauncher
             Point(live.player.position);
             if (live.exits == null) live.exits = new MapMarker[0];
             if (live.markers == null) live.markers = new MapMarker[0];
-            if (live.exits.Length > 1024 || live.markers.Length > 1024)
+            if (live.npcs == null) live.npcs = new MapMarker[0];
+            if (live.exits.Length > 1024 || live.markers.Length > 1024 || live.npcs.Length > 1024)
                 throw new InvalidDataException("Too many map markers.");
             foreach (MapMarker marker in live.exits) { if (marker == null) throw new InvalidDataException(); Point(marker.position); }
             foreach (MapMarker marker in live.markers) {
                 if (marker == null) throw new InvalidDataException();
                 Point(marker.position);
                 if ((marker.label ?? "").Length > 80 || (marker.kind ?? "").Length > 32) throw new InvalidDataException();
+            }
+            foreach (MapMarker npc in live.npcs) {
+                if (npc == null || (npc.kind != "npc" && npc.kind != "tribal"))
+                    throw new InvalidDataException("Invalid NPC marker.");
+                Point(npc.position);
+                if (String.IsNullOrEmpty(npc.label) || npc.label.Length > 80)
+                    throw new InvalidDataException("Invalid NPC label.");
             }
             return new MapSnapshot { Mesh = mesh, Live = live };
         }
@@ -163,11 +172,14 @@ namespace JfgLauncher
                               Height / 2f + (z - centerZ) * scale + pan.Y);
         }
         private PointF Project(float[] p) { return Project(p[0], p[2]); }
-        private void Marker(Graphics g, float[] p, Color color, string text, bool square)
+        private void Marker(Graphics g, float[] p, Color color, string text, bool square, bool diamond = false)
         {
             PointF at = Project(p);
             using (Brush brush = new SolidBrush(color)) {
-                if (square) g.FillRectangle(brush, at.X - 4, at.Y - 4, 8, 8);
+                if (diamond) g.FillPolygon(brush, new PointF[] {
+                    new PointF(at.X, at.Y - 6), new PointF(at.X + 6, at.Y),
+                    new PointF(at.X, at.Y + 6), new PointF(at.X - 6, at.Y) });
+                else if (square) g.FillRectangle(brush, at.X - 4, at.Y - 4, 8, 8);
                 else g.FillEllipse(brush, at.X - 4, at.Y - 4, 8, 8);
                 g.DrawString(text, Font, brush, at.X + 7, at.Y - 7);
             }
@@ -199,6 +211,9 @@ namespace JfgLauncher
                 Color color = marker.kind == "opened" ? Color.Gray : marker.kind == "key" ? Color.Plum : marker.kind == "weapon" ? Color.Orange : Color.LightGreen;
                 Marker(g, marker.position, color, marker.label ?? "Item", true);
             }
+            foreach (MapMarker npc in snapshot.Live.npcs)
+                Marker(g, npc.position, npc.kind == "tribal" ? Color.White : Color.CornflowerBlue,
+                       npc.label, false, true);
             PointF player = Project(snapshot.Live.player.position);
             using (Brush brush = new SolidBrush(snapshot.IsLive ? Color.Cyan : Color.Gray)) {
                 g.FillEllipse(brush, player.X - 6, player.Y - 6, 12, 12);
@@ -229,7 +244,7 @@ namespace JfgLauncher
             MinimumSize = new Size(420, 360);
             Font = new Font("Segoe UI", 9);
             Controls.Add(canvas);
-            FlowLayoutPanel bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 38 };
+            FlowLayoutPanel bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 65 };
             Button fit = new Button { Text = "Fit room", AutoSize = true };
             fit.Click += delegate { canvas.Fit(); };
             Button files = new Button { Text = "Open exports", AutoSize = true };
@@ -239,6 +254,8 @@ namespace JfgLauncher
             };
             bar.Controls.Add(fit); bar.Controls.Add(files);
             bar.Controls.Add(new Label { Text = "Wheel: zoom   Drag: pan   Cyan: player   Yellow: exits   Squares: items", AutoSize = true, Padding = new Padding(6, 8, 0, 0) });
+            bar.SetFlowBreak(bar.Controls[bar.Controls.Count - 1], true);
+            bar.Controls.Add(new Label { Text = "Diamonds: blue NPCs, white Tribals", AutoSize = true, Padding = new Padding(6, 0, 0, 0) });
             Controls.Add(bar);
             status.Dock = DockStyle.Bottom; status.Height = 38; status.Padding = new Padding(8);
             Controls.Add(status);
@@ -252,8 +269,12 @@ namespace JfgLauncher
             try {
                 MapSnapshot value = MapSnapshot.Load(directory, cached);
                 cached = value.Mesh; canvas.UpdateMap(value);
+                int tribalCount = 0;
+                foreach (MapMarker npc in value.Live.npcs)
+                    if (npc.kind == "tribal") tribalCount++;
                 status.Text = (value.IsLive ? (value.Live.clearing_active ? "LIVE" : "LIVE · scripted scene / controls suspended") : "Saved map · game closed, paused, or no longer exporting")
-                    + "  |  " + value.Live.exits.Length + " exits  |  " + value.Live.markers.Length + " items  |  arrow shows movement";
+                    + "  |  " + value.Live.exits.Length + " exits  |  " + value.Live.markers.Length + " items  |  "
+                    + (value.Live.npcs.Length - tribalCount) + " NPCs  |  " + tribalCount + " Tribals";
             }
             catch (InvalidDataException error) { cached = null; canvas.UpdateMap(null); status.Text = error.Message; }
             catch (IOException) { cached = null; canvas.UpdateMap(null); status.Text = "Waiting for the game to export a room..."; }

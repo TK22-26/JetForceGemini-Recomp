@@ -145,3 +145,16 @@ When a complete native build is beside the launcher, it is selected automaticall
 Use the matching native build from the mod source revision.
 See [navigation mod setup and limits](navigation-mod.md), including scripted-scene
 exclusions and the remaining route-following work.
+
+## Master volume
+
+The launcher has a 0-100% **Volume** slider and a **Mute** checkbox.
+They remain usable while the game runs and are remembered for subsequent
+launches. Muting preserves the chosen volume so unmuting restores it.
+Normal and Navigation mod launches share these audio preferences.
+
+The native game reads the launcher's audio.ini preference before its first audio
+buffer, then polls for changes every 100 ms. Updates affect final host PCM only;
+the original game's music/SFX levels still apply. Already queued audio can take
+a few tenths of a second to drain after a change. Brief gain ramps avoid clicks.
+This requires the updated native game executable paired with this launcher.

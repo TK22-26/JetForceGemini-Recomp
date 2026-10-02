@@ -84,6 +84,7 @@ namespace JfgLauncher
         {
             string target = PrepareNavigationProfile(profile);
             ProcessStartInfo info = StartInfo(runtime, rom, target);
+            info.EnvironmentVariables["JFG_MASTER_VOLUME_CONFIG"] = AudioPreferences.FileName(profile);
             // Each run has a new export directory, so old maps cannot look current.
             string exports = Path.Combine(target, "maps", DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N"));
             info.EnvironmentVariables["JFG_NAVIGATION_MOD"] = "1";
@@ -228,6 +229,7 @@ namespace JfgLauncher
                 ControllerProfile.Load(profile);
                 info.EnvironmentVariables["JFG_CONTROLLER_CONFIG"] = ControllerProfile.FileName(profile);
             }
+            info.EnvironmentVariables["JFG_MASTER_VOLUME_CONFIG"] = AudioPreferences.FileName(profile);
             return info;
         }
 
@@ -277,6 +279,9 @@ namespace JfgLauncher
         private readonly Label status = new Label();
         private readonly Button play = new Button();
         private readonly CheckBox navigation = new CheckBox();
+        private readonly TrackBar volume = new TrackBar();
+        private readonly CheckBox mute = new CheckBox();
+        private readonly Label volumeValue = new Label();
         private readonly ProgressBar progress = new ProgressBar();
         private readonly List<Control> inputs = new List<Control>();
         private bool busy;
@@ -285,8 +290,8 @@ namespace JfgLauncher
         internal LauncherWindow()
         {
             Text = "JFG Launcher Preview";
-            ClientSize = new Size(760, 554);
-            MinimumSize = new Size(776, 593);
+            ClientSize = new Size(760, 610);
+            MinimumSize = new Size(776, 649);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10);
             BackColor = Color.FromArgb(245, 247, 251);
@@ -295,7 +300,7 @@ namespace JfgLauncher
             layout.Dock = DockStyle.Fill;
             layout.Padding = new Padding(24);
             layout.ColumnCount = 1;
-            layout.RowCount = 10;
+            layout.RowCount = 11;
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
@@ -303,6 +308,7 @@ namespace JfgLauncher
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 8));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
@@ -330,11 +336,11 @@ namespace JfgLauncher
             status.Dock = DockStyle.Fill;
             status.Padding = new Padding(0, 12, 0, 0);
             status.ForeColor = Color.FromArgb(64, 76, 92);
-            layout.Controls.Add(status, 0, 7);
+            layout.Controls.Add(status, 0, 8);
             progress.Dock = DockStyle.Fill;
             progress.Visible = false;
             progress.Style = ProgressBarStyle.Marquee;
-            layout.Controls.Add(progress, 0, 8);
+            layout.Controls.Add(progress, 0, 9);
             FlowLayoutPanel actions = new FlowLayoutPanel();
             actions.Dock = DockStyle.Fill;
             actions.Padding = new Padding(0, 10, 0, 0);
@@ -396,7 +402,26 @@ namespace JfgLauncher
                 } catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
             };
             actions.Controls.Add(maps);
-            layout.Controls.Add(actions, 0, 9);
+            layout.Controls.Add(actions, 0, 10);
+            AudioPreferences audio;
+            try { audio = AudioPreferences.Load(LocalSetup.ProfileRoot); }
+            catch (Exception) {
+                audio = new AudioPreferences { Muted = true };
+                status.Text = "Saved audio settings could not be read. Choose a volume or uncheck Mute to save new settings.";
+            }
+            FlowLayoutPanel audioRow = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false };
+            audioRow.Controls.Add(new Label { Text = "Volume", Width = 75, Padding = new Padding(0, 8, 0, 0) });
+            volume.Minimum = 0; volume.Maximum = 100; volume.TickFrequency = 10;
+            volume.SmallChange = 5; volume.LargeChange = 10; volume.Width = 330;
+            volume.Value = audio.Volume; volume.AccessibleName = "Master volume";
+            mute.Text = "Mute"; mute.Checked = audio.Muted; mute.AutoSize = true;
+            mute.Padding = new Padding(0, 8, 0, 0); mute.AccessibleName = "Mute game audio";
+            volumeValue.Width = 100; volumeValue.Padding = new Padding(0, 8, 0, 0);
+            volumeValue.Text = audio.Muted ? "Muted (" + audio.Volume + "%)" : audio.Volume + "%";
+            audioRow.Controls.Add(volume); audioRow.Controls.Add(volumeValue); audioRow.Controls.Add(mute);
+            layout.Controls.Add(audioRow, 0, 7);
+            volume.ValueChanged += delegate { SaveAudioPreference(); };
+            mute.CheckedChanged += delegate { SaveAudioPreference(); };
             Settings saved = LocalSetup.LoadSettings(LocalSetup.ProfileRoot);
             runtime.Text = LocalSetup.PreferredRuntime(AppDomain.CurrentDomain.BaseDirectory, saved.RuntimePath);
             rom.Text = saved.RomPath ?? "";
@@ -408,6 +433,13 @@ namespace JfgLauncher
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             };
+        }
+
+        private void SaveAudioPreference()
+        {
+            volumeValue.Text = mute.Checked ? "Muted (" + volume.Value + "%)" : volume.Value + "%";
+            try { new AudioPreferences { Volume = volume.Value, Muted = mute.Checked }.Save(LocalSetup.ProfileRoot); }
+            catch (Exception error) { status.Text = "Could not save volume: " + LocalSetup.FriendlyError(error); }
         }
 
         private static void AddLabel(TableLayoutPanel layout, string text, int row)
@@ -489,6 +521,7 @@ namespace JfgLauncher
                     process.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs e) {
                         if (!String.IsNullOrWhiteSpace(e.Data)) failure = e.Data.Length > 400 ? e.Data.Substring(0, 400) : e.Data;
                     };
+                    new AudioPreferences { Volume = volume.Value, Muted = mute.Checked }.Save(LocalSetup.ProfileRoot);
                     if (!process.Start()) throw new IOException();
                     process.BeginOutputReadLine();
                     process.BeginErrorReadLine();
@@ -556,6 +589,7 @@ namespace JfgLauncher
                         : LocalSetup.StartInfo(game, selectedRom, LocalSetup.ProfileRoot);
                     support.Write(navigation.Checked ? "mod=navigation-enabled" : "mod=disabled");
                     process.StartInfo.EnvironmentVariables["JFG_SUPPORT_LOG"] = support.NativePath;
+                    new AudioPreferences { Volume = volume.Value, Muted = mute.Checked }.Save(LocalSetup.ProfileRoot);
                     if (!process.Start()) throw new IOException();
                     if (navigation.Checked) ShowNavigationMap(process.StartInfo.EnvironmentVariables["JFG_MOD_OUTPUT"]);
                     support.Write("stage=started");

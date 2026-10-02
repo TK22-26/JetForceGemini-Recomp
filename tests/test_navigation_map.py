@@ -32,6 +32,35 @@ class NavigationMapTests(unittest.TestCase):
         self.assertIn("f 1 2 3", (self.path / "map.obj").read_text())
         self.assertIn("Exit 0: 0xff03", (self.path / "map.svg").read_text())
 
+    def test_npcs_items_and_safe_svg_labels(self):
+        self.live["npcs"] = [
+            {"position": [20, 0, 40], "kind": "npc", "label": 'NPC <Guide> & "test"'},
+            {"position": [40, 0, 40], "kind": "tribal", "label": "Tribal"}]
+        self.live["markers"] = [
+            {"position": [60, 0, 40], "kind": "weapon", "label": "Chest: Shotgun"}]
+        self.save()
+        mesh, live = load_snapshot(self.path)
+        write_svg(self.path / "npcs.svg", mesh, live)
+        svg = (self.path / "npcs.svg").read_text()
+        self.assertIn("NPC &lt;Guide&gt; &amp;", svg)
+        self.assertIn("Chest: Shotgun", svg)
+        self.assertIn("#6495ed", svg)
+        self.assertIn("#ffffff", svg)
+
+    def test_reject_invalid_npcs(self):
+        for entry in [
+            {"position": [0, 0], "kind": "npc", "label": "Guide"},
+            {"position": [0, 0, 0], "kind": "enemy", "label": "Drone"},
+            {"position": [0, 0, 0], "kind": "npc", "label": "x" * 81}]:
+            self.live["npcs"] = [entry]
+            self.save()
+            with self.assertRaises(ValueError):
+                load_snapshot(self.path)
+        self.live["npcs"] = [None] * 1025
+        self.save()
+        with self.assertRaises(ValueError):
+            load_snapshot(self.path)
+
     def test_reject_stale_unless_offline_inspection(self):
         self.live["timestamp_ms"] = 1
         self.save()

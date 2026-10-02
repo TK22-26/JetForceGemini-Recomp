@@ -44,7 +44,7 @@ and its collision-plane normal. Material flags are retained rather than treated
 as proven walkability rules.
 
 live.json contains level, generation, timestamp_ms (UTC Unix milliseconds),
-update, mesh_ready, clearing_active, player, exits, markers, actors, and mod counters.
+update, mesh_ready, clearing_active, player, exits, markers, npcs, actors, and mod counters.
 first_clear_level and first_clear_update record where automatic clearing began. Player state includes
 position, yaw (raw game angle), and health (fixed point; divide by 256).
 Exit state includes a position, plane normal and plane_d, raw radius,
@@ -69,7 +69,19 @@ pan, and **Fit room** to reset the view. Cyan marks the player; the arrow shows
 movement direction, not camera facing. Yellow dots mark exits. Squares mark
 items: orange for weapons, purple for keys, green for other items, and gray for
 opened chests. Labels identify verified chest rewards. Unknown special rewards
-retain their numeric content code; crate contents remain unidentified.
+retain their numeric content code. Scenery named ForestCrate is excluded because
+its name does not establish that it contains an item.
+
+Blue diamonds mark dialogue NPCs; white diamonds mark living Tribals.
+Labels describe verified character categories, rather than claiming an exact
+proper name or an available reward. NPCs have a separate count from item markers.
+
+The optional npcs array records address, position, kind, label, object_id,
+behavior, and squad_type (-1 for dialogue NPCs). Dialogue behaviour 90 and the
+original Tribal squad classification select these actors. Ordinary enemies,
+scenery, cutscene actors, dead Tribals, and invalid object pointers are excluded.
+Classification does not establish rescue status, interaction range, quest
+completion, or whether an NPC still has a reward.
 
 Markers refresh from currently loaded actors. Collected loose pickups disappear
 when the game removes their actor. The prototype has not catalogued every item

@@ -65,3 +65,28 @@ and five item markers, including the closed shotgun chest. The run retained full
 health with zero invalid memory reads. The real exported room was painted in the
 separate Windows viewer. This validates that chest and export path; other weapon
 rewards and key variants still need manual in-game checks.
+
+### NPC markers, prop correction, and master volume
+
+The updated native Goldwood replay exports its living dialogue guide while all
+three ordinary hostiles are cleared. Reading the saved Goldwood room capture
+also exports two living Tribals without changing the source memory. The separate
+Windows map paints blue NPC and white Tribal diamonds and counts them apart
+from pickups. Descriptive categories cover the dialogue-controller object
+family; these do not prove exact character names or reward availability.
+
+The scenery prop internally named ForestCrate is excluded from item markers.
+A regression test distinguishes that block from confirmed pickups and chests.
+
+Windows and sanitizer tests cover NPC classification, malformed pointers, dead
+Tribals, hostile/cutscene/scenery exclusions, all supported Tribal types, and
+preserving captured memory. Launcher checks validate NPC data and shared,
+persistent audio settings. The SVG reader has NPC/item validation and label
+escaping coverage.
+
+Master-volume tests exercise the complete signed 16-bit sample range, exact
+100% passthrough, half volume, silence, and live gain ramps. Native PCM captures
+contain 10,419,552 bytes of exact silence with saved mute enabled. A second run
+starts audible, becomes silent after a live mute change, and resumes audio
+after unmuting to 25%. Changes act on final output without changing guest clocks
+or audio queue lengths.

@@ -9,9 +9,9 @@
 #include <cstdint>
 #include <ostream>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <utility>
-#include <stdexcept>
 #include <vector>
 
 namespace jfg::mod {
@@ -160,6 +160,123 @@ inline std::vector<Exit> exits(const Memory &m,
   return result;
 }
 
+struct NpcMarker {
+  std::uint32_t address{};
+  Vec3 position{};
+  std::uint16_t object_id{}, behavior{};
+  int squad_type = -1;
+  const char *kind = "npc";
+  const char *label = "NPC";
+};
+// Descriptive labels verified against the supported ROM's object headers.
+// These are character categories, not inferred quest/reward completion.
+inline const char *npc_label(std::uint16_t object) noexcept {
+  switch (object) {
+  case 350:
+  case 550:
+  case 551:
+    return "NPC: Guide";
+  case 476:
+    return "NPC: King";
+  case 486:
+    return "NPC: Wise character";
+  case 487:
+    return "NPC: Limpet";
+  case 488:
+  case 489:
+  case 490:
+    return "NPC: Old mole";
+  case 612:
+    return "NPC: Sidekick";
+  case 772:
+    return "NPC: DJ";
+  default:
+    return "NPC";
+  }
+}
+inline const char *tribal_label(std::uint16_t type) noexcept {
+  switch (type) {
+  case 0x66:
+    return "Tribal: Chief";
+  case 0x70:
+    return "Tribal: Lantern";
+  case 0x90:
+    return "Tribal: Pickaxe";
+  case 0x97:
+    return "Tribal: Barrow";
+  case 0xA5:
+    return "Tribal: Spade";
+  case 0x157:
+    return "Tribal: Hammer";
+  case 0x11E:
+  case 0x11F:
+    return "Tribal: Child";
+  case 0x120:
+    return "Tribal: Baby";
+  default:
+    return "Tribal";
+  }
+}
+inline std::vector<NpcMarker> npc_markers(const Memory &m,
+                                          const std::vector<Actor> &list) {
+  std::vector<NpcMarker> result;
+  for (const auto &a : list) {
+    if (a.behavior != 90U && a.behavior != 24U)
+      continue;
+    try {
+      m.require(a.address, 0xA4U);
+      const auto control = m.u32(a.address + 0x68U);
+      const auto properties = m.u32(a.address + 0x4CU);
+      if (!m.valid(properties, 8U))
+        continue;
+      NpcMarker npc{a.address,  a.position, m.u16(a.address + 0x4AU),
+                    a.behavior, -1,         "npc",
+                    "NPC"};
+      if (a.behavior == 90U) {
+        // Shared dialogue controller (mrhints), not scenery name matching.
+        if (!m.valid(control, 0x38U) || m.s16(properties + 6U) == 0)
+          continue;
+        npc.label = npc_label(npc.object_id);
+      } else {
+        if (!m.valid(control, 0x28U) || m.s16(properties + 6U) <= 0)
+          continue;
+        const auto squad = m.u32(control + 0x24U);
+        if (!m.valid(squad, 0xA4U) || m.u16(squad + 0x48U) != 23U)
+          continue;
+        const auto data = m.u32(squad + 0x68U);
+        if (!m.valid(data, 0x2EU))
+          continue;
+        const auto type = m.u16(data + 0x2CU);
+        if (!tribal(type))
+          continue;
+        npc.squad_type = type;
+        npc.kind = "tribal";
+        npc.label = tribal_label(type);
+      }
+      result.push_back(npc);
+    } catch (const std::runtime_error &) {
+      // Loading or removed actors are not valid interaction targets.
+    }
+  }
+  return result;
+}
+inline void write_npcs(std::ostream &out, const std::vector<NpcMarker> &list) {
+  out << '[';
+  bool first = true;
+  for (const auto &npc : list) {
+    if (!first)
+      out << ',';
+    first = false;
+    out << "{\"address\":" << npc.address << ",\"position\":";
+    json_vec(out, npc.position);
+    // Labels are host-owned literals; no unescaped ROM text enters JSON.
+    out << ",\"kind\":\"" << npc.kind << "\",\"label\":\"" << npc.label
+        << "\",\"object_id\":" << npc.object_id
+        << ",\"behavior\":" << npc.behavior
+        << ",\"squad_type\":" << npc.squad_type << '}';
+  }
+  out << ']';
+}
 
 struct ItemMarker {
   std::uint32_t address{};
@@ -171,13 +288,14 @@ struct ItemMarker {
 // Weapon indices used by the inventory and weapon-pickup controller.
 inline const char *weapon_name(unsigned index) {
   constexpr std::array<const char *, 15> names = {
-      "Pistol", "Homing missiles", "Machine gun", "Shotgun", "Shrink ray",
-      "Rocket launcher", "Flamethrower", "Grenades", "Shurikens", "Fish food",
-      "Proximity mines", "Timed mines", "Remote mines", "Flares", "Cluster bombs"};
+      "Pistol",       "Homing missiles", "Machine gun",     "Shotgun",
+      "Shrink ray",   "Rocket launcher", "Flamethrower",    "Grenades",
+      "Shurikens",    "Fish food",       "Proximity mines", "Timed mines",
+      "Remote mines", "Flares",          "Cluster bombs"};
   return index < names.size() ? names[index] : "Unknown weapon";
 }
 inline std::vector<ItemMarker> item_markers(const Memory &m,
-                                           const std::vector<Actor> &list) {
+                                            const std::vector<Actor> &list) {
   std::vector<ItemMarker> result;
   for (const auto &a : list) {
     try {
@@ -192,15 +310,19 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
         // Chest reward switch, including duplicate entries, verified against
         // the supported ROM's jump table. -1 denotes a special collectable
         // whose player-facing name has not yet been verified.
-        constexpr std::array<int, 21> weapons = {
-            3, 1, 2, 2, 9, 8, -1, -1, 14, 13, 14, 12, 11, 10, 7, 6, 4,
-            -1, -1, -1, 5};
-        const int weapon = item.content_code < static_cast<int>(weapons.size())
-                               ? weapons[static_cast<unsigned>(item.content_code)] : -1;
+        constexpr std::array<int, 21> weapons = {3,  1,  2,  2,  9,  8,  -1,
+                                                 -1, 14, 13, 14, 12, 11, 10,
+                                                 7,  6,  4,  -1, -1, -1, 5};
+        const int weapon =
+            item.content_code < static_cast<int>(weapons.size())
+                ? weapons[static_cast<unsigned>(item.content_code)]
+                : -1;
         item.kind = item.opened ? "opened" : weapon >= 0 ? "weapon" : "chest";
         item.label = "Chest: ";
-        item.label += weapon >= 0 ? weapon_name(static_cast<unsigned>(weapon))
-                                 : "item " + std::to_string(item.content_code) + " (unidentified)";
+        item.label += weapon >= 0
+                          ? weapon_name(static_cast<unsigned>(weapon))
+                          : "item " + std::to_string(item.content_code) +
+                                " (unidentified)";
         if (item.opened)
           item.label += " (opened)";
       } else if (a.behavior == 61U) {
@@ -214,7 +336,8 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
         // weaponPowerUpObjects before storing its inventory index at +0x88.
         bool weapon_object = object == 0x88U;
         for (unsigned n = 0; n < 15U; ++n)
-          weapon_object = weapon_object ||
+          weapon_object =
+              weapon_object ||
               (object != 0U && object == m.u16(0x800A0CB0U + n * 2U));
         if (weapon_object) {
           const auto index = m.u16(a.address + 0x88U);
@@ -249,9 +372,6 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
             item.kind = "key";
             item.label = "Key";
             item.content_code = static_cast<int>(object - 0x258U);
-          } else if (name == "ForestCrate") {
-            item.kind = "crate";
-            item.label = "Crate (contents unknown)";
           } else
             continue;
         }
@@ -501,11 +621,13 @@ public:
       out << "{\"address\":" << item.address << ",\"position\":";
       json_vec(out, item.position);
       // Labels contain only host-owned ASCII literals and numeric IDs.
-      out << ",\"kind\":\"" << item.kind << "\",\"label\":\""
-          << item.label << "\",\"content_code\":" << item.content_code
+      out << ",\"kind\":\"" << item.kind << "\",\"label\":\"" << item.label
+          << "\",\"content_code\":" << item.content_code
           << ",\"opened\":" << (item.opened ? "true" : "false") << '}';
     }
-    out << "],\"actors\":[";
+    out << "],\"npcs\":";
+    write_npcs(out, npc_markers(m, list));
+    out << ",\"actors\":[";
     first = true;
     for (const auto &a : list) {
       if (!first)

@@ -500,3 +500,9 @@ target_include_directories(jfg_navigation_mod_tests PRIVATE "${PROJECT_SOURCE_DI
 target_compile_features(jfg_navigation_mod_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_navigation_mod_tests)
 add_test(NAME jfg.navigation_mod COMMAND jfg_navigation_mod_tests)
+
+add_executable(jfg_master_volume_tests master_volume_tests.cpp)
+target_include_directories(jfg_master_volume_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_master_volume_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_master_volume_tests)
+add_test(NAME jfg.master_volume COMMAND jfg_master_volume_tests)
