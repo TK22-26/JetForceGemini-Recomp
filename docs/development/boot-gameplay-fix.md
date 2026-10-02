@@ -37,9 +37,9 @@ non-atomic memory snapshots were preserved privately. The running process
 does not acquire this correction until restarted. Previously saved ammo or
 health values are not rewritten by the boot adapter.
 
-## Remaining visual issue
+## Initial visual investigation
 
-The reported Goldwood invasion stutter remains open. A separate paced,
+The first Goldwood invasion stutter observation was inconclusive. A paced,
 unskipped intro observation reached 9,800 VI retraces without a trap. Of 4,545
 presentation gaps, 4,533 spanned two VI retraces; larger gaps also occurred.
 The first observation used an actor sampler that only recognizes `animBlue` and captured no matching
@@ -84,5 +84,41 @@ final 4 MiB RDRAM, full health and 100/100 ammo. The enabled trace contained
 36 actor types and 15,831 changed actor snapshots in about 6.4 MB. Focused
 tests passed, including trace size-limit behavior. This checks data coverage
 and guest-state preservation; it does not establish zero timing overhead or
-identify the reported visual stutter. The next useful evidence is a manually
-recorded playthrough of the specific invasion sequence.
+identify the reported visual stutter. The subsequent manual recording and
+matched invasion replay are described below.
+
+## Invasion presentation correction
+
+The manual recording captured two in-scene presentation gaps of 2.61 and 2.41
+seconds while guest updates and audio continued. During these gaps the game
+submitted ten distinct color targets: two display buffers plus effects targets.
+The native runner incorrectly used an eight-entry retained-snapshot cache as
+proof that RT64 still owned a display target. Effects repeatedly evicted both
+display-buffer entries, suppressing presentation even though RT64 retained the
+rendered framebuffers.
+
+Presentation now queries RT64's frontend framebuffer registry for a resident
+color target. The unused retained snapshots and their eviction bookkeeping are
+removed; consumed snapshots return to the existing reuse pool after submission
+and any requested writeback. This does not replay historical graphics tasks or
+raise the cache limit. Opt-in diagnostics record `present-skip` with VI, input
+poll, update, selected display address and last submitted color address when the
+selected target is unavailable.
+
+Both binaries replayed the same 3,538-poll prefix and pre-recording
+save/Pak, including the complete invasion. The old build had
+287 presentations over 424
+invasion updates; the corrected build had 422 over
+424. Maximum in-scene presentation gaps were
+2194.536 ms before and
+57.500 ms after. The corrected replay had
+0 gaps above 100 ms,
+0 missing-target events, and no additional audio
+underruns during the invasion. Final 4 MiB game memory matched byte for byte.
+
+The renderer test, four focused native tests, and the stationary health/ammo
+replay passed. These results cover this recorded scene and presentation
+regression; they do not establish campaign-wide rendering correctness or
+eliminate loading gaps between scenes. The corrected local runtime is prepared
+for visual confirmation. Private logs, game memory, saves and binaries remain
+outside the public repository.

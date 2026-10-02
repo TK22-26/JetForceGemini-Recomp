@@ -747,6 +747,16 @@ Rt64ShellError Rt64Shell::commit_cpu_writeback(
     return result;
 }
 
+bool Rt64Shell::has_color_framebuffer(const std::uint32_t address) const noexcept {
+    if (impl_ == nullptr || !impl_->initialized || impl_->application == nullptr ||
+        impl_->application->state == nullptr || address >= impl_->rdram.size()) {
+        return false;
+    }
+    const auto* framebuffer = impl_->application->state->framebufferManager.find(address);
+    return framebuffer != nullptr &&
+        framebuffer->lastWriteType == RT64::Framebuffer::Type::Color;
+}
+
 Rt64ShellError Rt64Shell::present(const bool capture_frame) noexcept {
     if (impl_ == nullptr || !impl_->initialized ||
         impl_->application == nullptr) {

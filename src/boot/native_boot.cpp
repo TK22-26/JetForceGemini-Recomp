@@ -93,7 +93,6 @@ namespace jfg::boot::native {
 namespace {
 constexpr std::size_t kRomSize = 32U * 1024U * 1024U;
 constexpr std::size_t kRdramSize = 4U * 1024U * 1024U;
-constexpr std::size_t kMaximumRetainedFramebufferTasks = 8U;
 constexpr std::size_t kKseg1AliasOffset = 0x20000000U;
 constexpr std::size_t kCartCachedAliasOffset = 0x10000000U;
 constexpr std::size_t kCartUncachedAliasOffset = 0x30000000U;
@@ -1517,10 +1516,6 @@ struct State {
   std::array<std::uint32_t, 64U> recent_graphics_triangles{};
   std::size_t recent_graphics_position = 0U;
   std::vector<PendingLiveGraphicsTask> pending_graphics_tasks;
-  std::unordered_map<std::uint32_t, PendingLiveGraphicsTask>
-      retained_graphics_tasks;
-  std::unordered_map<std::uint32_t, std::uint64_t> retained_graphics_ages;
-  std::uint64_t retained_graphics_sequence = 0U;
   std::vector<LiveGraphicsOverlayShadow> graphics_overlay_shadows;
   std::vector<std::vector<std::byte>> graphics_snapshot_pool;
   HostAudioDevice host_audio;
@@ -3620,7 +3615,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
     state.retrace_hash_trace.flush(); state.update_hash_trace.flush();
     state.poll_hash_trace.flush(); state.guest_clock_trace.flush();
     state.timing_trace.flush();
-  state.gameplay_trace.flush();
+    state.gameplay_trace.flush();
     std::fprintf(stdout,
         "{\"kind\":\"jfg-phase9-original-os-probe\",\"acceptance\":false,"
         "\"status\":\"retrace-target\",\"retrace_target\":%u,\"vi_retraces\":%llu,"
@@ -4406,40 +4401,11 @@ void complete_pending_live_graphics_tasks(
     if (graphics.color_image_address != 0U) {
       state.graphics_color_image = graphics.color_image_address;
       state.graphics_frame_ready = true;
-      if (!state.retained_graphics_tasks.contains(
-              graphics.color_image_address) &&
-          state.retained_graphics_tasks.size() ==
-              kMaximumRetainedFramebufferTasks) {
-        const auto oldest = (std::min_element)(
-            state.retained_graphics_ages.begin(),
-            state.retained_graphics_ages.end(),
-            [](const auto &left, const auto &right) {
-              return left.second < right.second;
-            });
-        if (oldest == state.retained_graphics_ages.end())
-          fail_closed_dispatch(state, "renderer", "retained-target-index",
-                               target);
-        const auto evicted =
-            state.retained_graphics_tasks.find(oldest->first);
-        if (evicted != state.retained_graphics_tasks.end())
-          state.graphics_snapshot_pool.push_back(
-              std::move(evicted->second.rdram));
-        state.retained_graphics_tasks.erase(oldest->first);
-        state.retained_graphics_ages.erase(oldest);
-      }
-      const auto existing =
-          state.retained_graphics_tasks.find(graphics.color_image_address);
-      if (existing == state.retained_graphics_tasks.end()) {
-        state.retained_graphics_tasks.emplace(graphics.color_image_address,
-                                              std::move(pending));
-      } else {
-        state.graphics_snapshot_pool.push_back(
-            std::move(existing->second.rdram));
-        existing->second = std::move(pending);
-      }
-      state.retained_graphics_ages.insert_or_assign(
-          graphics.color_image_address, ++state.retained_graphics_sequence);
+
     }
+    // Submission and writeback have consumed this snapshot. RT64 owns the
+    // resident render targets; keeping a snapshot is not proof of residency.
+    state.graphics_snapshot_pool.push_back(std::move(pending.rdram));
     if (state.guest_os_probe) continue; // device event owns status/IRQ; original OS owns messages
     complete_guest_sp_status(state, target);
     if (state.scheduler->send(sp->second.first, sp->second.second, false) !=
@@ -4655,23 +4621,15 @@ void present_completed_video(State &state, const std::uint32_t target) {
   // one RT64 submission per displayed frame instead of two.
   if (state.rt64_shell != nullptr && state.graphics_frame_ready &&
       selected_vi_framebuffer != 0U) {
-    bool presentation_ready =
-        state.graphics_color_image == selected_vi_framebuffer;
-    if (state.graphics_color_image != selected_vi_framebuffer) {
-      const auto retained = state.retained_graphics_tasks.find(
-          selected_vi_framebuffer);
-      if (retained != state.retained_graphics_tasks.end()) {
-        // RT64 retains completed color targets internally. Replaying an
-        // old task to select one is both unnecessary and unsafe: its
-        // historical simulation snapshot cannot represent later
-        // render-to-RAM writes, and merging it can leave overwritten
-        // command-buffer bytes in place. Select the resident target via
-        // VI instead and present the already completed workload.
-        state.retained_graphics_ages.insert_or_assign(
-            selected_vi_framebuffer,
-            ++state.retained_graphics_sequence);
-        presentation_ready = true;
-      }
+    // Effects can submit more than eight off-screen targets between VI
+    // presentations. Ask RT64 whether the selected color target exists instead
+    // of letting an unrelated snapshot-cache eviction suppress the frame.
+    const bool presentation_ready =
+        state.rt64_shell->has_color_framebuffer(selected_vi_framebuffer);
+    if (!presentation_ready) {
+      state.gameplay_trace.event("present-skip", {state.vi_retraces,
+          state.controller_samples, state.gameplay_trace_updates,
+          selected_vi_framebuffer, state.graphics_color_image});
     }
     if (presentation_ready) {
       state.rt64_vi.current_line =

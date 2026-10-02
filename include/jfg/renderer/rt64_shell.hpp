@@ -190,6 +190,9 @@ public:
         Rt64MemoryLayout layout) const noexcept;
     [[nodiscard]] Rt64ShellError commit_cpu_writeback(
         std::span<const std::byte> submitted, std::span<std::byte> live) noexcept;
+    // Query on the same frontend thread as submit/present. This follows RT64's
+    // resident framebuffer registry, independently of host snapshot lifetimes.
+    [[nodiscard]] bool has_color_framebuffer(std::uint32_t address) const noexcept;
     [[nodiscard]] Rt64ShellError present(bool capture_frame = true) noexcept;
     [[nodiscard]] bool developer_debugger_available() const noexcept;
     [[nodiscard]] std::size_t last_command_count() const noexcept;
