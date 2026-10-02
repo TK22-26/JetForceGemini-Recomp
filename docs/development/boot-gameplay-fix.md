@@ -146,7 +146,7 @@ preparation time changed from 1.570 ms to
 0.371 ms per task. The maximum in-scene presentation
 gap was 55.485 ms. Generated PCM and final 4 MiB guest
 memory matched the baseline byte for byte. These are replay results; interactive
-audible confirmation is still needed. Raw PCM and the diagnostic plot are local.
+audible confirmation is still needed. Raw PCM and playback event traces remain local.
 
 The optional gameplay timeline now includes audio queue, start, pause-low,
 resume and underrun events. Their payload is current queued bytes, cumulative
