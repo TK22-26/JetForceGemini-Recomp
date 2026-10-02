@@ -253,3 +253,14 @@ its DMA source sampling, command results and device deadlines are separately
 tested. AI has an owned two-buffer FIFO and reference-clock deadlines, not
 host-audio-driven interrupts. Neither implementation reads another emulator's
 source. Their new tests and integration do not refresh signed acceptance.
+
+
+### Retained cartridge boot state (2026-10-02)
+
+`ipl_handoff.hpp` is an independently authored adapter for the supported
+CIC-6105 cartridge-entry profile. Local generated RAM-check bodies identify
+the three retained memory words; their corresponding bytes are copied from
+the user's verified ROM at runtime. The adapter also supplies `osCicId`.
+No IPL3 bytes or upstream implementation are redistributed. Synthetic bounds
+tests and the private idle replay validate this limited correction. See
+`docs/development/boot-gameplay-fix.md` for the health/ammo regression and limits.

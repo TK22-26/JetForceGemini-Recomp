@@ -75,3 +75,14 @@ rule corrected; the full route now completes. Details and evidence are in
   rejection does not recur.
 - Replay the final recorded route with the narrowed display-list repair and
   retain the deterministic checkpoint result.
+
+
+## 2026-10-02 gameplay state correction
+
+The new live report confirmed real zero health and ammunition in guest memory.
+The boot runner omitted CIC-6105 state, activating the game's original health
+drain and ammunition-clearing checks. A boot-state correction preserves full
+health and `100/100` ammunition in the same stationary replay that reproduced
+both failures. See [the boot correction evidence](../development/boot-gameplay-fix.md).
+The earlier instrument-state hypothesis does not account for these confirmed
+gameplay-state failures. The separate invasion visual stutter remains open.

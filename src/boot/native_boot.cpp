@@ -1,6 +1,7 @@
 #include "funcs.h"
 #include "jfg/boot/hle.hpp"
 #include "jfg/boot/reset_handoff.hpp"
+#include "jfg/boot/ipl_handoff.hpp"
 #include "jfg/boot/runlink_module_table.hpp"
 #include "jfg/boot/thread_scheduler.hpp"
 #include "jfg/boot/guest_thread_transport.hpp"
@@ -7044,11 +7045,13 @@ bool write_boot_word(std::vector<std::uint8_t> &bytes, std::uint32_t address,
   bytes[offset + 3U] = static_cast<std::uint8_t>(value);
   return true;
 }
-bool initialize_ipl_state(std::vector<std::uint8_t> &bytes) {
+bool initialize_ipl_state(std::vector<std::uint8_t> &bytes,
+                          std::span<const std::uint8_t> rom) {
   // Documented libultra boot globals populated by the IPL before the ROM
   // entry point. This runner admits the USA image, so the TV mode is NTSC;
   // it models a cold cartridge boot with the oracle-observed 4 MiB RDRAM.
-  return write_boot_word(bytes, 0x80000300U, 1U) &&
+  return initialize_6105_handoff(bytes, rom) &&
+         write_boot_word(bytes, 0x80000300U, 1U) &&
          write_boot_word(bytes, 0x80000304U, 0U) &&
          write_boot_word(bytes, 0x80000308U, 0xB0000000U) &&
          write_boot_word(bytes, 0x8000030CU, 0U) &&
@@ -7620,7 +7623,7 @@ int run_child(const char *path, const unsigned retrace_target,
                  reason);
     return 3;
   }
-  if (!initialize_ipl_state(bytes)) {
+  if (!initialize_ipl_state(bytes, rom)) {
     std::fputs("native boot setup failed: IPL state\n", stderr);
     return 3;
   }
