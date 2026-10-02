@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
   jfg::boot::ReferencePiDma pi;
   bus.bind(store);
   std::array<std::uint8_t, 512> ram{};
-  constexpr auto callback = +[](void* owner, bool read, std::uint32_t cart, std::uint32_t dram,
+  auto callback = +[](void* owner, bool read, std::uint32_t cart, std::uint32_t dram,
                                std::uint32_t length, std::span<std::uint8_t> memory) {
     return static_cast<jfg::boot::ReferenceFlashBus*>(owner)->transfer(read, cart, dram, length, memory);
   };

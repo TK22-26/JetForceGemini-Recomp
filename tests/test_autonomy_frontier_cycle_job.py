@@ -164,7 +164,9 @@ class FrontierCycleJobTests(unittest.TestCase):
                 with self.assertRaisesRegex(SupervisorError, "script pin changed"):
                     queue_next(store, REPO, state)
 
-    def test_expired_finished_step_is_recovered_without_relaunch(self):
+    # Model the dead Windows job owner; the production OS probe is tested separately.
+    @patch("scripts.autonomy.supervisor.owner_process_dead", return_value=True)
+    def test_expired_finished_step_is_recovered_without_relaunch(self, _dead_owner):
         with tempfile.TemporaryDirectory(dir=PRIVATE) as directory:
             state, cycle, graph_path = fixture(Path(directory))
             with JobStore(state / "jobs.sqlite") as store:
@@ -198,7 +200,9 @@ class FrontierCycleJobTests(unittest.TestCase):
                 self.assertIn("blocked sealed", outcome)
                 self.assertEqual(store.job(job_id)["state"], "passed")
 
-    def test_agent_free_service_retries_expired_guarded_step(self):
+    # Model the dead Windows job owner; the production OS probe is tested separately.
+    @patch("scripts.autonomy.supervisor.owner_process_dead", return_value=True)
+    def test_agent_free_service_retries_expired_guarded_step(self, _dead_owner):
         with tempfile.TemporaryDirectory(dir=PRIVATE) as directory:
             state, cycle, graph_path = fixture(Path(directory))
             with JobStore(state / "jobs.sqlite") as store:

@@ -6,13 +6,15 @@
 namespace jfg {
 
 N64StickSample scale_xinput_left_stick(const std::int32_t raw_x,
-                                       const std::int32_t raw_y) noexcept {
+                                       const std::int32_t raw_y,
+                                       const std::int32_t deadzone) noexcept {
+    const auto effective_deadzone = std::clamp(deadzone, 0, 30000);
     const double x = static_cast<double>(std::clamp(
         raw_x, -kXInputStickMaximum, kXInputStickMaximum));
     const double y = static_cast<double>(std::clamp(
         raw_y, -kXInputStickMaximum, kXInputStickMaximum));
     const double magnitude = std::hypot(x, y);
-    if (magnitude <= static_cast<double>(kXInputLeftStickDeadzone)) {
+    if (magnitude <= static_cast<double>(effective_deadzone)) {
         return {};
     }
 
@@ -23,8 +25,8 @@ N64StickSample scale_xinput_left_stick(const std::int32_t raw_x,
     const double outer_radius =
         static_cast<double>(kXInputStickMaximum) / largest_unit_component;
     const double travel = std::clamp(
-        (magnitude - static_cast<double>(kXInputLeftStickDeadzone)) /
-            (outer_radius - static_cast<double>(kXInputLeftStickDeadzone)),
+        (magnitude - static_cast<double>(effective_deadzone)) /
+            (outer_radius - static_cast<double>(effective_deadzone)),
         0.0, 1.0);
     const double output_radius =
         static_cast<double>(kN64StickMaximum) / largest_unit_component;

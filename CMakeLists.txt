@@ -160,8 +160,12 @@ if(JFG_ENABLE_RT64)
         "${jfg_rt64_root}/src/render/rt64_transform_processor.cpp")
     file(SHA256 "${jfg_rt64_transform_processor}"
         jfg_rt64_transform_processor_sha256)
+    # Accept the same pinned file with Git's LF or CRLF checkout convention.
+    # These are exact hashes; altered source still fails closed.
     if(NOT jfg_rt64_transform_processor_sha256 STREQUAL
-       "68d023aa9e5376737aa02c3b310063b773edccd6092fc2e3af66e9e8d74da973")
+       "68d023aa9e5376737aa02c3b310063b773edccd6092fc2e3af66e9e8d74da973" AND
+       NOT jfg_rt64_transform_processor_sha256 STREQUAL
+       "ffd56ba45e76a82c18397c4d777b228a2b0963ac28c6ba9c618b417437bebcf0")
         message(FATAL_ERROR
             "Pinned RT64 transform processor does not match the audited "
             "unmatched-workload compatibility patch input")
@@ -223,7 +227,9 @@ if(JFG_ENABLE_RT64)
         file(SHA256 "${jfg_rt64_plume_d3d12}"
             jfg_rt64_plume_d3d12_sha256)
         if(NOT jfg_rt64_plume_d3d12_sha256 STREQUAL
-           "b8c45f82da26295b40771e53c200d0e7d60989587324ecaddce1fefeb4c7b4ba")
+           "b8c45f82da26295b40771e53c200d0e7d60989587324ecaddce1fefeb4c7b4ba" AND
+           NOT jfg_rt64_plume_d3d12_sha256 STREQUAL
+           "795f1e7d75c450106b7154f4089ea4549fff111e13d6a078b81114c3e0dea317")
             message(FATAL_ERROR
                 "Pinned RT64 Plume D3D12 source does not match the audited "
                 "readback compatibility patch input")

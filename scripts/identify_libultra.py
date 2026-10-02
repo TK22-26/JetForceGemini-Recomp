@@ -41,6 +41,12 @@ BOOT_CRITICAL = frozenset({
     "osInitialize", "osGetCount", "osVirtualToPhysical", "osPhysicalToVirtual",
     "osInvalDCache", "osWritebackDCache", "osWritebackDCacheAll", "osInvalICache",
     "osSetIntMask", "osGetIntMask", "__osSetSR", "__osGetSR",
+    # The live boot also reaches cartridge authentication, FlashRAM, and raw SI.
+    # Their device operations must use the host implementations.
+    "__osSiRawStartDma", "bzero", "osCic6105SendData", "osCic6105StartGetData",
+    "osFlashAllErase", "osFlashClearStatus", "osFlashInit", "osFlashReInit",
+    "osFlashReadArray", "osFlashReadId", "osFlashReadStatus", "osFlashSectorErase",
+    "osFlashWriteArray", "osFlashWriteBuffer",
 })
 
 _DECOMP_SYMBOL_RE = re.compile(

@@ -138,10 +138,11 @@ class N64RecompPatchSetTests(unittest.TestCase):
                 payload = path.read_bytes()
                 self.assertTrue(payload.endswith(b"\n"), "patch must end with a newline")
                 self.assertFalse(payload.endswith(b"\n\n"), "patch has a blank line at EOF")
+                # Context/removal lines preserve the pinned upstream input verbatim.
                 trailing = [
                     line_number
                     for line_number, line in enumerate(payload.splitlines(), start=1)
-                    if line.endswith((b" ", b"\t"))
+                    if line.startswith(b"+") and not line.startswith(b"+++") and line.endswith((b" ", b"\t"))
                 ]
                 self.assertEqual(trailing, [], "patch contains trailing whitespace")
 

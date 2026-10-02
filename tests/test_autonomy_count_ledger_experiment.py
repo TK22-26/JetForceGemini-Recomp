@@ -185,11 +185,21 @@ class CountLedgerWorkflowTests(unittest.TestCase):
                 queue.assert_not_called()
 
     def test_tool_identity_includes_reader_producer_and_parent(self):
-        before = lane.tool_sha()
-        real = lane.file_sha256
-        for name in ("phase9_oracle_count_ledger.py", "oracle_cpu_boundaries.c", "oracle_cpu_boundaries.patch"):
-            with self.subTest(name=name), mock.patch.object(lane, "file_sha256", side_effect=lambda p: "0" * 64 if p.name == name else real(p)):
+        # Synthetic digests cover every declared input without requiring excluded
+        # oracle patches. Production hashing still fails closed on missing files.
+        def synthetic(path):
+            return hashlib.sha256(path.as_posix().encode()).hexdigest()
+        with mock.patch.object(lane, "file_sha256", side_effect=synthetic), \
+                mock.patch.object(lane.parent_lane, "tool_sha", return_value="a" * 64):
+            before = lane.tool_sha()
+            for name in ('phase9_oracle_count_ledger.py', 'oracle_cpu_boundaries.c', 'oracle_cpu_boundaries.patch'):
+                with self.subTest(name=name), mock.patch.object(
+                        lane, "file_sha256",
+                        side_effect=lambda path: "0" * 64 if path.name == name else synthetic(path)):
+                    self.assertNotEqual(lane.tool_sha(), before)
+            with mock.patch.object(lane.parent_lane, "tool_sha", return_value="b" * 64):
                 self.assertNotEqual(lane.tool_sha(), before)
+
 
 
 class CountLedgerQualificationTests(unittest.TestCase):

@@ -470,3 +470,9 @@ if(JFG_BUILD_SYNTHETIC_GENERATED_TESTS)
             -P "${CMAKE_CURRENT_SOURCE_DIR}/check_expected_failure.cmake"
     )
 endif()
+
+add_executable(jfg_controller_mapping_tests controller_mapping_tests.cpp)
+target_link_libraries(jfg_controller_mapping_tests PRIVATE jfg_runtime)
+target_compile_features(jfg_controller_mapping_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_controller_mapping_tests)
+add_test(NAME jfg.controller_mapping COMMAND jfg_controller_mapping_tests "${PROJECT_SOURCE_DIR}/tests/fixtures/controller-default.ini")

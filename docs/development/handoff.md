@@ -2,8 +2,10 @@
 
 Prepared 2026-10-01 for a new contributor or interested playtester. This checkout
 preserves the current development source; it does not include a ready-to-run
-game package. Start with the ROM-free build below. Playtesting needs a separate
-local setup and a selected runtime revision.
+game package. For playtesting, follow the
+[ROM-to-build prototype](rom-bootstrap.md) and [launcher guide](launcher.md).
+The launcher sets up missing build tools and downloads its pinned source. You
+supply the supported ROM; Windows may require administrator approval and a restart.
 
 ## What works and what remains open
 
@@ -21,12 +23,16 @@ Historical milestone evidence does not certify every later working-tree change.
 
 ## Build from a source checkout
 
-Use the `main` branch of the public snapshot. Record `git rev-parse HEAD`
-when reporting a result. This repository begins with a fresh history and omits
+For playtesting, use the released launcher. For source builds, use the source
+revision identified by that release, and record `git rev-parse HEAD` when
+reporting a result. This repository begins with a fresh history and omits
 five emulator diagnostic patches. Historical commit references and local
 evidence describe the private development repository and are not public refs.
-The omitted patches also prevent the associated oracle producer and identity
-tests from running without additional maintainer-local inputs.
+The omitted patches prevent the associated oracle producers from running
+without additional maintainer-local inputs. Public identity tests exercise the
+input closure using synthetic digests; production identity checks still reject
+missing files. Historical signed evidence is authenticated as a historical
+statement and cannot certify a changed checkout.
 
 Requirements are Git, Python 3.11 or newer, CMake 3.20 or newer, and a C++20
 compiler. Windows uses Visual Studio 2022 with the C++ workload and its developer
@@ -58,17 +64,17 @@ Each tester must supply their own supported North American retail ROM. Keep it
 outside Git, in an ignored local directory or an explicit external location.
 Do not attach it to an issue or send it with a source checkout.
 
-The playable target is `jfg-native-boot` with the live runtime enabled. Its
-build needs the local CPU generation pipeline, private graphics/audio adapter
-inputs, pinned external dependencies, and a compatible ROM. The source setup
-documents upstream generation, but an unattended clone-to-play workflow is not
-currently established. A source clone alone does not reproduce the maintainer's
-private generated inputs, saved checkpoints, executable, or evidence bodies.
+The playable target is `jfg-native-boot` with the live runtime enabled. The
+[bootstrap recipe](rom-bootstrap.md) downloads pinned dependencies, extracts
+your ROM, builds a matching ELF, recovers the required OS symbol metadata,
+generates CPU/audio code, and compiles the Windows runtime. The launcher's
+**Set up and build** button invokes that recipe. It needs no maintainer-generated
+ELF, overlay layout, CPU output, audio output, or save file.
 
 The existing [manual launcher](../../scripts/launch_phase9_manual_test.ps1)
 expects a particular private build layout and existing Flash/Controller Pak
 files. It also configures local crash dumps and a scheduled task. Treat it as a
-maintainer diagnostic tool until a portable tester launcher has been prepared.
+maintainer diagnostic tool. Use the new launcher for this prototype.
 
 Before asking someone to play, select and identify the executable and runtime
 profile, establish local input generation or an approved binary handoff, verify
@@ -95,6 +101,7 @@ These are the bindings recorded in the [Phase 8 contract](../planning/phase8-acc
 
 ## Reporting a problem
 
+Use **Create support report** in the launcher and attach that filtered ZIP.
 Report the source commit or supplied build identifier, operating system, GPU,
 input device, reproduction steps, expected behavior, actual behavior, and whether
 it repeats. Describe the scene and symptom in text. Review diagnostics before
@@ -146,6 +153,16 @@ maintainer before resuming that work. See [AGENTS.md](../../AGENTS.md),
 
 The owner requested preparation for public source visibility on 2026-10-01.
 The [publication handoff](../governance/publication-handoff.md) records the
-checks and remaining blockers. Public visibility is distinct from an
-open-source license or a playable release. The current [license](../../LICENSE)
-retains all rights; third-party terms and game rights remain separate.
+checks and remaining blockers. On 2026-10-01 the owner selected the
+[MIT License](../../LICENSE) for original project contributions. Third-party
+terms and game rights remain separate. This license change does not establish
+that the prototype is a complete playable release.
+
+## Upstream reference inventory
+
+The [2026-10-01 source review](../upstream/reference-review-2026-10-01.md)
+covers both external JFG projects, the newer overlay branch, and the open
+menu PR. Its [machine-readable catalog](../upstream/reference-catalog.json)
+records source citations, existing equivalents, and prioritized validation
+work. These additions are reference knowledge; runtime behavior and
+dependency pins have not changed.

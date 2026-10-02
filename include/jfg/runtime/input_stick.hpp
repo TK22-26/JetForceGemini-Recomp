@@ -17,6 +17,7 @@ struct N64StickSample {
 
 [[nodiscard]] N64StickSample scale_xinput_left_stick(
     std::int32_t raw_x,
-    std::int32_t raw_y) noexcept;
+    std::int32_t raw_y,
+    std::int32_t deadzone = kXInputLeftStickDeadzone) noexcept;
 
 }  // namespace jfg

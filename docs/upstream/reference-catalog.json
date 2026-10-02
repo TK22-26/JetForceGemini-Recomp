@@ -1,0 +1,985 @@
+{
+  "schema_version": 1,
+  "kind": "jfg-upstream-reference-catalog",
+  "review_date": "2026-10-01",
+  "scope": "Source-attributed reference knowledge and pending work items; no runtime changes or new gameplay acceptance.",
+  "sources": {
+    "decomp_master": {
+      "repository": "Ryan-Myers/Jet-Force-Gemini",
+      "commit": "efd5abb1c79636e297b831f7c2d5bf47eac39c0c",
+      "branch": "master",
+      "status": "merged",
+      "date": "2026-09-02"
+    },
+    "decomp_overlays": {
+      "repository": "Ryan-Myers/Jet-Force-Gemini",
+      "commit": "948e1f5acaa02d2df359ce647ca1f439036975d1",
+      "branch": "OverlayHandling",
+      "status": "unmerged-branch",
+      "date": "2026-09-03"
+    },
+    "decomp_menu": {
+      "repository": "Ryan-Myers/Jet-Force-Gemini",
+      "commit": "d45123d1c528955d5e12ddad805076267a690d76",
+      "branch": "pull/37/head",
+      "status": "open-unmerged-pr",
+      "date": "2026-09-01"
+    },
+    "recomp": {
+      "repository": "Dubstroy/JFG-Recomp",
+      "commit": "61c62e74e6b587341e54433bfe137bb7ca1c5558",
+      "branch": "main",
+      "status": "default-branch",
+      "date": "2026-09-11"
+    }
+  },
+  "project_baseline": {
+    "decomp_commit": "b49aa4791e8fb1e7acd3bba10346876358d0a9a7",
+    "n64recomp_commit": "ffb39cdad1da5de07eaaa48bd1db4a89a7986771",
+    "public_commit": "a302c7c883279727422d2c45d0f27296023bf677"
+  },
+  "function_comparison": {
+    "ours": {
+      "required_cpu_bodies": 2909,
+      "generated_cpu_bodies": 2909,
+      "generation_percent": 100,
+      "covered_aliases": 824,
+      "alternate_entry_helpers": 30,
+      "executable_sections": 156,
+      "populated_overlays": 155,
+      "game_function_stubs": 0,
+      "evidence_kind": "retained local ROM-to-build inventory"
+    },
+    "recomp": {
+      "reported_total": 11253,
+      "reported_analyzed": 1141,
+      "reported_successful": 1140,
+      "reported_analysis_percent": 10.14,
+      "reported_success_percent": 10.13,
+      "evidence_kind": "committed counters; measurement producer and per-entry inventory unavailable"
+    },
+    "identical_denominator_verified": false,
+    "whole_game_completion_percent": null,
+    "limitations": [
+      "Generation coverage is not semantic correctness or campaign completion.",
+      "Explicit fail-closed runtime dispositions remain distinct from generated function stubs.",
+      "The other project's underlying per-function inventory is not published."
+    ]
+  },
+  "items": [
+    {
+      "id": "JFG-UP-001",
+      "title": "Progress counters do not provide a shared function inventory",
+      "priority": 1,
+      "disposition": "reference",
+      "finding": "The recomp updater computes percentages from stored counters or an optional local stats file. Published history does not include that file or its producer. Missing stats retain old counts while updating the date.",
+      "existing_project_behavior": "Our generated inventory separates 2909 required bodies, 824 covered aliases and 30 alternate-entry helpers.",
+      "recommended_action": "Keep these counting units separate and require a producer-pinned per-entry crosswalk before comparing percentages on one denominator.",
+      "validation_required": "A matching ROM/ELF identity, tool revision, executable-section filter and alias policy are required for a strict cross-project comparison.",
+      "evidence": [
+        {
+          "source": "recomp",
+          "file": "progress.json",
+          "line": 6,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/progress.json#L6"
+        },
+        {
+          "source": "recomp",
+          "file": "update_progress.py",
+          "line": 21,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/update_progress.py#L21"
+        },
+        {
+          "source": "recomp",
+          "file": "update_progress.py",
+          "line": 119,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/update_progress.py#L119"
+        }
+      ],
+      "local_files": [
+        "scripts/build_private_generated_root.py",
+        "docs/planning/phase4-acceptance.md"
+      ]
+    },
+    {
+      "id": "JFG-UP-002",
+      "title": "Advertised custom relocation implementation is not published",
+      "priority": 1,
+      "disposition": "reject",
+      "finding": "The tracked N64Recomp gitlink is stock ffb39cdad1da5de07eaaa48bd1db4a89a7986771 throughout reachable history. A jfg_reloc_dir configuration key and README claim do not supply its implementation.",
+      "existing_project_behavior": "Our transformer and runtime already parse, translate and apply JFG custom relocation records.",
+      "recommended_action": "Do not import the test configuration as a working relocation solution. Reassess only if implementation and evidence become available.",
+      "validation_required": "Inspect a published patch/fork and validate it against independent synthetic relocation cases before reuse.",
+      "evidence": [
+        {
+          "source": "recomp",
+          "file": ".gitmodules",
+          "line": 1,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/.gitmodules#L1"
+        },
+        {
+          "source": "recomp",
+          "file": "config-test.toml",
+          "line": 1,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/config-test.toml#L1"
+        },
+        {
+          "source": "recomp",
+          "file": "README.md",
+          "line": 91,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/README.md#L91"
+        }
+      ],
+      "local_files": [
+        "scripts/transform_private_n64recomp_inputs.py",
+        "src/runtime/custom_overlay_relocator.cpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-003",
+      "title": "Exploratory segment ranking is a possible private diagnostic",
+      "priority": 3,
+      "disposition": "candidate",
+      "finding": "The segment analyzer ranks pointer-density blocks, increasing offset sequences and candidate transfer records. These are heuristics rather than established JFG structures.",
+      "existing_project_behavior": "Our current parsers validate known JFG layouts; no equivalent general candidate-ranking survey was found in the reviewed scripts.",
+      "recommended_action": "Consider an independent, bounded candidate scanner only when an unfamiliar layout creates a concrete need. Keep guesses separate from validated layout metadata.",
+      "validation_required": "Synthetic valid and invalid tables, random data, input-boundary cases, version identity and independent layout confirmation.",
+      "evidence": [
+        {
+          "source": "recomp",
+          "file": "tools/analizar_segmentos.py",
+          "line": 142,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/tools/analizar_segmentos.py#L142"
+        },
+        {
+          "source": "recomp",
+          "file": "tools/analizar_segmentos.py",
+          "line": 328,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/tools/analizar_segmentos.py#L328"
+        }
+      ],
+      "local_files": [
+        "scripts/summarize_overlays.py",
+        "scripts/analyze_phase3_overlays.py"
+      ]
+    },
+    {
+      "id": "JFG-UP-004",
+      "title": "Compression and instruction surveys require stronger boundaries",
+      "priority": 3,
+      "disposition": "candidate",
+      "finding": "The project surveys compression signatures and decodable words. Its gzip scan uses the remaining image as input and lacks an output bound; successful instruction decoding does not prove reachability.",
+      "existing_project_behavior": "Our pipeline already validates the supported image and uses bounded runtime models.",
+      "recommended_action": "If needed, independently implement bounded private surveys that distinguish signatures, validated streams, decodable words and reachable instructions.",
+      "validation_required": "Truncated streams, trailing data, decompression limits, mixed code/data and explicit instruction-set and boot-mapping checks.",
+      "evidence": [
+        {
+          "source": "recomp",
+          "file": "tools/detectar_compresion.py",
+          "line": 99,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/tools/detectar_compresion.py#L99"
+        },
+        {
+          "source": "recomp",
+          "file": "tools/analizar_boot.py",
+          "line": 67,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/tools/analizar_boot.py#L67"
+        }
+      ],
+      "local_files": [
+        "scripts/runtime_spike_models.py",
+        "scripts/analyze_boot_reachability.py"
+      ]
+    },
+    {
+      "id": "JFG-UP-005",
+      "title": "Do not import the exploratory CFG or default configuration",
+      "priority": 1,
+      "disposition": "reject",
+      "finding": "The boot CFG treats delay slots as ordinary queued nodes, permitting an apparent continuation beyond unconditional transfers. Default config tables do not match the pinned N64Recomp parser.",
+      "existing_project_behavior": "Our generation uses the pinned recompiler plus reviewed local patches and generated-code reachability analysis.",
+      "recommended_action": "Retain these as reviewed hazards; do not adopt their CFG, guessed boot mapping or default configuration.",
+      "validation_required": "Any future replacement needs processor-semantic delay-slot cases and a parser-compatible, pinned build recipe.",
+      "evidence": [
+        {
+          "source": "recomp",
+          "file": "tools/seguir_ipl3.py",
+          "line": 200,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/tools/seguir_ipl3.py#L200"
+        },
+        {
+          "source": "recomp",
+          "file": "tools/seguir_ipl3.py",
+          "line": 223,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/tools/seguir_ipl3.py#L223"
+        },
+        {
+          "source": "recomp",
+          "file": "config.toml",
+          "line": 1,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/config.toml#L1"
+        }
+      ],
+      "local_files": [
+        "scripts/analyze_boot_reachability.py",
+        "patches/n64recomp/README.md"
+      ]
+    },
+    {
+      "id": "JFG-UP-006",
+      "title": "Keep measured dates separate from report-rendering dates",
+      "priority": 2,
+      "disposition": "candidate",
+      "finding": "The progress workflow formats stored data and updates README text; it does not initialize or run the recompiler to produce new measurements.",
+      "existing_project_behavior": "Our dashboard and completion manifests already distinguish milestone evidence from gameplay acceptance.",
+      "recommended_action": "An optional dashboard renderer should use validated aggregates and show measurement age independently of rendering time. Missing evidence must remain visible.",
+      "validation_required": "Reject incomplete inventories and prove that rendering cannot change measured dates, counts or acceptance status.",
+      "evidence": [
+        {
+          "source": "recomp",
+          "file": ".github/workflows/update-progress.yml",
+          "line": 17,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/.github/workflows/update-progress.yml#L17"
+        },
+        {
+          "source": "recomp",
+          "file": "update_readme.py",
+          "line": 92,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/update_readme.py#L92"
+        }
+      ],
+      "local_files": [
+        "docs/dashboard.md",
+        "evidence/phase4-completion.json"
+      ]
+    },
+    {
+      "id": "JFG-UP-007",
+      "title": "Repository license labels do not establish asset provenance",
+      "priority": 1,
+      "disposition": "reject",
+      "finding": "The recomp tree includes two 4032-byte boot binaries, boot disassembly/ROM-analysis reports and a machine-specific directory listing. Its MIT notice has a placeholder holder. No project-level license was observed in the decomp tree.",
+      "existing_project_behavior": "Upstream checkouts and raw reports remain in ignored private storage. No upstream implementation or game-derived content is part of this catalog.",
+      "recommended_action": "Import only paraphrased, attributed technical observations here. Keep boot binaries, raw reports and machine paths out of project source and releases.",
+      "validation_required": "Any later code reuse needs a file-specific provenance/license review; this source inventory grants no distribution clearance.",
+      "evidence": [
+        {
+          "source": "recomp",
+          "file": "LICENSE",
+          "line": 1,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/LICENSE#L1"
+        },
+        {
+          "source": "recomp",
+          "file": "tools/analizar_ipl3_completo.py",
+          "line": 28,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/tools/analizar_ipl3_completo.py#L28"
+        },
+        {
+          "source": "recomp",
+          "file": "tools/analizar_rom.py",
+          "line": 242,
+          "url": "https://github.com/Dubstroy/JFG-Recomp/blob/61c62e74e6b587341e54433bfe137bb7ca1c5558/tools/analizar_rom.py#L242"
+        }
+      ],
+      "local_files": [
+        "docs/legal/dependency-license-inventory.md",
+        "scripts/check_repository_hygiene.py"
+      ]
+    },
+    {
+      "id": "JFG-UP-008",
+      "title": "Overlay size and main-table prefix rules are already handled",
+      "priority": 2,
+      "disposition": "covered",
+      "finding": "OverlayHandling corrects relocation size fields to byte counts and separates the main relocation count word from its records. Overlay data includes read-only data; BSS is not stored in the ROM image.",
+      "existing_project_behavior": "Our Header model uses primary_bytes and secondary_bytes, separates initialized image and BSS, and skips the main count word before iterating records.",
+      "recommended_action": "Use the upstream fixes as independent corroboration; do not replace the working transformer with older upstream helpers.",
+      "validation_required": "Preserve existing population, bounds, alignment and relocation-record tests when changing dependencies.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "tools/extract_overlays.py",
+          "line": 42,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/tools/extract_overlays.py#L42"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "tools/overlay_which_func.py",
+          "line": 21,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/tools/overlay_which_func.py#L21"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.h",
+          "line": 39,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.h#L39"
+        }
+      ],
+      "local_files": [
+        "scripts/transform_private_n64recomp_inputs.py",
+        "tests/test_derive_g2_custom_overlay_case.py"
+      ]
+    },
+    {
+      "id": "JFG-UP-009",
+      "title": "Timer prose conflicts with the actual unload condition",
+      "priority": 1,
+      "disposition": "candidate",
+      "finding": "runlinkTick decrements the field named refCount. Expiry of selfDestructTimer calls runlinkFreeCode without an additional refCount-zero check. Header prose describing both fields as a joint expiry condition is inaccurate.",
+      "existing_project_behavior": "Host overlay lifetime and dispatch quiescence tests exist; they are distinct from the guest timer policy.",
+      "recommended_action": "Document the countdown meaning and add a future guest-timer scenario with a nonzero refCount at self-destruct expiry. Do not translate the name into a host ownership counter.",
+      "validation_required": "Trace the generated guest path and distinguish ordinary timer expiry from the separate memory-pressure sweep; compare callback and unload order.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 982,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L982"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.h",
+          "line": 79,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.h#L79"
+        }
+      ],
+      "local_files": [
+        "src/runtime/generated_overlay_runtime.cpp",
+        "tests/generated_overlay_runtime_tests.cpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-010",
+      "title": "Controller processing already applies a game-side deadzone",
+      "priority": 2,
+      "disposition": "covered",
+      "finding": "joyClamp subtracts a deadzone of 5 and caps the resulting magnitude at 65. Values with magnitude at most 5 produce zero; raw magnitude 70 reaches the cap.",
+      "existing_project_behavior": "This clamp behavior was already present at the pinned revision and executes through ROM-generated code. Host input conversion has its own mapping.",
+      "recommended_action": "Use these values when interpreting captured stick input. Avoid applying this game transform a second time in the host.",
+      "validation_required": "Boundary observations at both signs of 4, 5, 6, 69 and 70; distinguish device normalization from guest deadzone processing.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/joy.c",
+          "line": 211,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/joy.c#L211"
+        }
+      ],
+      "local_files": [
+        "src/boot/native_boot.cpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-011",
+      "title": "Unmerged menu work supplies settings and mode references",
+      "priority": 2,
+      "disposition": "reference",
+      "finding": "Open PR 37 adds front-end initialization/update mappings, language helpers, screen-mode persistence, split orientation and sound-settings definitions. Its US build check succeeded; its kiosk check failed.",
+      "existing_project_behavior": "Existing observation and keyboard logic already recognize gameplay mode 16 and keyboard mode 24.",
+      "recommended_action": "Use the PR as a pinned, unmerged semantic reference for diagnostic labels and future settings tests, rather than a replacement implementation.",
+      "validation_required": "Confirm mode transitions and stored settings with supported-US captures before promoting labels to runtime behavior. Do not transfer the layout to kiosk or Japanese images.",
+      "evidence": [
+        {
+          "source": "decomp_menu",
+          "file": "src/menu.c",
+          "line": 203,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/d45123d1c528955d5e12ddad805076267a690d76/src/menu.c#L203"
+        },
+        {
+          "source": "decomp_menu",
+          "file": "src/menu.c",
+          "line": 999,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/d45123d1c528955d5e12ddad805076267a690d76/src/menu.c#L999"
+        },
+        {
+          "source": "decomp_menu",
+          "file": "src/menu.c",
+          "line": 1056,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/d45123d1c528955d5e12ddad805076267a690d76/src/menu.c#L1056"
+        }
+      ],
+      "local_files": [
+        "scripts/phase95_observation.py",
+        "scripts/phase95_keyboard.py",
+        "src/boot/native_boot.cpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-012",
+      "title": "Conditional DATA-relocation patch-site gap",
+      "priority": 1,
+      "disposition": "candidate",
+      "finding": "Upstream DATA records patch relative to the data base. Our source_section_and_site adds the main text extent for main-module DATA records, but uses an unchanged site offset for overlay DATA records. Whether such an overlay record occurs in the supported input remains unverified.",
+      "existing_project_behavior": "The transformer handles the main-module distinction and separately validates relocation classes; aggregate record totals do not establish coverage of this combination.",
+      "recommended_action": "Prioritize a synthetic overlay DATA record at offset zero and per-module/type inventory. If the case is admitted, normalize it to the overlay data beginning.",
+      "validation_required": "Establish the current-input occurrence separately; exercise code and data patch-site domains without ROM-derived fixtures. Do not report existing gameplay corruption from this static finding.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 159,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L159"
+        }
+      ],
+      "local_files": [
+        "scripts/transform_private_n64recomp_inputs.py",
+        "include/jfg/runtime/custom_overlay_relocator.hpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-013",
+      "title": "A newer decomp pin changes coordinate and symbol assumptions",
+      "priority": 1,
+      "disposition": "candidate",
+      "finding": "Newer metadata uses zero-based overlay coordinates, explicit secondary relocation sections and additional subalignment. The build also patches selected object symbols to the lazy-call trap and rewrites assembly call names.",
+      "existing_project_behavior": "Our pipeline associates overlays by ROM position and rejects changed symbol inventories. Those checks have not qualified the newer pin.",
+      "recommended_action": "Before updating dependencies, reconcile section-qualified identities, symbol definitions versus references, the complete body/alias/thunk inventory and matched-image provenance.",
+      "validation_required": "Fresh matching build under its admitted investigation; section uniqueness with overlapping coordinates; no duplicate definitions, unclassified symbols or game-function stubs.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "ver/splat/jfg.us.yaml",
+          "line": 700,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/ver/splat/jfg.us.yaml#L700"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "Makefile",
+          "line": 239,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/Makefile#L239"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "tools/patch_symbols.py",
+          "line": 27,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/tools/patch_symbols.py#L27"
+        }
+      ],
+      "local_files": [
+        "dependencies.lock.json",
+        "scripts/transform_private_n64recomp_inputs.py",
+        "scripts/build_private_generated_root.py"
+      ]
+    },
+    {
+      "id": "JFG-UP-014",
+      "title": "Preserved-state resume differs from cold reload",
+      "priority": 1,
+      "disposition": "candidate",
+      "finding": "Guest suspension reserves one of 16 slots, suppresses its cleanup callback and retains the original data/BSS/primary-relocation tail. Resume reacquires the original base and reloads text. This preserves mutable state.",
+      "existing_project_behavior": "The host reload_same_base activation restores pristine initialized bytes and clears BSS. Dispatch-gate suspension is synchronization. Generated guest runlink may already implement preserved-state behavior elsewhere.",
+      "recommended_action": "Represent cold reload and preserved-state resume as distinct diagnostic cases; identify the actual guest/host owner before changing behavior.",
+      "validation_required": "Mutate data/BSS, suspend and resume, then verify preservation; cover occupied original text addresses, exhausted suspension slots and allocation failures.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 783,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L783"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 829,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L829"
+        }
+      ],
+      "local_files": [
+        "src/runtime/generated_overlay_runtime.cpp",
+        "include/jfg/runtime/generated_overlay_runtime.hpp",
+        "tests/generated_overlay_runtime_tests.cpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-015",
+      "title": "Header callback names do not describe their invocation phases",
+      "priority": 2,
+      "disposition": "candidate",
+      "finding": "initFunction is invoked after relocation/backpatching. The header field named resumeFunction is used before free/unload; suspension suppresses it, and runlinkResumeCode does not directly invoke it. Generated documentation describes this inconsistently.",
+      "existing_project_behavior": "Header callback offsets are parsed and bound in hashes, but normalized section rows do not expose an explicit callback-phase contract.",
+      "recommended_action": "Add private callback-presence and phase annotations, then trace actual generated guest ownership. Keep offsets private and validate executable-entry bounds.",
+      "validation_required": "Initialization after successful relocation, cleanup before unload, suppression on suspend, and behavior when a suspended module must be restored before cleanup.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 384,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L384"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 470,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L470"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 783,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L783"
+        }
+      ],
+      "local_files": [
+        "scripts/transform_private_n64recomp_inputs.py",
+        "scripts/build_private_generated_root.py"
+      ]
+    },
+    {
+      "id": "JFG-UP-016",
+      "title": "Logical unload and allocator reclamation are separate events",
+      "priority": 2,
+      "disposition": "candidate",
+      "finding": "mmFree can defer reclamation to mmFreeTick. The US mmSetDelay(0) path does not flush earlier queued frees, while the kiosk path does. Timer expiry and the low-memory eviction sweep use different eligibility conditions.",
+      "existing_project_behavior": "Host dispatch quiescence and in-flight dependent writes already have tests; those checks do not describe the guest allocator's delayed-free policy.",
+      "recommended_action": "Add separate diagnostic events for unload request, loss of availability and actual reclamation. Preserve version-specific behavior.",
+      "validation_required": "Timer expiry while the countdown is nonzero, memory-pressure eligibility, self-unload while executing, and queued frees across delay changes in the supported version.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/memory.c",
+          "line": 315,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/memory.c#L315"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/memory.c",
+          "line": 343,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/memory.c#L343"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 1013,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L1013"
+        }
+      ],
+      "local_files": [
+        "src/runtime/generated_overlay_runtime.cpp",
+        "tests/generated_overlay_runtime_tests.cpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-017",
+      "title": "Upstream annotation helpers must not become authoritative decoders",
+      "priority": 2,
+      "disposition": "reject",
+      "finding": "The symbol-name helper omits the final declared relocation and indexes the overlay reference table differently from runtime source. Another helper describes type-2 targets through that table although runtime source derives them from instruction bits plus the source base.",
+      "existing_project_behavior": "Our transformer consumes the declared main count, uses numeric identities and decodes local jump targets from instruction bits.",
+      "recommended_action": "Retain source names as provenance-bearing annotations. Keep the existing verified numeric decoding and record these helper discrepancies.",
+      "validation_required": "First and last table records, reference-table index zero and a type-2 record whose annotation would disagree with its instruction-derived target.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "tools/overlay_which_func.py",
+          "line": 59,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/tools/overlay_which_func.py#L59"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "tools/overlay_which_func.py",
+          "line": 87,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/tools/overlay_which_func.py#L87"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "tools/overlay_reloc.py",
+          "line": 224,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/tools/overlay_reloc.py#L224"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 98,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L98"
+        }
+      ],
+      "local_files": [
+        "scripts/transform_private_n64recomp_inputs.py"
+      ]
+    },
+    {
+      "id": "JFG-UP-018",
+      "title": "Retained primary relocations need explicit extent diagnostics",
+      "priority": 2,
+      "disposition": "candidate",
+      "finding": "Primary relocation storage remains resident after BSS; secondary relocations are temporary. Some upstream inspection helpers omit secondary bytes from reported ROM size or use signed size fields. The lazy-call assembly also loads the primary size with a signed halfword.",
+      "existing_project_behavior": "Our parser distinguishes both tables and includes retained primary storage when validating target extents, but public section extents do not separately describe that tail.",
+      "recommended_action": "Report primary/secondary byte and record counts separately, and diagnose references into retained relocation storage. Add a compatibility warning if a size crosses the signed-halfword boundary.",
+      "validation_required": "Bounds at each image/storage boundary, temporary secondary lifetime and a synthetic primary size of 32768 or greater. Current-input occurrence is unverified.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 254,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L254"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 308,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L308"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "tools/extract_overlays.py",
+          "line": 48,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/tools/extract_overlays.py#L48"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/hasm/ido/trapDanglingJump.s",
+          "line": 89,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/hasm/ido/trapDanglingJump.s#L89"
+        }
+      ],
+      "local_files": [
+        "scripts/transform_private_n64recomp_inputs.py",
+        "include/jfg/runtime/generated_overlay_runtime.hpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-019",
+      "title": "Addends, special targets and rebinding largely corroborate existing work",
+      "priority": 3,
+      "disposition": "covered",
+      "finding": "Runtime source distinguishes local WORD addends, external WORD replacement, signed HI16/LO16 reconstruction and zero-extended standalone LO16. Loading backpatches resident users; freeing routes calls to the lazy trap and clears other references.",
+      "existing_project_behavior": "Our transformer and runtime already implement checked addends, pair validation, reserved-target handling, dependency invalidation, rebinding and pristine reload.",
+      "recommended_action": "Retain the upstream source citations as corroboration. Focus new work on DATA-relative patch sites and preserved-state resume rather than duplicating these mechanisms.",
+      "validation_required": "Preserve existing synthetic relocation and rebinding cases; add a resume case whose DATA-relative offset is smaller than the text extent.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 92,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L92"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 168,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L168"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 588,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L588"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/runLink.c",
+          "line": 895,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/runLink.c#L895"
+        }
+      ],
+      "local_files": [
+        "scripts/transform_private_n64recomp_inputs.py",
+        "src/runtime/generated_overlay_runtime.cpp",
+        "tests/generated_overlay_runtime_tests.cpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-020",
+      "title": "Cooperative Flash sector erase maps to one page",
+      "priority": 1,
+      "disposition": "candidate",
+      "finding": "Upstream save definitions describe eight sectors of 128 pages, each page 128 bytes, and save routines call osFlashSectorErase. Our cooperative handler routes that name to begin_erase_page, whose completion clears only one 128-byte page. Static granularity mismatch is confirmed; gameplay impact is unmeasured.",
+      "existing_project_behavior": "Flash device tests exercise the page-oriented store API and successful save/reload has been observed. Neither establishes the SDK sector-erase contract.",
+      "recommended_action": "Prioritize SDK erase-granularity verification and a containing-sector operation at the HLE boundary. Keep the existing page primitive distinct.",
+      "validation_required": "Fill three adjacent sectors with distinguishable data; erase from a page within the middle sector; check its full extent and both neighbors. Verify device-model semantics before accepting a runtime change.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/saves.h",
+          "line": 28,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/saves.h#L28"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/saves.c",
+          "line": 371,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/saves.c#L371"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/saves.c",
+          "line": 486,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/saves.c#L486"
+        }
+      ],
+      "local_files": [
+        "src/boot/native_boot.cpp",
+        "src/runtime/save_device_runtime.cpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-021",
+      "title": "Save validity needs game-format checks beyond device persistence",
+      "priority": 1,
+      "disposition": "candidate",
+      "finding": "Game's logical length is 1336 bytes, written across 11 pages. Its checksum starts at 7 and covers logical bytes, with a separate checksum word at slot-base page plus 127. Loading writes the signed validity byte to the slot number on success or -1 on failure. Global flags use 126 payload bytes and a two-byte checksum seeded with 5.",
+      "existing_project_behavior": "Device lifecycle and file persistence are tested, but the inspected tests do not assert these full game-format rules.",
+      "recommended_action": "Add private decoded save validity and checksum observations. Distinguish device persistence from a game-recognized valid slot.",
+      "validation_required": "Corrupt logical data and checksum independently; ignore unused page padding; cover global-default recovery, reset-suppressed writes and the final two reserved pages. Do not require canonical bytes beyond the stored checksum word.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "include/structs.h",
+          "line": 8,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/include/structs.h#L8"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/saves.c",
+          "line": 294,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/saves.c#L294"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/saves.c",
+          "line": 320,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/saves.c#L320"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/saves.c",
+          "line": 456,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/saves.c#L456"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/saves.c",
+          "line": 503,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/saves.c#L503"
+        }
+      ],
+      "local_files": [
+        "src/runtime/save_device_runtime.cpp",
+        "src/boot/native_boot.cpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-022",
+      "title": "SI completion gates saves and repeated polls can preserve input edges",
+      "priority": 1,
+      "disposition": "candidate",
+      "finding": "joyRead advances controller samples and services pending saves only after a successful nonblocking completion receive. Empty polls retain pending flags and recalculate press/release masks from unchanged samples. Serviced flags are cleared without aggregating save-operation return values.",
+      "existing_project_behavior": "The generated guest behavior is largely already present at our pin. Native diagnostics record controller/SI events but do not provide one consolidated guest save-request lifecycle.",
+      "recommended_action": "Observe request flags before/after, receive outcome, previous/current pads, edge masks and logical controller mapping together. Separate request consumption from save verification.",
+      "validation_required": "Empty receive followed by completion; combined save/load flags in guest order; repeated empty receives after a press; save failure after request consumption.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/joy.c",
+          "line": 70,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/joy.c#L70"
+        }
+      ],
+      "local_files": [
+        "src/boot/native_boot.cpp",
+        "scripts/phase95_observation.py"
+      ]
+    },
+    {
+      "id": "JFG-UP-023",
+      "title": "CIC and controller transactions share completion ownership",
+      "priority": 2,
+      "disposition": "candidate",
+      "finding": "Corrected argument types identify challenge/response byte buffers. The guest consumes the pending controller completion, sends the CIC challenge, waits for response transfer, restarts controller reading and then extracts the response.",
+      "existing_project_behavior": "Generated CIC routines and raw SI challenge handling already exist.",
+      "recommended_action": "Add transaction-owner labels to the shared queue trace; preserve byte-buffer signature metadata instead of the older misleading queue-pointer annotation.",
+      "validation_required": "Controller to challenge to response to controller sequencing with an initially pending completion; verify which transaction each completion and response buffer belongs to.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/joy.c",
+          "line": 239,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/joy.c#L239"
+        }
+      ],
+      "local_files": [
+        "src/boot/native_boot.cpp",
+        "scripts/identify_libultra.py"
+      ]
+    },
+    {
+      "id": "JFG-UP-024",
+      "title": "naudio exposes guest scheduling edge cases",
+      "priority": 2,
+      "disposition": "candidate",
+      "finding": "Readable synthesizer/event code exposes zero-client output, strict frame-end callback timing, 16-sample parameter alignment, bounded output chunks, insertion order for equal-time events, empty-queue results and US dropped-event accounting capped at 60000.",
+      "existing_project_behavior": "Audio bridge tests validate output/completion ordering and transactional host behavior; they do not establish these guest scheduling cases.",
+      "recommended_action": "Add private sample-clock, parameter-time, chunk-limit, occupancy/high-water and dropped-event diagnostics.",
+      "validation_required": "Synthetic timelines for endpoint equality, equal-time FIFO insertion, empty queues, full queues and multi-chunk output; compare guest scheduling independently from RSP completion.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "libultra/src/naudio/n_synthesizer.c",
+          "line": 129,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/libultra/src/naudio/n_synthesizer.c#L129"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "libultra/src/naudio/n_synthesizer.c",
+          "line": 168,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/libultra/src/naudio/n_synthesizer.c#L168"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "libultra/src/naudio/n_event.c",
+          "line": 44,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/libultra/src/naudio/n_event.c#L44"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "libultra/src/naudio/n_event.c",
+          "line": 80,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/libultra/src/naudio/n_event.c#L80"
+        }
+      ],
+      "local_files": [
+        "tests/audio_task_bridge_tests.cpp",
+        "src/boot/native_boot.cpp"
+      ]
+    },
+    {
+      "id": "JFG-UP-025",
+      "title": "Camera observations can expose deferred viewport changes",
+      "priority": 2,
+      "disposition": "candidate",
+      "finding": "Camera definitions expose FOV, shake, camera selection and viewport flags. Activation can be deferred until camUserViewTick, which also changes the viewport buffer; invalid camera numbers select zero.",
+      "existing_project_behavior": "Native probes already hash camera memory without fully explaining each changing field.",
+      "recommended_action": "Add decoded camera mode/index, FOV, shake, viewport flags and buffer selection to private observations after verifying the selected version's layout.",
+      "validation_required": "Compare immediately before and after the viewport tick, including deferred enable/disable and invalid camera indices; retain hashes alongside decoded fields.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/camera.h",
+          "line": 19,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/camera.h#L19"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/camera.c",
+          "line": 300,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/camera.c#L300"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/camera.c",
+          "line": 332,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/camera.c#L332"
+        }
+      ],
+      "local_files": [
+        "src/boot/native_boot.cpp",
+        "scripts/phase95_observation.py"
+      ]
+    },
+    {
+      "id": "JFG-UP-026",
+      "title": "Squad membership can enrich actor identity but does not prove rescue",
+      "priority": 3,
+      "disposition": "candidate",
+      "finding": "Squad source supplies squad/member identity, membership chains and inactive state. A tribal type classification is distinct from rescue or campaign progression.",
+      "existing_project_behavior": "Existing observations conservatively avoid inferring unverified actor semantics. Novelty of every squad fact against the original pin was not established.",
+      "recommended_action": "Consider source-attributed squad/member fields after validating layout and lifecycle. Keep classification and objective completion separate.",
+      "validation_required": "Spawn, deactivate and remove a member; confirm membership transitions. Require separate save/progression evidence for a rescue or completed objective.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/squads.c",
+          "line": 52,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/squads.c#L52"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/squads.c",
+          "line": 255,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/squads.c#L255"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/squads.c",
+          "line": 270,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/squads.c#L270"
+        }
+      ],
+      "local_files": [
+        "scripts/phase95_observation.py",
+        "scripts/phase95_inventory.py"
+      ]
+    },
+    {
+      "id": "JFG-UP-027",
+      "title": "Preserve symbol-map and build-variant provenance",
+      "priority": 2,
+      "disposition": "candidate",
+      "finding": "The decomp adds pyelftools, raises the mapfile-parser minimum, enables N_MICRO and reorganizes naudio with distinct compile settings. Semantic symbol metadata can change without new game behavior.",
+      "existing_project_behavior": "SDK identification intentionally maps a limited boot-service allowlist. Newly named functions are not automatically suitable host replacements.",
+      "recommended_action": "Attach upstream commit, symbol-map digest and US/kiosk variant to semantic inventories, keeping identified names separate from HLE interception decisions.",
+      "validation_required": "Reject conflicting duplicate definitions, retain identified-but-unmapped entries, and reconcile new build inputs before any dependency update.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "requirements.txt",
+          "line": 8,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/requirements.txt#L8"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "Makefile",
+          "line": 176,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/Makefile#L176"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "Makefile",
+          "line": 240,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/Makefile#L240"
+        }
+      ],
+      "local_files": [
+        "scripts/identify_libultra.py",
+        "tests/test_identify_libultra.py",
+        "dependencies.lock.json"
+      ]
+    },
+    {
+      "id": "JFG-UP-028",
+      "title": "Newly readable source does not close scheduler or campaign gaps",
+      "priority": 2,
+      "disposition": "reference",
+      "finding": "The inspected scheduler change is largely naming; its retrace handler remains behind NON_MATCHING. gameVi changes only includes, important audio-manager routines remain assembly, and the game/progression layout is still incomplete.",
+      "existing_project_behavior": "Original-OS selected-state parity remains at the documented 1908/1909 boundary, and whole-campaign acceptance is open.",
+      "recommended_action": "Use the new semantics to improve observations and choose bounded validation cases; do not report them as a timing fix or a verified campaign schema.",
+      "validation_required": "Any runtime fix needs its own permitted investigation, focused evidence and existing parity/acceptance checks. Reference additions do not reopen shelved work.",
+      "evidence": [
+        {
+          "source": "decomp_overlays",
+          "file": "src/sched.c",
+          "line": 405,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/sched.c#L405"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/audiomgr.c",
+          "line": 13,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/audiomgr.c#L13"
+        },
+        {
+          "source": "decomp_overlays",
+          "file": "src/main.c",
+          "line": 426,
+          "url": "https://github.com/Ryan-Myers/Jet-Force-Gemini/blob/948e1f5acaa02d2df359ce647ca1f439036975d1/src/main.c#L426"
+        }
+      ],
+      "local_files": [
+        "docs/planning/phase9-execution-frontier-1909.md",
+        "docs/planning/phase9-acceptance.md",
+        "docs/planning/autonomy-progress-guard.md"
+      ]
+    }
+  ]
+}

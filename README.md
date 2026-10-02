@@ -54,6 +54,22 @@ Binary and generated-output distribution remain subject to the recorded
 legal/license decision. Source publication preparation is tracked separately in
 [the publication handoff](docs/governance/publication-handoff.md).
 
+## Windows ROM-to-play prototype
+
+A [launcher prototype](docs/development/launcher.md) can generate and compile a
+local game build from your ROM, then launch it with saves in your user profile.
+The launcher downloads a pinned source checkout and installs missing Git,
+Python, Visual Studio C++ and WSL/Ubuntu build tools on first setup. Windows may
+require administrator approval and a restart; reopen the launcher to continue.
+See [ROM build setup](docs/development/rom-bootstrap.md). No game executable,
+ROM, extracted assets or generated game code is included in the launcher.
+
+After installing the prerequisites, the command-line equivalent is:
+
+```powershell
+python scripts/build_from_rom.py --rom 'D:\Games\my-copy.z64' --play
+```
+
 ## ROM-free build
 
 Requirements:
@@ -91,3 +107,9 @@ which requires additional private build inputs. See
 
 Read `docs/legal/rom-and-assets-policy.md`, `SECURITY.md`, and
 `CONTRIBUTING.md` before contributing.
+
+## License
+
+Original project code and documentation are available under the [MIT License](LICENSE).
+Third-party components retain their own terms; see [the notices](THIRD_PARTY_NOTICES.md).
+The license does not grant rights to Jet Force Gemini game code, assets, or trademarks.

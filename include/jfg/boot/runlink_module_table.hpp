@@ -59,4 +59,11 @@ enum class RunlinkAddressResult : std::uint8_t {
     std::size_t overlay_slot_count, std::uint32_t guest_address,
     RunlinkAddressResolution &resolution) noexcept;
 
+// Suspended entries are (retained allocation base, module slot) pairs.
+// Decide which guest loader to call without mutating retained state.
+enum class RunlinkSuspensionResult : std::uint8_t { absent, suspended, invalid };
+[[nodiscard]] RunlinkSuspensionResult resolve_runlink_suspension(
+    const hle::GuestMemory& memory, std::uint32_t pending_table,
+    std::size_t pending_count, std::uint32_t module_slot) noexcept;
+
 } // namespace jfg::boot

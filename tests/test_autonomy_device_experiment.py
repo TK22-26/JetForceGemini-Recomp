@@ -127,13 +127,21 @@ class DeviceWorkflowTests(unittest.TestCase):
         self.assertEqual(self.store.attempt_history("agent"), [])
 
     def test_tool_identity_includes_new_observation_and_raw_adapters(self):
-        before = device.tool_sha()
-        original = device.file_sha256
-        for name in ("device_observation.py", "phase9_device_events.py", "oracle_device_events.c", "device_event_probe.h"):
-            def changed(path):
-                return "0" * 64 if path.name == name else original(path)
-            with self.subTest(name=name), patch.object(device, "file_sha256", side_effect=changed):
+        # Synthetic digests cover every declared input without requiring excluded
+        # oracle patches. Production hashing still fails closed on missing files.
+        def synthetic(path):
+            return hashlib.sha256(path.as_posix().encode()).hexdigest()
+        with patch.object(device, "file_sha256", side_effect=synthetic), \
+                patch.object(device.interval_experiment, "tool_sha", return_value="a" * 64):
+            before = device.tool_sha()
+            for name in ('device_observation.py', 'phase9_device_events.py', 'oracle_device_events.c', 'device_event_probe.h', 'oracle_device_events.patch'):
+                with self.subTest(name=name), patch.object(
+                        device, "file_sha256",
+                        side_effect=lambda path: "0" * 64 if path.name == name else synthetic(path)):
+                    self.assertNotEqual(device.tool_sha(), before)
+            with patch.object(device.interval_experiment, "tool_sha", return_value="b" * 64):
                 self.assertNotEqual(device.tool_sha(), before)
+
 
     def test_packet_and_registration_tampering_rejected_before_expensive_check(self):
         job_id = self.enqueue()

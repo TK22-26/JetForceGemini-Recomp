@@ -45,9 +45,9 @@ and 134 frontend files found no eight-line normalized matches of at least
 and does not prove authorship. Project provenance attestations remain evidence
 of the authors' stated method, not an independent guarantee.
 
-The project retains its existing all-rights-reserved license for original
-contributions. Public visibility does not make the project open source, and
-does not grant rights to game content or generated output.
+The initial snapshot withheld a reuse license. On 2026-10-01 the owner
+selected [MIT](../../LICENSE) for original contributions. Third-party terms
+remain separate; this grants no rights to game content or generated output.
 
 ## Verification limits
 

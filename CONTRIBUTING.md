@@ -1,7 +1,7 @@
 # Contributing
 
-The repository is private and is not accepting public contributions yet.
-Invited contributors must follow these rules.
+Contributions to original project code are made under the MIT license.
+Contributors must have the right to submit their changes and follow these rules.
 
 ## Data boundary
 
@@ -49,6 +49,7 @@ policy.
 
 ## Licensing
 
-No material may be copied from an unlicensed repository. Until the repository
-license changes, contributors must have an explicit written contribution
-agreement with the project owner.
+Submit original contributions under the [MIT License](LICENSE). Preserve
+applicable third-party notices. A public repository without a license does not
+by itself grant permission to copy its implementations. Do not submit game
+assets or generated ROM-derived code.

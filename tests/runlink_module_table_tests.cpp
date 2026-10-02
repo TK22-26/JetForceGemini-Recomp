@@ -132,7 +132,35 @@ void test_resolve_rejects_ambiguous_and_invalid_tables() {
 
 } // namespace
 
+void test_suspended_module_selection() {
+  std::array<std::uint8_t, 2048U> bytes{};
+  jfg::boot::hle::GuestMemory memory(bytes);
+  using Result = jfg::boot::RunlinkSuspensionResult;
+  const auto resolve = [&](std::uint32_t slot) {
+    return jfg::boot::resolve_runlink_suspension(memory, 0x80000400U, 16U, slot);
+  };
+  for (std::uint32_t i = 0U; i < 16U; ++i)
+    check(memory.write_u32(0x80000404U + i * 8U, 0xFFBU), "seed unused pending entry");
+  check(resolve(4U) == Result::absent, "cold module selects download");
+  check(memory.write_u32(0x80000418U, 0x80000600U), "seed retained allocation");
+  check(memory.write_u32(0x8000041CU, 4U), "seed suspended module");
+  check(memory.write_u32(0x80000600U, 0x1234ABCDU), "seed mutable retained state");
+  const auto before = bytes;
+  check(resolve(4U) == Result::suspended, "pause module selects resume");
+  check(bytes == before, "selection must preserve all retained bytes");
+  check(resolve(5U) == Result::absent, "unrelated module remains cold");
+  check(memory.write_u32(0x80000420U, 0x80000600U) &&
+        memory.write_u32(0x80000424U, 4U), "seed duplicate");
+  check(resolve(4U) == Result::invalid, "ambiguous suspension rejected");
+  check(memory.write_u32(0x80000424U, 0xFFBU) && memory.write_u32(0x80000418U, 0U), "seed missing allocation");
+  check(resolve(4U) == Result::invalid, "missing retained allocation rejected");
+  check(resolve(0U) == Result::invalid && resolve(0xFFBU) == Result::invalid, "reserved slots rejected");
+  check(jfg::boot::resolve_runlink_suspension(memory, 0xFFFFFFF8U, 16U, 4U) == Result::invalid,
+        "out-of-range table rejected");
+}
+
 int main() {
+  test_suspended_module_selection();
   test_publish_and_preserve();
   test_uninitialized_and_not_found();
   test_duplicate_and_fault();
