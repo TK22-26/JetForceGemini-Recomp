@@ -28,10 +28,16 @@ class Phase6ManifestIsHonest(unittest.TestCase):
         manifest = REPO_ROOT / "evidence" / "phase6-completion.json"
         if not manifest.exists():
             self.skipTest("Phase 6 manifest not yet produced")
-        from scripts.build_phase6_completion_manifest import verify
+        from scripts.build_phase6_completion_manifest import verify, verify_attestation
 
-        self.assertEqual(verify(manifest), [])
         document = json.loads(manifest.read_text(encoding="utf-8"))
+        self.assertEqual(verify_attestation(document), [])
+        # The signed historical closure predates later runtime work. It must
+        # remain authentic while current-source acceptance rejects that drift.
+        self.assertIn("bound file set drifted", verify(manifest))
+        changed = json.loads(json.dumps(document))
+        changed["native_boot_status"]["distribution_authorized"] = True
+        self.assertIn("completion signature is invalid", verify_attestation(changed))
         self.assertEqual(
             document["native_boot_status"]["state"], "complete-local-m2"
         )

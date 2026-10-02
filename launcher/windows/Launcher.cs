@@ -14,8 +14,8 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("JFG Launcher Preview")]
 [assembly: AssemblyDescription("Local ROM build and launch prototype for JFG")]
-[assembly: AssemblyVersion("0.2.0.0")]
-[assembly: AssemblyInformationalVersion("0.2.0-prototype.1")]
+[assembly: AssemblyVersion("0.3.0.0")]
+[assembly: AssemblyInformationalVersion("0.3.0-preview.1")]
 
 namespace JfgLauncher
 {
@@ -30,7 +30,7 @@ namespace JfgLauncher
     {
         internal const long RomSize = 33554432;
         internal const string RomSha1 = "493ced9008dbe932d6e91179b68e8630cf23a023";
-        internal const string Guide = "https://github.com/TK22-26/JetForceGemini-Recomp/blob/launcher-preview/docs/development/launcher.md";
+        internal static readonly string Guide = "https://github.com/TK22-26/JetForceGemini-Recomp/blob/" + BuildInfo.SourceCommit + "/docs/development/launcher.md";
 
         internal static string ProfileRoot
         {
@@ -254,14 +254,14 @@ namespace JfgLauncher
             title.Dock = DockStyle.Fill;
             layout.Controls.Add(title, 0, 0);
             Label summary = new Label();
-            summary.Text = "ROM-to-play prototype 0.2\nBuild locally from your North American ROM, then launch the game.";
+            summary.Text = "ROM-to-play preview 0.3\nSelect your North American ROM. Setup builds your game locally.";
             summary.Dock = DockStyle.Fill;
             layout.Controls.Add(summary, 0, 1);
             AddLabel(layout, "1  Select your game ROM", 2);
             AddPicker(layout, rom, 3, "N64 ROM|*.z64;*.n64;*.v64|All files|*.*", "Select your North American retail ROM");
-            AddLabel(layout, "2  Build from ROM below, or select an existing build", 4);
+            AddLabel(layout, "2  Set up and build below, or select an existing build", 4);
             AddPicker(layout, runtime, 5, "Native game build|jfg-native-boot.exe", "Select the native game build");
-            status.Text = "First build requires the source checkout, Python, Visual Studio C++ and WSL.\nOpen Setup guide for installation steps. Saves stay in your user profile.";
+            status.Text = "First setup downloads missing tools and source. Windows may require a restart.\nFuture launches reuse your build. Saves stay in your user profile.";
             status.Dock = DockStyle.Fill;
             status.Padding = new Padding(0, 12, 0, 0);
             status.ForeColor = Color.FromArgb(64, 76, 92);
@@ -283,7 +283,7 @@ namespace JfgLauncher
             actions.Controls.Add(play);
             inputs.Add(play);
             Button build = new Button();
-            build.Text = "Build from ROM";
+            build.Text = "Set up and build";
             build.Size = new Size(145, 34);
             build.Click += async delegate { await Build(); };
             actions.Controls.Add(build);
@@ -367,16 +367,6 @@ namespace JfgLauncher
         private async Task Build()
         {
             if (busy) return;
-            string sourceRoot = LocalSetup.FindSourceRoot(AppDomain.CurrentDomain.BaseDirectory);
-            if (sourceRoot == null)
-            {
-                using (FolderBrowserDialog picker = new FolderBrowserDialog())
-                {
-                    picker.Description = "Select your JetForceGemini-Recomp source checkout";
-                    if (picker.ShowDialog(this) != DialogResult.OK) return;
-                    sourceRoot = picker.SelectedPath;
-                }
-            }
             busy = true;
             foreach (Control control in inputs) control.Enabled = false;
             progress.Visible = true;
@@ -386,16 +376,21 @@ namespace JfgLauncher
                 string selectedRom = LocalSetup.FullPath(rom.Text);
                 status.Text = "Verifying your ROM locally...";
                 checkedRom = await Task.Run(delegate { return LocalSetup.OpenVerifiedRom(selectedRom); });
+                LocalSetup.SaveSettings(LocalSetup.ProfileRoot, new Settings { RuntimePath = runtime.Text, RomPath = selectedRom });
+                if (MessageBox.Show(this, "Setup downloads source and any missing Git, Python, Visual Studio C++ and WSL/Ubuntu tools. " +
+                    "The first setup can download several GB and may require administrator approval and a Windows restart. " +
+                    "Your ROM and generated game stay on this computer. Continue?", Text,
+                    MessageBoxButtons.OKCancel, MessageBoxIcon.Information) != DialogResult.OK) return;
                 string built = null;
                 string failure = null;
                 using (Process process = new Process())
                 {
-                    process.StartInfo = LocalSetup.BuildStartInfo(sourceRoot, selectedRom);
+                    process.StartInfo = FirstRun.StartInfo(selectedRom, Path.Combine(FirstRun.Root, "setup", BuildInfo.SourceCommit));
                     process.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e) {
                         if (String.IsNullOrWhiteSpace(e.Data)) return;
                         if (e.Data.StartsWith("Built: ", StringComparison.Ordinal)) built = e.Data.Substring(7);
                         string message = e.Data.Length > 300 ? e.Data.Substring(0, 300) : e.Data;
-                        BeginInvoke((Action)delegate { status.Text = "Building locally: " + message + "\nThis can take several minutes."; });
+                        BeginInvoke((Action)delegate { status.Text = message + "\nSetup and compilation can take a while. Progress is saved in setup.log."; });
                     };
                     process.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs e) {
                         if (!String.IsNullOrWhiteSpace(e.Data)) failure = e.Data.Length > 400 ? e.Data.Substring(0, 400) : e.Data;
@@ -405,9 +400,14 @@ namespace JfgLauncher
                     process.BeginErrorReadLine();
                     status.Text = "Building locally. Dependencies may be downloaded on the first run.\nThis can take several minutes.";
                     await Task.Run(delegate { process.WaitForExit(); });
+                    if (process.ExitCode == 3010)
+                    {
+                        status.Text = "Restart Windows, reopen the launcher and click Set up and build again.\nYour ROM selection and saves are preserved.";
+                        return;
+                    }
                     if (process.ExitCode != 0 || built == null)
                     {
-                        status.Text = "Build stopped. " + (failure ?? "Open the setup guide and check Python, Visual Studio C++ and WSL.");
+                        status.Text = "Build stopped. " + (failure ?? "Open the setup guide or read %LOCALAPPDATA%\\JFGRecomp\\setup.log.");
                         return;
                     }
                 }

@@ -584,6 +584,20 @@ def verify(manifest_path: Path, private_evidence: Path | None = None) -> list[st
     if private_evidence is not None and native_summary:
         errors.extend(_private_evidence_errors(private_evidence, native_summary))
 
+    errors.extend(verify_attestation(document))
+    return errors
+
+
+def verify_attestation(document: dict[str, object]) -> list[str]:
+    """Authenticate a historical statement, without attesting to today's checkout.
+
+    Use verify() for current-source acceptance. This only verifies the signed
+    document against the pinned key; it never authorizes distribution or replay.
+    """
+    errors: list[str] = []
+    if (not isinstance(document, dict) or document.get("kind") != "jfg-phase6-completion"
+            or document.get("schema_version") != 1):
+        return ["manifest kind/version invalid"]
     authentication = document.get("authentication")
     if (
         not isinstance(authentication, dict)

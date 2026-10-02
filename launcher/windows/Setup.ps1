@@ -1,0 +1,199 @@
+[CmdletBinding()]
+param(
+    [string]$RomPath,
+    [ValidatePattern('^[0-9a-f]{40}$')][string]$SourceCommit,
+    [switch]$CheckOnly
+)
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+$script:SetupRoot = Join-Path $env:LOCALAPPDATA 'JFGRecomp'
+$script:Distro = 'Ubuntu-24.04'
+$script:LinuxPackages = @('build-essential', 'gcc-multilib', 'binutils-mips-linux-gnu',
+    'python3-venv', 'python3-pip', 'pkg-config', 'cmake', 'ninja-build', 'git', 'wget')
+
+function Refresh-SetupPath {
+    $env:PATH = [Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' +
+        [Environment]::GetEnvironmentVariable('PATH', 'User')
+}
+
+function Find-Git {
+    $command = Get-Command git.exe -ErrorAction SilentlyContinue
+    if ($command) { return $command.Source }
+    $path = Join-Path $env:ProgramFiles 'Git\cmd\git.exe'
+    if (Test-Path -LiteralPath $path -PathType Leaf) { return $path }
+    return $null
+}
+
+function Find-Python {
+    $candidates = @()
+    $command = Get-Command python.exe -ErrorAction SilentlyContinue
+    # The WindowsApps alias can be an installed Store Python or an empty Store
+    # shortcut. Only invoke it when the Python package actually exists.
+    $storePython = @(Get-AppxPackage -Name 'PythonSoftwareFoundation.Python.*' -ErrorAction SilentlyContinue)
+    if ($command -and ($command.Source -notlike '*\WindowsApps\*' -or $storePython.Count -gt 0)) {
+        $candidates += $command.Source
+    }
+    foreach ($version in @('314', '313', '312', '311')) {
+        $candidates += Join-Path $env:LOCALAPPDATA "Programs\Python\Python$version\python.exe"
+        $candidates += Join-Path $env:ProgramFiles "Python$version\python.exe"
+    }
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            & $candidate -c 'import sys; sys.exit(0 if sys.version_info >= (3,11) and sys.maxsize > 2**32 else 1)' 2>$null
+            if ($LASTEXITCODE -eq 0) { return $candidate }
+        }
+    }
+    return $null
+}
+
+function Find-VisualStudio {
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (-not (Test-Path -LiteralPath $vswhere)) { return $null }
+    $found = @(& $vswhere -latest -products '*' -version '[17.0,18.0)' -requires `
+        Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project `
+        -property installationPath)
+    if ($LASTEXITCODE -eq 0 -and $found.Count -gt 0) { return $found[0] }
+    return $null
+}
+
+function Test-Ubuntu {
+    $wsl = Join-Path $env:WINDIR 'System32\wsl.exe'
+    if (-not (Test-Path -LiteralPath $wsl)) { return $false }
+    $installed = (@(& $wsl --list --quiet 2>$null) -join "`n").Replace([string][char]0, '')
+    return ($LASTEXITCODE -eq 0 -and @($installed -split "`r?`n" | Where-Object { $_.Trim() -eq $script:Distro }).Count -gt 0)
+}
+
+function Test-LinuxPackages {
+    if (-not (Test-Ubuntu)) { return $false }
+    $lines = @(& "$env:WINDIR\System32\wsl.exe" -d $script:Distro -u root --exec `
+        dpkg-query -W '-f=${db:Status-Abbrev}\n' @script:LinuxPackages 2>$null)
+    return ($LASTEXITCODE -eq 0 -and $lines.Count -eq $script:LinuxPackages.Count -and
+        @($lines | Where-Object { $_ -notmatch '^ii' }).Count -eq 0)
+}
+
+function Invoke-Checked([string]$File, [string[]]$Arguments) {
+    & $File @Arguments
+    if ($LASTEXITCODE -in @(3010, 1641)) {
+        Write-Output 'JFG-RESTART: Restart Windows, reopen this launcher and click Set up and build again.'
+        exit 3010
+    }
+    if ($LASTEXITCODE -ne 0) { throw "Setup command failed ($LASTEXITCODE): $([IO.Path]::GetFileName($File)). See setup.log." }
+}
+
+function Install-Package([string]$Id, [string]$Override = '') {
+    $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+    if (-not $winget) { throw 'Install or update Microsoft App Installer from Microsoft Store, then reopen the launcher. Setup requires winget.' }
+    Write-Output "Installing $Id. Approve the Windows installer prompt if shown."
+    $arguments = @('install', '--id', $Id, '--exact', '--source', 'winget',
+        '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity')
+    if ($Override) { $arguments += @('--override', $Override) }
+    Invoke-Checked $winget.Source $arguments
+    Refresh-SetupPath
+}
+
+function Ensure-BuildTools {
+    if (-not (Find-Git)) { Install-Package 'Git.Git' }
+    if (-not (Find-Python)) { Install-Package 'Python.Python.3.12' }
+    if (-not (Find-VisualStudio)) {
+        $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+        $existing = @()
+        if (Test-Path -LiteralPath $vswhere) {
+            $existing = @(& $vswhere -latest -products '*' -version '[17.0,18.0)' -property installationPath)
+        }
+        if ($existing.Count -gt 0) {
+            Write-Output 'Adding C++ and CMake to Visual Studio 2022. Approve the Windows prompt.'
+            $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\setup.exe'
+            $product = @(& $vswhere -latest -products '*' -version '[17.0,18.0)' -property productId)
+            $workload = if ($product -contains 'Microsoft.VisualStudio.Product.BuildTools') { 'VCTools' } else { 'NativeDesktop' }
+            $arguments = 'modify --installPath "' + $existing[0] + '" --add Microsoft.VisualStudio.Workload.' + $workload + ' --includeRecommended --passive --norestart'
+            $process = Start-Process -FilePath $installer -ArgumentList $arguments -Verb RunAs -WindowStyle Hidden -Wait -PassThru
+            if ($process.ExitCode -in @(3010, 1641)) { Write-Output 'JFG-RESTART: Restart Windows, reopen the launcher and continue setup.'; exit 3010 }
+            if ($process.ExitCode -ne 0) { throw 'Visual Studio setup did not finish. Reopen the launcher to retry.' }
+        } else {
+            Install-Package 'Microsoft.VisualStudio.2022.BuildTools' '--wait --passive --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended'
+        }
+    }
+    if (-not (Find-Git) -or -not (Find-Python) -or -not (Find-VisualStudio)) {
+        throw 'Build tools are incomplete. Restart Windows after any installer, then reopen the launcher.'
+    }
+    if (-not (Test-Ubuntu)) {
+        Write-Output 'Installing WSL and Ubuntu 24.04. Approve the Windows prompt; a restart may be required.'
+        $process = Start-Process -FilePath "$env:WINDIR\System32\wsl.exe" `
+            -ArgumentList '--install -d Ubuntu-24.04 --no-launch --web-download' `
+            -Verb RunAs -WindowStyle Hidden -Wait -PassThru
+        if ($process.ExitCode -in @(3010, 1641) -or -not (Test-Ubuntu)) {
+            Write-Output 'JFG-RESTART: Restart Windows, reopen the launcher and continue setup. WSL needs virtualization enabled.'
+            exit 3010
+        }
+        if ($process.ExitCode -ne 0) { throw 'WSL setup failed. See the setup guide for Windows and virtualization requirements.' }
+    }
+    if (-not (Test-LinuxPackages)) {
+        Write-Output 'Installing the Ubuntu build packages...'
+        $wsl = "$env:WINDIR\System32\wsl.exe"
+        Invoke-Checked $wsl @('-d', $script:Distro, '-u', 'root', '--exec', 'apt-get', 'update')
+        Invoke-Checked $wsl (@('-d', $script:Distro, '-u', 'root', '--exec', 'env', 'DEBIAN_FRONTEND=noninteractive', 'apt-get', 'install', '-y') + $script:LinuxPackages)
+        if (-not (Test-LinuxPackages)) { throw 'Ubuntu build packages are incomplete. See setup.log and retry setup.' }
+    }
+}
+
+function Get-PinnedSource([string]$Commit) {
+    if ($Commit -notmatch '^[0-9a-f]{40}$') { throw 'The launcher has no valid source revision.' }
+    $git = Find-Git
+    $cache = [IO.Path]::GetFullPath((Join-Path $script:SetupRoot 'source'))
+    $destination = Join-Path $cache $Commit
+    if (-not (Test-Path -LiteralPath $destination)) {
+        New-Item -ItemType Directory -Path $cache -Force | Out-Null
+        $temporary = Join-Path $cache ('download-' + [Guid]::NewGuid().ToString('N'))
+        Write-Output 'Downloading the source version bundled with this launcher...'
+        Invoke-Checked $git @('init', $temporary)
+        Invoke-Checked $git @('-C', $temporary, 'config', 'core.autocrlf', 'false')
+        Invoke-Checked $git @('-C', $temporary, 'config', 'core.longpaths', 'true')
+        Invoke-Checked $git @('-C', $temporary, 'remote', 'add', 'origin', 'https://github.com/TK22-26/JetForceGemini-Recomp.git')
+        Invoke-Checked $git @('-C', $temporary, 'fetch', '--depth=1', 'origin', $Commit)
+        Invoke-Checked $git @('-C', $temporary, 'checkout', '--detach', $Commit)
+        # Both resolved paths must stay inside the explicitly owned source cache.
+        foreach ($path in @($temporary, $destination)) {
+            if (-not [IO.Path]::GetFullPath($path).StartsWith($cache + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Source cache path escaped.' }
+        }
+        Move-Item -LiteralPath $temporary -Destination $destination
+    }
+    $head = @(& $git -C $destination rev-parse HEAD)
+    if ($LASTEXITCODE -ne 0 -or $head.Count -ne 1 -or $head[0] -ne $Commit) { throw 'Cached source revision differs. Existing files were preserved.' }
+    $changes = @(& $git -C $destination status --porcelain)
+    if ($LASTEXITCODE -ne 0 -or $changes.Count -ne 0) { throw 'Cached source has local changes. Existing files were preserved.' }
+    if (-not (Test-Path -LiteralPath (Join-Path $destination 'scripts\build_from_rom.py'))) { throw 'Downloaded source is incomplete.' }
+    return $destination
+}
+
+function Invoke-Setup {
+    if ($CheckOnly) {
+        [ordered]@{ git = [bool](Find-Git); python = [bool](Find-Python);
+            visualStudio = [bool](Find-VisualStudio); ubuntu = Test-Ubuntu;
+            linuxPackages = Test-LinuxPackages } | ConvertTo-Json -Compress
+        return
+    }
+    if (-not $SourceCommit -or -not $RomPath) { throw 'Choose a ROM through the launcher.' }
+    # Direct invocation has the same no-download-before-ROM-validation boundary.
+    if (-not (Test-Path -LiteralPath $RomPath -PathType Leaf) -or (Get-Item -LiteralPath $RomPath).Length -ne 33554432 -or
+        (Get-FileHash -LiteralPath $RomPath -Algorithm SHA1).Hash -ne '493ced9008dbe932d6e91179b68e8630cf23a023') {
+        throw 'Select the supported 32 MiB North American big-endian ROM.'
+    }
+    New-Item -ItemType Directory -Path $script:SetupRoot -Force | Out-Null
+    Start-Transcript -Path (Join-Path $script:SetupRoot 'setup.log') -Append | Out-Null
+    try {
+        Ensure-BuildTools
+        # Keep status output visible without mixing it into the returned path.
+        $source = Get-PinnedSource $SourceCommit | ForEach-Object {
+            if ($_ -eq (Join-Path (Join-Path $script:SetupRoot 'source') $SourceCommit)) { $_ }
+            else { Write-Host $_ }
+        }
+        $python = Find-Python
+        Write-Output 'Building the game locally from your ROM...'
+        Invoke-Checked $python @('-u', (Join-Path $source 'scripts\build_from_rom.py'), '--rom', $RomPath)
+    } finally { Stop-Transcript | Out-Null }
+}
+
+if ($MyInvocation.InvocationName -ne '.') {
+    try { Invoke-Setup }
+    catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
+}

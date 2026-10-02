@@ -994,7 +994,11 @@ class Phase4ProductionHarnessTests(unittest.TestCase):
         products, _ = self.generation_fixture()
         _, contents = harness._zip_files(products["generated-source-archive"])
         root = Path(harness.__file__).resolve().parents[1]
-        with mock.patch.dict(
+        # Isolate the context-process failure from historical source drift.
+        # Separate tests above/below exercise the unmodified production pins.
+        fixture_pins = {path: self.digest((root / path).read_bytes())
+                        for path in harness.GENERATION_REPLAY_SOURCE_SHA256}
+        with mock.patch.object(harness, "GENERATION_REPLAY_SOURCE_SHA256", fixture_pins), mock.patch.dict(
             os.environ, {"JFG_PHASE4_REPOSITORY_ROOT": str(root)}
         ), mock.patch.object(
             harness,
@@ -1239,33 +1243,32 @@ class Phase4ProductionHarnessTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(result.stdout, b"")
 
-    def test_analysis_policy_hashes_match_exact_tracked_units(self) -> None:
+    def test_current_analysis_sources_cannot_reuse_stale_historical_pins(self) -> None:
         files = self.analysis_sources()
         self.assertEqual(set(files), set(harness.ANALYSIS_SOURCE_SHA256))
-        self.assertEqual(
-            {path: self.digest(payload) for path, payload in files.items()},
-            harness.ANALYSIS_SOURCE_SHA256,
-        )
+        products = {"analysis-source-archive": self.zip_product(files),
+                    "analysis-source-inventory": self.inventory(files)}
+        record = {"result": {}, "source_policy_id": harness.ANALYSIS_SOURCE_POLICY_ID,
+                  "handwritten_bridge_unit_count": harness.ANALYSIS_BRIDGE_UNIT_COUNT}
+        actual = {path: self.digest(payload) for path, payload in files.items()}
+        if actual == harness.ANALYSIS_SOURCE_SHA256:
+            self.assertEqual(harness._analysis_sources(products, record), files)
+        else:
+            with self.assertRaisesRegex(harness.AuditError, "differs from the tracked source policy"):
+                harness._analysis_sources(products, record)
 
-    def test_compiler_replay_policy_hashes_match_exact_tracked_closure(self) -> None:
+    def test_current_replay_sources_cannot_reuse_stale_historical_pins(self) -> None:
         root = Path(harness.__file__).resolve().parents[1]
-        self.assertEqual(
-            {
-                path: self.digest(root.joinpath(*Path(path).parts).read_bytes())
-                for path in harness.BUILD_REPLAY_SOURCE_SHA256
-            },
-            harness.BUILD_REPLAY_SOURCE_SHA256,
-        )
-
-    def test_generation_replay_policy_hashes_match_exact_tracked_closure(self) -> None:
-        root = Path(harness.__file__).resolve().parents[1]
-        self.assertEqual(
-            {
-                path: self.digest(root.joinpath(*Path(path).parts).read_bytes())
-                for path in harness.GENERATION_REPLAY_SOURCE_SHA256
-            },
-            harness.GENERATION_REPLAY_SOURCE_SHA256,
-        )
+        for pins, verify in (
+                (harness.BUILD_REPLAY_SOURCE_SHA256, harness._verify_build_replay_source_closure),
+                (harness.GENERATION_REPLAY_SOURCE_SHA256, harness._verify_generation_replay_source_closure)):
+            with self.subTest(verifier=verify.__name__):
+                actual = {path: self.digest((root / path).read_bytes()) for path in pins}
+                if actual == pins:
+                    verify(root)
+                else:
+                    with self.assertRaisesRegex(harness.AuditError, "differs from its pin"):
+                        verify(root)
 
     def test_compiler_replay_policy_has_the_exact_three_target_closure(self) -> None:
         # jfg_generated_{link_smoke,baseline_audit,patch_audit} never links

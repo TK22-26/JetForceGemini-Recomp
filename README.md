@@ -58,8 +58,10 @@ legal/license decision. Source publication preparation is tracked separately in
 
 A [launcher prototype](docs/development/launcher.md) can generate and compile a
 local game build from your ROM, then launch it with saves in your user profile.
-The first build requires Python, Visual Studio C++ and WSL; follow the
-[ROM build setup](docs/development/rom-bootstrap.md). No game executable,
+The launcher downloads a pinned source checkout and installs missing Git,
+Python, Visual Studio C++ and WSL/Ubuntu build tools on first setup. Windows may
+require administrator approval and a restart; reopen the launcher to continue.
+See [ROM build setup](docs/development/rom-bootstrap.md). No game executable,
 ROM, extracted assets or generated game code is included in the launcher.
 
 After installing the prerequisites, the command-line equivalent is:

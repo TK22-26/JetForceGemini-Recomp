@@ -86,9 +86,13 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           cmake --build --preset windows-msvc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ctest --preset windows-msvc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build --preset windows-msvc-release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ctest --preset windows-msvc-release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   renderer:
     name: RT64 renderer shell (Windows)

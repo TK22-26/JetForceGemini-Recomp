@@ -4,7 +4,8 @@ Prepared 2026-10-01 for a new contributor or interested playtester. This checkou
 preserves the current development source; it does not include a ready-to-run
 game package. For playtesting, follow the
 [ROM-to-build prototype](rom-bootstrap.md) and [launcher guide](launcher.md).
-The first build needs developer tools and your own supported ROM.
+The launcher sets up missing build tools and downloads its pinned source. You
+supply the supported ROM; Windows may require administrator approval and a restart.
 
 ## What works and what remains open
 
@@ -22,13 +23,16 @@ Historical milestone evidence does not certify every later working-tree change.
 
 ## Build from a source checkout
 
-Use `launcher-preview` for the ROM-to-build prototype, or `main` for the initial
-public snapshot. Record `git rev-parse HEAD`
-when reporting a result. This repository begins with a fresh history and omits
+For playtesting, use the released launcher. For source builds, use the source
+revision identified by that release, and record `git rev-parse HEAD` when
+reporting a result. This repository begins with a fresh history and omits
 five emulator diagnostic patches. Historical commit references and local
 evidence describe the private development repository and are not public refs.
-The omitted patches also prevent the associated oracle producer and identity
-tests from running without additional maintainer-local inputs.
+The omitted patches prevent the associated oracle producers from running
+without additional maintainer-local inputs. Public identity tests exercise the
+input closure using synthetic digests; production identity checks still reject
+missing files. Historical signed evidence is authenticated as a historical
+statement and cannot certify a changed checkout.
 
 Requirements are Git, Python 3.11 or newer, CMake 3.20 or newer, and a C++20
 compiler. Windows uses Visual Studio 2022 with the C++ workload and its developer

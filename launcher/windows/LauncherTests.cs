@@ -116,6 +116,19 @@ namespace JfgLauncher
                     "build process must use redirected argument-safe execution");
                 Check(buildPlan.WorkingDirectory == sourceFixture && buildPlan.Arguments.Contains(" --rom "), "build inputs missing");
                 Reject(delegate { LocalSetup.BuildStartInfo(directory, "rom.z64"); }, "unrelated source folder accepted");
+                string setupFixture = Path.Combine(directory, "setup with spaces");
+                ProcessStartInfo setupPlan = FirstRun.StartInfo(wrongRom, setupFixture);
+                Check(!setupPlan.UseShellExecute && setupPlan.RedirectStandardError && setupPlan.RedirectStandardOutput,
+                    "setup must use redirected argument-safe execution");
+                Check(setupPlan.Arguments.Contains(LocalSetup.Quote(wrongRom)) &&
+                    setupPlan.Arguments.Contains(BuildInfo.SourceCommit), "setup lost ROM or immutable revision");
+                Check(System.Text.RegularExpressions.Regex.IsMatch(BuildInfo.SourceCommit, "^[0-9a-f]{40}$"), "source is not pinned");
+                string installer = Path.Combine(setupFixture, "Setup.ps1");
+                File.WriteAllText(installer, "synthetic tamper");
+                FirstRun.StartInfo(wrongRom, setupFixture);
+                Check(Convert.ToBase64String(File.ReadAllBytes(installer)) == Convert.ToBase64String(FirstRun.SetupScript()),
+                    "setup resource was not restored from the executable");
+                Reject(delegate { FirstRun.StartInfo("bad\npath", setupFixture); }, "setup accepted malformed ROM path");
                 using (LauncherWindow window = new LauncherWindow())
                 {
                     // Realize controls without putting a test window on the user's desktop.

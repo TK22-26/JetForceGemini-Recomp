@@ -1,10 +1,13 @@
 # ROM-to-build prototype
 
 This Windows x64 prototype starts with the supported US big-endian ROM and
-creates a local native executable. It requires developer tools for the first
-build. A graphical build action is available in the launcher.
+creates a local native executable. The launcher can install missing developer
+tools and obtain its pinned source checkout automatically. Open the standalone
+EXE, choose your ROM, then click **Set up and build**. Administrator prompts and
+a Windows restart may be needed; reopen the launcher to continue afterward.
+See [the launcher guide](launcher.md) for downloads, storage, and requirements.
 
-Install Git, Python 3.11 or newer, Visual Studio 2022 with Desktop development
+For manual setup or command-line use, install Git, Python 3.11 or newer, Visual Studio 2022 with Desktop development
 with C++ and CMake, and WSL2 with Ubuntu 24.04. Inside Ubuntu, install the
 upstream build prerequisites:
 
@@ -70,11 +73,14 @@ window and exited successfully after closing it.
 These runs reported zero unsupported device accesses. Frames, audio,
 ROM-derived code and detailed diagnostics remain local.
 
-The launcher has 36 ROM-free checks; bootstrap derivation and native output-path
-checks have seven tests each. Source hygiene and schema validation pass.
-Repository-wide CI has existing failures involving historical evidence,
-maintainer-only oracle inputs and Windows test configuration. This prototype
-does not resolve those review blockers or certify a completed campaign.
+The launcher and setup tests use ROM-free fixtures. Public CI exercises the
+build recipe, native output paths, launcher compilation, and source policy.
+Oracle identity tests use synthetic input digests without restoring excluded
+emulator patches. Historical evidence remains pinned to its original source;
+tests authenticate those records separately and verify that drifted checkouts
+cannot reuse their acceptance claims. Neither CI nor compilation certifies a
+completed campaign. A pristine Windows installation with installer elevation
+and reboot remains an outstanding playtest of the new setup flow.
 
 A successful build establishes compilation. Game parity and campaign completion
 remain open. Keep generated game code and binaries local.
