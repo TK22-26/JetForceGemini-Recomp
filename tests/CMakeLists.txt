@@ -482,3 +482,9 @@ target_include_directories(jfg_ipl_handoff_tests PRIVATE "${PROJECT_SOURCE_DIR}/
 target_compile_features(jfg_ipl_handoff_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_ipl_handoff_tests)
 add_test(NAME jfg.ipl_handoff COMMAND jfg_ipl_handoff_tests)
+
+add_executable(jfg_gameplay_trace_tests gameplay_trace_tests.cpp)
+target_include_directories(jfg_gameplay_trace_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_gameplay_trace_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_gameplay_trace_tests)
+add_test(NAME jfg.gameplay_trace COMMAND jfg_gameplay_trace_tests "${CMAKE_CURRENT_BINARY_DIR}/gameplay-trace-test.tsv")

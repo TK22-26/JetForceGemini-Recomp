@@ -42,7 +42,7 @@ health values are not rewritten by the boot adapter.
 The reported Goldwood invasion stutter remains open. A separate paced,
 unskipped intro observation reached 9,800 VI retraces without a trap. Of 4,545
 presentation gaps, 4,533 spanned two VI retraces; larger gaps also occurred.
-The existing actor sampler only recognizes `animBlue` and captured no matching
+The first observation used an actor sampler that only recognizes `animBlue` and captured no matching
 actors on this route. The final scene still contained the ship's animated
 characters. These observations do not isolate the reported invasion moment or
 distinguish its animation cadence from rendering delays.
@@ -51,3 +51,37 @@ An earlier paced diagnostic completed in the child but was rejected by the
 parent because the optional final actor dump added a console record. That
 rejection is retained separately and is not a passing regression result.
 The boot correction has not been established as a fix for the visual issue.
+
+## Detailed local gameplay recording
+
+Set `JFG_GAMEPLAY_TRACE` to a writable file path before starting the native
+runner to enable the opt-in `jfg-gameplay-trace-v1` timeline. Logging is off by
+default. Rows contain decimal elapsed microseconds, an event name, and hexadecimal
+integer values. Float guest fields retain their raw IEEE-754 bit patterns.
+The trace is buffered, flushed once per second and at controlled exits, and stops
+at 256 MiB with a limit marker. A hard crash can lose the final buffered interval.
+
+The events cover controller input, VI ticks, completed guest updates, graphics
+preparation/submission/presentation timing, audio queue levels and underruns,
+scene state, and changed actor state. Actor sampling covers every type in the
+first 256 actor slots, including the ship characters omitted by the first probe.
+Actor rows include name words, the first 128 actor bytes and the first 32 bytes
+of both properties and control data when readable. Unchanged actor snapshots
+are omitted. These raw guest snapshots are private diagnostic data and are not
+part of the launcher's filtered support ZIP.
+
+The authoritative payload order is at each `gameplay_trace.event` call and in
+`trace_gameplay_state` in `src/boot/native_boot.cpp`. Tick/update rows include
+VI, input poll, diagnostic update count, frontend mode, level, actor count,
+presentation/graphics counters, pending work, dispatch count, and audio status.
+Actor rows begin with VI, update, slot, guest address and four name words,
+followed by 32 actor words, eight properties words and eight control words.
+An invalid guest read is encoded as `ffffffff`.
+
+A paired 2,300-poll replay with tracing disabled/enabled produced identical
+final 4 MiB RDRAM, full health and 100/100 ammo. The enabled trace contained
+36 actor types and 15,831 changed actor snapshots in about 6.4 MB. Focused
+tests passed, including trace size-limit behavior. This checks data coverage
+and guest-state preservation; it does not establish zero timing overhead or
+identify the reported visual stutter. The next useful evidence is a manually
+recorded playthrough of the specific invasion sequence.

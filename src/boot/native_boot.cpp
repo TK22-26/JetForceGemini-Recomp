@@ -2,6 +2,7 @@
 #include "jfg/boot/hle.hpp"
 #include "jfg/boot/reset_handoff.hpp"
 #include "jfg/boot/ipl_handoff.hpp"
+#include "jfg/boot/gameplay_trace.hpp"
 #include "jfg/boot/runlink_module_table.hpp"
 #include "jfg/boot/thread_scheduler.hpp"
 #include "jfg/boot/guest_thread_transport.hpp"
@@ -1469,6 +1470,11 @@ struct State {
   std::ofstream point_probe_trace;
   std::uint32_t point_probe_hits = 0U;
   std::ofstream timing_trace;
+  GameplayTrace gameplay_trace;
+  std::uint64_t gameplay_trace_vi = UINT64_MAX;
+  std::uint64_t gameplay_trace_updates = 0U;
+  std::array<std::array<std::uint64_t, 56>, 256> gameplay_actor_previous{};
+  std::array<bool, 256> gameplay_actor_seen{};
   bool actor_timing_trace = false;
   std::uint64_t last_actor_trace_retrace =
       (std::numeric_limits<std::uint64_t>::max)();
@@ -1823,6 +1829,9 @@ void sample_live_controller(State &state) noexcept {
         << stick_x << '\t' << stick_y << '\n';
   }
   ++state.controller_samples;
+  state.gameplay_trace.event("input", {state.vi_retraces, state.controller_samples,
+      connected ? 1U : 0U, buttons, static_cast<std::uint8_t>(stick_x),
+      static_cast<std::uint8_t>(stick_y)});
   if (buttons != 0U || stick_x != 0 || stick_y != 0)
     ++state.non_neutral_controller_samples;
   if (!state.input_replay_loaded && host_key_down(state, VK_ESCAPE))
@@ -1986,6 +1995,68 @@ bool write_private_rt64_snapshot(
     stream.write(logical_bytes.data(), static_cast<std::streamsize>(chunk));
   }
   return static_cast<bool>(stream);
+}
+
+void trace_gameplay_state(State &state, bool update) {
+  if (!state.gameplay_trace || state.rdram == nullptr) return;
+  if (!update && state.gameplay_trace_vi == state.vi_retraces) return;
+  if (update) ++state.gameplay_trace_updates;
+  else state.gameplay_trace_vi = state.vi_retraces;
+  hle::GuestMemory memory({state.rdram, kRdramSize},
+                          hle::GuestMemory::Layout::native_word_big_endian);
+  std::uint32_t level = 0, actors = 0, count = 0;
+  (void)memory.read_u32(0x800FB114U, level);
+  (void)memory.read_u32(0x800F2CA4U, actors);
+  (void)memory.read_u32(0x800F2CA8U, count);
+  state.gameplay_trace.event(update ? "update" : "tick", {
+      state.vi_retraces, state.controller_samples, state.gameplay_trace_updates,
+      state.rdram[0xA51B0U ^ 3U], level, count, state.presented_frames,
+      state.graphics_tasks, state.pending_graphics_tasks.size(), state.dispatch_calls,
+      state.audio_device_queued_bytes, state.audio_device_consumed_bytes,
+      state.audio_device_underruns, state.audio_device_overruns});
+  if (!update) return;
+  if (count > 256U) {
+    state.gameplay_trace.event("actor-table-invalid", {state.vi_retraces, actors, count});
+    return;
+  }
+  for (std::uint32_t index = 0; index < 256U; ++index) {
+    std::uint32_t actor = 0, header = 0;
+    if (index >= count || !memory.read_u32(actors + index * 4U, actor) || actor == 0U) {
+      if (state.gameplay_actor_seen[index])
+        state.gameplay_trace.event("actor-removed", {state.vi_retraces, state.gameplay_trace_updates, index});
+      state.gameplay_actor_seen[index] = false;
+      continue;
+    }
+    // All actor types, sampled after the game update, only when state changes.
+    // Payload: identity/name, actor[0..0x7f], properties[0..0x1f], control[0..0x1f].
+    std::array<std::uint64_t, 56> row{};
+    row[0] = state.vi_retraces; row[1] = state.gameplay_trace_updates;
+    row[2] = index; row[3] = actor;
+    (void)memory.read_u32(actor + 0x40U, header);
+    for (std::uint32_t n = 0; n < 4U; ++n) {
+      std::uint32_t word = 0;
+      row[4U + n] = memory.read_u32(header + 4U + n * 4U, word) ? word : UINT32_MAX;
+    }
+    for (std::uint32_t n = 0; n < 32U; ++n) {
+      std::uint32_t word = 0;
+      row[8U + n] = memory.read_u32(actor + n * 4U, word) ? word : UINT32_MAX;
+    }
+    for (std::uint32_t block = 0; block < 2U; ++block) {
+      std::uint32_t pointer = 0;
+      (void)memory.read_u32(actor + (block == 0U ? 0x4CU : 0x68U), pointer);
+      for (std::uint32_t n = 0; n < 8U; ++n) {
+        std::uint32_t word = 0;
+        row[40U + block * 8U + n] = pointer != 0U && memory.read_u32(pointer + n * 4U, word) ? word : UINT32_MAX;
+      }
+    }
+    const auto &previous = state.gameplay_actor_previous[index];
+    if (!state.gameplay_actor_seen[index] ||
+        !std::equal(row.begin() + 2, row.end(), previous.begin() + 2)) {
+      state.gameplay_trace.event("actor", row);
+      state.gameplay_actor_previous[index] = row;
+      state.gameplay_actor_seen[index] = true;
+    }
+  }
 }
 
 void write_actor_timing_trace(State &state) {
@@ -2192,6 +2263,7 @@ void write_private_progress(State &state,
   // Actor motion needs per-retrace sampling to expose short freeze/jump
   // patterns. Deduplication keeps the many progress call sites from writing
   // the same actor state more than once in a retrace.
+  trace_gameplay_state(state, false);
   write_actor_timing_trace(state);
   // This diagnostic contains sizeable rolling renderer traces.  Rewriting it
   // at every begin/end marker can turn optional observability into several
@@ -2442,6 +2514,7 @@ void write_private_progress(State &state,
     state.input_record.flush();
   if (state.timing_trace.is_open())
     state.timing_trace.flush();
+  state.gameplay_trace.flush();
   if (state.retrace_hash_trace.is_open())
     state.retrace_hash_trace.flush();
   if (state.update_hash_trace.is_open())
@@ -3489,6 +3562,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
     state.input_record.flush();
   if (state.timing_trace.is_open())
     state.timing_trace.flush();
+  state.gameplay_trace.flush();
   if (!state.rdram_capture_path.empty())
     (void)write_private_rdram_capture(state);
 #endif
@@ -3546,6 +3620,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
     state.retrace_hash_trace.flush(); state.update_hash_trace.flush();
     state.poll_hash_trace.flush(); state.guest_clock_trace.flush();
     state.timing_trace.flush();
+  state.gameplay_trace.flush();
     std::fprintf(stdout,
         "{\"kind\":\"jfg-phase9-original-os-probe\",\"acceptance\":false,"
         "\"status\":\"retrace-target\",\"retrace_target\":%u,\"vi_retraces\":%llu,"
@@ -4260,6 +4335,10 @@ void complete_pending_live_graphics_tasks(
         std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::steady_clock::now() - submit_start)
             .count());
+    state.gameplay_trace.event("submit", {state.vi_retraces, state.controller_samples,
+        state.gameplay_trace_updates, submit_us, pending.descriptor[4], pending.descriptor[5],
+        submission_graphics.rdram_check_microseconds, submission_graphics.full_sync_microseconds,
+        submission_graphics.color_image_address});
     state.graphics_submit_microseconds += submit_us;
     state.graphics_submit_max_us =
         (std::max)(state.graphics_submit_max_us, submit_us);
@@ -4625,6 +4704,8 @@ void present_completed_video(State &state, const std::uint32_t target) {
             (std::max)(state.present_interval_max_us,
                        present_interval_us);
       }
+      state.gameplay_trace.event("present", {state.vi_retraces, state.controller_samples,
+          state.gameplay_trace_updates, present_us, present_interval_us, selected_vi_framebuffer});
       state.present_time = present_end;
       state.present_time_initialized = true;
       if (state.timing_trace) {
@@ -5141,6 +5222,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
         --state.watch_dispatch_depth;
       }
+      if (target == 0x80044FACU) trace_gameplay_state(state, true);
       if (target == 0x80044FACU && state.update_hash_trace.is_open()) {
         ++state.completed_game_updates;
         trace_phase9_event(state, "update-end", state.controller_samples);
@@ -6638,6 +6720,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           std::chrono::duration_cast<std::chrono::microseconds>(
               std::chrono::steady_clock::now() - graphics_start)
               .count());
+      state.gameplay_trace.event("prepare", {state.vi_retraces, state.controller_samples,
+          state.gameplay_trace_updates, prepare_us, state.last_graphics_command_address,
+          state.last_graphics_descriptor[5]});
       state.graphics_prepare_microseconds += prepare_us;
       state.graphics_prepare_max_us =
           (std::max)(state.graphics_prepare_max_us, prepare_us);
@@ -7636,6 +7721,13 @@ int run_child(const char *path, const unsigned retrace_target,
   jfg::GeneratedOverlayRuntime runtime(std::as_writable_bytes(rdram));
   State state{};
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  wchar_t gameplay_trace_path[32768]{};
+  const DWORD trace_path_length = GetEnvironmentVariableW(L"JFG_GAMEPLAY_TRACE", gameplay_trace_path, 32768U);
+  if (trace_path_length != 0U && (trace_path_length >= 32768U ||
+      !state.gameplay_trace.open(std::filesystem::path(gameplay_trace_path)))) {
+    std::fputs("native boot setup failed: gameplay trace path\n", stderr);
+    return 3;
+  }
   g_active_child_state = &state;
   jfg::support_event("native=rom-ready");
   wchar_t mapping_path[32768]{};
