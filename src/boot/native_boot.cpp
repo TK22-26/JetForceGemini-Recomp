@@ -580,6 +580,8 @@ public:
   HostAudioDevice(const HostAudioDevice &) = delete;
   HostAudioDevice &operator=(const HostAudioDevice &) = delete;
 
+  void set_gameplay_trace(GameplayTrace *trace) noexcept { gameplay_trace_ = trace; }
+
   bool configure_capture(const std::string &path) {
     capture_pcm_.open(path, std::ios::binary | std::ios::trunc);
     capture_events_.open(path + ".events.csv",
@@ -806,6 +808,12 @@ private:
   }
 
   void capture_event(const char *event) noexcept {
+    if (gameplay_trace_ != nullptr && *gameplay_trace_) {
+      std::array<char, 48> name{};
+      (void)std::snprintf(name.data(), name.size(), "audio-%s", event);
+      gameplay_trace_->event(name.data(), {current_queued_bytes_, queued_bytes_,
+          consumed_bytes_, frequency_, device_playing_ ? 1U : 0U});
+    }
     if (!capture_events_.is_open())
       return;
     const auto wall_us = std::chrono::duration_cast<std::chrono::microseconds>(
@@ -834,6 +842,7 @@ private:
     }
   }
 
+  GameplayTrace *gameplay_trace_ = nullptr;
   SDL_AudioDeviceID device_ = 0U;
   std::vector<std::uint8_t> converted_;
   std::ofstream capture_pcm_;
@@ -1517,6 +1526,9 @@ struct State {
   std::size_t recent_graphics_position = 0U;
   std::vector<PendingLiveGraphicsTask> pending_graphics_tasks;
   std::vector<LiveGraphicsOverlayShadow> graphics_overlay_shadows;
+  // Immutable ROM-derived overlay shadows. Restore these bytes for each task;
+  // display-list traversal still patches that task's private snapshot.
+  std::vector<std::byte> graphics_overlay_initial_data;
   std::vector<std::vector<std::byte>> graphics_snapshot_pool;
   HostAudioDevice host_audio;
   std::uint64_t audio_task_microseconds = 0U;
@@ -3019,49 +3031,64 @@ bool materialize_live_graphics_overlays(
   if (state.rom == nullptr ||
       snapshot.size() != jfg::kRt64RequiredRdramBytes || command_count == 0U)
     return reject(1U, command_address, 0U, 0U);
-  for (const LiveGraphicsOverlayShadow &shadow :
-       state.graphics_overlay_shadows) {
-    JfgGeneratedSectionMetadata metadata{};
-    if (jfg_generated_section_metadata(shadow.section, &metadata) == 0)
-      return false;
-    const std::uint64_t initialized =
-        std::uint64_t{metadata.text_size} + metadata.data_size;
-    if (
-        initialized > shadow.extent || metadata.rom_start > state.rom_size ||
-        initialized > state.rom_size - metadata.rom_start ||
-        shadow.physical_base > snapshot.size() ||
-        shadow.extent > snapshot.size() - shadow.physical_base)
-      return false;
-    for (std::size_t index = 0U; index < initialized; ++index)
-      snapshot[(shadow.physical_base + index) ^ 3U] =
-          static_cast<std::byte>(state.rom[metadata.rom_start + index]);
-    std::fill_n(snapshot.begin() + shadow.physical_base + initialized,
-                metadata.bss_size, std::byte{0});
-  }
-  for (const LiveGraphicsOverlayShadow &shadow :
-       state.graphics_overlay_shadows) {
-    const JfgGeneratedR32Descriptor *descriptors = nullptr;
-    std::size_t count = 0U;
-    if (jfg_generated_relocation_descriptors(shadow.section, &descriptors,
-                                             &count) == 0 ||
-        (count != 0U && descriptors == nullptr))
-      return false;
-    for (std::size_t index = 0U; index < count; ++index) {
-      JfgGeneratedSectionMetadata target{};
-      if (jfg_generated_section_metadata(descriptors[index].target_section,
-                                         &target) == 0 ||
-          shadow.extent < 4U ||
-          descriptors[index].site_offset > shadow.extent - 4U ||
-          descriptors[index].target_offset >
-              UINT32_MAX - target.linked_vram)
+  if (state.graphics_overlay_initial_data.empty()) {
+    for (const LiveGraphicsOverlayShadow &shadow :
+         state.graphics_overlay_shadows) {
+      JfgGeneratedSectionMetadata metadata{};
+      if (jfg_generated_section_metadata(shadow.section, &metadata) == 0)
         return false;
-      const std::uint32_t linked =
-          target.linked_vram + descriptors[index].target_offset;
-      const std::uint32_t translated =
-          translate_live_graphics_address(state, linked);
-      std::memcpy(snapshot.data() + shadow.physical_base +
-                      descriptors[index].site_offset,
-                  &translated, sizeof(translated));
+      const std::uint64_t initialized =
+          std::uint64_t{metadata.text_size} + metadata.data_size;
+      if (
+          initialized > shadow.extent || metadata.rom_start > state.rom_size ||
+          initialized > state.rom_size - metadata.rom_start ||
+          shadow.physical_base > snapshot.size() ||
+          shadow.extent > snapshot.size() - shadow.physical_base)
+        return false;
+      for (std::size_t index = 0U; index < initialized; ++index)
+        snapshot[(shadow.physical_base + index) ^ 3U] =
+            static_cast<std::byte>(state.rom[metadata.rom_start + index]);
+      std::fill_n(snapshot.begin() + shadow.physical_base + initialized,
+                  metadata.bss_size, std::byte{0});
+    }
+    for (const LiveGraphicsOverlayShadow &shadow :
+         state.graphics_overlay_shadows) {
+      const JfgGeneratedR32Descriptor *descriptors = nullptr;
+      std::size_t count = 0U;
+      if (jfg_generated_relocation_descriptors(shadow.section, &descriptors,
+                                               &count) == 0 ||
+          (count != 0U && descriptors == nullptr))
+        return false;
+      for (std::size_t index = 0U; index < count; ++index) {
+        JfgGeneratedSectionMetadata target{};
+        if (jfg_generated_section_metadata(descriptors[index].target_section,
+                                           &target) == 0 ||
+            shadow.extent < 4U ||
+            descriptors[index].site_offset > shadow.extent - 4U ||
+            descriptors[index].target_offset >
+                UINT32_MAX - target.linked_vram)
+          return false;
+        const std::uint32_t linked =
+            target.linked_vram + descriptors[index].target_offset;
+        const std::uint32_t translated =
+            translate_live_graphics_address(state, linked);
+        std::memcpy(snapshot.data() + shadow.physical_base +
+                        descriptors[index].site_offset,
+                    &translated, sizeof(translated));
+      }
+    }
+    state.graphics_overlay_initial_data.assign(snapshot.begin() + kRdramSize,
+                                                snapshot.end());
+  } else {
+    for (const auto &shadow : state.graphics_overlay_shadows) {
+      if (shadow.physical_base < kRdramSize ||
+          shadow.physical_base - kRdramSize > state.graphics_overlay_initial_data.size() ||
+          shadow.extent > state.graphics_overlay_initial_data.size() -
+                              (shadow.physical_base - kRdramSize))
+        return reject(1U, command_address, 0U, 0U);
+      std::copy_n(state.graphics_overlay_initial_data.data() +
+                      (shadow.physical_base - kRdramSize),
+                  shadow.extent, snapshot.data() + shadow.physical_base);
     }
   }
 
@@ -7686,6 +7713,7 @@ int run_child(const char *path, const unsigned retrace_target,
     std::fputs("native boot setup failed: gameplay trace path\n", stderr);
     return 3;
   }
+  state.host_audio.set_gameplay_trace(&state.gameplay_trace);
   g_active_child_state = &state;
   jfg::support_event("native=rom-ready");
   wchar_t mapping_path[32768]{};

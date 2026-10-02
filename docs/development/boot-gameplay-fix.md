@@ -122,3 +122,33 @@ regression; they do not establish campaign-wide rendering correctness or
 eliminate loading gaps between scenes. The corrected local runtime is prepared
 for visual confirmation. Private logs, game memory, saves and binaries remain
 outside the public repository.
+
+## Audio follow-up after the visual correction
+
+The user confirmed smooth visuals but reported brief audio gaps in the invasion.
+The host audio device was proactively pausing below its 75 ms low-water mark and
+resuming at 150 ms. These gaps did not increment the empty-buffer underrun count,
+so the earlier underrun-only check did not establish uninterrupted playback.
+
+The same fixed-input replay with PCM/event capture reproduced
+12 low-water pauses in the interior of the invasion,
+totalling 971.8 ms. Graphics preparation repeatedly
+rebuilt immutable ROM-derived overlay shadows and their relocations for every
+effects task. Cache the initial upper-memory shadow template once per runtime,
+then restore each shadow's exact extent before that task's display-list traversal.
+This preserves per-task snapshots and traversal while avoiding repeated byte
+conversion and relocation. It adds a bounded 4 MiB private template; it does not
+change the audio thresholds, sample rate, or generated samples.
+
+The corrected paired replay had 0 low-water pauses and
+0 underruns in the same interior window. Median graphics
+preparation time changed from 1.570 ms to
+0.371 ms per task. The maximum in-scene presentation
+gap was 55.485 ms. Generated PCM and final 4 MiB guest
+memory matched the baseline byte for byte. These are replay results; interactive
+audible confirmation is still needed. Raw PCM and the diagnostic plot are local.
+
+The optional gameplay timeline now includes audio queue, start, pause-low,
+resume and underrun events. Their payload is current queued bytes, cumulative
+queued bytes, cumulative consumed bytes, sample rate and playing state. This
+makes proactive pauses visible separately from underruns.
