@@ -181,13 +181,16 @@ function Invoke-Setup {
     New-Item -ItemType Directory -Path $script:SetupRoot -Force | Out-Null
     Start-Transcript -Path (Join-Path $script:SetupRoot 'setup.log') -Append | Out-Null
     try {
+        Write-Output 'JFG-SUPPORT stage=install-tools'
         Ensure-BuildTools
         # Keep status output visible without mixing it into the returned path.
+        Write-Output 'JFG-SUPPORT stage=download-source'
         $source = Get-PinnedSource $SourceCommit | ForEach-Object {
             if ($_ -eq (Join-Path (Join-Path $script:SetupRoot 'source') $SourceCommit)) { $_ }
             else { Write-Host $_ }
         }
         $python = Find-Python
+        Write-Output 'JFG-SUPPORT stage=build-game'
         Write-Output 'Building the game locally from your ROM...'
         Invoke-Checked $python @('-u', (Join-Path $source 'scripts\build_from_rom.py'), '--rom', $RomPath)
     } finally { Stop-Transcript | Out-Null }

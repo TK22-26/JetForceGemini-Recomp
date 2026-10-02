@@ -42,6 +42,15 @@ namespace JfgLauncher
                 for (int i = 1; i < args.Length; i++) Console.WriteLine(Convert.ToBase64String(Encoding.UTF8.GetBytes(args[i])));
                 return 0;
             }
+            if (args.Length > 0 && args[0] == "--crash-fixture")
+            {
+                Console.Error.WriteLine("PRIVATE-PATH-CANARY local ROM and save contents");
+                Console.Error.Write(new string('x', 200000));
+                Console.Error.WriteLine();
+                Console.Error.WriteLine("JFG-SUPPORT native=running");
+                Console.Error.WriteLine("native boot child rejected: exit=0xc0000005");
+                return 17;
+            }
             string directory = Path.Combine(Path.GetTempPath(), "jfg-launcher-fixture-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
             try
@@ -102,6 +111,57 @@ namespace JfgLauncher
                         Check(child.StandardOutput.ReadLine() == Convert.ToBase64String(Encoding.UTF8.GetBytes(sample)), "Windows argument round trip failed");
                     child.WaitForExit();
                     Check(child.ExitCode == 0, "echo process failed");
+                }
+                ControllerProfile controller = new ControllerProfile();
+                string repo = LocalSetup.FindSourceRoot(AppDomain.CurrentDomain.BaseDirectory);
+                Check(controller.Encode() == File.ReadAllText(Path.Combine(repo, "tests", "fixtures", "controller-default.ini")).Replace("\r\n", "\n"), "C# and native mapping schema differ");
+                controller.Device = 2; controller.Bindings[3] = 3; controller.Deadzone = 18000;
+                controller.Save(directory);
+                ControllerProfile recovered = ControllerProfile.Load(directory);
+                Check(recovered.Device == 2 && recovered.Bindings[3] == 3 && recovered.Deadzone == 18000, "controller settings did not persist");
+                Check(LocalSetup.StartInfo(game, wrongRom, directory).EnvironmentVariables["JFG_CONTROLLER_CONFIG"] == ControllerProfile.FileName(directory), "controller mapping not forwarded to game");
+                Reject(delegate { ControllerProfile.Parse(controller.Encode() + "map0=27\n"); }, "duplicate mapping accepted");
+                Reject(delegate { ControllerProfile.Parse(controller.Encode().Replace("device=2", "device=4")); }, "bad controller port accepted");
+                Reject(delegate { ControllerProfile.Parse(controller.Encode().Replace("map3=3", "map3=99")); }, "bad binding accepted");
+                Reject(delegate { ControllerProfile.Parse(controller.Encode().Replace("deadzone=18000", "deadzone=99999")); }, "bad dead zone accepted");
+                bool[] buttons = new bool[15]; int[] axes = new int[6];
+                buttons[6] = true; Check(ControllerInput.Pressed(buttons, axes) == 6, "Start capture failed");
+                buttons[6] = false; axes[3] = -24000; Check(ControllerInput.Pressed(buttons, axes) == 22, "stick direction capture failed");
+                string reportRoot = Path.Combine(directory, "reports");
+                SupportSession support = new SupportSession(reportRoot, "launch");
+                support.Error(new IOException("PRIVATE-PATH-CANARY"));
+                ProcessStartInfo crashPlan = new ProcessStartInfo(System.Reflection.Assembly.GetExecutingAssembly().Location, "--crash-fixture") {
+                    UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+                using (Process child = Process.Start(crashPlan)) {
+                    var stdout = support.Drain(child.StandardOutput); var stderr = support.Drain(child.StandardError);
+                    child.WaitForExit(); System.Threading.Tasks.Task.WaitAll(stdout, stderr); support.Exit(child.ExitCode);
+                }
+                support.Finish();
+                File.WriteAllText(support.NativePath, "native=running\nfailure=runlink/guest-overlay-load\nPRIVATE-PATH-CANARY\nnative_exception=0xc0000005\n");
+                File.WriteAllText(Path.Combine(support.DirectoryPath, "jfg.flash"), "SAVE-CONTENTS-CANARY");
+                File.WriteAllText(Path.Combine(support.DirectoryPath, "game.z64"), "ROM-CONTENTS-CANARY");
+                string zipPath = SupportSession.Export(reportRoot, Path.Combine(directory, "exports"));
+                using (FileStream file = File.OpenRead(zipPath))
+                using (System.IO.Compression.ZipArchive zip = new System.IO.Compression.ZipArchive(file)) {
+                    Check(zip.Entries.Count == 3, "unexpected support archive members");
+                    string combined = "";
+                    foreach (var entry in zip.Entries) using (StreamReader reader = new StreamReader(entry.Open())) combined += reader.ReadToEnd();
+                    Check(!combined.Contains("CANARY") && !combined.Contains(directory), "private contents leaked into support report");
+                    Check(combined.Contains("exit=0x00000011") && combined.Contains("native_exit=0xc0000005") && combined.Contains("failure=runlink/guest-overlay-load"), "crash evidence lost");
+                    Check(combined.Contains("native_exception=0xc0000005") && combined.Contains("omitted="), "exception or omitted count lost");
+                }
+                for (int i = 0; i < 6000; ++i) support.Write("native=running");
+                Check(new FileInfo(Path.Combine(support.DirectoryPath, "launcher.log")).Length <= SupportSession.MaximumBytes, "support log grew without bound");
+                for (int i = 0; i < 12; ++i) new SupportSession(reportRoot, "launch");
+                Check(Directory.GetDirectories(reportRoot).Length == 11, "report retention should preserve unknown files but prune owned sessions");
+                using (ControllerWindow controllerWindow = new ControllerWindow(directory)) {
+                    controllerWindow.StartPosition = FormStartPosition.Manual; controllerWindow.Location = new Point(-32000, -32000);
+                    controllerWindow.ShowInTaskbar = false; controllerWindow.Show(); Application.DoEvents();
+                    using (Bitmap preview = new Bitmap(controllerWindow.Width, controllerWindow.Height)) {
+                        controllerWindow.DrawToBitmap(preview, new Rectangle(Point.Empty, controllerWindow.Size));
+                        if (args.Length == 1) preview.Save(Path.Combine(Path.GetDirectoryName(args[0]), "controller-preview.png"), System.Drawing.Imaging.ImageFormat.Png);
+                    }
+                    Check(controllerWindow.Controls.Count != 0, "controller UI did not render"); controllerWindow.Close();
                 }
                 Application.EnableVisualStyles();
                 string sourceFixture = Path.Combine(directory, "source with spaces");

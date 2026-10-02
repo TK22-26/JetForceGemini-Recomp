@@ -17,10 +17,11 @@ $launcherCommit = (& git -C $launcherRepoRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $launcherCommit -notmatch '^[0-9a-f]{40}$') { throw 'Cannot pin launcher source revision.' }
 $launcherBuildInfo = Join-Path $launcherOutput 'BuildInfo.cs'
 [IO.File]::WriteAllText($launcherBuildInfo, 'namespace JfgLauncher { internal static class BuildInfo { internal const string SourceCommit = "' + $launcherCommit + '"; } }')
-$launcherSources = @($launcherSource, $launcherFirstRun, $launcherBuildInfo)
+$launcherSources = @($launcherSource, $launcherFirstRun, $launcherBuildInfo,
+    (Join-Path $launcherRepoRoot 'launcher/windows/Support.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/Controller.cs'))
 $launcherCommon = @('/nologo', '/optimize+', '/debug-', '/platform:x64', '/warnaserror+',
     '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll',
-    '/reference:System.Runtime.Serialization.dll', "/resource:$launcherSetup,JfgLauncher.Setup.ps1")
+    '/reference:System.Runtime.Serialization.dll', '/reference:System.IO.Compression.dll', "/resource:$launcherSetup,JfgLauncher.Setup.ps1")
 & $launcherCompiler @launcherCommon '/target:winexe' "/out:$launcherExe" @launcherSources
 if ($LASTEXITCODE -ne 0) { throw 'Launcher compilation failed.' }
 if ($Test) {
@@ -35,7 +36,7 @@ if ($Test) {
 }
 $launcherInputs = [ordered]@{}
 foreach ($relative in @('launcher/windows/Launcher.cs', 'launcher/windows/FirstRun.cs',
-        'launcher/windows/Setup.ps1', 'scripts/build_launcher.ps1')) {
+        'launcher/windows/Setup.ps1', 'launcher/windows/Support.cs', 'launcher/windows/Controller.cs', 'scripts/build_launcher.ps1')) {
     $launcherInputs[$relative] = (Get-FileHash -LiteralPath (Join-Path $launcherRepoRoot $relative) -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 $launcherReceipt = [ordered]@{ source_commit = $launcherCommit;

@@ -14,8 +14,8 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("JFG Launcher Preview")]
 [assembly: AssemblyDescription("Local ROM build and launch prototype for JFG")]
-[assembly: AssemblyVersion("0.3.0.0")]
-[assembly: AssemblyInformationalVersion("0.3.0-preview.1")]
+[assembly: AssemblyVersion("0.4.0.0")]
+[assembly: AssemblyInformationalVersion("0.4.0-preview.1")]
 
 namespace JfgLauncher
 {
@@ -171,6 +171,10 @@ namespace JfgLauncher
             foreach (string key in info.EnvironmentVariables.Keys)
                 if (key.StartsWith("JFG_", StringComparison.OrdinalIgnoreCase)) remove.Add(key);
             foreach (string key in remove) info.EnvironmentVariables.Remove(key);
+            if (File.Exists(ControllerProfile.FileName(profile))) {
+                ControllerProfile.Load(profile);
+                info.EnvironmentVariables["JFG_CONTROLLER_CONFIG"] = ControllerProfile.FileName(profile);
+            }
             return info;
         }
 
@@ -226,8 +230,8 @@ namespace JfgLauncher
         internal LauncherWindow()
         {
             Text = "JFG Launcher Preview";
-            ClientSize = new Size(690, 460);
-            MinimumSize = new Size(640, 495);
+            ClientSize = new Size(760, 520);
+            MinimumSize = new Size(776, 559);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10);
             BackColor = Color.FromArgb(245, 247, 251);
@@ -245,7 +249,7 @@ namespace JfgLauncher
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 8));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
             Controls.Add(layout);
             Label title = new Label();
             title.Text = "Jet Force Gemini";
@@ -254,7 +258,7 @@ namespace JfgLauncher
             title.Dock = DockStyle.Fill;
             layout.Controls.Add(title, 0, 0);
             Label summary = new Label();
-            summary.Text = "ROM-to-play preview 0.3\nSelect your North American ROM. Setup builds your game locally.";
+            summary.Text = "ROM-to-play preview 0.4\nSelect your North American ROM. Setup builds your game locally.";
             summary.Dock = DockStyle.Fill;
             layout.Controls.Add(summary, 0, 1);
             AddLabel(layout, "1  Select your game ROM", 2);
@@ -305,6 +309,18 @@ namespace JfgLauncher
                 catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
             };
             actions.Controls.Add(saves);
+            Button controllers = new Button { Text = "Controllers", Size = new Size(145, 34) };
+            controllers.Click += delegate { using (ControllerWindow window = new ControllerWindow(LocalSetup.ProfileRoot)) window.ShowDialog(this); };
+            actions.Controls.Add(controllers); inputs.Add(controllers);
+            Button report = new Button { Text = "Create support report", Size = new Size(205, 34) };
+            report.Click += delegate {
+                try {
+                    string zip = SupportSession.Export(SupportSession.Root, Path.Combine(FirstRun.Root, "support-exports"));
+                    Process.Start(new ProcessStartInfo("explorer.exe", "/select," + LocalSetup.Quote(zip)) { UseShellExecute = false });
+                    status.Text = "Support ZIP created. Attach it to a GitHub issue with what happened and how to reproduce it.\nYou can inspect the text files before sharing.";
+                } catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
+            };
+            actions.Controls.Add(report);
             layout.Controls.Add(actions, 0, 8);
             Settings saved = LocalSetup.LoadSettings(LocalSetup.ProfileRoot);
             runtime.Text = saved.RuntimePath ?? "";
@@ -371,8 +387,10 @@ namespace JfgLauncher
             foreach (Control control in inputs) control.Enabled = false;
             progress.Visible = true;
             FileStream checkedRom = null;
+            SupportSession support = null;
             try
             {
+                support = new SupportSession(SupportSession.Root, "setup");
                 string selectedRom = LocalSetup.FullPath(rom.Text);
                 status.Text = "Verifying your ROM locally...";
                 checkedRom = await Task.Run(delegate { return LocalSetup.OpenVerifiedRom(selectedRom); });
@@ -388,6 +406,7 @@ namespace JfgLauncher
                     process.StartInfo = FirstRun.StartInfo(selectedRom, Path.Combine(FirstRun.Root, "setup", BuildInfo.SourceCommit));
                     process.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e) {
                         if (String.IsNullOrWhiteSpace(e.Data)) return;
+                        support.ConsoleLine(e.Data);
                         if (e.Data.StartsWith("Built: ", StringComparison.Ordinal)) built = e.Data.Substring(7);
                         string message = e.Data.Length > 300 ? e.Data.Substring(0, 300) : e.Data;
                         BeginInvoke((Action)delegate { status.Text = message + "\nSetup and compilation can take a while. Progress is saved in setup.log."; });
@@ -400,8 +419,10 @@ namespace JfgLauncher
                     process.BeginErrorReadLine();
                     status.Text = "Building locally. Dependencies may be downloaded on the first run.\nThis can take several minutes.";
                     await Task.Run(delegate { process.WaitForExit(); });
+                    support.Exit(process.ExitCode);
                     if (process.ExitCode == 3010)
                     {
+                        support.Write("stage=restart-required");
                         status.Text = "Restart Windows, reopen the launcher and click Set up and build again.\nYour ROM selection and saves are preserved.";
                         return;
                     }
@@ -413,11 +434,13 @@ namespace JfgLauncher
                 }
                 runtime.Text = LocalSetup.ValidateRuntime(built);
                 LocalSetup.SaveSettings(LocalSetup.ProfileRoot, new Settings { RuntimePath = runtime.Text, RomPath = selectedRom });
+                support.Write("stage=ready");
                 status.Text = "Build ready. Click Launch game to play.\nThe generated game build stays on your computer.";
             }
-            catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
+            catch (Exception error) { if (support != null) support.Error(error); status.Text = LocalSetup.FriendlyError(error); }
             finally
             {
+                if (support != null) support.Finish();
                 if (checkedRom != null) checkedRom.Dispose();
                 busy = false;
                 progress.Visible = false;
@@ -432,9 +455,13 @@ namespace JfgLauncher
             foreach (Control control in inputs) control.Enabled = false;
             progress.Visible = true;
             FileStream checkedRom = null;
+            SupportSession support = null;
             try
             {
+                support = new SupportSession(SupportSession.Root, "launch");
                 string game = LocalSetup.ValidateRuntime(runtime.Text);
+                using (FileStream input = File.OpenRead(game))
+                using (SHA256 sha = SHA256.Create()) support.Write("runtime_sha256=" + BitConverter.ToString(sha.ComputeHash(input)).Replace("-", "").ToLowerInvariant());
                 string selectedRom = LocalSetup.FullPath(rom.Text);
                 status.Text = "Verifying your ROM locally...";
                 checkedRom = await Task.Run(delegate { return LocalSetup.OpenVerifiedRom(selectedRom); });
@@ -442,22 +469,23 @@ namespace JfgLauncher
                 using (Process process = new Process())
                 {
                     process.StartInfo = LocalSetup.StartInfo(game, selectedRom, LocalSetup.ProfileRoot);
-                    // Drain diagnostics without writing ROM-derived logs or growing an in-memory log buffer.
-                    process.OutputDataReceived += delegate { };
-                    process.ErrorDataReceived += delegate { };
+                    process.StartInfo.EnvironmentVariables["JFG_SUPPORT_LOG"] = support.NativePath;
                     if (!process.Start()) throw new IOException();
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine();
+                    support.Write("stage=started");
+                    Task stdout = support.Drain(process.StandardOutput), stderr = support.Drain(process.StandardError);
                     progress.Visible = false;
                     status.Text = "Game started. Close the game to return here.\nYour saves remain in your Windows user profile.";
                     await Task.Run(delegate { process.WaitForExit(); });
+                    await Task.WhenAll(stdout, stderr);
+                    support.Exit(process.ExitCode);
                     status.Text = process.ExitCode == 0 ? "Game closed. Your save profile is ready for next time." :
-                        "The game exited with code " + process.ExitCode.ToString() + ". Check the build and its dependencies in the setup guide.";
+                        "The game exited with code " + process.ExitCode.ToString() + ". Click Create support report and attach the ZIP to a GitHub issue.";
                 }
             }
-            catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
+            catch (Exception error) { if (support != null) support.Error(error); status.Text = LocalSetup.FriendlyError(error); }
             finally
             {
+                if (support != null) support.Finish();
                 if (checkedRom != null) checkedRom.Dispose();
                 busy = false;
                 progress.Visible = false;

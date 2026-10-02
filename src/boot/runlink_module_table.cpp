@@ -114,4 +114,27 @@ RunlinkPublicationResult publish_runlink_module(
   return RunlinkPublicationResult::published;
 }
 
+RunlinkSuspensionResult resolve_runlink_suspension(
+    const hle::GuestMemory& memory, const std::uint32_t pending_table,
+    const std::size_t pending_count, const std::uint32_t module_slot) noexcept {
+  if (pending_table == 0U || pending_count == 0U || pending_count > 16U ||
+      module_slot == 0U || module_slot >= 0xFFBU)
+    return RunlinkSuspensionResult::invalid;
+  bool found = false;
+  for (std::size_t index = 0U; index < pending_count; ++index) {
+    const std::uint64_t address = std::uint64_t{pending_table} + index * 8U;
+    if (address > UINT32_MAX - 7U) return RunlinkSuspensionResult::invalid;
+    std::uint32_t base = 0U, slot = 0U;
+    if (!memory.read_u32(static_cast<std::uint32_t>(address), base) ||
+        !memory.read_u32(static_cast<std::uint32_t>(address) + 4U, slot))
+      return RunlinkSuspensionResult::invalid;
+    if (slot != module_slot) continue;
+    std::uint32_t retained_word = 0U;
+    if (found || base == 0U || !memory.read_u32(base, retained_word))
+      return RunlinkSuspensionResult::invalid;
+    found = true;
+  }
+  return found ? RunlinkSuspensionResult::suspended : RunlinkSuspensionResult::absent;
+}
+
 } // namespace jfg::boot

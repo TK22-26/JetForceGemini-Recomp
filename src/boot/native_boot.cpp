@@ -26,6 +26,9 @@
 #include "jfg/boot/si_deadline.hpp"
 #include "jfg/runtime/generated_overlay_runtime.hpp"
 #include "jfg/runtime/input_stick.hpp"
+#include "jfg/runtime/controller_mapping.hpp"
+#include "jfg/runtime/support_log.hpp"
+#include <iterator>
 #include "jfg/runtime/rt64_overlay_address.hpp"
 #include "jfg/renderer/rt64_f3ddkr_address.hpp"
 #include "jfg/runtime/cic_nus_6105.hpp"
@@ -1266,6 +1269,7 @@ struct State {
   std::unordered_set<std::uint32_t> queues;
   std::unordered_set<std::uint32_t> active_overlay_sections;
   std::unordered_set<std::uint32_t> guest_overlay_loads_in_progress;
+  jfg::ControllerMapping controller_mapping{};
   std::uint32_t executing_generated_section = UINT32_MAX;
   bool executing_generated_overlay = false;
   const char *last_overlay_publication_failure = "none";
@@ -1685,7 +1689,7 @@ void trace_phase9_event(State &state, const char *event,
                     << static_cast<int>(state.latched_controller_stick_y) << '\n';
 }
 
-bool sample_xinput_controller(std::uint16_t &buttons, int &stick_x,
+bool sample_xinput_controller(const jfg::ControllerMapping& mapping, std::uint16_t &buttons, int &stick_x,
                               int &stick_y) noexcept {
   using XInputGetStateFn = DWORD(WINAPI *)(DWORD, XINPUT_STATE *);
   static XInputGetStateFn get_state = []() noexcept -> XInputGetStateFn {
@@ -1705,35 +1709,24 @@ bool sample_xinput_controller(std::uint16_t &buttons, int &stick_x,
   if (get_state == nullptr)
     return false;
   XINPUT_STATE state{};
-  if (get_state(0U, &state) != ERROR_SUCCESS)
-    return false;
-  constexpr std::uint16_t kButtonA = 0x8000U, kButtonB = 0x4000U,
-                          kButtonZ = 0x2000U, kButtonStart = 0x1000U,
-                          kDpadUp = 0x0800U, kDpadDown = 0x0400U,
-                          kDpadLeft = 0x0200U, kDpadRight = 0x0100U,
-                          kButtonL = 0x0020U, kButtonR = 0x0010U,
-                          kCUp = 0x0008U, kCDown = 0x0004U,
-                          kCLeft = 0x0002U, kCRight = 0x0001U;
-  const XINPUT_GAMEPAD &pad = state.Gamepad;
-  buttons = (pad.wButtons & XINPUT_GAMEPAD_A) ? kButtonA : 0U;
-  buttons |= (pad.wButtons & XINPUT_GAMEPAD_B) ? kButtonB : 0U;
-  buttons |= pad.bLeftTrigger >= XINPUT_GAMEPAD_TRIGGER_THRESHOLD ? kButtonZ : 0U;
-  buttons |= (pad.wButtons & XINPUT_GAMEPAD_START) ? kButtonStart : 0U;
-  buttons |= (pad.wButtons & XINPUT_GAMEPAD_DPAD_UP) ? kDpadUp : 0U;
-  buttons |= (pad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) ? kDpadDown : 0U;
-  buttons |= (pad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) ? kDpadLeft : 0U;
-  buttons |= (pad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) ? kDpadRight : 0U;
-  buttons |= (pad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) ? kButtonL : 0U;
-  buttons |= (pad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) ? kButtonR : 0U;
-  buttons |= pad.sThumbRY > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE ? kCUp : 0U;
-  buttons |= pad.sThumbRY < -XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE ? kCDown : 0U;
-  buttons |= pad.sThumbRX < -XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE ? kCLeft : 0U;
-  buttons |= pad.sThumbRX > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE ? kCRight : 0U;
-  const jfg::N64StickSample stick = jfg::scale_xinput_left_stick(
-      static_cast<std::int32_t>(pad.sThumbLX),
-      static_cast<std::int32_t>(pad.sThumbLY));
-  stick_x = stick.x;
-  stick_y = stick.y;
+  bool connected = false;
+  for (DWORD port = 0U; port < 4U; ++port) {
+    if (mapping.device >= 0 && port != static_cast<DWORD>(mapping.device)) continue;
+    if (get_state(port, &state) == ERROR_SUCCESS) { connected = true; break; }
+  }
+  if (!connected) return false;
+  constexpr std::array<WORD, 15> masks{
+      0x1000, 0x2000, 0x4000, 0x8000, 0x20, 0, 0x10, 0x40, 0x80, 0x100, 0x200, 1, 2, 4, 8};
+  jfg::StandardControllerSample sample;
+  for (std::size_t i = 0U; i < masks.size(); ++i)
+    sample.buttons[i] = (state.Gamepad.wButtons & masks[i]) != 0;
+  sample.axes = {state.Gamepad.sThumbLX, -static_cast<int>(state.Gamepad.sThumbLY),
+      state.Gamepad.sThumbRX, -static_cast<int>(state.Gamepad.sThumbRY),
+      state.Gamepad.bLeftTrigger * 32767 / 255, state.Gamepad.bRightTrigger * 32767 / 255};
+  const auto mapped = jfg::map_controller(mapping, sample);
+  buttons = mapped.buttons;
+  stick_x = mapped.stick.x;
+  stick_y = mapped.stick.y;
   return true;
 }
 
@@ -1766,7 +1759,7 @@ void sample_live_controller(State &state) noexcept {
     stick_x = replay.stick_x;
     stick_y = replay.stick_y;
   } else {
-    if (sample_xinput_controller(buttons, stick_x, stick_y)) {
+    if (sample_xinput_controller(state.controller_mapping, buttons, stick_x, stick_y)) {
       connected = true;
     } else {
     // Keep the literal N64 layout available while also providing conventional
@@ -2680,7 +2673,18 @@ bool ensure_guest_overlay_allocation(
     return true; // Preserve the allocation chosen by the guest loader.
   if (!state.guest_overlay_loads_in_progress.insert(matched_slot).second)
     return false;
-  auto *loader = jfg_generated_lookup_function(static_cast<std::int32_t>(0x80052CFCU));
+  // A suspended module retains its data/BSS allocation. The cold loader
+  // deliberately rejects its pending entry; resume through the generated
+  // guest routine so it can reacquire text without resetting that state.
+  const auto suspension = resolve_runlink_suspension(
+      memory, 0x800FEAD8U, 16U, matched_slot);
+  if (suspension == RunlinkSuspensionResult::invalid) {
+    state.guest_overlay_loads_in_progress.erase(matched_slot);
+    return false;
+  }
+  const bool resume = suspension == RunlinkSuspensionResult::suspended;
+  auto *loader = jfg_generated_lookup_function(static_cast<std::int32_t>(
+      resume ? 0x80053D2CU : 0x80052CFCU));
   if (loader == nullptr || !memory.write_u32(matched_record, 0U)) {
     state.guest_overlay_loads_in_progress.erase(matched_slot);
     return false;
@@ -2692,7 +2696,8 @@ bool ensure_guest_overlay_allocation(
   loader_context.r4 = matched_slot;
   loader(state.rdram, &loader_context);
   state.guest_overlay_loads_in_progress.erase(matched_slot);
-  return static_cast<std::uint32_t>(loader_context.r2) != 0U &&
+  // Resume has a void guest ABI; its published base is the success condition.
+  return (resume || static_cast<std::uint32_t>(loader_context.r2) != 0U) &&
          memory.read_u32(matched_record, base) && base != 0U &&
          base != metadata.linked_vram;
 }
@@ -3420,6 +3425,7 @@ void ledger(State &state, std::string_view category, std::string_view operation,
             std::uint32_t guest_target) {
   if (!state.ledgered) {
     state.ledgered = true;
+    jfg::support_event("failure=" + std::string(category) + "/" + std::string(operation));
     std::fprintf(stdout,
                  "{\"kind\":\"jfg-phase6-native-first-trap\",\"category\":\"%.*"
                  "s\",\"guest_target\":\"0x%08x\",\"operation\":\"%.*s\","
@@ -3444,6 +3450,9 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
         exception != nullptr && exception->ExceptionRecord != nullptr
             ? exception->ExceptionRecord->ExceptionCode
             : 0U;
+    char support_exception[40]{};
+    std::snprintf(support_exception, sizeof(support_exception), "native_exception=0x%08lx", static_cast<unsigned long>(code));
+    jfg::support_event(support_exception);
     if (state->active_bzero_address != 0U) {
       std::array<char, 64U> operation{};
       (void)std::snprintf(operation.data(), operation.size(),
@@ -4109,6 +4118,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
 [[noreturn]] void play_exit(State &state) {
+  jfg::support_event("native=closed");
   if (state.mmio_trace == nullptr ||
       state.mmio_trace->unsupported_accesses != 0U) {
     fail_closed_dispatch(state, "play", "invalid-clean-exit", 0U);
@@ -7624,6 +7634,22 @@ int run_child(const char *path, const unsigned retrace_target,
   State state{};
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   g_active_child_state = &state;
+  jfg::support_event("native=rom-ready");
+  wchar_t mapping_path[32768]{};
+  const DWORD mapping_length = GetEnvironmentVariableW(L"JFG_CONTROLLER_CONFIG", mapping_path, 32768U);
+  if (mapping_length != 0U) {
+    std::ifstream mapping_file(std::filesystem::path(mapping_path), std::ios::binary | std::ios::ate);
+    if (mapping_length >= 32768U || !mapping_file || mapping_file.tellg() > 4096 || mapping_file.tellg() <= 0) {
+      jfg::support_event("native=controller-invalid");
+      return 2;
+    }
+    mapping_file.seekg(0);
+    const std::string mapping_text{std::istreambuf_iterator<char>(mapping_file), std::istreambuf_iterator<char>()};
+    if (!jfg::parse_controller_mapping(mapping_text, state.controller_mapping)) {
+      jfg::support_event("native=controller-invalid");
+      return 2;
+    }
+  }
   char writeback_flag[2]{};
   state.renderer_writeback_probe =
       GetEnvironmentVariableA("JFG_PHASE9_RENDERER_WRITEBACK_PROBE", writeback_flag, 2U) == 1U &&
@@ -8539,6 +8565,7 @@ int run_child(const char *path, const unsigned retrace_target,
     return 3;
   }
 #endif
+  jfg::support_event("native=renderer-ready");
   state.mmio_trace = &backing.mmio_trace();
   if (state.guest_os_probe) {
     // Read-only, ROM-pinned corrected-Mupen IPL hardware observation. This
@@ -8610,6 +8637,7 @@ int run_child(const char *path, const unsigned retrace_target,
     std::fputs("native boot setup failed: generated runtime\n", stderr);
     return 3;
   }
+  jfg::support_event("native=running");
   DispatchBinding binding{state, true};
   if (state.guest_leaf_probe) {
     if (jfg_minimal_runtime_bind_cpu(native_cpu_operation, &state) == 0) {
@@ -9120,6 +9148,11 @@ int run_parent(const char *executable_path, const char *rom_path,
         result = static_cast<int>(exit_code == 2U ? 2U : 3U);
       }
     }
+    if (GetExitCodeProcess(child.hProcess, &exit_code)) {
+      char support_code[32]{};
+      std::snprintf(support_code, sizeof(support_code), "native_exit=0x%08lx", static_cast<unsigned long>(exit_code));
+      jfg::support_event(support_code);
+    }
     CloseHandle(child.hThread);
     CloseHandle(child.hProcess);
   }
@@ -9134,6 +9167,7 @@ int run_parent(const char *executable_path, const char *rom_path,
 int run(const char *executable_path, const char *rom_path, unsigned timeout_ms,
         bool child_mode, const char *child_token, const char *marker_handle,
         unsigned retrace_target, unsigned poll_target, bool play_mode) {
+  jfg::support_event("native=boot");
   if (child_mode) {
 #if defined(_WIN32)
     if (!validate_child_capability(child_token, marker_handle))

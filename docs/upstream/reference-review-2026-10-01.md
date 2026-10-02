@@ -10,7 +10,9 @@ our corresponding files and the evidence needed before changing behavior.
 The strongest findings concern FlashRAM erase size, overlay DATA relocation
 offsets, and overlay lifetime semantics. These are source observations and
 test proposals. No runtime behavior, dependency pin, or gameplay acceptance
-has changed as part of this review.
+changed as part of this review. A later pause-screen repair used JFG-UP-014
+to distinguish guest suspension from cold loading; see the launcher guide for
+the specific regression replay and its limits.
 
 ## Sources and revisions
 

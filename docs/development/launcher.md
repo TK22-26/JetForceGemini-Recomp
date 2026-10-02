@@ -60,6 +60,47 @@ Only one launcher instance runs in a Windows session.
 | Arrow keys | D-pad |
 | Escape | Exit |
 
+**Controllers** detects Xbox/XInput devices, lets you choose the active controller,
+remap all N64 buttons (including Start/pause), select the movement stick, invert
+its axes, and adjust dead zones and trigger/stick thresholds. Click **Learn**,
+release the controls, then press a button or move a stick. Save the mapping to
+apply it on the next launch. **Restore defaults** restores the standard layout.
+Mappings are stored as `controller.ini` alongside your default save profile.
+If a controller disconnects, keyboard fallback remains available; automatic
+selection uses the first connected XInput device. Other controller types need
+an XInput-compatible driver or adapter. Native DirectInput/HID mapping and
+rumble configuration are not implemented in this preview. Hardware coverage
+still needs tester feedback; automated tests use synthetic controller samples.
+
+Existing game builds must be rebuilt with this launcher version to consume the
+mapping and write native support diagnostics. An older selected executable can
+still produce an exit-code report but does not gain new runtime features.
+
+## Crash reports
+
+Launch through `JFG-Launcher.exe` to keep a local support session. If the game
+crashes, click **Create support report**, inspect the ZIP if desired, and attach
+it to a [playtest issue](https://github.com/TK22-26/JetForceGemini-Recomp/issues/new?template=playtest.yml).
+Include the level/menu, what you pressed, what you expected and whether the
+problem repeats. If Windows or the launcher closes unexpectedly, reopen the
+launcher and create the report before starting another session.
+
+The ZIP contains only `launcher.log`, `native.log` and reporting instructions.
+It includes UTC start time, launcher/source version, Windows version, runtime
+executable hash, setup stages, exit/exception codes, and host failure categories.
+Each log is bounded to 64 KiB; the ten newest owned sessions are retained under
+`%LOCALAPPDATA%\JFGRecomp\reports`. Exported ZIPs stay in `support-exports` until
+you remove them. Reports are filtered again during export and never upload
+automatically. ROM contents, generated game code, saves, usernames/file paths,
+raw setup/console output, screenshots, audio and memory dumps are excluded.
+The existing raw `setup.log` is for local troubleshooting; do not attach it.
+
+The pause-screen crash reported during preview testing was traced to a suspended
+overlay being sent to the cold loader. The runtime now calls the original guest
+resume routine for suspended entries, preserving their retained data. The
+recorded failure and six further pause presses passed local replay after the fix.
+This verifies that reported route, not every pause menu or campaign state.
+
 This is a development prototype. Campaign completion and full original-console
 parity remain open. See [the handoff](https://github.com/TK22-26/JetForceGemini-Recomp/blob/launcher-preview/docs/development/handoff.md)
 for known limitations and useful playtest reports.
@@ -75,7 +116,8 @@ The C# launcher uses the Windows .NET Framework compiler and has no NuGet or
 game dependency. Outputs remain under ignored `build/launcher`. Tests cover ROM
 rejection, executable validation, argument forwarding, save preservation,
 source discovery, setup argument forwarding, embedded-script restoration,
-missing-tool installation plans, retries, ROM rejection before downloads, and UI rendering.
+missing-tool installation plans, retries, ROM rejection before downloads, controller profile validation,
+button capture, crash-process reporting, log bounds/redaction, archive contents, and UI rendering.
 
 The ZIP uses a fixed allowlist: launcher executable, this guide, build setup
 guide, and project license. It excludes the generated game executable, game
@@ -88,5 +130,5 @@ launcher to its source revision and installer.
 A pristine Windows installation with UAC/reboot has not yet been tested end to
 end. The local ROM-to-game build and launch were demonstrated separately; the
 new setup flow has automated tests and a real pinned-source download check.
-Please report installer failures with the stage and error, without uploading
-your ROM, generated code, or raw build logs.
+Please report installer failures with the stage, reproduction steps, and the
+exported support ZIP.

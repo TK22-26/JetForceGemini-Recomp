@@ -68,7 +68,7 @@ The playable target is `jfg-native-boot` with the live runtime enabled. The
 [bootstrap recipe](rom-bootstrap.md) downloads pinned dependencies, extracts
 your ROM, builds a matching ELF, recovers the required OS symbol metadata,
 generates CPU/audio code, and compiles the Windows runtime. The launcher's
-**Build from ROM** button invokes that recipe. It needs no maintainer-generated
+**Set up and build** button invokes that recipe. It needs no maintainer-generated
 ELF, overlay layout, CPU output, audio output, or save file.
 
 The existing [manual launcher](../../scripts/launch_phase9_manual_test.ps1)
@@ -101,6 +101,7 @@ These are the bindings recorded in the [Phase 8 contract](../planning/phase8-acc
 
 ## Reporting a problem
 
+Use **Create support report** in the launcher and attach that filtered ZIP.
 Report the source commit or supplied build identifier, operating system, GPU,
 input device, reproduction steps, expected behavior, actual behavior, and whether
 it repeats. Describe the scene and symptom in text. Review diagnostics before
