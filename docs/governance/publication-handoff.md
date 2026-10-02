@@ -14,7 +14,7 @@ See [the source audit](../legal/publication-audit.md) for the exact boundary.
 ## What a collaborator can test
 
 A normal clone builds the ROM-free host shell and synthetic tests. The `jfg`
-shell does not execute the game. The `launcher-preview` branch adds a Windows
+shell does not execute the game. The `main` branch includes a Windows
 [ROM-to-build recipe](../development/rom-bootstrap.md) and graphical launcher.
 Testers install its developer-tool prerequisites and supply their own supported
 ROM; generation and compilation run locally. The launcher package contains no

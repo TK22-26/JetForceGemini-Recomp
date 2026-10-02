@@ -102,7 +102,7 @@ recorded failure and six further pause presses passed local replay after the fix
 This verifies that reported route, not every pause menu or campaign state.
 
 This is a development prototype. Campaign completion and full original-console
-parity remain open. See [the handoff](https://github.com/TK22-26/JetForceGemini-Recomp/blob/launcher-preview/docs/development/handoff.md)
+parity remain open. See [the handoff](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/development/handoff.md)
 for known limitations and useful playtest reports.
 
 ## Build the launcher

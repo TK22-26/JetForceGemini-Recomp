@@ -1,5 +1,38 @@
 # Jet Force Gemini Native Recompilation
 
+## Progress - playable locally today
+
+**You can build and play Jet Force Gemini locally on Windows x64 today using
+your own supported North American (US) `.z64` ROM.** This is a playable
+development preview. Progress as of **October 2, 2026**:
+
+- A maintainer playtest completed Goldwood and reached **SS Anubis**.
+- Native rendering, audio, keyboard input, configurable Xbox/XInput controllers,
+  persistent saves, and local crash reports are implemented.
+- Recent fixes cover the pause crash, starting health/ammo, Goldwood invasion
+  stutter, menu volume meters, the game's built-in widescreen option, and missing
+  planets on the stage-select and Tribal statistics screens.
+- Full campaign completion and original-console parity remain unverified.
+  See the [gameplay fixes and validation](docs/development/boot-gameplay-fix.md).
+
+**Try the latest fixes:** use the `main` branch and follow
+[ROM build setup](docs/development/rom-bootstrap.md) to install the prerequisites.
+Then run in PowerShell:
+
+```powershell
+git clone https://github.com/TK22-26/JetForceGemini-Recomp.git
+cd JetForceGemini-Recomp
+python scripts/build_from_rom.py --rom 'D:\Games\my-copy.z64' --play
+```
+
+Setup downloads build tools/dependencies and generates the game executable and
+assets locally from your ROM. The [Windows launcher](docs/development/launcher.md)
+provides a graphical setup and launch flow; each published launcher uses its
+own pinned source version, so an older preview may lack the latest `main` fixes.
+The project does not distribute a ROM or extracted game assets.
+
+## About this repository
+
 This repository contains host runtime code, build and validation tools,
 tests, and planning for a native Jet Force Gemini recompilation project.
 Project-authored code and permissively licensed upstream material are identified
@@ -9,9 +42,9 @@ This public snapshot starts with fresh Git history. Private development history,
 ROM-derived outputs, and five emulator diagnostic patches with unresolved
 licensing are excluded. See [the publication audit](docs/legal/publication-audit.md).
 
-**This is a development repository, not a downloadable game.** A normal clone
-builds the ROM-free host shell and tests. The experimental playable runtime
-also needs locally generated inputs that are not included in Git.
+The default CMake targets build the ROM-free host shell and tests. The
+ROM-to-play setup above generates the additional local inputs needed for
+the playable runtime.
 
 New collaborators and testers should start with the
 [repository handoff](docs/development/handoff.md). It explains what can be
