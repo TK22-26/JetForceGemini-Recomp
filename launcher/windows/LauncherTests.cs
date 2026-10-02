@@ -79,6 +79,10 @@ namespace JfgLauncher
                 Reject(delegate { LocalSetup.ValidateRuntime(game); }, "non-x64 library accepted");
                 File.WriteAllBytes(game, new byte[2]);
                 Reject(delegate { LocalSetup.ValidateRuntime(game); }, "truncated executable accepted");
+                Check(LocalSetup.PreferredRuntime(directory, "saved runtime") == "saved runtime", "invalid paired build accepted");
+                File.WriteAllBytes(game, Pe());
+                File.WriteAllBytes(Path.Combine(directory, "SDL2.dll"), Pe());
+                Check(LocalSetup.PreferredRuntime(directory, "saved runtime") == game, "paired native build not selected");
                 Settings settings = new Settings { RuntimePath = "Synthetic build & Unicode \u00e9", RomPath = "Selected synthetic ROM" };
                 LocalSetup.SaveSettings(directory, settings);
                 Settings loaded = LocalSetup.LoadSettings(directory);
@@ -120,6 +124,25 @@ namespace JfgLauncher
                 ControllerProfile recovered = ControllerProfile.Load(directory);
                 Check(recovered.Device == 2 && recovered.Bindings[3] == 3 && recovered.Deadzone == 18000, "controller settings did not persist");
                 Check(LocalSetup.StartInfo(game, wrongRom, directory).EnvironmentVariables["JFG_CONTROLLER_CONFIG"] == ControllerProfile.FileName(directory), "controller mapping not forwarded to game");
+                string normalProfile = Path.Combine(directory, "profiles", "default");
+                Directory.CreateDirectory(normalProfile);
+                File.WriteAllText(Path.Combine(normalProfile, "jfg.flash"), "normal campaign");
+                File.WriteAllText(Path.Combine(normalProfile, "controller-1.pak"), "normal pak");
+                controller.Save(normalProfile);
+                ProcessStartInfo modStart = LocalSetup.NavigationStartInfo(game, wrongRom, normalProfile);
+                string modProfile = LocalSetup.NavigationProfile(normalProfile);
+                Check(modProfile != normalProfile && modStart.Arguments.Contains(LocalSetup.Quote(Path.Combine(modProfile, "jfg.flash"))), "mod shares normal saves");
+                Check(File.ReadAllText(Path.Combine(modProfile, "jfg.flash")) == "normal campaign", "mod did not copy initial progress");
+                Check(modStart.EnvironmentVariables["JFG_NAVIGATION_MOD"] == "1", "mod not enabled explicitly");
+                Check(modStart.EnvironmentVariables["JFG_MOD_OUTPUT"].StartsWith(Path.Combine(modProfile, "maps")), "map export outside mod profile");
+                Check(modStart.EnvironmentVariables["JFG_CONTROLLER_CONFIG"] == ControllerProfile.FileName(modProfile), "mod controller profile missing");
+                File.WriteAllText(Path.Combine(modProfile, "jfg.flash"), "mod progress");
+                ProcessStartInfo secondModStart = LocalSetup.NavigationStartInfo(game, wrongRom, normalProfile);
+                Check(File.ReadAllText(Path.Combine(modProfile, "jfg.flash")) == "mod progress", "mod launch overwrites mod progress");
+                Check(File.ReadAllText(Path.Combine(normalProfile, "jfg.flash")) == "normal campaign", "mod changed normal campaign");
+                Check(secondModStart.EnvironmentVariables["JFG_MOD_OUTPUT"] != modStart.EnvironmentVariables["JFG_MOD_OUTPUT"], "export sessions share stale maps");
+                ProcessStartInfo normalStart = LocalSetup.StartInfo(game, wrongRom, normalProfile);
+                Check(!normalStart.EnvironmentVariables.ContainsKey("JFG_NAVIGATION_MOD") && !normalStart.EnvironmentVariables.ContainsKey("JFG_MOD_OUTPUT"), "mod enabled for normal launch");
                 Reject(delegate { ControllerProfile.Parse(controller.Encode() + "map0=27\n"); }, "duplicate mapping accepted");
                 Reject(delegate { ControllerProfile.Parse(controller.Encode().Replace("device=2", "device=4")); }, "bad controller port accepted");
                 Reject(delegate { ControllerProfile.Parse(controller.Encode().Replace("map3=3", "map3=99")); }, "bad binding accepted");
@@ -129,6 +152,8 @@ namespace JfgLauncher
                 buttons[6] = false; axes[3] = -24000; Check(ControllerInput.Pressed(buttons, axes) == 22, "stick direction capture failed");
                 string reportRoot = Path.Combine(directory, "reports");
                 SupportSession support = new SupportSession(reportRoot, "launch");
+                support.Write("mod=navigation-enabled");
+                support.Write("mod=PRIVATE-PATH-CANARY");
                 support.Error(new IOException("PRIVATE-PATH-CANARY"));
                 ProcessStartInfo crashPlan = new ProcessStartInfo(System.Reflection.Assembly.GetExecutingAssembly().Location, "--crash-fixture") {
                     UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
@@ -148,6 +173,7 @@ namespace JfgLauncher
                     foreach (var entry in zip.Entries) using (StreamReader reader = new StreamReader(entry.Open())) combined += reader.ReadToEnd();
                     Check(!combined.Contains("CANARY") && !combined.Contains(directory), "private contents leaked into support report");
                     Check(combined.Contains("exit=0x00000011") && combined.Contains("native_exit=0xc0000005") && combined.Contains("failure=runlink/guest-overlay-load"), "crash evidence lost");
+                    Check(combined.Contains("mod=navigation-enabled"), "mod context lost from support report");
                     Check(combined.Contains("native_exception=0xc0000005") && combined.Contains("omitted="), "exception or omitted count lost");
                 }
                 for (int i = 0; i < 6000; ++i) support.Write("native=running");
@@ -189,6 +215,34 @@ namespace JfgLauncher
                 Check(Convert.ToBase64String(File.ReadAllBytes(installer)) == Convert.ToBase64String(FirstRun.SetupScript()),
                     "setup resource was not restored from the executable");
                 Reject(delegate { FirstRun.StartInfo("bad\npath", setupFixture); }, "setup accepted malformed ROM path");
+                string mapDirectory = Path.Combine(directory, "map");
+                Directory.CreateDirectory(mapDirectory);
+                string meshFixture = "{\"schema\":1,\"level\":21,\"generation\":2,\"vertices\":[[0,0,0],[100,0,0],[0,0,100]],\"triangles\":[{\"v\":[0,1,2]}]}";
+                long mapNow = (long)(DateTime.UtcNow - new DateTime(1970,1,1,0,0,0,DateTimeKind.Utc)).TotalMilliseconds;
+                string liveFixture = "{\"schema\":1,\"level\":21,\"generation\":2,\"timestamp_ms\":" + mapNow +
+                    ",\"update\":1,\"mesh_ready\":true,\"clearing_active\":true,\"player\":{\"position\":[20,0,20]},\"exits\":[{\"position\":[80,0,10],\"destination_code\":123}],\"markers\":[{\"position\":[10,0,80],\"kind\":\"chest\",\"label\":\"Chest\"}]}";
+                File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture);
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture);
+                MapSnapshot map = MapSnapshot.Load(mapDirectory, null);
+                Check(map.IsLive && map.Live.markers.Length == 1 && map.Live.exits.Length == 1, "live map markers missing");
+                Check(Object.ReferenceEquals(map.Mesh, MapSnapshot.Load(mapDirectory, map.Mesh).Mesh), "map cache not reused");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture.Replace("\"generation\":2", "\"generation\":3"));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "map mixed two room generations");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture.Replace(mapNow.ToString(), "1"));
+                Check(!MapSnapshot.Load(mapDirectory, map.Mesh).IsLive, "stale map presented as live");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture);
+                File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture.Replace("[0,1,2]", "[0,1,9]"));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, null); }, "invalid map face accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture);
+                using (NavigationMapWindow mapWindow = new NavigationMapWindow(mapDirectory)) {
+                    mapWindow.StartPosition = FormStartPosition.Manual; mapWindow.Location = new Point(-32000, -32000);
+                    mapWindow.ShowInTaskbar = false; mapWindow.Show(); Application.DoEvents();
+                    using (Bitmap preview = new Bitmap(mapWindow.Width, mapWindow.Height)) {
+                        mapWindow.DrawToBitmap(preview, new Rectangle(Point.Empty, preview.Size));
+                        preview.Save(Path.Combine(repo, "build", "launcher", "map-preview.png"));
+                    }
+                    mapWindow.Close(); checks++;
+                }
                 using (LauncherWindow window = new LauncherWindow())
                 {
                     // Realize controls without putting a test window on the user's desktop.

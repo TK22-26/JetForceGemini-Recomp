@@ -494,3 +494,9 @@ target_include_directories(jfg_vi_presentation_tests PRIVATE "${PROJECT_SOURCE_D
 target_compile_features(jfg_vi_presentation_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_vi_presentation_tests)
 add_test(NAME jfg.vi_presentation COMMAND jfg_vi_presentation_tests)
+
+add_executable(jfg_navigation_mod_tests navigation_mod_tests.cpp)
+target_include_directories(jfg_navigation_mod_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_navigation_mod_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_navigation_mod_tests)
+add_test(NAME jfg.navigation_mod COMMAND jfg_navigation_mod_tests)

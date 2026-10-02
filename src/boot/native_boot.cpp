@@ -3,6 +3,7 @@
 #include "jfg/boot/reset_handoff.hpp"
 #include "jfg/boot/ipl_handoff.hpp"
 #include "jfg/boot/gameplay_trace.hpp"
+#include "jfg/mod/navigation_mod.hpp"
 #include "jfg/boot/runlink_module_table.hpp"
 #include "jfg/boot/thread_scheduler.hpp"
 #include "jfg/boot/guest_thread_transport.hpp"
@@ -1372,6 +1373,8 @@ struct State {
   std::uint64_t health_overlay_death_reload_generation = 0U;
   std::uint64_t phase9_player_hit_check_calls = 0U;
   std::uint32_t phase9_player_actor = 0U;
+  jfg::mod::NavigationMod navigation_mod;
+  std::filesystem::path navigation_output;
   std::uint64_t phase9_hints_control_calls = 0U;
   std::uint64_t phase9_hints_talk_calls = 0U;
   std::uint32_t phase9_hints_actor = 0U;
@@ -2031,6 +2034,45 @@ bool write_private_rt64_snapshot(
   }
   return static_cast<bool>(stream);
 }
+
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+bool write_mod_export(const std::filesystem::path &path, const std::string &text) {
+  auto temporary=path;temporary += ".tmp";
+  { std::ofstream stream(temporary,std::ios::binary|std::ios::trunc);
+    stream << text;stream.flush();if(!stream)return false; }
+  return MoveFileExW(temporary.c_str(),path.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)!=0;
+}
+
+void update_navigation_mod(State &state) {
+  if(!state.navigation_mod.enabled)return;
+  auto &mod=state.navigation_mod;
+  jfg::mod::Memory memory({state.rdram,kRdramSize});
+  try {
+    const auto list=jfg::mod::actors(memory);
+    bool player_present=false;
+    for(const auto &actor:list) {
+      if(actor.address==mod.player)player_present=true;
+      (void)mod.clear_enemy(memory,actor.address);
+    }
+    if(!player_present)mod.player=0;
+    else (void)mod.full_health(memory,mod.player);
+    ++mod.updates;
+    if(mod.updates%6U!=0U)return;
+    const auto track=memory.u32(0x800A0D60U), level=memory.u32(0x800FB114U);
+    bool mesh_ready=mod.player!=0U && track==mod.last_track && level==mod.last_level;
+    if(mod.player!=0U && !mesh_ready) {
+      try {
+        const auto mesh=jfg::mod::decode_mesh(memory,track);
+        std::ostringstream output;jfg::mod::write_mesh(output,mesh,level,mod.generation);
+        mesh_ready=write_mod_export(state.navigation_output/L"mesh.json",output.str());
+        if(mesh_ready){mod.last_track=track;mod.last_level=level;}
+      }catch(const std::runtime_error &){++mod.invalid;}
+    }
+    std::ostringstream output;mod.write_state(output,memory,list,level,mesh_ready);
+    if(!write_mod_export(state.navigation_output/L"live.json",output.str()))++mod.invalid;
+  }catch(const std::runtime_error &){++mod.invalid;}
+}
+#endif
 
 void trace_gameplay_state(State &state, bool update) {
   if (!state.gameplay_trace || state.rdram == nullptr) return;
@@ -4932,6 +4974,23 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       state.mmio_trace->unsupported_accesses != 0U)
     fail_closed_dispatch(state, "mmio", "unsupported-register", target);
   ++state.dispatch_calls;
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  if (state.navigation_mod.enabled) {
+    jfg::mod::Memory memory({rdram,kRdramSize});
+    if (target==0x8004665CU) {
+      state.navigation_mod.transition();
+      // Invalidate the old map before the game starts loading another room.
+      std::ostringstream output;
+      state.navigation_mod.write_state(output,memory,{},UINT32_MAX,false);
+      if(!write_mod_export(state.navigation_output/L"live.json",output.str()))
+        ++state.navigation_mod.invalid;
+    }
+    if (target==0x80032A48U)
+      (void)state.navigation_mod.full_health(memory,static_cast<std::uint32_t>(context->r4));
+    if (target==0x00310600U)
+      (void)state.navigation_mod.clear_enemy(memory,static_cast<std::uint32_t>(context->r4));
+  }
+#endif
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
   switch (target) {
   case 0x020002E8U: // overlay 32: mrhintsControl / KingBear
@@ -5245,7 +5304,15 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
       }
 #endif
+      [[maybe_unused]] const auto mod_actor_argument=static_cast<std::uint32_t>(context->r4);
       generated(rdram, context);
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+      if (state.navigation_mod.enabled && target==0x80032A48U) {
+        jfg::mod::Memory memory({rdram,kRdramSize});
+        (void)state.navigation_mod.full_health(memory,mod_actor_argument);
+      }
+      if (target==0x80044FACU) update_navigation_mod(state);
+#endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
       if (state.entry_probe_target == target && focus_window)
         trace_guest_clock(state, "entry-return", target);
@@ -7778,6 +7845,19 @@ int run_child(const char *path, const unsigned retrace_target,
   jfg::GeneratedOverlayRuntime runtime(std::as_writable_bytes(rdram));
   State state{};
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  char mod_flag[2]{};
+  if (GetEnvironmentVariableA("JFG_NAVIGATION_MOD",mod_flag,2U)==1U && mod_flag[0]=='1') {
+    wchar_t output[32768]{};
+    const DWORD length=GetEnvironmentVariableW(L"JFG_MOD_OUTPUT",output,32768U);
+    if(length==0U || length>=32768U) {
+      std::fputs("navigation mod requires JFG_MOD_OUTPUT\n",stderr);return 2;
+    }
+    state.navigation_output=std::filesystem::path(output);
+    std::error_code error;std::filesystem::create_directories(state.navigation_output,error);
+    if(error)return 2;
+    state.navigation_mod.enabled=true;
+    jfg::support_event("mod=navigation-enabled");
+  }
   wchar_t gameplay_trace_path[32768]{};
   const DWORD trace_path_length = GetEnvironmentVariableW(L"JFG_GAMEPLAY_TRACE", gameplay_trace_path, 32768U);
   if (trace_path_length != 0U && (trace_path_length >= 32768U ||

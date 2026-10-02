@@ -31,7 +31,7 @@ def main() -> int:
     if subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=ROOT, text=True).strip():
         raise SystemExit('Commit the reviewed source changes before packaging the pinned launcher')
     expected_inputs = {'launcher/windows/Launcher.cs', 'launcher/windows/FirstRun.cs',
-                       'launcher/windows/Setup.ps1', 'launcher/windows/Support.cs', 'launcher/windows/Controller.cs', 'scripts/build_launcher.ps1'}
+                       'launcher/windows/Setup.ps1', 'launcher/windows/Support.cs', 'launcher/windows/Controller.cs', 'launcher/windows/NavigationMap.cs', 'scripts/build_launcher.ps1'}
     if (receipt.get('source_commit') != revision or set(receipt.get('inputs', {})) != expected_inputs
             or receipt.get('executable_sha256') != hashlib.sha256(binary).hexdigest()
             or any(hashlib.sha256((ROOT / name).read_bytes()).hexdigest() != digest

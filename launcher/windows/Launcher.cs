@@ -38,6 +38,59 @@ namespace JfgLauncher
                 "JFGRecomp", "profiles", "default"); }
         }
 
+        internal static string PreferredRuntime(string directory, string savedRuntime)
+        {
+            string paired = Path.Combine(directory, "jfg-native-boot.exe");
+            if (File.Exists(paired))
+            {
+                try { return ValidateRuntime(paired); }
+                catch (InvalidDataException) { }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+            return savedRuntime ?? "";
+        }
+
+        internal static string NavigationProfile(string profile)
+        {
+            return Path.Combine(Path.GetDirectoryName(FullPath(profile)), "navigation-mod");
+        }
+
+        internal static string PrepareNavigationProfile(string profile)
+        {
+            string target = NavigationProfile(profile);
+            Directory.CreateDirectory(target);
+            string marker = Path.Combine(target, "initialized.txt");
+            if (!File.Exists(marker))
+            {
+                foreach (string name in new string[] {"jfg.flash", "controller-1.pak"})
+                {
+                    string source = Path.Combine(profile, name), destination = Path.Combine(target, name);
+                    if (File.Exists(source) && !File.Exists(destination)) File.Copy(source, destination, false);
+                }
+                File.WriteAllText(marker, "Separate navigation mod save profile.\n");
+            }
+            // Controller settings remain shared; campaign saves never are.
+            string controller = ControllerProfile.FileName(profile);
+            if (File.Exists(controller))
+            {
+                ControllerProfile.Load(profile);
+                File.Copy(controller, ControllerProfile.FileName(target), true);
+            }
+            return target;
+        }
+
+        internal static ProcessStartInfo NavigationStartInfo(string runtime, string rom, string profile)
+        {
+            string target = PrepareNavigationProfile(profile);
+            ProcessStartInfo info = StartInfo(runtime, rom, target);
+            // Each run has a new export directory, so old maps cannot look current.
+            string exports = Path.Combine(target, "maps", DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N"));
+            info.EnvironmentVariables["JFG_NAVIGATION_MOD"] = "1";
+            info.EnvironmentVariables["JFG_MOD_OUTPUT"] = exports;
+            return info;
+        }
+
         internal static string FindSourceRoot(string start)
         {
             DirectoryInfo directory = new DirectoryInfo(Path.GetFullPath(start));
@@ -223,15 +276,17 @@ namespace JfgLauncher
         private readonly TextBox rom = new TextBox();
         private readonly Label status = new Label();
         private readonly Button play = new Button();
+        private readonly CheckBox navigation = new CheckBox();
         private readonly ProgressBar progress = new ProgressBar();
         private readonly List<Control> inputs = new List<Control>();
         private bool busy;
+        private NavigationMapWindow mapWindow;
 
         internal LauncherWindow()
         {
             Text = "JFG Launcher Preview";
-            ClientSize = new Size(760, 520);
-            MinimumSize = new Size(776, 559);
+            ClientSize = new Size(760, 554);
+            MinimumSize = new Size(776, 593);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10);
             BackColor = Color.FromArgb(245, 247, 251);
@@ -240,13 +295,14 @@ namespace JfgLauncher
             layout.Dock = DockStyle.Fill;
             layout.Padding = new Padding(24);
             layout.ColumnCount = 1;
-            layout.RowCount = 9;
+            layout.RowCount = 10;
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 8));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
@@ -265,15 +321,20 @@ namespace JfgLauncher
             AddPicker(layout, rom, 3, "N64 ROM|*.z64;*.n64;*.v64|All files|*.*", "Select your North American retail ROM");
             AddLabel(layout, "2  Set up and build below, or select an existing build", 4);
             AddPicker(layout, runtime, 5, "Native game build|jfg-native-boot.exe", "Select the native game build");
+            navigation.Text = "Navigation mod: full health, clear enemies, export maps (separate saves)";
+            navigation.Dock = DockStyle.Fill;
+            navigation.Checked = false;
+            layout.Controls.Add(navigation, 0, 6);
+            inputs.Add(navigation);
             status.Text = "First setup downloads missing tools and source. Windows may require a restart.\nFuture launches reuse your build. Saves stay in your user profile.";
             status.Dock = DockStyle.Fill;
             status.Padding = new Padding(0, 12, 0, 0);
             status.ForeColor = Color.FromArgb(64, 76, 92);
-            layout.Controls.Add(status, 0, 6);
+            layout.Controls.Add(status, 0, 7);
             progress.Dock = DockStyle.Fill;
             progress.Visible = false;
             progress.Style = ProgressBarStyle.Marquee;
-            layout.Controls.Add(progress, 0, 7);
+            layout.Controls.Add(progress, 0, 8);
             FlowLayoutPanel actions = new FlowLayoutPanel();
             actions.Dock = DockStyle.Fill;
             actions.Padding = new Padding(0, 10, 0, 0);
@@ -321,9 +382,23 @@ namespace JfgLauncher
                 } catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
             };
             actions.Controls.Add(report);
-            layout.Controls.Add(actions, 0, 8);
+            Button maps = new Button { Text = "Live map", Size = new Size(120, 34) };
+            maps.Click += delegate {
+                try {
+                    string directory = Path.Combine(LocalSetup.NavigationProfile(LocalSetup.ProfileRoot), "maps");
+                    if (!Directory.Exists(directory) || Directory.GetDirectories(directory).Length == 0) {
+                        status.Text = "Launch with Navigation mod enabled to start exporting a live map.";
+                        return;
+                    }
+                    string[] sessions = Directory.GetDirectories(directory);
+                    Array.Sort(sessions, StringComparer.Ordinal);
+                    ShowNavigationMap(sessions[sessions.Length - 1]);
+                } catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
+            };
+            actions.Controls.Add(maps);
+            layout.Controls.Add(actions, 0, 9);
             Settings saved = LocalSetup.LoadSettings(LocalSetup.ProfileRoot);
-            runtime.Text = saved.RuntimePath ?? "";
+            runtime.Text = LocalSetup.PreferredRuntime(AppDomain.CurrentDomain.BaseDirectory, saved.RuntimePath);
             rom.Text = saved.RomPath ?? "";
             FormClosing += delegate(object sender, FormClosingEventArgs e) {
                 if (busy)
@@ -448,6 +523,14 @@ namespace JfgLauncher
             }
         }
 
+        private void ShowNavigationMap(string path)
+        {
+            if (mapWindow == null || mapWindow.IsDisposed) mapWindow = new NavigationMapWindow(path);
+            else mapWindow.BindDirectory(path);
+            mapWindow.Show();
+            mapWindow.BringToFront();
+        }
+
         private async Task Launch()
         {
             if (busy) return;
@@ -468,13 +551,19 @@ namespace JfgLauncher
                 LocalSetup.SaveSettings(LocalSetup.ProfileRoot, new Settings { RuntimePath = game, RomPath = selectedRom });
                 using (Process process = new Process())
                 {
-                    process.StartInfo = LocalSetup.StartInfo(game, selectedRom, LocalSetup.ProfileRoot);
+                    process.StartInfo = navigation.Checked
+                        ? LocalSetup.NavigationStartInfo(game, selectedRom, LocalSetup.ProfileRoot)
+                        : LocalSetup.StartInfo(game, selectedRom, LocalSetup.ProfileRoot);
+                    support.Write(navigation.Checked ? "mod=navigation-enabled" : "mod=disabled");
                     process.StartInfo.EnvironmentVariables["JFG_SUPPORT_LOG"] = support.NativePath;
                     if (!process.Start()) throw new IOException();
+                    if (navigation.Checked) ShowNavigationMap(process.StartInfo.EnvironmentVariables["JFG_MOD_OUTPUT"]);
                     support.Write("stage=started");
                     Task stdout = support.Drain(process.StandardOutput), stderr = support.Drain(process.StandardError);
                     progress.Visible = false;
-                    status.Text = "Game started. Close the game to return here.\nYour saves remain in your Windows user profile.";
+                    status.Text = navigation.Checked
+                        ? "Navigation mod started. Full health and automatic enemy clearing are enabled.\nMaps are exported locally. This run uses separate mod saves."
+                        : "Game started. Close the game to return here.\nYour saves remain in your Windows user profile.";
                     await Task.Run(delegate { process.WaitForExit(); });
                     await Task.WhenAll(stdout, stderr);
                     support.Exit(process.ExitCode);
@@ -497,8 +586,14 @@ namespace JfgLauncher
     internal static class Program
     {
         [STAThread]
-        private static void Main()
+        private static void Main(string[] args)
         {
+            if (args.Length == 2 && args[0] == "--map-view") {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new NavigationMapWindow(args[1]));
+                return;
+            }
             bool owner;
             using (Mutex instance = new Mutex(true, @"Local\JFGRecompLauncher", out owner))
             {

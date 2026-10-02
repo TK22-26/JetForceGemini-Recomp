@@ -20,7 +20,7 @@ namespace JfgLauncher
         internal string NativePath { get { return Path.Combine(DirectoryPath, "native.log"); } }
         internal static string Root { get { return Path.Combine(FirstRun.Root, "reports"); } }
         internal static readonly Regex SafeLine = new Regex(
-            @"\A(?:stage=(?:setup|launch|verify-rom|install-tools|download-source|build-game|ready|restart-required|started|closed|failed)|exit=0x[0-9a-f]{8}|exception=0x[0-9a-f]{8}|runtime_sha256=[0-9a-f]{64}|source=[0-9a-f]{40}|version=[0-9a-z.-]{1,40}|os=[0-9.]{1,40}|utc=[0-9TZ:.+-]{1,40}|omitted=[0-9]{1,10}|native=(?:boot|rom-ready|renderer-ready|running|closed|controller-connected|controller-disconnected|controller-invalid)|(?:native_exit|native_exception)=0x[0-9a-f]{8}|failure=[a-z0-9-]{1,64}/[a-z0-9-]{1,64})\z",
+            @"\A(?:stage=(?:setup|launch|verify-rom|install-tools|download-source|build-game|ready|restart-required|started|closed|failed)|exit=0x[0-9a-f]{8}|exception=0x[0-9a-f]{8}|runtime_sha256=[0-9a-f]{64}|source=[0-9a-f]{40}|version=[0-9a-z.-]{1,40}|os=[0-9.]{1,40}|utc=[0-9TZ:.+-]{1,40}|omitted=[0-9]{1,10}|mod=(?:disabled|navigation-enabled)|native=(?:boot|rom-ready|renderer-ready|running|closed|controller-connected|controller-disconnected|controller-invalid)|(?:native_exit|native_exception)=0x[0-9a-f]{8}|failure=[a-z0-9-]{1,64}/[a-z0-9-]{1,64})\z",
             RegexOptions.CultureInvariant);
 
         internal SupportSession(string root, string stage)

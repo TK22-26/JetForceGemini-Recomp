@@ -132,3 +132,16 @@ end. The local ROM-to-game build and launch were demonstrated separately; the
 new setup flow has automated tests and a real pinned-source download check.
 Please report installer failures with the stage, reproduction steps, and the
 exported support ZIP.
+
+
+## Navigation mod preview
+
+The optional **Navigation mod** checkbox enables full health, automatic clearing
+of ordinary squad enemies during gameplay, and local map/exit exports.
+It creates a separate campaign profile on first use. **Live map** opens the
+exports, and **Controllers** continues to control the shared input mappings.
+When a complete native build is beside the launcher, it is selected automatically.
+
+Use the matching native build from the mod source revision.
+See [navigation mod setup and limits](navigation-mod.md), including scripted-scene
+exclusions and the remaining route-following work.
