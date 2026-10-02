@@ -1,4 +1,5 @@
 #include "jfg/renderer/rt64_shell.hpp"
+#include "jfg/renderer/vi_presentation.hpp"
 
 #include "rt64_f3ddkr.hpp"
 
@@ -138,34 +139,30 @@ void clear_vi_guard_texel(
     // undefined, so linear VI sampling otherwise repeats it as a colored
     // edge. Clip exactly one source texel after VI scaling without touching
     // guest RDRAM or the rendered image interior.
+    const auto display = jfg::vi_presentation_size(vi.hRegion.word, vi.vRegion.word);
+    if (!display.valid()) return;
     const double scale = (std::min)(
-        static_cast<double>(window_width) /
-            static_cast<double>(framebuffer_size.x),
-        static_cast<double>(window_height) /
-            static_cast<double>(framebuffer_size.y));
-    if (!std::isfinite(scale) || scale <= 0.0) {
-        return;
-    }
-    const double rendered_width =
-        static_cast<double>(framebuffer_size.x) * scale;
-    const double rendered_height =
-        static_cast<double>(framebuffer_size.y) * scale;
+        static_cast<double>(window_width) / display.width,
+        static_cast<double>(window_height) / display.height);
+    if (!std::isfinite(scale) || scale <= 0.0) return;
+    const double rendered_width = display.width * scale;
+    const double rendered_height = display.height * scale;
     const std::int32_t left = static_cast<std::int32_t>(std::lround(
         (static_cast<double>(window_width) - rendered_width) * 0.5));
     const std::int32_t top = static_cast<std::int32_t>(std::lround(
         (static_cast<double>(window_height) - rendered_height) * 0.5));
-    const std::int32_t right = static_cast<std::int32_t>(std::lround(
-        static_cast<double>(left) + rendered_width));
-    const std::int32_t bottom = static_cast<std::int32_t>(std::lround(
-        static_cast<double>(top) + rendered_height));
-    const std::int32_t guard = static_cast<std::int32_t>(std::ceil(scale));
+    const std::int32_t right = static_cast<std::int32_t>(std::lround(left + rendered_width));
+    const std::int32_t bottom = static_cast<std::int32_t>(std::lround(top + rendered_height));
+    const std::int32_t guard_x = static_cast<std::int32_t>(std::ceil(rendered_width / framebuffer_size.x));
+    const std::int32_t guard_y = static_cast<std::int32_t>(std::ceil(rendered_height / framebuffer_size.y));
+    const std::int32_t guard = (std::max)(guard_x, guard_y);
     if (right <= left || bottom <= top || guard <= 0) {
         return;
     }
 
     const std::array<RenderRect, 2U> guard_rectangles{
-        RenderRect((std::max)(left, right - guard), top, right, bottom),
-        RenderRect(left, (std::max)(top, bottom - guard), right, bottom),
+        RenderRect((std::max)(left, right - guard_x), top, right, bottom),
+        RenderRect(left, (std::max)(top, bottom - guard_y), right, bottom),
     };
     list->clearColor(
         0U,

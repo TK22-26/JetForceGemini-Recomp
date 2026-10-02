@@ -38,6 +38,7 @@
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
 #include "jfg/evidence/g2_private_task_adapter.hpp"
 #include "jfg/renderer/rt64_shell.hpp"
+#include "jfg/renderer/vi_presentation.hpp"
 #include "jfg/runtime/audio_task_bridge.hpp"
 #include "jfg/runtime/input_replay.hpp"
 #include "jfg/runtime/save_device_runtime.hpp"
@@ -1512,6 +1513,9 @@ struct State {
   bool host_frame_deadline_initialized = false;
   std::chrono::steady_clock::time_point host_frame_deadline{};
   jfg::Rt64ViRegisters rt64_vi;
+  std::uint32_t vi_mode_control = 0U;
+  void *native_window = nullptr;
+  jfg::ViPresentationSize window_presentation{320U, 240U};
   std::unique_ptr<jfg::Rt64Shell> rt64_shell;
   std::vector<std::byte> rt64_rdram;
   std::uint32_t graphics_color_image = 0U;
@@ -1618,6 +1622,7 @@ public:
         0U, kClassName, L"Jet Force Gemini Recomp", style, CW_USEDEFAULT,
         CW_USEDEFAULT, rectangle.right - rectangle.left,
         rectangle.bottom - rectangle.top, nullptr, nullptr, instance_, &state);
+    state.native_window = window_;
     if (window_ != nullptr && visible) {
       ShowWindow(window_, SW_SHOW);
       UpdateWindow(window_);
@@ -1905,6 +1910,29 @@ void service_live_window(State &state) {
   }
   state.host_frame_start = frame_start;
   state.host_frame_start_initialized = true;
+  const auto presentation = jfg::vi_presentation_size(
+      state.vi_mode_horizontal_start, state.rt64_vi.vertical_start);
+  if (state.native_window != nullptr && presentation.valid() &&
+      presentation.width * state.window_presentation.height !=
+          state.window_presentation.width * presentation.height) {
+    state.window_presentation = presentation;
+    const auto window = static_cast<HWND>(state.native_window);
+    // Keep maximized/minimized windows under the user's control. The renderer
+    // fits the same aspect into their current client area with black borders.
+    RECT client{};
+    if (!IsZoomed(window) && !IsIconic(window) && GetClientRect(window, &client) &&
+        client.bottom > client.top) {
+      const LONG height = client.bottom - client.top;
+      const LONG width = static_cast<LONG>((std::uint64_t(height) *
+          presentation.width + presentation.height / 2U) / presentation.height);
+      RECT outer{0, 0, width, height};
+      if (height > 0 && AdjustWindowRectEx(&outer,
+          static_cast<DWORD>(GetWindowLongPtrW(window, GWL_STYLE)), FALSE,
+          static_cast<DWORD>(GetWindowLongPtrW(window, GWL_EXSTYLE))))
+        SetWindowPos(window, nullptr, 0, 0, outer.right - outer.left,
+                     outer.bottom - outer.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+  }
   MSG message{};
   while (PeekMessageW(&message, nullptr, 0U, 0U, PM_REMOVE) != FALSE) {
     if (message.message == WM_QUIT)
@@ -2569,6 +2597,7 @@ bool configure_live_vi_mode(State &state, hle::GuestMemory &memory,
       (fields[1U].y_scale & 0x0FFFU) == 0U)
     return false;
 
+  state.vi_mode_control = common[0U];
   state.rt64_vi.status = common[0U];
   state.rt64_vi.width = common[1U];
   state.rt64_vi.timing = common[2U];
@@ -2586,6 +2615,8 @@ bool configure_live_vi_mode(State &state, hle::GuestMemory &memory,
   state.rt64_vi.vertical_burst = fields[0U].vertical_burst;
   state.rt64_vi.intr = fields[0U].intr;
   state.vi_mode_configured = true;
+  state.gameplay_trace.event("vi-mode", {state.vi_retraces, common[0U], common[1U],
+      common[6U], fields[0U].vertical_start, common[7U], fields[0U].y_scale});
   return true;
 }
 
@@ -3179,17 +3210,10 @@ bool materialize_live_graphics_overlays(
     const std::uint32_t segment = original_address >> 24U;
     const std::uint32_t translated_address =
         translate_live_graphics_address(state, original_address);
-    // Generated overlays execute at synthetic link addresses (section N is
-    // linked at N MiB), so a display-list pointer produced by overlay code
-    // for its own data looks like a segment-zero physical address above the
-    // 4 MiB guest RDRAM, for example 0x00C01B18 inside section 12's .data.
-    // Such a pointer must be redirected to that overlay's RT64 shadow. The
-    // earlier route-specific repair instead wrapped the one observed alias
-    // to 22 bits, which points into main-program code, and never fired
-    // because the address is always translated. Direct display-list edges
-    // whose configured segment base carries no physical offset can take the
-    // translated absolute address safely: RT64 adds the KSEG0 base and its
-    // physical mask strips it again.
+    // A matched synthetic overlay pointer is absolute, even when its high
+    // byte happens to name a configured RSP segment. The options overlay
+    // links above 32 MiB; treating that address as segment 2 skips its RDP
+    // state lists whenever the scene has installed a nonzero segment base.
     const std::uint32_t materialized_address = translated_address;
     if (address_command) {
       const bool overlay_payload_command =
@@ -3197,9 +3221,7 @@ bool materialize_live_graphics_overlays(
           opcode == 0x04U || opcode == 0x05U || opcode == 0xFDU;
       const bool translated_display_list_edge =
           (opcode == 0x06U || opcode == 0x07U) &&
-          translated_address != original_address &&
-          (segment >= segment_bases.size() ||
-           (segment_bases[segment] & 0x00FFFFFFU) == 0U);
+          translated_address != original_address;
       if ((overlay_payload_command &&
            translated_address != original_address) ||
           translated_display_list_edge ||
@@ -3214,10 +3236,8 @@ bool materialize_live_graphics_overlays(
           segment < segment_bases.size() && configured_segments[segment]
               ? segment_bases[segment]
               : 0U;
-      const std::uint32_t traversal_address = display_list_dma_address(
-          segment_base != 0U
-              ? segment_base + (materialized_address & 0x00FFFFFFU)
-              : materialized_address);
+      const std::uint32_t traversal_address = jfg::resolve_rt64_display_list_edge(
+          original_address, materialized_address, segment_base);
       const bool counted_dma = opcode == 0x07U;
       const std::uint32_t nested_count =
           counted_dma ? ((words[0] >> 16U) & 0xFFU) : 0U;
@@ -5560,6 +5580,11 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         fail_closed_dispatch(state, "guest-vi", "invalid-mode", target);
       state.vi_mode = a0;
     }
+    if (std::strcmp(name, "osViSetSpecialFeatures") == 0) {
+      state.vi_special_features = a0;
+      state.rt64_vi.status = jfg::vi_apply_special_features(
+          state.rt64_vi.status, state.vi_mode_control, a0);
+    }
     if (std::strcmp(name, "osViBlack") == 0) {
       state.vi_blacked = a0 != 0;
       state.rt64_vi.horizontal_start = state.vi_blacked ? 0 : state.vi_mode_horizontal_start;
@@ -6571,6 +6596,11 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   }
   if (std::strcmp(name, "osViSetSpecialFeatures") == 0) {
     state.vi_special_features = a0;
+#if defined(JFG_PHASE8_LIVE_RUNTIME)
+    state.rt64_vi.status = jfg::vi_apply_special_features(
+        state.rt64_vi.status, state.vi_mode_control, a0);
+    state.gameplay_trace.event("vi-features", {state.vi_retraces, a0, state.rt64_vi.status});
+#endif
     return 1;
   }
   hle::HleFunction function{};

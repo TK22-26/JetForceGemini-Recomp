@@ -488,3 +488,9 @@ target_include_directories(jfg_gameplay_trace_tests PRIVATE "${PROJECT_SOURCE_DI
 target_compile_features(jfg_gameplay_trace_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_gameplay_trace_tests)
 add_test(NAME jfg.gameplay_trace COMMAND jfg_gameplay_trace_tests "${CMAKE_CURRENT_BINARY_DIR}/gameplay-trace-test.tsv")
+
+add_executable(jfg_vi_presentation_tests vi_presentation_tests.cpp)
+target_include_directories(jfg_vi_presentation_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_vi_presentation_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_vi_presentation_tests)
+add_test(NAME jfg.vi_presentation COMMAND jfg_vi_presentation_tests)

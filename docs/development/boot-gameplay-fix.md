@@ -145,10 +145,57 @@ The corrected paired replay had 0 low-water pauses and
 preparation time changed from 1.570 ms to
 0.371 ms per task. The maximum in-scene presentation
 gap was 55.485 ms. Generated PCM and final 4 MiB guest
-memory matched the baseline byte for byte. These are replay results; interactive
-audible confirmation is still needed. Raw PCM and playback event traces remain local.
+memory matched the baseline byte for byte. The user subsequently reported a clean
+playthrough of Goldwood through SS Anubis before finding the menu issue below.
+Raw PCM and playback event traces remain local.
 
 The optional gameplay timeline now includes audio queue, start, pause-low,
 resume and underrun events. Their payload is current queued bytes, cumulative
 queued bytes, cumulative consumed bytes, sample rate and playing state. This
 makes proactive pauses visible separately from underruns.
+
+## Options rendering and stock widescreen
+
+The SFX screen emitted all thirteen volume bars and three small meter bars,
+with the correct primitive colors and volume value. Its two-command RDP setup
+list pointed into a synthetic overlay whose high address byte also selected an
+active scene segment. The snapshot walker kept the segmented pointer instead
+of substituting the overlay shadow, so RT64 retained the preceding texture
+combiner. The same addressing error suppressed the panel's noise background.
+Translated display-list edges now use their absolute shadow for both command
+submission and traversal; untranslated edges retain scene-segment resolution.
+
+The overly bright menu was a separate VI omission: `osViSetSpecialFeatures`
+recorded the game's gamma-off request without updating the submitted VI control
+register. Feature requests now update gamma, gamma dither, divot, dither filtering
+and the corresponding antialias bits with libultra's request semantics.
+
+The supported US game's original widescreen setting keeps a 320 by 240 source
+buffer and scans it into a 320 by 180 display region. Presentation previously
+fitted the source dimensions, losing that display aspect. An owned, hash-checked
+adapter for the pinned RT64 VI renderer fits the active scanout aspect while
+preserving texture sampling and the game's own camera logic. The pinned upstream
+checkout is unchanged. The bottom/right guard-texel clipping uses the same aspect.
+A normal window changes width when the guest switches aspect. Maximized or
+minimized windows retain their size; presentation fits their client area.
+
+Verification on the final runtime:
+
+- Replayed actual saved gameplay followed by Start, Down, A, Down, Down, A.
+  The SFX panel shows all thirteen green-to-red volume bars, the three small
+  bars and the textured background. A second replay lowers the volume and
+  reduces the main meter from thirteen lit bars to five.
+- Replayed stock widescreen off/on; guest mode indices switch between zero
+  and one, and captured output changes between 4:3 and 16:9. A live window
+  round trip measured 640x480, 853x480, 640x480 and 853x480, then closed normally.
+- All 68 ROM-free tests and three focused native renderer/address/VI tests pass.
+  Schema validation and repository/history hygiene checks pass.
+- Replayed the same complete invasion recording and initial saves. Generated
+  PCM and final 4 MiB guest memory still match the earlier corrected runtime.
+  There were no interior low-buffer pauses or underruns; the maximum in-scene
+  presentation gap was 59.447 ms.
+
+These checks cover the supported US build, the reported menu and the recorded
+invasion. They do not claim complete campaign or other-region parity. Screenshots,
+ROM-derived data, audio, saves, traces and the locally generated executable remain
+private. The player's original SS Anubis session and saves are retained.

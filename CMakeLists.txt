@@ -215,6 +215,8 @@ if(JFG_ENABLE_RT64)
     target_include_directories(rt64 PRIVATE
         "${jfg_rt64_root}/src/render")
 
+    include(cmake/rt64_vi_presentation.cmake)
+
     # The pinned Plume D3D12 backend assumes every CopyTextureRegion
     # destination is a texture when configuring programmable sample
     # positions. A texture-to-readback-buffer copy legitimately has no
