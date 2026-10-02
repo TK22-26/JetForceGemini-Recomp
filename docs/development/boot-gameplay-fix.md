@@ -63,8 +63,9 @@ at 256 MiB with a limit marker. A hard crash can lose the final buffered interva
 
 The events cover controller input, VI ticks, completed guest updates, graphics
 preparation/submission/presentation timing, audio queue levels and underruns,
-scene state, and changed actor state. Actor sampling covers every type in the
-first 256 actor slots, including the ship characters omitted by the first probe.
+scene state, and changed actor state. Actor sampling covers every type when the actor table contains at most 256
+entries, including the ship characters omitted by the first probe. Larger tables
+produce an `actor-table-invalid` event and skip actor sampling for that update.
 Actor rows include name words, the first 128 actor bytes and the first 32 bytes
 of both properties and control data when readable. Unchanged actor snapshots
 are omitted. These raw guest snapshots are private diagnostic data and are not
