@@ -3123,6 +3123,48 @@ bool materialize_live_graphics_overlays(
     }
   }
 
+  // Planet meshes and other overlay-local graphics are generated into
+  // writable DATA/BSS. Keep cached text and inactive-module fallbacks, but
+  // submit the current CPU-owned data for every published allocation.
+  for (const auto &shadow : state.graphics_overlay_shadows) {
+    if (!state.active_overlay_sections.contains(shadow.section))
+      continue;
+    JfgGeneratedSectionMetadata metadata{};
+    if (jfg_generated_section_metadata(shadow.section, &metadata) == 0 ||
+        metadata.text_size > shadow.extent ||
+        shadow.physical_base > snapshot.size() ||
+        shadow.extent > snapshot.size() - shadow.physical_base)
+      return reject(1U, shadow.linked_base, 0U, 0U);
+    const std::uint32_t host_offset = shadow.linked_base - kKseg0;
+    if (host_offset > kGuestAddressSpan ||
+        shadow.extent > kGuestAddressSpan - host_offset)
+      return reject(1U, shadow.linked_base, 0U, 0U);
+    std::memcpy(snapshot.data() + shadow.physical_base + metadata.text_size,
+                state.rdram + host_offset + metadata.text_size,
+                shadow.extent - metadata.text_size);
+
+    // Live pointer fields contain CPU addresses. Translate the current value,
+    // preserving pointers that the game has changed since module loading.
+    const std::uint32_t *sites = nullptr;
+    std::size_t count = 0U;
+    if (jfg_generated_relocation_sites(shadow.section, &sites, &count) == 0 ||
+        (count != 0U && sites == nullptr))
+      return reject(1U, shadow.linked_base, 0U, 0U);
+    for (std::size_t index = 0U; index < count; ++index) {
+      const std::uint32_t offset = sites[index];
+      if (shadow.extent < sizeof(std::uint32_t) ||
+          offset > shadow.extent - sizeof(std::uint32_t))
+        return reject(1U, shadow.linked_base, 0U, 0U);
+      if (offset < metadata.text_size)
+        continue;
+      auto *const site = snapshot.data() + shadow.physical_base + offset;
+      std::uint32_t value = 0U;
+      std::memcpy(&value, site, sizeof(value));
+      value = translate_live_graphics_address(state, value);
+      std::memcpy(site, &value, sizeof(value));
+    }
+  }
+
   struct DisplayListFrame final {
     std::uint32_t address;
     std::uint32_t count;

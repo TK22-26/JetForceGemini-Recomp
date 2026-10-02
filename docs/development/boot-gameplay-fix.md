@@ -199,3 +199,37 @@ These checks cover the supported US build, the reported menu and the recorded
 invasion. They do not claim complete campaign or other-region parity. Screenshots,
 ROM-derived data, audio, saves, traces and the locally generated executable remain
 private. The player's original SS Anubis session and saves are retained.
+
+## Planet icons in stage select and Tribal statistics
+
+Both screens call the same world-icon renderer. It builds planet vertices and
+triangle records in overlay-local writable memory. RT64 previously restored
+the module's initial image for every graphics task, including zero-filled BSS,
+so the renderer received empty meshes. Ordinary loaded models such as SS Anubis
+still appeared, which helped distinguish this from general menu visibility.
+
+After restoring the cached fallback, graphics submission now copies current
+DATA/BSS from each published synthetic overlay allocation. Immutable text stays
+cached, and inactive allocations retain their fallback image. Relocation sites
+in refreshed data translate their current pointer values into the RT64 shadow;
+they are not reset to the module's original pointer values. Bounds are checked
+before copying or translating, and simulation memory is never modified.
+
+Private before/after replays use identical saved progress and controller input:
+
+- Stage select: Start, Right, A, then Up from SS Anubis to select Goldwood.
+  The corrected frame contains Goldwood and the neighboring rocky planet.
+- Tribal statistics: Start, Right, Down, Down, A, then Left to Goldwood.
+  The corrected frame contains Goldwood above its statistics. Automated pixel
+  checks distinguish the restored green planet from the empty baseline panel.
+- The SFX replay still shows all thirteen main volume bars. All 68 ROM-free
+  tests, three focused native renderer/address/VI tests, schema validation and
+  repository/history hygiene checks pass.
+- The invasion replay preserves identical generated PCM and final guest memory,
+  with zero interior audio pauses/underruns and a maximum presentation gap of
+  60.323 ms. Refreshing writable data does not reproduce
+  the earlier multi-second stalls in this recording.
+
+Raw screenshots, generated mesh data, saves, traces and binaries remain private.
+These checks cover the reported screens and retained regression recordings;
+campaign-wide rendering parity remains unverified.
