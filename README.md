@@ -105,3 +105,9 @@ which requires additional private build inputs. See
 
 Read `docs/legal/rom-and-assets-policy.md`, `SECURITY.md`, and
 `CONTRIBUTING.md` before contributing.
+
+## License
+
+Original project code and documentation are available under the [MIT License](LICENSE).
+Third-party components retain their own terms; see [the notices](THIRD_PARTY_NOTICES.md).
+The license does not grant rights to Jet Force Gemini game code, assets, or trademarks.

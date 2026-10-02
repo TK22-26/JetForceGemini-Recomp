@@ -13,8 +13,13 @@ from pathlib import Path, PurePosixPath
 
 MAX_TRACKED_BYTES = 1_048_576
 MAX_HISTORY_SCAN_BYTES = 2_097_152
-ALLOWED_GIT_IDENTITY_NAME = "JFG Recomp Maintainer"
-ALLOWED_GIT_IDENTITY_EMAIL = "jfg-recomp-local@users.noreply.github.com"
+ALLOWED_GIT_IDENTITY_NAME = "TK22-26"
+ALLOWED_GIT_IDENTITY_EMAIL = "254768757+TK22-26@users.noreply.github.com"
+# Keep the original public snapshot valid without rewriting its history.
+ALLOWED_GIT_IDENTITIES = frozenset({
+    (ALLOWED_GIT_IDENTITY_NAME, ALLOWED_GIT_IDENTITY_EMAIL),
+    ("JFG Recomp Maintainer", "jfg-recomp-local@users.noreply.github.com"),
+})
 
 FORBIDDEN_PREFIXES = (
     "roms/",
@@ -369,7 +374,7 @@ def scan_path(root: Path, path: Path) -> list[str]:
 
 
 def scan_git_metadata(data: bytes, label: str, *, object_type: str) -> list[str]:
-    """Scan reachable commit/tag content and require the generic UTC identity."""
+    """Scan reachable commit/tag content and require an approved no-reply identity and UTC."""
     errors = scan_blob(data, label, enforce_size=False)
     text = data.decode("utf-8", errors="replace")
     expected_roles = {"author", "committer"} if object_type == "commit" else {"tagger"}
@@ -396,9 +401,9 @@ def scan_git_metadata(data: bytes, label: str, *, object_type: str) -> list[str]
         observed_roles.add(role)
         if is_merge_commit:
             continue
-        if name != ALLOWED_GIT_IDENTITY_NAME or email != ALLOWED_GIT_IDENTITY_EMAIL:
+        if (name, email) not in ALLOWED_GIT_IDENTITIES:
             errors.append(
-                f"{label}: {role} must use the repository's generic no-reply identity"
+                f"{label}: {role} must use an approved repository no-reply identity"
             )
         if offset != "+0000":
             errors.append(f"{label}: {role} timestamp must use UTC (+0000)")

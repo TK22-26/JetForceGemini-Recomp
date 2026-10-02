@@ -317,7 +317,7 @@ class RepositoryHygieneTests(unittest.TestCase):
             any("git-history:vendor/dependency" in e for e in historical_errors)
         )
 
-    def test_non_generic_commit_identity_is_rejected(self) -> None:
+    def test_unapproved_commit_identity_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             subprocess.run(["git", "init", "--quiet"], cwd=root, check=True)
@@ -331,7 +331,24 @@ class RepositoryHygieneTests(unittest.TestCase):
             )
             errors = check_repository(root, history=True)
 
-        self.assertTrue(any("generic no-reply identity" in e for e in errors))
+        self.assertTrue(any("approved repository no-reply identity" in e for e in errors))
+
+    def test_owner_and_legacy_metadata_preserve_exact_identity_pairs(self) -> None:
+        identities = (
+            ("TK22-26", "254768757+TK22-26@users.noreply.github.com", True),
+            ("JFG Recomp Maintainer", "jfg-recomp-local@users.noreply.github.com", True),
+            ("TK22-26", "jfg-recomp-local@users.noreply.github.com", False),
+            ("Someone Else", "254768757+TK22-26@users.noreply.github.com", False),
+            ("TK22-26", "private@example.invalid", False),
+        )
+        for name, email, accepted in identities:
+            for kind, roles in (("commit", ("author", "committer")), ("tag", ("tagger",))):
+                with self.subTest(name=name, email=email, kind=kind):
+                    data = ("\n".join(
+                        f"{role} {name} <{email}> 1704067200 +0000" for role in roles
+                    ) + "\n\nSynthetic metadata\n").encode()
+                    errors = hygiene.scan_git_metadata(data, "fixture", object_type=kind)
+                    self.assertEqual(not errors, accepted, errors)
 
     def test_commit_message_with_local_profile_path_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -1,5 +1,9 @@
 # Jet Force Gemini Recompilation Executable Scope Assessment
 
+> License update, 2026-10-01: the owner selected [MIT](../../LICENSE) for
+> original project contributions. License decisions below describe the
+> historical phase; third-party terms remain separate.
+
 Assessment snapshot: 2026-08-03
 
 ## Purpose and status

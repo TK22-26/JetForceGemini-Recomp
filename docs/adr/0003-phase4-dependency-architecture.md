@@ -1,5 +1,9 @@
 # ADR 0003: Conservative Phase 4 dependency architecture
 
+> License update, 2026-10-01: the owner selected [MIT](../../LICENSE) for
+> original project contributions. License decisions below describe the
+> historical phase; third-party terms remain separate.
+
 - Status: Accepted by `TK22-26`
 - Date: 2026-08-04
 - Decision owner: `TK22-26`

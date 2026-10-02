@@ -1,5 +1,11 @@
 # Third-Party Dependency Status
 
+The root MIT license covers original project contributions. Existing third-party
+copyright and license notices retain their separate scope. It does not relicense
+game content, generated ROM-derived output, or third-party code. Distribution of
+a combined work must also satisfy every applicable dependency license, including
+GPL requirements where GPL-covered components are used.
+
 No third-party source tree or binary is vendored in this repository. External
 repositories are cloned locally under the ignored `tools/` directory at commits
 recorded in `dependencies.lock.json`.

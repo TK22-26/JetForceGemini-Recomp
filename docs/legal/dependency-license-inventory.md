@@ -32,9 +32,9 @@ limited upstream N64Recomp context, covered by the exact notice in
 
 Final bundled dependency selection is deferred until feasibility evidence and
 human license review establish the runtime, renderer, frontend, audio, and
-input architecture. Deferral does not approve any candidate. The repository's
-current `LICENSE` remains all-rights-reserved and grants no distribution
-permission.
+input architecture. Deferral does not approve any candidate. The owner
+selected MIT for original project contributions on 2026-10-01; that selection
+does not approve distribution of third-party or ROM-derived material.
 
 ## Candidate repositories and research inputs
 
@@ -143,9 +143,11 @@ project.
 
 ## Current license posture
 
-The root project is all-rights-reserved and distribution is not authorized.
-Keeping project-authored interfaces capable of supporting a GPLv3 runtime is
-an engineering option, not a license selection or compatibility conclusion.
+Original project contributions use the root MIT license, selected by the
+owner on 2026-10-01. MIT permits reuse and distribution subject to its notice
+conditions. Third-party components retain their licenses. Combining MIT code
+with GPL-covered runtime components requires meeting the applicable GPL
+obligations for the combined distribution; MIT does not remove them.
 No candidate dependency changes the repository's current license merely by
 being cloned or inspected locally.
 

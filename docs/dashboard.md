@@ -4,7 +4,7 @@ This dashboard records evidence, not intent.
 
 | Gate | State | Required evidence |
 |---|---|---|
-| Phase 0 governance | Complete | `docs/governance/phase0-decisions.md` records the deferred upstream request, no-copy boundary, current all-rights-reserved license, corpus owner, and manual branch controls |
+| Phase 0 governance | Complete | `docs/governance/phase0-decisions.md` records the deferred upstream request, no-copy boundary, initial license decision, superseded by MIT on 2026-10-01, corpus owner, and manual branch controls |
 | Phase 1 reproducible upstream | Complete | Ubuntu 22.04/24.04 each produced two deterministic verified builds; `docs/upstream/phase1-build-evidence.json` validates the cross-environment result |
 | Phase 2 repository skeleton | Complete | ROM-free policy validation plus Windows/Linux Debug and Release build/CTest lanes pass |
 | Phase 3 feasibility / G2 | Complete — go | The assembled G2 evidence pair passes trusted validation with zero errors: all fourteen requirement slots close with pinned producer binaries, reproducible build attestations, reviewed source provenance, fresh-nonce dispatcher re-execution of every executable slot, and the human-accepted dependency decision; the public gate records `"decision": "go"` |

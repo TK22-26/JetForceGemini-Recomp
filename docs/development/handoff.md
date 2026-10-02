@@ -148,6 +148,16 @@ maintainer before resuming that work. See [AGENTS.md](../../AGENTS.md),
 
 The owner requested preparation for public source visibility on 2026-10-01.
 The [publication handoff](../governance/publication-handoff.md) records the
-checks and remaining blockers. Public visibility is distinct from an
-open-source license or a playable release. The current [license](../../LICENSE)
-retains all rights; third-party terms and game rights remain separate.
+checks and remaining blockers. On 2026-10-01 the owner selected the
+[MIT License](../../LICENSE) for original project contributions. Third-party
+terms and game rights remain separate. This license change does not establish
+that the prototype is a complete playable release.
+
+## Upstream reference inventory
+
+The [2026-10-01 source review](../upstream/reference-review-2026-10-01.md)
+covers both external JFG projects, the newer overlay branch, and the open
+menu PR. Its [machine-readable catalog](../upstream/reference-catalog.json)
+records source citations, existing equivalents, and prioritized validation
+work. These additions are reference knowledge; runtime behavior and
+dependency pins have not changed.

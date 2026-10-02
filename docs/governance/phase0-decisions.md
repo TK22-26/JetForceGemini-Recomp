@@ -1,5 +1,9 @@
 # Phase 0 decision record
 
+> License update, 2026-10-01: the owner selected [MIT](../../LICENSE) for
+> original project contributions. License decisions below describe the
+> historical phase; third-party terms remain separate.
+
 Historical record: on 2026-10-01 the owner authorized a separate scrubbed
 public source repository. That snapshot decision supersedes the private-only
 visibility rule for the exported source, while preserving the data boundary,
