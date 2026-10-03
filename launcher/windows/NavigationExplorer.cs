@@ -326,6 +326,23 @@ namespace JfgLauncher {
                     }
                     if(ai.state=="approach_complete") {
                         if(completedAt==0)completedAt=now;
+                        if(pending.Route.ApproachOnly) {
+                            if(pending.Route.GateCleared(snapshot)) {
+                                MapMarker marker=Array.Find(snapshot.Live.exits,delegate(MapMarker e){return ExitKey(e)==pending.Exit.key;});
+                                if(marker==null)return Failed("Exit disappeared while waiting at door",now);
+                                try {
+                                    NavigationRoute next=planner(snapshot,marker);
+                                    if(next.ApproachOnly)return Failed("Door changed but exit passage is still blocked",now);
+                                    pending.Route=next;pending.Nonce=0;pending.Acknowledged=false;pending.Waypoint=-1;
+                                    pending.BestDistance=Single.MaxValue;pending.ProgressAt=now;completedAt=0;
+                                    Status="Explorer: door cleared; continuing through "+ExitLabel(pending.Exit);
+                                    return new ExploreCommand {Route=next};
+                                }catch(InvalidDataException error){return Failed(error.Message,now);}
+                            }
+                            Status="Explorer: at door for "+ExitLabel(pending.Exit)+"; waiting for it to open";
+                            if(now-completedAt>=8000)return Failed("Reached door; check key, switch or other opening requirement",now);
+                            return new ExploreCommand();
+                        }
                         Status="Explorer: at doorway; waiting to confirm a room change";
                         if(now-completedAt>=2500)return Failed("Doorway reached but no transition; gate, trigger or traversal needs checking",now);
                         return new ExploreCommand();
@@ -346,7 +363,7 @@ namespace JfgLauncher {
                 NavigationRoute route=planner(snapshot,selected);
                 if(route==null || route.Points.Count==0)throw new InvalidDataException("Empty exit route");
                 pending=new Pending {Exit=chosen,Started=now,Route=route,ProgressAt=now};completedAt=0;candidateGeneration=-1;
-                Status="Explorer: "+(chosen.destination.HasValue?"following known route via ":"trying ")+ExitLabel(chosen);
+                Status="Explorer: "+(route.ApproachOnly?"approaching blocked door for ":chosen.destination.HasValue?"following known route via ":"trying ")+ExitLabel(chosen);
                 return new ExploreCommand {Route=route};
             } catch(InvalidDataException error) {
                 Block(chosen,error.Message);nextPlan=now+300;Status="Explorer: no surface route to "+ExitLabel(chosen)+"; checking another exit";
@@ -359,6 +376,7 @@ namespace JfgLauncher {
             ExploreExit exit=target==null?null:target.exits.Find(delegate(ExploreExit e){return e.key==key;});
             if(exit==null)return "Untried";
             if(exit.absent)return "Unavailable in last room snapshot";
+            if(room==target && pending!=null && pending.Exit==exit && pending.Route.ApproachOnly)return "Door approach - waiting for clearance before crossing";
             if(IsBlocked(exit))return "Blocked: "+exit.blocked;
             if(exit.destination.HasValue)return "Confirmed -> room "+exit.destination.Value;
             if(room==target && arrivals.Contains(key))return "Entrance candidate - skipped by automatic exploration";

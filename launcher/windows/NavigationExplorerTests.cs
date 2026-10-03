@@ -21,6 +21,13 @@ namespace JfgLauncher {
                     progression=new MapProgression {schema=1,inventory=new MapInventory {known=true,character=0,red_key=false,weapons_mask=1},nodes=new MapInteraction[0]}}
             };
         }
+        private static MapSnapshot DoorRoom() {
+            MapSnapshot map=Room(107,1,Exit(108,600,0));
+            map.Mesh.vertices=new float[][] {new float[]{-100,0,-70},new float[]{800,0,-70},new float[]{-100,0,70},new float[]{800,0,70}};
+            map.Live.actors=new MapActor[]{new MapActor {address=1234,name="Lifting door",position=new float[]{440,0,0}}};
+            map.Live.collision.models=new MapCollisionModel[]{new MapCollisionModel {address=1234,enabled=true,lower=new float[]{420,0,-70},upper=new float[]{460,150,70}}};
+            map.Live.progression.nodes=new MapInteraction[]{new MapInteraction {address=1234,kind="gate",action="pass_door",position=new float[]{440,0,0}}};return map;
+        }
         private static NavigationRoute SimplePlan(MapSnapshot map,MapMarker target) {
             NavigationRoute route=new NavigationRoute {Level=map.Live.level,Generation=map.Live.generation};
             route.Points.Add(new HeightPoint(target.position));return route;
@@ -285,6 +292,22 @@ namespace JfgLauncher {
                 NavigationExplorer history=NavigationExplorer.Load(recovery);
                 Check(history.History.rooms[0].exits[0].blocked.Contains("Moving door"),"map window did not persist blocker");window.Close();
             }
+            // A dropped door is an approach-and-observe target, not a permanent wall.
+            s=new Simulation(DoorRoom(),NavigationRoute.PlanExit);ExploreCommand door=s.Tick(0);
+            Check(door.Route!=null && door.Route.ApproachOnly,"closed proximity door made whole exit unreachable");
+            Check(door.Route.Points[door.Route.Points.Count-1].X<400,"door approach crossed closed collision box");
+            HeightPoint waiting=door.Route.Points[door.Route.Points.Count-1];s.Map.Live.player.position=new float[]{waiting.X,waiting.Y,waiting.Z};
+            s.Map.Live.navigation_ai.active=false;s.Map.Live.navigation_ai.state="approach_complete";s.Map.Live.navigation_ai.waypoint=door.Route.Points.Count;
+            Check(s.Tick(200).Route==null && !s.Explorer.MayHeartbeat,"kept pushing while waiting for door");
+            s.Map.Live.collision.models[0].lower[1]=40;s.Map.Live.collision.models[0].upper[1]=190;
+            Check(s.Tick(200).Route==null,"entered partially raised door without headroom");
+            s.Map.Live.collision.models[0].lower[1]=100;s.Map.Live.collision.models[0].upper[1]=250;
+            ExploreCommand opened=s.Tick(200);
+            Check(opened.Route!=null && !opened.Route.ApproachOnly,"raised collision did not resume exit route");
+            Check(!s.Explorer.History.rooms[0].exits[0].destination.HasValue,"door lift falsely counted as room transition");
+            s=new Simulation(DoorRoom(),NavigationRoute.PlanExit);door=s.Tick(0);waiting=door.Route.Points[door.Route.Points.Count-1];
+            s.Map.Live.player.position=new float[]{waiting.X,waiting.Y,waiting.Z};s.Map.Live.navigation_ai.active=false;s.Map.Live.navigation_ai.state="approach_complete";
+            s.Tick(200);Check(s.Tick(8100).Stop && s.Explorer.Describe(107,s.Map.Live.exits[0]).Contains("door"),"locked door caused endless waiting or pushing");
             return checks;
         }
     }

@@ -640,7 +640,7 @@ namespace JfgLauncher
                     MapMarker marker=Array.Find(aiSnapshot.Live.exits,delegate(MapMarker e){return e.address==target.address;});
                     if(marker==null)throw new InvalidDataException("That exit is no longer loaded.");
                     aiRoute=NavigationRoute.PlanExit(aiSnapshot,marker);canvas.Route=aiRoute;canvas.RouteBlocked=false;canvas.Invalidate();
-                    aiStatus.Text="Collision-checked candidate: "+aiRoute.Points.Count+" waypoints. Body allowance R20 / H80; parkour needs verification.";
+                    aiStatus.Text=(aiRoute.ApproachOnly?"Verified approach to blocked door: ":"Collision-checked candidate: ")+aiRoute.Points.Count+" waypoints. Body allowance R20 / H80; parkour needs verification.";
                 }catch(InvalidDataException error){aiRoute=null;canvas.Route=null;aiStatus.Text=error.Message;}
             };
             startAi.Click += delegate {

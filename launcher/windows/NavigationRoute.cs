@@ -10,6 +10,15 @@ namespace JfgLauncher {
         internal readonly List<HeightPoint> Points = new List<HeightPoint>();
         internal uint Level;
         internal long Generation;
+        internal uint ApproachGate;
+        internal float[] ExitPosition;
+        internal bool ApproachOnly {get {return ApproachGate!=0;} }
+        internal bool GateCleared(MapSnapshot map) {
+            MapCollisionModel gate=NavigationCollision.Model(map.Live,ApproachGate);
+            if(gate==null || !gate.enabled)return true;
+            HeightPoint from=Points[Points.Count-1],to=new HeightPoint(ExitPosition[0],from.Y,ExitPosition[2]);
+            return !NavigationCollision.Intersects(gate,from,to);
+        }
         private sealed class Edge { internal int To; internal HeightPoint Portal; }
         private sealed class Owner { internal int Triangle; internal HeightPoint A, B; }
         private static string Key(HeightPoint p) {
@@ -104,13 +113,119 @@ namespace JfgLauncher {
                     if(next<cost[edge.To]){cost[edge.To]=next;previous[edge.To]=current;portals[edge.To]=edge.Portal;}
                 }
             }
-            if(start!=goal&&previous[goal]<0)throw new InvalidDataException("No connected surface route. Gaps, stacked floors and parkour are not bridged automatically.");
+            if(start!=goal&&previous[goal]<0)return GlobalRoute(snapshot,floors,startPoint,endPoint);
             NavigationRoute route=new NavigationRoute {Level=snapshot.Live.level,Generation=snapshot.Live.generation};
             List<HeightPoint> reverse=new List<HeightPoint>();
             for(int at=goal;at!=start;at=previous[at]){reverse.Add(portals[at]);if(reverse.Count>254)throw new InvalidDataException("Route exceeds prototype limit.");}
             reverse.Reverse();route.Points.AddRange(reverse);route.Points.Add(endPoint);
             Straighten(route,snapshot.Mesh,floors,startPoint);
-            CollisionRoute(route,snapshot,floors,startPoint,planning);return route;
+            try {CollisionRoute(route,snapshot,floors,startPoint,planning);return route;}
+            catch(InvalidDataException) {return GlobalRoute(snapshot,floors,startPoint,endPoint);}
+        }
+        // The first path is only a candidate. A local repair cannot discover a
+        // room-sized loop, so search all floor samples with clearance on every edge.
+        private sealed class SearchBounds {
+            internal float LX,HX,LZ,HZ;
+            internal SearchBounds(HeightPoint[] p) {
+                LX=HX=p[0].X;LZ=HZ=p[0].Z;
+                foreach(HeightPoint v in p){LX=Math.Min(LX,v.X);HX=Math.Max(HX,v.X);LZ=Math.Min(LZ,v.Z);HZ=Math.Max(HZ,v.Z);}
+            }
+            internal bool Touch(float lx,float hx,float lz,float hz) {return HX>=lx && LX<=hx && HZ>=lz && LZ<=hz;}
+        }
+        private sealed class SearchClearance {
+            private MapSnapshot map;
+            private List<HeightSurface> floors;
+            private SearchBounds[] floorBounds,faceBounds;
+            internal SearchClearance(MapSnapshot value,List<HeightSurface> surfaces) {
+                map=value;floors=surfaces;floorBounds=new SearchBounds[floors.Count];faceBounds=new SearchBounds[map.Mesh.triangles.Length];
+                for(int i=0;i<floors.Count;i++)floorBounds[i]=new SearchBounds(floors[i].Points);
+                for(int i=0;i<faceBounds.Length;i++) {
+                    MapFace f=map.Mesh.triangles[i];faceBounds[i]=new SearchBounds(new HeightPoint[]{new HeightPoint(map.Mesh.vertices[f.v[0]]),new HeightPoint(map.Mesh.vertices[f.v[1]]),new HeightPoint(map.Mesh.vertices[f.v[2]])});
+                }
+            }
+            internal bool Clear(HeightPoint a,HeightPoint b) {
+                if(NavigationCollision.Blocking(map.Live,a,b)!=null)return false;
+                float pad=NavigationCollision.Radius+1,lx=Math.Min(a.X,b.X)-pad,hx=Math.Max(a.X,b.X)+pad,lz=Math.Min(a.Z,b.Z)-pad,hz=Math.Max(a.Z,b.Z)+pad;
+                List<HeightSurface> nearby=new List<HeightSurface>();List<MapFace> faces=new List<MapFace>();
+                for(int i=0;i<floorBounds.Length;i++)if(floorBounds[i].Touch(lx,hx,lz,hz))nearby.Add(floors[i]);
+                for(int i=0;i<faceBounds.Length;i++)if(faceBounds[i].Touch(lx,hx,lz,hz))faces.Add(map.Mesh.triangles[i]);
+                return ClearWalk(new MapSnapshot {Live=map.Live,Mesh=new MapGeometry {vertices=map.Mesh.vertices,triangles=faces.ToArray()}},nearby,a,b);
+            }
+        }
+        private static long Cell(int x,int z) {return ((long)x<<32) ^ (long)(uint)z;}
+        private static NavigationRoute GlobalRoute(MapSnapshot map,List<HeightSurface> floors,HeightPoint start,HeightPoint goal) {
+            if(NavigationCollision.Blocking(map.Live,start,start)!=null)throw new InvalidDataException("Player is inside a conservative entity box. Move outside it before starting AI.");
+            if(NavigationCollision.Blocking(map.Live,goal,goal)!=null)throw new InvalidDataException("Exit approach overlaps an enabled entity collision box.");
+            System.Diagnostics.Stopwatch timer=System.Diagnostics.Stopwatch.StartNew();
+            List<HeightPoint> nodes=new List<HeightPoint>{start,goal};HashSet<string> unique=new HashSet<string>{Key(start),Key(goal)};
+            Action<HeightPoint> add=delegate(HeightPoint point) {
+                if(NavigationCollision.Blocking(map.Live,point,point)!=null)return;
+                if(unique.Add(Key(point))) {
+                    if(nodes.Count>=16000)throw new InvalidDataException("Room-wide clearance graph exceeds its sample limit.");
+                    nodes.Add(point);
+                }
+            };
+            foreach(HeightSurface floor in floors) {
+                add(Center(floor));
+                // Large open triangles also need interior samples; edge-only
+                // candidates cannot walk alongside a long obstacle inside one.
+                int divisions=Math.Min(32,Math.Max(2,(int)Math.Ceiling(Math.Max(Distance(floor.Points[0],floor.Points[1]),Math.Max(Distance(floor.Points[1],floor.Points[2]),Distance(floor.Points[2],floor.Points[0])))/120)));
+                for(int i=1;i<divisions;i++)for(int j=1;j<divisions-i;j++) {
+                    float u=(float)i/divisions,v=(float)j/divisions;
+                    add(new HeightPoint(floor.Points[0].X*(1-u-v)+floor.Points[1].X*u+floor.Points[2].X*v,
+                        floor.Points[0].Y*(1-u-v)+floor.Points[1].Y*u+floor.Points[2].Y*v,
+                        floor.Points[0].Z*(1-u-v)+floor.Points[1].Z*u+floor.Points[2].Z*v));
+                }
+                for(int edge=0;edge<3;edge++) {
+                    HeightPoint a=floor.Points[edge],b=floor.Points[(edge+1)%3];
+                    int pieces=Math.Max(2,(int)Math.Ceiling(Distance(a,b)/100));
+                    for(int i=1;i<pieces;i++)add(HeightPoint.Lerp(a,b,(float)i/pieces));
+                }
+            }
+            foreach(MapCollisionModel box in map.Live.collision.models) {
+                if(!box.enabled || NavigationCollision.SameActor(box.address,map.Live.player.address))continue;
+                float margin=NavigationCollision.Radius+8;
+                foreach(float x in new float[]{box.lower[0]-margin,box.upper[0]+margin})
+                    foreach(float z in new float[]{box.lower[2]-margin,box.upper[2]+margin})
+                        foreach(HeightSurface floor in floors) {HeightPoint point;if(Project(floor,new HeightPoint(x,0,z),out point))add(point);}
+            }
+            Dictionary<long,List<int>> cells=new Dictionary<long,List<int>>();
+            for(int i=0;i<nodes.Count;i++) {
+                long key=Cell((int)Math.Floor(nodes[i].X/200),(int)Math.Floor(nodes[i].Z/200));List<int> cell;
+                if(!cells.TryGetValue(key,out cell)){cell=new List<int>();cells.Add(key,cell);}cell.Add(i);
+            }
+            SearchClearance clearance=new SearchClearance(map,floors);
+            float[] cost=new float[nodes.Count];int[] previous=new int[nodes.Count];bool[] closed=new bool[nodes.Count];
+            for(int i=0;i<nodes.Count;i++){cost[i]=Single.MaxValue;previous[i]=-1;}cost[0]=0;
+            for(int iteration=0;iteration<nodes.Count;iteration++) {
+                if(timer.ElapsedMilliseconds>3000)throw new InvalidDataException("Room-wide clearance search reached its time limit; no route was verified.");
+                int current=-1;float best=Single.MaxValue;
+                for(int i=0;i<nodes.Count;i++)if(!closed[i] && cost[i]!=Single.MaxValue) {
+                    float estimate=cost[i]+Distance(nodes[i],goal);if(estimate<best){best=estimate;current=i;}
+                }
+                if(current<0)break;if(current==1)break;closed[current]=true;
+                HeightPoint from=nodes[current];int cx=(int)Math.Floor(from.X/200),cz=(int)Math.Floor(from.Z/200);
+                for(int x=cx-2;x<=cx+2;x++)for(int z=cz-2;z<=cz+2;z++) {
+                    List<int> cell;if(!cells.TryGetValue(Cell(x,z),out cell))continue;
+                    foreach(int next in cell) {
+                        if(closed[next] || next==current)continue;
+                        float length=Distance(from,nodes[next]);if(length>350 || length<.01f || cost[current]+length>=cost[next])continue;
+                        if(!clearance.Clear(from,nodes[next]))continue;
+                        cost[next]=cost[current]+length;previous[next]=current;
+                    }
+                }
+            }
+            if(previous[1]<0)throw new InvalidDataException("No route found in the room-wide clearance graph; inspect floor, gate and collision bounds.");
+            List<HeightPoint> path=new List<HeightPoint>();
+            for(int at=1;at!=0;at=previous[at]){path.Add(nodes[at]);if(path.Count>256)throw new InvalidDataException("Room-wide route exceeds waypoint limit.");}
+            path.Reverse();NavigationRoute result=new NavigationRoute {Level=map.Live.level,Generation=map.Live.generation};
+            int index=0;HeightPoint prior=start;
+            while(index<path.Count) {
+                int next=index;
+                for(int i=path.Count-1;i>index;i--)if(Distance(prior,path[i])<=500 && clearance.Clear(prior,path[i])){next=i;break;}
+                result.Points.Add(path[next]);prior=path[next];index=next+1;
+            }
+            return result;
         }
         private sealed class Span { internal float Low,High; }
         private static bool Clip(float value,float delta,ref float low,ref float high) {
@@ -229,6 +344,15 @@ namespace JfgLauncher {
             }
             foreach(HeightSurface floor in floors) {
                 add(Center(floor));
+                // Large open triangles also need interior samples; edge-only
+                // candidates cannot walk alongside a long obstacle inside one.
+                int divisions=Math.Min(32,Math.Max(2,(int)Math.Ceiling(Math.Max(Distance(floor.Points[0],floor.Points[1]),Math.Max(Distance(floor.Points[1],floor.Points[2]),Distance(floor.Points[2],floor.Points[0])))/120)));
+                for(int i=1;i<divisions;i++)for(int j=1;j<divisions-i;j++) {
+                    float u=(float)i/divisions,v=(float)j/divisions;
+                    add(new HeightPoint(floor.Points[0].X*(1-u-v)+floor.Points[1].X*u+floor.Points[2].X*v,
+                        floor.Points[0].Y*(1-u-v)+floor.Points[1].Y*u+floor.Points[2].Y*v,
+                        floor.Points[0].Z*(1-u-v)+floor.Points[1].Z*u+floor.Points[2].Z*v));
+                }
                 for(int i=0;i<3;i++)add(HeightPoint.Lerp(floor.Points[i],floor.Points[(i+1)%3],.5f));
             }
             int count=points.Count;float[] cost=new float[count];int[] previous=new int[count];bool[] closed=new bool[count];
@@ -282,7 +406,28 @@ namespace JfgLauncher {
         }
 
         internal static NavigationRoute PlanExit(MapSnapshot snapshot,MapMarker exit) {
-            NavigationRoute route=Plan(snapshot,exit.position);
+            NavigationRoute route;
+            try {route=Plan(snapshot,exit.position);}
+            catch(InvalidDataException) {
+                // A trigger behind a closed door is not the same as an unreachable
+                // room. Offer a verified route up to its near side, without crossing.
+                MapInteraction nearest=null;float best=240;
+                if(snapshot.Live.progression!=null)foreach(MapInteraction node in snapshot.Live.progression.nodes) {
+                    if(node.action!="pass_door")continue;
+                    MapCollisionModel box=NavigationCollision.Model(snapshot.Live,node.address);
+                    if(box==null || !box.enabled)continue;
+                    float distance=Distance(new HeightPoint(node.position),new HeightPoint(exit.position));
+                    if(distance<best){best=distance;nearest=node;}
+                }
+                if(nearest==null)throw;
+                MapCollisionModel gate=NavigationCollision.Model(snapshot.Live,nearest.address);
+                float x=(gate.lower[0]+gate.upper[0])/2,z=(gate.lower[2]+gate.upper[2])/2;
+                float gateDx=exit.position[0]-x,gateDz=exit.position[2]-z,margin=NavigationCollision.Radius+36;
+                if(Math.Abs(gateDx)>Math.Abs(gateDz))x=gateDx>=0?gate.lower[0]-margin:gate.upper[0]+margin;
+                else z=gateDz>=0?gate.lower[2]-margin:gate.upper[2]+margin;
+                route=Plan(snapshot,new float[]{x,nearest.position[1],z});
+                route.ApproachGate=gate.address;route.ExitPosition=(float[])exit.position.Clone();return route;
+            }
             HeightPoint end=route.Points[route.Points.Count-1];
             HeightPoint from=route.Points.Count>1?route.Points[route.Points.Count-2]:new HeightPoint(snapshot.Live.player.position);
             float dx=end.X-from.X,dz=end.Z-from.Z,length=(float)Math.Sqrt(dx*dx+dz*dz);

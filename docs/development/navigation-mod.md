@@ -426,3 +426,28 @@ and floor coverage as well as remaining entity bounds. Automatic movement stops
 when distance to the waypoint fails to improve for about 1.8 seconds (3.5 seconds
 during jump assist), then considers another exit. These checks reduce wall pushing;
 they do not solve steering calibration, locked gates or parkour.
+
+
+## Room-wide routes and lifting doors (2026-10-03)
+
+If a locally repaired route fails, the planner searches floor samples across
+the entire room. A* edges must pass the existing floor-strip, height, terrain,
+headroom and entity-bound checks. Samples include triangle interiors and edges
+plus expanded obstacle corners. Spatial buckets limit neighboring candidates;
+the fallback has a 16,000-sample limit and a three-second search time check.
+Stacked floors retain separate heights, and no unverified edge is emitted.
+
+An exit trigger behind a registered door can now produce a **door approach**
+instead of rejecting all navigation. This applies only to a nearby interaction
+identified as `pass_door`, with a currently enabled registered collision model.
+The approach stops outside the door's expanded bounds on the side opposite the
+exit. It never deletes the actor, disables collision, supplies a key, or assumes
+an opening requirement has been met.
+
+Automatic exploration walks to that approach, releases movement, and watches
+the current door bounds for up to eight seconds. A partially raised door still
+blocks the standing body. Once its bounds clear the crossing (or its collision
+is disabled/removed), the planner checks a new route through the exit and resumes.
+A door that remains closed is recorded with a key/switch/other-requirement
+message. Requirements stay unknown unless independently decoded. Manual routes
+can also approach a door; continuing them after opening requires replanning.

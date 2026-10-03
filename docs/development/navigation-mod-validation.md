@@ -291,3 +291,22 @@ four-waypoint approach but is the nearby entrance candidate, so the updated
 explorer stops instead of using it as a fallback. This establishes the captured
 case's selection behavior, not that the two forward exits are impossible in the
 original game. The native executable is unchanged for this launcher-only fix.
+
+
+## Loop routing and proximity-door handling (2026-10-03)
+
+The launcher passes 264 checks plus ten setup checks. New fixtures require a
+room-wide detour around a long blocker beyond the local repair radius, with
+all emitted segments independently checked. Door tests cover approaching a
+dropped collision model, waiting without movement, refusing a partially raised
+door, replanning after standing clearance appears, and stopping at a door that
+stays down. Raising the door never counts as a confirmed room transition.
+
+The user's captured room 27 contains an enabled Ftechdoor at the forward exit.
+The widened search reaches the far side of the room, but the trigger itself is
+behind that door. The updated planner returns a 24-waypoint approach around
+the loop to the near side of the door, in approximately 2.5 seconds on the
+development machine. Every segment passes the original full-geometry clearance
+checks; the rendered path was inspected against the user's marked route.
+This validates planning and fixture door behavior, not a fresh native traversal
+of that complete route. The steering pilot and native executable are unchanged.

@@ -121,6 +121,11 @@ namespace JfgLauncher {
             faces.Add(new MapFace {v=new int[]{first,first+1,first+2}});faces.Add(new MapFace {v=new int[]{first+1,first+3,first+2}});
             map.Mesh=new MapGeometry {vertices=vertices.ToArray(),triangles=faces.ToArray()};
             Check(drift.CheckRemaining(map,0)!=null,"live terrain obstruction was ignored");
+            // A room-sized obstacle needs a global detour beyond the local 360-unit patch.
+            map=Fixture();Put(map,0,180,true);map.Live.collision.models[0].lower[2]=-700;map.Live.collision.models[0].upper[2]=700;
+            NavigationRoute around=NavigationRoute.Plan(map,new float[]{500,0,0});bool beyond=false;HeightPoint prev=new HeightPoint(map.Live.player.position);
+            foreach(HeightPoint point in around.Points){if(Math.Abs(point.Z)>720)beyond=true;Check(NavigationRoute.ClearWalk(map,new MapLayers(map.Mesh).Floors,prev,point),"global detour emitted uncleared segment");prev=point;}
+            Check(beyond,"room-wide search did not go around long obstacle");
             return checks;
         }
     }
