@@ -16,7 +16,7 @@ namespace JfgLauncher {
             return new MapSnapshot {
                 Mesh=new MapGeometry {schema=1,level=level,generation=generation,vertices=new float[][] {new float[]{-1000,0,-1000},new float[]{1000,0,-1000},new float[]{-1000,0,1000},new float[]{1000,0,1000}},
                     triangles=new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{1,2,3},normal=new float[]{0,1,0}}}},
-                Live=new MapLive {schema=1,level=level,generation=generation,mesh_ready=true,clearing_active=true,timestamp_ms=100000,update=1,
+                Live=new MapLive {collision=MapCollision.Empty(),actors=new MapActor[0],schema=1,level=level,generation=generation,mesh_ready=true,clearing_active=true,timestamp_ms=100000,update=1,
                     player=new MapPlayer {position=new float[]{0,0,0}},exits=exits,markers=new MapMarker[0],npcs=new MapMarker[0],navigation_ai=new MapAi(),
                     progression=new MapProgression {schema=1,inventory=new MapInventory {known=true,character=0,red_key=false,weapons_mask=1},nodes=new MapInteraction[0]}}
             };

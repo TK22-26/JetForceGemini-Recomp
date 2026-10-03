@@ -5,7 +5,7 @@ using System.IO;
 using System.Text;
 
 namespace JfgLauncher {
-    // Surface connectivity only: dynamic doors, clearance and gap jumps remain unproved.
+    // Floor connectivity with conservative model bounds and bounded terrain probes. Exact capsule motion and parkour remain unproved.
     internal sealed class NavigationRoute {
         internal readonly List<HeightPoint> Points = new List<HeightPoint>();
         internal uint Level;
@@ -42,6 +42,8 @@ namespace JfgLauncher {
         }
         internal static NavigationRoute Plan(MapSnapshot snapshot,float[] destination) {
             if(snapshot==null||snapshot.Live.player==null)throw new InvalidDataException("Enter a room before planning.");
+            NavigationCollision.Require(snapshot.Live);
+            System.Diagnostics.Stopwatch planning=System.Diagnostics.Stopwatch.StartNew();
             List<HeightSurface> floors=new MapLayers(snapshot.Mesh).Floors;
             // The display includes steep upward surfaces; walking uses a more
             // conservative 45-degree limit until character-specific limits are known.
@@ -107,7 +109,8 @@ namespace JfgLauncher {
             List<HeightPoint> reverse=new List<HeightPoint>();
             for(int at=goal;at!=start;at=previous[at]){reverse.Add(portals[at]);if(reverse.Count>254)throw new InvalidDataException("Route exceeds prototype limit.");}
             reverse.Reverse();route.Points.AddRange(reverse);route.Points.Add(endPoint);
-            Straighten(route,snapshot.Mesh,floors,startPoint);return route;
+            Straighten(route,snapshot.Mesh,floors,startPoint);
+            CollisionRoute(route,snapshot,floors,startPoint,planning);return route;
         }
         private sealed class Span { internal float Low,High; }
         private static bool Clip(float value,float delta,ref float low,ref float high) {
@@ -116,7 +119,7 @@ namespace JfgLauncher {
             if(delta>0)low=Math.Max(low,crossing);else high=Math.Min(high,crossing);
             return low<=high+.00001f;
         }
-        private static bool Supported(List<HeightSurface> floors,HeightPoint from,HeightPoint to) {
+        private static bool Supported(List<HeightSurface> floors,HeightPoint from,HeightPoint to,float tolerance=2) {
             List<Span> spans=new List<Span>();
             foreach(HeightSurface floor in floors) {
                 HeightPoint a=floor.Points[0],b=floor.Points[1],c=floor.Points[2];
@@ -133,7 +136,7 @@ namespace JfgLauncher {
                 float fromFloor=a.Y-(nx*(from.X-a.X)+nz*(from.Z-a.Z))/ny;
                 float toFloor=a.Y-(nx*(to.X-a.X)+nz*(to.Z-a.Z))/ny;
                 float difference=from.Y-fromFloor,delta=(to.Y-toFloor)-difference;
-                if(!Clip(2-difference,-delta,ref low,ref high)||!Clip(2+difference,delta,ref low,ref high))continue;
+                if(!Clip(tolerance-difference,-delta,ref low,ref high)||!Clip(tolerance+difference,delta,ref low,ref high))continue;
                 if(low<=high)spans.Add(new Span {Low=low,High=high});
             }
             spans.Sort(delegate(Span a,Span b){return a.Low.CompareTo(b.Low);});float covered=0;
@@ -182,6 +185,102 @@ namespace JfgLauncher {
             }
         }
 
+        // Every emitted walking segment needs continuous supporting floor,
+        // vertical/static probes, and a swept entity-body clearance check.
+        internal static bool ClearWalk(MapSnapshot map,List<HeightSurface> floors,HeightPoint a,HeightPoint b) {
+            if(NavigationCollision.Blocking(map.Live,a,b)!=null)return false;
+            float dx=b.X-a.X,dz=b.Z-a.Z,length=(float)Math.Sqrt(dx*dx+dz*dz);
+            if(length<.001f)return Math.Abs(a.Y-b.Y)<=24;
+            if(length>600 || Math.Abs(a.Y-b.Y)>80 || Math.Abs(a.Y-b.Y)>length+24)return false;
+            foreach(float offset in new float[]{-20,0,20}) {
+                float ox=-dz/length*offset,oz=dx/length*offset;
+                HeightPoint from=new HeightPoint(a.X+ox,a.Y,a.Z+oz),to=new HeightPoint(b.X+ox,b.Y,b.Z+oz);
+                if(!Supported(floors,from,to,24))return false;
+                // Small steps up to 24 are permitted by floor connectivity.
+                // These terrain probes are conservative, not an exact capsule.
+                foreach(float y in new float[]{28,54,80})
+                    if(Obstructed(map.Mesh,new HeightPoint(from.X,from.Y+y,from.Z),new HeightPoint(to.X,to.Y+y,to.Z)))return false;
+                int steps=Math.Max(1,(int)Math.Ceiling(length/24));
+                for(int i=0;i<=steps;i++) {
+                    HeightPoint p=HeightPoint.Lerp(from,to,(float)i/steps);
+                    if(Obstructed(map.Mesh,new HeightPoint(p.X,p.Y+28,p.Z),new HeightPoint(p.X,p.Y+80,p.Z)))return false;
+                }
+            }
+            return true;
+        }
+        private static List<HeightPoint> Detour(MapSnapshot map,List<HeightSurface> floors,HeightPoint from,HeightPoint to,System.Diagnostics.Stopwatch planning) {
+            List<HeightPoint> points=new List<HeightPoint> {from,to};
+            float lx=Math.Min(from.X,to.X)-360,hx=Math.Max(from.X,to.X)+360;
+            float lz=Math.Min(from.Z,to.Z)-360,hz=Math.Max(from.Z,to.Z)+360;
+            float ly=Math.Min(from.Y,to.Y)-80,hy=Math.Max(from.Y,to.Y)+80;
+            Action<HeightPoint> add=delegate(HeightPoint p) {
+                if(p.X<lx || p.X>hx || p.Z<lz || p.Z>hz || p.Y<ly || p.Y>hy || NavigationCollision.Blocking(map.Live,p,p)!=null)return;
+                foreach(HeightPoint prior in points)if(Distance(prior,p)<2)return;
+                if(points.Count<256)points.Add(p);
+            };
+            // Expanded-box corners create possible routes around an object even
+            // when its bounds occupy the center of a large floor triangle.
+            foreach(MapCollisionModel box in map.Live.collision.models) {
+                if(!box.enabled || NavigationCollision.SameActor(box.address,map.Live.player.address) || !box.Overlaps(ly,hy+80))continue;
+                float margin=NavigationCollision.Radius+8;
+                foreach(float x in new float[]{box.lower[0]-margin,box.upper[0]+margin})
+                    foreach(float z in new float[]{box.lower[2]-margin,box.upper[2]+margin})
+                        foreach(HeightSurface floor in floors) {HeightPoint p;if(Project(floor,new HeightPoint(x,from.Y,z),out p))add(p);}
+            }
+            foreach(HeightSurface floor in floors) {
+                add(Center(floor));
+                for(int i=0;i<3;i++)add(HeightPoint.Lerp(floor.Points[i],floor.Points[(i+1)%3],.5f));
+            }
+            int count=points.Count;float[] cost=new float[count];int[] previous=new int[count];bool[] closed=new bool[count];
+            for(int i=0;i<count;i++){cost[i]=Single.MaxValue;previous[i]=-1;}cost[0]=0;
+            // Bounded visibility search. An unverified edge is never emitted.
+            for(int pass=0;pass<count;pass++) {
+                int at=-1;float best=Single.MaxValue;
+                for(int i=0;i<count;i++)if(!closed[i] && cost[i]!=Single.MaxValue) {float estimate=cost[i]+Distance(points[i],to);if(estimate<best){best=estimate;at=i;}}
+                if(at<0)break;if(at==1)break;closed[at]=true;
+                if(planning.ElapsedMilliseconds>2000)throw new InvalidDataException("Clearance search reached its time limit; move closer or choose another exit.");
+                for(int next=0;next<count;next++) {
+                    if(closed[next] || next==at)continue;
+                    float d=Distance(points[at],points[next]);if(d>600 || cost[at]+d>=cost[next])continue;
+                    if(!ClearWalk(map,floors,points[at],points[next]))continue;
+                    cost[next]=cost[at]+d;previous[next]=at;
+                }
+            }
+            if(previous[1]<0)throw new InvalidDataException("No verified clearance around entity or terrain obstruction. Move manually or choose another exit.");
+            List<HeightPoint> path=new List<HeightPoint>();for(int at=1;at!=0;at=previous[at])path.Add(points[at]);path.Reverse();return path;
+        }
+        private static void CollisionRoute(NavigationRoute route,MapSnapshot map,List<HeightSurface> floors,HeightPoint start,System.Diagnostics.Stopwatch planning) {
+            if(NavigationCollision.Blocking(map.Live,start,start)!=null)
+                throw new InvalidDataException("Player is inside a conservative entity box. Move outside it before starting AI.");
+            HeightPoint goal=route.Points[route.Points.Count-1];
+            if(NavigationCollision.Blocking(map.Live,goal,goal)!=null)
+                throw new InvalidDataException("Exit approach overlaps an enabled entity collision box.");
+            List<HeightPoint> candidate=new List<HeightPoint>();
+            foreach(HeightPoint p in route.Points)if(NavigationCollision.Blocking(map.Live,p,p)==null)candidate.Add(p);
+            route.Points.Clear();HeightPoint previous=start;
+            foreach(HeightPoint target in candidate) {
+                if(planning.ElapsedMilliseconds>2000)throw new InvalidDataException("Clearance search reached its time limit; move closer or choose another exit.");
+                // Subdivision preserves long unobstructed segments without
+                // bypassing the bounded per-segment collision checks.
+                int pieces=Math.Max(1,(int)Math.Ceiling(Distance(previous,target)/500));
+                HeightPoint begin=previous;
+                for(int i=1;i<=pieces;i++) {
+                    HeightPoint next=HeightPoint.Lerp(begin,target,(float)i/pieces);
+                    if(ClearWalk(map,floors,previous,next))route.Points.Add(next);
+                    else route.Points.AddRange(Detour(map,floors,previous,next,planning));
+                    previous=next;
+                    if(route.Points.Count>256)throw new InvalidDataException("Clearance route exceeds prototype waypoint limit.");
+                }
+            }
+            // Only remove corners when both surface and entity tests succeed.
+            List<HeightPoint> original=new List<HeightPoint>(route.Points);route.Points.Clear();int at=-1;previous=start;
+            while(at<original.Count-1) {
+                int next=at+1;
+                for(int i=original.Count-1;i>next;i--)if(ClearWalk(map,floors,previous,original[i])){next=i;break;}
+                route.Points.Add(original[next]);previous=original[next];at=next;
+            }
+        }
+
         internal static NavigationRoute PlanExit(MapSnapshot snapshot,MapMarker exit) {
             NavigationRoute route=Plan(snapshot,exit.position);
             HeightPoint end=route.Points[route.Points.Count-1];
@@ -199,7 +298,7 @@ namespace JfgLauncher {
                 }
             }
             MapSnapshot approach=new MapSnapshot {Mesh=snapshot.Mesh,Live=new MapLive {
-                level=snapshot.Live.level,generation=snapshot.Live.generation,player=new MapPlayer {position=new float[]{end.X,end.Y,end.Z}}}};
+                level=snapshot.Live.level,generation=snapshot.Live.generation,actors=snapshot.Live.actors,collision=snapshot.Live.collision,player=new MapPlayer {address=snapshot.Live.player.address,position=new float[]{end.X,end.Y,end.Z}}}};
             try {
                 NavigationRoute crossing=Plan(approach,new float[]{end.X+nx*48,end.Y,end.Z+nz*48});
                 float travel=0;HeightPoint previous=end;

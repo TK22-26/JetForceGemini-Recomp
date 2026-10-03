@@ -213,8 +213,8 @@ can build a session graph from confirmed transitions as described below.
 `requirement_known` describes the stated interaction only. Every node currently
 exports `traversal: "unknown"`: inventory, target activation, and proximity
 must never be promoted into a walkable connection. Automated routing still
-needs collision/clearance, jumps, moving platforms, dive exits, and confirmation
-of door opening. Export readers support old snapshots without progression.
+uses conservative registered-model bounds as described below, but still needs
+precise character clearance, jumps, moving platforms, dive exits, and door-opening logic. Export readers support old snapshots without progression.
 The mod only reads these progression fields; it never grants keys or weapons.
 
 
@@ -247,8 +247,8 @@ cannot restart through repeated heartbeats; Start AI must issue a new command.
 stalls on stable ground. It releases A, monitors movement and limits the attempt.
 This is obstacle recovery, not a gap/parkour planner. Precise jumps, tree dives,
 moving platforms and scripted campaign requirements remain manual. Expect to intervene
-while testing. Planning and controller simulations pass, but live game movement
-and jumping success have not yet been established.
+while testing. The latest collision-map validation observed one live room
+transition; successful parkour and jumping over the earlier obstacle remain unproved.
 
 `live.json.navigation_ai` reports state, command nonce, active flag, waypoint
 index/count and jump attempts. `ai-command.txt` is a bounded, atomically replaced
@@ -310,8 +310,9 @@ matching height, a 40-unit floor strip, and static obstruction probes between
 4 and 80 units above the floor. Thin gaps, different stories and detected
 walls prevent a shortcut. Segments are capped at 600 units and 80 units of
 height change. These conservative prototype dimensions are not a verified
-character capsule, and dynamic actors are not represented by the static mesh.
-Original unsmoothed segments remain candidates, not certified safe passages.
+character capsule. Registered entity models now supply a separate dynamic
+bounds layer, and every emitted segment is checked as described below.
+The checks remain conservative approximations of actual character motion.
 The pilot still performs its two short initial calibration movements; this
 update does not establish straight-line tracking under all camera conditions.
 
@@ -329,3 +330,73 @@ Individual routes retain the native pilot's limits. Missing acknowledgements,
 stale exports, repeated transitions without progress and exhausted reachable
 frontiers stop with a reason. Interrupted controls in the same room require
 an explicit restart; a confirmed room load can continue automatically.
+
+
+## Entity collision bounds and height map (2026-10-03)
+
+Use the paired updated native executable and launcher, enable **Navigation mod**,
+and open **Live map**. **Entity collision boxes** is enabled by default. The map
+is a flat X/Z view; Y is vertical height. It reads the current entities and the
+game's registered collision models, rather than inferring object sizes from
+their origins or item labels.
+
+- Filled footprints use the existing room height scale: the fill is the model's
+  top height, and the narrow side stripe is its base height. The numeric range
+  remains visible on sufficiently large boxes. Out-of-scale heights clamp to
+  the legend endpoints; the inspector always shows their numeric heights.
+- In **Player floor**, a box is filled when its vertical span intersects the
+  prototype standing body range, from floor +4 through floor +80. The terrain
+  keeps its independently selectable slice width. **Height slice** clips entity
+  visibility using the selected height interval. **All heights** shows every
+  model; this can obscure lower floors and is intended for inspection.
+- **Other levels** shows out-of-band footprints as dashed outlines. Disabled
+  polygon models are also unfilled/dashed and are identified in the inspector.
+  A tall entity crossing the selected interval remains visible even if its
+  origin is on another floor.
+- Click a footprint for its current entity name, position, base/top Y, height,
+  width/depth, and polygon-collision state. The selection is discarded on room
+  changes; guest actor addresses are not persistent identities.
+- **Unknown entity origins** optionally adds cross markers for actors without
+  registered model bounds. Their size, solidity and collision coverage remain
+  unknown. NPC/item interaction markers continue to display independently.
+
+`live.json.actors` adds a sanitized runtime `name`; `player` includes `address`.
+The optional `collision` object has `schema: 1`, `known`, `reason`, and `models`.
+Each model contains `address`, `enabled`, and world-coordinate `lower`/`upper`
+XYZ bounds. Readers reject duplicate or stale identities, invalid pointers,
+nonfinite/reversed bounds and oversized registries. Missing or incomplete
+collision data prevents AI routing; older snapshots can still be viewed.
+
+The supported US reader shares the accessor pin and layout observations with
+`scripts/phase95_collision.py`: registry count/table at 0x801047E0/0x801047E4,
+actor collision-state pointer at +0x5C, lower/upper triples at +0x100/+0x10C,
+and polygon participation bit 0 of properties +0x0A (properties pointer +0x4C).
+The resident accessor is checked before reading. Local reference assembly for
+`hitGetHitModels`, `hitMakePolylist`, `hitGetHeights` and the transformed-bounds
+producer corroborates these fields. No reference assembly or game assets are
+embedded in the implementation. Names and boxes come from the user's running ROM.
+
+Routing expands active model boxes by a **20-unit horizontal body allowance**
+and checks the entire swept segment against its **4-to-80-unit vertical body
+range**. The player's own model and disabled models are excluded. The same test
+applies to original waypoints, shortcuts and generated detours. An object above
+or below that body range does not block the route just because its footprint
+overlaps in the top-down view.
+
+Blocked segments use a bounded visibility search around expanded box corners
+and nearby floor candidates. Each emitted segment also needs continuous floor
+coverage across a 40-unit strip, with up to 24 units of step tolerance, plus
+static terrain/headroom probes. Routes remain limited to 256 waypoints, 600-unit
+segments, 80 units of segment height change, and the existing 45-degree floor
+limit. Clearance searching has a two-second time check and at most 256 local
+candidates. No verified route means movement is refused. The launcher rechecks
+remaining segments against fresh entity bounds before sending heartbeats; a
+new obstruction cancels AI, colors the retained route orange-red, and names the
+blocker. Replanning/restarting is explicit.
+
+These are conservative bounding boxes, not exact polygon collision or decoded
+character-specific capsules. A rotated or hollow object can have usable space
+inside its box that this planner refuses. Unregistered collision types, player
+steering/calibration, dynamic platforms, door-opening requirements and parkour
+remain limitations. Body allowance dimensions are prototype values. The map
+does not promise safe traversal of an entire stage or campaign.

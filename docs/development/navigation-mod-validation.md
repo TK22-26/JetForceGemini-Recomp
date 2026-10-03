@@ -232,3 +232,40 @@ destination, steering/camera behavior needs further refinement, and parkour,
 scripted gates, NPC trades and full campaign progression are not validated.
 The production guard remained enabled; the owner-approved 60-minute extension
 preserved all prior accounting and investigation identity.
+
+
+## Entity collision heatmap and routing (2026-10-03)
+
+The native bounds reader passes Windows tests and Linux ASan/UBSan tests in
+both guest-byte and native-word layouts. Fixtures cover the accessor signature,
+empty/oversized registries, stale and aliased duplicate actors, invalid pointers,
+nonfinite/reversed bounds, enabled/disabled participation and safe entity names.
+The launcher passes 229 checks, plus ten setup checks and fourteen Python
+map/collision tests. New checks cover body width, overhead clearance, stacked
+floors, detours with every segment validated, disabled/player models, unknown
+registries, malformed JSON data, inspector dimensions, height-band rendering,
+thin floor gaps, static walls and low ceilings. An actual WinForms interaction
+test plans/starts a route, enables a new blocking model, and verifies a stop
+command is emitted. Native code is read-only with respect to collision state.
+
+A fresh muted room-27 capture exports 58 actors and 19 registered model boxes,
+including crates, doors, arrows, switches and hut models. The `Hut2` box at the
+earlier stuck location spans approximately Y 0..81 and covers that player's
+recorded body position. This identifies a plausible missing actor obstruction;
+it is bounding-box overlap, not an instrumented exact polygon contact. The
+same-room map now draws that footprint and exposes its dimensions on click.
+Actual WinForms player-floor and all-height captures were visually inspected.
+
+Recorded-room planning accepts exit 65437 in two waypoints and refuses exit
+65516 when no verified clearance is found. The observed planning times were
+roughly 35 ms and 850 ms respectively on the development machine. The fresh
+muted live trial acknowledges Area Cleared, confirms room 27 -> room 157, and
+begins another route. Copied mod saves were used; original saves were hashed
+before/after and remained unchanged. The final observed stop and confirmation
+counts are retained with the private validation evidence.
+
+This advances the earlier automatic-exploration result: one actual room
+transition is now observed. It does not validate every exit, full-stage travel,
+an exact player capsule, traversal through hollow model boxes, camera steering,
+or jumping/parkour. Original ROM snapshots, captures and the paired native
+runtime remain private local artifacts.

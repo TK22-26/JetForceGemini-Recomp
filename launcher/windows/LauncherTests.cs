@@ -276,7 +276,7 @@ namespace JfgLauncher
                 Reject(delegate { FirstRun.StartInfo("bad\npath", setupFixture); }, "setup accepted malformed ROM path");
                 MapGeometry routeMesh = new MapGeometry { vertices = new float[][] {new float[]{0,0,0},new float[]{200,0,0},new float[]{0,0,200},new float[]{200,0,200}},
                     triangles = new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{1,2,3},normal=new float[]{0,1,0}}} };
-                MapSnapshot routeSnapshot = new MapSnapshot {Mesh=routeMesh,Live=new MapLive {level=35,generation=2,player=new MapPlayer {position=new float[]{20,0,20}}}};
+                MapSnapshot routeSnapshot = new MapSnapshot {Mesh=routeMesh,Live=new MapLive {collision=MapCollision.Empty(),level=35,generation=2,player=new MapPlayer {position=new float[]{20,0,20}}}};
                 NavigationRoute route = NavigationRoute.Plan(routeSnapshot,new float[]{180,0,180});
                 Check(route.Points.Count==1 && route.Points[0].X==180 && route.Points[0].Z==180,"open floor route was not straightened");
                 route.Send(directory,123,false,false);
@@ -286,7 +286,8 @@ namespace JfgLauncher
                 Reject(delegate { NavigationRoute.Plan(routeSnapshot,new float[]{500,0,500}); },"unmapped exit accepted");
                 MapGeometry stepMesh = new MapGeometry {vertices=new float[][] {new float[]{0,0,0},new float[]{200,0,0},new float[]{0,0,200},new float[]{200,20,0},new float[]{0,20,200},new float[]{200,20,200}},triangles=new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{3,4,5},normal=new float[]{0,1,0}}}};
                 MapSnapshot stepSnapshot=new MapSnapshot {Mesh=stepMesh,Live=routeSnapshot.Live};
-                Check(NavigationRoute.Plan(stepSnapshot,new float[]{180,20,180}).Points.Count==2,"small step not connected");
+                NavigationRoute stepRoute=NavigationRoute.Plan(stepSnapshot,new float[]{180,20,180});
+                Check(stepRoute.Points[stepRoute.Points.Count-1].Y==20,"small step not connected");
                 stepMesh.vertices[3][1]=stepMesh.vertices[4][1]=stepMesh.vertices[5][1]=80;
                 Reject(delegate {NavigationRoute.Plan(stepSnapshot,new float[]{180,80,180});},"tall step silently bridged");
                 routeMesh.vertices = new float[][] {new float[]{0,0,0},new float[]{200,0,0},new float[]{0,0,200},new float[]{0,500,0},new float[]{200,500,0},new float[]{0,500,200}};
@@ -395,6 +396,7 @@ namespace JfgLauncher
                     window.Close();
                 }
                 checks += NavigationExplorerTests.Run(directory);
+                checks += NavigationCollisionTests.Run(directory);
                 Console.WriteLine("Launcher checks passed: " + checks);
                 return 0;
             }

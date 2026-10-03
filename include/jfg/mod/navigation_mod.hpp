@@ -136,6 +136,93 @@ inline std::vector<Actor> actors(const Memory &m) {
   return result;
 }
 
+// Registered model bounds are broad-phase boxes, not exact collision polygons.
+// Offsets and accessor pin also used by scripts/phase95_collision.py.
+struct CollisionModel {
+  std::uint32_t address{};
+  Vec3 lower{}, upper{};
+  bool enabled{};
+};
+struct CollisionInventory {
+  bool known{};
+  const char *reason = "unavailable";
+  std::vector<CollisionModel> models;
+};
+inline std::string actor_name(const Memory &m, std::uint32_t actor) {
+  std::string name;
+  try {
+    const auto header = m.u32(actor + 0x40U);
+    m.require(header, 0x14U);
+    for (unsigned i = 0; i < 16; ++i) {
+      const auto c = m.u8(header + 4U + i);
+      if (c == 0) break;
+      // Keep JSON and UI text safe without copying names into the executable.
+      name += c >= 32 && c <= 126 && c != '"' && c != '\\' ? char(c) : '?';
+    }
+  } catch (const std::runtime_error &) {}
+  return name.empty() ? "Unnamed entity" : name;
+}
+inline CollisionInventory collision_models(const Memory &m,
+                                           const std::vector<Actor> &list) {
+  CollisionInventory result;
+  try {
+    constexpr std::array<std::uint32_t, 7> accessor = {
+        0x3C0E8010, 0x8DCE47E0, 0x3C028010, 0xAC8E0000,
+        0x8C4247E4, 0x03E00008, 0};
+    for (unsigned i = 0; i < accessor.size(); ++i)
+      if (m.u32(0x8007E484U + i * 4U) != accessor[i]) {
+        result.reason = "unsupported collision accessor"; return result;
+      }
+    const auto count = m.u32(0x801047E0U), table = m.u32(0x801047E4U);
+    if (count > 1024U) throw std::runtime_error("collision count");
+    if (count) {
+      if (table & 3U) throw std::runtime_error("collision table alignment");
+      m.require(table, std::uint64_t(count) * 4U);
+    }
+    for (unsigned i = 0; i < count; ++i) {
+      const auto actor = m.u32(table + 4U * i);
+      bool present = false;
+      for (const auto &a : list)
+        if ((a.address & 0x1FFFFFFFU) == (actor & 0x1FFFFFFFU)) present = true;
+      if (!present || (actor & 3U)) throw std::runtime_error("stale collision actor");
+      m.require(actor, 0x60U);
+      for (const auto &prior : result.models)
+        if ((prior.address & 0x1FFFFFFFU) == (actor & 0x1FFFFFFFU))
+          throw std::runtime_error("duplicate collision actor");
+      const auto state = m.u32(actor + 0x5CU), properties = m.u32(actor + 0x4CU);
+      if ((state | properties) & 3U) throw std::runtime_error("collision alignment");
+      m.require(state, 0x118U); m.require(properties, 12U);
+      CollisionModel model{actor, {}, {}, (m.u16(properties + 10U) & 1U) != 0};
+      model.lower = {m.f32(state + 0x100U), m.f32(state + 0x104U), m.f32(state + 0x108U)};
+      model.upper = {m.f32(state + 0x10CU), m.f32(state + 0x110U), m.f32(state + 0x114U)};
+      const auto valid = [](float low, float high) {
+        return low <= high && std::abs(low) <= 1000000 && std::abs(high) <= 1000000;
+      };
+      if (!valid(model.lower.x, model.upper.x) || !valid(model.lower.y, model.upper.y) ||
+          !valid(model.lower.z, model.upper.z)) throw std::runtime_error("invalid collision bounds");
+      result.models.push_back(model);
+    }
+    result.known = true; result.reason = "registered model bounds";
+  } catch (const std::runtime_error &) {
+    // An incomplete registry must never masquerade as a clear route.
+    result.models.clear(); result.reason = "invalid or incomplete collision registry";
+  }
+  return result;
+}
+inline void write_collision(std::ostream &out, const CollisionInventory &inventory) {
+  out << "{\"schema\":1,\"known\":" << (inventory.known ? "true" : "false")
+      << ",\"reason\":\"" << inventory.reason << "\",\"models\":[";
+  bool first = true;
+  for (const auto &model : inventory.models) {
+    if (!first) out << ',';
+    first = false;
+    out << "{\"address\":" << model.address << ",\"enabled\":"
+        << (model.enabled ? "true" : "false") << ",\"lower\":";
+    json_vec(out, model.lower); out << ",\"upper\":"; json_vec(out, model.upper); out << '}';
+  }
+  out << "]}";
+}
+
 inline std::vector<Exit> exits(const Memory &m,
                                const std::vector<Actor> &list) {
   std::vector<Exit> result;
@@ -980,13 +1067,16 @@ public:
     write_progression(out, m, list, player, level, &npc_rewards);
     out << ",\"navigation_ai\":{\"state\":\"" << pilot.state << "\",\"active\":" << (pilot.active() ? "true" : "false")
         << ",\"confirmations\":" << confirmation.count << ",\"manual_inputs\":" << manual_inputs << ",\"nonce\":" << pilot.nonce() << ",\"waypoint\":" << pilot.waypoint << ",\"count\":" << pilot.count() << ",\"jump_attempts\":" << pilot.jump_attempts << "}";
+    out << ",\"collision\":";
+    write_collision(out, collision_models(m, list));
     out << ",\"actors\":[";
     first = true;
     for (const auto &a : list) {
       if (!first)
         out << ',';
       first = false;
-      out << "{\"address\":" << a.address << ",\"behavior\":" << a.behavior
+      out << "{\"address\":" << a.address << ",\"name\":\"" << actor_name(m, a.address)
+          << "\",\"behavior\":" << a.behavior
           << ",\"position\":";
       json_vec(out, a.position);
       out << '}';

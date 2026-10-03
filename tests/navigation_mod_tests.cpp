@@ -17,7 +17,9 @@ check(bool ok,
 }
 #include "npc_rewards_tests.hpp"
 #include "navigation_pilot_tests.hpp"
+#include "navigation_collision_tests.hpp"
 int main(int argc, char **argv) {
+  navigation_collision_tests();
   npc_reward_tests();
   navigation_pilot_tests();
   const auto npc_catalog = NpcFixture().catalog();

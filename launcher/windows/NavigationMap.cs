@@ -24,6 +24,7 @@ namespace JfgLauncher
     }
     [DataContract] internal sealed class MapPlayer
     {
+        [DataMember] public uint address = 0;
         [DataMember] public float[] position = null;
     }
     [DataContract] internal sealed class MapMarker
@@ -191,6 +192,8 @@ namespace JfgLauncher
         [DataMember] public MapMarker[] npcs = null;
         [DataMember] public MapProgression progression = null;
         [DataMember] public MapAi navigation_ai = null;
+        [DataMember] public MapActor[] actors = null;
+        [DataMember] public MapCollision collision = null;
     }
     internal sealed class MapSnapshot
     {
@@ -246,6 +249,17 @@ namespace JfgLauncher
                 live.generation != mesh.generation || live.level != mesh.level)
                 throw new InvalidDataException("Room is changing...");
             Point(live.player.position);
+            if(live.actors==null)live.actors=new MapActor[0];
+            if(live.actors.Length>1024)throw new InvalidDataException("Too many entities.");
+            HashSet<uint> actorIds=new HashSet<uint>();
+            foreach(MapActor actor in live.actors) {
+                if(actor==null || actor.address==0 || !actorIds.Add(actor.address&0x1FFFFFFF) || actor.behavior<0 || actor.behavior>65535 || (actor.name??"").Length>80)
+                    throw new InvalidDataException("Invalid map entity.");
+                Point(actor.position);
+                foreach(float coordinate in actor.position)if(Math.Abs(coordinate)>1000000)throw new InvalidDataException("Entity outside map range.");
+                if(actor.name!=null)foreach(char c in actor.name)if(Char.IsControl(c))throw new InvalidDataException("Invalid entity name.");
+            }
+            if(live.collision!=null)live.collision.Validate(live.actors);
             if (live.exits == null) live.exits = new MapMarker[0];
             if (live.markers == null) live.markers = new MapMarker[0];
             if (live.npcs == null) live.npcs = new MapMarker[0];
@@ -284,8 +298,29 @@ namespace JfgLauncher
         internal uint SelectedAddress;
         internal int Mode; // 0 player floor, 1 manual slice, 2 all heights.
         internal float ManualHeight, SliceWidth=64;
-        internal bool OtherLevels=true;
+        internal bool OtherLevels=true, ShowCollision=true, ShowEntityOrigins=false, RouteBlocked=false;
+        internal event Action<uint> EntitySelected;
+        private Point mouseStart;
+        private void PickEntity(Point point) {
+            if(snapshot==null || !ShowCollision)return;
+            uint picked=0;float area=Single.MaxValue;
+            float low=CenterHeight-SliceWidth/2,high=CenterHeight+SliceWidth/2;
+            if(snapshot.Live.collision!=null && snapshot.Live.collision.known)foreach(MapCollisionModel model in snapshot.Live.collision.models) {
+                if(NavigationCollision.SameActor(model.address,snapshot.Live.player.address) || (Mode!=2 && !OtherLevels && !model.Overlaps(EntityLow,EntityHigh)))continue;
+                RectangleF box=CollisionMapDrawing.Footprint(model,Project);
+                float size=Math.Max(1,box.Width*box.Height);box.Inflate(3,3);
+                if(box.Contains(point) && size<area){picked=model.address;area=size;}
+            }
+            if(ShowEntityOrigins && picked==0 && snapshot.Live.actors!=null)foreach(MapActor actor in snapshot.Live.actors) {
+                if(Mode!=2 && !OtherLevels && (actor.position[1]<low||actor.position[1]>high))continue;
+                PointF p=Project(new HeightPoint(actor.position));
+                if(Math.Abs(p.X-point.X)<8 && Math.Abs(p.Y-point.Y)<8){picked=actor.address;break;}
+            }
+            if(picked!=0 && EntitySelected!=null)EntitySelected(picked);
+        }
         internal float CenterHeight {get {return Mode==1?ManualHeight:follower.Height;}}
+        internal float EntityLow {get {return Mode==0?CenterHeight+NavigationCollision.FootClearance:CenterHeight-SliceWidth/2;}}
+        internal float EntityHigh {get {return Mode==0?CenterHeight+NavigationCollision.BodyHeight:CenterHeight+SliceWidth/2;}}
         internal string LayerStatus {
             get {
                 if(layers==null) return "";
@@ -375,6 +410,7 @@ namespace JfgLauncher
                 using(Brush brush=new SolidBrush(patch.Color)) g.FillPolygon(brush,Project(poly));
             }
             g.SmoothingMode=SmoothingMode.AntiAlias;
+            if(ShowCollision)CollisionMapDrawing.Paint(g,snapshot.Live,layers,Mode,EntityLow,EntityHigh,OtherLevels,ShowEntityOrigins,SelectedAddress,Font,Project);
             // Each trail segment retains height; never connect across a hidden floor.
             using(Pen pen=new Pen(Color.FromArgb(170,80,230,250),2)) {
                 for(int i=1;i<trail.Count;i++) {
@@ -409,7 +445,7 @@ namespace JfgLauncher
             if (snapshot.Live.progression == null) foreach (MapMarker npc in snapshot.Live.npcs)
                 if (!enriched.Contains(npc.address)) Marker(g, npc.position, npc.kind == "tribal" ? Color.White : Color.CornflowerBlue, npc.label, 2);
             if (Route != null && Route.Level == snapshot.Live.level && Route.Generation == snapshot.Live.generation) {
-                using(Pen routePen = new Pen(Color.Yellow,3)) {
+                using(Pen routePen = new Pen(RouteBlocked?Color.OrangeRed:Color.Yellow,3)) {
                     routePen.DashStyle = DashStyle.Dash;
                     PointF previous = Project(new HeightPoint(snapshot.Live.player.position));
                     foreach(HeightPoint p in Route.Points) { PointF next=Project(p); g.DrawLine(routePen,previous,next);previous=next; }
@@ -434,9 +470,9 @@ namespace JfgLauncher
             Label(g,LayerStatus,new PointF(8,Height-24),Color.LightGray);
         }
         protected override void OnMouseWheel(MouseEventArgs e){base.OnMouseWheel(e);zoom=Math.Max(.25f,Math.Min(16,zoom*(e.Delta>0?1.2f:1/1.2f)));Invalidate();}
-        protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);Focus();dragging=e.Button==MouseButtons.Left;mouse=e.Location;Capture=dragging;}
+        protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);Focus();dragging=e.Button==MouseButtons.Left;mouse=e.Location;mouseStart=e.Location;Capture=dragging;}
         protected override void OnMouseMove(MouseEventArgs e){base.OnMouseMove(e);if(dragging){pan.X+=e.X-mouse.X;pan.Y+=e.Y-mouse.Y;mouse=e.Location;Invalidate();}}
-        protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);dragging=false;Capture=false;}
+        protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);dragging=false;Capture=false;if(e.Button==MouseButtons.Left && Math.Abs(e.X-mouseStart.X)+Math.Abs(e.Y-mouseStart.Y)<5)PickEntity(e.Location);}
     }
 
 
@@ -447,6 +483,13 @@ namespace JfgLauncher
         private readonly TextBox interactionDetails = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BorderStyle = BorderStyle.None, BackColor = SystemColors.Control };
         private NavigationExplorer explorer = new NavigationExplorer();
         private string explorerError;
+        private uint selectedEntity;
+        private void EntityDetails(MapSnapshot value) {
+            if(value==null || selectedEntity==0)return;
+            MapActor actor=NavigationCollision.Actor(value.Live,selectedEntity);
+            if(actor==null){selectedEntity=0;return;}
+            canvas.SelectedAddress=selectedEntity;interactionDetails.Text=NavigationCollision.Details(value.Live,actor);
+        }
         private MapSnapshot aiSnapshot;
         private NavigationRoute aiRoute;
         private bool aiRunning;
@@ -504,6 +547,8 @@ namespace JfgLauncher
             Panel progressionPanel = new Panel { Dock = DockStyle.Right, Width = 300, Padding = new Padding(8) };
             progressionPanel.Controls.Add(interactionDetails); progressionPanel.Controls.Add(interactionList); progressionPanel.Controls.Add(inventoryStatus);
             Controls.Add(progressionPanel);
+            canvas.EntitySelected+=delegate(uint address) {selectedEntity=address;EntityDetails(aiSnapshot);canvas.Invalidate();};
+            interactionList.MouseDown+=delegate {selectedEntity=0;};
             interactionList.SelectedIndexChanged += delegate {
                 MapInteraction node = interactionList.SelectedItem as MapInteraction;
                 interactionDetails.Text = node == null ? "" : node.Details;
@@ -549,7 +594,15 @@ namespace JfgLauncher
             Controls.Add(bar);
             status.Dock = DockStyle.Bottom; status.Height = 38; status.Padding = new Padding(8);
             Controls.Add(status);
-            bar.Height = 192;
+            bar.Height = 225;
+            bar.SetFlowBreak(bar.Controls[bar.Controls.Count-1],true);
+            CheckBox collisionToggle=new CheckBox {Text="Entity collision boxes",Checked=true,AutoSize=true};
+            CheckBox originsToggle=new CheckBox {Text="Unknown entity origins",Checked=false,AutoSize=true};
+            collisionToggle.CheckedChanged+=delegate {canvas.ShowCollision=collisionToggle.Checked;canvas.Invalidate();};
+            originsToggle.CheckedChanged+=delegate {canvas.ShowEntityOrigins=originsToggle.Checked;canvas.Invalidate();};
+            bar.Controls.Add(collisionToggle);bar.Controls.Add(originsToggle);
+            bar.Controls.Add(new Label {Text="Click box: height details | Fill: top; stripe: base | Player floor uses body height; other levels dashed",AutoSize=true,Padding=new Padding(4,3,0,0)});
+            bar.SetFlowBreak(bar.Controls[bar.Controls.Count-1],true);
             Button planAi = new Button { Text = "Plan exit route", AutoSize = true };
             Button startAi = new Button { Text = "Start AI", AutoSize = true };
             Button stopAi = new Button { Text = "Stop AI", AutoSize = true };
@@ -565,14 +618,16 @@ namespace JfgLauncher
                 try {
                     MapInteraction target = interactionList.SelectedItem as MapInteraction;
                     if(target==null || target.kind!="exit")throw new InvalidDataException("Select an exit in the interaction list first.");
-                    aiRoute=NavigationRoute.Plan(aiSnapshot,target.position);canvas.Route=aiRoute;canvas.Invalidate();
-                    aiStatus.Text="Candidate route: "+aiRoute.Points.Count+" waypoints. Doors and jumps need verification.";
+                    aiRoute=NavigationRoute.Plan(aiSnapshot,target.position);canvas.Route=aiRoute;canvas.RouteBlocked=false;canvas.Invalidate();
+                    aiStatus.Text="Collision-checked candidate: "+aiRoute.Points.Count+" waypoints. Body allowance R20 / H80; parkour needs verification.";
                 }catch(InvalidDataException error){aiRoute=null;canvas.Route=null;aiStatus.Text=error.Message;}
             };
             startAi.Click += delegate {
                 explorer.Stop("Explorer stopped for manual route");
                 if(aiRoute==null || aiSnapshot==null || !aiSnapshot.IsLive || !aiSnapshot.Live.clearing_active ||
                     aiRoute.Level!=aiSnapshot.Live.level || aiRoute.Generation!=aiSnapshot.Live.generation){aiStatus.Text="Plan a route in active gameplay first.";return;}
+                string obstruction=NavigationCollision.CheckRoute(aiSnapshot.Live,aiRoute,0);
+                if(obstruction!=null){canvas.RouteBlocked=true;aiStatus.Text=obstruction;canvas.Invalidate();return;}
                 try { ++aiNonce;aiRoute.Send(directory,aiNonce,jumpAssist.Checked,false);aiRunning=true;aiStatus.Text="AI starting; any controller input or Esc stops it."; }
                 catch(IOException error){StopAi();aiStatus.Text=error.Message;aiRunning=false;}
             };
@@ -596,7 +651,7 @@ namespace JfgLauncher
             FormClosed += delegate { timer.Stop(); timer.Dispose(); };
         }
         internal void BindDirectory(string path) {
-            StopAi();aiRoute=null;canvas.Route=null;directory=LocalSetup.FullPath(path);cached=null;explorerError=null;
+            StopAi();aiRoute=null;canvas.Route=null;selectedEntity=0;directory=LocalSetup.FullPath(path);cached=null;explorerError=null;
             try { explorer=NavigationExplorer.Load(directory); }
             catch(Exception error) {
                 if(!(error is IOException) && !(error is UnauthorizedAccessException))throw;
@@ -615,13 +670,20 @@ namespace JfgLauncher
         {
             try {
                 MapSnapshot value = MapSnapshot.Load(directory, cached);
+                if(aiSnapshot!=null && (aiSnapshot.Live.level!=value.Live.level || aiSnapshot.Live.generation!=value.Live.generation))selectedEntity=0;
                 aiSnapshot=value;
+                string collisionStop=null;
+                if(aiRunning && aiRoute!=null && aiRoute.Level==value.Live.level && aiRoute.Generation==value.Live.generation && value.Live.clearing_active) {
+                    int waypoint=value.Live.navigation_ai!=null && value.Live.navigation_ai.nonce==aiNonce?value.Live.navigation_ai.waypoint:0;
+                    collisionStop=NavigationCollision.CheckRoute(value.Live,aiRoute,waypoint);
+                    if(collisionStop!=null){StopAi();canvas.RouteBlocked=true;}
+                }
                 if(explorer.Running) {
                     ExploreCommand command=explorer.Tick(value,NavigationExplorer.Clock);
                     if(command.Stop){StopPilot();aiRoute=null;canvas.Route=null;}
                     if(command.Confirm)NavigationRoute.ConfirmTransition(directory,value.Live,++aiNonce);
                     if(command.Route!=null) {
-                        aiRoute=command.Route;canvas.Route=aiRoute;
+                        aiRoute=command.Route;canvas.Route=aiRoute;canvas.RouteBlocked=false;
                         if(!value.IsLive){explorer.Stop("Explorer stopped: map aged while planning");StopPilot();}
                         else {aiRoute.Send(directory,++aiNonce,jumpAssist.Checked,false);explorer.Dispatched(aiNonce,NavigationExplorer.Clock);aiRunning=true;}
                     }
@@ -639,14 +701,16 @@ namespace JfgLauncher
                 }
                 }
                 if(explorerError==null) {explorer.ObserveIdle(value,NavigationExplorer.Clock);explorer.Save(directory);}
-                cached = value.Mesh; canvas.UpdateMap(value); UpdateInteractions(value);
+                if(collisionStop!=null)aiStatus.Text=collisionStop+". Replan before restarting.";
+                cached = value.Mesh; canvas.UpdateMap(value); UpdateInteractions(value);EntityDetails(value);
                 if (canvas.Mode != 1) layerHeight.Value = Math.Max(layerHeight.Minimum, Math.Min(layerHeight.Maximum, (decimal)canvas.CenterHeight));
                 int tribalCount = 0;
                 foreach (MapMarker npc in value.Live.npcs)
                     if (npc.kind == "tribal") tribalCount++;
-                status.Text = (value.IsLive ? (value.Live.clearing_active ? "LIVE" : "LIVE ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· scripted scene / controls suspended") : "Saved map ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· game closed, paused, or no longer exporting")
+                status.Text = (value.IsLive ? (value.Live.clearing_active ? "LIVE" : "LIVE - scripted scene / controls suspended") : "Saved map - game closed, paused, or no longer exporting")
                     + "  |  " + value.Live.exits.Length + " exits  |  " + value.Live.markers.Length + " items  |  "
-                    + (value.Live.npcs.Length - tribalCount) + " NPCs  |  " + tribalCount + " Tribals";
+                    + (value.Live.npcs.Length - tribalCount) + " NPCs  |  " + tribalCount + " Tribals"
+                    + " | Collision: " + (value.Live.collision==null || !value.Live.collision.known?"unknown":value.Live.collision.models.Length+" models");
             }
             catch (InvalidDataException error) { MapUnavailable(); status.Text = error.Message; }
             catch (IOException) { MapUnavailable(); status.Text = "Waiting for the game to export a room..."; }
