@@ -28,7 +28,7 @@ in the repository or support ZIP.
   and while the game disables player controls. Animated cutscene actors are excluded.
 - Stage changes invalidate the prior map. Mesh generation and level identifiers
   must match live state before a consumer uses them.
-- The prototype does not steer the player yet. Bosses and special scripted
+- Experimental steering is available through the Live map controls below. Bosses and special scripted
   encounters still need individual testing; universal campaign completion and
   every squad gate are not established.
 
@@ -215,3 +215,41 @@ must never be promoted into a walkable connection. Automated routing still
 needs collision/clearance, jumps, moving platforms, dive exits, and confirmation
 of door opening. Export readers support old snapshots without progression.
 The mod only reads these progression fields; it never grants keys or weapons.
+
+
+## Experimental exit approach and jump assist
+
+In **Live map**, select an exit in the interaction list, click **Plan exit route**,
+inspect the dashed yellow candidate route, then click **Start AI**. **Stop AI**,
+Esc, or any manual controller/keyboard input returns control immediately.
+AI is off until explicitly started. It uses the existing isolated mod save.
+
+The first version searches connected upward-facing triangles through shared
+edges at least 40 world units wide, including collinear split edges and steps
+no taller than 24 units. The prototype accepts at most 2,000 floor triangles.
+Height is retained: stacked floors and gaps
+are never connected by proximity alone. The exit is projected to a nearby floor;
+exits without a matching floor or connected surface route require manual control.
+Portal width is a conservative filter, not a full player collision/clearance test.
+Dynamic doors, explosive barriers and NPC prerequisites are not solved by this
+planner. The drawn route is a candidate, not proof that it is traversable.
+
+The pilot starts with two short stick probes to learn movement direction, then
+adjusts its stick basis from observed movement as the camera turns. It stops on
+blocked calibration, sustained lack of progress, excessive deviation, inactive
+gameplay, a room change, replay input, or its 1,800-update run limit. It approaches
+the exit floor position; reaching that point does not prove an exit transition.
+Map commands expire after 1.5 seconds without a heartbeat. A stopped command
+cannot restart through repeated heartbeats; Start AI must issue a new command.
+
+**Experimental jump assist** permits one short A-button pulse after movement
+stalls on stable ground. It releases A, monitors movement and limits the attempt.
+This is obstacle recovery, not a gap/parkour planner. Precise jumps, tree dives,
+moving platforms and multi-room progression remain manual. Expect to intervene
+while testing. Planning and controller simulations pass, but live game movement
+and jumping success have not yet been established.
+
+`live.json.navigation_ai` reports state, command nonce, active flag, waypoint
+index/count and jump attempts. `ai-command.txt` is a bounded, atomically replaced
+per-session command containing room/generation, nonce, timestamp and waypoints.
+Existing input recording captures the generated stick/buttons for later replay.

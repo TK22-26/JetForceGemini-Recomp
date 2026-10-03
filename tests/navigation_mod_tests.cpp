@@ -16,8 +16,10 @@ check(bool ok,
   }
 }
 #include "npc_rewards_tests.hpp"
+#include "navigation_pilot_tests.hpp"
 int main(int argc, char **argv) {
   npc_reward_tests();
+  navigation_pilot_tests();
   const auto npc_catalog = NpcFixture().catalog();
   using namespace jfg::mod;
   if (argc == 3) {

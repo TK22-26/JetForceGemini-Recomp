@@ -3,6 +3,7 @@
 // Optional host-side tooling for the supported US ROM. No game assets are
 // embedded.
 #include "jfg/mod/npc_rewards.hpp"
+#include "jfg/mod/navigation_pilot.hpp"
 #include <array>
 #include <bit>
 #include <chrono>
@@ -824,6 +825,7 @@ inline bool gameplay_active(const Memory &m, std::uint32_t player) {
 class NavigationMod {
 public:
   NpcRewardCatalog npc_rewards;
+  NavigationPilot pilot;
   bool enabled = false;
   std::uint32_t player = 0, last_track = 0, last_level = UINT32_MAX;
   std::uint64_t updates = 0, generation = 1, cleared = 0, health_restores = 0,
@@ -831,6 +833,7 @@ public:
   std::uint32_t first_clear_level = UINT32_MAX;
   std::uint64_t first_clear_update = 0;
   void transition() noexcept {
+    pilot.reset();
     player = 0;
     last_track = 0;
     last_level = UINT32_MAX;
@@ -966,6 +969,8 @@ public:
     write_npcs(out, npc_markers(m, list));
     out << ",\"progression\":";
     write_progression(out, m, list, player, level, &npc_rewards);
+    out << ",\"navigation_ai\":{\"state\":\"" << pilot.state << "\",\"active\":" << (pilot.active() ? "true" : "false")
+        << ",\"nonce\":" << pilot.nonce() << ",\"waypoint\":" << pilot.waypoint << ",\"count\":" << pilot.count() << ",\"jump_attempts\":" << pilot.jump_attempts << "}";
     out << ",\"actors\":[";
     first = true;
     for (const auto &a : list) {

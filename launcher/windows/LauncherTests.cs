@@ -274,6 +274,24 @@ namespace JfgLauncher
                 Check(Convert.ToBase64String(File.ReadAllBytes(installer)) == Convert.ToBase64String(FirstRun.SetupScript()),
                     "setup resource was not restored from the executable");
                 Reject(delegate { FirstRun.StartInfo("bad\npath", setupFixture); }, "setup accepted malformed ROM path");
+                MapGeometry routeMesh = new MapGeometry { vertices = new float[][] {new float[]{0,0,0},new float[]{200,0,0},new float[]{0,0,200},new float[]{200,0,200}},
+                    triangles = new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{1,2,3},normal=new float[]{0,1,0}}} };
+                MapSnapshot routeSnapshot = new MapSnapshot {Mesh=routeMesh,Live=new MapLive {level=35,generation=2,player=new MapPlayer {position=new float[]{20,0,20}}}};
+                NavigationRoute route = NavigationRoute.Plan(routeSnapshot,new float[]{180,0,180});
+                Check(route.Points.Count==2 && route.Points[0].X==100 && route.Points[0].Z==100,"route does not cross shared portal");
+                route.Send(directory,123,false,false);
+                Check(File.ReadAllText(Path.Combine(directory,"ai-command.txt")).StartsWith("JFGNAV1 35 2 123 "),"route command room identity missing");
+                route.Send(directory,124,false,true);
+                Check(File.ReadAllLines(Path.Combine(directory,"ai-command.txt")).Length==1,"stop command retained waypoints");
+                Reject(delegate { NavigationRoute.Plan(routeSnapshot,new float[]{500,0,500}); },"unmapped exit accepted");
+                MapGeometry stepMesh = new MapGeometry {vertices=new float[][] {new float[]{0,0,0},new float[]{200,0,0},new float[]{0,0,200},new float[]{200,20,0},new float[]{0,20,200},new float[]{200,20,200}},triangles=new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{3,4,5},normal=new float[]{0,1,0}}}};
+                MapSnapshot stepSnapshot=new MapSnapshot {Mesh=stepMesh,Live=routeSnapshot.Live};
+                Check(NavigationRoute.Plan(stepSnapshot,new float[]{180,20,180}).Points.Count==2,"small step not connected");
+                stepMesh.vertices[3][1]=stepMesh.vertices[4][1]=stepMesh.vertices[5][1]=80;
+                Reject(delegate {NavigationRoute.Plan(stepSnapshot,new float[]{180,80,180});},"tall step silently bridged");
+                routeMesh.vertices = new float[][] {new float[]{0,0,0},new float[]{200,0,0},new float[]{0,0,200},new float[]{0,500,0},new float[]{200,500,0},new float[]{0,500,200}};
+                routeMesh.triangles = new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{3,5,4},normal=new float[]{0,1,0}}};
+                Reject(delegate { NavigationRoute.Plan(routeSnapshot,new float[]{20,500,20}); },"disconnected stacked floors merged");
                 LayerTests();
                 string mapDirectory = Path.Combine(directory, "map");
                 Directory.CreateDirectory(mapDirectory);

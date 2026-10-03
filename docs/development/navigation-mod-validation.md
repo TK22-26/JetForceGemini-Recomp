@@ -172,3 +172,26 @@ startup parser passes and rejects a damaged asset offset. A fresh offline export
 of the saved room-35 memory passes map validation and retains all 15 interaction
 nodes alongside 45/19 catalog coverage. The WinForms NPC trade inspector was
 rendered offscreen and inspected. No fresh interactive campaign run was made.
+
+
+## Path and jump-assist prototype (2026-10-03)
+
+Windows native and Linux ASan/UBSan tests exercise a two-leg route using an
+independent simple movement simulation, route completion, same-command restart
+prevention, manual takeover, replay exclusion, suspended gameplay, room changes,
+expired heartbeats, malformed commands, a blocked route and one bounded/released
+jump attempt. Launcher tests cover shared portals, disconnected stacked floors,
+off-map destinations and the command/stop format. The launcher passes 128 checks
+and its setup harness passes ten checks. The controls render in the map window.
+
+These are planner/controller tests, not an N64 physics simulation or a successful
+live exit/jump demonstration. Camera adaptation, clearance, jump height, airborne
+steering and scripted/locked exits still require live validation. No production
+guard limits were reset for this prototype; it uses the existing mod allowance.
+
+
+The saved room-35 geometry initially produced no routes with exact shared-edge
+matching. Accounting for collinear split edges and steps up to 24 units produces
+two candidate exit approaches (19 and three waypoints); two other exits remain
+disconnected and are rejected. Small-step and excessive-step fixtures cover the
+added connections. This demonstrates geometry planning, not live traversal.

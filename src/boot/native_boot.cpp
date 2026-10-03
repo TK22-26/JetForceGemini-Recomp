@@ -1852,6 +1852,13 @@ void sample_live_controller(State &state) noexcept {
               (host_key_down(state, 'S') ? stick_magnitude : 0);
     }
   }
+  if (state.navigation_mod.enabled) {
+    const bool manual = buttons != 0U || stick_x != 0 || stick_y != 0 || (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+    const auto ai = state.navigation_mod.pilot.sample(manual, state.input_replay_loaded, true);
+    if (!manual && !state.input_replay_loaded && state.navigation_mod.pilot.active()) {
+      buttons = ai.buttons; stick_x = ai.x; stick_y = ai.y;
+    }
+  }
   if (connected != state.latched_controller_connected) {
     if (connected)
       ++state.controller_reconnects;
@@ -2097,6 +2104,17 @@ void update_navigation_mod(State &state) {
     if(!player_present)mod.player=0;
     else (void)mod.full_health(memory,mod.player);
     ++mod.updates;
+    const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    const auto ai_level = memory.u32(0x800FB114U);
+    if (mod.updates % 6U == 0U) {
+      const auto command_path = state.navigation_output / L"ai-command.txt";
+      std::ifstream command(command_path, std::ios::binary | std::ios::ate);
+      if (command && command.tellg() <= 32768) { command.seekg(0); (void)mod.pilot.command(command, ai_level, mod.generation, now); }
+    }
+    if (mod.player != 0U) {
+      const auto p = jfg::mod::position(memory, mod.player);
+      mod.pilot.tick({p.x,p.y,p.z}, jfg::mod::gameplay_active(memory,mod.player),ai_level,mod.generation,now);
+    } else mod.pilot.stop("player_unavailable");
     if(mod.updates%6U!=0U)return;
     const auto track=memory.u32(0x800A0D60U), level=memory.u32(0x800FB114U);
     bool mesh_ready=mod.player!=0U && track==mod.last_track && level==mod.last_level;

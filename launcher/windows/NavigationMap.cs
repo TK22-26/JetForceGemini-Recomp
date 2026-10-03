@@ -167,6 +167,12 @@ namespace JfgLauncher
         }
     }
 
+    [DataContract] internal sealed class MapAi {
+        [DataMember] public string state = "off";
+        [DataMember] public bool active = false;
+        [DataMember] public int waypoint = 0, count = 0, jump_attempts = 0;
+        [DataMember] public long nonce = 0;
+    }
     [DataContract] internal sealed class MapLive
     {
         [DataMember] public int schema = 0;
@@ -181,6 +187,7 @@ namespace JfgLauncher
         [DataMember] public MapMarker[] markers = null;
         [DataMember] public MapMarker[] npcs = null;
         [DataMember] public MapProgression progression = null;
+        [DataMember] public MapAi navigation_ai = null;
     }
     internal sealed class MapSnapshot
     {
@@ -262,6 +269,7 @@ namespace JfgLauncher
     internal sealed class MapCanvas : Control
     {
         private MapSnapshot snapshot;
+        internal NavigationRoute Route;
         private MapLayers layers;
         private FloorFollower follower=new FloorFollower();
         private readonly List<HeightPoint> trail=new List<HeightPoint>();
@@ -397,6 +405,13 @@ namespace JfgLauncher
                 if (!enriched.Contains(marker.address)) Marker(g, marker.position, marker.kind == "opened" ? Color.Gray : marker.kind == "key" ? Color.Plum : marker.kind == "weapon" ? Color.Orange : Color.LightGreen, marker.label, 1);
             if (snapshot.Live.progression == null) foreach (MapMarker npc in snapshot.Live.npcs)
                 if (!enriched.Contains(npc.address)) Marker(g, npc.position, npc.kind == "tribal" ? Color.White : Color.CornflowerBlue, npc.label, 2);
+            if (Route != null && Route.Level == snapshot.Live.level && Route.Generation == snapshot.Live.generation) {
+                using(Pen routePen = new Pen(Color.Yellow,3)) {
+                    routePen.DashStyle = DashStyle.Dash;
+                    PointF previous = Project(new HeightPoint(snapshot.Live.player.position));
+                    foreach(HeightPoint p in Route.Points) { PointF next=Project(p); g.DrawLine(routePen,previous,next);previous=next; }
+                }
+            }
             HeightPoint player=new HeightPoint(snapshot.Live.player.position);PointF atPlayer=Project(player);
             using(Brush brush=new SolidBrush(snapshot.IsLive?Color.Cyan:Color.Gray)) {
                 g.FillEllipse(Brushes.Black,atPlayer.X-8,atPlayer.Y-8,16,16);g.FillEllipse(brush,atPlayer.X-6,atPlayer.Y-6,12,12);
@@ -427,6 +442,17 @@ namespace JfgLauncher
         private readonly Label inventoryStatus = new Label { Dock = DockStyle.Top, Height = 68, Padding = new Padding(8) };
         private readonly ListBox interactionList = new ListBox { Dock = DockStyle.Top, Height = 170, HorizontalScrollbar = true };
         private readonly TextBox interactionDetails = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BorderStyle = BorderStyle.None, BackColor = SystemColors.Control };
+        private MapSnapshot aiSnapshot;
+        private NavigationRoute aiRoute;
+        private bool aiRunning;
+        private long aiNonce = DateTime.UtcNow.Ticks;
+        private readonly CheckBox jumpAssist = new CheckBox { Text = "Experimental jump assist", AutoSize = true };
+        private readonly Label aiStatus = new Label { Text = "AI off - select an exit and plan a candidate route", AutoSize = true };
+        private void StopAi() {
+            aiRunning=false;
+            if(aiRoute!=null)try { aiRoute.Send(directory,++aiNonce,false,true); } catch(IOException) {} catch(UnauthorizedAccessException) {}
+            aiStatus.Text="AI stopped";
+        }
         private long interactionGeneration = -1;
         private uint interactionLevel;
         private void UpdateInteractions(MapSnapshot value)
@@ -511,15 +537,49 @@ namespace JfgLauncher
             Controls.Add(bar);
             status.Dock = DockStyle.Bottom; status.Height = 38; status.Padding = new Padding(8);
             Controls.Add(status);
+            bar.Height = 172;
+            Button planAi = new Button { Text = "Plan exit route", AutoSize = true };
+            Button startAi = new Button { Text = "Start AI", AutoSize = true };
+            Button stopAi = new Button { Text = "Stop AI", AutoSize = true };
+            bar.SetFlowBreak(context, true);
+            bar.Controls.Add(planAi);bar.Controls.Add(startAi);bar.Controls.Add(stopAi);bar.Controls.Add(jumpAssist);
+            bar.SetFlowBreak(jumpAssist,true);bar.Controls.Add(aiStatus);
+            planAi.Click += delegate {
+                StopAi();
+                try {
+                    MapInteraction target = interactionList.SelectedItem as MapInteraction;
+                    if(target==null || target.kind!="exit")throw new InvalidDataException("Select an exit in the interaction list first.");
+                    aiRoute=NavigationRoute.Plan(aiSnapshot,target.position);canvas.Route=aiRoute;canvas.Invalidate();
+                    aiStatus.Text="Candidate route: "+aiRoute.Points.Count+" waypoints. Doors and jumps need verification.";
+                }catch(InvalidDataException error){aiRoute=null;canvas.Route=null;aiStatus.Text=error.Message;}
+            };
+            startAi.Click += delegate {
+                if(aiRoute==null || aiSnapshot==null || !aiSnapshot.IsLive || !aiSnapshot.Live.clearing_active ||
+                    aiRoute.Level!=aiSnapshot.Live.level || aiRoute.Generation!=aiSnapshot.Live.generation){aiStatus.Text="Plan a route in active gameplay first.";return;}
+                try { ++aiNonce;aiRoute.Send(directory,aiNonce,jumpAssist.Checked,false);aiRunning=true;aiStatus.Text="AI starting; any controller input or Esc stops it."; }
+                catch(IOException error){aiStatus.Text=error.Message;aiRunning=false;}
+            };
+            stopAi.Click += delegate { StopAi(); };
+            FormClosing += delegate { StopAi(); };
             timer.Interval = 200; timer.Tick += delegate { RefreshMap(); };
             BindDirectory(path); timer.Start();
             FormClosed += delegate { timer.Stop(); timer.Dispose(); };
         }
-        internal void BindDirectory(string path) { directory = LocalSetup.FullPath(path); cached = null; canvas.UpdateMap(null); UpdateInteractions(null); RefreshMap(); }
+        internal void BindDirectory(string path) { StopAi(); aiRoute=null;canvas.Route=null; directory = LocalSetup.FullPath(path); cached = null; canvas.UpdateMap(null); UpdateInteractions(null); RefreshMap(); }
         internal void RefreshMap()
         {
             try {
                 MapSnapshot value = MapSnapshot.Load(directory, cached);
+                aiSnapshot=value;
+                if(aiRoute!=null && (aiRoute.Level!=value.Live.level || aiRoute.Generation!=value.Live.generation || !value.IsLive || !value.Live.clearing_active)) { StopAi();aiRoute=null;canvas.Route=null; }
+                if(aiRunning && aiRoute!=null) aiRoute.Send(directory,aiNonce,jumpAssist.Checked,false);
+                if(value.Live.navigation_ai!=null && aiRoute!=null) {
+                    MapAi ai=value.Live.navigation_ai;
+                    if(ai.nonce==aiNonce && (ai.active || (aiRunning && ai.state!="off" && ai.state!="stopped"))) {
+                        aiStatus.Text="AI: "+ai.state.Replace('_',' ')+" | waypoint "+ai.waypoint+" / "+ai.count+" | jumps "+ai.jump_attempts;
+                        if(!ai.active)aiRunning=false;
+                    }
+                }
                 cached = value.Mesh; canvas.UpdateMap(value); UpdateInteractions(value);
                 if (canvas.Mode != 1) layerHeight.Value = Math.Max(layerHeight.Minimum, Math.Min(layerHeight.Maximum, (decimal)canvas.CenterHeight));
                 int tribalCount = 0;
@@ -529,10 +589,10 @@ namespace JfgLauncher
                     + "  |  " + value.Live.exits.Length + " exits  |  " + value.Live.markers.Length + " items  |  "
                     + (value.Live.npcs.Length - tribalCount) + " NPCs  |  " + tribalCount + " Tribals";
             }
-            catch (InvalidDataException error) { cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = error.Message; }
-            catch (IOException) { cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Waiting for the game to export a room..."; }
-            catch (SerializationException) { cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Waiting for a complete map update..."; }
-            catch (UnauthorizedAccessException) { cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Cannot read this export folder."; }
+            catch (InvalidDataException error) { StopAi();aiSnapshot=null; cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = error.Message; }
+            catch (IOException) { StopAi();aiSnapshot=null; cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Waiting for the game to export a room..."; }
+            catch (SerializationException) { StopAi();aiSnapshot=null; cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Waiting for a complete map update..."; }
+            catch (UnauthorizedAccessException) { StopAi();aiSnapshot=null; cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Cannot read this export folder."; }
         }
     }
 }
