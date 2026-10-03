@@ -505,30 +505,48 @@ namespace JfgLauncher
             aiRunning=false;
             if(aiRoute!=null)try { aiRoute.Send(directory,++aiNonce,false,true); } catch(IOException) {} catch(UnauthorizedAccessException) {}
         }
+        private bool updatingInteractions;
         private long interactionGeneration = -1;
         private uint interactionLevel;
-        private void UpdateInteractions(MapSnapshot value)
+        internal void UpdateInteractions(MapSnapshot value)
         {
             MapProgression progress = value == null ? null : value.Live.progression;
             MapInteraction selected = interactionList.SelectedItem as MapInteraction;
-            uint address = value != null && value.Live.generation == interactionGeneration && value.Live.level == interactionLevel && selected != null ? selected.address : 0;
+            bool sameRoom = value != null && value.Live.generation == interactionGeneration && value.Live.level == interactionLevel;
+            uint address = sameRoom && selected != null ? selected.address : 0;
+            int top = sameRoom ? interactionList.TopIndex : 0;
+            MapInteraction topNode = top >= 0 && top < interactionList.Items.Count ? interactionList.Items[top] as MapInteraction : null;
             interactionGeneration = value == null ? -1 : value.Live.generation;
             interactionLevel = value == null ? 0 : value.Live.level;
+            MapInteraction[] nodes = progress == null ? new MapInteraction[0] : progress.nodes;
+            updatingInteractions = true;
             interactionList.BeginUpdate();
-            interactionList.Items.Clear();
-            if (progress != null) foreach (MapInteraction node in progress.nodes) {
-                node.ExplorationStatus="";
-                if(node.kind=="exit")foreach(MapMarker marker in value.Live.exits)
-                    if(marker.address==node.address){node.ExplorationStatus=explorer.Describe(value.Live.level,marker);break;}
-                int index = interactionList.Items.Add(node);
-                if (node.address == address) interactionList.SelectedIndex = index;
-            }
-            if (interactionList.SelectedIndex < 0 && interactionList.Items.Count > 0) interactionList.SelectedIndex = 0;
-            interactionList.EndUpdate();
+            try {
+                bool sameOrder = sameRoom && nodes.Length == interactionList.Items.Count;
+                for (int i = 0; sameOrder && i < nodes.Length; ++i)
+                    sameOrder = ((MapInteraction)interactionList.Items[i]).address == nodes[i].address;
+                if (!sameOrder) interactionList.Items.Clear();
+                int selection = -1, anchor = -1;
+                for (int i = 0; i < nodes.Length; ++i) {
+                    MapInteraction node = nodes[i];
+                    node.ExplorationStatus = "";
+                    if (node.kind == "exit") foreach (MapMarker marker in value.Live.exits)
+                        if (marker.address == node.address) { node.ExplorationStatus = explorer.Describe(value.Live.level, marker); break; }
+                    if (sameOrder) interactionList.Items[i] = node;
+                    else interactionList.Items.Add(node);
+                    if (node.address == address) selection = i;
+                    if (sameRoom && topNode != null && node.address == topNode.address) anchor = i;
+                }
+                interactionList.SelectedIndex = selection >= 0 ? selection : nodes.Length > 0 ? 0 : -1;
+                // Keep the viewport even when the selected row is off-screen.
+                if (nodes.Length > 0) interactionList.TopIndex = sameRoom ? Math.Min(nodes.Length - 1, anchor >= 0 ? anchor : top) : 0;
+            } finally { interactionList.EndUpdate(); updatingInteractions = false; }
             inventoryStatus.Text = progress == null ? "Progression data unavailable" :
                 (value.IsLive ? "LIVE  " : "SAVED SNAPSHOT  ") + progress.inventory.Summary;
             selected = interactionList.SelectedItem as MapInteraction;
-            interactionDetails.Text = selected == null ? "Select a loaded interaction to inspect its reward, requirements and coordinates." : selected.Details;
+            string details = selected == null ? "Select a loaded interaction to inspect its reward, requirements and coordinates." : selected.Details;
+            if (interactionDetails.Text != details) interactionDetails.Text = details;
+            canvas.SelectedAddress = selectedEntity != 0 ? selectedEntity : selected == null ? 0 : selected.address;
         }
 
         private readonly MapCanvas canvas = new MapCanvas();
@@ -550,6 +568,7 @@ namespace JfgLauncher
             canvas.EntitySelected+=delegate(uint address) {selectedEntity=address;EntityDetails(aiSnapshot);canvas.Invalidate();};
             interactionList.MouseDown+=delegate {selectedEntity=0;};
             interactionList.SelectedIndexChanged += delegate {
+                if(updatingInteractions)return;
                 MapInteraction node = interactionList.SelectedItem as MapInteraction;
                 interactionDetails.Text = node == null ? "" : node.Details;
                 canvas.SelectedAddress = node == null ? 0 : node.address; canvas.Invalidate();
@@ -618,7 +637,9 @@ namespace JfgLauncher
                 try {
                     MapInteraction target = interactionList.SelectedItem as MapInteraction;
                     if(target==null || target.kind!="exit")throw new InvalidDataException("Select an exit in the interaction list first.");
-                    aiRoute=NavigationRoute.Plan(aiSnapshot,target.position);canvas.Route=aiRoute;canvas.RouteBlocked=false;canvas.Invalidate();
+                    MapMarker marker=Array.Find(aiSnapshot.Live.exits,delegate(MapMarker e){return e.address==target.address;});
+                    if(marker==null)throw new InvalidDataException("That exit is no longer loaded.");
+                    aiRoute=NavigationRoute.PlanExit(aiSnapshot,marker);canvas.Route=aiRoute;canvas.RouteBlocked=false;canvas.Invalidate();
                     aiStatus.Text="Collision-checked candidate: "+aiRoute.Points.Count+" waypoints. Body allowance R20 / H80; parkour needs verification.";
                 }catch(InvalidDataException error){aiRoute=null;canvas.Route=null;aiStatus.Text=error.Message;}
             };
@@ -626,7 +647,7 @@ namespace JfgLauncher
                 explorer.Stop("Explorer stopped for manual route");
                 if(aiRoute==null || aiSnapshot==null || !aiSnapshot.IsLive || !aiSnapshot.Live.clearing_active ||
                     aiRoute.Level!=aiSnapshot.Live.level || aiRoute.Generation!=aiSnapshot.Live.generation){aiStatus.Text="Plan a route in active gameplay first.";return;}
-                string obstruction=NavigationCollision.CheckRoute(aiSnapshot.Live,aiRoute,0);
+                string obstruction=aiRoute.CheckRemaining(aiSnapshot,0);
                 if(obstruction!=null){canvas.RouteBlocked=true;aiStatus.Text=obstruction;canvas.Invalidate();return;}
                 try { ++aiNonce;aiRoute.Send(directory,aiNonce,jumpAssist.Checked,false);aiRunning=true;aiStatus.Text="AI starting; any controller input or Esc stops it."; }
                 catch(IOException error){StopAi();aiStatus.Text=error.Message;aiRunning=false;}
@@ -675,8 +696,12 @@ namespace JfgLauncher
                 string collisionStop=null;
                 if(aiRunning && aiRoute!=null && aiRoute.Level==value.Live.level && aiRoute.Generation==value.Live.generation && value.Live.clearing_active) {
                     int waypoint=value.Live.navigation_ai!=null && value.Live.navigation_ai.nonce==aiNonce?value.Live.navigation_ai.waypoint:0;
-                    collisionStop=NavigationCollision.CheckRoute(value.Live,aiRoute,waypoint);
-                    if(collisionStop!=null){StopAi();canvas.RouteBlocked=true;}
+                    collisionStop=aiRoute.CheckRemaining(value,waypoint);
+                    if(collisionStop!=null){
+                        if(explorer.Running) { explorer.RouteBlocked(collisionStop,NavigationExplorer.Clock);StopPilot(); }
+                        else StopAi();
+                        canvas.RouteBlocked=true;
+                    }
                 }
                 if(explorer.Running) {
                     ExploreCommand command=explorer.Tick(value,NavigationExplorer.Clock);
@@ -701,7 +726,7 @@ namespace JfgLauncher
                 }
                 }
                 if(explorerError==null) {explorer.ObserveIdle(value,NavigationExplorer.Clock);explorer.Save(directory);}
-                if(collisionStop!=null)aiStatus.Text=collisionStop+". Replan before restarting.";
+                if(collisionStop!=null)aiStatus.Text=collisionStop+(explorer.Running?". Checking another exit.":". Replan before restarting.");
                 cached = value.Mesh; canvas.UpdateMap(value); UpdateInteractions(value);EntityDetails(value);
                 if (canvas.Mode != 1) layerHeight.Value = Math.Max(layerHeight.Minimum, Math.Min(layerHeight.Maximum, (decimal)canvas.CenterHeight));
                 int tribalCount = 0;

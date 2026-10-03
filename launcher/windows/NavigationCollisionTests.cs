@@ -109,6 +109,18 @@ namespace JfgLauncher {
                 canvas.Mode=1;canvas.ManualHeight=200;canvas.SliceWidth=40;
                 Check(canvas.EntityLow==180 && canvas.EntityHigh==220,"manual height slice ignored");
             }
+            // Drift changes the segment from the actual player position. Check
+            // terrain again instead of assuming the originally planned line is safe.
+            map=Fixture();NavigationRoute drift=NavigationRoute.Plan(map,new float[]{500,0,0});
+            Check(drift.CheckRemaining(map,0)==null,"open live segment rejected");
+            MapGeometry old=map.Mesh;
+            var vertices=new System.Collections.Generic.List<float[]>(old.vertices);
+            int first=vertices.Count;
+            vertices.Add(new float[]{250,0,-300});vertices.Add(new float[]{250,200,-300});vertices.Add(new float[]{250,0,300});vertices.Add(new float[]{250,200,300});
+            var faces=new System.Collections.Generic.List<MapFace>(old.triangles);
+            faces.Add(new MapFace {v=new int[]{first,first+1,first+2}});faces.Add(new MapFace {v=new int[]{first+1,first+3,first+2}});
+            map.Mesh=new MapGeometry {vertices=vertices.ToArray(),triangles=faces.ToArray()};
+            Check(drift.CheckRemaining(map,0)!=null,"live terrain obstruction was ignored");
             return checks;
         }
     }

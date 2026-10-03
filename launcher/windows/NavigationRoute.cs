@@ -307,6 +307,20 @@ namespace JfgLauncher {
             }catch(InvalidDataException) { /* Approach only; the explorer verifies the actual transition. */ }
             return route;
         }
+        private MapGeometry clearanceMesh;
+        private List<HeightSurface> clearanceFloors;
+        internal string CheckRemaining(MapSnapshot map,int waypoint) {
+            string blocked=NavigationCollision.CheckRoute(map.Live,this,waypoint);
+            if(blocked!=null)return blocked;
+            if(waypoint>=Points.Count)return null;
+            if(clearanceMesh!=map.Mesh) {clearanceMesh=map.Mesh;clearanceFloors=new MapLayers(map.Mesh).Floors;}
+            HeightPoint start;
+            if(Floor(clearanceFloors,new HeightPoint(map.Live.player.position),true,out start)<0)
+                return "Player has left the mapped walking floor";
+            if(!ClearWalk(map,clearanceFloors,start,Points[waypoint]))
+                return "Route blocked by terrain or floor clearance from current position";
+            return null;
+        }
         internal static void ConfirmTransition(string directory,MapLive live,long nonce) {
             string path=Path.Combine(directory,"ai-confirm.txt"),temp=path+".tmp";
             string command="JFGCONFIRM1 "+live.level+" "+live.generation+" "+nonce+" "+NavigationExplorer.Clock+" "+

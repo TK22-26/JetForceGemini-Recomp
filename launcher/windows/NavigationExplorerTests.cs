@@ -223,6 +223,68 @@ namespace JfgLauncher {
                 stop.PerformClick();Check(Command(ui)[6]=="0","Stop AI did not cancel exploration");
                 explore.PerformClick();window.Close();Check(Command(ui)[6]=="0","closing map did not release controls");
             }
+
+            // Forward exploration never falls back through the arrival doorway.
+            int entrancePlans=0;
+            s=new Simulation(Room(100,1,entrance,forward),delegate(MapSnapshot map,MapMarker exit){
+                if(exit==entrance)++entrancePlans;
+                throw new InvalidDataException("Forward gate blocked");
+            });
+            s.Tick(0);Check(s.Tick(400).Stop && entrancePlans==0,"blocked forward exit sent player back through entrance");
+            Check(s.Explorer.Describe(100,entrance).Contains("skipped"),"entrance exclusion not explained");
+            // Starting after manual movement must retain the observed entrance.
+            MapSnapshot idle=Room(101,1,entrance,forward);
+            NavigationExplorer idleExplorer=new NavigationExplorer(SimplePlan);idleExplorer.ObserveIdle(idle,100000);
+            idle.Live.player.position=new float[]{500,0,0};idleExplorer.Start(idle,100000);
+            Check(idleExplorer.Tick(idle,100000).Route!=null && idleExplorer.TargetKey==NavigationExplorer.ExitKey(forward),"start reclassified nearest exit after manual walking");
+            idleExplorer.Stop("test");string arrivalFolder=Path.Combine(directory,"arrival-history");Directory.CreateDirectory(arrivalFolder);idleExplorer.Save(arrivalFolder);
+            NavigationExplorer resumed=NavigationExplorer.Load(arrivalFolder);resumed.Start(idle,100000);
+            Check(resumed.Tick(idle,100000).Route!=null && resumed.TargetKey==NavigationExplorer.ExitKey(forward),"reopening map lost arrival doorway");
+            // A live obstacle marks the target failed and chooses a different route.
+            s=new Simulation(Room(102,1,bad,good));s.Tick(0);
+            Check(s.Explorer.RouteBlocked("Moving door blocked route",s.Now).Stop && s.Explorer.Running,"dynamic collision stopped all exploration");
+            Check(s.Tick(600).Route!=null && s.Explorer.TargetKey==NavigationExplorer.ExitKey(good),"dynamic collision did not choose alternative exit");
+            Check(s.Explorer.Describe(102,bad).Contains("Moving door"),"dynamic collision reason not recorded");
+            // No progress watchdog releases a controller that remains active at a wall.
+            s=new Simulation(Room(103,1,bad,good));s.Tick(0);s.Tick(200);
+            Check(s.Tick(1900).Stop && !s.Explorer.MayHeartbeat,"wall stall kept receiving movement heartbeats");
+            Check(s.Tick(600).Route!=null && s.Explorer.TargetKey==NavigationExplorer.ExitKey(good),"wall stall did not choose another exit");
+            s=new Simulation(Room(104,1,good));s.Tick(0);s.Tick(200);
+            for(int i=0;i<4;i++){s.Map.Live.player.position[0]+=10;Check(!s.Tick(1000).Stop,"steady progress treated as wall stall");}
+            // Refresh a real list while its selection is intentionally above the viewport.
+            string scroll=Path.Combine(directory,"scroll-ui-test");Directory.CreateDirectory(scroll);
+            MapSnapshot rows=Room(105,1,good);rows.Live.progression.nodes=new MapInteraction[60];
+            for(int i=0;i<60;i++)rows.Live.progression.nodes[i]=new MapInteraction {address=(uint)(1000+i),kind="exit",label="Exit "+i,position=new float[]{i,0,0},action="enter_exit",status="unknown",requirement="Unknown",reward="Unknown",traversal="unknown"};
+            WriteSnapshot(scroll,rows);
+            using(NavigationMapWindow window=new NavigationMapWindow(scroll)) {
+                window.ShowInTaskbar=false;window.StartPosition=FormStartPosition.Manual;window.Location=new Point(-32000,-32000);window.Show();Application.DoEvents();
+                ListBox list=(ListBox)typeof(NavigationMapWindow).GetField("interactionList",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).GetValue(window);
+                list.SelectedIndex=0;list.TopIndex=30;int top=list.TopIndex;
+                for(int i=0;i<15;i++) {rows.Live.progression.nodes[40].status="update "+i;WriteSnapshot(scroll,rows);window.RefreshMap();}
+                Check(list.TopIndex==top && ((MapInteraction)list.SelectedItem).address==1000,"live refresh scrolled selected row into view");
+                list.SelectedIndex=35;list.TopIndex=30;window.RefreshMap();
+                Check(((MapInteraction)list.SelectedItem).address==1035 && list.TopIndex==30,"exit selection lost on refresh");
+                List<MapInteraction> changedRows=new List<MapInteraction>(rows.Live.progression.nodes);changedRows.RemoveAt(5);rows.Live.progression.nodes=changedRows.ToArray();WriteSnapshot(scroll,rows);window.RefreshMap();
+                Check(((MapInteraction)list.Items[list.TopIndex]).address==1030 && ((MapInteraction)list.SelectedItem).address==1035,"row removal lost scroll anchor or selection");
+                rows.Live.generation=2;rows.Mesh.generation=2;WriteSnapshot(scroll,rows);window.RefreshMap();
+                Check(list.TopIndex==0 && list.SelectedIndex==0,"new room retained unrelated selection");window.Close();
+            }
+            // Exercise automatic obstruction recovery through the actual map window.
+            string recovery=Path.Combine(directory,"explorer-obstacle-ui");Directory.CreateDirectory(recovery);
+            MapSnapshot recoveryMap=Room(106,1,Exit(106,500,0),Exit(107,0,700));WriteSnapshot(recovery,recoveryMap);
+            using(NavigationMapWindow window=new NavigationMapWindow(recovery)) {
+                window.ShowInTaskbar=false;window.StartPosition=FormStartPosition.Manual;window.Location=new Point(-32000,-32000);window.Show();Application.DoEvents();
+                FindButton(window,"Explore automatically").PerformClick();string[] initial=Command(recovery);
+                recoveryMap.Live.navigation_ai=new MapAi {nonce=Int64.Parse(initial[3]),active=true,state="following",waypoint=0};
+                recoveryMap.Live.actors=new MapActor[]{new MapActor {address=12345,name="Moving door",position=new float[]{150,0,0}}};
+                recoveryMap.Live.collision.models=new MapCollisionModel[]{new MapCollisionModel {address=12345,enabled=true,lower=new float[]{100,-5,-100},upper=new float[]{200,100,100}}};
+                WriteSnapshot(recovery,recoveryMap);window.RefreshMap();
+                Check(Command(recovery)[6]=="0","automatic route did not release input for new blocker");
+                System.Threading.Thread.Sleep(650);WriteSnapshot(recovery,recoveryMap);window.RefreshMap();string[] alternative=Command(recovery);
+                Check(alternative[6]!="0" && alternative[3]!=initial[3],"map window failed to dispatch alternative after blockage");
+                NavigationExplorer history=NavigationExplorer.Load(recovery);
+                Check(history.History.rooms[0].exits[0].blocked.Contains("Moving door"),"map window did not persist blocker");window.Close();
+            }
             return checks;
         }
     }

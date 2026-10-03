@@ -269,3 +269,25 @@ transition is now observed. It does not validate every exit, full-stage travel,
 an exact player capsule, traversal through hollow model boxes, camera steering,
 or jumping/parkour. Original ROM snapshots, captures and the paired native
 runtime remain private local artifacts.
+
+
+## Scrolling and forward exploration regression (2026-10-03)
+
+The updated launcher passes 251 checks plus ten setup checks.
+WinForms regression coverage refreshes a 60-row list while its selection is
+off-screen, preserves the viewport and selected exit, removes an earlier row,
+and verifies that changing rooms resets the selection. Explorer tests cover
+entrance exclusion when forward paths fail, preserving the arrival candidate
+after manual walking and reopening the map, alternative selection after a
+moving obstacle, and releasing input when an active pilot makes no progress.
+Live route checks also reject a terrain wall introduced after planning. A map
+window test dispatches an automatic route, introduces a blocking door, checks
+the stop command and saved failure reason, then verifies a different route is
+sent. These are fixture regressions, not a full native playthrough.
+
+Planning against the user's captured room 236 rejects exit 65365 for insufficient
+clearance and exit 65367 for disconnected floor geometry. Exit 65307 has a
+four-waypoint approach but is the nearby entrance candidate, so the updated
+explorer stops instead of using it as a fallback. This establishes the captured
+case's selection behavior, not that the two forward exits are impossible in the
+original game. The native executable is unchanged for this launcher-only fix.

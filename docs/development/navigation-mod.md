@@ -264,17 +264,17 @@ manual game input, or closing the map stops exploration. With the mod enabled,
 Escape cancels automation; close the game window when you want to quit.
 Jump assist remains optional and off by default.
 
-The explorer prefers untried exits with candidate surface routes. It defers
-the doorway nearest the arrival position as a **possible** return route,
-then uses confirmed directed connections to backtrack toward rooms with
-unexplored exits. It never assumes that a drop, dive or doorway works in reverse.
+The explorer prefers untried exits with candidate surface routes. It excludes
+the nearby entrance candidate remembered on arrival. Other confirmed directed
+connections can lead toward rooms with unexplored exits; returning through the
+current entrance requires manual selection. It never assumes that a drop, dive or doorway works in reverse.
 Known loops without an unexplored destination are not selected. Repeat-transition
 limits stop stale or changing graphs from producing endless circuits.
 
 Room IDs come from the live game. Exit identities combine their position,
 normal and raw destination code; actor pointers and generation numbers are
 not persistent room/exit identities. A raw destination code is not interpreted
-as a room number. The interaction list shows untried, possible return,
+as a room number. The interaction list shows untried, skipped entrance,
 confirmed destination, unavailable and blocked states with reasons.
 
 Only observed transitions establish connections. A command must have been
@@ -391,8 +391,9 @@ segments, 80 units of segment height change, and the existing 45-degree floor
 limit. Clearance searching has a two-second time check and at most 256 local
 candidates. No verified route means movement is refused. The launcher rechecks
 remaining segments against fresh entity bounds before sending heartbeats; a
-new obstruction cancels AI, colors the retained route orange-red, and names the
-blocker. Replanning/restarting is explicit.
+new obstruction releases movement and names the blocker. Manual routes require
+replanning; automatic exploration records the failed exit and tries another
+forward exit after stopping.
 
 These are conservative bounding boxes, not exact polygon collision or decoded
 character-specific capsules. A rotated or hollow object can have usable space
@@ -400,3 +401,28 @@ inside its box that this planner refuses. Unregistered collision types, player
 steering/calibration, dynamic platforms, door-opening requirements and parkour
 remain limitations. Body allowance dimensions are prototype values. The map
 does not promise safe traversal of an entire stage or campaign.
+
+
+## Exit selection and live movement checks (2026-10-03)
+
+The interaction list preserves its selected actor and top visible row while
+snapshots refresh, including when earlier rows disappear. Selection and scroll
+reset when the room changes. Manual **Plan exit route** now uses the same
+floor-checked doorway approach as automatic exploration.
+
+**Explore automatically** excludes the entrance candidate observed when the
+map first sees gameplay in a room. That candidate is the nearest doorway within
+400 world units; it is a heuristic, not a decoded entry trigger. Walking elsewhere
+before clicking Explore does not change it. The candidate survives reopening
+the map in the same export session. A new session first opened midway through a
+room may not know the actual entrance. Manual exit selection remains available.
+
+Other exits are attempted in order, with unknown destinations preferred and a
+route required before movement starts. When no forward route passes clearance,
+exploration stops and explains why; it does not fall back through the entrance.
+A live obstruction records that exit's failure and moves on to another candidate.
+Each update checks the actual player-to-waypoint segment against static terrain
+and floor coverage as well as remaining entity bounds. Automatic movement stops
+when distance to the waypoint fails to improve for about 1.8 seconds (3.5 seconds
+during jump assist), then considers another exit. These checks reduce wall pushing;
+they do not solve steering calibration, locked gates or parkour.

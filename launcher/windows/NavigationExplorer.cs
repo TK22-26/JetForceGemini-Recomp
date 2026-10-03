@@ -22,6 +22,9 @@ namespace JfgLauncher {
         [DataMember] internal int schema = 1, unlockRevision = 0;
         [DataMember] internal List<ExploreRoom> rooms = new List<ExploreRoom>();
         [DataMember] internal List<string> facts = new List<string>();
+        [DataMember] internal uint arrivalLevel = 0;
+        [DataMember] internal long arrivalGeneration = -1;
+        [DataMember] internal List<string> arrivalKeys = new List<string>();
     }
     internal sealed class ExploreCommand {
         internal NavigationRoute Route;
@@ -42,6 +45,10 @@ namespace JfgLauncher {
             internal ExploreExit Exit;
             internal long Nonce, Started;
             internal bool Acknowledged, ConfirmationSent;
+            internal int Waypoint = -1;
+            internal long ProgressAt;
+            internal float BestDistance = Single.MaxValue;
+            internal NavigationRoute Route;
         }
         private Pending pending;
         private ExploreRoom room;
@@ -116,6 +123,8 @@ namespace JfgLauncher {
             MapMarker nearestArrival=null;float arrivalDistance=400;
             if(arrived) {
                 arrivals.Clear();
+                if(History.arrivalLevel==snapshot.Live.level && History.arrivalGeneration==snapshot.Live.generation)
+                    foreach(string key in History.arrivalKeys)arrivals.Add(key);
                 foreach(MapMarker marker in snapshot.Live.exits) {
                     float distance=Distance(marker.position,snapshot.Live.player.position);
                     if(distance<arrivalDistance){arrivalDistance=distance;nearestArrival=marker;}
@@ -133,7 +142,11 @@ namespace JfgLauncher {
                     room.exits.Add(exit);Dirty=true;
                 }
                 // A nearby arrival doorway is only a candidate return route.
-                if(arrived && marker==nearestArrival)arrivals.Add(key);
+                if(arrived && marker==nearestArrival && (History.arrivalLevel!=snapshot.Live.level || History.arrivalGeneration!=snapshot.Live.generation))arrivals.Add(key);
+            }
+            if(arrived) {
+                History.arrivalLevel=snapshot.Live.level;History.arrivalGeneration=snapshot.Live.generation;
+                History.arrivalKeys=new List<string>(arrivals);Dirty=true;
             }
             foreach(ExploreExit exit in room.exits) {
                 bool absent=!keys.Contains(exit.key);
@@ -162,7 +175,7 @@ namespace JfgLauncher {
             Stop("Explorer off");
             if(!Fresh(snapshot,now) || !snapshot.Live.clearing_active || snapshot.Live.transition_confirm)throw new InvalidDataException("Enter active gameplay and finish any transition prompt before exploring.");
             if(snapshot.Live.exits==null)throw new InvalidDataException("Exit data unavailable.");
-            ObserveRoom(snapshot,true);manualInputs=snapshot.Live.navigation_ai==null?0:snapshot.Live.navigation_ai.manual_inputs;started=lastNow=now;transitions=revisits=0;segmentVisits.Clear();
+            ObserveRoom(snapshot,room==null || room.level!=snapshot.Live.level || generation!=snapshot.Live.generation);manualInputs=snapshot.Live.navigation_ai==null?0:snapshot.Live.navigation_ai.manual_inputs;started=lastNow=now;transitions=revisits=0;segmentVisits.Clear();
             nextPlan=now;suspended=false;waitAt=completedAt=0;Running=true;Status="Explorer: choosing an untried exit";
         }
         internal void Stop(string reason) { Running=false;pending=null;suspended=settling=false;candidateGeneration=-1;completedAt=waitAt=0;Status=reason; }
@@ -188,6 +201,10 @@ namespace JfgLauncher {
             Status="Explorer: blocked - "+reason+"; checking another exit";
             return new ExploreCommand {Stop=true};
         }
+        internal ExploreCommand RouteBlocked(string reason,long now) {
+            if(!Running || pending==null)return Halt("Explorer stopped: "+reason);
+            return Failed(reason,now);
+        }
         private bool HasFrontier(ExploreRoom target) {
             foreach(ExploreExit exit in target.exits)if(!exit.destination.HasValue && !IsBlocked(exit))return true;
             return false;
@@ -208,9 +225,9 @@ namespace JfgLauncher {
             MapMarker best=null;double bestScore=Double.MaxValue;
             foreach(MapMarker marker in snapshot.Live.exits) {
                 string key=ExitKey(marker);ExploreExit exit=room.exits.Find(delegate(ExploreExit e){return e.key==key;});
-                if(exit==null || IsBlocked(exit))continue;
+                if(exit==null || IsBlocked(exit) || arrivals.Contains(key))continue;
                 double score;
-                if(!exit.destination.HasValue)score=arrivals.Contains(key)?1000000000:0;
+                if(!exit.destination.HasValue)score=0;
                 else {
                     if(exit.destination.Value==room.level)continue;
                     int distance=FrontierDistance(exit.destination.Value);if(distance<0)continue;
@@ -293,7 +310,20 @@ namespace JfgLauncher {
                 if(now-pending.Started>90000)return Failed("Movement time limit",now);
                 if(ai!=null && ai.nonce==pending.Nonce) {
                     pending.Acknowledged=true;
-                    if(ai.active){Status="Explorer: "+ai.state.Replace('_',' ')+" toward "+ExitLabel(pending.Exit);return new ExploreCommand();}
+                    if(ai.active){
+                        if(ai.waypoint>=0 && ai.waypoint<pending.Route.Points.Count) {
+                            HeightPoint goal=pending.Route.Points[ai.waypoint];
+                            float[] pos=snapshot.Live.player.position;
+                            float distance=(float)Math.Sqrt((pos[0]-goal.X)*(pos[0]-goal.X)+(pos[2]-goal.Z)*(pos[2]-goal.Z));
+                            if(pending.Waypoint!=ai.waypoint || distance<pending.BestDistance-3) {
+                                pending.Waypoint=ai.waypoint;pending.BestDistance=distance;pending.ProgressAt=now;
+                            }
+                            long allowance=ai.state=="jump_assist"?3500:1800;
+                            if(pending.ProgressAt!=0 && now-pending.ProgressAt>allowance)
+                                return Failed("No progress toward waypoint; possible wall or gate",now);
+                        }
+                        Status="Explorer: "+ai.state.Replace('_',' ')+" toward "+ExitLabel(pending.Exit);return new ExploreCommand();
+                    }
                     if(ai.state=="approach_complete") {
                         if(completedAt==0)completedAt=now;
                         Status="Explorer: at doorway; waiting to confirm a room change";
@@ -309,14 +339,14 @@ namespace JfgLauncher {
             }
             if(now<nextPlan)return new ExploreCommand();
             MapMarker selected=Choose(snapshot);
-            if(selected==null)return Halt("Explorer stopped: no reachable unexplored exits remain. Check blocked routes or progress manually.");
+            if(selected==null)return Halt("Explorer stopped: no reachable forward exits remain. Entrance skipped; check blocked routes or move manually.");
             string selectedKey=ExitKey(selected);ExploreExit chosen=room.exits.Find(delegate(ExploreExit e){return e.key==selectedKey;});
             ++chosen.attempts;Dirty=true;
             try {
                 NavigationRoute route=planner(snapshot,selected);
                 if(route==null || route.Points.Count==0)throw new InvalidDataException("Empty exit route");
-                pending=new Pending {Exit=chosen,Started=now};completedAt=0;candidateGeneration=-1;
-                Status="Explorer: "+(chosen.destination.HasValue?"backtracking via ":arrivals.Contains(chosen.key)?"probing possible return route ":"trying ")+ExitLabel(chosen);
+                pending=new Pending {Exit=chosen,Started=now,Route=route,ProgressAt=now};completedAt=0;candidateGeneration=-1;
+                Status="Explorer: "+(chosen.destination.HasValue?"following known route via ":"trying ")+ExitLabel(chosen);
                 return new ExploreCommand {Route=route};
             } catch(InvalidDataException error) {
                 Block(chosen,error.Message);nextPlan=now+300;Status="Explorer: no surface route to "+ExitLabel(chosen)+"; checking another exit";
@@ -331,7 +361,7 @@ namespace JfgLauncher {
             if(exit.absent)return "Unavailable in last room snapshot";
             if(IsBlocked(exit))return "Blocked: "+exit.blocked;
             if(exit.destination.HasValue)return "Confirmed -> room "+exit.destination.Value;
-            if(room==target && arrivals.Contains(key))return "Possible return route (unconfirmed)";
+            if(room==target && arrivals.Contains(key))return "Entrance candidate - skipped by automatic exploration";
             return exit.blocked.Length==0?"Untried":"Retry available after progress change";
         }
         internal void Save(string directory) {
@@ -349,6 +379,9 @@ namespace JfgLauncher {
                     explorer.History=(ExploreHistory)new DataContractJsonSerializer(typeof(ExploreHistory)).ReadObject(input);
                 }
                 ExploreHistory h=explorer.History;
+                if(h!=null && h.arrivalKeys==null)h.arrivalKeys=new List<string>();
+                if(h!=null && (h.arrivalKeys.Count>64 || h.arrivalKeys.Exists(delegate(string key){return String.IsNullOrEmpty(key)||key.Length>256;})))
+                    throw new InvalidDataException("Invalid arrival history.");
                 if(h==null || h.schema!=1 || h.rooms==null || h.rooms.Count>512 || h.facts==null || h.facts.Count>8192 || h.unlockRevision<0 || h.unlockRevision>100000)
                     throw new InvalidDataException("Unsupported exploration history.");
                 HashSet<uint> levels=new HashSet<uint>();HashSet<string> facts=new HashSet<string>();int count=0;
