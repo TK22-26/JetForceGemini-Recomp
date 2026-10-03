@@ -90,3 +90,21 @@ contain 10,419,552 bytes of exact silence with saved mute enabled. A second run
 starts audible, becomes silent after a live mute change, and resumes audio
 after unmuting to 25%. Changes act on final output without changing guest clocks
 or audio queue lengths.
+
+### Flat height layers
+
+The Windows live map now fills upward-facing collision surfaces, with a fixed
+room-wide height palette, a player-following slice, manual slices, and an
+all-height overview. Synthetic geometry checks separate overlapping floors,
+exclude downward ceilings and vertical walls, retain ramp cross-sections, and
+hold the selected height during a jump until a nearby support surface is found.
+The launcher passes 110 checks and the setup harness passes ten checks.
+
+Saved Goldwood and SS Anubis exports render successfully in the Windows map
+window, including a manual slice and the all-height overview. Ten offscreen
+renders take about 130-170 milliseconds in these local captures. This measures
+map drawing, not game frame rate. The native game binary is unchanged here.
+Player-floor selection remains a geometry estimate; it has no collision contact
+flag. Markers use their exported world positions, so a floating pickup or exit
+volume center can be above the selected slice without belonging to another
+story. No walkability graph, floor connectivity, or automatic steering is added.

@@ -85,8 +85,32 @@ completion, or whether an NPC still has a reward.
 
 Markers refresh from currently loaded actors. Collected loose pickups disappear
 when the game removes their actor. The prototype has not catalogued every item
-or key variant, and does not predict spawns in unloaded rooms. Overlapping floors
-share an X/Z projection. This is a geometry viewer, not a proven walkable map.
+or key variant, and does not predict spawns in unloaded rooms.
+
+The map fills upward-facing collision surfaces and colors them using a fixed
+room-wide height scale. Y is vertical in this game; X/Z form the flat map.
+Walls and downward-facing ceilings are excluded from the filled surface view.
+Surface colors do not imply walkability or connectivity.
+
+- **Player floor** (default) follows the highest surface under the player's
+  feet when the player is within eight world units of it. While airborne it
+  holds the last height; this is a geometry-based estimate, not a game contact
+  flag. When no support has been established, it starts at the player's height.
+- **Height slice** lets you inspect a fixed Y elevation. Reduce **Slice width**
+  to separate closely stacked floors. Ramps are clipped in 3D before projection,
+  so the part passing through the selected height range remains visible.
+- **All heights** shows the entire upward-surface set with its height colors.
+  Upper surfaces can cover lower ones; use a slice to inspect beneath bridges.
+- **Other levels** shows faint context and hollow markers outside the slice.
+  Arrows and numbers give their direction and vertical distance from the slice
+  center. These are exported marker positions: floating pickups and exit-volume
+  centers may sit above their floor. Turn it off to hide that context. The player remains visible, with an
+  above/below label when outside the slice; trail segments are height-clipped.
+
+Nearby floors within one slice still overlap in X/Z. No edges are inferred
+between them, and gaps at a slice boundary are not necessarily impassable walls.
+Moving platforms, clearance, slope limits, jumps, and progression conditions
+remain unvalidated. This is a geometry viewer, not a proven walkable map.
 
 The window switches to a saved-map indicator after exports stop. An old room is
 discarded during transitions until matching live state and geometry are ready.

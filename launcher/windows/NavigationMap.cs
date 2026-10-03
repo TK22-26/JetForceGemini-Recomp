@@ -12,6 +12,7 @@ namespace JfgLauncher
     [DataContract] internal sealed class MapFace
     {
         [DataMember] public int[] v = null;
+        [DataMember] public float[] normal = null;
     }
     [DataContract] internal sealed class MapGeometry
     {
@@ -90,6 +91,7 @@ namespace JfgLauncher
                 foreach (MapFace face in mesh.triangles) {
                     if (face == null || face.v == null || face.v.Length != 3)
                         throw new InvalidDataException("Invalid room face.");
+                    if (face.normal != null) Point(face.normal);
                     foreach (int index in face.v)
                         if (index < 0 || index >= mesh.vertices.Length) throw new InvalidDataException("Invalid room vertex.");
                 }
@@ -124,127 +126,169 @@ namespace JfgLauncher
     internal sealed class MapCanvas : Control
     {
         private MapSnapshot snapshot;
-        private readonly List<PointF> trail = new List<PointF>();
-        private float centerX, centerZ, spanX = 1, spanZ = 1, zoom = 1;
-        private PointF pan, movement;
+        private MapLayers layers;
+        private FloorFollower follower=new FloorFollower();
+        private readonly List<HeightPoint> trail=new List<HeightPoint>();
+        private float centerX,centerZ,spanX=1,spanZ=1,zoom=1;
+        private PointF pan,movement;
         private Point mouse;
         private bool dragging;
-        private long lastUpdate = -1;
-        internal MapCanvas()
-        {
-            DoubleBuffered = true;
-            ResizeRedraw = true;
-            BackColor = Color.FromArgb(16, 24, 34);
-            Dock = DockStyle.Fill;
-        }
-        internal void Fit() { zoom = 1; pan = new PointF(); Invalidate(); }
-        internal void UpdateMap(MapSnapshot value)
-        {
-            if (value != null && (snapshot == null || !Object.ReferenceEquals(snapshot.Mesh, value.Mesh))) {
-                float lowX = Single.MaxValue, lowZ = Single.MaxValue, highX = Single.MinValue, highZ = Single.MinValue;
-                foreach (float[] p in value.Mesh.vertices) {
-                    lowX = Math.Min(lowX, p[0]); highX = Math.Max(highX, p[0]);
-                    lowZ = Math.Min(lowZ, p[2]); highZ = Math.Max(highZ, p[2]);
-                }
-                centerX = (lowX + highX) / 2; centerZ = (lowZ + highZ) / 2;
-                spanX = Math.Max(1, highX - lowX); spanZ = Math.Max(1, highZ - lowZ);
-                trail.Clear(); lastUpdate = -1; movement = new PointF(); Fit();
+        private long lastUpdate=-1;
+        internal int Mode; // 0 player floor, 1 manual slice, 2 all heights.
+        internal float ManualHeight, SliceWidth=64;
+        internal bool OtherLevels=true;
+        internal float CenterHeight {get {return Mode==1?ManualHeight:follower.Height;}}
+        internal string LayerStatus {
+            get {
+                if(layers==null) return "";
+                if(layers.Floors.Count==0) return "No upward surfaces found.";
+                if(Mode==2) return "All heights: upper surfaces may cover lower floors.";
+                return "Y " + (CenterHeight-SliceWidth/2).ToString("0") + " to " + (CenterHeight+SliceWidth/2).ToString("0") +
+                    (Mode==0&&!follower.Grounded?" | ground unconfirmed; holding height":"") +
+                    " | surface view, not a verified route";
             }
-            snapshot = value;
-            if (value != null && value.Live.update != lastUpdate) {
-                PointF p = new PointF(value.Live.player.position[0], value.Live.player.position[2]);
-                if (trail.Count > 0) {
-                    PointF before = trail[trail.Count - 1];
-                    float dx = p.X - before.X, dz = p.Y - before.Y;
-                    float length = (float)Math.Sqrt(dx * dx + dz * dz);
-                    if (length > .2f) movement = new PointF(dx / length, dz / length);
+        }
+        internal MapCanvas() {DoubleBuffered=true;ResizeRedraw=true;BackColor=Color.FromArgb(16,24,34);Dock=DockStyle.Fill;}
+        internal void Fit() {zoom=1;pan=new PointF();Invalidate();}
+        internal void UpdateMap(MapSnapshot value) {
+            if(value!=null&&(snapshot==null||!Object.ReferenceEquals(snapshot.Mesh,value.Mesh))) {
+                float lx=Single.MaxValue,lz=Single.MaxValue,hx=Single.MinValue,hz=Single.MinValue;
+                foreach(float[] p in value.Mesh.vertices) {lx=Math.Min(lx,p[0]);hx=Math.Max(hx,p[0]);lz=Math.Min(lz,p[2]);hz=Math.Max(hz,p[2]);}
+                centerX=(lx+hx)/2;centerZ=(lz+hz)/2;spanX=Math.Max(1,hx-lx);spanZ=Math.Max(1,hz-lz);
+                layers=new MapLayers(value.Mesh);follower=new FloorFollower();
+                trail.Clear();lastUpdate=-1;movement=new PointF();Fit();
+            }
+            snapshot=value;
+            if(value==null) {layers=null;trail.Clear();Invalidate();return;}
+            HeightPoint player=new HeightPoint(value.Live.player.position);
+            follower.Update(layers,player);
+            if(value.Live.update!=lastUpdate) {
+                if(trail.Count>0) {
+                    HeightPoint before=trail[trail.Count-1];float dx=player.X-before.X,dz=player.Z-before.Z;
+                    float length=(float)Math.Sqrt(dx*dx+dz*dz);
+                    if(length>1000) trail.Clear();
+                    else if(length>.2f) movement=new PointF(dx/length,dz/length);
                 }
-                trail.Add(p);
-                if (trail.Count > 256) trail.RemoveAt(0);
-                lastUpdate = value.Live.update;
+                trail.Add(player);if(trail.Count>256) trail.RemoveAt(0);lastUpdate=value.Live.update;
             }
             Invalidate();
         }
-        private PointF Project(float x, float z)
-        {
-            float scale = Math.Min(Math.Max(1, Width - 50) / spanX, Math.Max(1, Height - 50) / spanZ) * zoom;
-            return new PointF(Width / 2f + (x - centerX) * scale + pan.X,
-                              Height / 2f + (z - centerZ) * scale + pan.Y);
+        private PointF Project(HeightPoint p) {
+            float scale=Math.Min(Math.Max(1,Width-80)/spanX,Math.Max(1,Height-75)/spanZ)*zoom;
+            return new PointF((Width-30)/2f+(p.X-centerX)*scale+pan.X,(Height-25)/2f+(p.Z-centerZ)*scale+pan.Y);
         }
-        private PointF Project(float[] p) { return Project(p[0], p[2]); }
-        private void Marker(Graphics g, float[] p, Color color, string text, bool square, bool diamond = false)
-        {
-            PointF at = Project(p);
-            using (Brush brush = new SolidBrush(color)) {
-                if (diamond) g.FillPolygon(brush, new PointF[] {
-                    new PointF(at.X, at.Y - 6), new PointF(at.X + 6, at.Y),
-                    new PointF(at.X, at.Y + 6), new PointF(at.X - 6, at.Y) });
-                else if (square) g.FillRectangle(brush, at.X - 4, at.Y - 4, 8, 8);
-                else g.FillEllipse(brush, at.X - 4, at.Y - 4, 8, 8);
-                g.DrawString(text, Font, brush, at.X + 7, at.Y - 7);
-            }
+        private PointF[] Project(HeightPoint[] vertices) {
+            PointF[] result=new PointF[vertices.Length];
+            for(int i=0;i<result.Length;i++) result[i]=Project(vertices[i]);
+            return result;
         }
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            base.OnPaint(e);
-            Graphics g = e.Graphics;
-            if (snapshot == null) {
-                g.DrawString("Waiting for a loaded room...", Font, Brushes.LightGray, 20, 20);
-                return;
+        private void Label(Graphics g,string text,PointF p,Color color) {
+            using(Brush back=new SolidBrush(Color.FromArgb(220,9,16,24))) {
+                SizeF size=g.MeasureString(text,Font);g.FillRectangle(back,p.X,p.Y,size.Width,size.Height);
             }
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            using (Pen lines = new Pen(Color.FromArgb(85, 99, 126, 148), .7f)) {
-                PointF[] triangle = new PointF[3];
-                foreach (MapFace face in snapshot.Mesh.triangles) {
-                    for (int n = 0; n < 3; n++) triangle[n] = Project(snapshot.Mesh.vertices[face.v[n]]);
-                    g.DrawPolygon(lines, triangle);
+            using(Brush brush=new SolidBrush(color)) g.DrawString(text,Font,brush,p);
+        }
+        private void Marker(Graphics g,float[] position,Color color,string text,int shape) {
+            HeightPoint p=new HeightPoint(position);
+            float low=CenterHeight-SliceWidth/2,high=CenterHeight+SliceWidth/2;
+            bool off=Mode!=2&&(p.Y<low||p.Y>high);
+            if(off&&!OtherLevels) return;
+            if(off) {color=Color.FromArgb(130,color);text+=(p.Y>high?" \u2191":" \u2193")+Math.Abs(p.Y-CenterHeight).ToString("0");}
+            PointF at=Project(p);
+            using(Brush brush=new SolidBrush(color))
+            using(Pen pen=new Pen(off?color:Color.Black,2)) {
+                if(shape==2) {
+                    PointF[] diamond={new PointF(at.X,at.Y-6),new PointF(at.X+6,at.Y),new PointF(at.X,at.Y+6),new PointF(at.X-6,at.Y)};
+                    if(!off)g.FillPolygon(brush,diamond);g.DrawPolygon(pen,diamond);
+                } else if(shape==1) {
+                    if(!off)g.FillRectangle(brush,at.X-4,at.Y-4,8,8);g.DrawRectangle(pen,at.X-4,at.Y-4,8,8);
+                } else {
+                    if(!off)g.FillEllipse(brush,at.X-5,at.Y-5,10,10);g.DrawEllipse(pen,at.X-5,at.Y-5,10,10);
                 }
             }
-            if (trail.Count > 1) {
-                PointF[] points = new PointF[trail.Count];
-                for (int n = 0; n < trail.Count; n++) points[n] = Project(trail[n].X, trail[n].Y);
-                using (Pen pen = new Pen(Color.FromArgb(110, 80, 230, 250), 2)) g.DrawLines(pen, points);
-            }
-            for (int n = 0; n < snapshot.Live.exits.Length; n++)
-                Marker(g, snapshot.Live.exits[n].position, Color.Gold, "Exit " + (n + 1), false);
-            foreach (MapMarker marker in snapshot.Live.markers) {
-                Color color = marker.kind == "opened" ? Color.Gray : marker.kind == "key" ? Color.Plum : marker.kind == "weapon" ? Color.Orange : Color.LightGreen;
-                Marker(g, marker.position, color, marker.label ?? "Item", true);
-            }
-            foreach (MapMarker npc in snapshot.Live.npcs)
-                Marker(g, npc.position, npc.kind == "tribal" ? Color.White : Color.CornflowerBlue,
-                       npc.label, false, true);
-            PointF player = Project(snapshot.Live.player.position);
-            using (Brush brush = new SolidBrush(snapshot.IsLive ? Color.Cyan : Color.Gray)) {
-                g.FillEllipse(brush, player.X - 6, player.Y - 6, 12, 12);
-                if (movement.X != 0 || movement.Y != 0)
-                    g.FillPolygon(brush, new PointF[] {
-                        new PointF(player.X + movement.X * 17, player.Y + movement.Y * 17),
-                        new PointF(player.X - movement.Y * 7, player.Y + movement.X * 7),
-                        new PointF(player.X + movement.Y * 7, player.Y - movement.X * 7) });
-            }
+            Label(g,text,new PointF(at.X+8,at.Y-8),color);
         }
-        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); zoom = Math.Max(.25f, Math.Min(16, zoom * (e.Delta > 0 ? 1.2f : 1 / 1.2f))); Invalidate(); }
-        protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); Focus(); dragging = e.Button == MouseButtons.Left; mouse = e.Location; Capture = dragging; }
-        protected override void OnMouseMove(MouseEventArgs e) { base.OnMouseMove(e); if (dragging) { pan.X += e.X - mouse.X; pan.Y += e.Y - mouse.Y; mouse = e.Location; Invalidate(); } }
-        protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); dragging = false; Capture = false; }
+        protected override void OnPaint(PaintEventArgs e) {
+            base.OnPaint(e);Graphics g=e.Graphics;
+            if(snapshot==null||layers==null) {g.DrawString("Waiting for a loaded room...",Font,Brushes.LightGray,20,20);return;}
+            g.SmoothingMode=SmoothingMode.AntiAlias;
+            float low=CenterHeight-SliceWidth/2,high=CenterHeight+SliceWidth/2;
+            g.SmoothingMode=SmoothingMode.None;
+            if(Mode!=2&&OtherLevels) {
+                using(Brush context=new SolidBrush(Color.FromArgb(13,145,163,176)))
+                    foreach(HeightSurface floor in layers.Floors)
+                        if(floor.Low<low||floor.High>high) g.FillPolygon(context,Project(floor.Points));
+            }
+            foreach(HeightPatch patch in layers.Patches) {
+                HeightSurface floor=patch.Surface;
+                if(Mode!=2&&(floor.High<low||floor.Low>high)) continue;
+                HeightPoint[] poly=Mode==2?floor.Points:MapLayers.Clip(floor.Points,low,high);
+                if(poly.Length<3) continue;
+                using(Brush brush=new SolidBrush(patch.Color)) g.FillPolygon(brush,Project(poly));
+            }
+            g.SmoothingMode=SmoothingMode.AntiAlias;
+            // Each trail segment retains height; never connect across a hidden floor.
+            using(Pen pen=new Pen(Color.FromArgb(170,80,230,250),2)) {
+                for(int i=1;i<trail.Count;i++) {
+                    HeightPoint a=trail[i-1],b=trail[i];
+                    if(Mode!=2) {
+                        if((a.Y<low&&b.Y<low)||(a.Y>high&&b.Y>high))continue;
+                        if(Math.Abs(b.Y-a.Y)>.0001f) {
+                            float ta=(low-a.Y)/(b.Y-a.Y),tb=(high-a.Y)/(b.Y-a.Y);
+                            float start=Math.Max(0,Math.Min(ta,tb)),end=Math.Min(1,Math.Max(ta,tb));
+                            HeightPoint original=a;a=HeightPoint.Lerp(original,b,start);b=HeightPoint.Lerp(original,b,end);
+                        }
+                    }
+                    g.DrawLine(pen,Project(a),Project(b));
+                }
+            }
+            for(int n=0;n<snapshot.Live.exits.Length;n++)Marker(g,snapshot.Live.exits[n].position,Color.Gold,"Exit "+(n+1),0);
+            foreach(MapMarker item in snapshot.Live.markers) {
+                Color color=item.kind=="opened"?Color.Gray:item.kind=="key"?Color.Plum:item.kind=="weapon"?Color.Orange:Color.LightGreen;
+                Marker(g,item.position,color,item.label??"Item",1);
+            }
+            foreach(MapMarker npc in snapshot.Live.npcs)Marker(g,npc.position,npc.kind=="tribal"?Color.White:Color.CornflowerBlue,npc.label,2);
+            HeightPoint player=new HeightPoint(snapshot.Live.player.position);PointF atPlayer=Project(player);
+            using(Brush brush=new SolidBrush(snapshot.IsLive?Color.Cyan:Color.Gray)) {
+                g.FillEllipse(Brushes.Black,atPlayer.X-8,atPlayer.Y-8,16,16);g.FillEllipse(brush,atPlayer.X-6,atPlayer.Y-6,12,12);
+                if(movement.X!=0||movement.Y!=0)g.FillPolygon(brush,new PointF[]{
+                    new PointF(atPlayer.X+movement.X*17,atPlayer.Y+movement.Y*17),
+                    new PointF(atPlayer.X-movement.Y*7,atPlayer.Y+movement.X*7),
+                    new PointF(atPlayer.X+movement.Y*7,atPlayer.Y-movement.X*7)});
+            }
+            if(Mode!=2&&(player.Y<low||player.Y>high))Label(g,player.Y>high?"Player above slice":"Player below slice",new PointF(atPlayer.X+10,atPlayer.Y+10),Color.Cyan);
+            // Fixed room-wide scale; moving the slice never changes color meanings.
+            int x=Width-66,y=42;
+            for(int i=0;i<MapLayers.Bands;i++)
+                using(Brush brush=new SolidBrush(MapLayers.HeightColor((i+.5f)/MapLayers.Bands)))g.FillRectangle(brush,x,y+(MapLayers.Bands-1-i)*7,16,7);
+            Label(g,layers.High.ToString("0"),new PointF(x-12,y-20),Color.White);
+            Label(g,layers.Low.ToString("0"),new PointF(x-12,y+114),Color.White);
+            Label(g,"Height Y",new PointF(x-14,y+134),Color.White);
+            Label(g,LayerStatus,new PointF(8,Height-24),Color.LightGray);
+        }
+        protected override void OnMouseWheel(MouseEventArgs e){base.OnMouseWheel(e);zoom=Math.Max(.25f,Math.Min(16,zoom*(e.Delta>0?1.2f:1/1.2f)));Invalidate();}
+        protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);Focus();dragging=e.Button==MouseButtons.Left;mouse=e.Location;Capture=dragging;}
+        protected override void OnMouseMove(MouseEventArgs e){base.OnMouseMove(e);if(dragging){pan.X+=e.X-mouse.X;pan.Y+=e.Y-mouse.Y;mouse=e.Location;Invalidate();}}
+        protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);dragging=false;Capture=false;}
     }
+
 
     internal sealed class NavigationMapWindow : Form
     {
         private readonly MapCanvas canvas = new MapCanvas();
         private readonly Label status = new Label();
+        private NumericUpDown layerHeight;
         private readonly Timer timer = new Timer();
         private MapGeometry cached;
         private string directory;
         internal NavigationMapWindow(string path)
         {
             Text = "JFG Live Map";
-            ClientSize = new Size(840, 700);
-            MinimumSize = new Size(420, 360);
+            ClientSize = new Size(940, 760);
+            MinimumSize = new Size(820, 480);
             Font = new Font("Segoe UI", 9);
             Controls.Add(canvas);
-            FlowLayoutPanel bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 65 };
+            FlowLayoutPanel bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 116 };
             Button fit = new Button { Text = "Fit room", AutoSize = true };
             fit.Click += delegate { canvas.Fit(); };
             Button files = new Button { Text = "Open exports", AutoSize = true };
@@ -256,6 +300,31 @@ namespace JfgLauncher
             bar.Controls.Add(new Label { Text = "Wheel: zoom   Drag: pan   Cyan: player   Yellow: exits   Squares: items", AutoSize = true, Padding = new Padding(6, 8, 0, 0) });
             bar.SetFlowBreak(bar.Controls[bar.Controls.Count - 1], true);
             bar.Controls.Add(new Label { Text = "Diamonds: blue NPCs, white Tribals", AutoSize = true, Padding = new Padding(6, 0, 0, 0) });
+            ComboBox mode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 130 };
+            mode.Items.AddRange(new object[] { "Player floor", "Height slice", "All heights" });
+            mode.SelectedIndex = 0;
+            NumericUpDown height = new NumericUpDown { Minimum = -1000000, Maximum = 1000000, Increment = 16, Width = 90, Enabled = false };
+            layerHeight = height;
+            NumericUpDown thickness = new NumericUpDown { Minimum = 4, Maximum = 4096, Value = 64, Increment = 16, Width = 70 };
+            CheckBox context = new CheckBox { Text = "Other levels", Checked = true, AutoSize = true, Padding = new Padding(4, 3, 0, 0) };
+            mode.SelectedIndexChanged += delegate {
+                if (mode.SelectedIndex == 1) height.Value = Math.Max(height.Minimum, Math.Min(height.Maximum, (decimal)canvas.CenterHeight));
+                canvas.Mode = mode.SelectedIndex; canvas.ManualHeight = (float)height.Value;
+                height.Enabled = canvas.Mode == 1; thickness.Enabled = canvas.Mode != 2; context.Enabled = canvas.Mode != 2;
+                canvas.Invalidate();
+            };
+            height.ValueChanged += delegate { canvas.ManualHeight = (float)height.Value; canvas.Invalidate(); };
+            thickness.ValueChanged += delegate { canvas.SliceWidth = (float)thickness.Value; canvas.Invalidate(); };
+            context.CheckedChanged += delegate { canvas.OtherLevels = context.Checked; canvas.Invalidate(); };
+            bar.SetFlowBreak(bar.Controls[bar.Controls.Count - 1], true);
+            bar.Controls.Add(mode);
+            bar.Controls.Add(new Label { Text = "Height Y", AutoSize = true, Padding = new Padding(0, 5, 0, 0) });
+            bar.Controls.Add(height);
+            bar.Controls.Add(new Label { Text = "Slice width", AutoSize = true, Padding = new Padding(0, 5, 0, 0) });
+            bar.Controls.Add(thickness); bar.Controls.Add(context);
+            bar.SetFlowBreak(context, true);
+            bar.Controls.Add(new Label { Text = "Filled surfaces: height colors   Hollow markers: above/below slice   Stacked floors remain separate", AutoSize = true, Padding = new Padding(6, 0, 0, 0) });
+
             Controls.Add(bar);
             status.Dock = DockStyle.Bottom; status.Height = 38; status.Padding = new Padding(8);
             Controls.Add(status);
@@ -269,6 +338,7 @@ namespace JfgLauncher
             try {
                 MapSnapshot value = MapSnapshot.Load(directory, cached);
                 cached = value.Mesh; canvas.UpdateMap(value);
+                if (canvas.Mode != 1) layerHeight.Value = Math.Max(layerHeight.Minimum, Math.Min(layerHeight.Maximum, (decimal)canvas.CenterHeight));
                 int tribalCount = 0;
                 foreach (MapMarker npc in value.Live.npcs)
                     if (npc.kind == "tribal") tribalCount++;

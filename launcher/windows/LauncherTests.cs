@@ -34,6 +34,49 @@ namespace JfgLauncher
             return data;
         }
 
+        private static void LayerTests()
+        {
+            MapGeometry mesh = new MapGeometry {
+                vertices = new float[][] { new float[]{0,0,0}, new float[]{0,0,100}, new float[]{100,0,0},
+                    new float[]{0,100,0}, new float[]{0,100,100}, new float[]{100,100,0},
+                    new float[]{0,200,0}, new float[]{100,200,0}, new float[]{0,200,100},
+                    new float[]{0,0,0}, new float[]{0,100,0}, new float[]{0,0,100} },
+                triangles = new MapFace[] { new MapFace {v=new int[]{0,1,2}}, new MapFace {v=new int[]{3,4,5}},
+                    new MapFace {v=new int[]{6,7,8}}, new MapFace {v=new int[]{9,10,11}} }
+            };
+            MapLayers layers = new MapLayers(mesh);
+            Check(layers.Floors.Count == 2, "walls and downward ceilings must not be filled as floors");
+            float ground;
+            Check(layers.Support(new HeightPoint(20,2,20), out ground) && ground == 0, "upper floor incorrectly obscures lower support");
+            Check(layers.Support(new HeightPoint(20,102,20), out ground) && ground == 100, "upper floor support missing");
+            Check(!layers.Support(new HeightPoint(200,2,200), out ground), "support extends outside triangle");
+            FloorFollower follow = new FloorFollower();
+            follow.Update(layers, new HeightPoint(20,2,20));
+            follow.Update(layers, new HeightPoint(20,150,20));
+            Check(follow.Height == 0 && !follow.Grounded, "jump switches to a floor far below airborne player");
+            follow.Update(layers, new HeightPoint(20,102,20));
+            Check(follow.Height == 100 && follow.Grounded, "landing does not switch floor");
+            Check(MapLayers.Clip(layers.Floors[0].Points, -10, 10).Length == 3 &&
+                MapLayers.Clip(layers.Floors[1].Points, -10, 10).Length == 0, "lower slice merges stacked floors");
+            Check(MapLayers.Clip(layers.Floors[0].Points, 90, 110).Length == 0 &&
+                MapLayers.Clip(layers.Floors[1].Points, 90, 110).Length == 3, "upper slice merges stacked floors");
+            HeightPoint[] ramp = {new HeightPoint(0,0,0),new HeightPoint(0,0,100),new HeightPoint(100,100,0)};
+            HeightPoint[] clipped = MapLayers.Clip(ramp,40,60);
+            Check(clipped.Length == 4, "partial ramp should remain a quadrilateral");
+            bool lower=false,upper=false; double area=0;
+            for(int i=0;i<clipped.Length;i++) {
+                HeightPoint p=clipped[i],q=clipped[(i+1)%clipped.Length];
+                Check(p.Y >= 39.999f && p.Y <= 60.001f && Math.Abs(p.X-p.Y)<.001f, "ramp intersection misplaced");
+                lower |= Math.Abs(p.Y-40)<.001f; upper |= Math.Abs(p.Y-60)<.001f;
+                area += p.X*q.Z-q.X*p.Z;
+            }
+            Check(lower && upper && Math.Abs(Math.Abs(area)/2-1000)<.01, "ramp cross-section area incorrect");
+            Check(layers.Low == 0 && layers.High == 100, "height scale includes ceilings or changes with slice");
+            Check(layers.Patches.Count == 2 && layers.Patches[0].Color != layers.Patches[1].Color, "stacked floor colors indistinguishable");
+            mesh.triangles[0].normal = new float[]{0,-1,0};
+            Check(new MapLayers(mesh).Floors.Count == 1, "exported normal ignored");
+        }
+
         [STAThread]
         private static int Main(string[] args)
         {
@@ -231,9 +274,10 @@ namespace JfgLauncher
                 Check(Convert.ToBase64String(File.ReadAllBytes(installer)) == Convert.ToBase64String(FirstRun.SetupScript()),
                     "setup resource was not restored from the executable");
                 Reject(delegate { FirstRun.StartInfo("bad\npath", setupFixture); }, "setup accepted malformed ROM path");
+                LayerTests();
                 string mapDirectory = Path.Combine(directory, "map");
                 Directory.CreateDirectory(mapDirectory);
-                string meshFixture = "{\"schema\":1,\"level\":21,\"generation\":2,\"vertices\":[[0,0,0],[100,0,0],[0,0,100]],\"triangles\":[{\"v\":[0,1,2]}]}";
+                string meshFixture = "{\"schema\":1,\"level\":21,\"generation\":2,\"vertices\":[[0,0,0],[0,0,100],[100,0,0]],\"triangles\":[{\"v\":[0,1,2]}]}";
                 long mapNow = (long)(DateTime.UtcNow - new DateTime(1970,1,1,0,0,0,DateTimeKind.Utc)).TotalMilliseconds;
                 string liveFixture = "{\"schema\":1,\"level\":21,\"generation\":2,\"timestamp_ms\":" + mapNow +
                     ",\"update\":1,\"mesh_ready\":true,\"clearing_active\":true,\"player\":{\"position\":[20,0,20]},\"exits\":[{\"position\":[80,0,10],\"destination_code\":123}],\"markers\":[{\"position\":[10,0,80],\"kind\":\"chest\",\"label\":\"Chest\"}]}";
@@ -262,6 +306,9 @@ namespace JfgLauncher
                 File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture);
                 File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture.Replace("[0,1,2]", "[0,1,9]"));
                 Reject(delegate { MapSnapshot.Load(mapDirectory, null); }, "invalid map face accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture);
+                File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture.Replace("\"v\":[0,1,2]", "\"v\":[0,1,2],\"normal\":[0,1]"));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, null); }, "malformed surface normal accepted");
                 File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture);
                 using (NavigationMapWindow mapWindow = new NavigationMapWindow(mapDirectory)) {
                     mapWindow.StartPosition = FormStartPosition.Manual; mapWindow.Location = new Point(-32000, -32000);
