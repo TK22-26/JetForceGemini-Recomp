@@ -25,6 +25,38 @@ def _point(value: object) -> list:
     return value
 
 
+def _progression(value: object) -> None:
+    if not isinstance(value, dict) or value.get("schema") != 1:
+        raise ValueError("Unsupported progression schema")
+    inv, nodes = value.get("inventory"), value.get("nodes")
+    if not isinstance(inv, dict) or type(inv.get("known")) is not bool:
+        raise ValueError("Invalid inventory")
+    if inv["known"]:
+        if (type(inv.get("character")) is not int or not 0 <= inv["character"] <= 2 or
+                type(inv.get("red_key")) is not bool or type(inv.get("weapons_mask")) is not int or
+                not 0 <= inv["weapons_mask"] <= 65535):
+            raise ValueError("Invalid inventory ownership")
+    elif any(inv.get(k) is not None for k in ("character", "red_key", "weapons_mask")):
+        raise ValueError("Unknown inventory contains ownership claims")
+    if not isinstance(nodes, list) or len(nodes) > 4096:
+        raise ValueError("Invalid interactions")
+    seen = set()
+    for node in nodes:
+        if (not isinstance(node, dict) or type(node.get("address")) is not int or
+                not 0 < node["address"] <= 0xffffffff or node["address"] in seen):
+            raise ValueError("Invalid interaction identity")
+        seen.add(node["address"])
+        _point(node.get("position"))
+        for field in ("kind", "label", "action", "status", "requirement", "reward"):
+            if not isinstance(node.get(field), str) or not 0 < len(node[field]) <= 160:
+                raise ValueError("Invalid interaction text")
+        if node.get("traversal") != "unknown" or type(node.get("requirement_known")) is not bool:
+            raise ValueError("Unsupported interaction state")
+        for field, low, high in (("spoken", -1, 1), ("reward_weapon", -1, 14), ("required_weapon", -1, 14)):
+            if type(node.get(field)) is not int or not low <= node[field] <= high:
+                raise ValueError("Invalid interaction value")
+
+
 def load_snapshot(directory: Path, *, allow_stale: bool = False) -> tuple[dict, dict]:
     live = _read(directory / "live.json")
     mesh = _read(directory / "mesh.json")
@@ -79,6 +111,8 @@ def load_snapshot(directory: Path, *, allow_stale: bool = False) -> tuple[dict, 
                 raise ValueError("Invalid marker label or kind")
             if field == "npcs" and entry["kind"] not in ("npc", "tribal"):
                 raise ValueError("Invalid NPC category")
+    if live.get("progression") is not None:
+        _progression(live["progression"])
     return mesh, live
 
 
@@ -92,6 +126,12 @@ def write_obj(path: Path, mesh: dict) -> None:
 
 
 def write_svg(path: Path, mesh: dict, live: dict) -> None:
+    if live.get("progression") is not None:
+        live = dict(live)
+        nodes = live["progression"]["nodes"]
+        live["markers"] = [dict(n, label=n["label"] + " [" + n["status"] + "]") for n in nodes if n["kind"] not in ("npc", "tribal")]
+        live["npcs"] = [dict(n, label=n["label"] + " [" + n["status"] + "]") for n in nodes if n["kind"] in ("npc", "tribal")]
+        live["exits"] = []
     points = mesh["vertices"] + [live["player"]["position"]] + [e["position"] for e in live["exits"]]
     points += [e["position"] for field in ("markers", "npcs") for e in live.get(field, [])]
     xs, zs = [v[0] for v in points], [v[2] for v in points]
@@ -113,7 +153,7 @@ def write_svg(path: Path, mesh: dict, live: dict) -> None:
             out.write(f'<circle cx="{x}" cy="{z}" r="5" fill="#ffd45b"/>\n')
             out.write(f'<text x="{float(x)+8:.2f}" y="{z}" fill="#ffd45b" font-family="sans-serif" font-size="13">{label}</text>\n')
         colors = {"npc": "#6495ed", "tribal": "#ffffff", "weapon": "#ffa500",
-                  "key": "#dda0dd", "opened": "#808080"}
+                  "key": "#dda0dd", "opened": "#808080", "target": "#ff4500", "gate": "#ee82ee", "exit": "#ffd45b"}
         for field in ("markers", "npcs"):
             for marker in live.get(field, []):
                 x, z = map(float, project(marker["position"]).split(","))
@@ -145,7 +185,7 @@ def main() -> int:
         print(json.dumps({"level": live["level"], "generation": live["generation"],
                           "vertices": len(mesh["vertices"]), "triangles": len(mesh["triangles"]),
                           "player": live["player"], "exits": live["exits"],
-                          "npcs": live.get("npcs", []), "items": live.get("markers", [])}, indent=2))
+                          "progression": live.get("progression"), "npcs": live.get("npcs", []), "items": live.get("markers", [])}, indent=2))
     except (OSError, ValueError, KeyError, TypeError) as error:
         parser.exit(1, f"Map export unavailable: {error}\n")
     return 0

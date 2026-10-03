@@ -384,6 +384,240 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
   return result;
 }
 
+// Read-only progression facts for the supported US single-player layout.
+// Unknown requirements/completion remain explicit; these are not route edges.
+struct Inventory {
+  bool known = false, red_key = false, magnus_spoken = false;
+  unsigned character = 0, weapons = 0;
+};
+inline Inventory inventory(const Memory &m, std::uint32_t player) noexcept {
+  try {
+    if (!m.valid(player, 0xA4U) || m.u8(0x800A4FC4U) != 0U)
+      return {};
+    const auto control = m.u32(player + 0x68U), game = m.u32(0x800FD7D4U);
+    if (!m.valid(control, 2U) || !m.valid(game, 0x334U))
+      return {};
+    const unsigned character = m.u8(control + 1U) & 3U;
+    if (character == 3U)
+      return {};
+    const auto saved = game + 0x15CU + character * 0x76U;
+    return {true, (m.u8(saved + 0x66U) & 0x40U) != 0U,
+            (m.u8(game + 8U) & 8U) != 0U, character, m.u16(saved + 0xAU)};
+  } catch (const std::runtime_error &) {
+    return {};
+  }
+}
+struct Interaction {
+  std::uint32_t address{}, linked_actor{};
+  Vec3 position{};
+  std::string kind, label, action, status = "unknown";
+  std::string requirement = "Unknown", reward = "Unknown";
+  bool requirement_known = false;
+  int reward_item = -1, reward_weapon = -1, required_weapon = -1;
+  int spoken = -1, encounter = -1, dialogue = -1;
+  int raw_state = -1, raw_condition = -1;
+  int door_id = -1, required_item = -1, target_health = -1,
+      target_max_health = -1, reset_ticks = -1;
+};
+inline std::vector<Interaction> interactions(const Memory &m,
+                                             const std::vector<Actor> &list,
+                                             std::uint32_t level,
+                                             const Inventory &inv) {
+  std::vector<Interaction> result;
+  for (const auto &npc : npc_markers(m, list)) {
+    Interaction node;
+    node.address = npc.address;
+    node.position = npc.position;
+    node.kind = npc.kind;
+    node.label = npc.label;
+    node.action = npc.behavior == 90U ? "talk" : "rescue";
+    if (npc.behavior == 90U) {
+      const auto control = m.u32(npc.address + 0x68U);
+      node.dialogue = m.u8(control + 0x31U);
+      node.encounter = m.u8(control + 0x32U);
+      if (level == 157U && npc.object_id == 350U && node.dialogue == 4 &&
+          node.encounter == 4) {
+        node.label = "Magnus: Red key";
+        node.reward = "Red key";
+        node.reward_item = 1;
+        node.requirement = "Talk to Magnus; finish the reward dialogue";
+        node.requirement_known = true;
+        node.status =
+            inv.known ? (inv.red_key ? "owned" : "available") : "unknown";
+        node.spoken = inv.known ? (inv.magnus_spoken ? 1 : 0) : -1;
+      }
+    }
+    result.push_back(std::move(node));
+  }
+  for (const auto &item : item_markers(m, list)) {
+    Interaction node;
+    node.address = item.address;
+    node.position = item.position;
+    node.kind = item.kind;
+    node.label = item.label;
+    const auto behavior = m.u16(item.address + 0x48U);
+    node.action = behavior == 98U ? "open_chest" : "collect";
+    node.reward = item.label;
+    if (behavior == 98U) {
+      constexpr std::array<int, 21> weapons = {3,  1,  2,  2,  9,  8,  -1,
+                                               -1, 14, 13, 14, 12, 11, 10,
+                                               7,  6,  4,  -1, -1, -1, 5};
+      if (item.content_code >= 0 &&
+          item.content_code < static_cast<int>(weapons.size()))
+        node.reward_weapon = weapons[static_cast<unsigned>(item.content_code)];
+      node.raw_state = m.u8(m.u32(item.address + 0x68U) + 4U);
+      node.status = item.opened ? "opened" : "unopened";
+      if (node.reward_weapon >= 0)
+        node.reward = weapon_name(static_cast<unsigned>(node.reward_weapon));
+      else
+        node.reward = "Unknown special collectable";
+    } else if (item.kind == "weapon") {
+      node.reward_weapon = item.content_code;
+      node.status = "present";
+    } else
+      node.status = "present";
+    // Presence/ownership does not establish access, reachability, or
+    // collection.
+    result.push_back(std::move(node));
+  }
+  for (const auto &actor : list) {
+    if (actor.behavior != 111U && actor.behavior != 67U && actor.behavior != 7U)
+      continue;
+    try {
+      const auto control = m.u32(actor.address + 0x68U);
+      if (!m.valid(control, 0x10U))
+        continue;
+      Interaction node;
+      node.address = actor.address;
+      node.position = actor.position;
+      if (actor.behavior == 111U) {
+        node.kind = "target";
+        node.label = "Shooting target";
+        node.action = "shoot_target";
+        // targetswitchControl: +8 is door ID, +A the activation latch.
+        // +0 is a recovery timer, not a hit counter. No weapon restriction
+        // inferred.
+        node.raw_state = m.u8(control + 0xAU);
+        node.raw_condition = m.s16(control + 4U);
+        node.door_id = m.u8(control + 8U);
+        node.label += " (door " + std::to_string(node.door_id) + ")";
+        node.status = node.raw_state != 0 ? "activated" : "needs_shooting";
+        node.requirement =
+            "Repeated shots; weapon and timing constraints unverified";
+        node.reward =
+            "Activates linked door group " + std::to_string(node.door_id);
+        node.reset_ticks = m.s16(control);
+        node.target_max_health = m.u16(control + 6U);
+        const auto props = m.u32(actor.address + 0x4CU);
+        if (m.valid(props, 8U))
+          node.target_health = m.s16(props + 6U);
+        for (const auto &other : list) {
+          if (other.behavior != 7U)
+            continue;
+          const auto dc = m.u32(other.address + 0x68U);
+          if (m.valid(dc, 0x4BU) && m.u8(dc + 0x44U) == node.door_id) {
+            node.linked_actor = other.address;
+            break;
+          }
+        }
+      } else if (actor.behavior == 7U) {
+        if (!m.valid(control, 0x4BU))
+          continue;
+        node.kind = "gate";
+        node.label = "Door";
+        node.action = "pass_door";
+        node.door_id = m.u8(control + 0x44U);
+        node.label += " " + std::to_string(node.door_id);
+        node.raw_state = m.u16(control + 0x3EU);
+        node.raw_condition = m.u8(control + 0x43U);
+        if (node.raw_condition >= 2) {
+          node.required_item = node.raw_condition - 2;
+          node.requirement = node.required_item == 1
+                                 ? "Red key; other conditions unverified"
+                                 : "Inventory item " +
+                                       std::to_string(node.required_item) +
+                                       "; other conditions unverified";
+          if (node.required_item == 1) {
+            node.label = "Red-key door";
+            node.status = (node.raw_state & 8) == 0 ? "key_lock_cleared"
+                          : !inv.known              ? "unknown"
+                          : inv.red_key             ? "key_owned"
+                                                    : "key_missing";
+          }
+        }
+      } else {
+        node.kind = "gate";
+        node.label = "Door switch";
+        node.action = "activate_switch";
+        node.raw_state = m.u8(control + 8U);
+        node.raw_condition = m.u8(control + 9U);
+        const auto linked = m.u32(control + 4U);
+        for (const auto &other : list)
+          if (other.address == linked && other.behavior == 7U)
+            node.linked_actor = linked;
+      }
+      result.push_back(std::move(node));
+    } catch (const std::runtime_error &) {
+    }
+  }
+  unsigned exit_index = 0;
+  for (const auto &exit : exits(m, list)) {
+    Interaction node;
+    node.address = exit.address;
+    node.position = exit.position;
+    node.kind = "exit";
+    node.label = "Exit " + std::to_string(++exit_index);
+    node.action = "enter_exit";
+    node.raw_condition = exit.condition;
+    node.reward = "Destination code " + std::to_string(exit.destination);
+    result.push_back(std::move(node));
+  }
+  return result;
+}
+inline void write_progression(std::ostream &out, const Memory &m,
+                              const std::vector<Actor> &list,
+                              std::uint32_t player, std::uint32_t level) {
+  bool present = false;
+  for (const auto &a : list)
+    if (a.address == player)
+      present = true;
+  const auto inv = inventory(m, present ? player : 0U);
+  out << "{\"schema\":1,\"inventory\":{\"known\":"
+      << (inv.known ? "true" : "false") << ",\"character\":"
+      << (inv.known ? std::to_string(inv.character) : "null") << ",\"red_key\":"
+      << (inv.known ? (inv.red_key ? "true" : "false") : "null")
+      << ",\"weapons_mask\":"
+      << (inv.known ? std::to_string(inv.weapons) : "null") << "},\"nodes\":[";
+  bool first = true;
+  for (const auto &node : interactions(m, list, level, inv)) {
+    if (!first)
+      out << ',';
+    first = false;
+    out << "{\"address\":" << node.address << ",\"position\":";
+    json_vec(out, node.position);
+    out << ",\"kind\":\"" << node.kind << "\",\"label\":\"" << node.label
+        << "\",\"action\":\"" << node.action << "\",\"status\":\""
+        << node.status << "\",\"requirement\":\"" << node.requirement
+        << "\",\"reward\":\"" << node.reward << "\",\"requirement_known\":"
+        << (node.requirement_known ? "true" : "false")
+        << ",\"reward_item\":" << node.reward_item
+        << ",\"reward_weapon\":" << node.reward_weapon
+        << ",\"required_weapon\":" << node.required_weapon
+        << ",\"spoken\":" << node.spoken << ",\"encounter\":" << node.encounter
+        << ",\"dialogue\":" << node.dialogue
+        << ",\"raw_state\":" << node.raw_state
+        << ",\"raw_condition\":" << node.raw_condition
+        << ",\"door_id\":" << node.door_id
+        << ",\"required_item\":" << node.required_item
+        << ",\"target_health\":" << node.target_health
+        << ",\"target_max_health\":" << node.target_max_health
+        << ",\"reset_ticks\":" << node.reset_ticks
+        << ",\"linked_actor\":" << node.linked_actor
+        << ",\"traversal\":\"unknown\"}";
+  }
+  out << "]}";
+}
+
 inline Mesh decode_mesh(const Memory &m, std::uint32_t track) {
   m.require(track, 0x20U);
   const auto blocks = m.u32(track + 4U);
@@ -627,6 +861,8 @@ public:
     }
     out << "],\"npcs\":";
     write_npcs(out, npc_markers(m, list));
+    out << ",\"progression\":";
+    write_progression(out, m, list, player, level);
     out << ",\"actors\":[";
     first = true;
     for (const auto &a : list) {

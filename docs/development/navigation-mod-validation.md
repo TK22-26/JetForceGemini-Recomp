@@ -108,3 +108,33 @@ Player-floor selection remains a geometry estimate; it has no collision contact
 flag. Markers use their exported world positions, so a floating pickup or exit
 volume center can be above the selected slice without belonging to another
 story. No walkability graph, floor connectivity, or automatic steering is added.
+
+
+## Progression export and map inspector (2026-10-02)
+
+Native Windows tests and Linux ASan/UBSan tests pass for per-character inventory,
+spoken-without-key, reward ownership, unknown/invalid inventory, exact Magnus
+encounter matching, chest content/open state, target activation, target/door
+group matching and red-key lock state. These readers leave memory unchanged.
+Launcher tests cover optional progression, inventory text, unknown ownership
+rejection, unsupported traversal rejection, saved-map status and map rendering.
+Python tests cover the same export validation and enriched SVG labels.
+
+An offline export from the owner's final room-35 memory capture decoded 15
+interaction nodes and character-1 inventory with the red key and weapon mask 5
+(pistol and machine gun). ASan/UBSan reported no errors. This used an isolated
+memory copy: no running game, audio output or save writes. A rendered WinForms
+preview was checked locally. The red-key reward action and dialogue branch were
+also established by the prior isolated original-function harness (11 functions).
+
+Target controller observations: +0x08 is a door group, +0x0A is an activation latch,
++0x00 is a recovery timer and +0x06 is the strength limit. Door controller observations:
++0x43 selects the required inventory item by subtracting 2; +0x3E bit 8 is the key
+lock; +0x44 is the door group. These are supported-US-ROM facts, not portable
+addresses for other game versions. Targets expose actor origin coordinates;
+an aiming system must still validate the hitbox and line of sight.
+
+No fresh interactive playthrough or automatic navigation was performed for this
+map-only update. Inventory ownership, key-lock clearing and target activation
+are not proof of a physically passable door. Unknown routes, dialogue rewards,
+weapon restrictions and jump/dive requirements stay unknown.

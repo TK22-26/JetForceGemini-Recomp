@@ -310,6 +310,17 @@ namespace JfgLauncher
                 File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture.Replace("\"v\":[0,1,2]", "\"v\":[0,1,2],\"normal\":[0,1]"));
                 Reject(delegate { MapSnapshot.Load(mapDirectory, null); }, "malformed surface normal accepted");
                 File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture);
+                string progressFixture = @"{""schema"":1,""inventory"":{""known"":true,""character"":1,""red_key"":false,""weapons_mask"":4},""nodes"":[{""address"":2148712448,""position"":[20,0,40],""kind"":""npc"",""label"":""Magnus: Red key"",""action"":""talk"",""status"":""available"",""requirement"":""Talk to Magnus"",""reward"":""Red key"",""requirement_known"":true,""reward_item"":1,""reward_weapon"":-1,""required_weapon"":-1,""spoken"":1,""traversal"":""unknown""}]}";
+                string withProgress = liveFixture.Substring(0, liveFixture.Length - 1) + ",\"progression\":" + progressFixture + "}";
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), withProgress);
+                map = MapSnapshot.Load(mapDirectory, map.Mesh);
+                Check(map.Live.progression.nodes[0].spoken == 1 && map.Live.progression.nodes[0].status == "available", "spoken NPC incorrectly marked complete");
+                Check(map.Live.progression.inventory.Summary.Contains("Red key: missing") && map.Live.progression.inventory.Summary.Contains("Machine gun: owned"), "inventory display incorrect");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), withProgress.Replace("\"known\":true", "\"known\":false"));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "unknown inventory accepted ownership");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), withProgress.Replace("\"traversal\":\"unknown\"", "\"traversal\":\"open\""));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "unsupported route status accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), withProgress);
                 using (NavigationMapWindow mapWindow = new NavigationMapWindow(mapDirectory)) {
                     mapWindow.StartPosition = FormStartPosition.Manual; mapWindow.Location = new Point(-32000, -32000);
                     mapWindow.ShowInTaskbar = false; mapWindow.Show(); Application.DoEvents();

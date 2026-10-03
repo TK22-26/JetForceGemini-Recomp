@@ -44,7 +44,7 @@ and its collision-plane normal. Material flags are retained rather than treated
 as proven walkability rules.
 
 live.json contains level, generation, timestamp_ms (UTC Unix milliseconds),
-update, mesh_ready, clearing_active, player, exits, markers, npcs, actors, and mod counters.
+update, mesh_ready, clearing_active, player, exits, markers, npcs, progression, actors, and mod counters.
 first_clear_level and first_clear_update record where automatic clearing began. Player state includes
 position, yaw (raw game angle), and health (fixed point; divide by 256).
 Exit state includes a position, plane normal and plane_d, raw radius,
@@ -142,3 +142,54 @@ sessions. Map-reader tests reject stale, mismatched, and malformed snapshots.
 Real-ROM replay evidence is kept locally under ignored tools/private paths.
 See [the validation notes](navigation-mod-validation.md) for the scenes and
 limitations validated.
+
+## Progression map and interaction inspector
+
+The live window includes an interaction list and details panel. Select an entry
+to inspect its world X/Y/Z, action, reward, requirement and current state. It
+refreshes with the map, highlights the selected marker with a white ring, and clears selection when the room generation changes.
+Orange-red squares show shooting targets; violet squares show doors/switches.
+Existing floor slices apply to these markers too. A saved snapshot is labeled
+as saved; its ownership and interaction states describe the capture time.
+
+- Magnus's verified Goldwood encounter (room 157, object 350, dialogue 4,
+  encounter 4) offers the red key. **Available** means the current character
+  lacks the key; **owned** means its inventory bit is set. The spoken flag is
+  separate: talking without accepting/completing the reward stays available.
+- Inventory shows the current character's red key and machine gun ownership.
+  Unknown/invalid inventory remains unknown. Changing character reads that
+  character's inventory; ownership is not shared by inference.
+- Chests retain their verified weapon reward and opened state. Opening a chest
+  and owning a weapon are separate facts. Unidentified special rewards stay
+  unknown. Generic NPC rewards are unknown unless this exact encounter was traced.
+- Repeated-shot targets expose their activation latch, raw strength, recovery
+  timer and linked door group. The timer is not a hit count. A door identifier
+  is not a required weapon: no machine-gun-only requirement is assumed.
+- Doors with the verified red-key condition show key missing, key owned, or
+  key lock cleared. These states do not establish that the door is physically
+  open or reachable. Other conditions and switch variants remain unknown.
+
+`progression` is an optional schema-1 object in `live.json`, containing
+`inventory` and `nodes`. Inventory has `known`, nullable `character`, nullable
+`red_key`, and nullable `weapons_mask` (weapon inventory bits 0–14).
+Each node contains `address`, world `position`, `kind`, `label`, `action`,
+`status`, `requirement`, `requirement_known`, `reward`, `reward_item`,
+`reward_weapon`, `required_item`, `required_weapon`, `spoken`, `encounter`,
+`dialogue`, `door_id`, `linked_actor`, `raw_state`, `raw_condition`,
+`target_health`, `target_max_health`, `reset_ticks`, and `traversal`.
+Integer -1 means unknown/not applicable; linked_actor 0 means no confirmed
+loaded link. A target can affect multiple doors sharing its door_id;
+linked_actor identifies the first loaded match only. Switch links come from
+their actual door pointer, not proximity.
+
+Addresses identify actors only within the current loaded snapshot. Consumers
+must key them by session, level and generation, discard absent actors, and
+must not persist addresses across room loads. No cross-room navigation graph
+or stable campaign object identifier is provided yet.
+
+`requirement_known` describes the stated interaction only. Every node currently
+exports `traversal: "unknown"`: inventory, target activation, and proximity
+must never be promoted into a walkable connection. Automated routing still
+needs collision/clearance, jumps, moving platforms, dive exits, and confirmation
+of door opening. Export readers support old snapshots without progression.
+The mod only reads these progression fields; it never grants keys or weapons.

@@ -31,8 +31,77 @@ namespace JfgLauncher
         [DataMember] public float[] position = null;
         [DataMember] public string kind = "";
         [DataMember] public string label = "";
+        [DataMember] public uint address = 0;
         [DataMember] public int destination_code = 0;
     }
+    [DataContract] internal sealed class MapInventory
+    {
+        [DataMember] public bool known = false;
+        [DataMember] public int? character = null;
+        [DataMember] public bool? red_key = null;
+        [DataMember] public int? weapons_mask = null;
+        internal string Summary { get {
+            if (!known) return "Inventory: unknown";
+            return "Character " + character + " | Red key: " + (red_key == true ? "owned" : "missing")
+                + "\r\nMachine gun: " + ((weapons_mask.Value & 4) != 0 ? "owned" : "missing");
+        } }
+    }
+    [DataContract] internal sealed class MapInteraction
+    {
+        [DataMember] public uint address = 0, linked_actor = 0;
+        [DataMember] public float[] position = null;
+        [DataMember] public string kind = "", label = "", action = "", status = "";
+        [DataMember] public string requirement = "", reward = "", traversal = "";
+        [DataMember] public bool requirement_known = false;
+        [DataMember] public int reward_item = -1, reward_weapon = -1, required_weapon = -1;
+        [DataMember] public int spoken = -1, encounter = -1, dialogue = -1;
+        [DataMember] public int raw_state = -1, raw_condition = -1;
+        [DataMember] public int door_id = -1, required_item = -1, target_health = -1, target_max_health = -1, reset_ticks = -1;
+        [OnDeserializing] private void Init(StreamingContext context) {
+            reward_item = reward_weapon = required_weapon = spoken = encounter = dialogue = raw_state = raw_condition = -1;
+            door_id = required_item = target_health = target_max_health = reset_ticks = -1;
+        }
+        internal string Caption { get { return label + " [" + status.Replace('_', ' ') + "]"; } }
+        public override string ToString() { return Caption; }
+        internal string Details { get {
+            return Caption + "\r\n\r\nAction: " + action.Replace('_', ' ')
+                + "\r\nRequires: " + requirement + (requirement_known ? "" : " (unverified)")
+                + "\r\nReward: " + reward
+                + (door_id < 0 ? "" : "\r\nDoor group: " + door_id)
+                + (target_health < 0 ? "" : "\r\nTarget strength: " + target_health + " / " + target_max_health + " (raw)")
+                + (spoken < 0 ? "" : "\r\nSpoken to: " + (spoken == 1 ? "yes" : "no"))
+                + "\r\n\r\nX " + position[0].ToString("0.##") + "  Y " + position[1].ToString("0.##") + "  Z " + position[2].ToString("0.##")
+                + (linked_actor == 0 ? "" : "\r\nLinked actor: " + linked_actor.ToString("X8"))
+                + "\r\n\r\nAccess / traversal: unknown. Check doors, jumps and height before routing.";
+        } }
+    }
+    [DataContract] internal sealed class MapProgression
+    {
+        [DataMember] public int schema = 0;
+        [DataMember] public MapInventory inventory = null;
+        [DataMember] public MapInteraction[] nodes = null;
+        internal void Validate()
+        {
+            if (schema != 1 || inventory == null || nodes == null || nodes.Length > 4096)
+                throw new InvalidDataException("Invalid progression data.");
+            if (inventory.known && (!inventory.character.HasValue || inventory.character < 0 || inventory.character > 2 ||
+                !inventory.red_key.HasValue || !inventory.weapons_mask.HasValue || inventory.weapons_mask < 0 || inventory.weapons_mask > 65535))
+                throw new InvalidDataException("Invalid inventory.");
+            if (!inventory.known && (inventory.character.HasValue || inventory.red_key.HasValue || inventory.weapons_mask.HasValue))
+                throw new InvalidDataException("Unknown inventory contains ownership claims.");
+            HashSet<uint> seen = new HashSet<uint>();
+            foreach (MapInteraction node in nodes) {
+                if (node == null || node.address == 0 || !seen.Add(node.address)) throw new InvalidDataException("Invalid interaction identity.");
+                MapSnapshot.Point(node.position);
+                foreach (string text in new string[] { node.kind, node.label, node.action, node.status, node.requirement, node.reward })
+                    if (String.IsNullOrEmpty(text) || text.Length > 160) throw new InvalidDataException("Invalid interaction text.");
+                if (node.traversal != "unknown" || node.spoken < -1 || node.spoken > 1 ||
+                    node.reward_weapon < -1 || node.reward_weapon > 14 || node.required_weapon < -1 || node.required_weapon > 14)
+                    throw new InvalidDataException("Unsupported interaction state.");
+            }
+        }
+    }
+
     [DataContract] internal sealed class MapLive
     {
         [DataMember] public int schema = 0;
@@ -46,6 +115,7 @@ namespace JfgLauncher
         [DataMember] public MapMarker[] exits = null;
         [DataMember] public MapMarker[] markers = null;
         [DataMember] public MapMarker[] npcs = null;
+        [DataMember] public MapProgression progression = null;
     }
     internal sealed class MapSnapshot
     {
@@ -119,6 +189,7 @@ namespace JfgLauncher
                 if (String.IsNullOrEmpty(npc.label) || npc.label.Length > 80)
                     throw new InvalidDataException("Invalid NPC label.");
             }
+            if (live.progression != null) live.progression.Validate();
             return new MapSnapshot { Mesh = mesh, Live = live };
         }
     }
@@ -134,6 +205,7 @@ namespace JfgLauncher
         private Point mouse;
         private bool dragging;
         private long lastUpdate=-1;
+        internal uint SelectedAddress;
         internal int Mode; // 0 player floor, 1 manual slice, 2 all heights.
         internal float ManualHeight, SliceWidth=64;
         internal bool OtherLevels=true;
@@ -242,12 +314,24 @@ namespace JfgLauncher
                     g.DrawLine(pen,Project(a),Project(b));
                 }
             }
-            for(int n=0;n<snapshot.Live.exits.Length;n++)Marker(g,snapshot.Live.exits[n].position,Color.Gold,"Exit "+(n+1),0);
-            foreach(MapMarker item in snapshot.Live.markers) {
-                Color color=item.kind=="opened"?Color.Gray:item.kind=="key"?Color.Plum:item.kind=="weapon"?Color.Orange:Color.LightGreen;
-                Marker(g,item.position,color,item.label??"Item",1);
+            for(int n=0;snapshot.Live.progression == null && n<snapshot.Live.exits.Length;n++)Marker(g,snapshot.Live.exits[n].position,Color.Gold,"Exit "+(n+1),0);
+            HashSet<uint> enriched = new HashSet<uint>();
+            if (snapshot.Live.progression != null) foreach (MapInteraction node in snapshot.Live.progression.nodes) {
+                enriched.Add(node.address);
+                if (node.address == SelectedAddress && (Mode == 2 || OtherLevels || (node.position[1] >= low && node.position[1] <= high))) {
+                    PointF selectedPoint = Project(new HeightPoint(node.position));
+                    using (Pen selectedPen = new Pen(Color.White, 2)) g.DrawEllipse(selectedPen, selectedPoint.X - 10, selectedPoint.Y - 10, 20, 20);
+                }
+                Color color = node.kind == "npc" ? Color.CornflowerBlue : node.kind == "tribal" ? Color.White :
+                    node.kind == "exit" ? Color.Yellow : node.kind == "gate" ? Color.Violet : node.kind == "target" ? Color.OrangeRed :
+                    node.kind == "key" ? Color.Plum : node.kind == "weapon" ? Color.Orange : Color.LightGreen;
+                if (node.status == "owned" || node.status == "opened" || node.status == "activated") color = Color.Gray;
+                Marker(g, node.position, color, node.Caption, node.kind == "npc" || node.kind == "tribal" ? 2 : node.kind == "exit" ? 0 : 1);
             }
-            foreach(MapMarker npc in snapshot.Live.npcs)Marker(g,npc.position,npc.kind=="tribal"?Color.White:Color.CornflowerBlue,npc.label,2);
+            if (snapshot.Live.progression == null) foreach (MapMarker marker in snapshot.Live.markers)
+                if (!enriched.Contains(marker.address)) Marker(g, marker.position, marker.kind == "opened" ? Color.Gray : marker.kind == "key" ? Color.Plum : marker.kind == "weapon" ? Color.Orange : Color.LightGreen, marker.label, 1);
+            if (snapshot.Live.progression == null) foreach (MapMarker npc in snapshot.Live.npcs)
+                if (!enriched.Contains(npc.address)) Marker(g, npc.position, npc.kind == "tribal" ? Color.White : Color.CornflowerBlue, npc.label, 2);
             HeightPoint player=new HeightPoint(snapshot.Live.player.position);PointF atPlayer=Project(player);
             using(Brush brush=new SolidBrush(snapshot.IsLive?Color.Cyan:Color.Gray)) {
                 g.FillEllipse(Brushes.Black,atPlayer.X-8,atPlayer.Y-8,16,16);g.FillEllipse(brush,atPlayer.X-6,atPlayer.Y-6,12,12);
@@ -275,6 +359,32 @@ namespace JfgLauncher
 
     internal sealed class NavigationMapWindow : Form
     {
+        private readonly Label inventoryStatus = new Label { Dock = DockStyle.Top, Height = 68, Padding = new Padding(8) };
+        private readonly ListBox interactionList = new ListBox { Dock = DockStyle.Top, Height = 170, HorizontalScrollbar = true };
+        private readonly TextBox interactionDetails = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BorderStyle = BorderStyle.None, BackColor = SystemColors.Control };
+        private long interactionGeneration = -1;
+        private uint interactionLevel;
+        private void UpdateInteractions(MapSnapshot value)
+        {
+            MapProgression progress = value == null ? null : value.Live.progression;
+            MapInteraction selected = interactionList.SelectedItem as MapInteraction;
+            uint address = value != null && value.Live.generation == interactionGeneration && value.Live.level == interactionLevel && selected != null ? selected.address : 0;
+            interactionGeneration = value == null ? -1 : value.Live.generation;
+            interactionLevel = value == null ? 0 : value.Live.level;
+            interactionList.BeginUpdate();
+            interactionList.Items.Clear();
+            if (progress != null) foreach (MapInteraction node in progress.nodes) {
+                int index = interactionList.Items.Add(node);
+                if (node.address == address) interactionList.SelectedIndex = index;
+            }
+            if (interactionList.SelectedIndex < 0 && interactionList.Items.Count > 0) interactionList.SelectedIndex = 0;
+            interactionList.EndUpdate();
+            inventoryStatus.Text = progress == null ? "Progression data unavailable" :
+                (value.IsLive ? "LIVE  " : "SAVED SNAPSHOT  ") + progress.inventory.Summary;
+            selected = interactionList.SelectedItem as MapInteraction;
+            interactionDetails.Text = selected == null ? "Select a loaded interaction to inspect its reward, requirements and coordinates." : selected.Details;
+        }
+
         private readonly MapCanvas canvas = new MapCanvas();
         private readonly Label status = new Label();
         private NumericUpDown layerHeight;
@@ -284,10 +394,18 @@ namespace JfgLauncher
         internal NavigationMapWindow(string path)
         {
             Text = "JFG Live Map";
-            ClientSize = new Size(940, 760);
-            MinimumSize = new Size(820, 480);
+            ClientSize = new Size(1240, 760);
+            MinimumSize = new Size(1040, 600);
             Font = new Font("Segoe UI", 9);
             Controls.Add(canvas);
+            Panel progressionPanel = new Panel { Dock = DockStyle.Right, Width = 300, Padding = new Padding(8) };
+            progressionPanel.Controls.Add(interactionDetails); progressionPanel.Controls.Add(interactionList); progressionPanel.Controls.Add(inventoryStatus);
+            Controls.Add(progressionPanel);
+            interactionList.SelectedIndexChanged += delegate {
+                MapInteraction node = interactionList.SelectedItem as MapInteraction;
+                interactionDetails.Text = node == null ? "" : node.Details;
+                canvas.SelectedAddress = node == null ? 0 : node.address; canvas.Invalidate();
+            };
             FlowLayoutPanel bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 116 };
             Button fit = new Button { Text = "Fit room", AutoSize = true };
             fit.Click += delegate { canvas.Fit(); };
@@ -299,7 +417,7 @@ namespace JfgLauncher
             bar.Controls.Add(fit); bar.Controls.Add(files);
             bar.Controls.Add(new Label { Text = "Wheel: zoom   Drag: pan   Cyan: player   Yellow: exits   Squares: items", AutoSize = true, Padding = new Padding(6, 8, 0, 0) });
             bar.SetFlowBreak(bar.Controls[bar.Controls.Count - 1], true);
-            bar.Controls.Add(new Label { Text = "Diamonds: blue NPCs, white Tribals", AutoSize = true, Padding = new Padding(6, 0, 0, 0) });
+            bar.Controls.Add(new Label { Text = "Diamonds: blue NPCs, white Tribals   Orange-red: targets   Violet: doors", AutoSize = true, Padding = new Padding(6, 0, 0, 0) });
             ComboBox mode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 130 };
             mode.Items.AddRange(new object[] { "Player floor", "Height slice", "All heights" });
             mode.SelectedIndex = 0;
@@ -332,12 +450,12 @@ namespace JfgLauncher
             BindDirectory(path); timer.Start();
             FormClosed += delegate { timer.Stop(); timer.Dispose(); };
         }
-        internal void BindDirectory(string path) { directory = LocalSetup.FullPath(path); cached = null; canvas.UpdateMap(null); RefreshMap(); }
+        internal void BindDirectory(string path) { directory = LocalSetup.FullPath(path); cached = null; canvas.UpdateMap(null); UpdateInteractions(null); RefreshMap(); }
         internal void RefreshMap()
         {
             try {
                 MapSnapshot value = MapSnapshot.Load(directory, cached);
-                cached = value.Mesh; canvas.UpdateMap(value);
+                cached = value.Mesh; canvas.UpdateMap(value); UpdateInteractions(value);
                 if (canvas.Mode != 1) layerHeight.Value = Math.Max(layerHeight.Minimum, Math.Min(layerHeight.Maximum, (decimal)canvas.CenterHeight));
                 int tribalCount = 0;
                 foreach (MapMarker npc in value.Live.npcs)
@@ -346,10 +464,10 @@ namespace JfgLauncher
                     + "  |  " + value.Live.exits.Length + " exits  |  " + value.Live.markers.Length + " items  |  "
                     + (value.Live.npcs.Length - tribalCount) + " NPCs  |  " + tribalCount + " Tribals";
             }
-            catch (InvalidDataException error) { cached = null; canvas.UpdateMap(null); status.Text = error.Message; }
-            catch (IOException) { cached = null; canvas.UpdateMap(null); status.Text = "Waiting for the game to export a room..."; }
-            catch (SerializationException) { cached = null; canvas.UpdateMap(null); status.Text = "Waiting for a complete map update..."; }
-            catch (UnauthorizedAccessException) { status.Text = "Cannot read this export folder."; }
+            catch (InvalidDataException error) { cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = error.Message; }
+            catch (IOException) { cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Waiting for the game to export a room..."; }
+            catch (SerializationException) { cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Waiting for a complete map update..."; }
+            catch (UnauthorizedAccessException) { cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Cannot read this export folder."; }
         }
     }
 }

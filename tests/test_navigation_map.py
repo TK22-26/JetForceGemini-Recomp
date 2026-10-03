@@ -24,6 +24,21 @@ class NavigationMapTests(unittest.TestCase):
         (self.path / "mesh.json").write_text(json.dumps(self.mesh))
         (self.path / "live.json").write_text(json.dumps(self.live))
 
+    def test_progression_is_safe_for_planning(self):
+        self.live["progression"] = {'schema': 1, 'inventory': {'known': True, 'character': 1, 'red_key': False, 'weapons_mask': 4}, 'nodes': [{'address': 2148712448, 'position': [20, 0, 40], 'kind': 'npc', 'label': 'Magnus: Red key', 'action': 'talk', 'status': 'available', 'requirement': 'Talk to Magnus', 'reward': 'Red key', 'requirement_known': True, 'reward_item': 1, 'reward_weapon': -1, 'required_weapon': -1, 'spoken': 1, 'traversal': 'unknown'}]}
+        self.save()
+        mesh, live = load_snapshot(self.path)
+        write_svg(self.path / "rewards.svg", mesh, live)
+        self.assertIn("Magnus: Red key [available]", (self.path / "rewards.svg").read_text())
+        node = self.live["progression"]["nodes"][0]
+        for key, value in (("position", [0, 1]), ("traversal", "open"), ("required_weapon", 99)):
+            previous = node[key]; node[key] = value; self.save()
+            with self.assertRaises(ValueError): load_snapshot(self.path)
+            node[key] = previous
+        self.live["progression"]["inventory"]["known"] = False
+        self.save()
+        with self.assertRaises(ValueError): load_snapshot(self.path)
+
     def test_export_geometry_and_exit_preview(self):
         self.save()
         mesh, live = load_snapshot(self.path)

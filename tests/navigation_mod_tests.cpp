@@ -258,6 +258,98 @@ int main(int argc, char **argv) {
     const auto doors = exits(m, {{exit, 8U, {1, 2, 3}}});
     check(doors.size() == 1U && doors[0].destination == 0x1234U &&
           doors[0].radius == 30U && doors[0].condition == -1);
+    // Inventory and dialogue completion are separate, character-scoped facts.
+    put8(control + 1U, 1U);
+    const auto saved1 = game + 0x15CU + 0x76U;
+    put8(saved1 + 0x66U, 0U);
+    put8(game + 8U, 8U);
+    m.put16(saved1 + 0xAU, 4U);
+    m.put16(guide + 0x4AU, 350U);
+    m.put16(gp + 6U, 256U);
+    put8(gc + 0x31U, 4U);
+    put8(gc + 0x32U, 4U);
+    std::vector<Actor> progression_list{{player, 1U, {1, 2, 3}},
+                                        {guide, 90U, {20, 30, 40}}};
+    const auto before_progression = bytes;
+    auto inv = inventory(m, player);
+    check(inv.known && inv.character == 1U && !inv.red_key &&
+          inv.magnus_spoken && inv.weapons == 4U);
+    auto nodes = interactions(m, progression_list, 157U, inv);
+    check(nodes.size() == 1U && nodes[0].reward_item == 1 &&
+          nodes[0].status == "available" && nodes[0].spoken == 1);
+    check(bytes == before_progression);
+    put8(saved1 + 0x66U, 0x40U);
+    nodes = interactions(m, progression_list, 157U, inventory(m, player));
+    check(nodes[0].status == "owned");
+    put8(control + 1U, 0U);
+    check(!inventory(m, player)
+               .red_key); // Other character's inventory is untouched.
+    put8(control + 1U, 3U);
+    check(!inventory(m, player).known);
+    put8(control + 1U, 1U);
+    put32(0x800FD7D4U, 0xffffffffU);
+    check(!inventory(m, player).known);
+    nodes = interactions(m, progression_list, 157U, inventory(m, player));
+    check(nodes[0].status == "unknown" && nodes[0].spoken == -1);
+    put32(0x800FD7D4U, game);
+    put8(0x800A4FC4U, 1U);
+    check(!inventory(m, player).known);
+    put8(0x800A4FC4U, 0U);
+    check(interactions(m, progression_list, 35U, inv)[0].reward_item == -1);
+    put8(gc + 0x32U, 5U);
+    check(interactions(m, progression_list, 157U, inv)[0].reward_item == -1);
+    put8(gc + 0x32U, 4U);
+    std::ostringstream progression_json;
+    write_progression(progression_json, m, {{guide, 90U, {20, 30, 40}}}, player,
+                      157U);
+    check(progression_json.str().find("\"red_key\":null") !=
+          std::string::npos); // Removed player cannot expose stale inventory.
+
+    const std::uint32_t target = 0x80230000U, tc = target + 0x100U,
+                        tp = target + 0x200U, door = target + 0x300U,
+                        dc = target + 0x400U;
+    put32(target + 0x68U, tc);
+    put32(target + 0x4CU, tp);
+    m.put16(target + 0x48U, 111U);
+    put32(door + 0x68U, dc);
+    m.put16(door + 0x48U, 7U);
+    put8(tc + 8U, 2U);
+    put8(dc + 0x44U, 2U);
+    put8(dc + 0x43U, 3U);
+    m.put16(dc + 0x3EU, 8U);
+    m.put16(tp + 6U, 2048U);
+    m.put16(tc + 6U, 3072U);
+    m.put16(tc, 124U);
+    std::vector<Actor> target_list{{target, 111U, {3260, 404, -2755}},
+                                   {door, 7U, {3324, 310, -2897}}};
+    nodes = interactions(m, target_list, 157U, inv);
+    check(nodes.size() == 2U && nodes[0].linked_actor == door &&
+          nodes[0].door_id == 2);
+    check(nodes[0].required_weapon == -1 && nodes[0].reset_ticks == 124 &&
+          nodes[0].target_health == 2048);
+    check(nodes[0].status == "needs_shooting" &&
+          nodes[1].status == "key_missing" && nodes[1].required_item == 1);
+    put8(tc + 0xAU, 1U);
+    inv.red_key = true;
+    nodes = interactions(m, target_list, 157U, inv);
+    check(nodes[0].status == "activated" && nodes[1].status == "key_owned");
+    m.put16(dc + 0x3EU, 0U);
+    check(interactions(m, target_list, 157U, inv)[1].status ==
+          "key_lock_cleared");
+    put8(dc + 0x44U, 3U);
+    check(interactions(m, target_list, 157U, inv)[0].linked_actor == 0U);
+    put32(door + 0x68U, 0xffffffffU);
+    check(interactions(m, target_list, 157U, inv).size() == 1U);
+    put32(chest + 0x68U, chest_control);
+    m.put16(chest + 0x48U, 98U);
+    put8(chest_control + 5U, 2U);
+    put8(chest_control + 4U, 0U);
+    nodes = interactions(m, {{chest, 98U, {10, 20, 30}}}, 237U, inv);
+    check(nodes[0].reward_weapon == 2 && nodes[0].status == "unopened");
+    put8(chest_control + 4U, 5U);
+    check(interactions(m, {{chest, 98U, {10, 20, 30}}}, 237U, inv)[0].status ==
+          "opened");
+
     put32(0x800F2CA8U, 1025U);
     rejected = false;
     try {
