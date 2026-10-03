@@ -113,4 +113,50 @@ static void navigation_pilot_tests() {
   check(start(guided,0,100,now));guided.camera_heading(false,0);
   check(!guided.active() && std::string(guided.state)=="camera_unavailable");
 
+  // Clear straight routes run; endpoints, stale/withdrawn clearance and older
+  // launchers remain at walking speed. A speed refresh cannot replace a route.
+  auto speed_command = [](NavigationPilot &v,int permit,std::int64_t stamp,float target=500) {
+    std::stringstream c;c<<"JFGNAV2 35 2 501 "<<stamp<<" 0 1 "<<permit<<"\n0 0 "<<target<<"\n";
+    return v.command(c,35,2,stamp);
+  };
+  auto strength = [](PilotInput i) {return std::hypot(float(i.x),float(i.y));};
+  NavigationPilot fast;fast.camera_heading(true,0);check(speed_command(fast,0,1000));
+  fast.tick({},true,35,2,1000);fast.tick({},true,35,2,1033);
+  check(strength(fast.observed_input())>75);
+  fast.tick({},true,35,2,1501);
+  check(strength(fast.observed_input())<=40); // Clearance expires before movement heartbeat.
+  check(speed_command(fast,0,1502));fast.tick({},true,35,2,1535);
+  check(strength(fast.observed_input())>75);
+  check(speed_command(fast,-1,1536));fast.tick({},true,35,2,1569);
+  check(strength(fast.observed_input())<=40);
+  check(!speed_command(fast,0,1570,600) && !fast.active());
+  NavigationPilot approach;approach.camera_heading(true,0);check(speed_command(approach,0,1000,100));
+  approach.tick({},true,35,2,1000);approach.tick({},true,35,2,1033);
+  check(strength(approach.observed_input())<=40);
+  NavigationPilot legacy;legacy.camera_heading(true,0);
+  std::stringstream legacy_command("JFGNAV1 35 2 9 1000 0 1 0 0 500");
+  check(legacy.command(legacy_command,35,2,1000));legacy.tick({},true,35,2,1000);legacy.tick({},true,35,2,1033);
+  check(strength(legacy.observed_input())<=40);
+  for(const char *bad:{"JFGNAV2 35 2 1 1000 0 1 1 0 0 500","JFGNAV2 35 2 1 1000 0 1 -2 0 0 500",
+                      "JFGNAV2 35 2 1 1000 0 1 nope 0 0 500"}) {
+    NavigationPilot invalid;std::stringstream c(bad);check(!invalid.command(c,35,2,1000));
+  }
+  NavigationPilot runner;PilotPoint rp{},rv{};now=1000;bool finished=false,ran=false,slowed=false;
+  float deviation=0;
+  for(unsigned frame=0;frame<2000;++frame) {
+    now+=33;auto yaw=static_cast<std::int16_t>(int(frame)*53);runner.camera_heading(true,yaw);
+    std::stringstream c;c<<"JFGNAV2 35 2 777 "<<now<<" 0 3 "<<runner.waypoint
+                         <<"\n0 0 500\n500 0 500\n500 0 0\n";
+    check(runner.command(c,35,2,now));runner.tick(rp,true,35,2,now);
+    if(!runner.active()){finished=std::string(runner.state)=="approach_complete";break;}
+    auto i=runner.observed_input();float magnitude=strength(i);ran=ran||magnitude>70;
+    if(runner.waypoint==0 && rp.z>400 && magnitude<=40)slowed=true;
+    float angle=float(yaw)*6.283185307179586f/65536;
+    rv.x=rv.x*.9f+(-std::cos(angle)*i.x-std::sin(angle)*i.y)*.005f;
+    rv.z=rv.z*.9f+(-std::sin(angle)*i.x+std::cos(angle)*i.y)*.005f;
+    rp.x+=rv.x;rp.z+=rv.z;
+    deviation=std::max(deviation,runner.waypoint==0?std::abs(rp.x):runner.waypoint==1?std::abs(rp.z-500):std::abs(rp.x-500));
+  }
+  check(finished && ran && slowed && deviation<20);
+
 }

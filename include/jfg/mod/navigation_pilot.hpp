@@ -31,6 +31,8 @@ class NavigationPilot {
   unsigned frame_ = 0, phase_frame_ = 0, stalled_ = 0, stable_ = 0, flight_ = 0;
   float best_ = 1e30f;
   PilotInput input_{};
+  int running_waypoint_ = -1;
+  std::int64_t running_stamp_ = 0;
   static float distance(PilotPoint a, PilotPoint b) {
     return std::hypot(a.x - b.x, a.z - b.z);
   }
@@ -76,13 +78,17 @@ public:
     std::uint32_t room;
     std::uint64_t gen, nonce;
     std::int64_t stamp;
-    int jumps, count;
+    int jumps, count, running = -1;
     if (!(in >> magic >> room >> gen >> nonce >> stamp >> jumps >> count) ||
-        magic != "JFGNAV1" || room != level || gen != generation ||
+        (magic != "JFGNAV1" && magic != "JFGNAV2") || room != level || gen != generation ||
         nonce == 0 || stamp < 0 || now < stamp || now - stamp > 1500 ||
         (jumps != 0 && jumps != 1) || count < 0 || count > 256) {
       if (active_)
         stop("invalid_command");
+      return false;
+    }
+    if (magic == "JFGNAV2" && (!(in >> running) || running < -1 || running >= count)) {
+      if (active_) stop("invalid_command");
       return false;
     }
     std::vector<PilotPoint> points;
@@ -111,8 +117,17 @@ public:
     }
     heartbeat_ = now;
     // A heartbeat may never re-arm after manual takeover or a failed run.
-    if (nonce == nonce_)
+    if (nonce == nonce_) {
+      // A clearance heartbeat can change speed permission, never the route.
+      if (points.size() != route_.size()) { stop("invalid_route"); return false; }
+      for (std::size_t i=0;i<points.size();++i)
+        if (points[i].x != route_[i].x || points[i].y != route_[i].y || points[i].z != route_[i].z) {
+          stop("invalid_route"); return false;
+        }
+      running_waypoint_ = running; running_stamp_ = stamp;
       return true;
+    }
+    running_waypoint_ = running; running_stamp_ = stamp;
     reuse_basis_ = camera_known_ || (basis_valid_ && room == level_ && gen == generation_ &&
                    now >= basis_time_ && now - basis_time_ <= 8000);
     nonce_ = nonce;
@@ -270,9 +285,27 @@ public:
                dz = target.z - p.z - (camera_known_ ? velocity_.z * 8 : 0);
     auto x = (dx * basis_y_.z - dz * basis_y_.x) / det,
          y = (dz * basis_x_.x - dx * basis_x_.z) / det;
+    // Running requires a fresh wider-corridor check for this exact segment.
+    // Brake early for every waypoint, including doors/endpoints, and walk while
+    // correcting lateral drift or changing direction. Missing hints stay slow.
+    const auto speed = std::hypot(velocity_.x, velocity_.z);
+    const auto segment_start = waypoint ? route_[waypoint-1] : origin_;
+    const auto segment = difference(target, segment_start);
+    const auto cross_track = std::abs(segment.x*(p.z-segment_start.z) -
+                                     segment.z*(p.x-segment_start.x)) /
+                             std::max(1.0f,std::hypot(segment.x,segment.z));
+    const auto alignment = speed < .5f ? 1.0f :
+        ((target.x-p.x)*velocity_.x + (target.z-p.z)*velocity_.z) / std::max(1.0f,d*speed);
+    const bool may_run = camera_known_ && running_waypoint_ == int(waypoint) &&
+        now >= running_stamp_ && now-running_stamp_ <= 500 && flight_ == 0 &&
+        std::abs(delta.y) < 1 && std::abs(target.y-p.y) < 24 &&
+        cross_track < 12 && alignment > .94f;
+    const auto braking_distance = std::max(120.0f,speed*18.0f);
+    const auto run_blend = may_run ? std::clamp((d-braking_distance)/140.0f,0.0f,1.0f) : 0.0f;
+    const auto speed_cap = 40.0f + 40.0f*run_blend;
     const auto length = std::max(std::hypot(x, y), 1.0f),
                power = camera_known_ ? (std::hypot(dx,dz) < 4 ? 0.0f :
-                   std::clamp(18.0f + std::hypot(dx,dz)*.22f,18.0f,40.0f)) :
+                   std::clamp(18.0f + std::hypot(dx,dz)*.22f,18.0f,speed_cap)) :
                    d < 18 ? 24.0f : d < 80 ? 32.0f : 50.0f;
     input_ = {int(std::clamp(x / length * power, -80.0f, 80.0f)),
               int(std::clamp(y / length * power, -80.0f, 80.0f)), 0};

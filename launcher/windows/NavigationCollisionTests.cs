@@ -32,7 +32,23 @@ namespace JfgLauncher {
             foreach(Control c in parent.Controls){if(c is Button && c.Text==label)return (Button)c;Button b=Button(c,label);if(b!=null)return b;}return null;
         }
         internal static int Run(string root) {
-            checks=0;MapSnapshot map=Fixture();Put(map,0,81,true);NavigationCollision.Require(map.Live);
+            checks=0;
+            MapSnapshot speedMap=Fixture();
+            NavigationRoute speedRoute=NavigationRoute.Plan(speedMap,new float[]{500,0,0});
+            Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==0,"open straight segment cannot run");
+            Put(speedMap,0,81,true);
+            speedMap.Live.collision.models[0].lower[2]=50;speedMap.Live.collision.models[0].upper[2]=100;
+            Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==-1,"running allowed close to model");
+            speedMap.Live.collision.models[0].lower[1]=120;speedMap.Live.collision.models[0].upper[1]=180;
+            Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==0,"upper story incorrectly prevents running");
+            speedMap.Live.timestamp_ms=NavigationExplorer.Clock-5000;
+            Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==-1,"stale map enables running");
+            speedMap=Fixture();speedMap.Live.scripted_camera=true;
+            Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==-1,"scripted camera enables running");
+            speedMap=Fixture();
+            foreach(float[] vertex in speedMap.Mesh.vertices)vertex[2]=vertex[2]<0?-30:30;
+            Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==-1,"narrow floor enables running");
+            MapSnapshot map=Fixture();Put(map,0,81,true);NavigationCollision.Require(map.Live);
             HeightPoint start=new HeightPoint(0,0,0),end=new HeightPoint(500,0,0);
             Check(NavigationCollision.Blocking(map.Live,start,end)!=null,"body moved through obstacle");
             Check(NavigationCollision.Blocking(map.Live,new HeightPoint(0,0,59),new HeightPoint(500,0,59))!=null,"player radius ignored");

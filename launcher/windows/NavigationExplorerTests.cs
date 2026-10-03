@@ -241,7 +241,7 @@ namespace JfgLauncher {
                 Check(explore!=null && stop!=null,"explorer controls missing");
                 Check(FindButton(window,"Retry room exits")!=null,"explicit room retry control missing");
                 explore.PerformClick();string[] command=Command(ui);
-                Check(command[0]=="JFGNAV1" && command[1]=="90" && Int32.Parse(command[6])>0,"Explore button did not dispatch route");
+                Check(command[0]=="JFGNAV2" && command[1]=="90" && Int32.Parse(command[6])>0,"Explore button did not dispatch route");
                 uiMap.Live.navigation_ai=new MapAi {nonce=Int64.Parse(command[3]),active=false,state="manual_takeover"};WriteSnapshot(ui,uiMap);window.RefreshMap();
                 command=Command(ui);Check(command[6]=="0","native manual takeover did not send stop");
                 string stopped=File.ReadAllText(Path.Combine(ui,"ai-command.txt"));window.RefreshMap();

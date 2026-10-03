@@ -341,3 +341,9 @@ This validates the reported forward-door case. It does not establish full-stage
 or campaign completion, all camera modes, NPC transactions, exact collision
 capsules, narrow-gap traversal, jumping, diving or parkour. ROM-derived traces,
 map geometry, captures and the paired native runtime remain private.
+
+### Adaptive speed validation (2026-10-03)
+
+The launcher passes 304 checks plus 10 setup checks. Windows native and Linux ASan/UBSan navigation tests pass. Added checks cover running on an open straight, slowing near endpoints, expired and withdrawn speed permission, unchanged-route heartbeats, legacy commands, narrow floor strips, nearby models and objects on another story. A rotating-camera simulation with inertia runs a three-segment route, slows before its corners and stays within 20 world units of the segments.
+
+A fresh muted native trial observed 10 running samples above 70 stick units and 482 walking samples at or below 40. Maximum observed input was 79.85. Observed room sequence: [27, 4294967295, 236]. The game and map probe exited cleanly; original navigation saves were hash-checked unchanged. The trial used separate copies. The forward-door transition from room 27 into 236 was observed again. This validates adaptive speed in the captured case, not full-campaign routing or every obstacle. Private evidence is retained in adaptive-speed-evidence; ROM-derived traces and packaged runtimes remain private.

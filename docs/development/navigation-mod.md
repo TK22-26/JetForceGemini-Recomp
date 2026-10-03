@@ -501,3 +501,30 @@ The local map export retains bounded route-stop events plus the most recent
 stopped snapshot and route for diagnosis. Live snapshots include read-only camera
 and steering observations. These local ROM-derived exports remain outside the
 public release and the sanitized support ZIP.
+
+
+### Adaptive walking and running (2026-10-03)
+
+The pilot now permits up to 80 units of stick input on a current segment with
+fresh additional clearance. Each live check verifies an 80-unit radius against
+enabled model bounds and terrain/floor probes at up to 44 units from the route
+center, retaining the original body probes. Height-overlapping models matter;
+an upper-story object does not automatically block running below it. Segments
+shorter than 180 units, nearby obstacles, narrow floor strips, suspended controls
+and stale geometry retain walking speed. These are conservative prototype
+envelopes, not exact character collision dimensions.
+
+The pilot blends speed back to its existing walking cap before every waypoint,
+starting at least 120 units away and increasing the braking distance with measured
+velocity. Lateral corrections, changes in direction, uneven vertical movement
+and jump assist also retain walking speed. Sharp-corner braking, door waits,
+manual cancellation and stale-map stopping remain in effect.
+
+Paired builds use JFGNAV2: the existing header gains a final running-waypoint
+index (-1 means walking only); coordinates retain their original format.
+Only the currently checked segment receives permission. The launcher withdraws
+permission once its snapshot is over 500 ms old; the native permission itself
+expires after 500 ms without a qualifying command refresh. Repeated commands
+may refresh speed permission but cannot replace coordinates under the same nonce.
+JFGNAV1 commands remain supported by the new runtime with walking limits.
+Use the paired launcher/runtime when testing this change.

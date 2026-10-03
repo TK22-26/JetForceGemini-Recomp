@@ -280,7 +280,7 @@ namespace JfgLauncher
                 NavigationRoute route = NavigationRoute.Plan(routeSnapshot,new float[]{180,0,180});
                 Check(route.Points.Count==1 && route.Points[0].X==180 && route.Points[0].Z==180,"open floor route was not straightened");
                 route.Send(directory,123,false,false);
-                Check(File.ReadAllText(Path.Combine(directory,"ai-command.txt")).StartsWith("JFGNAV1 35 2 123 "),"route command room identity missing");
+                Check(File.ReadAllText(Path.Combine(directory,"ai-command.txt")).StartsWith("JFGNAV2 35 2 123 "),"route command room identity missing");
                 route.Send(directory,124,false,true);
                 Check(File.ReadAllLines(Path.Combine(directory,"ai-command.txt")).Length==1,"stop command retained waypoints");
                 Reject(delegate { NavigationRoute.Plan(routeSnapshot,new float[]{500,0,500}); },"unmapped exit accepted");
