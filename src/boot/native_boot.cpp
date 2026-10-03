@@ -1,5 +1,7 @@
 #include "funcs.h"
 #include "jfg/boot/hle.hpp"
+#include "jfg/boot/sync_print_sink.hpp"
+#include "jfg/boot/sound_queue_recovery.hpp"
 #include "jfg/boot/reset_handoff.hpp"
 #include "jfg/boot/ipl_handoff.hpp"
 #include "jfg/boot/gameplay_trace.hpp"
@@ -1395,6 +1397,8 @@ struct State {
   std::uint64_t generated_calls = 0U;
   std::uint64_t mapped_calls = 0U;
   std::uint64_t dispatch_calls = 0U;
+  std::uint64_t sync_print_sink_calls = 0U;
+  std::uint64_t sound_queue_recoveries = 0U;
   std::uint64_t phase9_player_control_calls = 0U;
   std::uint64_t phase9_weapon_update_calls = 0U;
   std::uint64_t phase9_weapon_fire_held_updates = 0U;
@@ -2448,6 +2452,8 @@ void write_private_progress(State &state,
          << ",\"last_dispatch\":\"0x" << std::hex << last_dispatch
          << std::dec << '"'
          << ",\"generated_calls\":" << state.generated_calls
+         << ",\"sync_print_sink_calls\":" << state.sync_print_sink_calls
+         << ",\"sound_queue_recoveries\":" << state.sound_queue_recoveries
          << ",\"mapped_calls\":" << state.mapped_calls
          << ",\"interrupt_timeslices\":" << state.interrupt_timeslices
          << ",\"receive_successes\":" << state.receive_successes
@@ -5167,6 +5173,14 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   if (state.vi_retraces >= 5683U && state.dispatch_calls % 1024U == 0U)
     write_private_progress(state, "dispatch");
 #endif
+  if (target == jfg::boot::kSyncPrintSink) {
+    hle::GuestMemory memory({rdram, kRdramSize},
+                           hle::GuestMemory::Layout::native_word_big_endian);
+    if (!jfg::boot::invoke_sync_print_sink(memory, *context))
+      fail_closed_dispatch(state, "guest-leaf", "sync-print-sink-state", target);
+    ++state.sync_print_sink_calls;
+    return 1;
+  }
   const auto mapping = std::lower_bound(
       std::begin(kMappings), std::end(kMappings), target,
       [](const Mapping &candidate, const std::uint32_t address) {
@@ -5385,7 +5399,15 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       }
 #endif
       [[maybe_unused]] const auto mod_actor_argument=static_cast<std::uint32_t>(context->r4);
+      const auto sound_event_argument = static_cast<std::uint32_t>(context->r5);
       generated(rdram, context);
+      if (target == jfg::boot::kSoundNextEvent) {
+        hle::GuestMemory memory({rdram, kRdramSize},
+                               hle::GuestMemory::Layout::native_word_big_endian);
+        if (jfg::boot::recover_empty_sound_queue(
+                memory, *context, mod_actor_argument, sound_event_argument))
+          ++state.sound_queue_recoveries;
+      }
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
       if (state.navigation_mod.enabled && target==0x80032A48U) {
         jfg::mod::Memory memory({rdram,kRdramSize});

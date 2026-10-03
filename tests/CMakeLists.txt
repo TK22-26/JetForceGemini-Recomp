@@ -506,3 +506,15 @@ target_include_directories(jfg_master_volume_tests PRIVATE "${PROJECT_SOURCE_DIR
 target_compile_features(jfg_master_volume_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_master_volume_tests)
 add_test(NAME jfg.master_volume COMMAND jfg_master_volume_tests)
+
+add_executable(jfg_sync_print_sink_tests sync_print_sink_tests.cpp)
+target_link_libraries(jfg_sync_print_sink_tests PRIVATE jfg_boot)
+target_compile_features(jfg_sync_print_sink_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_sync_print_sink_tests)
+add_test(NAME jfg.sync_print_sink COMMAND jfg_sync_print_sink_tests)
+
+add_executable(jfg_sound_queue_recovery_tests sound_queue_recovery_tests.cpp)
+target_link_libraries(jfg_sound_queue_recovery_tests PRIVATE jfg_boot)
+target_compile_features(jfg_sound_queue_recovery_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_sound_queue_recovery_tests)
+add_test(NAME jfg.sound_queue_recovery COMMAND jfg_sound_queue_recovery_tests)

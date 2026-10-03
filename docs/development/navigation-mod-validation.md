@@ -356,4 +356,33 @@ A fresh muted native run crossed room 27 into 236 again. Room-27 active navigati
 
 This establishes the requested normal-travel input average in the captured case, not a universal game-speed guarantee. Mandatory jumping, crawl collision dimensions, SS Anubis traversal and whole-campaign routing remain unvalidated; the measurement and implementation plan is recorded in navigation-traversal-plan.md.
 
-The first longer continuous-speed trial reached room 54 after rooms 27 and 236, then exited with native code 4: unresolved-dma-00beb010-80385700-00000290 at guest target 0x8009a710. The cause and regression attribution remain unresolved. Its failed result and traces are preserved; the clean comparison above deliberately stops after the first door and does not claim the later crash is fixed.
+The first longer continuous-speed trial reached room 54 after rooms 27 and 236, then exited with native code 4: unresolved-dma-00beb010-80385700-00000290 at guest target 0x8009a710. The speed comparison above stopped after the first door. The original failed result and traces remain preserved; the later crash was subsequently diagnosed and corrected below.
+
+### Room 54 sound-queue crash (2026-10-03)
+
+The native exit at 0x8009A710 was a missing indirect osSyncPrintf output callback.
+The unresolved-dma suffix identified the last PI transfer, not a proven DMA
+failure. Restoring the callback exposed a repeatable hang at VI 9561: the
+200-entry sound pool had filled, dropping the periodic event at VI 9555, and
+the sound player looped on NONE events with zero delay after its queue drained.
+The recorded drop counter advances from 210 to 211 at the lost periodic post.
+
+The host supports the missing output callback after checking its loaded
+instruction identity and argument-home range. A separate recovery qualifies
+the US sound player, an empty queue, the original NONE result, prior overflow
+and a valid interval. It delivers one periodic event with that positive interval;
+the original callback resumes scheduling on its next turn. Queue links, event
+order, count, overflow count and high-water mark are unchanged. The unused
+event payload is cleared. Other queues and malformed states remain untouched.
+Private progress includes counters for the output callback and clock recoveries.
+Temporary event-by-event diagnostic instrumentation was removed.
+
+Windows Release regression tests pass in both guest-memory layouts. Coverage
+includes callback ABI and stack bounds, periodic recovery after overflow,
+unchanged queue bytes, preserving normal events, rejecting another queue/output,
+invalid player/code/interval/free-list states and idempotent rejection.
+The existing continuous-running navigation tests also pass.
+
+The exact recorded failing input was replayed with copied saves, first without presentation and then with the native game window rendering normally. Both exited with code 0, reached room 54 and VI 13980, and required exactly one clock recovery. The rendered run presented 2205 more frames and decoded 2205 more audio tasks after recovery; no warning callback was needed. Both runs were muted and original navigation saves were hash-checked unchanged. Private evidence is retained under room54-hang-evidence. The initial rejected combination of interactive and probe CLI options is retained separately and is not counted as a successful trial.
+
+This fixes the observed dispatch crash and subsequent empty-queue hang. It does not eliminate sound-pool overload or recover sound events already dropped by the guest. The source of the event burst and any audible effect remain unvalidated. Jumping, crawling, SS Anubis traversal and campaign completion remain separate work. ROM-derived replays and the paired local runtime remain private.
