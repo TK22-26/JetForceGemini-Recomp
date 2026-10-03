@@ -111,7 +111,13 @@ int main(int argc, char **argv) {
     check(!mod.clear_enemy(m, enemy) && !mod.full_health(m, player) &&
           m.u16(ep + 6U) == 200U);
     put8(0x800A4FC4U, 0U);
+    put8(0x800A329CU, 1U); put8(0x800FD7BDU, 1U);
+    check(transition_confirmation(m));
+    put8(0x800FD7BDU, 0U); check(!transition_confirmation(m));
+    put8(0x800A329CU, 0U);
+    mod.manual_inputs = 7;
     mod.transition();
+    check(mod.manual_inputs == 7);
     check(!mod.clear_enemy(m, enemy) && m.u16(ep + 6U) == 200U);
     check(mod.full_health(m, player));
     for (const auto gate :
@@ -375,6 +381,25 @@ int main(int argc, char **argv) {
       rejected = true;
     }
     check(rejected);
+  }
+  {
+    NavigationConfirmation confirm;
+    auto send = [&](const char *text, bool prompt=true, bool manual=false, bool replay=false) {
+      std::istringstream command(text);return confirm.command(command,prompt,manual,replay,27,13,7,1000);
+    };
+    check(send("JFGCONFIRM1 27 13 1 1000 7"));
+    check(!send("JFGCONFIRM1 27 13 1 1000 7"));
+    check(!send("JFGCONFIRM1 27 13 2 1000 7",false));
+    check(!send("JFGCONFIRM1 27 13 2 1000 7"));
+    check(!send("JFGCONFIRM1 27 13 3 1000 7",true,true));
+    check(!send("JFGCONFIRM1 27 13 4 1000 7",true,false,true));
+    check(!send("JFGCONFIRM1 28 13 5 1000 7"));
+    check(!send("JFGCONFIRM1 27 12 5 1000 7"));
+    check(!send("JFGCONFIRM1 27 13 5 -1 7"));
+    check(!send("JFGCONFIRM1 27 13 5 1001 7"));
+    check(!send("JFGCONFIRM1 27 13 5 1000 6"));
+    check(!send("JFGCONFIRM1 27 13 5 1000 7 extra"));
+    check(confirm.count==1);
   }
   std::cout << "navigation mod tests passed\n";
 }

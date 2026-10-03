@@ -1853,10 +1853,30 @@ void sample_live_controller(State &state) noexcept {
     }
   }
   if (state.navigation_mod.enabled) {
-    const bool manual = buttons != 0U || stick_x != 0 || stick_y != 0 || (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+    const bool escape = host_key_down(state, VK_ESCAPE) || (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+    const bool manual = buttons != 0U || stick_x != 0 || stick_y != 0 || escape;
+    // Retain manual cancellation across room resets and between map exports.
+    if (manual) ++state.navigation_mod.manual_inputs;
+    if (escape) state.navigation_mod.pilot.stop("manual_takeover");
     const auto ai = state.navigation_mod.pilot.sample(manual, state.input_replay_loaded, true);
     if (!manual && !state.input_replay_loaded && state.navigation_mod.pilot.active()) {
       buttons = ai.buttons; stick_x = ai.x; stick_y = ai.y;
+    }
+    if (state.controller_samples % 6U == 0U) {
+      const auto path = state.navigation_output / L"ai-confirm.txt";
+      std::ifstream command(path, std::ios::binary | std::ios::ate);
+      if (command && command.tellg() <= 256) {
+        command.seekg(0);
+        jfg::mod::Memory memory({state.rdram, kRdramSize});
+        const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        if (state.navigation_mod.confirmation.command(command,
+              jfg::mod::transition_confirmation(memory), manual, state.input_replay_loaded,
+              memory.u32(0x800FB114U), state.navigation_mod.generation,
+              state.navigation_mod.manual_inputs, now)) {
+          buttons = kButtonA; stick_x = stick_y = 0;
+        }
+      }
     }
   }
   if (connected != state.latched_controller_connected) {
@@ -1896,7 +1916,7 @@ void sample_live_controller(State &state) noexcept {
       static_cast<std::uint8_t>(stick_y)});
   if (buttons != 0U || stick_x != 0 || stick_y != 0)
     ++state.non_neutral_controller_samples;
-  if (!state.input_replay_loaded && host_key_down(state, VK_ESCAPE))
+  if (!state.input_replay_loaded && !state.navigation_mod.enabled && host_key_down(state, VK_ESCAPE))
     state.exit_requested = true;
   state.host_key_presses.fill(false);
 }

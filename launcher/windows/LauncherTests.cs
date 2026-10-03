@@ -278,7 +278,7 @@ namespace JfgLauncher
                     triangles = new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{1,2,3},normal=new float[]{0,1,0}}} };
                 MapSnapshot routeSnapshot = new MapSnapshot {Mesh=routeMesh,Live=new MapLive {level=35,generation=2,player=new MapPlayer {position=new float[]{20,0,20}}}};
                 NavigationRoute route = NavigationRoute.Plan(routeSnapshot,new float[]{180,0,180});
-                Check(route.Points.Count==2 && route.Points[0].X==100 && route.Points[0].Z==100,"route does not cross shared portal");
+                Check(route.Points.Count==1 && route.Points[0].X==180 && route.Points[0].Z==180,"open floor route was not straightened");
                 route.Send(directory,123,false,false);
                 Check(File.ReadAllText(Path.Combine(directory,"ai-command.txt")).StartsWith("JFGNAV1 35 2 123 "),"route command room identity missing");
                 route.Send(directory,124,false,true);
@@ -394,6 +394,7 @@ namespace JfgLauncher
                     Check(window.Text == "JFG Launcher Preview", "UI construction failed");
                     window.Close();
                 }
+                checks += NavigationExplorerTests.Run(directory);
                 Console.WriteLine("Launcher checks passed: " + checks);
                 return 0;
             }

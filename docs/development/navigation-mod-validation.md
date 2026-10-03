@@ -195,3 +195,40 @@ matching. Accounting for collinear split edges and steps up to 24 units produces
 two candidate exit approaches (19 and three waypoints); two other exits remain
 disconnected and are rejected. Small-step and excessive-step fixtures cover the
 added connections. This demonstrates geometry planning, not live traversal.
+
+
+## Automatic exit exploration (2026-10-03)
+
+The launcher passes 192 checks, including circular A/B/C routes, directed
+backtracking to an unexplored frontier, arrival-door deferral, stable exit
+identities after actor reallocation, blocked-route memory and progress retries.
+Tests cover manual cancellation across loading boundaries, stale/rewound maps,
+missing controller acknowledgements, same-room reloads, partially loaded rooms,
+one-shot Area Cleared requests and off-by-default history restoration.
+Real WinForms controls are exercised against serialized native acknowledgements
+and command files, including explicit restart, Stop AI and window close.
+
+Straightening fixtures cover open ground, height mismatches, a vertical wall
+and a two-unit gap. The recorded room-35 map still has two candidate routes and
+two disconnected exits. The routes reduce from 22/five waypoints (including
+doorway crossing) to three/two. This validates geometric planning, not capsule
+clearance or actual gate availability. Ten setup checks and ten Python map-reader
+checks pass. Windows native and Linux ASan/UBSan tests pass, including prompt
+gating, request scope/expiry/replay exclusion and manual-counter preservation.
+
+Muted live trials use independent copies of the navigation-mod saves and verify
+that the originals are unchanged. The initial trial moved to an Area Cleared
+screen and exposed that generation invalidation precedes the actual room load;
+that false same-room confirmation has been fixed and covered by a regression
+test. A second trial walked through the room and stopped against rocky geometry,
+then refused to repeat its failed routes. It did not validate a safe route
+through the entire map. Height data alone does not prove clearance.
+
+The final live trial observed rooms 27, with 0 confirmed
+directed connections and 0 Area Cleared acknowledgements. Its last state was:
+`Explorer stopped: no reachable unexplored exits remain. Check blocked routes or progress manually.`.
+This remains experimental: the initial calibration can move away from the
+destination, steering/camera behavior needs further refinement, and parkour,
+scripted gates, NPC trades and full campaign progression are not validated.
+The production guard remained enabled; the owner-approved 60-minute extension
+preserved all prior accounting and investigation identity.

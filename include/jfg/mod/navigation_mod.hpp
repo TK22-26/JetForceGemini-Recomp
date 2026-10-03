@@ -4,6 +4,7 @@
 // embedded.
 #include "jfg/mod/npc_rewards.hpp"
 #include "jfg/mod/navigation_pilot.hpp"
+#include "jfg/mod/navigation_confirmation.hpp"
 #include <array>
 #include <bit>
 #include <chrono>
@@ -822,14 +823,21 @@ inline bool gameplay_active(const Memory &m, std::uint32_t player) {
          m.u32(0x801045B8U) == 0U && m.u32(0x800F6DBCU) == 0U;
 }
 
+inline bool transition_confirmation(const Memory &m) {
+  // Supported US ROM: mainChangeLevel sets this prompt flag and pause mode;
+  // its update routine consumes A/Start before beginning the level load.
+  return m.u8(0x800A329CU) == 1U && m.u8(0x800FD7BDU) == 1U;
+}
+
 class NavigationMod {
 public:
   NpcRewardCatalog npc_rewards;
   NavigationPilot pilot;
+  NavigationConfirmation confirmation;
   bool enabled = false;
   std::uint32_t player = 0, last_track = 0, last_level = UINT32_MAX;
   std::uint64_t updates = 0, generation = 1, cleared = 0, health_restores = 0,
-                invalid = 0;
+                invalid = 0, manual_inputs = 0;
   std::uint32_t first_clear_level = UINT32_MAX;
   std::uint64_t first_clear_update = 0;
   void transition() noexcept {
@@ -916,6 +924,7 @@ public:
                std::chrono::system_clock::now().time_since_epoch())
                .count()
         << ",\"update\":" << updates
+        << ",\"transition_confirm\":" << (transition_confirmation(m) ? "true" : "false")
         << ",\"mesh_ready\":" << (mesh_ready ? "true" : "false")
         << ",\"clearing_active\":"
         << (player != 0U && gameplay_active(m, player) ? "true" : "false")
@@ -970,7 +979,7 @@ public:
     out << ",\"progression\":";
     write_progression(out, m, list, player, level, &npc_rewards);
     out << ",\"navigation_ai\":{\"state\":\"" << pilot.state << "\",\"active\":" << (pilot.active() ? "true" : "false")
-        << ",\"nonce\":" << pilot.nonce() << ",\"waypoint\":" << pilot.waypoint << ",\"count\":" << pilot.count() << ",\"jump_attempts\":" << pilot.jump_attempts << "}";
+        << ",\"confirmations\":" << confirmation.count << ",\"manual_inputs\":" << manual_inputs << ",\"nonce\":" << pilot.nonce() << ",\"waypoint\":" << pilot.waypoint << ",\"count\":" << pilot.count() << ",\"jump_attempts\":" << pilot.jump_attempts << "}";
     out << ",\"actors\":[";
     first = true;
     for (const auto &a : list) {

@@ -43,6 +43,14 @@ namespace JfgLauncher {
         internal static NavigationRoute Plan(MapSnapshot snapshot,float[] destination) {
             if(snapshot==null||snapshot.Live.player==null)throw new InvalidDataException("Enter a room before planning.");
             List<HeightSurface> floors=new MapLayers(snapshot.Mesh).Floors;
+            // The display includes steep upward surfaces; walking uses a more
+            // conservative 45-degree limit until character-specific limits are known.
+            floors.RemoveAll(delegate(HeightSurface floor) {
+                HeightPoint a=floor.Points[0],b=floor.Points[1],c=floor.Points[2];
+                HeightPoint normal=Cross(Subtract(b,a),Subtract(c,a));
+                double magnitude=Math.Sqrt(Dot(normal,normal));
+                return magnitude<.0001 || Math.Abs(normal.Y)/magnitude<.70710678;
+            });
             if(floors.Count==0||floors.Count>2000)throw new InvalidDataException("Unsupported surface count for route planning.");
             HeightPoint startPoint,endPoint;
             int start=Floor(floors,new HeightPoint(snapshot.Live.player.position),true,out startPoint);
@@ -98,7 +106,114 @@ namespace JfgLauncher {
             NavigationRoute route=new NavigationRoute {Level=snapshot.Live.level,Generation=snapshot.Live.generation};
             List<HeightPoint> reverse=new List<HeightPoint>();
             for(int at=goal;at!=start;at=previous[at]){reverse.Add(portals[at]);if(reverse.Count>254)throw new InvalidDataException("Route exceeds prototype limit.");}
-            reverse.Reverse();route.Points.AddRange(reverse);route.Points.Add(endPoint);return route;
+            reverse.Reverse();route.Points.AddRange(reverse);route.Points.Add(endPoint);
+            Straighten(route,snapshot.Mesh,floors,startPoint);return route;
+        }
+        private sealed class Span { internal float Low,High; }
+        private static bool Clip(float value,float delta,ref float low,ref float high) {
+            if(Math.Abs(delta)<.000001f)return value>=-.0001f;
+            float crossing=-value/delta;
+            if(delta>0)low=Math.Max(low,crossing);else high=Math.Min(high,crossing);
+            return low<=high+.00001f;
+        }
+        private static bool Supported(List<HeightSurface> floors,HeightPoint from,HeightPoint to) {
+            List<Span> spans=new List<Span>();
+            foreach(HeightSurface floor in floors) {
+                HeightPoint a=floor.Points[0],b=floor.Points[1],c=floor.Points[2];
+                float ux=b.X-a.X,uy=b.Y-a.Y,uz=b.Z-a.Z,vx=c.X-a.X,vy=c.Y-a.Y,vz=c.Z-a.Z;
+                float nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;
+                if(Math.Abs(ny)<.0001f)continue;
+                float winding=(ux*vz-uz*vx)>0?1:-1,low=0,high=1;
+                bool inside=true;
+                for(int i=0;i<3;i++) {
+                    HeightPoint p=floor.Points[i],q=floor.Points[(i+1)%3];float ex=q.X-p.X,ez=q.Z-p.Z;
+                    if(!Clip(winding*(ex*(from.Z-p.Z)-ez*(from.X-p.X)),winding*(ex*(to.Z-from.Z)-ez*(to.X-from.X)),ref low,ref high)){inside=false;break;}
+                }
+                if(!inside)continue;
+                float fromFloor=a.Y-(nx*(from.X-a.X)+nz*(from.Z-a.Z))/ny;
+                float toFloor=a.Y-(nx*(to.X-a.X)+nz*(to.Z-a.Z))/ny;
+                float difference=from.Y-fromFloor,delta=(to.Y-toFloor)-difference;
+                if(!Clip(2-difference,-delta,ref low,ref high)||!Clip(2+difference,delta,ref low,ref high))continue;
+                if(low<=high)spans.Add(new Span {Low=low,High=high});
+            }
+            spans.Sort(delegate(Span a,Span b){return a.Low.CompareTo(b.Low);});float covered=0;
+            foreach(Span span in spans){if(span.Low>covered+.00001f)return false;covered=Math.Max(covered,span.High);if(covered>=.99999f)return true;}
+            return false;
+        }
+        private static HeightPoint Subtract(HeightPoint a,HeightPoint b){return new HeightPoint(a.X-b.X,a.Y-b.Y,a.Z-b.Z);}
+        private static HeightPoint Cross(HeightPoint a,HeightPoint b){return new HeightPoint(a.Y*b.Z-a.Z*b.Y,a.Z*b.X-a.X*b.Z,a.X*b.Y-a.Y*b.X);}
+        private static float Dot(HeightPoint a,HeightPoint b){return a.X*b.X+a.Y*b.Y+a.Z*b.Z;}
+        private static bool Obstructed(MapGeometry mesh,HeightPoint from,HeightPoint to) {
+            HeightPoint direction=Subtract(to,from);
+            foreach(MapFace face in mesh.triangles) {
+                HeightPoint a=new HeightPoint(mesh.vertices[face.v[0]]),edge1=Subtract(new HeightPoint(mesh.vertices[face.v[1]]),a),edge2=Subtract(new HeightPoint(mesh.vertices[face.v[2]]),a);
+                HeightPoint h=Cross(direction,edge2);float determinant=Dot(edge1,h);if(Math.Abs(determinant)<.00001f)continue;
+                float inverse=1/determinant;HeightPoint s=Subtract(from,a);float u=inverse*Dot(s,h);if(u<0||u>1)continue;
+                HeightPoint q=Cross(s,edge1);float v=inverse*Dot(direction,q);if(v<0||u+v>1)continue;
+                float t=inverse*Dot(edge2,q);if(t>.0001f && t<.9999f)return true;
+            }
+            return false;
+        }
+        internal static bool StraightWalk(MapGeometry mesh,List<HeightSurface> floors,HeightPoint from,HeightPoint to) {
+            float dx=to.X-from.X,dz=to.Z-from.Z,length=(float)Math.Sqrt(dx*dx+dz*dz);
+            if(length<.01f||length>600||Math.Abs(to.Y-from.Y)>80)return false;
+            // Continuous surface coverage prevents shortcuts across even thin gaps
+            // or another story. Three offset probes keep a 40-unit floor strip.
+            foreach(float offset in new float[]{-20,0,20}) {
+                float ox=-dz/length*offset,oz=dx/length*offset;
+                HeightPoint a=new HeightPoint(from.X+ox,from.Y,from.Z+oz),b=new HeightPoint(to.X+ox,to.Y,to.Z+oz);
+                if(!Supported(floors,a,b))return false;
+                foreach(float height in new float[]{4,40,80})
+                    if(Obstructed(mesh,new HeightPoint(a.X,a.Y+height,a.Z),new HeightPoint(b.X,b.Y+height,b.Z)))return false;
+                for(float t=0;t<=1;t+=Math.Min(1,24/length)) {
+                    HeightPoint p=HeightPoint.Lerp(a,b,t);
+                    if(Obstructed(mesh,new HeightPoint(p.X,p.Y+4,p.Z),new HeightPoint(p.X,p.Y+80,p.Z)))return false;
+                }
+            }
+            return true;
+        }
+        internal static void Straighten(NavigationRoute route,MapGeometry mesh,List<HeightSurface> floors,HeightPoint start) {
+            List<HeightPoint> original=new List<HeightPoint>(route.Points);route.Points.Clear();int at=-1;
+            while(at<original.Count-1) {
+                int next=at+1;
+                for(int end=original.Count-1;end>at+1;--end)
+                    if(StraightWalk(mesh,floors,start,original[end])){next=end;break;}
+                start=original[next];route.Points.Add(start);at=next;
+            }
+        }
+
+        internal static NavigationRoute PlanExit(MapSnapshot snapshot,MapMarker exit) {
+            NavigationRoute route=Plan(snapshot,exit.position);
+            HeightPoint end=route.Points[route.Points.Count-1];
+            HeightPoint from=route.Points.Count>1?route.Points[route.Points.Count-2]:new HeightPoint(snapshot.Live.player.position);
+            float dx=end.X-from.X,dz=end.Z-from.Z,length=(float)Math.Sqrt(dx*dx+dz*dz);
+            if(length<1)return route;
+            // Continue a short distance through the doorway only on connected floor.
+            // No radius/condition field is interpreted as proof that the gate is open.
+            float nx=dx/length,nz=dz/length;
+            if(exit.normal!=null) {
+                float horizontal=(float)Math.Sqrt(exit.normal[0]*exit.normal[0]+exit.normal[2]*exit.normal[2]);
+                if(horizontal>.2f) {
+                    nx=exit.normal[0]/horizontal;nz=exit.normal[2]/horizontal;
+                    if(nx*dx+nz*dz<0){nx=-nx;nz=-nz;}
+                }
+            }
+            MapSnapshot approach=new MapSnapshot {Mesh=snapshot.Mesh,Live=new MapLive {
+                level=snapshot.Live.level,generation=snapshot.Live.generation,player=new MapPlayer {position=new float[]{end.X,end.Y,end.Z}}}};
+            try {
+                NavigationRoute crossing=Plan(approach,new float[]{end.X+nx*48,end.Y,end.Z+nz*48});
+                float travel=0;HeightPoint previous=end;
+                foreach(HeightPoint point in crossing.Points){travel+=Distance(previous,point);previous=point;}
+                if(travel<=96 && crossing.Points.Count<=3 && route.Points.Count+crossing.Points.Count<=256)route.Points.AddRange(crossing.Points);
+            }catch(InvalidDataException) { /* Approach only; the explorer verifies the actual transition. */ }
+            return route;
+        }
+        internal static void ConfirmTransition(string directory,MapLive live,long nonce) {
+            string path=Path.Combine(directory,"ai-confirm.txt"),temp=path+".tmp";
+            string command="JFGCONFIRM1 "+live.level+" "+live.generation+" "+nonce+" "+NavigationExplorer.Clock+" "+
+                (live.navigation_ai==null?0:live.navigation_ai.manual_inputs)+"\n";
+            File.WriteAllText(temp,command,new UTF8Encoding(false));
+            if(File.Exists(path))File.Replace(temp,path,null);else File.Move(temp,path);
         }
         internal void Send(string directory,long nonce,bool jumps,bool stop) {
             long now=(long)(DateTime.UtcNow-new DateTime(1970,1,1,0,0,0,DateTimeKind.Utc)).TotalMilliseconds;

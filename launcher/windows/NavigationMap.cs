@@ -33,6 +33,7 @@ namespace JfgLauncher
         [DataMember] public string label = "";
         [DataMember] public uint address = 0;
         [DataMember] public int destination_code = 0;
+        [DataMember] public float[] normal = null;
     }
     [DataContract] internal sealed class MapInventory
     {
@@ -113,7 +114,8 @@ namespace JfgLauncher
             reward_item = reward_weapon = required_weapon = spoken = encounter = dialogue = raw_state = raw_condition = -1;
             door_id = required_item = target_health = target_max_health = reset_ticks = -1;
         }
-        internal string Caption { get { return label + " [" + status.Replace('_', ' ') + "]"; } }
+        internal string ExplorationStatus = "";
+        internal string Caption { get { return label + " [" + status.Replace('_', ' ') + "]" + (String.IsNullOrEmpty(ExplorationStatus) ? "" : " - " + ExplorationStatus); } }
         public override string ToString() { return Caption; }
         internal string Details { get {
             return Caption + "\r\n\r\nAction: " + action.Replace('_', ' ')
@@ -171,7 +173,7 @@ namespace JfgLauncher
         [DataMember] public string state = "off";
         [DataMember] public bool active = false;
         [DataMember] public int waypoint = 0, count = 0, jump_attempts = 0;
-        [DataMember] public long nonce = 0;
+        [DataMember] public long nonce = 0, manual_inputs = 0, confirmations = 0;
     }
     [DataContract] internal sealed class MapLive
     {
@@ -182,6 +184,7 @@ namespace JfgLauncher
         [DataMember] public long update = 0;
         [DataMember] public bool mesh_ready = false;
         [DataMember] public bool clearing_active = false;
+        [DataMember] public bool transition_confirm = false;
         [DataMember] public MapPlayer player = null;
         [DataMember] public MapMarker[] exits = null;
         [DataMember] public MapMarker[] markers = null;
@@ -248,7 +251,7 @@ namespace JfgLauncher
             if (live.npcs == null) live.npcs = new MapMarker[0];
             if (live.exits.Length > 1024 || live.markers.Length > 1024 || live.npcs.Length > 1024)
                 throw new InvalidDataException("Too many map markers.");
-            foreach (MapMarker marker in live.exits) { if (marker == null) throw new InvalidDataException(); Point(marker.position); }
+            foreach (MapMarker marker in live.exits) { if (marker == null) throw new InvalidDataException(); Point(marker.position); if(marker.normal!=null)Point(marker.normal); }
             foreach (MapMarker marker in live.markers) {
                 if (marker == null) throw new InvalidDataException();
                 Point(marker.position);
@@ -442,6 +445,8 @@ namespace JfgLauncher
         private readonly Label inventoryStatus = new Label { Dock = DockStyle.Top, Height = 68, Padding = new Padding(8) };
         private readonly ListBox interactionList = new ListBox { Dock = DockStyle.Top, Height = 170, HorizontalScrollbar = true };
         private readonly TextBox interactionDetails = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BorderStyle = BorderStyle.None, BackColor = SystemColors.Control };
+        private NavigationExplorer explorer = new NavigationExplorer();
+        private string explorerError;
         private MapSnapshot aiSnapshot;
         private NavigationRoute aiRoute;
         private bool aiRunning;
@@ -449,9 +454,13 @@ namespace JfgLauncher
         private readonly CheckBox jumpAssist = new CheckBox { Text = "Experimental jump assist", AutoSize = true };
         private readonly Label aiStatus = new Label { Text = "AI off - select an exit and plan a candidate route", AutoSize = true };
         private void StopAi() {
+            explorer.Stop("Explorer stopped");StopPilot();
+            if(directory!=null)try {File.Delete(Path.Combine(directory,"ai-confirm.txt"));}catch(IOException){}catch(UnauthorizedAccessException){}
+            aiStatus.Text="AI stopped";
+        }
+        private void StopPilot() {
             aiRunning=false;
             if(aiRoute!=null)try { aiRoute.Send(directory,++aiNonce,false,true); } catch(IOException) {} catch(UnauthorizedAccessException) {}
-            aiStatus.Text="AI stopped";
         }
         private long interactionGeneration = -1;
         private uint interactionLevel;
@@ -465,6 +474,9 @@ namespace JfgLauncher
             interactionList.BeginUpdate();
             interactionList.Items.Clear();
             if (progress != null) foreach (MapInteraction node in progress.nodes) {
+                node.ExplorationStatus="";
+                if(node.kind=="exit")foreach(MapMarker marker in value.Live.exits)
+                    if(marker.address==node.address){node.ExplorationStatus=explorer.Describe(value.Live.level,marker);break;}
                 int index = interactionList.Items.Add(node);
                 if (node.address == address) interactionList.SelectedIndex = index;
             }
@@ -537,12 +549,16 @@ namespace JfgLauncher
             Controls.Add(bar);
             status.Dock = DockStyle.Bottom; status.Height = 38; status.Padding = new Padding(8);
             Controls.Add(status);
-            bar.Height = 172;
+            bar.Height = 192;
             Button planAi = new Button { Text = "Plan exit route", AutoSize = true };
             Button startAi = new Button { Text = "Start AI", AutoSize = true };
             Button stopAi = new Button { Text = "Stop AI", AutoSize = true };
+            Button explore = new Button { Text = "Explore automatically", AutoSize = true };
+            Button retry = new Button {Text="Retry room exits",AutoSize=true};
             bar.SetFlowBreak(context, true);
-            bar.Controls.Add(planAi);bar.Controls.Add(startAi);bar.Controls.Add(stopAi);bar.Controls.Add(jumpAssist);
+            bar.SetFlowBreak(bar.Controls[bar.Controls.Count-1],true);
+            aiStatus.MaximumSize=new Size(980,0);
+            bar.Controls.Add(planAi);bar.Controls.Add(startAi);bar.Controls.Add(stopAi);bar.Controls.Add(explore);bar.Controls.Add(retry);bar.Controls.Add(jumpAssist);
             bar.SetFlowBreak(jumpAssist,true);bar.Controls.Add(aiStatus);
             planAi.Click += delegate {
                 StopAi();
@@ -554,24 +570,65 @@ namespace JfgLauncher
                 }catch(InvalidDataException error){aiRoute=null;canvas.Route=null;aiStatus.Text=error.Message;}
             };
             startAi.Click += delegate {
+                explorer.Stop("Explorer stopped for manual route");
                 if(aiRoute==null || aiSnapshot==null || !aiSnapshot.IsLive || !aiSnapshot.Live.clearing_active ||
                     aiRoute.Level!=aiSnapshot.Live.level || aiRoute.Generation!=aiSnapshot.Live.generation){aiStatus.Text="Plan a route in active gameplay first.";return;}
                 try { ++aiNonce;aiRoute.Send(directory,aiNonce,jumpAssist.Checked,false);aiRunning=true;aiStatus.Text="AI starting; any controller input or Esc stops it."; }
-                catch(IOException error){aiStatus.Text=error.Message;aiRunning=false;}
+                catch(IOException error){StopAi();aiStatus.Text=error.Message;aiRunning=false;}
             };
+            explore.Click += delegate {
+                StopAi();aiRoute=null;canvas.Route=null;
+                try {
+                    if(explorerError!=null)throw new InvalidDataException(explorerError);
+                    explorer.Start(aiSnapshot,NavigationExplorer.Clock);aiStatus.Text=explorer.Status;RefreshMap();
+                }catch(InvalidDataException error){aiStatus.Text=error.Message;}
+            };
+            retry.Click+=delegate {
+                StopAi();
+                try {if(explorerError!=null)throw new InvalidDataException(explorerError);explorer.RetryRoom(aiSnapshot,NavigationExplorer.Clock);aiStatus.Text=explorer.Status;}
+                catch(InvalidDataException error){aiStatus.Text=error.Message;}
+            };
+            KeyPreview=true;KeyDown+=delegate(object sender,KeyEventArgs args){if(args.KeyCode==Keys.Escape){StopAi();args.Handled=true;}};
             stopAi.Click += delegate { StopAi(); };
             FormClosing += delegate { StopAi(); };
             timer.Interval = 200; timer.Tick += delegate { RefreshMap(); };
             BindDirectory(path); timer.Start();
             FormClosed += delegate { timer.Stop(); timer.Dispose(); };
         }
-        internal void BindDirectory(string path) { StopAi(); aiRoute=null;canvas.Route=null; directory = LocalSetup.FullPath(path); cached = null; canvas.UpdateMap(null); UpdateInteractions(null); RefreshMap(); }
+        internal void BindDirectory(string path) {
+            StopAi();aiRoute=null;canvas.Route=null;directory=LocalSetup.FullPath(path);cached=null;explorerError=null;
+            try { explorer=NavigationExplorer.Load(directory); }
+            catch(Exception error) {
+                if(!(error is IOException) && !(error is UnauthorizedAccessException))throw;
+                explorer=new NavigationExplorer();explorerError="Cannot load exploration history: "+error.Message;aiStatus.Text=explorerError;
+            }
+            canvas.UpdateMap(null);UpdateInteractions(null);RefreshMap();
+        }
+        private void MapUnavailable() {
+            if(explorer.Running) {
+                ExploreCommand command=explorer.MissingMap(NavigationExplorer.Clock);
+                if(command.Stop)StopPilot();aiStatus.Text=explorer.Status;
+            }else StopPilot();
+            aiSnapshot=null;cached=null;canvas.UpdateMap(null);UpdateInteractions(null);
+        }
         internal void RefreshMap()
         {
             try {
                 MapSnapshot value = MapSnapshot.Load(directory, cached);
                 aiSnapshot=value;
-                if(aiRoute!=null && (aiRoute.Level!=value.Live.level || aiRoute.Generation!=value.Live.generation || !value.IsLive || !value.Live.clearing_active)) { StopAi();aiRoute=null;canvas.Route=null; }
+                if(explorer.Running) {
+                    ExploreCommand command=explorer.Tick(value,NavigationExplorer.Clock);
+                    if(command.Stop){StopPilot();aiRoute=null;canvas.Route=null;}
+                    if(command.Confirm)NavigationRoute.ConfirmTransition(directory,value.Live,++aiNonce);
+                    if(command.Route!=null) {
+                        aiRoute=command.Route;canvas.Route=aiRoute;
+                        if(!value.IsLive){explorer.Stop("Explorer stopped: map aged while planning");StopPilot();}
+                        else {aiRoute.Send(directory,++aiNonce,jumpAssist.Checked,false);explorer.Dispatched(aiNonce,NavigationExplorer.Clock);aiRunning=true;}
+                    }
+                    if(explorer.MayHeartbeat && aiRoute!=null)aiRoute.Send(directory,aiNonce,jumpAssist.Checked,false);
+                    aiStatus.Text=explorer.Status;
+                }else {
+                if(aiRoute!=null && (aiRoute.Level!=value.Live.level || aiRoute.Generation!=value.Live.generation || !value.IsLive || !value.Live.clearing_active)) { StopPilot();aiRoute=null;canvas.Route=null; }
                 if(aiRunning && aiRoute!=null) aiRoute.Send(directory,aiNonce,jumpAssist.Checked,false);
                 if(value.Live.navigation_ai!=null && aiRoute!=null) {
                     MapAi ai=value.Live.navigation_ai;
@@ -580,19 +637,21 @@ namespace JfgLauncher
                         if(!ai.active)aiRunning=false;
                     }
                 }
+                }
+                if(explorerError==null) {explorer.ObserveIdle(value,NavigationExplorer.Clock);explorer.Save(directory);}
                 cached = value.Mesh; canvas.UpdateMap(value); UpdateInteractions(value);
                 if (canvas.Mode != 1) layerHeight.Value = Math.Max(layerHeight.Minimum, Math.Min(layerHeight.Maximum, (decimal)canvas.CenterHeight));
                 int tribalCount = 0;
                 foreach (MapMarker npc in value.Live.npcs)
                     if (npc.kind == "tribal") tribalCount++;
-                status.Text = (value.IsLive ? (value.Live.clearing_active ? "LIVE" : "LIVE · scripted scene / controls suspended") : "Saved map · game closed, paused, or no longer exporting")
+                status.Text = (value.IsLive ? (value.Live.clearing_active ? "LIVE" : "LIVE ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· scripted scene / controls suspended") : "Saved map ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· game closed, paused, or no longer exporting")
                     + "  |  " + value.Live.exits.Length + " exits  |  " + value.Live.markers.Length + " items  |  "
                     + (value.Live.npcs.Length - tribalCount) + " NPCs  |  " + tribalCount + " Tribals";
             }
-            catch (InvalidDataException error) { StopAi();aiSnapshot=null; cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = error.Message; }
-            catch (IOException) { StopAi();aiSnapshot=null; cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Waiting for the game to export a room..."; }
-            catch (SerializationException) { StopAi();aiSnapshot=null; cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Waiting for a complete map update..."; }
-            catch (UnauthorizedAccessException) { StopAi();aiSnapshot=null; cached = null; canvas.UpdateMap(null); UpdateInteractions(null); status.Text = "Cannot read this export folder."; }
+            catch (InvalidDataException error) { MapUnavailable(); status.Text = error.Message; }
+            catch (IOException) { MapUnavailable(); status.Text = "Waiting for the game to export a room..."; }
+            catch (SerializationException) { MapUnavailable(); status.Text = "Waiting for a complete map update..."; }
+            catch (UnauthorizedAccessException) { MapUnavailable(); status.Text = "Cannot read this export folder."; }
         }
     }
 }

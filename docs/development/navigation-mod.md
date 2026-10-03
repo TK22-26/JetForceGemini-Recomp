@@ -207,7 +207,8 @@ their actual door pointer, not proximity.
 Addresses identify actors only within the current loaded snapshot. Consumers
 must key them by session, level and generation, discard absent actors, and
 must not persist addresses across room loads. No cross-room navigation graph
-or stable campaign object identifier is provided yet.
+or stable campaign object identifier is exported by the runtime. The launcher
+can build a session graph from confirmed transitions as described below.
 
 `requirement_known` describes the stated interaction only. Every node currently
 exports `traversal: "unknown"`: inventory, target activation, and proximity
@@ -245,7 +246,7 @@ cannot restart through repeated heartbeats; Start AI must issue a new command.
 **Experimental jump assist** permits one short A-button pulse after movement
 stalls on stable ground. It releases A, monitors movement and limits the attempt.
 This is obstacle recovery, not a gap/parkour planner. Precise jumps, tree dives,
-moving platforms and multi-room progression remain manual. Expect to intervene
+moving platforms and scripted campaign requirements remain manual. Expect to intervene
 while testing. Planning and controller simulations pass, but live game movement
 and jumping success have not yet been established.
 
@@ -253,3 +254,78 @@ and jumping success have not yet been established.
 index/count and jump attempts. `ai-command.txt` is a bounded, atomically replaced
 per-session command containing room/generation, nonce, timestamp and waypoints.
 Existing input recording captures the generated stick/buttons for later replay.
+
+
+## Automatic exploration (experimental)
+
+Start the game with **Navigation mod** enabled. In **Live map**, click
+**Explore automatically**. No exit selection is required. **Stop AI**, Escape,
+manual game input, or closing the map stops exploration. With the mod enabled,
+Escape cancels automation; close the game window when you want to quit.
+Jump assist remains optional and off by default.
+
+The explorer prefers untried exits with candidate surface routes. It defers
+the doorway nearest the arrival position as a **possible** return route,
+then uses confirmed directed connections to backtrack toward rooms with
+unexplored exits. It never assumes that a drop, dive or doorway works in reverse.
+Known loops without an unexplored destination are not selected. Repeat-transition
+limits stop stale or changing graphs from producing endless circuits.
+
+Room IDs come from the live game. Exit identities combine their position,
+normal and raw destination code; actor pointers and generation numbers are
+not persistent room/exit identities. A raw destination code is not interpreted
+as a room number. The interaction list shows untried, possible return,
+confirmed destination, unavailable and blocked states with reasons.
+
+Only observed transitions establish connections. A command must have been
+acknowledged and the player must have approached its exit. The destination
+must have a different room ID and remain stable in active gameplay for at
+least 600 ms. A generation change alone is insufficient: the game invalidates
+the map before completing its level change. Same-room reloads remain
+unconfirmed. Rewinds, unexpected loads and conflicting destinations stop
+the explorer rather than adding speculative links.
+
+The game's **Area Cleared** prompt can be acknowledged automatically once
+per pending exit. This is a normal A-button pulse, permitted only while the
+supported US ROM's transition-prompt flag (0x800A329C) and pause-mode byte
+(0x800FD7BD) both equal one. Its transition update at 0x800468EC checks A/Start
+in that state. The host does not edit those game flags or advance NPC dialogue.
+The request is tied to room, generation, current manual-input counter, nonce
+and a 1.5-second expiry. Manual input and replay exclude acknowledgement.
+These state observations were checked against the pinned local decompilation's
+`mainChangeLevel`, transition update and `mainGetPauseMode` assembly; the
+host implementation is original code.
+
+Blocked routes are not retried on every update. Newly observed red-key,
+weapon, NPC ownership/prerequisite or gate-activation facts permit reconsideration;
+changing character also changes the attempt context. Repeated ownership
+toggles do not generate unlimited retries. This uses currently exported facts,
+not a complete campaign dependency solver. Keys, trades, shooting targets,
+explosives, precise jumps and dive exits can still require player intervention.
+
+Walking candidates exclude faces steeper than 45 degrees; this is a conservative
+prototype limit, not a measured character-specific capability. The planner keeps **Y height**; X/Z are the ground plane. Route straightening
+removes triangle-midpoint detours only with continuous floor coverage at the
+matching height, a 40-unit floor strip, and static obstruction probes between
+4 and 80 units above the floor. Thin gaps, different stories and detected
+walls prevent a shortcut. Segments are capped at 600 units and 80 units of
+height change. These conservative prototype dimensions are not a verified
+character capsule, and dynamic actors are not represented by the static mesh.
+Original unsmoothed segments remain candidates, not certified safe passages.
+The pilot still performs its two short initial calibration movements; this
+update does not establish straight-line tracking under all camera conditions.
+
+`exploration-history.json` is saved atomically beside the map exports. It
+remembers rooms, directed exits, attempts, failures and monotonic progress facts
+within that game run. Closing/reopening the map preserves that history but
+does not arm movement. Every new game launch uses a new export directory;
+history is not shared across saves or game sessions. It stays local. After moving past an obstacle yourself or enabling jump assist,
+use **Retry room exits**, then **Explore automatically** to request another attempt.
+This explicit action clears local failure blocks while retaining discovered
+connections and attempt counts; it never starts movement by itself.
+
+Exploration is bounded to 15 minutes and 128 transitions per explicit start.
+Individual routes retain the native pilot's limits. Missing acknowledgements,
+stale exports, repeated transitions without progress and exhausted reachable
+frontiers stop with a reason. Interrupted controls in the same room require
+an explicit restart; a confirmed room load can continue automatically.

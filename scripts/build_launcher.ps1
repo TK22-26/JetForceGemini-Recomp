@@ -18,7 +18,7 @@ if ($LASTEXITCODE -ne 0 -or $launcherCommit -notmatch '^[0-9a-f]{40}$') { throw 
 $launcherBuildInfo = Join-Path $launcherOutput 'BuildInfo.cs'
 [IO.File]::WriteAllText($launcherBuildInfo, 'namespace JfgLauncher { internal static class BuildInfo { internal const string SourceCommit = "' + $launcherCommit + '"; } }')
 $launcherSources = @($launcherSource, $launcherFirstRun, $launcherBuildInfo,
-    (Join-Path $launcherRepoRoot 'launcher/windows/Support.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/Controller.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/NavigationMap.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/Audio.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/MapLayers.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/NavigationRoute.cs'))
+    (Join-Path $launcherRepoRoot 'launcher/windows/Support.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/Controller.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/NavigationMap.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/Audio.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/MapLayers.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/NavigationRoute.cs'), (Join-Path $launcherRepoRoot 'launcher/windows/NavigationExplorer.cs'))
 $launcherCommon = @('/nologo', '/optimize+', '/debug-', '/platform:x64', '/warnaserror+',
     '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll',
     '/reference:System.Runtime.Serialization.dll', '/reference:System.IO.Compression.dll', "/resource:$launcherSetup,JfgLauncher.Setup.ps1")
@@ -27,7 +27,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Launcher compilation failed.' }
 if ($Test) {
     $launcherTests = Join-Path $launcherOutput 'LauncherTests.exe'
     $launcherTestSource = Join-Path $launcherRepoRoot 'launcher\windows\LauncherTests.cs'
-    & $launcherCompiler @launcherCommon '/target:exe' '/main:JfgLauncher.LauncherTests' "/out:$launcherTests" @launcherSources $launcherTestSource
+    & $launcherCompiler @launcherCommon '/target:exe' '/main:JfgLauncher.LauncherTests' "/out:$launcherTests" @launcherSources $launcherTestSource (Join-Path $launcherRepoRoot 'launcher/windows/NavigationExplorerTests.cs')
     if ($LASTEXITCODE -ne 0) { throw 'Launcher test compilation failed.' }
     & $launcherTests (Join-Path $launcherOutput 'launcher-preview.png')
     if ($LASTEXITCODE -ne 0) { throw 'Launcher tests failed.' }
@@ -36,7 +36,7 @@ if ($Test) {
 }
 $launcherInputs = [ordered]@{}
 foreach ($relative in @('launcher/windows/Launcher.cs', 'launcher/windows/FirstRun.cs',
-        'launcher/windows/Setup.ps1', 'launcher/windows/Support.cs', 'launcher/windows/Controller.cs', 'launcher/windows/NavigationMap.cs', 'launcher/windows/Audio.cs', 'launcher/windows/MapLayers.cs', 'launcher/windows/NavigationRoute.cs', 'scripts/build_launcher.ps1')) {
+        'launcher/windows/Setup.ps1', 'launcher/windows/Support.cs', 'launcher/windows/Controller.cs', 'launcher/windows/NavigationMap.cs', 'launcher/windows/Audio.cs', 'launcher/windows/MapLayers.cs', 'launcher/windows/NavigationRoute.cs', 'launcher/windows/NavigationExplorer.cs', 'scripts/build_launcher.ps1')) {
     $launcherInputs[$relative] = (Get-FileHash -LiteralPath (Join-Path $launcherRepoRoot $relative) -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 $launcherReceipt = [ordered]@{ source_commit = $launcherCommit;
