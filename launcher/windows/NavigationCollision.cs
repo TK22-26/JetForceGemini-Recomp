@@ -61,17 +61,17 @@ namespace JfgLauncher {
             float a=(low-p)/d,b=(high-p)/d;
             enter=Math.Max(enter,Math.Min(a,b));leave=Math.Min(leave,Math.Max(a,b));return enter<=leave;
         }
-        internal static bool Intersects(MapCollisionModel m,HeightPoint a,HeightPoint b) {
+        internal static bool Intersects(MapCollisionModel m,HeightPoint a,HeightPoint b,float radius=Radius) {
             float enter=0,leave=1;
             // Swept upright body box via Minkowski expansion. Height varies with
             // the route segment; an upper-story box does not block lower floors.
-            return Clip(a.X,b.X-a.X,m.lower[0]-Radius,m.upper[0]+Radius,ref enter,ref leave) &&
+            return Clip(a.X,b.X-a.X,m.lower[0]-radius,m.upper[0]+radius,ref enter,ref leave) &&
                 Clip(a.Y,b.Y-a.Y,m.lower[1]-BodyHeight,m.upper[1]-FootClearance,ref enter,ref leave) &&
-                Clip(a.Z,b.Z-a.Z,m.lower[2]-Radius,m.upper[2]+Radius,ref enter,ref leave);
+                Clip(a.Z,b.Z-a.Z,m.lower[2]-radius,m.upper[2]+radius,ref enter,ref leave);
         }
-        internal static MapCollisionModel Blocking(MapLive live,HeightPoint a,HeightPoint b) {
+        internal static MapCollisionModel Blocking(MapLive live,HeightPoint a,HeightPoint b,float radius=Radius) {
             foreach(MapCollisionModel m in live.collision.models)
-                if(m.enabled && !SameActor(m.address,live.player.address) && Intersects(m,a,b))return m;
+                if(m.enabled && !SameActor(m.address,live.player.address) && Intersects(m,a,b,radius))return m;
             return null;
         }
         internal static string CheckRoute(MapLive live,NavigationRoute route,int waypoint) {

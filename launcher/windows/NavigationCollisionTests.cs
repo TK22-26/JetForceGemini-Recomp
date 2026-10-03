@@ -126,6 +126,42 @@ namespace JfgLauncher {
             NavigationRoute around=NavigationRoute.Plan(map,new float[]{500,0,0});bool beyond=false;HeightPoint prev=new HeightPoint(map.Live.player.position);
             foreach(HeightPoint point in around.Points){if(Math.Abs(point.Z)>720)beyond=true;Check(NavigationRoute.ClearWalk(map,new MapLayers(map.Mesh).Floors,prev,point),"global detour emitted uncleared segment");prev=point;}
             Check(beyond,"room-wide search did not go around long obstacle");
+            // Prefer the open side of a hut over a short body-width squeeze.
+            map=Fixture();Put(map,0,180,true);
+            map.Live.player.position=new float[]{0,0,70};
+            var obstacle=map.Live.collision.models[0];obstacle.lower[2]=-800;obstacle.upper[2]=40;
+            var comfort=NavigationRoute.Plan(map,new float[]{500,0,70});
+            HeightPoint last=new HeightPoint(map.Live.player.position);bool wide=false;
+            foreach(HeightPoint point in comfort.Points) {
+                Check(NavigationCollision.Blocking(map.Live,last,point,NavigationCollision.Radius+NavigationRoute.PlanningMargin)==null,"planned route left no steering clearance");
+                if(point.Z>100)wide=true;last=point;
+            }
+            Check(wide,"short narrow route was preferred over open detour");
+            map.Live.player.position=new float[]{0,0,100};
+            Check(NavigationRoute.ClearWalk(map,new MapLayers(map.Mesh).Floors,new HeightPoint(map.Live.player.position),new HeightPoint(500,0,100),NavigationRoute.PlanningMargin),"preference fixture must have a valid short route");
+            comfort=NavigationRoute.Plan(map,new float[]{500,0,100});wide=false;
+            foreach(HeightPoint point in comfort.Points)if(point.Z>150)wide=true;
+            Check(wide,"valid shortest route was accepted without comparing safer clearance");
+            // Increasing the margin must retain the original body probes; an
+            // interior thin obstacle must not fall between new outer probes.
+            map=Fixture();map.Mesh.vertices=new float[][] {
+                new float[]{-1000,0,-1000},new float[]{1000,0,-1000},new float[]{-1000,0,1000},new float[]{1000,0,1000},
+                new float[]{250,70,19},new float[]{250,90,19},new float[]{250,70,21},new float[]{250,90,21}};
+            map.Mesh.triangles=new MapFace[] {new MapFace{v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace{v=new int[]{1,2,3},normal=new float[]{0,1,0}},new MapFace{v=new int[]{4,5,6}},new MapFace{v=new int[]{5,7,6}}};
+            Check(!NavigationRoute.ClearWalk(map,new MapLayers(map.Mesh).Floors,start,end),"body probe missed thin interior obstacle");
+            Check(!NavigationRoute.ClearWalk(map,new MapLayers(map.Mesh).Floors,start,end,NavigationRoute.PlanningMargin),"comfort probes discarded body collision checks");
+            var planned=Fixture();var latest=Fixture();
+            var dispatched=NavigationRoute.Plan(planned,new float[]{500,0,0});
+            planned.Live.timestamp_ms=NavigationExplorer.Clock-6000;
+            Check(dispatched.DispatchProblem(planned,latest)==null,"fresh verified snapshot could not replace aged planning snapshot");
+            latest.Live.navigation_ai.manual_inputs++;
+            Check(dispatched.DispatchProblem(planned,latest).Contains("manual"),"input during planning allowed automatic dispatch");
+            latest.Live.navigation_ai.manual_inputs=0;latest.Live.clearing_active=false;
+            Check(dispatched.DispatchProblem(planned,latest).Contains("suspended"),"cutscene during planning allowed dispatch");
+            latest.Live.clearing_active=true;latest.Live.generation++;
+            Check(dispatched.DispatchProblem(planned,latest).Contains("changed"),"changed room allowed dispatch");
+            latest.Live.generation=1;latest.Live.timestamp_ms=NavigationExplorer.Clock-6000;
+            Check(dispatched.DispatchProblem(planned,latest).Contains("stopped"),"stale latest snapshot allowed dispatch");
             return checks;
         }
     }

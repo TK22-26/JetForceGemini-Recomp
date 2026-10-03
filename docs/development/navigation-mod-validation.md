@@ -310,3 +310,34 @@ development machine. Every segment passes the original full-geometry clearance
 checks; the rendered path was inspected against the user's marked route.
 This validates planning and fixture door behavior, not a fresh native traversal
 of that complete route. The steering pilot and native executable are unchanged.
+
+
+## Clearance preference and live door traversal (2026-10-03)
+
+The updated launcher passes 298 checks plus ten setup checks. New regressions
+cover wider routes instead of short body-width squeezes, comparing a valid short
+route against a safer detour, preserving inner terrain probes when adding margin,
+same-exit recovery after stopping/coasting, bounded retries, fresh-state dispatch,
+and manual cancellation during planning and scripted-camera waits.
+Native Windows tests and Linux ASan/UBSan tests pass, including camera accessor
+signatures, pointer bounds in both memory layouts, rotating-camera steering with
+inertia, sharp corners and losing the camera. Live observations establish the
+US control-camera yaw convention; the door shot binds a cutcamera actor through player control +0x5C0, separate
+from the animated and static-camera globals. Input stays released during the shot.
+
+A fresh muted native run followed the room-27 loop around the huts, reached
+the forward door sequence, waited for its scripted camera and resumed from a
+freshly checked route. It confirmed room 27 -> 236 through exit code 65516,
+with a closest observed distance of 8.4 world units to the door actor.
+The independently captured input observations stayed neutral during the scripted
+camera. Original navigation saves were hashed before and after and remained
+unchanged; the trial used private copies and exited cleanly.
+
+Earlier trials exposed false route rejection from inconsistent floor/probe
+selection, camera estimation distorted by turning inertia, and stale snapshots
+after a longer clearance search. Their failed outcomes remain in the private
+evidence. The final run used the corrected checks, camera heading and braking.
+This validates the reported forward-door case. It does not establish full-stage
+or campaign completion, all camera modes, NPC transactions, exact collision
+capsules, narrow-gap traversal, jumping, diving or parkour. ROM-derived traces,
+map geometry, captures and the paired native runtime remain private.

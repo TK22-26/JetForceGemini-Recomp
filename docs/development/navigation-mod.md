@@ -392,8 +392,8 @@ limit. Clearance searching has a two-second time check and at most 256 local
 candidates. No verified route means movement is refused. The launcher rechecks
 remaining segments against fresh entity bounds before sending heartbeats; a
 new obstruction releases movement and names the blocker. Manual routes require
-replanning; automatic exploration records the failed exit and tries another
-forward exit after stopping.
+replanning; automatic exploration first stops, waits for the player to settle, and
+replans the same exit within a bounded retry allowance.
 
 These are conservative bounding boxes, not exact polygon collision or decoded
 character-specific capsules. A rotated or hollow object can have usable space
@@ -420,12 +420,14 @@ room may not know the actual entrance. Manual exit selection remains available.
 Other exits are attempted in order, with unknown destinations preferred and a
 route required before movement starts. When no forward route passes clearance,
 exploration stops and explains why; it does not fall back through the entrance.
-A live obstruction records that exit's failure and moves on to another candidate.
+A live obstruction releases movement and starts a bounded local replan of the
+same exit. Exhausting that allowance records the failure and considers another
+forward candidate.
 Each update checks the actual player-to-waypoint segment against static terrain
 and floor coverage as well as remaining entity bounds. Automatic movement stops
 when distance to the waypoint fails to improve for about 1.8 seconds (3.5 seconds
-during jump assist), then considers another exit. These checks reduce wall pushing;
-they do not solve steering calibration, locked gates or parkour.
+during jump assist), then stops and replans the same exit. These checks reduce wall pushing;
+locked gates and parkour still need separate progression/traversal logic.
 
 
 ## Room-wide routes and lifting doors (2026-10-03)
@@ -451,3 +453,51 @@ is disabled/removed), the planner checks a new route through the exit and resume
 A door that remains closed is recorded with a key/switch/other-requirement
 message. Requirements stay unknown unless independently decoded. Manual routes
 can also approach a door; continuing them after opening requires replanning.
+
+
+## Clearance preference, steering and local recovery (2026-10-03)
+
+Route selection now favors space around obstacles as well as distance. Planned
+segments use the existing 20-unit body allowance plus 20 units of extra model
+clearance. Floor/terrain checks add outer probes eight units beyond the original
+body probes, retaining the original probes so a thin obstacle cannot disappear
+between them. Planning and live validation use the same walkable-floor filter.
+
+Paths near active, height-overlapping models receive additional travel cost
+within 80 and 120 units. A valid short candidate is compared with a room-wide
+alternative when it passes close to models. Smoothing may not increase that
+cost by cutting back toward an obstacle. These dimensions are prototype world
+units, not an exact player capsule or a promise that every narrow passage can
+be traversed automatically. The runtime still checks the original smaller body
+envelope, leaving room for ordinary tracking error inside the planned margin.
+After planning, the launcher loads a fresh snapshot and checks room identity,
+update order, manual input, gameplay control and actual-position clearance
+before dispatch. A stale starting snapshot is not itself proof the game stopped.
+
+The supported US build reads the control-camera yaw through a signature-checked
+accessor and validated camera-array pointer. Native steering uses that heading
+instead of learning camera turns from character inertia. It slows using measured
+velocity and releases movement briefly at sharp corners. A valid camera heading
+also removes the exploratory forward/right calibration walk. Losing a previously
+validated camera stops the pilot; manual input never rearms a stopped command.
+The camera source observation is tied to JFG-UP-025 in the pinned upstream review;
+its axis convention was checked against live movement and camera position.
+
+Automatic exploration retains its chosen exit for up to four local recoveries,
+with a 120-second total elapsed allowance for that exit. A recovery sends a stop,
+waits for native acknowledgement and fresh stable positions, then replans from
+where the player actually stopped. It does not immediately blacklist the exit.
+A player that fails to settle within seven seconds stops the attempt. Manual
+input, stale data, Stop AI, and room-state changes retain their cancellation rules.
+
+A decoded animated, static or player-bound cutcamera can release input and wait for up to 15 seconds.
+When gameplay resumes, the same exit is replanned after settling. Unclassified
+pauses still require an explicit restart; any manual input during a scripted
+camera cancels continuation. The game continues to own doors, locks and opening
+animations. No actor removal, collision disabling, key granting or teleport is
+used to cross a door.
+
+The local map export retains bounded route-stop events plus the most recent
+stopped snapshot and route for diagnosis. Live snapshots include read-only camera
+and steering observations. These local ROM-derived exports remain outside the
+public release and the sanitized support ZIP.

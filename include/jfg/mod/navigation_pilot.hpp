@@ -24,6 +24,10 @@ class NavigationPilot {
   std::int64_t heartbeat_ = 0;
   PilotPoint last_{}, origin_{}, basis_x_{}, basis_y_{};
   bool initialized_ = false, allow_jump_ = false, active_ = false;
+  bool basis_valid_ = false, reuse_basis_ = false;
+  bool camera_known_ = false, corner_braking_ = false;
+  PilotPoint velocity_{};
+  std::int64_t basis_time_ = 0;
   unsigned frame_ = 0, phase_frame_ = 0, stalled_ = 0, stable_ = 0, flight_ = 0;
   float best_ = 1e30f;
   PilotInput input_{};
@@ -39,17 +43,32 @@ public:
   unsigned waypoint = 0, jump_attempts = 0;
   std::uint64_t nonce() const { return nonce_; }
   bool active() const { return active_; }
+  PilotInput observed_input() const { return input_; }
   std::size_t count() const { return route_.size(); }
   void stop(const char *reason = "stopped") {
     active_ = false;
     input_ = {};
     state = reason;
+    if (std::string(reason) != "stopped" && std::string(reason) != "approach_complete")
+      basis_valid_ = false;
+  }
+  // The live game supplies a validated control-camera heading each update.
+  // This avoids interpreting turn inertia as a change in camera orientation.
+  void camera_heading(bool known, std::int16_t yaw) {
+    if (!known && camera_known_ && active_) stop("camera_unavailable");
+    camera_known_ = known;
+    if (!known) return;
+    const auto angle = float(yaw) * (6.283185307179586f / 65536.0f);
+    basis_x_ = {-std::cos(angle), 0, -std::sin(angle)};
+    basis_y_ = {-std::sin(angle), 0, std::cos(angle)};
+    basis_valid_ = true;
   }
   void reset() {
     stop("room_changed");
     route_.clear();
     nonce_ = 0;
     initialized_ = false;
+    camera_known_ = false;
   }
   bool command(std::istream &in, std::uint32_t level, std::uint64_t generation,
                std::int64_t now) {
@@ -94,6 +113,8 @@ public:
     // A heartbeat may never re-arm after manual takeover or a failed run.
     if (nonce == nonce_)
       return true;
+    reuse_basis_ = camera_known_ || (basis_valid_ && room == level_ && gen == generation_ &&
+                   now >= basis_time_ && now - basis_time_ <= 8000);
     nonce_ = nonce;
     level_ = room;
     generation_ = gen;
@@ -105,10 +126,13 @@ public:
     waypoint = jump_attempts = 0;
     best_ = 1e30f;
     input_ = {};
-    state = "calibrating_forward";
+    velocity_ = {};
+    corner_braking_ = false;
+    state = reuse_basis_ ? "following" : "calibrating_forward";
     return true;
   }
   PilotInput sample(bool manual, bool replay, bool focused) {
+    if (manual || replay || !focused) basis_valid_ = false;
     if (active_ && (manual || replay || !focused))
       stop(manual   ? "manual_takeover"
            : replay ? "replay_active"
@@ -131,18 +155,26 @@ public:
       stop("map_disconnected");
       return;
     }
-    if (++frame_ > 1800) {
+    if (++frame_ > 3600) {
       stop("time_limit");
       return;
     }
     if (!initialized_) {
       origin_ = last_ = p;
       initialized_ = true;
+      if (reuse_basis_ && basis_valid_) {
+        frame_ = 19;
+        state = "following";
+        input_ = {};
+        return;
+      }
       input_ = {0, 60, 0};
       return;
     }
     auto delta = difference(p, last_);
     last_ = p;
+    velocity_.x = (velocity_.x + delta.x) * .5f;
+    velocity_.z = (velocity_.z + delta.z) * .5f;
     stable_ = std::abs(delta.y) < 0.75f ? stable_ + 1 : 0;
     if (frame_ <= 9) {
       input_ = {0, 60, 0};
@@ -178,9 +210,11 @@ public:
         return;
       }
       state = "following";
+      basis_valid_ = true;
     }
+    if (basis_valid_) basis_time_ = now;
     // Adapt the controller basis to camera rotation from measured movement.
-    if (flight_ == 0 && std::hypot(delta.x, delta.z) > 0.5f &&
+    if (!camera_known_ && flight_ == 0 && std::hypot(delta.x, delta.z) > 0.5f &&
         (input_.x != 0 || input_.y != 0)) {
       const auto x = basis_x_.x * input_.x + basis_y_.x * input_.y;
       const auto z = basis_x_.z * input_.x + basis_y_.z * input_.y;
@@ -195,8 +229,23 @@ public:
       rotate(basis_x_);
       rotate(basis_y_);
     }
-    while (waypoint < route_.size() && distance(p, route_[waypoint]) < 20 &&
+    if (corner_braking_) {
+      input_ = {};
+      if (std::hypot(velocity_.x, velocity_.z) > .7f) return;
+      corner_braking_ = false;
+      ++waypoint;best_ = 1e30f;stalled_ = 0;state = "following";
+    }
+    while (waypoint < route_.size() && distance(p, route_[waypoint]) < 8 &&
            std::abs(p.y - route_[waypoint].y) < 45) {
+      if (camera_known_ && waypoint + 1 < route_.size()) {
+        auto before = difference(route_[waypoint], waypoint ? route_[waypoint-1] : origin_);
+        auto after = difference(route_[waypoint+1], route_[waypoint]);
+        const auto alignment = (before.x*after.x + before.z*after.z) /
+            std::max(.001f, std::hypot(before.x,before.z)*std::hypot(after.x,after.z));
+        if (alignment < .8f && std::hypot(velocity_.x,velocity_.z) > .7f) {
+          corner_braking_ = true;input_ = {};state = "corner_braking";return;
+        }
+      }
       ++waypoint;
       best_ = 1e30f;
       stalled_ = 0;
@@ -217,11 +266,14 @@ public:
     } else
       ++stalled_;
     const auto det = basis_x_.x * basis_y_.z - basis_x_.z * basis_y_.x;
-    const auto dx = target.x - p.x, dz = target.z - p.z;
+    const auto dx = target.x - p.x - (camera_known_ ? velocity_.x * 8 : 0),
+               dz = target.z - p.z - (camera_known_ ? velocity_.z * 8 : 0);
     auto x = (dx * basis_y_.z - dz * basis_y_.x) / det,
          y = (dz * basis_x_.x - dx * basis_x_.z) / det;
     const auto length = std::max(std::hypot(x, y), 1.0f),
-               power = d < 50 ? 40.0f : 65.0f;
+               power = camera_known_ ? (std::hypot(dx,dz) < 4 ? 0.0f :
+                   std::clamp(18.0f + std::hypot(dx,dz)*.22f,18.0f,40.0f)) :
+                   d < 18 ? 24.0f : d < 80 ? 32.0f : 50.0f;
     input_ = {int(std::clamp(x / length * power, -80.0f, 80.0f)),
               int(std::clamp(y / length * power, -80.0f, 80.0f)), 0};
     if (flight_ != 0) {

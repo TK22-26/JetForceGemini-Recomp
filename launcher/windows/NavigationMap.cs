@@ -185,6 +185,7 @@ namespace JfgLauncher
         [DataMember] public long update = 0;
         [DataMember] public bool mesh_ready = false;
         [DataMember] public bool clearing_active = false;
+        [DataMember] public bool scripted_camera = false;
         [DataMember] public bool transition_confirm = false;
         [DataMember] public MapPlayer player = null;
         [DataMember] public MapMarker[] exits = null;
@@ -687,6 +688,23 @@ namespace JfgLauncher
             }else StopPilot();
             aiSnapshot=null;cached=null;canvas.UpdateMap(null);UpdateInteractions(null);
         }
+        private void RecordRouteStop(MapSnapshot snapshot,int waypoint,string reason) {
+            // Local mod exports only; retain the triggering state before inertia
+            // or a later snapshot hides the transient failure.
+            try {
+                string path=Path.Combine(directory,"route-events.tsv");
+                if(!File.Exists(path) || new FileInfo(path).Length<4*1024*1024)
+                    File.AppendAllText(path,NavigationExplorer.Clock+"\t"+snapshot.Live.level+"\t"+snapshot.Live.generation+"\t"+waypoint+"\t"+
+                        String.Join(",",snapshot.Live.player.position)+"\t"+reason.Replace('\t',' ').Replace('\n',' ')+"\n");
+                using(FileStream file=File.Create(Path.Combine(directory,"last-route-stop.json")))
+                    new DataContractJsonSerializer(typeof(MapLive)).WriteObject(file,snapshot.Live);
+                if(aiRoute!=null) {
+                    System.Text.StringBuilder points=new System.Text.StringBuilder();
+                    foreach(HeightPoint point in aiRoute.Points)points.AppendLine(point.X.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+","+point.Y.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+","+point.Z.ToString("R",System.Globalization.CultureInfo.InvariantCulture));
+                    File.WriteAllText(Path.Combine(directory,"last-route-stop.csv"),points.ToString());
+                }
+            }catch(IOException){}catch(UnauthorizedAccessException){}
+        }
         internal void RefreshMap()
         {
             try {
@@ -698,6 +716,7 @@ namespace JfgLauncher
                     int waypoint=value.Live.navigation_ai!=null && value.Live.navigation_ai.nonce==aiNonce?value.Live.navigation_ai.waypoint:0;
                     collisionStop=aiRoute.CheckRemaining(value,waypoint);
                     if(collisionStop!=null){
+                        RecordRouteStop(value,waypoint,collisionStop);
                         if(explorer.Running) { explorer.RouteBlocked(collisionStop,NavigationExplorer.Clock);StopPilot(); }
                         else StopAi();
                         canvas.RouteBlocked=true;
@@ -709,7 +728,10 @@ namespace JfgLauncher
                     if(command.Confirm)NavigationRoute.ConfirmTransition(directory,value.Live,++aiNonce);
                     if(command.Route!=null) {
                         aiRoute=command.Route;canvas.Route=aiRoute;canvas.RouteBlocked=false;
-                        if(!value.IsLive){explorer.Stop("Explorer stopped: map aged while planning");StopPilot();}
+                        MapSnapshot latest=MapSnapshot.Load(directory,value.Mesh);
+                        string dispatchProblem=aiRoute.DispatchProblem(value,latest);
+                        value=latest;aiSnapshot=latest;
+                        if(dispatchProblem!=null){explorer.Stop("Explorer stopped: "+dispatchProblem);StopPilot();}
                         else {aiRoute.Send(directory,++aiNonce,jumpAssist.Checked,false);explorer.Dispatched(aiNonce,NavigationExplorer.Clock);aiRunning=true;}
                     }
                     if(explorer.MayHeartbeat && aiRoute!=null)aiRoute.Send(directory,aiNonce,jumpAssist.Checked,false);
@@ -726,7 +748,7 @@ namespace JfgLauncher
                 }
                 }
                 if(explorerError==null) {explorer.ObserveIdle(value,NavigationExplorer.Clock);explorer.Save(directory);}
-                if(collisionStop!=null)aiStatus.Text=collisionStop+(explorer.Running?". Checking another exit.":". Replan before restarting.");
+                if(collisionStop!=null)aiStatus.Text=explorer.Running?explorer.Status:collisionStop+". Replan before restarting.";
                 cached = value.Mesh; canvas.UpdateMap(value); UpdateInteractions(value);EntityDetails(value);
                 if (canvas.Mode != 1) layerHeight.Value = Math.Max(layerHeight.Minimum, Math.Min(layerHeight.Maximum, (decimal)canvas.CenterHeight));
                 int tribalCount = 0;

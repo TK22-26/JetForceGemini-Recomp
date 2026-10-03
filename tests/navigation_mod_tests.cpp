@@ -65,9 +65,36 @@ int main(int argc, char **argv) {
     const auto putfloat = [&](std::uint32_t a, float v) {
       put32(a, std::bit_cast<std::uint32_t>(v));
     };
+    check(!control_camera(m).known);
+    put32(0x80041E0CU,0x3C028010U);put32(0x80041E10U,0x03E00008U);
+    put32(0x80041E14U,0x2442A4D0U);put32(0x80032ACCU,0xAC226DC0U);
+    put32(0x800F6DC0U,0x800FA4D0U);m.put16(0x800FA4D0U,1234);
+    putfloat(0x800FA4DCU,42);
+    check(control_camera(m).known && control_camera(m).yaw==1234 && control_camera(m).position.x==42);
+    put32(0x800F6DC0U,0x800FA4D1U);check(!control_camera(m).known);
+    put32(0x800F6DC0U,0x800FA600U);check(!control_camera(m).known);
+    put32(0x800F6DC0U,0x800FA4D0U);put32(0x80041E0CU,0);check(!control_camera(m).known);
+    check(!static_camera_active(m));
+    put32(0x8004271CU,0x3C028010U);put32(0x80042720U,0x8C42B084U);
+    put32(0x80042724U,0x03E00008U);put32(0x80042728U,0U);
+    put32(0x800FB084U,0x8010B000U);
+    check(static_camera_active(m) && scripted_camera_active(m));
+    put32(0x800FB084U,0x8010B001U);check(!static_camera_active(m));
+    put32(0x800FB084U,0x80400000U);check(!static_camera_active(m));
+    put32(0x800FB084U,0);check(!scripted_camera_active(m));
+    put32(0x801045B8U,1);check(scripted_camera_active(m));put32(0x801045B8U,0);
+    put32(0x800FB084U,0x8010B000U);put32(0x8004271CU,0);check(!static_camera_active(m));
+    put32(0x800FB084U,0);
     const std::uint32_t player = 0x80100000U, control = 0x80101000U,
                         props = 0x80102000U, game = 0x80103000U;
     put32(player + 0x68U, control);
+    put32(0x8002B484U,0x8E0505C0U);put32(0x8002B48CU,0x10A0000EU);
+    put32(control+0x5C0U,0x8010C000U);m.put16(0x8010C048U,100U);
+    check(scripted_camera_active(m,player));
+    m.put16(0x8010C048U,54U);check(!scripted_camera_active(m,player));
+    m.put16(0x8010C048U,100U);put32(0x8002B484U,0);check(!scripted_camera_active(m,player));
+    put32(0x8002B484U,0x8E0505C0U);put32(control+0x5C0U,0x80400000U);check(!scripted_camera_active(m,player));
+    put32(control+0x5C0U,0);
     put32(player + 0x4CU, props);
     put32(0x800FD7D4U, game);
     m.put16(game + 0x15EU, 6U);

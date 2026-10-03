@@ -74,4 +74,43 @@ static void navigation_pilot_tests() {
     check(blocked.jump_attempts == unsigned(jump));
     check(jump == 0 ? jumpFrames == 0 : jumpFrames > 0 && jumpFrames <= 3);
   }
+  // A supervised stop/replan in the same room can retain recent calibration.
+  NavigationPilot recovery;
+  check(start(recovery));p={};now=1000;
+  for(unsigned frame=0;frame<30;++frame) {
+    now+=33;check(start(recovery,0,1,now));recovery.tick(p,true,35,2,now);
+    auto input=recovery.sample(false,false,true);p.x+=input.x/30.0f;p.z+=input.y/30.0f;
+  }
+  std::stringstream stopCommand;stopCommand<<"JFGNAV1 35 2 2 "<<now<<" 0 0";
+  check(recovery.command(stopCommand,35,2,now));check(!recovery.active());
+  now+=1000;check(start(recovery,0,3,now));recovery.tick(p,true,35,2,now);
+  check(std::string(recovery.state)=="following" && recovery.sample(false,false,true).y==0);
+  now+=33;recovery.tick(p,true,35,2,now);check(std::string(recovery.state)=="following");
+  recovery.stop();(void)recovery.sample(true,false,true); // Manual input while stopped invalidates the cache too.
+  check(start(recovery,0,4,now));recovery.tick(p,true,35,2,now);
+  check(std::string(recovery.state)=="calibrating_forward");
+  recovery.reset();now+=33;check(start(recovery,0,5,now));recovery.tick(p,true,35,2,now);
+  check(std::string(recovery.state)=="calibrating_forward");
+
+  // Camera rotation and coasting must not turn a right-angle route into arcs.
+  NavigationPilot guided;PilotPoint position{},velocity{};now=1000;
+  bool reached=false;float largest_error=0;
+  for(unsigned frame=0;frame<1600;++frame) {
+    now+=33;auto yaw=static_cast<std::int16_t>(-32768 + int(frame)*71);
+    guided.camera_heading(true,yaw);
+    std::stringstream command;command<<"JFGNAV1 35 2 99 "<<now<<" 0 3\n0 0 -200\n200 0 -200\n200 0 0\n";
+    check(guided.command(command,35,2,now));guided.tick(position,true,35,2,now);
+    if(!guided.active()) {reached=std::string(guided.state)=="approach_complete";break;}
+    auto input=guided.sample(false,false,true);auto angle=float(yaw)*6.283185307179586f/65536;
+    float wx=-std::cos(angle)*input.x-std::sin(angle)*input.y,
+          wz=-std::sin(angle)*input.x+std::cos(angle)*input.y;
+    velocity.x=velocity.x*.9f+wx*.005f;velocity.z=velocity.z*.9f+wz*.005f;
+    position.x+=velocity.x;position.z+=velocity.z;
+    float error=guided.waypoint==0?std::abs(position.x):guided.waypoint==1?std::abs(position.z+200):std::abs(position.x-200);
+    largest_error=std::max(largest_error,error);
+  }
+  check(reached && largest_error<20);
+  check(start(guided,0,100,now));guided.camera_heading(false,0);
+  check(!guided.active() && std::string(guided.state)=="camera_unavailable");
+
 }

@@ -38,7 +38,7 @@ namespace JfgLauncher {
         internal bool Running { get; private set; }
         internal string Status { get; private set; }
         internal bool Dirty { get; private set; }
-        internal bool MayHeartbeat { get { return Running && pending != null && pending.Nonce != 0 && !suspended && completedAt == 0; } }
+        internal bool MayHeartbeat { get { return Running && pending != null && pending.Nonce != 0 && pending.RetryAt==0 && !suspended && completedAt == 0; } }
         internal string TargetKey { get { return pending == null ? null : pending.Exit.key; } }
         private readonly Func<MapSnapshot, MapMarker, NavigationRoute> planner;
         private sealed class Pending {
@@ -46,7 +46,10 @@ namespace JfgLauncher {
             internal long Nonce, Started;
             internal bool Acknowledged, ConfirmationSent;
             internal int Waypoint = -1;
-            internal long ProgressAt;
+            internal long ProgressAt, RetryAt, FirstStarted;
+            internal int Recoveries;
+            internal float[] RecoveryPosition;
+            internal long RecoveryStableSince, RecoveryUpdate=-1, RecoveryStarted;
             internal float BestDistance = Single.MaxValue;
             internal NavigationRoute Route;
         }
@@ -56,7 +59,7 @@ namespace JfgLauncher {
         private long candidateGeneration=-1,candidateSince;
         private uint candidateLevel;
         private int transitions, revisits;
-        private bool suspended, settling;
+        private bool suspended, settling, scriptedWaiting;
         private float[] lastPosition;
         private string context = "";
         private readonly HashSet<string> arrivals = new HashSet<string>();
@@ -176,9 +179,9 @@ namespace JfgLauncher {
             if(!Fresh(snapshot,now) || !snapshot.Live.clearing_active || snapshot.Live.transition_confirm)throw new InvalidDataException("Enter active gameplay and finish any transition prompt before exploring.");
             if(snapshot.Live.exits==null)throw new InvalidDataException("Exit data unavailable.");
             ObserveRoom(snapshot,room==null || room.level!=snapshot.Live.level || generation!=snapshot.Live.generation);manualInputs=snapshot.Live.navigation_ai==null?0:snapshot.Live.navigation_ai.manual_inputs;started=lastNow=now;transitions=revisits=0;segmentVisits.Clear();
-            nextPlan=now;suspended=false;waitAt=completedAt=0;Running=true;Status="Explorer: choosing an untried exit";
+            nextPlan=now;suspended=scriptedWaiting=false;waitAt=completedAt=0;Running=true;Status="Explorer: choosing an untried exit";
         }
-        internal void Stop(string reason) { Running=false;pending=null;suspended=settling=false;candidateGeneration=-1;completedAt=waitAt=0;Status=reason; }
+        internal void Stop(string reason) { Running=false;pending=null;suspended=settling=scriptedWaiting=false;candidateGeneration=-1;completedAt=waitAt=0;Status=reason; }
         private ExploreCommand Halt(string reason) { Stop(reason);return new ExploreCommand {Stop=true}; }
         internal void Dispatched(long nonce,long now) {
             if(!Running || pending==null || nonce<=0)throw new InvalidOperationException("No exploration route awaiting dispatch.");
@@ -201,9 +204,20 @@ namespace JfgLauncher {
             Status="Explorer: blocked - "+reason+"; checking another exit";
             return new ExploreCommand {Stop=true};
         }
+        private ExploreCommand Recover(string reason,long now) {
+            if(pending==null)return Halt("Explorer stopped: "+reason);
+            if(pending.RetryAt!=0)return new ExploreCommand {Stop=true};
+            if(pending.Recoveries>=4 || now-pending.FirstStarted>120000)
+                return Failed("Local recovery limit: "+reason,now);
+            ++pending.Recoveries;pending.RetryAt=now+650;pending.Nonce=0;
+            pending.RecoveryPosition=null;pending.RecoveryStableSince=0;pending.RecoveryUpdate=-1;pending.RecoveryStarted=now;
+            completedAt=waitAt=0;suspended=false;
+            Status="Explorer: stopped movement; replanning "+ExitLabel(pending.Exit)+" (recovery "+pending.Recoveries+"/4): "+reason;
+            return new ExploreCommand {Stop=true};
+        }
         internal ExploreCommand RouteBlocked(string reason,long now) {
             if(!Running || pending==null)return Halt("Explorer stopped: "+reason);
-            return Failed(reason,now);
+            return Recover(reason,now);
         }
         private bool HasFrontier(ExploreRoom target) {
             foreach(ExploreExit exit in target.exits)if(!exit.destination.HasValue && !IsBlocked(exit))return true;
@@ -282,7 +296,7 @@ namespace JfgLauncher {
                 if(newEdge)Progress();else ++revisits;
                 string segment=room.level+":"+edge.key;int visits;segmentVisits.TryGetValue(segment,out visits);segmentVisits[segment]=++visits;
                 if(destination==room.level)Block(edge,"Returned to the same room");
-                pending=null;completedAt=waitAt=0;suspended=false;++transitions;
+                pending=null;completedAt=waitAt=0;suspended=scriptedWaiting=false;++transitions;
                 ObserveRoom(snapshot,true);nextPlan=now+600;settling=!snapshot.Live.clearing_active;if(settling)waitAt=now;
                 if(transitions>=128 || revisits>=Math.Min(64,Math.Max(8,History.rooms.Count*2)) || (segmentVisits.TryGetValue(segment,out visits) && visits>3))
                     return Halt("Explorer stopped: repeated transitions without new progress");
@@ -297,6 +311,17 @@ namespace JfgLauncher {
                 }
                 settling=false;waitAt=0;
             }
+            if(!snapshot.Live.clearing_active && pending!=null && (snapshot.Live.scripted_camera || scriptedWaiting)) {
+                if(!scriptedWaiting)waitAt=now;
+                scriptedWaiting=suspended=true;
+                if(now-waitAt>15000)return Halt("Explorer stopped: scripted camera did not return control");
+                Status="Explorer: waiting for the scripted camera; movement released";
+                return new ExploreCommand {Stop=true};
+            }
+            if(scriptedWaiting && snapshot.Live.clearing_active) {
+                scriptedWaiting=suspended=false;
+                return Recover("Scripted camera finished; checking the route again",now);
+            }
             if(!snapshot.Live.clearing_active) {
                 if(!NearPending())return Halt("Explorer stopped: gameplay controls suspended");
                 if(waitAt==0)waitAt=now;suspended=true;Status="Explorer: waiting for a room transition";
@@ -305,9 +330,29 @@ namespace JfgLauncher {
             }
             if(suspended)return Halt("Explorer stopped: controls resumed in the same room; restart explicitly");
             if(pending!=null) {
+                if(pending.RetryAt!=0) {
+                    if(now-pending.RecoveryStarted>7000)return Failed("Player did not settle before replanning",now);
+                    if(snapshot.Live.navigation_ai!=null && snapshot.Live.navigation_ai.active)return new ExploreCommand();
+                    if(pending.RecoveryUpdate==snapshot.Live.update)return new ExploreCommand();
+                    pending.RecoveryUpdate=snapshot.Live.update;
+                    float[] position=snapshot.Live.player.position;
+                    if(pending.RecoveryPosition==null || Distance(position,pending.RecoveryPosition)>2)pending.RecoveryStableSince=now;
+                    pending.RecoveryPosition=(float[])position.Clone();
+                    if(now<pending.RetryAt || now-pending.RecoveryStableSince<400)return new ExploreCommand();
+                    MapMarker target=Array.Find(snapshot.Live.exits,delegate(MapMarker e){return ExitKey(e)==pending.Exit.key;});
+                    if(target==null)return Failed("Exit disappeared during local recovery",now);
+                    try {
+                        NavigationRoute replacement=planner(snapshot,target);
+                        if(replacement==null || replacement.Points.Count==0)throw new InvalidDataException("Empty recovery route");
+                        pending.Route=replacement;pending.RetryAt=0;pending.Acknowledged=false;pending.Waypoint=-1;
+                        pending.BestDistance=Single.MaxValue;pending.ProgressAt=now;
+                        Status="Explorer: resuming "+ExitLabel(pending.Exit)+" after local recovery "+pending.Recoveries+"/4";
+                        return new ExploreCommand {Route=replacement};
+                    }catch(InvalidDataException error){return Failed("Replan from current position failed: "+error.Message,now);}
+                }
                 MapAi ai=snapshot.Live.navigation_ai;
                 if(pending.Nonce==0)return Halt("Explorer stopped: movement command was not dispatched");
-                if(now-pending.Started>90000)return Failed("Movement time limit",now);
+                if(now-pending.FirstStarted>120000)return Failed("Movement time limit",now);
                 if(ai!=null && ai.nonce==pending.Nonce) {
                     pending.Acknowledged=true;
                     if(ai.active){
@@ -320,7 +365,7 @@ namespace JfgLauncher {
                             }
                             long allowance=ai.state=="jump_assist"?3500:1800;
                             if(pending.ProgressAt!=0 && now-pending.ProgressAt>allowance)
-                                return Failed("No progress toward waypoint; possible wall or gate",now);
+                                return Recover("No progress toward waypoint; possible wall or gate",now);
                         }
                         Status="Explorer: "+ai.state.Replace('_',' ')+" toward "+ExitLabel(pending.Exit);return new ExploreCommand();
                     }
@@ -347,8 +392,9 @@ namespace JfgLauncher {
                         if(now-completedAt>=2500)return Failed("Doorway reached but no transition; gate, trigger or traversal needs checking",now);
                         return new ExploreCommand();
                     }
-                    if(ai.state=="blocked_needs_manual" || ai.state=="calibration_blocked" || ai.state=="calibration_uncertain" ||
-                        ai.state=="route_deviation" || ai.state=="jump_timeout" || ai.state=="time_limit")return Failed(ai.state.Replace('_',' '),now);
+                    if(ai.state=="blocked_needs_manual" || ai.state=="calibration_blocked" || ai.state=="calibration_uncertain" || ai.state=="route_deviation")
+                        return Recover(ai.state.Replace('_',' '),now);
+                    if(ai.state=="jump_timeout" || ai.state=="time_limit")return Failed(ai.state.Replace('_',' '),now);
                     return Halt("Explorer stopped: "+(ai.state??"unknown controller state").Replace('_',' '));
                 }
                 if(now-pending.Started>3000)return Halt("Explorer stopped: movement controller did not acknowledge the route");
@@ -362,7 +408,7 @@ namespace JfgLauncher {
             try {
                 NavigationRoute route=planner(snapshot,selected);
                 if(route==null || route.Points.Count==0)throw new InvalidDataException("Empty exit route");
-                pending=new Pending {Exit=chosen,Started=now,Route=route,ProgressAt=now};completedAt=0;candidateGeneration=-1;
+                pending=new Pending {Exit=chosen,Started=now,FirstStarted=now,Route=route,ProgressAt=now};completedAt=0;candidateGeneration=-1;
                 Status="Explorer: "+(route.ApproachOnly?"approaching blocked door for ":chosen.destination.HasValue?"following known route via ":"trying ")+ExitLabel(chosen);
                 return new ExploreCommand {Route=route};
             } catch(InvalidDataException error) {
@@ -376,6 +422,7 @@ namespace JfgLauncher {
             ExploreExit exit=target==null?null:target.exits.Find(delegate(ExploreExit e){return e.key==key;});
             if(exit==null)return "Untried";
             if(exit.absent)return "Unavailable in last room snapshot";
+            if(room==target && pending!=null && pending.Exit==exit && pending.RetryAt!=0)return "Local recovery toward this exit";
             if(room==target && pending!=null && pending.Exit==exit && pending.Route.ApproachOnly)return "Door approach - waiting for clearance before crossing";
             if(IsBlocked(exit))return "Blocked: "+exit.blocked;
             if(exit.destination.HasValue)return "Confirmed -> room "+exit.destination.Value;

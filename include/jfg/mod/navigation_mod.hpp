@@ -899,6 +899,41 @@ inline void write_mesh(std::ostream &out, const Mesh &mesh, std::uint32_t level,
   out << "]}\n";
 }
 
+// Read-only steering observation for the supported US camera layout. The
+// control camera pointer, rather than the renderer's temporary selection, is
+// pinned by camGetListPtr and controlPlayer's store at 0x80032ACC.
+struct ControlCamera { bool known{}; std::int16_t yaw{}; Vec3 position{}; };
+inline ControlCamera control_camera(const Memory &m) {
+  if (!m.valid(0x800F6DC0U,4) || m.u32(0x80041E0CU)!=0x3C028010U ||
+      m.u32(0x80041E10U)!=0x03E00008U || m.u32(0x80041E14U)!=0x2442A4D0U ||
+      m.u32(0x80032ACCU)!=0xAC226DC0U) return {};
+  auto address=m.u32(0x800F6DC0U);
+  if(address<0x800FA4D0U || address>=0x800FA600U ||
+     (address-0x800FA4D0U)%0x4CU!=0 || !m.valid(address,0x4CU)) return {};
+  try {return {true,m.s16(address),position(m,address)};}
+  catch(const std::runtime_error &) {return {};}
+}
+
+// Static-camera overrides are a separate path from animcamera and cutcamera.
+inline bool static_camera_active(const Memory &m) {
+  if (!m.valid(0x800FB084U,4) || m.u32(0x8004271CU)!=0x3C028010U ||
+      m.u32(0x80042720U)!=0x8C42B084U || m.u32(0x80042724U)!=0x03E00008U ||
+      m.u32(0x80042728U)!=0U) return false;
+  auto pointer=m.u32(0x800FB084U);
+  return (pointer&3U)==0U && m.valid(pointer,0x18U);
+}
+inline bool scripted_camera_active(const Memory &m, std::uint32_t player=0) {
+  if(m.u32(0x801045B8U)!=0U || static_camera_active(m)) return true;
+  // controlPlayer's camera dispatcher reads +0x5C0 before the static-camera
+  // fallback. The observed door shot binds a live cutcamera actor (behavior 100).
+  if(!m.valid(player,0x6CU) || m.u32(0x8002B484U)!=0x8E0505C0U ||
+     m.u32(0x8002B48CU)!=0x10A0000EU) return false;
+  auto control=m.u32(player+0x68U);
+  if(!m.valid(control,0x5C4U)) return false;
+  auto camera=m.u32(control+0x5C0U);
+  return (camera&3U)==0U && m.valid(camera,0x4AU) && m.u16(camera+0x48U)==100U;
+}
+
 // Normal single-player gameplay, without scripted camera or input control.
 inline bool gameplay_active(const Memory &m, std::uint32_t player) {
   if (!m.valid(player, 0xA4U))
@@ -1013,6 +1048,7 @@ public:
         << ",\"update\":" << updates
         << ",\"transition_confirm\":" << (transition_confirmation(m) ? "true" : "false")
         << ",\"mesh_ready\":" << (mesh_ready ? "true" : "false")
+        << ",\"scripted_camera\":" << (scripted_camera_active(m,player) ? "true" : "false")
         << ",\"clearing_active\":"
         << (player != 0U && gameplay_active(m, player) ? "true" : "false")
         << ",\"first_clear_level\":" << first_clear_level
@@ -1032,6 +1068,18 @@ public:
       }
     if (!found)
       out << "null";
+    const auto camera=control_camera(m);
+    const auto steering=pilot.observed_input();
+    out << ",\"steering\":{\"x\":" << steering.x << ",\"y\":" << steering.y
+        << ",\"camera_known\":" << (camera.known?"true":"false")
+        << ",\"camera_yaw\":" << camera.yaw << ",\"camera_position\":";
+    json_vec(out,camera.position);
+    out << ",\"static_camera\":" << (static_camera_active(m)?"true":"false")
+        << ",\"game_mode\":" << m.u32(0x800FD7C4U)
+        << ",\"animation_camera\":" << m.u32(0x801045B8U)
+        << ",\"joy_disabled\":" << m.u32(0x800F6DBCU);
+    const auto control=m.valid(player,0x6CU)?m.u32(player+0x68U):0U;
+    out << ",\"player_script\":" << (m.valid(control,0x5C4U)?m.u32(control+0x5C0U):0U) << '}';
     out << ",\"exits\":[";
     bool first = true;
     for (const auto &e : exits(m, list)) {

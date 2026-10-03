@@ -2133,6 +2133,8 @@ void update_navigation_mod(State &state) {
     }
     if (mod.player != 0U) {
       const auto p = jfg::mod::position(memory, mod.player);
+      const auto camera = jfg::mod::control_camera(memory);
+      mod.pilot.camera_heading(camera.known, camera.yaw);
       mod.pilot.tick({p.x,p.y,p.z}, jfg::mod::gameplay_active(memory,mod.player),ai_level,mod.generation,now);
     } else mod.pilot.stop("player_unavailable");
     if(mod.updates%6U!=0U)return;

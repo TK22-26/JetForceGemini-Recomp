@@ -43,8 +43,14 @@ namespace JfgLauncher {
             internal ExploreCommand Tick(long advance) {
                 Now+=advance;Map.Live.timestamp_ms=Now;++Map.Live.update;
                 ExploreCommand result=Explorer.Tick(Map,Now);
+                if(result.Stop && Map.Live.navigation_ai!=null){Map.Live.navigation_ai.active=false;Map.Live.navigation_ai.state="stopped";}
                 if(result.Route!=null){Explorer.Dispatched(++Nonce,Now);Map.Live.navigation_ai=new MapAi {nonce=Nonce,active=true,state="following"};}
                 return result;
+            }
+            internal ExploreCommand Block(string reason) {
+                ExploreCommand command=Explorer.RouteBlocked(reason,Now);
+                if(command.Stop){Map.Live.navigation_ai.active=false;Map.Live.navigation_ai.state="stopped";}
+                Tick(0);return command;
             }
             internal void Reach(MapMarker exit) { Map.Live.player.position=(float[])exit.position.Clone();Tick(200); }
             internal void Arrive(MapSnapshot next) { Map=next;Tick(200);Tick(700); }
@@ -132,11 +138,25 @@ namespace JfgLauncher {
             s=new Simulation(Room(40,1,good));s.Tick(0);s.Map.Live.navigation_ai=new MapAi();
             Check(s.Tick(3200).Stop && !s.Explorer.Running,"missing native acknowledgement did not stop");
             s=new Simulation(Room(40,1,good));s.Tick(0);s.Map.Live.navigation_ai.active=false;s.Map.Live.navigation_ai.state="calibration_blocked";
-            Check(s.Tick(200).Stop && s.Explorer.Describe(40,good).StartsWith("Blocked:"),"movement failure not recorded");
+            Check(s.Tick(200).Stop && s.Explorer.Describe(40,good).Contains("recovery"),"movement failure did not pause for local recovery");
             s=new Simulation(Room(40,1,good));s.Tick(0);s.Reach(good);
             s.Map.Live.clearing_active=false;s.Tick(200);s.Map.Live.clearing_active=true;
             Check(s.Tick(200).Stop && !s.Explorer.Running,"pause/resume restarted autonomous movement");
 
+            // A decoded scripted camera can finish without abandoning the exit.
+            // Unclassified pauses above still require an explicit restart.
+            s=new Simulation(Room(40,1,good));s.Tick(0);
+            s.Map.Live.clearing_active=false;s.Map.Live.scripted_camera=true;
+            Check(s.Tick(200).Stop && s.Explorer.Running && !s.Explorer.MayHeartbeat,"scripted camera did not release movement and retain target");
+            Check(s.Tick(1000).Route==null,"scripted camera rearmed movement");
+            s.Map.Live.clearing_active=true;s.Map.Live.scripted_camera=false;
+            Check(s.Tick(200).Stop && s.Explorer.Running,"scripted camera completion discarded route");
+            s.Tick(200);Check(s.Tick(800).Route!=null && s.Explorer.TargetKey==NavigationExplorer.ExitKey(good),"scripted camera did not replan same exit after settling");
+            s=new Simulation(Room(40,1,good));s.Tick(0);s.Map.Live.clearing_active=false;s.Map.Live.scripted_camera=true;s.Tick(200);
+            ++s.Map.Live.navigation_ai.manual_inputs;
+            Check(s.Tick(200).Stop && !s.Explorer.Running,"manual input during cutscene allowed automatic restart");
+            s=new Simulation(Room(40,1,good));s.Tick(0);s.Map.Live.clearing_active=false;s.Map.Live.scripted_camera=true;s.Tick(200);
+            Check(s.Tick(15100).Stop && !s.Explorer.Running,"scripted camera wait was unbounded");
             // Brief load gaps near a confirmed approach can be followed across rooms.
             s=new Simulation(Room(50,1,good));s.Tick(0);s.Reach(good);
             Check(s.Explorer.MissingMap(s.Now+100).Stop && s.Explorer.Running && !s.Explorer.MayHeartbeat,"load gap did not release movement");
@@ -247,15 +267,21 @@ namespace JfgLauncher {
             idleExplorer.Stop("test");string arrivalFolder=Path.Combine(directory,"arrival-history");Directory.CreateDirectory(arrivalFolder);idleExplorer.Save(arrivalFolder);
             NavigationExplorer resumed=NavigationExplorer.Load(arrivalFolder);resumed.Start(idle,100000);
             Check(resumed.Tick(idle,100000).Route!=null && resumed.TargetKey==NavigationExplorer.ExitKey(forward),"reopening map lost arrival doorway");
-            // A live obstacle marks the target failed and chooses a different route.
+            // A live obstacle pauses movement and replans toward the same target first.
             s=new Simulation(Room(102,1,bad,good));s.Tick(0);
-            Check(s.Explorer.RouteBlocked("Moving door blocked route",s.Now).Stop && s.Explorer.Running,"dynamic collision stopped all exploration");
-            Check(s.Tick(600).Route!=null && s.Explorer.TargetKey==NavigationExplorer.ExitKey(good),"dynamic collision did not choose alternative exit");
-            Check(s.Explorer.Describe(102,bad).Contains("Moving door"),"dynamic collision reason not recorded");
+            Check(s.Block("Moving door blocked route").Stop && s.Explorer.Running,"dynamic collision stopped all exploration");
+            Check(!s.Explorer.MayHeartbeat && s.Explorer.TargetKey==NavigationExplorer.ExitKey(bad),"recovery lost target or kept movement armed");
+            Check(s.Tick(500).Route==null,"replanned before movement settled");
+            Check(s.Tick(250).Route!=null && s.Explorer.TargetKey==NavigationExplorer.ExitKey(bad),"dynamic collision abandoned recoverable exit");
+            Check(!s.Explorer.Describe(102,bad).StartsWith("Blocked:"),"transient collision permanently blocked exit");
+            for(int i=0;i<3;i++){s.Block("Moving door blocked route");Check(s.Tick(750).Route!=null,"bounded recovery stopped too soon");}
+            Check(s.Block("Moving door blocked route").Stop,"recovery exhaustion failed to release movement");
+            Check(s.Explorer.Describe(102,bad).Contains("Local recovery limit"),"persistent failure did not become blocked");
+            Check(s.Tick(750).Route!=null && s.Explorer.TargetKey==NavigationExplorer.ExitKey(good),"recovery limit did not select another exit");
             // No progress watchdog releases a controller that remains active at a wall.
             s=new Simulation(Room(103,1,bad,good));s.Tick(0);s.Tick(200);
-            Check(s.Tick(1900).Stop && !s.Explorer.MayHeartbeat,"wall stall kept receiving movement heartbeats");
-            Check(s.Tick(600).Route!=null && s.Explorer.TargetKey==NavigationExplorer.ExitKey(good),"wall stall did not choose another exit");
+            Check(s.Tick(1900).Stop && !s.Explorer.MayHeartbeat,"wall stall kept receiving movement heartbeats");s.Tick(0);
+            Check(s.Tick(750).Route!=null && s.Explorer.TargetKey==NavigationExplorer.ExitKey(bad),"wall stall did not retry same destination");
             s=new Simulation(Room(104,1,good));s.Tick(0);s.Tick(200);
             for(int i=0;i<4;i++){s.Map.Live.player.position[0]+=10;Check(!s.Tick(1000).Stop,"steady progress treated as wall stall");}
             // Refresh a real list while its selection is intentionally above the viewport.
@@ -287,10 +313,13 @@ namespace JfgLauncher {
                 recoveryMap.Live.collision.models=new MapCollisionModel[]{new MapCollisionModel {address=12345,enabled=true,lower=new float[]{100,-5,-100},upper=new float[]{200,100,100}}};
                 WriteSnapshot(recovery,recoveryMap);window.RefreshMap();
                 Check(Command(recovery)[6]=="0","automatic route did not release input for new blocker");
-                System.Threading.Thread.Sleep(650);WriteSnapshot(recovery,recoveryMap);window.RefreshMap();string[] alternative=Command(recovery);
+                recoveryMap.Live.navigation_ai.active=false;recoveryMap.Live.navigation_ai.state="stopped";
+                WriteSnapshot(recovery,recoveryMap);window.RefreshMap();
+                System.Threading.Thread.Sleep(750);WriteSnapshot(recovery,recoveryMap);window.RefreshMap();string[] alternative=Command(recovery);
                 Check(alternative[6]!="0" && alternative[3]!=initial[3],"map window failed to dispatch alternative after blockage");
                 NavigationExplorer history=NavigationExplorer.Load(recovery);
-                Check(history.History.rooms[0].exits[0].blocked.Contains("Moving door"),"map window did not persist blocker");window.Close();
+                Check(history.History.rooms[0].exits[0].blocked=="" && history.History.rooms[0].exits[0].attempts==1,"recoverable map collision was persisted as unreachable exit");
+                Check(File.Exists(Path.Combine(recovery,"last-route-stop.json")) && File.ReadAllText(Path.Combine(recovery,"route-events.tsv")).Contains("Moving door"),"exact failed route state was not retained");window.Close();
             }
             // A dropped door is an approach-and-observe target, not a permanent wall.
             s=new Simulation(DoorRoom(),NavigationRoute.PlanExit);ExploreCommand door=s.Tick(0);
@@ -308,6 +337,14 @@ namespace JfgLauncher {
             s=new Simulation(DoorRoom(),NavigationRoute.PlanExit);door=s.Tick(0);waiting=door.Route.Points[door.Route.Points.Count-1];
             s.Map.Live.player.position=new float[]{waiting.X,waiting.Y,waiting.Z};s.Map.Live.navigation_ai.active=false;s.Map.Live.navigation_ai.state="approach_complete";
             s.Tick(200);Check(s.Tick(8100).Stop && s.Explorer.Describe(107,s.Map.Live.exits[0]).Contains("door"),"locked door caused endless waiting or pushing");
+            s=new Simulation(Room(109,1,good));s.Tick(0);s.Block("terrain");s.Map.Live.navigation_ai.manual_inputs++;
+            Check(s.Tick(750).Stop && !s.Explorer.Running,"manual input during recovery was ignored");
+            s=new Simulation(Room(110,1,good));s.Tick(0);s.Block("terrain");s.Explorer.Stop("user stopped");
+            Check(s.Tick(750).Route==null,"stopped recovery rearmed movement");
+            s=new Simulation(Room(111,1,good));s.Tick(0);s.Block("terrain");
+            s.Map.Live.player.position[0]+=20;Check(s.Tick(750).Route==null,"replanned while player was still coasting");
+            s.Map.Live.player.position[0]+=20;Check(s.Tick(300).Route==null,"coasting did not restart settle timer");
+            Check(s.Tick(500).Route!=null,"stable position did not allow recovery");
             return checks;
         }
     }

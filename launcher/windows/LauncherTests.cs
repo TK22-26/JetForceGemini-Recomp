@@ -400,7 +400,7 @@ namespace JfgLauncher
                 Console.WriteLine("Launcher checks passed: " + checks);
                 return 0;
             }
-            catch (Exception error) { Console.Error.WriteLine(error.GetType().Name + ": " + error.Message); return 1; }
+            catch (Exception error) { Console.Error.WriteLine(error.ToString()); return 1; }
             finally
             {
                 // This path is an explicitly created disposable fixture, never a user profile.
