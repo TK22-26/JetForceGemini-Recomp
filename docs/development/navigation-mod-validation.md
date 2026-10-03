@@ -138,3 +138,37 @@ No fresh interactive playthrough or automatic navigation was performed for this
 map-only update. Inventory ownership, key-lock clearing and target activation
 are not proof of a physically passable door. Unknown routes, dialogue rewards,
 weapon restrictions and jump/dive requirements stay unknown.
+
+## NPC reward catalog across the supported ROM (2026-10-02)
+
+This supersedes the single Magnus encounter restriction above. The host reads
+numeric dialogue/choice records from the user's validated US ROM at startup;
+no dialogue text, ROM control tables or generated game code is checked in.
+All 45 selector groups and 19 reachable choice tables parse, producing 29
+offer paths (including alternative paths and scene/music choices). Seventeen
+of the 19 dispatcher actions are referenced by those tables. Actions 1 and 13
+have known effects but no source NPC is invented for them.
+
+An isolated harness compared the host's predicates with unmodified generated
+game functions on 192 inventory/quest states: 8,832 comparisons passed. It
+covered all 20 nontrivial root predicates, 17 non-audio visibility cases, and all eight payment predicates. Four audio-dependent
+music visibility cases stay unknown in the host. Another harness executed all
+19 reward handlers for each of three characters (57 cases), checking grants,
+consumed items, ownership scope, costs, health refill and character isolation.
+Only player lookup, weapon definition/presentation, audio and save notification
+dependencies were replaced with explicit offline harness stubs. No live game,
+audio device or save file was used.
+
+Synthetic public fixtures cover the second red-key dialogue, nested trades,
+payments belonging to a different character, cross-character reward ownership,
+multiple service offers, shared quest flags, missing inventory, unknown catalog,
+malformed offsets, truncation and cyclic choices. Original-ROM records remain
+private validation inputs. The original-function comparisons validate control
+semantics, not a full campaign playthrough or every scripted scene effect.
+
+Final checks pass on Windows native and Linux ASan/UBSan builds, 121 launcher
+checks, ten setup checks and ten Python map-reader tests. The actual-ROM
+startup parser passes and rejects a damaged asset offset. A fresh offline export
+of the saved room-35 memory passes map validation and retains all 15 interaction
+nodes alongside 45/19 catalog coverage. The WinForms NPC trade inspector was
+rendered offscreen and inspected. No fresh interactive campaign run was made.

@@ -3,13 +3,22 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <source_location>
 #include <sstream>
 
-static void check(bool ok) {
-  if (!ok)
+static void
+check(bool ok,
+      const std::source_location where = std::source_location::current()) {
+  if (!ok) {
+    std::cerr << "Navigation check failed at " << where.file_name() << ':'
+              << where.line() << '\n';
     std::abort();
+  }
 }
+#include "npc_rewards_tests.hpp"
 int main(int argc, char **argv) {
+  npc_reward_tests();
+  const auto npc_catalog = NpcFixture().catalog();
   using namespace jfg::mod;
   if (argc == 3) {
     std::ifstream in(argv[1], std::ios::binary);
@@ -274,12 +283,14 @@ int main(int argc, char **argv) {
     auto inv = inventory(m, player);
     check(inv.known && inv.character == 1U && !inv.red_key &&
           inv.magnus_spoken && inv.weapons == 4U);
-    auto nodes = interactions(m, progression_list, 157U, inv);
+    auto nodes =
+        interactions(m, progression_list, 157U, inv, &npc_catalog, player);
     check(nodes.size() == 1U && nodes[0].reward_item == 1 &&
           nodes[0].status == "available" && nodes[0].spoken == 1);
     check(bytes == before_progression);
     put8(saved1 + 0x66U, 0x40U);
-    nodes = interactions(m, progression_list, 157U, inventory(m, player));
+    nodes = interactions(m, progression_list, 157U, inventory(m, player),
+                         &npc_catalog, player);
     check(nodes[0].status == "owned");
     put8(control + 1U, 0U);
     check(!inventory(m, player)
@@ -289,15 +300,19 @@ int main(int argc, char **argv) {
     put8(control + 1U, 1U);
     put32(0x800FD7D4U, 0xffffffffU);
     check(!inventory(m, player).known);
-    nodes = interactions(m, progression_list, 157U, inventory(m, player));
+    nodes = interactions(m, progression_list, 157U, inventory(m, player),
+                         &npc_catalog, player);
     check(nodes[0].status == "unknown" && nodes[0].spoken == -1);
     put32(0x800FD7D4U, game);
     put8(0x800A4FC4U, 1U);
     check(!inventory(m, player).known);
     put8(0x800A4FC4U, 0U);
-    check(interactions(m, progression_list, 35U, inv)[0].reward_item == -1);
+    check(interactions(m, progression_list, 35U, inv, &npc_catalog, player)[0]
+              .reward_item == 1);
+    check(interactions(m, progression_list, 35U, inv)[0].status == "unknown");
     put8(gc + 0x32U, 5U);
-    check(interactions(m, progression_list, 157U, inv)[0].reward_item == -1);
+    check(interactions(m, progression_list, 157U, inv, &npc_catalog, player)[0]
+              .reward_item == 1);
     put8(gc + 0x32U, 4U);
     std::ostringstream progression_json;
     write_progression(progression_json, m, {{guide, 90U, {20, 30, 40}}}, player,

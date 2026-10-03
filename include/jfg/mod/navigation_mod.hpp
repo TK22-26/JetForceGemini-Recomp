@@ -2,6 +2,7 @@
 
 // Optional host-side tooling for the supported US ROM. No game assets are
 // embedded.
+#include "jfg/mod/npc_rewards.hpp"
 #include <array>
 #include <bit>
 #include <chrono>
@@ -407,11 +408,40 @@ inline Inventory inventory(const Memory &m, std::uint32_t player) noexcept {
     return {};
   }
 }
+inline NpcFacts npc_facts(const Memory &m, const Inventory &inv,
+                          std::uint32_t player = 0U) noexcept {
+  NpcFacts f;
+  try {
+    if (!inv.known)
+      return f;
+    const auto game = m.u32(0x800FD7D4U);
+    m.require(game, 0x334U);
+    f.character = inv.character;
+    f.weapons = inv.weapons;
+    for (unsigned c = 0; c < 3; ++c)
+      for (unsigned i = 0; i < 4; ++i)
+        f.items[c][i] = m.u8(game + 0x15CU + c * 0x76U + 0x66U + i);
+    for (unsigned i = 0; i < f.flags.size(); ++i)
+      f.flags[i] = m.u8(game + 0x30U + i);
+    f.currency = m.s16(game + 0x15CU + inv.character * 0x76U + 0x12U);
+    if (m.valid(player, 0xA4U)) {
+      const auto control = m.u32(player + 0x68U);
+      if (m.valid(control, 0x18AU))
+        f.race = m.u8(control + 0x189U);
+    }
+    f.known = true;
+  } catch (const std::runtime_error &) {
+    return {};
+  }
+  return f;
+}
 struct Interaction {
   std::uint32_t address{}, linked_actor{};
   Vec3 position{};
   std::string kind, label, action, status = "unknown";
   std::string requirement = "Unknown", reward = "Unknown";
+  std::vector<NpcOffer> offers;
+  bool npc_catalog_known = false;
   bool requirement_known = false;
   int reward_item = -1, reward_weapon = -1, required_weapon = -1;
   int spoken = -1, encounter = -1, dialogue = -1;
@@ -419,10 +449,11 @@ struct Interaction {
   int door_id = -1, required_item = -1, target_health = -1,
       target_max_health = -1, reset_ticks = -1;
 };
-inline std::vector<Interaction> interactions(const Memory &m,
-                                             const std::vector<Actor> &list,
-                                             std::uint32_t level,
-                                             const Inventory &inv) {
+inline std::vector<Interaction>
+interactions(const Memory &m, const std::vector<Actor> &list,
+             std::uint32_t /* level */, const Inventory &inv,
+             const NpcRewardCatalog *catalog = nullptr,
+             std::uint32_t player = 0U) {
   std::vector<Interaction> result;
   for (const auto &npc : npc_markers(m, list)) {
     Interaction node;
@@ -435,16 +466,51 @@ inline std::vector<Interaction> interactions(const Memory &m,
       const auto control = m.u32(npc.address + 0x68U);
       node.dialogue = m.u8(control + 0x31U);
       node.encounter = m.u8(control + 0x32U);
-      if (level == 157U && npc.object_id == 350U && node.dialogue == 4 &&
-          node.encounter == 4) {
-        node.label = "Magnus: Red key";
-        node.reward = "Red key";
-        node.reward_item = 1;
-        node.requirement = "Talk to Magnus; finish the reward dialogue";
+      auto facts = npc_facts(m, inv, player);
+      facts.first_conversation = m.u8(control + 1U) != 0U ? 1 : 0;
+      if (facts.known) {
+        const auto game = m.u32(0x800FD7D4U);
+        node.spoken = (m.u8(game + 8U + (unsigned(node.encounter) >> 3U)) &
+                       (0x80U >> (unsigned(node.encounter) & 7U))) != 0U
+                          ? 1
+                          : 0;
+      }
+      node.npc_catalog_known =
+          catalog != nullptr && catalog->ready() && node.dialogue < 45;
+      if (node.npc_catalog_known) {
+        node.offers = catalog->offers(unsigned(node.dialogue), facts);
+        node.requirement =
+            "Select an offer below for its dialogue and trade requirements";
         node.requirement_known = true;
-        node.status =
-            inv.known ? (inv.red_key ? "owned" : "available") : "unknown";
-        node.spoken = inv.known ? (inv.magnus_spoken ? 1 : 0) : -1;
+        node.reward = node.offers.empty()
+                          ? "No direct item or service reward in this dialogue"
+                          : "See NPC offers";
+        node.status = node.offers.empty() ? "no_direct_reward" : "blocked";
+        bool owned = false, unknown = false, available = false;
+        std::set<std::string> names;
+        for (const auto &offer : node.offers) {
+          available |= offer.status == "available";
+          owned |= offer.status == "owned";
+          unknown |= offer.status == "unknown";
+          if (offer.kind != "transition" && offer.kind != "music")
+            names.insert(offer.reward);
+        }
+        if (!node.offers.empty())
+          node.status = available ? "available"
+                        : unknown ? "unknown"
+                        : owned   ? "owned"
+                                  : "blocked";
+        if (names.size() == 1) {
+          node.reward = *names.begin();
+          node.label += ": " + node.reward;
+          for (const auto &offer : node.offers)
+            if (offer.reward == node.reward) {
+              node.reward_item = offer.item;
+              node.reward_weapon = offer.weapon;
+              break;
+            }
+        } else if (names.size() > 1)
+          node.label += ": " + std::to_string(names.size()) + " offers";
       }
     }
     result.push_back(std::move(node));
@@ -576,7 +642,8 @@ inline std::vector<Interaction> interactions(const Memory &m,
 }
 inline void write_progression(std::ostream &out, const Memory &m,
                               const std::vector<Actor> &list,
-                              std::uint32_t player, std::uint32_t level) {
+                              std::uint32_t player, std::uint32_t level,
+                              const NpcRewardCatalog *catalog = nullptr) {
   bool present = false;
   for (const auto &a : list)
     if (a.address == player)
@@ -587,9 +654,14 @@ inline void write_progression(std::ostream &out, const Memory &m,
       << (inv.known ? std::to_string(inv.character) : "null") << ",\"red_key\":"
       << (inv.known ? (inv.red_key ? "true" : "false") : "null")
       << ",\"weapons_mask\":"
-      << (inv.known ? std::to_string(inv.weapons) : "null") << "},\"nodes\":[";
+      << (inv.known ? std::to_string(inv.weapons) : "null")
+      << "},\"npc_catalog\":{\"known\":"
+      << (catalog != nullptr && catalog->ready() ? "true" : "false")
+      << ",\"dialogue_groups\":" << (catalog ? catalog->group_count() : 0)
+      << ",\"choice_tables\":" << (catalog ? catalog->choice_count() : 0)
+      << "},\"nodes\":[";
   bool first = true;
-  for (const auto &node : interactions(m, list, level, inv)) {
+  for (const auto &node : interactions(m, list, level, inv, catalog, player)) {
     if (!first)
       out << ',';
     first = false;
@@ -613,7 +685,37 @@ inline void write_progression(std::ostream &out, const Memory &m,
         << ",\"target_max_health\":" << node.target_max_health
         << ",\"reset_ticks\":" << node.reset_ticks
         << ",\"linked_actor\":" << node.linked_actor
-        << ",\"traversal\":\"unknown\"}";
+        << ",\"traversal\":\"unknown\",\"npc_catalog_known\":"
+        << (node.npc_catalog_known ? "true" : "false") << ",\"offers\":[";
+    bool first_offer = true;
+    for (const auto &offer : node.offers) {
+      if (!first_offer)
+        out << ',';
+      first_offer = false;
+      out << "{\"id\":\"" << offer.id << "\",\"kind\":\"" << offer.kind
+          << "\",\"reward\":\"" << offer.reward << "\",\"status\":\""
+          << offer.status << "\",\"scope\":\"" << offer.scope
+          << "\",\"action\":" << offer.action << ",\"item\":" << offer.item
+          << ",\"weapon\":" << offer.weapon << ",\"flag\":" << offer.flag
+          << ",\"destination\":" << offer.destination
+          << ",\"cost\":" << offer.cost << ",\"consumed_items\":[";
+      for (std::size_t i = 0; i < offer.consumed_items.size(); ++i) {
+        if (i)
+          out << ',';
+        out << offer.consumed_items[i];
+      }
+      out << "],\"conditions\":[";
+      for (std::size_t i = 0; i < offer.conditions.size(); ++i) {
+        if (i)
+          out << ',';
+        const auto &c = offer.conditions[i];
+        out << "{\"domain\":\"" << c.domain << "\",\"id\":" << c.id
+            << ",\"description\":\"" << c.description << "\",\"state\":\""
+            << fact_name(c.state) << "\"}";
+      }
+      out << "]}";
+    }
+    out << "]}";
   }
   out << "]}";
 }
@@ -721,6 +823,7 @@ inline bool gameplay_active(const Memory &m, std::uint32_t player) {
 
 class NavigationMod {
 public:
+  NpcRewardCatalog npc_rewards;
   bool enabled = false;
   std::uint32_t player = 0, last_track = 0, last_level = UINT32_MAX;
   std::uint64_t updates = 0, generation = 1, cleared = 0, health_restores = 0,
@@ -862,7 +965,7 @@ public:
     out << "],\"npcs\":";
     write_npcs(out, npc_markers(m, list));
     out << ",\"progression\":";
-    write_progression(out, m, list, player, level);
+    write_progression(out, m, list, player, level, &npc_rewards);
     out << ",\"actors\":[";
     first = true;
     for (const auto &a : list) {

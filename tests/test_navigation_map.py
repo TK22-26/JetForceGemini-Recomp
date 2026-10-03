@@ -39,6 +39,28 @@ class NavigationMapTests(unittest.TestCase):
         self.save()
         with self.assertRaises(ValueError): load_snapshot(self.path)
 
+    def test_npc_offers_and_nested_requirements(self):
+        self.live["progression"] = {"schema": 1, "inventory": {"known": False},
+            "npc_catalog": {"known": True, "dialogue_groups": 45, "choice_tables": 19},
+            "nodes": [{"address": 2148712448, "position": [20, 0, 40], "kind": "npc", "label": "Trader",
+                "action": "talk", "status": "blocked", "requirement": "See offers", "reward": "Crowbar", "requirement_known": True,
+                "reward_weapon": -1, "required_weapon": -1, "spoken": 1, "traversal": "unknown", "npc_catalog_known": True,
+                "offers": [{"id": "7:0/1:0/2:0", "kind": "item", "reward": "Crowbar", "status": "blocked", "scope": "any_character",
+                    "action": 5, "item": 21, "weapon": -1, "flag": -1, "destination": -1, "cost": 0, "consumed_items": [20],
+                    "conditions": [{"domain": "prerequisite", "id": 3, "description": "Current character payment", "state": "missing"}]}]}]}
+        self.save()
+        mesh, live = load_snapshot(self.path)
+        write_svg(self.path / "offers.svg", mesh, live)
+        self.assertIn("Crowbar [blocked]", (self.path / "offers.svg").read_text())
+        node = self.live["progression"]["nodes"][0]
+        offer = node["offers"][0]
+        for key, value in (("consumed_items", [27]), ("cost", -1), ("conditions", [None]), ("status", "complete")):
+            previous = offer[key]; offer[key] = value; self.save()
+            with self.assertRaises(ValueError): load_snapshot(self.path)
+            offer[key] = previous
+        node["offers"].append(offer); self.save()
+        with self.assertRaises(ValueError): load_snapshot(self.path)
+
     def test_export_geometry_and_exit_preview(self):
         self.save()
         mesh, live = load_snapshot(self.path)

@@ -152,16 +152,27 @@ Orange-red squares show shooting targets; violet squares show doors/switches.
 Existing floor slices apply to these markers too. A saved snapshot is labeled
 as saved; its ownership and interaction states describe the capture time.
 
-- Magnus's verified Goldwood encounter (room 157, object 350, dialogue 4,
-  encounter 4) offers the red key. **Available** means the current character
-  lacks the key; **owned** means its inventory bit is set. The spoken flag is
-  separate: talking without accepting/completing the reward stays available.
-- Inventory shows the current character's red key and machine gun ownership.
-  Unknown/invalid inventory remains unknown. Changing character reads that
-  character's inventory; ownership is not shared by inference.
-- Chests retain their verified weapon reward and opened state. Opening a chest
-  and owning a weapon are separate facts. Unidentified special rewards stay
-  unknown. Generic NPC rewards are unknown unless this exact encounter was traced.
+- NPC offers come from the supported US ROM's dialogue control tables, covering
+  all 45 dialogue groups and their 19 reachable choice tables. Both red-key
+  encounters, trades, rocket-launcher rewards, NPC ship parts, health/ammo
+  services and music choices use the same reader. No room/actor whitelist is
+  needed to recognize rewards. Select an NPC to see each offer and its conditions.
+- Offers distinguish **available**, **blocked**, **owned** and **unknown**. These
+  describe dialogue/inventory eligibility, not physical reachability or successful
+  interaction. Multiple paths to the same reward remain separate alternatives.
+  Spoken-to state is independent from reward ownership. A spent/traded item is
+  not permanently marked collected just because an NPC was spoken to.
+- Trade requirements retain prerequisites from every nested choice, identify
+  consumed items and token costs, and use the active character's inventory.
+  Rewards distinguish current-character, any-character and shared ownership
+  according to the original conditions. Quest items without verified names
+  retain numeric identifiers instead of guessed labels.
+- Scene/level transitions appear as separate offers. Their downstream scripted
+  effects (including story unlocks/upgrades) are not claimed as direct item grants.
+  A dialogue with no direct offer says so; an unavailable catalog stays unknown.
+- Chests retain verified weapon contents and opened state. Unknown special
+  chest rewards remain unknown. Inventory still shows red-key/machine-gun status;
+  individual NPC offers expose the broader inventory and shared quest conditions.
 - Repeated-shot targets expose their activation latch, raw strength, recovery
   timer and linked door group. The timer is not a hit count. A door identifier
   is not a required weapon: no machine-gun-only requirement is assumed.
@@ -170,13 +181,24 @@ as saved; its ownership and interaction states describe the capture time.
   open or reachable. Other conditions and switch variants remain unknown.
 
 `progression` is an optional schema-1 object in `live.json`, containing
-`inventory` and `nodes`. Inventory has `known`, nullable `character`, nullable
-`red_key`, and nullable `weapons_mask` (weapon inventory bits 0–14).
+`inventory`, `npc_catalog` coverage and `nodes`. Inventory has `known`, nullable `character`, nullable
+`red_key`, and nullable `weapons_mask` (weapon inventory bits 0â€“14).
 Each node contains `address`, world `position`, `kind`, `label`, `action`,
 `status`, `requirement`, `requirement_known`, `reward`, `reward_item`,
 `reward_weapon`, `required_item`, `required_weapon`, `spoken`, `encounter`,
 `dialogue`, `door_id`, `linked_actor`, `raw_state`, `raw_condition`,
 `target_health`, `target_max_health`, `reset_ticks`, and `traversal`.
+NPC nodes additionally expose `npc_catalog_known` and `offers`. Each offer has
+an `id` identifying its dialogue-row/choice path, `kind`, `reward`, `status`,
+`scope`, action/item/weapon/flag/destination identifiers, `cost`, `consumed_items`
+and `conditions`. Conditions expose their domain (`dialogue_row`, `visibility`,
+or `prerequisite`), numeric id, description and `met`/`missing`/`unknown` state.
+All conditions in one path must hold; separate offer paths are alternatives.
+`owned` means the relevant inventory bit or shared flag is set, not proof of
+which encounter supplied it. Music choices deliberately leave audio-dependent
+visibility unknown. Scene effects and unloaded NPC coordinates need further
+tracing before building a complete campaign dependency graph.
+
 Integer -1 means unknown/not applicable; linked_actor 0 means no confirmed
 loaded link. A target can affect multiple doors sharing its door_id;
 linked_actor identifies the first loaded match only. Switch links come from

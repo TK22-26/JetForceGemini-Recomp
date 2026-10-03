@@ -46,6 +46,50 @@ namespace JfgLauncher
                 + "\r\nMachine gun: " + ((weapons_mask.Value & 4) != 0 ? "owned" : "missing");
         } }
     }
+    [DataContract] internal sealed class MapNpcCondition
+    {
+        [DataMember] public string domain = "", description = "", state = "";
+        [DataMember] public int id = -1;
+    }
+    [DataContract] internal sealed class MapNpcOffer
+    {
+        [DataMember] public string id = "", kind = "", reward = "", status = "", scope = "";
+        [DataMember] public int action = -1, item = -1, weapon = -1, flag = -1, destination = -1, cost = 0;
+        [DataMember] public int[] consumed_items = null;
+        [DataMember] public MapNpcCondition[] conditions = null;
+        internal void Validate()
+        {
+            foreach (string text in new string[] { id, kind, reward, status, scope })
+                if (String.IsNullOrEmpty(text) || text.Length > 256) throw new InvalidDataException("Invalid NPC offer text.");
+            if (status != "owned" && status != "available" && status != "blocked" && status != "unknown")
+                throw new InvalidDataException("Invalid NPC offer status.");
+            if (action < -1 || action > 18 || item < -1 || item > 26 || weapon < -1 || weapon > 14 ||
+                flag < -1 || flag > 1151 || destination < -1 || destination > 4095 || cost < 0 || cost > 32767 ||
+                conditions == null || conditions.Length > 40 || consumed_items == null || consumed_items.Length > 27)
+                throw new InvalidDataException("Invalid NPC offer values.");
+            foreach (int value in consumed_items) if (value < 0 || value > 26) throw new InvalidDataException("Invalid trade item.");
+            foreach (MapNpcCondition c in conditions) {
+                if (c == null || String.IsNullOrEmpty(c.description) || c.description.Length > 512 ||
+                    (c.domain != "dialogue_row" && c.domain != "visibility" && c.domain != "prerequisite") ||
+                    (c.state != "met" && c.state != "missing" && c.state != "unknown"))
+                    throw new InvalidDataException("Invalid NPC prerequisite.");
+            }
+        }
+        internal string Details { get {
+            string result = reward + " [" + status + "] (" + kind.Replace('_', ' ') + ")";
+            if (scope != "none") result += "\r\nOwnership: " + scope.Replace('_', ' ');
+            foreach (MapNpcCondition c in conditions) result += "\r\n  " + c.description + ": " + c.state;
+            if (cost > 0) result += "\r\nCost: " + cost + " tokens";
+            if (consumed_items.Length > 0) result += "\r\nTrade items are consumed when accepted.";
+            if (kind == "transition") result += "\r\nScene effects require separate verification.";
+            return result;
+        } }
+    }
+    [DataContract] internal sealed class MapNpcCatalog
+    {
+        [DataMember] public bool known = false;
+        [DataMember] public int dialogue_groups = 0, choice_tables = 0;
+    }
     [DataContract] internal sealed class MapInteraction
     {
         [DataMember] public uint address = 0, linked_actor = 0;
@@ -53,6 +97,14 @@ namespace JfgLauncher
         [DataMember] public string kind = "", label = "", action = "", status = "";
         [DataMember] public string requirement = "", reward = "", traversal = "";
         [DataMember] public bool requirement_known = false;
+        [DataMember] public bool npc_catalog_known = false;
+        [DataMember] public MapNpcOffer[] offers = null;
+        internal string OfferDetails { get {
+            if (offers == null || offers.Length == 0) return "";
+            string result = "\r\n\r\nNPC offers (alternative dialogue paths):";
+            foreach (MapNpcOffer offer in offers) result += "\r\n\r\n" + offer.Details;
+            return result;
+        } }
         [DataMember] public int reward_item = -1, reward_weapon = -1, required_weapon = -1;
         [DataMember] public int spoken = -1, encounter = -1, dialogue = -1;
         [DataMember] public int raw_state = -1, raw_condition = -1;
@@ -70,6 +122,7 @@ namespace JfgLauncher
                 + (door_id < 0 ? "" : "\r\nDoor group: " + door_id)
                 + (target_health < 0 ? "" : "\r\nTarget strength: " + target_health + " / " + target_max_health + " (raw)")
                 + (spoken < 0 ? "" : "\r\nSpoken to: " + (spoken == 1 ? "yes" : "no"))
+                + OfferDetails
                 + "\r\n\r\nX " + position[0].ToString("0.##") + "  Y " + position[1].ToString("0.##") + "  Z " + position[2].ToString("0.##")
                 + (linked_actor == 0 ? "" : "\r\nLinked actor: " + linked_actor.ToString("X8"))
                 + "\r\n\r\nAccess / traversal: unknown. Check doors, jumps and height before routing.";
@@ -79,6 +132,7 @@ namespace JfgLauncher
     {
         [DataMember] public int schema = 0;
         [DataMember] public MapInventory inventory = null;
+        [DataMember] public MapNpcCatalog npc_catalog = null;
         [DataMember] public MapInteraction[] nodes = null;
         internal void Validate()
         {
@@ -89,9 +143,20 @@ namespace JfgLauncher
                 throw new InvalidDataException("Invalid inventory.");
             if (!inventory.known && (inventory.character.HasValue || inventory.red_key.HasValue || inventory.weapons_mask.HasValue))
                 throw new InvalidDataException("Unknown inventory contains ownership claims.");
+            if (npc_catalog != null && (npc_catalog.known ? npc_catalog.dialogue_groups != 45 || npc_catalog.choice_tables < 0 || npc_catalog.choice_tables > 107
+                : npc_catalog.dialogue_groups != 0 || npc_catalog.choice_tables != 0)) throw new InvalidDataException("Invalid NPC catalog coverage.");
             HashSet<uint> seen = new HashSet<uint>();
             foreach (MapInteraction node in nodes) {
                 if (node == null || node.address == 0 || !seen.Add(node.address)) throw new InvalidDataException("Invalid interaction identity.");
+                if (node.offers != null) {
+                    if (node.offers.Length > 128 || (!node.npc_catalog_known && node.offers.Length != 0)) throw new InvalidDataException("Invalid NPC offers.");
+                    HashSet<string> offerIds = new HashSet<string>();
+                    foreach (MapNpcOffer offer in node.offers) {
+                        if (offer == null) throw new InvalidDataException("Missing NPC offer.");
+                        offer.Validate();
+                        if (!offerIds.Add(offer.id)) throw new InvalidDataException("Duplicate NPC offer.");
+                    }
+                }
                 MapSnapshot.Point(node.position);
                 foreach (string text in new string[] { node.kind, node.label, node.action, node.status, node.requirement, node.reward })
                     if (String.IsNullOrEmpty(text) || text.Length > 160) throw new InvalidDataException("Invalid interaction text.");

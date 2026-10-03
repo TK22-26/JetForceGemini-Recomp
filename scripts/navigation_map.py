@@ -40,11 +40,46 @@ def _progression(value: object) -> None:
         raise ValueError("Unknown inventory contains ownership claims")
     if not isinstance(nodes, list) or len(nodes) > 4096:
         raise ValueError("Invalid interactions")
+    catalog = value.get("npc_catalog")
+    if catalog is not None:
+        if (not isinstance(catalog, dict) or type(catalog.get("known")) is not bool or
+                type(catalog.get("dialogue_groups")) is not int or type(catalog.get("choice_tables")) is not int or
+                (catalog["known"] and (catalog["dialogue_groups"] != 45 or not 0 <= catalog["choice_tables"] <= 107)) or
+                (not catalog["known"] and (catalog["dialogue_groups"] != 0 or catalog["choice_tables"] != 0))):
+            raise ValueError("Invalid NPC catalog coverage")
     seen = set()
     for node in nodes:
         if (not isinstance(node, dict) or type(node.get("address")) is not int or
                 not 0 < node["address"] <= 0xffffffff or node["address"] in seen):
             raise ValueError("Invalid interaction identity")
+        offers = node.get("offers", [])
+        if (not isinstance(offers, list) or len(offers) > 128 or
+                (offers and node.get("npc_catalog_known") is not True)):
+            raise ValueError("Invalid NPC offers")
+        offer_ids = set()
+        for offer in offers:
+            if not isinstance(offer, dict):
+                raise ValueError("Invalid NPC offer")
+            for field in ("id", "kind", "reward", "status", "scope"):
+                if not isinstance(offer.get(field), str) or not 0 < len(offer[field]) <= 256:
+                    raise ValueError("Invalid NPC offer text")
+            if offer["id"] in offer_ids or offer["status"] not in ("owned", "available", "blocked", "unknown"):
+                raise ValueError("Invalid NPC offer identity/status")
+            offer_ids.add(offer["id"])
+            for field, high in (("action", 18), ("item", 26), ("weapon", 14), ("flag", 1151), ("destination", 4095), ("cost", 32767)):
+                if type(offer.get(field)) is not int or not (-1 if field != "cost" else 0) <= offer[field] <= high:
+                    raise ValueError("Invalid NPC offer value")
+            consumed = offer.get("consumed_items")
+            if not isinstance(consumed, list) or len(consumed) > 27 or any(type(i) is not int or not 0 <= i <= 26 for i in consumed):
+                raise ValueError("Invalid consumed trade items")
+            conditions = offer.get("conditions")
+            if not isinstance(conditions, list) or len(conditions) > 40:
+                raise ValueError("Invalid NPC prerequisites")
+            for c in conditions:
+                if (not isinstance(c, dict) or c.get("domain") not in ("dialogue_row", "visibility", "prerequisite") or
+                        c.get("state") not in ("met", "missing", "unknown") or type(c.get("id")) is not int or
+                        not isinstance(c.get("description"), str) or not 0 < len(c["description"]) <= 512):
+                    raise ValueError("Invalid NPC prerequisite")
         seen.add(node["address"])
         _point(node.get("position"))
         for field in ("kind", "label", "action", "status", "requirement", "reward"):
@@ -161,7 +196,8 @@ def write_svg(path: Path, mesh: dict, live: dict) -> None:
                 label = html.escape(marker["label"])
                 if field == "npcs":
                     shape = f"{x},{z-6} {x+6},{z} {x},{z+6} {x-6},{z}"
-                    out.write(f'<polygon points="{shape}" fill="{color}"/>\n')
+                    details = "; ".join(o["reward"] + " [" + o["status"] + "]" for o in marker.get("offers", []))
+                    out.write(f'<polygon points="{shape}" fill="{color}"><title>{html.escape(details)}</title></polygon>\n')
                 else:
                     out.write(f'<rect x="{x-4}" y="{z-4}" width="8" height="8" fill="{color}"/>\n')
                 out.write(f'<text x="{x+8:.2f}" y="{z}" fill="{color}" font-family="sans-serif" font-size="13">{label}</text>\n')

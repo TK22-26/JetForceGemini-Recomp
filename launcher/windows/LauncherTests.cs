@@ -321,6 +321,31 @@ namespace JfgLauncher
                 File.WriteAllText(Path.Combine(mapDirectory, "live.json"), withProgress.Replace("\"traversal\":\"unknown\"", "\"traversal\":\"open\""));
                 Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "unsupported route status accepted");
                 File.WriteAllText(Path.Combine(mapDirectory, "live.json"), withProgress);
+                MapNpcOffer sampleOffer = new MapNpcOffer { id = "7:0/1:0", kind = "item", reward = "Crowbar", status = "blocked", scope = "any_character",
+                    action = 5, item = 21, weapon = -1, flag = -1, destination = -1, consumed_items = new int[] {20},
+                    conditions = new MapNpcCondition[] { new MapNpcCondition { domain = "prerequisite", id = 3, description = "Current character payment", state = "missing" } } };
+                sampleOffer.Validate();
+                Check(sampleOffer.Details.Contains("missing") && sampleOffer.Details.Contains("consumed"), "NPC trade requirement or consumption omitted");
+                sampleOffer.conditions[0].state = "complete";
+                Reject(delegate { sampleOffer.Validate(); }, "invalid NPC condition accepted");
+                sampleOffer.conditions[0].state = "missing";
+                sampleOffer.consumed_items = new int[] {27};
+                Reject(delegate { sampleOffer.Validate(); }, "invalid NPC payment accepted");
+                sampleOffer.consumed_items = new int[] {20};
+                MapInteraction npcNode = map.Live.progression.nodes[0];
+                npcNode.npc_catalog_known = true; npcNode.offers = new MapNpcOffer[] { sampleOffer };
+                map.Live.progression.Validate();
+                Check(npcNode.Details.Contains("Crowbar") && npcNode.Details.Contains("NPC offers"), "NPC offer not displayed in inspector");
+                npcNode.offers = new MapNpcOffer[] { sampleOffer, sampleOffer };
+                Reject(delegate { map.Live.progression.Validate(); }, "duplicate NPC offer accepted");
+                npcNode.offers = new MapNpcOffer[] { sampleOffer }; npcNode.npc_catalog_known = false;
+                Reject(delegate { map.Live.progression.Validate(); }, "unknown NPC catalog accepted rewards");
+                npcNode.npc_catalog_known = true;
+                npcNode.label = "NPC: Trader"; npcNode.reward = "Crowbar"; npcNode.status = "blocked";
+                using (FileStream fixtureStream = File.Create(Path.Combine(mapDirectory, "live.json")))
+                    new System.Runtime.Serialization.Json.DataContractJsonSerializer(typeof(MapLive)).WriteObject(fixtureStream, map.Live);
+                map = MapSnapshot.Load(mapDirectory, map.Mesh);
+                Check(map.Live.progression.nodes[0].offers[0].conditions[0].state == "missing", "NPC offers lost during JSON round trip");
                 using (NavigationMapWindow mapWindow = new NavigationMapWindow(mapDirectory)) {
                     mapWindow.StartPosition = FormStartPosition.Manual; mapWindow.Location = new Point(-32000, -32000);
                     mapWindow.ShowInTaskbar = false; mapWindow.Show(); Application.DoEvents();

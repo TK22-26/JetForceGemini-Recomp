@@ -8636,6 +8636,8 @@ int run_child(const char *path, const unsigned retrace_target,
   state.rdram = rdram.data();
   state.rom = rom.data();
   state.rom_size = rom.size();
+  if (state.navigation_mod.enabled && !state.navigation_mod.npc_rewards.load_rom(rom))
+    std::fputs("navigation mod: NPC reward catalog unavailable; rewards remain unknown\n", stderr);
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
   char *poll_path = nullptr;
   std::size_t poll_path_size = 0U;
