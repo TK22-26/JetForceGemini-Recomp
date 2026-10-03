@@ -10,7 +10,7 @@ namespace JfgLauncher {
         // Reserve room for steering drift and stopping. Live checks retain the
         // smaller body envelope, allowing normal tracking error to recover.
         internal const float PlanningMargin=20;
-        internal int RunningWaypoint = -1;
+        internal int RunningWaypoint = -1, RunningThrough = -1;
         private long runningUntil;
         internal readonly List<HeightPoint> Points = new List<HeightPoint>();
         internal uint Level;
@@ -492,7 +492,7 @@ namespace JfgLauncher {
         private MapGeometry clearanceMesh;
         private List<HeightSurface> clearanceFloors;
         internal string CheckRemaining(MapSnapshot map,int waypoint) {
-            RunningWaypoint=-1;runningUntil=0;
+            RunningWaypoint=RunningThrough=-1;runningUntil=0;
             string blocked=NavigationCollision.CheckRoute(map.Live,this,waypoint);
             if(blocked!=null)return blocked;
             if(waypoint>=Points.Count)return null;
@@ -502,12 +502,16 @@ namespace JfgLauncher {
                 return "Player has left the mapped walking floor";
             if(!ClearWalk(map,clearanceFloors,start,Points[waypoint]))
                 return "Route blocked by terrain or floor clearance from current position";
-            // Extra running room: 80-unit model clearance and a 44-unit floor
-            // half-width, including the original body probes. Refresh per segment.
-            if(map.IsLive && map.Live.clearing_active && !map.Live.scripted_camera &&
-                Distance(start,Points[waypoint])>=180 && Math.Abs(start.Y-Points[waypoint].Y)<24 &&
-                ClearWalk(map,clearanceFloors,start,Points[waypoint],60)) {
-                RunningWaypoint=waypoint;runningUntil=map.Live.timestamp_ms+500;
+            // Certify a rolling portion of the route, not one isolated point.
+            // Reuse the route's steering margin rather than requiring 80-unit
+            // model clearance along the entire remaining segment.
+            if(map.IsLive && map.Live.clearing_active && !map.Live.scripted_camera) {
+                HeightPoint prior=start;float ahead=0;
+                for(int i=waypoint;i<Points.Count && ahead<240;i++) {
+                    if(!ClearWalk(map,clearanceFloors,prior,Points[i],PlanningMargin))break;
+                    ahead+=Distance(prior,Points[i]);prior=Points[i];RunningThrough=i;
+                }
+                if(RunningThrough>=waypoint) {RunningWaypoint=waypoint;runningUntil=map.Live.timestamp_ms+500;}
             }
             return null;
         }
@@ -531,7 +535,7 @@ namespace JfgLauncher {
         internal void Send(string directory,long nonce,bool jumps,bool stop) {
             long now=(long)(DateTime.UtcNow-new DateTime(1970,1,1,0,0,0,DateTimeKind.Utc)).TotalMilliseconds;
             int running=!stop && now<=runningUntil?RunningWaypoint:-1;
-            StringBuilder text=new StringBuilder("JFGNAV2 "+Level+" "+Generation+" "+nonce+" "+now+" "+(jumps?1:0)+" "+(stop?0:Points.Count)+" "+running+"\n");
+            StringBuilder text=new StringBuilder("JFGNAV3 "+Level+" "+Generation+" "+nonce+" "+now+" "+(jumps?1:0)+" "+(stop?0:Points.Count)+" "+running+" "+(running<0?-1:RunningThrough)+"\n");
             if(!stop)foreach(HeightPoint p in Points)text.Append(p.X.ToString("R",CultureInfo.InvariantCulture)+" "+p.Y.ToString("R",CultureInfo.InvariantCulture)+" "+p.Z.ToString("R",CultureInfo.InvariantCulture)+"\n");
             string path=Path.Combine(directory,"ai-command.txt"),temporary=path+".tmp";
             File.WriteAllText(temporary,text.ToString(),new UTF8Encoding(false));

@@ -347,3 +347,13 @@ map geometry, captures and the paired native runtime remain private.
 The launcher passes 304 checks plus 10 setup checks. Windows native and Linux ASan/UBSan navigation tests pass. Added checks cover running on an open straight, slowing near endpoints, expired and withdrawn speed permission, unchanged-route heartbeats, legacy commands, narrow floor strips, nearby models and objects on another story. A rotating-camera simulation with inertia runs a three-segment route, slows before its corners and stays within 20 world units of the segments.
 
 A fresh muted native trial observed 10 running samples above 70 stick units and 482 walking samples at or below 40. Maximum observed input was 79.85. Observed room sequence: [27, 4294967295, 236]. The game and map probe exited cleanly; original navigation saves were hash-checked unchanged. The trial used separate copies. The forward-door transition from room 27 into 236 was observed again. This validates adaptive speed in the captured case, not full-campaign routing or every obstacle. Private evidence is retained in adaptive-speed-evidence; ROM-derived traces and packaged runtimes remain private.
+
+### Continuous-speed validation (2026-10-03)
+
+305 launcher checks, 10 setup checks, Windows native tests and Linux ASan/UBSan tests pass. A 30-waypoint path with two right-angle turns and a rotating camera averages 76.9183 stick units including pauses, completes in 326 simulated updates and stays within 12.4881 world units of the path.
+
+A fresh muted native run crossed room 27 into 236 again. Room-27 active navigation averaged 74.93 stick units, including neutral steering samples, versus 26.81 for the previous adaptive controller. Whole-room elapsed time, including door/camera waits, was 37.33 seconds versus 90.35. Input stayed neutral during the scripted cameras. Game and probe exited cleanly, and original navigation saves were hash-checked unchanged. The paired native runtime and traces remain private.
+
+This establishes the requested normal-travel input average in the captured case, not a universal game-speed guarantee. Mandatory jumping, crawl collision dimensions, SS Anubis traversal and whole-campaign routing remain unvalidated; the measurement and implementation plan is recorded in navigation-traversal-plan.md.
+
+The first longer continuous-speed trial reached room 54 after rooms 27 and 236, then exited with native code 4: unresolved-dma-00beb010-80385700-00000290 at guest target 0x8009a710. The cause and regression attribution remain unresolved. Its failed result and traces are preserved; the clean comparison above deliberately stops after the first door and does not claim the later crash is fixed.

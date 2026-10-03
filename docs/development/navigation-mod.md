@@ -528,3 +528,28 @@ expires after 500 ms without a qualifying command refresh. Repeated commands
 may refresh speed permission but cannot replace coordinates under the same nonce.
 JFGNAV1 commands remain supported by the new runtime with walking limits.
 Use the paired launcher/runtime when testing this change.
+
+
+### Continuous full-speed following (2026-10-03)
+
+This supersedes the conservative adaptive-speed policy above. Normal movement
+uses full 80-unit input with lateral velocity feedback. Closely spaced waypoints
+no longer cause individual stops: bounded lookahead handles ordinary corners,
+and passing an intermediate waypoint plane near the path advances progress.
+Endpoints and hairpin turns retain braking. Loss of fresh clearance retains
+walking speed; stale movement commands and manual takeover still stop control.
+
+JFGNAV3 adds both the first and last currently verified running-waypoint indexes
+to the command header. The launcher checks successive segments for roughly
+240 units ahead using the existing route-planning margin (40-unit model radius,
+28-unit outer floor probes). It no longer requires 180-unit segments or an
+80-unit model radius everywhere. The native controller only carries speed
+through indexes within that fresh certificate. V1 and V2 remain compatible.
+
+The target is a normal-travel average of 70-75 out of 80, including steering
+pauses. Report actual room completion time alongside stick magnitude: large
+inputs without forward progress are not success. Door and scripted-camera
+waits release input and are reported separately from active-input averages.
+
+SS Anubis jump/crawl work remains a separate measured capability task.
+See [traversal research and measurement plan](navigation-traversal-plan.md).

@@ -31,7 +31,8 @@ class NavigationPilot {
   unsigned frame_ = 0, phase_frame_ = 0, stalled_ = 0, stable_ = 0, flight_ = 0;
   float best_ = 1e30f;
   PilotInput input_{};
-  int running_waypoint_ = -1;
+  int running_waypoint_ = -1, running_through_ = -1;
+  bool continuous_ = false;
   std::int64_t running_stamp_ = 0;
   static float distance(PilotPoint a, PilotPoint b) {
     return std::hypot(a.x - b.x, a.z - b.z);
@@ -78,18 +79,22 @@ public:
     std::uint32_t room;
     std::uint64_t gen, nonce;
     std::int64_t stamp;
-    int jumps, count, running = -1;
+    int jumps, count, running = -1, through = -1;
     if (!(in >> magic >> room >> gen >> nonce >> stamp >> jumps >> count) ||
-        (magic != "JFGNAV1" && magic != "JFGNAV2") || room != level || gen != generation ||
+        (magic != "JFGNAV1" && magic != "JFGNAV2" && magic != "JFGNAV3") || room != level || gen != generation ||
         nonce == 0 || stamp < 0 || now < stamp || now - stamp > 1500 ||
         (jumps != 0 && jumps != 1) || count < 0 || count > 256) {
       if (active_)
         stop("invalid_command");
       return false;
     }
-    if (magic == "JFGNAV2" && (!(in >> running) || running < -1 || running >= count)) {
-      if (active_) stop("invalid_command");
-      return false;
+    if (magic != "JFGNAV1") {
+      if (!(in >> running)) { if(active_)stop("invalid_command");return false; }
+      through=running;
+      if (magic=="JFGNAV3" && !(in >> through)) { if(active_)stop("invalid_command");return false; }
+      if(running < -1 || through < running || through >= count || (running==-1 && through!=-1)) {
+        if(active_)stop("invalid_command");return false;
+      }
     }
     std::vector<PilotPoint> points;
     for (int i = 0; i < count; ++i) {
@@ -124,10 +129,10 @@ public:
         if (points[i].x != route_[i].x || points[i].y != route_[i].y || points[i].z != route_[i].z) {
           stop("invalid_route"); return false;
         }
-      running_waypoint_ = running; running_stamp_ = stamp;
+      running_waypoint_ = running; running_through_ = through; running_stamp_ = stamp;continuous_=magic=="JFGNAV3";
       return true;
     }
-    running_waypoint_ = running; running_stamp_ = stamp;
+    running_waypoint_ = running; running_through_ = through; running_stamp_ = stamp;continuous_=magic=="JFGNAV3";
     reuse_basis_ = camera_known_ || (basis_valid_ && room == level_ && gen == generation_ &&
                    now >= basis_time_ && now - basis_time_ <= 8000);
     nonce_ = nonce;
@@ -250,14 +255,29 @@ public:
       corner_braking_ = false;
       ++waypoint;best_ = 1e30f;stalled_ = 0;state = "following";
     }
-    while (waypoint < route_.size() && distance(p, route_[waypoint]) < 8 &&
-           std::abs(p.y - route_[waypoint].y) < 45) {
+    const auto permitted = [&] {
+      return camera_known_ && int(waypoint)>=running_waypoint_ && running_waypoint_>=0 &&
+          int(waypoint)<=running_through_ && now>=running_stamp_ && now-running_stamp_<=500;
+    };
+    const auto reached = [&] {
+      if(waypoint>=route_.size() || std::abs(p.y-route_[waypoint].y)>=45)return false;
+      if(distance(p,route_[waypoint]) < (continuous_ && waypoint+1<route_.size()?16:8))return true;
+      // Crossing an intermediate waypoint plane counts as progress if still
+      // close to the path; do not turn back to chase a point already passed.
+      if(!continuous_ || waypoint+1>=route_.size() || distance(p,route_[waypoint])>64)return false;
+      auto a=waypoint?route_[waypoint-1]:origin_,b=route_[waypoint],v=difference(b,a);
+      auto length=std::hypot(v.x,v.z);
+      auto ahead=(p.x-b.x)*v.x+(p.z-b.z)*v.z;
+      auto lateral=std::abs((p.x-a.x)*v.z-(p.z-a.z)*v.x)/std::max(1.0f,length);
+      return ahead>=0 && lateral<16;
+    };
+    while (reached()) {
       if (camera_known_ && waypoint + 1 < route_.size()) {
         auto before = difference(route_[waypoint], waypoint ? route_[waypoint-1] : origin_);
         auto after = difference(route_[waypoint+1], route_[waypoint]);
         const auto alignment = (before.x*after.x + before.z*after.z) /
             std::max(.001f, std::hypot(before.x,before.z)*std::hypot(after.x,after.z));
-        if (alignment < .8f && std::hypot(velocity_.x,velocity_.z) > .7f) {
+        if (alignment < (continuous_ && permitted() ? -.25f : .8f) && std::hypot(velocity_.x,velocity_.z) > .7f) {
           corner_braking_ = true;input_ = {};state = "corner_braking";return;
         }
       }
@@ -281,7 +301,7 @@ public:
     } else
       ++stalled_;
     const auto det = basis_x_.x * basis_y_.z - basis_x_.z * basis_y_.x;
-    const auto dx = target.x - p.x - (camera_known_ ? velocity_.x * 8 : 0),
+    auto dx = target.x - p.x - (camera_known_ ? velocity_.x * 8 : 0),
                dz = target.z - p.z - (camera_known_ ? velocity_.z * 8 : 0);
     auto x = (dx * basis_y_.z - dz * basis_y_.x) / det,
          y = (dz * basis_x_.x - dx * basis_x_.z) / det;
@@ -303,10 +323,46 @@ public:
     const auto braking_distance = std::max(120.0f,speed*18.0f);
     const auto run_blend = may_run ? std::clamp((d-braking_distance)/140.0f,0.0f,1.0f) : 0.0f;
     const auto speed_cap = 40.0f + 40.0f*run_blend;
-    const auto length = std::max(std::hypot(x, y), 1.0f),
+    auto length = std::max(std::hypot(x, y), 1.0f),
                power = camera_known_ ? (std::hypot(dx,dz) < 4 ? 0.0f :
                    std::clamp(18.0f + std::hypot(dx,dz)*.22f,18.0f,speed_cap)) :
                    d < 18 ? 24.0f : d < 80 ? 32.0f : 50.0f;
+
+    if(continuous_) {
+      bool running=permitted() && flight_==0 && cross_track<32 && std::abs(delta.y)<4;
+      const auto brake=std::max(32.0f,speed*8.0f);
+      PilotPoint aim=target;
+      bool end_or_hairpin=waypoint+1==route_.size();
+      if(!end_or_hairpin) {
+        auto next=difference(route_[waypoint+1],target);
+        const auto bend=(segment.x*next.x+segment.z*next.z) /
+            std::max(1.0f,std::hypot(segment.x,segment.z)*std::hypot(next.x,next.z));
+        end_or_hairpin=bend<-.25f;
+        // Bounded lookahead rounds ordinary turns without taking a large
+        // diagonal shortcut. Wider route clearance is checked by the launcher.
+        if(!end_or_hairpin && int(waypoint+1)<=running_through_ && d<24) {
+          const auto fraction=std::min(1.0f,(24-d)/std::max(1.0f,std::hypot(next.x,next.z)));
+          aim={target.x+next.x*fraction,target.y+next.y*fraction,target.z+next.z*fraction};
+        }
+      }
+      if(end_or_hairpin && d<brake)running=false;
+      dx=aim.x-p.x;dz=aim.z-p.z;
+      if(running) {
+        // Counter lateral momentum while preserving forward velocity.
+        const auto aim_length=std::max(1.0f,std::hypot(dx,dz));
+        const auto along=std::max(0.0f,(velocity_.x*dx+velocity_.z*dz)/aim_length);
+        const auto ux=dx/aim_length,uz=dz/aim_length;
+        dx-=(velocity_.x-along*ux)*8;
+        dz-=(velocity_.z-along*uz)*8;
+        power=80;
+      } else {
+        dx-=velocity_.x*8;dz-=velocity_.z*8;
+        power=std::hypot(dx,dz)<4?0.0f:std::clamp(18.0f+std::hypot(dx,dz)*.22f,18.0f,40.0f);
+      }
+      x=(dx*basis_y_.z-dz*basis_y_.x)/det;
+      y=(dz*basis_x_.x-dx*basis_x_.z)/det;
+      length=std::max(std::hypot(x,y),1.0f);
+    }
     input_ = {int(std::clamp(x / length * power, -80.0f, 80.0f)),
               int(std::clamp(y / length * power, -80.0f, 80.0f)), 0};
     if (flight_ != 0) {

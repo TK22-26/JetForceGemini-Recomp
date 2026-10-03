@@ -159,4 +159,35 @@ static void navigation_pilot_tests() {
   }
   check(finished && ran && slowed && deviation<20);
 
+  // Dense waypoints are samples of a path, not 30 stop-and-go destinations.
+  NavigationPilot continuous;PilotPoint cp{},cv{};now=1000;
+  std::vector<PilotPoint> dense;
+  for(int k=1;k<=10;k++)dense.push_back({0,0,float(k*40)});
+  for(int k=1;k<=10;k++)dense.push_back({float(k*40),0,400});
+  for(int k=1;k<=10;k++)dense.push_back({400,0,float(400-k*40)});
+  double input_sum=0;unsigned moving_frames=0;float path_error=0;bool complete=false;
+  for(unsigned frame=0;frame<1800;++frame) {
+    now+=33;auto yaw=static_cast<std::int16_t>(int(frame)*67);continuous.camera_heading(true,yaw);
+    std::stringstream c;c<<"JFGNAV3 35 2 901 "<<now<<" 0 "<<dense.size()<<" 0 "<<dense.size()-1<<"\n";
+    for(auto v:dense)c<<v.x<<' '<<v.y<<' '<<v.z<<'\n';
+    check(continuous.command(c,35,2,now));continuous.tick(cp,true,35,2,now);
+    if(!continuous.active()){complete=std::string(continuous.state)=="approach_complete";break;}
+    auto i=continuous.observed_input();input_sum+=strength(i);++moving_frames;
+    auto a=float(yaw)*6.283185307179586f/65536;
+    cv.x=cv.x*.9f+(-std::cos(a)*i.x-std::sin(a)*i.y)*.005f;
+    cv.z=cv.z*.9f+(-std::sin(a)*i.x+std::cos(a)*i.y)*.005f;
+    cp.x+=cv.x;cp.z+=cv.z;
+    float err=continuous.waypoint<10?std::abs(cp.x):continuous.waypoint<20?std::abs(cp.z-400):std::abs(cp.x-400);
+    path_error=std::max(path_error,err);
+  }
+  const auto average=input_sum/std::max(1U,moving_frames);
+  std::cout<<"Continuous route: complete="<<complete<<" average_stick="<<average
+           <<" frames="<<moving_frames<<" max_path_error="<<path_error<<"\n";
+  check(complete && average>=70 && path_error<20 && moving_frames<450);
+  for(const char *bad:{"JFGNAV3 35 2 1 1000 0 1 0 1 0 0 500",
+                      "JFGNAV3 35 2 1 1000 0 1 -1 0 0 0 500",
+                      "JFGNAV3 35 2 1 1000 0 1 0 -1 0 0 500"}) {
+    NavigationPilot v;std::stringstream c(bad);check(!v.command(c,35,2,1000));
+  }
+
 }

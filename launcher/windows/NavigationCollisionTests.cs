@@ -37,7 +37,7 @@ namespace JfgLauncher {
             NavigationRoute speedRoute=NavigationRoute.Plan(speedMap,new float[]{500,0,0});
             Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==0,"open straight segment cannot run");
             Put(speedMap,0,81,true);
-            speedMap.Live.collision.models[0].lower[2]=50;speedMap.Live.collision.models[0].upper[2]=100;
+            speedMap.Live.collision.models[0].lower[2]=30;speedMap.Live.collision.models[0].upper[2]=100;
             Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==-1,"running allowed close to model");
             speedMap.Live.collision.models[0].lower[1]=120;speedMap.Live.collision.models[0].upper[1]=180;
             Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==0,"upper story incorrectly prevents running");
@@ -46,8 +46,13 @@ namespace JfgLauncher {
             speedMap=Fixture();speedMap.Live.scripted_camera=true;
             Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==-1,"scripted camera enables running");
             speedMap=Fixture();
-            foreach(float[] vertex in speedMap.Mesh.vertices)vertex[2]=vertex[2]<0?-30:30;
+            foreach(float[] vertex in speedMap.Mesh.vertices)vertex[2]=vertex[2]<0?-25:25;
             Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==-1,"narrow floor enables running");
+            speedMap=Fixture();
+            NavigationRoute dense=new NavigationRoute {Level=27,Generation=1};
+            for(int x=20;x<=300;x+=20)dense.Points.Add(new HeightPoint(x,0,0));
+            Check(dense.CheckRemaining(speedMap,0)==null && dense.RunningWaypoint==0 && dense.RunningThrough>=10,
+                "short waypoints interrupt running clearance");
             MapSnapshot map=Fixture();Put(map,0,81,true);NavigationCollision.Require(map.Live);
             HeightPoint start=new HeightPoint(0,0,0),end=new HeightPoint(500,0,0);
             Check(NavigationCollision.Blocking(map.Live,start,end)!=null,"body moved through obstacle");
