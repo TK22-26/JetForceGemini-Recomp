@@ -176,9 +176,21 @@ as saved; its ownership and interaction states describe the capture time.
 - Repeated-shot targets expose their activation latch, raw strength, recovery
   timer and linked door group. The timer is not a hit count. A door identifier
   is not a required weapon: no machine-gun-only requirement is assumed.
-- Doors with the verified red-key condition show key missing, key owned, or
-  key lock cleared. These states do not establish that the door is physically
-  open or reachable. Other conditions and switch variants remain unknown.
+- Doors decode character-specific key requirements (including the yellow key),
+  proximity opening, enemy-group locks, shooting-target locks and supported
+  character/progression restrictions. Door indicators inherit the linked door's
+  state; they are not treated as player-operated switches. Pending opener counts
+  count registered groups, not individual enemies.
+- Exits decode their live progression predicates and distinguish inactive
+  alternate triggers. A nearby unambiguous door supplies its access label.
+  Access requirements and physical route failures are displayed separately.
+  Unidentified external opener sources and unsupported restrictions stay explicit.
+- Walking exits are approached through a body-clear lane inside the trigger
+  sphere and, where required, across its negative plane side. A closed door gets
+  a measured proximity approach while the explorer waits for actual clearance.
+  Possessing a key or clearing a condition never disables collision.
+- Live inventory displays recognized items, including dimmed uncollected items;
+  unnamed storage bits remain available only in the raw private export.
 
 `progression` is an optional schema-1 object in `live.json`, containing
 `inventory`, `npc_catalog` coverage and `nodes`. Inventory has `known`, nullable `character`, nullable
@@ -188,6 +200,11 @@ Each node contains `address`, world `position`, `kind`, `label`, `action`,
 `reward_weapon`, `required_item`, `required_weapon`, `spoken`, `encounter`,
 `dialogue`, `door_id`, `linked_actor`, `raw_state`, `raw_condition`,
 `target_health`, `target_max_health`, `reset_ticks`, and `traversal`.
+Door/exit nodes also expose access_known, access_allowed, condition_known,
+condition_met, pending_openers and approach_radius. An allowed access condition
+does not assert a physically clear path. Exit destination codes remain raw;
+the explorer records the destination room after observing an actual transition.
+
 NPC nodes additionally expose `npc_catalog_known` and `offers`. Each offer has
 an `id` identifying its dialogue-row/choice path, `kind`, `reward`, `status`,
 `scope`, action/item/weapon/flag/destination identifiers, `cost`, `consumed_items`
@@ -200,7 +217,8 @@ visibility unknown. Scene effects and unloaded NPC coordinates need further
 tracing before building a complete campaign dependency graph.
 
 Integer -1 means unknown/not applicable; linked_actor 0 means no confirmed
-loaded link. A target can affect multiple doors sharing its door_id;
+loaded link (for exits, an explicitly nearby door association rather than a game
+pointer). A target can affect multiple doors sharing its door_id;
 linked_actor identifies the first loaded match only. Switch links come from
 their actual door pointer, not proximity.
 

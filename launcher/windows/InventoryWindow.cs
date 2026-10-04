@@ -92,8 +92,12 @@ namespace JfgLauncher {
             int columns=Math.Max(3,(ClientSize.Width-28)/138),width=Math.Max(100,(ClientSize.Width-28)/columns),y=16+AutoScrollPosition.Y;
             if(Value==null){TextRenderer.DrawText(g,"Inventory appears when a game is loaded.",Font,new Point(16,y),Color.Silver);return;}
             DrawGroup(g,"WEAPONS",weapons,delegate(int i){return (Value.weapons&(1<<i))!=0;},columns,width,ref y);
-            var labels=new string[Value.items.Length];for(int i=0;i<labels.Length;i++)labels[i]=Item(i);
-            DrawGroup(g,"KEYS & QUEST ITEMS",labels,delegate(int i){return Value.items[i];},columns,width,ref y);
+            // Show the recognized catalogue, including uncollected items.
+            // Storage bits without an item identity belong in diagnostics.
+            var ids=new System.Collections.Generic.List<int>();
+            for(int i=0;i<Value.items.Length;i++)if(!Item(i).StartsWith("Unmapped bit "))ids.Add(i);
+            var labels=ids.ConvertAll(delegate(int id){return Item(id);}).ToArray();
+            DrawGroup(g,"KEYS & QUEST ITEMS",labels,delegate(int i){return Value.items[ids[i]];},columns,width,ref y);
             DrawGroup(g,"SHIP PARTS · SHARED",parts,delegate(int i){return Shared!=null&&Shared[i];},columns,width,ref y);
             int height=y-AutoScrollPosition.Y;
             if(AutoScrollMinSize.Height!=height)AutoScrollMinSize=new Size(0,height);

@@ -44,6 +44,8 @@ namespace JfgLauncher
         [DataMember] public uint address = 0;
         [DataMember] public int destination_code = 0;
         [DataMember] public uint radius = 0;
+        [DataMember] public float plane_d = 0;
+        [DataMember] public int directional = 0;
         [DataMember] public float[] normal = null;
     }
     [DataContract] internal sealed class MapInventory
@@ -117,6 +119,8 @@ namespace JfgLauncher
         [DataMember] public string kind = "", label = "", action = "", status = "";
         [DataMember] public string requirement = "", reward = "", traversal = "";
         [DataMember] public bool requirement_known = false;
+        [DataMember] public bool access_known=false,access_allowed=false,condition_known=false,condition_met=false;
+        [DataMember] public uint pending_openers=0,approach_radius=0;
         [DataMember] public bool npc_catalog_known = false;
         [DataMember] public MapNpcOffer[] offers = null;
         internal string OfferDetails { get {
@@ -145,8 +149,10 @@ namespace JfgLauncher
                 + (spoken < 0 ? "" : "\r\nSpoken to: " + (spoken == 1 ? "yes" : "no"))
                 + OfferDetails
                 + "\r\n\r\nX " + position[0].ToString("0.##") + "  Y " + position[1].ToString("0.##") + "  Z " + position[2].ToString("0.##")
-                + (linked_actor == 0 ? "" : "\r\nLinked actor: " + linked_actor.ToString("X8"))
-                + "\r\n\r\nAccess / traversal: unknown. Check doors, jumps and height before routing.";
+                + (linked_actor == 0 ? "" : "\r\nRelated actor (exit: nearby door): " + linked_actor.ToString("X8"))
+                + (pending_openers==0?"":"\r\nPending opener groups: "+pending_openers)
+                + (approach_radius==0?"":"\r\nProximity radius: "+approach_radius)
+                + "\r\n\r\nPhysical route: checked separately from door requirements.";
         } }
     }
     [DataContract] internal sealed class MapProgression
@@ -187,6 +193,8 @@ namespace JfgLauncher
                 }
                 foreach (string text in new string[] { node.kind, node.label, node.action, node.status, node.requirement, node.reward })
                     if (String.IsNullOrEmpty(text) || text.Length > 160) throw new InvalidDataException("Invalid interaction text.");
+                if(node.pending_openers>255||node.approach_radius>65535||(!node.access_known&&node.access_allowed)||
+                   (!node.condition_known&&node.condition_met))throw new InvalidDataException("Invalid door access facts.");
                 if (node.traversal != "unknown" || node.spoken < -1 || node.spoken > 1 ||
                     node.reward_weapon < -1 || node.reward_weapon > 14 || node.required_weapon < -1 || node.required_weapon > 14)
                     throw new InvalidDataException("Unsupported interaction state.");
@@ -463,6 +471,14 @@ namespace JfgLauncher
             HashSet<uint> enriched = new HashSet<uint>();
             if (snapshot.Live.progression != null) foreach (MapInteraction node in snapshot.Live.progression.nodes) {
                 enriched.Add(node.address);
+                // Alternate progression triggers can occupy the exact same spot.
+                // Keep both in the list; let the active exit label remain visible.
+                if(node.kind=="exit"&&node.condition_known&&!node.condition_met&&node.address!=SelectedAddress&&
+                    Array.Exists(snapshot.Live.progression.nodes,delegate(MapInteraction other) {
+                        return other.kind=="exit"&&other.condition_known&&other.condition_met&&
+                            Math.Abs(other.position[0]-node.position[0])<1&&Math.Abs(other.position[1]-node.position[1])<1&&
+                            Math.Abs(other.position[2]-node.position[2])<1;
+                    }))continue;
                 if (node.address == SelectedAddress && (Mode == 2 || OtherLevels || (node.position[1] >= low && node.position[1] <= high))) {
                     PointF selectedPoint = Project(new HeightPoint(node.position));
                     using (Pen selectedPen = new Pen(Color.White, 2)) g.DrawEllipse(selectedPen, selectedPoint.X - 10, selectedPoint.Y - 10, 20, 20);
@@ -470,7 +486,7 @@ namespace JfgLauncher
                 Color color = node.kind == "npc" ? Color.CornflowerBlue : node.kind == "tribal" ? Color.White :
                     node.kind == "exit" ? Color.Yellow : node.kind == "gate" ? Color.Violet : node.kind == "target" ? Color.OrangeRed :
                     node.kind == "key" ? Color.Plum : node.kind == "weapon" ? Color.Orange : Color.LightGreen;
-                if (node.status == "owned" || node.status == "opened" || node.status == "activated") color = Color.Gray;
+                if (node.status == "owned" || node.status == "opened" || node.status == "activated" || node.status=="inactive_alternative") color = Color.Gray;
                 Marker(g, node.position, color, node.Caption, node.kind == "npc" || node.kind == "tribal" ? 2 : node.kind == "exit" ? 0 : 1);
             }
             foreach (MapMarker marker in snapshot.Live.markers)

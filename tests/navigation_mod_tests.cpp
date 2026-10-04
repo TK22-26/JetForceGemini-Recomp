@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
   navigation_pilot_tests();
   const auto npc_catalog = NpcFixture().catalog();
   using namespace jfg::mod;
-  if (argc == 3 || argc == 4) {
+  if (argc >= 3 && argc <= 5) {
     std::ifstream in(argv[1], std::ios::binary);
     std::vector<std::uint8_t> bytes{std::istreambuf_iterator<char>(in),
                                     std::istreambuf_iterator<char>()};
@@ -35,9 +35,15 @@ int main(int argc, char **argv) {
     const auto mesh = decode_mesh(m, m.u32(0x800A0D60U));
     const auto list = actors(m);
     const auto doors = exits(m, list);
-    if(argc==4) {
+    if(argc>=4) {
       std::ofstream collision(argv[3]);write_collision(collision,collision_models(m,list));
       check(bool(collision));
+    }
+    if(argc==5) {
+      std::ofstream progression(argv[4]);
+      const auto found=std::find_if(list.begin(),list.end(),[](const Actor &a){return a.behavior==1U;});
+      write_progression(progression,m,list,found==list.end()?0U:found->address,m.u32(0x800FB114U));
+      check(bool(progression));
     }
     for (const auto &item : item_markers(m, list))
       std::cout << item.label << "\n";
@@ -435,6 +441,7 @@ int main(int argc, char **argv) {
     const std::uint32_t target = 0x80230000U, tc = target + 0x100U,
                         tp = target + 0x200U, door = target + 0x300U,
                         dc = target + 0x400U;
+    put32(0x80025A08U,0x27BDFF48U);
     put32(target + 0x68U, tc);
     put32(target + 0x4CU, tp);
     m.put16(target + 0x48U, 111U);
@@ -465,6 +472,53 @@ int main(int argc, char **argv) {
           "key_lock_cleared");
     put8(dc + 0x44U, 3U);
     check(interactions(m, target_list, 157U, inv)[0].linked_actor == 0U);
+
+    // All door inventory IDs are character scoped; a latch already cleared
+    // does not become locked merely because the character no longer has a key.
+    put8(dc+0x43U,2);m.put16(dc+0x3EU,8);put8(saved1+0x66U,0);
+    auto yellow=interactions(m,target_list,47U,inv,nullptr,player)[1];
+    check(yellow.required_item==0&&yellow.label=="Yellow key door"&&yellow.status=="key_missing");
+    put8(game+0x15CU+0x66U,0x80); // another character does not unlock Juno's door
+    check(!interactions(m,target_list,47U,inv,nullptr,player)[1].access_allowed);
+    put8(saved1+0x66U,0x80);
+    check(interactions(m,target_list,47U,inv,nullptr,player)[1].status=="key_owned");
+    put8(dc+0x43U,1);m.put16(dc+0x3EU,0x28);put8(dc+0x4AU,2);
+    auto enemy_gate=interactions(m,target_list,47U,inv,nullptr,player)[1];
+    check(enemy_gate.status=="enemies_remaining"&&enemy_gate.pending_openers==2&&!enemy_gate.access_allowed);
+    m.put16(dc+0x3EU,0x20);put8(dc+0x4AU,0);
+    check(interactions(m,target_list,47U,inv,nullptr,player)[1].status=="enemy_lock_cleared");
+    m.put16(dc+0x3EU,0x48);
+    check(interactions(m,target_list,47U,inv,nullptr,player)[1].status=="target_required");
+    m.put16(dc+0x3EU,0);put8(dc+0x43U,0);put8(dc+0x42U,5);
+    check(interactions(m,target_list,47U,inv,nullptr,player)[1].status=="opens_on_approach");
+    const auto indicator=target+0x500U,ic=target+0x600U;
+    put32(indicator+0x68U,ic);put32(ic+4U,door);
+    auto linked=target_list;linked.push_back({indicator,67U,{3324,310,-2800}});
+    auto observed=interactions(m,linked,47U,inv,nullptr,player);
+    check(observed.back().action=="door_indicator"&&observed.back().linked_actor==door&&observed.back().status=="opens_on_approach");
+    put8(dc+0x4BU,2);
+    check(interactions(m,target_list,47U,inv,nullptr,player)[1].status=="character_or_progress_required");
+    put8(dc+0x4BU,0);
+    put32(0x8002561CU,0x27BDFF70U);
+    for(unsigned condition:{6U,7U}) {
+      put8(0x800A1120U+condition*4,23);
+      put8(0x800A1121U+condition*4,static_cast<std::uint8_t>(condition==7));
+      put8(0x800A1122U+condition*4,255);
+    }
+    put8(game+0x30U+(23>>3),0);
+    auto variant=doors[0];variant.condition=6;
+    check(exit_condition(m,variant,npc_facts(m,inv,player),player)==Fact::met);
+    variant.condition=7;
+    check(exit_condition(m,variant,npc_facts(m,inv,player),player)==Fact::missing);
+    put8(game+0x30U+(23>>3),0x80);
+    const auto decode_before=bytes;
+    check(exit_condition(m,variant,npc_facts(m,inv,player),player)==Fact::met);
+    check(exit_condition(m,variant,NpcFacts{},player)==Fact::unknown);
+    (void)interactions(m,linked,47U,inv,nullptr,player);
+    check(bytes==decode_before);
+    put32(0x80025A08U,0);
+    check(!interactions(m,target_list,47U,inv,nullptr,player)[1].access_known);
+
     put32(door + 0x68U, 0xffffffffU);
     check(interactions(m, target_list, 157U, inv).size() == 1U);
     put32(chest + 0x68U, chest_control);

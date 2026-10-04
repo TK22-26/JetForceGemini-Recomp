@@ -84,9 +84,8 @@ namespace JfgLauncher {
             faces.Add(new MapFace{v=new[]{wall+1,wall+3,wall+2}});
             map.Mesh.vertices=vertices.ToArray();map.Mesh.triangles=faces.ToArray();
             var exit=new MapMarker{address=0x80103000,position=new float[]{555,148,0},normal=new float[]{-1,0,0},radius=64};
-            route=NavigationRoute.PlanExit(map,exit);var end=route.Points[route.Points.Count-1];
-            Check(end.X<510&&end.X>491&&Math.Abs(end.Y-100)<.01f,"exit approach did not remain on near-side floor within radius: "+end.X+","+end.Y+","+end.Z);
-            Check(route.CheckRemaining(map,0)==null,"exit approach crossed terminal wall");
+            bool refused=false;try{NavigationRoute.PlanExit(map,exit);}catch(InvalidDataException){refused=true;}
+            Check(refused,"wall-blocked trigger accepted an approach outside its 3D activation sphere");
         }
         internal static int Run(string root) {
             checks=0;

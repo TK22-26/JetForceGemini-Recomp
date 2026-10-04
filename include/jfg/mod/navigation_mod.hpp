@@ -676,12 +676,85 @@ struct Interaction {
   bool npc_catalog_known = false;
   float talk_radius{},talk_lower{},talk_upper{};
   bool requirement_known = false;
+  bool access_known=false, access_allowed=false, condition_known=false, condition_met=false;
+  unsigned pending_openers=0, approach_radius=0;
   int reward_item = -1, reward_weapon = -1, required_weapon = -1;
   int spoken = -1, encounter = -1, dialogue = -1;
   int raw_state = -1, raw_condition = -1;
   int door_id = -1, required_item = -1, target_health = -1,
       target_max_health = -1, reset_ticks = -1;
 };
+
+// US doorControl/exitControl observations; read the user's live state, never
+// embed the ROM's condition table or alter its locks.
+inline void door_access(Interaction &node,const Memory &m,std::uint32_t control,
+                        const Inventory &inv,const NpcFacts &facts,std::uint32_t player) {
+  if(!m.valid(control,0x4CU)||m.u32(0x80025A08U)!=0x27BDFF48U)return;
+  node.raw_state=m.u16(control+0x3EU);node.raw_condition=m.u8(control+0x43U);
+  node.door_id=m.u8(control+0x44U);node.approach_radius=m.u16(control+0x40U);
+  node.pending_openers=m.u8(control+0x4AU);
+  const bool locked=(node.raw_state&8)!=0;
+  node.requirement_known=true;node.access_known=true;node.access_allowed=!locked;
+  if(node.raw_condition>=2) {
+    node.required_item=node.raw_condition-2;
+    node.requirement=npc_item_name(node.required_item);
+    node.label=node.requirement+" door";
+    const auto owned=node.required_item==1&&inv.known?fact(inv.red_key):facts.item(node.required_item);
+    node.access_known=!locked||owned!=Fact::unknown;node.access_allowed=!locked||owned==Fact::met;
+    node.status=!locked?"key_lock_cleared":owned==Fact::met?"key_owned":owned==Fact::missing?"key_missing":"key_inventory_unavailable";
+  } else if(node.raw_state&0x20) {
+    node.label="Enemy-clear door";node.requirement="Clear registered enemy groups";
+    node.status=locked?"enemies_remaining":"enemy_lock_cleared";
+  } else if(node.raw_state&0x40) {
+    node.label="Target-controlled door";node.requirement="Activate linked shooting targets";
+    node.status=locked?"target_required":"target_lock_cleared";
+  } else {
+    node.label=m.u8(control+0x42U)==5?"Proximity curtain":"Proximity door";
+    node.requirement=locked?"External opener; source not identified":"Approach the door";
+    node.status=locked?"opener_required":(node.raw_state&2)?((node.raw_state&4)?"opening":"closing"):
+      (node.raw_state&1)?"open":"opens_on_approach";
+    if(locked)node.requirement_known=false;
+  }
+  // Character exclusions and additional progression predicates remain separate
+  // from the door's animation and latch.
+  const unsigned restrictions=m.u8(control+0x4BU);
+  Fact allowed=Fact::met;
+  if(restrictions&7) {
+    node.requirement+="; character restriction";
+    allowed=inv.known?fact((restrictions&(1U<<inv.character))==0):Fact::unknown;
+  }
+  if(restrictions&0x40) {
+    node.requirement+="; progress flag 0";
+    allowed=both(allowed,facts.flag(0));
+  }
+  if(restrictions&0x80) {
+    node.requirement+="; player capability";
+    auto pc=m.valid(player,0x6CU)?m.u32(player+0x68U):0U;
+    allowed=both(allowed,m.valid(pc,0x510U)?fact(m.u32(pc+0x50CU)!=0):Fact::unknown);
+  }
+  if(restrictions&0x38) {allowed=both(allowed,Fact::unknown);node.requirement_known=false;}
+  if(allowed==Fact::missing){node.status="character_or_progress_required";node.access_known=true;node.access_allowed=false;}
+  else if(allowed==Fact::unknown){node.status="restriction_unverified";node.access_known=false;node.access_allowed=false;}
+}
+inline Fact exit_condition(const Memory &m,const Exit &exit,const NpcFacts &facts,std::uint32_t player) {
+  if(m.u32(0x8002561CU)!=0x27BDFF70U)return Fact::unknown;
+  if(exit.condition<0||exit.condition>=25)return Fact::met;
+  Fact met=Fact::met;
+  for(unsigned i=0;i<2;++i) {
+    const auto at=0x800A1120U+unsigned(exit.condition)*4U+i*2U;
+    const auto id=m.u8(at),expected=m.u8(at+1);
+    if(id==255)continue;
+    if(expected>1)return Fact::unknown;
+    auto value=facts.flag(id);met=both(met,expected?value:negate(value));
+  }
+  if(exit.condition==3||exit.condition==4) {
+    auto pc=m.valid(player,0x6CU)?m.u32(player+0x68U):0U;
+    met=both(met,m.valid(pc,2U)?fact(((m.u8(pc+1)&4)!=0)==(exit.condition==4)):Fact::unknown);
+  }
+  if(exit.condition==5)met=both(met,facts.race<0?Fact::unknown:fact(facts.race==1));
+  return met;
+}
+
 inline std::vector<Interaction>
 interactions(const Memory &m, const std::vector<Actor> &list,
              std::uint32_t /* level */, const Inventory &inv,
@@ -836,31 +909,20 @@ interactions(const Memory &m, const std::vector<Actor> &list,
         node.label += " " + std::to_string(node.door_id);
         node.raw_state = m.u16(control + 0x3EU);
         node.raw_condition = m.u8(control + 0x43U);
-        if (node.raw_condition >= 2) {
-          node.required_item = node.raw_condition - 2;
-          node.requirement = node.required_item == 1
-                                 ? "Red key; other conditions unverified"
-                                 : "Inventory item " +
-                                       std::to_string(node.required_item) +
-                                       "; other conditions unverified";
-          if (node.required_item == 1) {
-            node.label = "Red-key door";
-            node.status = (node.raw_state & 8) == 0 ? "key_lock_cleared"
-                          : !inv.known              ? "unknown"
-                          : inv.red_key             ? "key_owned"
-                                                    : "key_missing";
-          }
-        }
+        door_access(node,m,control,inv,npc_facts(m,inv,player),player);
       } else {
         node.kind = "gate";
-        node.label = "Door switch";
-        node.action = "activate_switch";
+        node.label = "Door indicator";
+        node.action = "door_indicator";
         node.raw_state = m.u8(control + 8U);
         node.raw_condition = m.u8(control + 9U);
         const auto linked = m.u32(control + 4U);
         for (const auto &other : list)
           if (other.address == linked && other.behavior == 7U)
-            node.linked_actor = linked;
+            { node.linked_actor = linked;
+              door_access(node,m,m.u32(linked+0x68U),inv,npc_facts(m,inv,player),player);
+              node.label="Indicator: "+node.label;
+            }
       }
       result.push_back(std::move(node));
     } catch (const std::runtime_error &) {
@@ -876,6 +938,29 @@ interactions(const Memory &m, const std::vector<Actor> &list,
     node.action = "enter_exit";
     node.raw_condition = exit.condition;
     node.reward = "Destination code " + std::to_string(exit.destination);
+    const auto condition=exit_condition(m,exit,npc_facts(m,inv,player),player);
+    node.condition_known=condition!=Fact::unknown;node.condition_met=condition==Fact::met;
+    node.access_known=node.condition_known;node.access_allowed=node.condition_met;
+    node.requirement_known=node.condition_known;
+    node.requirement=exit.condition<0||exit.condition>=25?"Enter the trigger":"Game progression condition "+std::to_string(exit.condition);
+    node.status=condition==Fact::met?"open_passage":condition==Fact::missing?"inactive_alternative":"condition_unverified";
+    // Proximity association is explicitly a nearby door, not a game pointer.
+    // Refuse ambiguous/vertically distant matches.
+    const Interaction *near=nullptr;float best=240,second=240;
+    for(const auto &gate:result)if(gate.action=="pass_door") {
+      const float dx=gate.position.x-exit.position.x,dy=gate.position.y-exit.position.y,dz=gate.position.z-exit.position.z;
+      if(std::abs(dy)>180)continue;
+      const float distance=std::sqrt(dx*dx+dy*dy+dz*dz);
+      if(distance<best){second=best;best=distance;near=&gate;}else if(distance<second)second=distance;
+    }
+    if(near&&second-best>32&&condition==Fact::met) {
+      node.linked_actor=near->address;node.label+=": "+near->label;
+      node.status=near->status;node.requirement=near->requirement;node.requirement_known=near->requirement_known;
+      node.access_known=near->access_known;node.access_allowed=near->access_allowed;
+      node.required_item=near->required_item;node.door_id=near->door_id;
+      node.pending_openers=near->pending_openers;node.approach_radius=near->approach_radius;
+    }
+
     result.push_back(std::move(node));
   }
   return result;
@@ -912,6 +997,12 @@ inline void write_progression(std::ostream &out, const Memory &m,
         << node.status << "\",\"requirement\":\"" << node.requirement
         << "\",\"reward\":\"" << node.reward << "\",\"requirement_known\":"
         << (node.requirement_known ? "true" : "false")
+        << ",\"access_known\":" << (node.access_known?"true":"false")
+        << ",\"access_allowed\":" << (node.access_allowed?"true":"false")
+        << ",\"condition_known\":" << (node.condition_known?"true":"false")
+        << ",\"condition_met\":" << (node.condition_met?"true":"false")
+        << ",\"pending_openers\":" << node.pending_openers
+        << ",\"approach_radius\":" << node.approach_radius
         << ",\"reward_item\":" << node.reward_item
         << ",\"reward_weapon\":" << node.reward_weapon
         << ",\"activation\":{\"known\":" << (node.activation.known?"true":"false")

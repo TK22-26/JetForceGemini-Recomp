@@ -109,7 +109,7 @@ namespace JfgLauncher {
             s=new Simulation(Room(30,1,bad,good),delegate(MapSnapshot map,MapMarker exit){++plans;if(exit==bad)throw new InvalidDataException("Disconnected floor");return SimplePlan(map,exit);});
             Check(s.Tick(0).Route==null && plans==1,"did not record disconnected route");
             Check(s.Tick(400).Route!=null && plans==2 && s.Explorer.TargetKey==NavigationExplorer.ExitKey(good),"did not choose alternative exit");
-            Check(s.Explorer.Describe(30,bad).StartsWith("Blocked:"),"blocked reason not exposed");
+            Check(s.Explorer.Describe(30,bad).StartsWith("Route failed:"),"blocked reason not exposed");
 
             // Arrival at the marker is not transition success.
             s=new Simulation(Room(31,1,good));s.Tick(0);s.Reach(good);
@@ -193,6 +193,66 @@ namespace JfgLauncher {
             Check(crossing.Points.Count>approach.Points.Count && crossing.Points[crossing.Points.Count-1].X>good.position[0],"did not plan through mapped doorway");
             MapMarker boundary=Exit(60,990,0);crossing=NavigationRoute.PlanExit(floor,boundary);
             Check(crossing.Points[crossing.Points.Count-1].X==990,"crossing left known floor");
+
+
+            // A real trigger's origin can be beside a sloping wall. Cross via
+            // the body-clear centre lane, not a nearby point before its plane.
+            MapMarker offCentre=Exit(601,-13,160);offCentre.position[1]=63;
+            offCentre.normal=new float[]{0,0,-1};offCentre.radius=160;offCentre.plane_d=160;offCentre.directional=-1;
+            var laneMap=Room(601,1,offCentre);laneMap.Live.player.position=new float[]{0,0,-120};
+            laneMap.Mesh.vertices=new float[][] {
+                new float[]{-41,0,-200},new float[]{41,0,-200},new float[]{-41,0,300},new float[]{41,0,300},
+                new float[]{-24,125,-200},new float[]{-24,125,300},
+                new float[]{41,125,-200},new float[]{41,125,300}};
+            laneMap.Mesh.triangles=new MapFace[]{
+                new MapFace{v=new[]{0,2,1},normal=new float[]{0,1,0}},new MapFace{v=new[]{1,2,3},normal=new float[]{0,1,0}},
+                new MapFace{v=new[]{0,4,2},normal=new float[]{1,0,0}},new MapFace{v=new[]{2,4,5},normal=new float[]{1,0,0}},
+                new MapFace{v=new[]{1,3,6},normal=new float[]{-1,0,0}},new MapFace{v=new[]{3,7,6},normal=new float[]{-1,0,0}}};
+            var laneRoute=NavigationRoute.PlanExit(laneMap,offCentre);
+            var laneEnd=laneRoute.Points[laneRoute.Points.Count-1];
+            Check(laneEnd.Z>offCentre.position[2]+8&&Math.Abs(laneEnd.X-offCentre.position[0])>=8,"exit route stopped before plane or targeted wall");
+            Check(NavigationRoute.ClearWalk(laneMap,new MapLayers(laneMap.Mesh).Floors,laneRoute.Points[laneRoute.Points.Count-2],laneEnd),"exit lane lacks body clearance");
+            laneMap.Live.progression.nodes=new[]{new MapInteraction{address=offCentre.address,condition_known=true,condition_met=false}};
+            bool inactive=false;try{NavigationRoute.PlanExit(laneMap,offCentre);}catch(InvalidDataException){inactive=true;}
+            Check(inactive,"inactive exit variant accepted");
+            laneMap.Live.progression.nodes[0].condition_met=true;
+            laneMap.Live.progression.nodes[0].access_known=true;
+            laneMap.Live.progression.nodes[0].access_allowed=false;
+            laneMap.Live.progression.nodes[0].status="key_missing";
+            laneMap.Live.progression.nodes[0].requirement="Yellow key";
+            bool locked=false;try{NavigationRoute.PlanExit(laneMap,offCentre);}catch(InvalidDataException e){locked=e.Message.Contains("Yellow key");}
+            Check(locked,"missing yellow key treated as clear passage");
+            var stableAccess=new NavigationExplorer();var accessMap=Room(602,1,offCentre);
+            accessMap.Live.progression.nodes=new[]{new MapInteraction{kind="gate",door_id=2,
+                status="enemy_lock_cleared",position=new float[]{0,0,0}}};
+            stableAccess.ObserveIdle(accessMap,accessMap.Live.timestamp_ms);
+            var accessRevision=stableAccess.History.unlockRevision;
+            accessMap.Live.progression.nodes[0].position[1]=120;
+            stableAccess.ObserveIdle(accessMap,accessMap.Live.timestamp_ms);
+            Check(stableAccess.History.unlockRevision==accessRevision,"door animation manufactured new unlock progress");
+
+            // A small elevated trigger can require a shallower crossing before
+            // mapped floor ends; a fixed 32-unit extension rejects this ramp.
+            laneMap.Live.progression.nodes=new MapInteraction[0];
+            offCentre.position[1]=48;offCentre.radius=64;
+            foreach(int i in new[]{2,3,5,7})laneMap.Mesh.vertices[i][2]=180;
+            var shallow=NavigationRoute.PlanExit(laneMap,offCentre);
+            var shallowEnd=shallow.Points[shallow.Points.Count-1];
+            Check(shallowEnd.Z>168&&shallowEnd.Z<=180,"small ramp trigger did not use supported shallow crossing");
+            // A low object outside a narrow door leaves body clearance but not
+            // the optional comfort envelope. Only the final doorway leg narrows.
+            laneMap.Live.actors=new[]{new MapActor{address=990,position=new float[]{-42,0,65}}};
+            var throatBox=new MapCollisionModel{address=990,enabled=true,lower=new float[]{-60,0,40},upper=new float[]{-24,13,90}};
+            laneMap.Live.collision.models=new[]{throatBox};
+            var throatRoute=NavigationRoute.PlanExit(laneMap,offCentre);
+            Check(throatRoute.Points[throatRoute.Points.Count-2].Z<40&&
+                NavigationRoute.ClearWalk(laneMap,new MapLayers(laneMap.Mesh).Floors,
+                    throatRoute.Points[throatRoute.Points.Count-2],throatRoute.Points[throatRoute.Points.Count-1]),
+                "door throat did not preserve full body clearance");
+            throatBox.upper[0]=10;bool solidRefused=false;
+            try{NavigationRoute.PlanExit(laneMap,offCentre);}catch(InvalidDataException){solidRefused=true;}
+            Check(solidRefused,"door throat fallback ignored a solid body obstruction");
+
 
             s=new Simulation(Room(61,1,good));s.Tick(0);s.Reach(good);
             MapSnapshot interrupted=Room(62,2,bad);interrupted.Live.navigation_ai.manual_inputs=1;s.Arrive(interrupted);
@@ -289,7 +349,7 @@ namespace JfgLauncher {
             Check(!s.Explorer.MayHeartbeat && s.Explorer.TargetKey==NavigationExplorer.ExitKey(bad),"recovery lost target or kept movement armed");
             Check(s.Tick(500).Route==null,"replanned before movement settled");
             Check(s.Tick(250).Route!=null && s.Explorer.TargetKey==NavigationExplorer.ExitKey(bad),"dynamic collision abandoned recoverable exit");
-            Check(!s.Explorer.Describe(102,bad).StartsWith("Blocked:"),"transient collision permanently blocked exit");
+            Check(!s.Explorer.Describe(102,bad).StartsWith("Route failed:"),"transient collision permanently blocked exit");
             for(int i=0;i<3;i++){s.Block("Moving door blocked route");Check(s.Tick(750).Route!=null,"bounded recovery stopped too soon");}
             Check(s.Block("Moving door blocked route").Stop,"recovery exhaustion failed to release movement");
             Check(s.Explorer.Describe(102,bad).Contains("Local recovery limit"),"persistent failure did not become blocked");

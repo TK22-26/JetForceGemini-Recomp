@@ -409,3 +409,44 @@ Evidence remains private under box-jump-evidence/precision-chest-shared-2.
 This validates that specific Normal-controls shotgun route. It does not establish
 universal chest access, Expert-controls execution, crawl height, arbitrary
 multi-storey traversal or full-stage completion.
+
+### Door access decoding and trigger lanes (2026-10-04)
+
+Windows Release native navigation tests pass in both guest-memory layouts.
+The launcher passes 421 checks and 12 setup checks. New coverage includes
+character-scoped yellow-key ownership, enemy/target opener latches, actual
+door-indicator links, character exclusions, alternate exit conditions,
+unsupported instruction identity, read-only decoding, sloping doorway lanes,
+small elevated triggers, solid obstruction rejection, and stable progress
+history while a door animates.
+
+The room-47 capture identifies the proximity curtain at Exit 1, the yellow-key
+requirement at Exit 5, and the enemy-clear door shared by the overlapping
+Exits 3 and 6. In that capture condition 6 is active, condition 7 is inactive,
+and the door retains one registered pending enemy group. The counter is not
+an individual enemy count, and the mod does not force the door latch open.
+Exit destinations remain raw until an actual transition is observed.
+
+Exit 4's old route could end before its plane or aim beside a sloping wall.
+The revised route searches laterally for body clearance and a supported
+endpoint inside the actual trigger volume, beyond its required plane.
+The final doorway segment may use the body envelope where the extra comfort
+margin does not fit; the preceding route retains normal margins. A recorded
+enemy-door geometry test also finds a body-clear passage after its collision
+is simulated open; this is not a live enemy-gate unlock test.
+
+A muted native trial crossed the tutorial exit into room 47, then used the
+production explorer to cross Exit 4 back into room 92. Game and observer exited
+with code 0. The trials used separate save copies and preserved their inputs.
+An earlier run entered room 122, opened the Fish Food chest, and returned to 47.
+Its subsequent direct route trial stopped on a clearance check before reaching
+Exit 4. Another longer run timed out at the chest; a curtain trial stopped
+during tutorial dialogue before reaching the curtain. Those failures remain
+recorded and are not counted as full-run passes. Autonomous campaign completion,
+universal chest reliability, and live passage through every decoded gate remain
+unverified.
+
+The inventory preview retains recognized unowned items as dim tiles and omits
+unnamed storage bits. Overlapping inactive exit labels no longer obscure the
+active map label; all variants remain in the interaction list. ROM-derived
+snapshots, captures, and paired executables remain private.

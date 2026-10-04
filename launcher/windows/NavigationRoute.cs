@@ -480,7 +480,106 @@ namespace JfgLauncher {
             }
         }
 
+        internal static string ExitRequirement(MapSnapshot snapshot,MapMarker exit) {
+            if(snapshot.Live.progression!=null)foreach(var node in snapshot.Live.progression.nodes)
+                if(node.address==exit.address) {
+                    if(node.condition_known&&!node.condition_met)return "Exit is an inactive progression alternative.";
+                    if(node.access_known&&!node.access_allowed&&node.status!="enemies_remaining")
+                        return "Door requirement: "+node.requirement+".";
+                }
+            return null;
+        }
         internal static NavigationRoute PlanExit(MapSnapshot snapshot,MapMarker exit) {
+            string requirement=ExitRequirement(snapshot,exit);
+            if(requirement!=null)throw new InvalidDataException(requirement);
+            // Old captures without a measured trigger retain the compatibility
+            // path. Real exports include the sphere and plane used by exitControl.
+            if(exit.radius<24||exit.radius>4096||exit.normal==null)return PlanExitLegacy(snapshot,exit);
+            var floors=WalkingFloors(snapshot.Mesh);
+            float nx=exit.normal[0],nz=exit.normal[2],len=(float)Math.Sqrt(nx*nx+nz*nz);
+            if(len<.1f)throw new InvalidDataException("Exit needs vertical traversal; no horizontal crossing direction.");
+            nx/=len;nz/=len;
+            if(exit.directional==0) {
+                var p=snapshot.Live.player.position;
+                if((p[0]-exit.position[0])*nx+(p[2]-exit.position[2])*nz<0){nx=-nx;nz=-nz;}
+            }
+            // Search across the opening, rather than treating the actor origin
+            // as its centre. Verify both floor support and body clearance.
+            var candidates=new List<HeightPoint[]>();
+            foreach(float offset in new float[]{0,4,-4,8,-8,12,-12,16,-16,24,-24,32,-32,48,-48,64,-64,80,-80,96,-96}) {
+                if(Math.Abs(offset)>exit.radius*.7f)continue;
+                float x=exit.position[0]-nz*offset,z=exit.position[2]+nx*offset;
+                foreach(float depth in new float[]{32,16}) {
+                    HeightPoint near,through;
+                    if(Floor(floors,new HeightPoint(x+nx*64,exit.position[1],z+nz*64),false,out near)<0||
+                       Floor(floors,new HeightPoint(x-nx*depth,exit.position[1],z-nz*depth),false,out through)<0)continue;
+                    if(Distance(through,new HeightPoint(exit.position))>exit.radius-4)continue;
+                    if(exit.directional!=0 && exit.normal[0]*through.X+exit.normal[1]*through.Y+exit.normal[2]*through.Z+exit.plane_d>=-8)continue;
+                    if(!ClearWalk(snapshot,floors,near,through))continue;
+                    candidates.Add(new HeightPoint[]{near,through});
+                }
+            }
+            // Prefer lanes with steering room, then the smallest lateral shift.
+            candidates.Sort(delegate(HeightPoint[] a,HeightPoint[] b) {
+                bool ac=ClearWalk(snapshot,floors,a[0],a[1],PlanningMargin),bc=ClearWalk(snapshot,floors,b[0],b[1],PlanningMargin);
+                if(ac!=bc)return ac?-1:1;
+                return Distance(a[1],new HeightPoint(exit.position)).CompareTo(Distance(b[1],new HeightPoint(exit.position)));
+            });
+            int attempts=0;
+            foreach(var lane in candidates) {
+                if(++attempts>6)break;
+                try {
+                    var route=Plan(snapshot,new[]{lane[0].X,lane[0].Y,lane[0].Z});
+                    route.Points.Add(lane[1]);return route;
+                }catch(InvalidDataException){}
+                // A short doorway throat may begin before the default approach,
+                // for example beside a low object just outside a lifting door.
+                // Extend only this verified body-clear final leg; keep normal
+                // comfort clearance for the route leading to it.
+                HeightPoint farther;
+                if(Floor(floors,new HeightPoint(lane[0].X+nx*128,lane[0].Y,lane[0].Z+nz*128),false,out farther)>=0&&
+                   ClearWalk(snapshot,floors,farther,lane[1])) {
+                    try {
+                        var route=Plan(snapshot,new[]{farther.X,farther.Y,farther.Z});
+                        route.Points.Add(lane[1]);return route;
+                    }catch(InvalidDataException){}
+                }
+            }
+            // A closed proximity gate still needs a safe approach so the game
+            // can open it. The explorer waits for observed collision clearance.
+            MapInteraction gateNode=null;float best=240;
+            if(snapshot.Live.progression!=null)foreach(var node in snapshot.Live.progression.nodes) {
+                if(node.action!="pass_door")continue;
+                var box=NavigationCollision.Model(snapshot.Live,node.address);
+                if(box==null||!box.enabled)continue;
+                float d=Distance(new HeightPoint(node.position),new HeightPoint(exit.position));
+                if(d<best){best=d;gateNode=node;}
+            }
+            if(gateNode!=null) {
+                if(gateNode.access_known&&!gateNode.access_allowed&&gateNode.status!="enemies_remaining")
+                    throw new InvalidDataException("Door requirement: "+gateNode.requirement+".");
+                var gate=NavigationCollision.Model(snapshot.Live,gateNode.address);
+                float x=(gate.lower[0]+gate.upper[0])/2,z=(gate.lower[2]+gate.upper[2])/2;
+                float dx=exit.position[0]-x,dz=exit.position[2]-z;
+                // Within the live approach radius, but outside the solid model.
+                var margins=new List<float>{36,20,8};
+                if(gateNode.approach_radius>=64&&gateNode.approach_radius<=4096)
+                    margins.Insert(0,gateNode.approach_radius*.72f-NavigationCollision.Radius);
+                foreach(float margin in margins) {
+                    float px=x,pz=z,pad=NavigationCollision.Radius+margin;
+                    if(Math.Abs(dx)>Math.Abs(dz))px=dx>=0?gate.lower[0]-pad:gate.upper[0]+pad;
+                    else pz=dz>=0?gate.lower[2]-pad:gate.upper[2]+pad;
+                    try {
+                        var route=Plan(snapshot,new[]{px,gateNode.position[1],pz});
+                        if(gateNode.approach_radius!=0 &&
+                           Distance(route.Points[route.Points.Count-1],new HeightPoint(gateNode.position))>=gateNode.approach_radius-12)continue;
+                        route.ApproachGate=gate.address;route.ExitPosition=(float[])exit.position.Clone();return route;
+                    }catch(InvalidDataException){}
+                }
+            }
+            throw new InvalidDataException("No clear walking lane crosses this exit trigger; inspect floor, height and door requirements.");
+        }
+        private static NavigationRoute PlanExitLegacy(MapSnapshot snapshot,MapMarker exit) {
             NavigationRoute route;
             try {route=Plan(snapshot,exit.position);}
             catch(InvalidDataException) {

@@ -96,8 +96,12 @@ namespace JfgLauncher {
                 int weapons=inventory.weapons_mask.GetValueOrDefault();
                 for(int i=0;i<16;i++)if((weapons&(1<<i))!=0)facts.Add("weapon:"+character+":"+i);
                 foreach(MapInteraction node in progress.nodes) {
-                    if(node.status=="activated" || node.status=="key_lock_cleared")
-                        facts.Add("gate:"+snapshot.Live.level+":"+PositionKey(node.position)+":"+node.status);
+                    if(node.status=="activated" || node.status=="key_lock_cleared" || node.status=="enemy_lock_cleared" || node.status=="target_lock_cleared")
+                        // Door animation moves its origin; use the stable group identity
+                        // so one opening cannot manufacture repeated progress.
+                        facts.Add("gate:"+snapshot.Live.level+":"+(node.door_id>=0?"group:"+node.door_id:PositionKey(node.position))+":"+node.status);
+                    if(node.kind=="exit"&&node.condition_known&&node.condition_met)
+                        facts.Add("exit-condition:"+snapshot.Live.level+":"+PositionKey(node.position)+":"+node.raw_condition);
                     if(node.offers==null)continue;
                     foreach(MapNpcOffer offer in node.offers) {
                         if(offer.status=="owned")facts.Add("owned:"+character+":"+offer.id);
@@ -447,7 +451,7 @@ namespace JfgLauncher {
             if(exit.absent)return "Unavailable in last room snapshot";
             if(room==target && pending!=null && pending.Exit==exit && pending.RetryAt!=0)return "Local recovery toward this exit";
             if(room==target && pending!=null && pending.Exit==exit && pending.Route.ApproachOnly)return "Door approach - waiting for clearance before crossing";
-            if(IsBlocked(exit))return "Blocked: "+exit.blocked;
+            if(IsBlocked(exit))return "Route failed: "+exit.blocked;
             if(exit.destination.HasValue)return "Confirmed -> room "+exit.destination.Value;
             if(room==target && arrivals.Contains(key))return "Return route candidate - used after local objectives and forward exits";
             return exit.blocked.Length==0?"Untried":"Retry available after progress change";
