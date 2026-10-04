@@ -1,5 +1,8 @@
 # Windows ROM-to-play launcher
 
+Start with [getting started](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/getting-started.md)
+for downloads, requirements, and known setup issues.
+
 Download `JFG-Launcher.exe` from the public release on Windows x64 and select
 your supported North American ROM. The launcher sets up the tools, builds the
 game locally, and remembers the resulting executable for later play.
@@ -76,7 +79,7 @@ Existing game builds must be rebuilt with this launcher version to consume the
 mapping and write native support diagnostics. An older selected executable can
 still produce an exit-code report but does not gain new runtime features.
 
-## Crash reports
+## Reporting a problem
 
 Launch through `JFG-Launcher.exe` to keep a local support session. If the game
 crashes, click **Create support report**, inspect the ZIP if desired, and attach
@@ -95,15 +98,12 @@ automatically. ROM contents, generated game code, saves, usernames/file paths,
 raw setup/console output, screenshots, audio and memory dumps are excluded.
 The existing raw `setup.log` is for local troubleshooting; do not attach it.
 
-The pause-screen crash reported during preview testing was traced to a suspended
-overlay being sent to the cold loader. The runtime now calls the original guest
-resume routine for suspended entries, preserving their retained data. The
-recorded failure and six further pause presses passed local replay after the fix.
-This verifies that reported route, not every pause menu or campaign state.
+For reproduction details and duplicate reports, follow
+[playtesting and reporting](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/playtesting.md).
+Successful sessions do not need a report.
 
-This is a development prototype. Campaign completion and full original-console
-parity remain open. See [the handoff](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/development/handoff.md)
-for known limitations and useful playtest reports.
+Full campaign completion and original-console accuracy remain unverified.
+See [known issues](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/known-issues.md).
 
 ## Build the launcher
 

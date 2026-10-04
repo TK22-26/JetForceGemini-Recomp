@@ -1,4 +1,7 @@
-# Phase 9: strict prefix advances to update 1908
+# Recorded selected-state boundary: update 1909
+
+This September 2026 record applies to its pinned experiment. It is not a
+current-launcher acceptance claim. See the [runtime summary](../development/runtime-research.md).
 
 ## Result (2026-09-26)
 
@@ -7,7 +10,7 @@ reference now proves **1908 consecutive matching completed-update states**.
 The first selected-state mismatch is update **1909**: camera and 18 actor
 records differ. Two independent native/oracle capture pairs reproduce it.
 No native runtime code was changed to obtain this extension; the executable
-is the one that passed the [1300 prefix](phase9-execution-frontier-1300.md).
+is the one that passed the [1300 prefix](https://github.com/TK22-26/JetForceGemini-Recomp/blob/2c55b0f082395e2be4407958637dbb4effb3c43d/docs/planning/phase9-execution-frontier-1300.md).
 
 This is a selected-state prefix, not equality of all RDRAM or complete runtime
 state. In particular, the observed consumed-VI counters first differ at 1908,
@@ -91,7 +94,7 @@ the existing update-job scheduler. `git diff --check` passes.
 
 ## Next work
 
-The subsequent [pacing receive observation](phase9-pacing-receive-observation.md)
+The subsequent [pacing receive observation](https://github.com/TK22-26/JetForceGemini-Recomp/blob/2c55b0f082395e2be4407958637dbb4effb3c43d/docs/planning/phase9-pacing-receive-observation.md)
 now measures the producer's actual call/return path. At invocation 1908 its
 queue already holds 2 native / 3 reference messages before draining begins;
 equal policy settings produce the corresponding 3 / 4 return values. Full
@@ -103,7 +106,7 @@ Trace execution/device completion and guest queues around update 1908 to
 distinguish CPU-work accounting from device-event timing/output visibility.
 The local elapsed-word mismatch is not itself permission to patch gameplay.
 
-The [durable profile handoff](autonomy-execution-profile-handoff.md) now carries
+The [durable profile handoff](https://github.com/TK22-26/JetForceGemini-Recomp/blob/2c55b0f082395e2be4407958637dbb4effb3c43d/docs/planning/autonomy-execution-profile-handoff.md) now carries
 the execution and runtime/config pins through update, determinism and
 candidate-retest packets. Live update -> focus -> boundary-analysis and repeat
 jobs passed; candidate propagation has synthetic coverage, not a live game-fix
@@ -111,7 +114,7 @@ acceptance. Independent repair-loop closure, full-route qualification and
 complete native snapshots remain open. The 1291 request is achieved; the entire
 automation-loop goal is not complete.
 
-The subsequent [device-event observation](phase9-device-event-observation.md)
+The subsequent [device-event observation](https://github.com/TK22-26/JetForceGemini-Recomp/blob/2c55b0f082395e2be4407958637dbb4effb3c43d/docs/planning/phase9-device-event-observation.md)
 adds bounded raw engine events and verifies unchanged full update traces and
 focused RDRAM on both sides. The fresh pair again passes through update 1908;
 it does not yet explain or fix the 1909 divergence.

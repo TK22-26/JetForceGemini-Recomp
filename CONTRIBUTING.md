@@ -1,55 +1,52 @@
 # Contributing
 
-Contributions to original project code are made under the MIT license.
-Contributors must have the right to submit their changes and follow these rules.
+The most useful way to help right now is to play the preview and report
+problems. Code contributions are also welcome through reviewed pull requests.
 
-## Data boundary
+## Help by playtesting
 
-- Never commit or upload a ROM, extracted asset, generated recompilation
-  output, decompilation output, memory dump, save state, audio/video capture,
-  or other ROM-derived expressive material.
-- Keep external clones and downloaded programs under the ignored `tools/`
-  directory.
-- Keep private test material outside the checkout when practical, otherwise
-  under an ignored private-data path.
-- Run `python scripts/check_repository_hygiene.py --history` before pushing.
+Follow [getting started](docs/getting-started.md), then play normally.
+Check [known issues](docs/known-issues.md) before reporting a problem and use
+[playtesting and reporting](docs/playtesting.md) to attach the launcher's
+support ZIP to GitHub. Successful sessions do not require a report.
 
-## Change workflow
+You do not need a development branch, a pull request, or the developer test
+suite to report a bug. Clear steps, the affected build, and useful diagnostics
+help us reproduce it. Retesting a specific fix is valuable too.
 
-1. Start from an approved issue or bounded task packet.
-2. Use an `agent/<description>` or human feature branch.
-3. Keep compatibility changes separate from enhancements.
-4. Add ROM-free tests for all behavior available without private data.
-5. Run project validation, the CMake build, and CTest.
-6. Open a draft pull request with evidence and unresolved risks.
+## Contribute code
 
-Do not update golden baselines to make a failure disappear. Do not mix
-generated files with handwritten changes.
+1. Check existing issues and discuss substantial changes before implementing
+   them. Keep a first contribution focused on one problem.
+2. Create a feature branch. Keep compatibility fixes separate from enhancements.
+3. Explain the problem, the change, and how you verified it. Add regression
+   coverage for behavior changes where practical, using fixtures without game data.
+4. Follow [development setup](docs/development/setup.md) for relevant checks.
+   Run `python scripts/check_repository_hygiene.py --history` before pushing.
+   Documentation changes should include link and whitespace checks; runtime
+   changes need the applicable builds and tests.
+5. Open a pull request. A draft is welcome while work is in progress. Include
+   test results and any remaining limitations; maintainers will review before merging.
 
-## Optional dependency-free pre-commit check
+Preserve existing user files and saves. Do not change golden baselines to hide
+a failure or mix generated game output with handwritten source.
 
-Run the first-party hygiene check immediately before committing:
+## Keep submissions focused
 
-```sh
-python scripts/check_repository_hygiene.py --history
-```
+Submit original contributions under the [MIT License](LICENSE) and preserve
+[third-party notices](THIRD_PARTY_NOTICES.md). Keep ROMs, game assets, generated
+game code, and saves out of commits and attachments. For bug reports, use the
+launcher-generated ZIP described in the [reporting guide](docs/playtesting.md).
+See [data handling](docs/legal/rom-and-assets-policy.md) for detailed rules.
 
-The command uses only Python's standard library and Git. It scans tracked and
-non-ignored candidate files plus reachable history; it deliberately does not
-open ignored private-data or external-tool directories.
+Review any AI-assisted changes before submitting them. Contributions to
+upstream dependencies must follow their own policies;
+the evaluated N64 recompilation projects do not accept AI-generated upstream
+contributions. Do not present AI-assisted work as human-authored upstream.
 
-## Upstream contribution rule
+## Automated development
 
-The currently evaluated N64 recompilation projects state that AI-generated
-upstream contributions are not accepted. Project work produced with AI
-assistance must not be submitted upstream as though it were human-authored.
-Any required upstream contribution needs a genuinely human-authored and
-independently reviewed implementation that follows that upstream project's
-policy.
-
-## Licensing
-
-Submit original contributions under the [MIT License](LICENSE). Preserve
-applicable third-party notices. A public repository without a license does not
-by itself grant permission to copy its implementations. Do not submit game
-assets or generated ROM-derived code.
+Agents must follow [AGENTS.md](AGENTS.md) and the production
+[guard contract](docs/planning/autonomy-progress-guard.md). Preserve existing
+investigation accounting, run automated work through the guarded supervisor,
+and stop when it denies further execution.

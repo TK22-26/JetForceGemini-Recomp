@@ -1,11 +1,14 @@
-# ROM-to-build prototype
+# Build the game from your ROM
+
+For downloads and the first-run path, start with [getting started](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/getting-started.md).
+See [known setup issues](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/known-issues.md#windows-10-setup) before installation.
 
 This Windows x64 prototype starts with the supported US big-endian ROM and
 creates a local native executable. The launcher can install missing developer
 tools and obtain its pinned source checkout automatically. Open the standalone
 EXE, choose your ROM, then click **Set up and build**. Administrator prompts and
 a Windows restart may be needed; reopen the launcher to continue afterward.
-See [the launcher guide](launcher.md) for downloads, storage, and requirements.
+See [the launcher guide](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/development/launcher.md) for downloads, storage, and requirements.
 
 For manual setup or command-line use, install Git, Python 3.11 or newer, Visual Studio 2022 with Desktop development
 with C++ and CMake, and WSL2 with Ubuntu 24.04. Inside Ubuntu, install the
@@ -75,12 +78,9 @@ ROM-derived code and detailed diagnostics remain local.
 
 The launcher and setup tests use ROM-free fixtures. Public CI exercises the
 build recipe, native output paths, launcher compilation, and source policy.
-Oracle identity tests use synthetic input digests without restoring excluded
-emulator patches. Historical evidence remains pinned to its original source;
-tests authenticate those records separately and verify that drifted checkouts
-cannot reuse their acceptance claims. Neither CI nor compilation certifies a
-completed campaign. A pristine Windows installation with installer elevation
-and reboot remains an outstanding playtest of the new setup flow.
+Neither CI nor compilation certifies a completed campaign. A pristine Windows
+installation with installer elevation and reboot remains an outstanding
+playtest of the setup flow.
 
 A successful build establishes compilation. Game parity and campaign completion
 remain open. Keep generated game code and binaries local.

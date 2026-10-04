@@ -1,27 +1,63 @@
 name: Playtest problem
-description: Report a crash, setup failure, or gameplay issue.
+description: Report a setup failure, crash, freeze, or gameplay problem.
 title: "[Playtest] "
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [known issues](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/known-issues.md)
+        and existing reports first. Add useful new details to a matching issue.
+        Successful play sessions do not need a report.
+  - type: dropdown
+    id: category
+    attributes:
+      label: Problem type
+      options:
+        - Setup or build
+        - Crash
+        - Freeze or hang
+        - Gameplay or progression
+        - Controls
+        - Graphics
+        - Audio
+        - Save or load
+        - Other problem
+    validations:
+      required: true
   - type: input
     id: version
     attributes:
-      label: Launcher version and Windows version
+      label: Launcher and game build
+      description: Launcher version and, for source builds, the commit from git rev-parse HEAD. Say if the game was built separately or the version is unknown.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Windows version, GPU, and input device
+      description: Include the GPU driver version if known and whether you use keyboard or a controller.
     validations:
       required: true
   - type: textarea
     id: reproduce
     attributes:
-      label: Steps to reproduce
-      description: Include the level or menu, buttons pressed, expected behavior, and what happened.
+      label: What happened and how to reproduce it
+      description: Include the level/menu or setup stage, steps/buttons, expected result, actual result, and whether you started a new game or loaded progress.
+    validations:
+      required: true
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it happen?
+      options:
+        - Once so far
+        - Sometimes
+        - Every attempt
+        - Not sure
     validations:
       required: true
   - type: textarea
-    id: hardware
-    attributes:
-      label: GPU and controller
-      description: Include whether keyboard or controller input was used.
-  - type: textarea
     id: report
     attributes:
-      label: Support report
-      description: Attach the ZIP from Create support report in the launcher. Do not attach ROMs, saves, raw setup logs, game assets, or memory dumps.
+      label: Support ZIP and additional details
+      description: Use Create support report before starting another session and attach its ZIP. If unavailable, explain why. Do not attach ROMs, game assets, saves, generated builds, or raw setup logs.
