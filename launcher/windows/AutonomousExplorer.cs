@@ -171,7 +171,7 @@ namespace JfgLauncher {
                 foreach(var marker in map.Live.exits) {
                     string key="jump:"+map.Live.level+":"+map.Live.generation+":"+NavigationExplorer.ExitKey(marker);
                     if(exits.IsArrival(map.Live.level,marker)||attempted.Contains(key))continue;
-                    if(marker.position[1]<=map.Live.player.position[1]+16)continue;
+                    if(!BoxJumpPlanner.NeedsPlatformTraversal(map,new HeightPoint(marker.position)))continue;
                     attempted.Add(key);return Prepare("platform route",0,null,marker.position);
                 }
             }

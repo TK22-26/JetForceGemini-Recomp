@@ -6,7 +6,40 @@
 #include <ostream>
 #include <string>
 #include <vector>
+#include <span>
+#include <stdexcept>
 namespace jfg::mod {
+// Narrow read-only view for the normalized runtime's separately mapped overlay.
+// The owner must supply a live, metadata-validated section; all other pointers
+// retain the ordinary RDRAM bounds checks.
+template<class M> class DialogueMemory {
+  const M &ram_;std::uint32_t base_;std::span<const std::uint8_t> section_;
+  bool section_range(std::uint32_t a,std::uint64_t n) const noexcept {
+    return a>=base_ && std::uint64_t(a-base_)<=section_.size() &&
+      n<=section_.size()-std::uint64_t(a-base_);
+  }
+public:
+  DialogueMemory(const M &ram,std::uint32_t base,std::span<const std::uint8_t> section)
+    :ram_(ram),base_(base),section_(section) {}
+  bool valid(std::uint32_t a,std::uint64_t n) const noexcept {
+    return ram_.valid(a,n)||section_range(a,n);
+  }
+  std::uint8_t u8(std::uint32_t a) const {
+    if(ram_.valid(a,1))return ram_.u8(a);
+    if(!section_range(a,1)||((a-base_)^3U)>=section_.size())
+      throw std::runtime_error("invalid dialogue memory");
+    return section_[(a-base_)^3U];
+  }
+  std::uint16_t u16(std::uint32_t a) const {
+    if(!valid(a,2))throw std::runtime_error("invalid dialogue halfword");
+    return std::uint16_t((u8(a)<<8U)|u8(a+1U));
+  }
+  std::int16_t s16(std::uint32_t a) const {return static_cast<std::int16_t>(u16(a));}
+  std::uint32_t u32(std::uint32_t a) const {
+    if(!valid(a,4))throw std::runtime_error("invalid dialogue word");
+    return (std::uint32_t(u16(a))<<16U)|u16(a+2U);
+  }
+};
 struct DialogueChoice { unsigned action{}; int prerequisite{}; };
 struct DialogueState {
   bool known{},active{},ready{},choices{};

@@ -49,6 +49,13 @@ completion and original-console accuracy remain unverified. Report a specific
 failure with the location and reproduction steps using the
 [playtesting guide](playtesting.md).
 
+## Player shadow darkness
+
+A maintainer reports that the shadow beneath the playable character looks
+darker than on an N64 and emulator (2026-10-04). This is pending a matched
+scene comparison and renderer investigation; no shadow correction has been
+validated yet.
+
 ## Support reports
 
 Preview 0.4.0-preview.2 supports session selection, filtered system/build details,

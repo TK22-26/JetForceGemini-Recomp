@@ -16,6 +16,8 @@ namespace JfgLauncher
     }
     [DataContract] internal sealed class MapGeometry
     {
+        internal MapGeometry BaseGeometry;
+        internal string EntitySignature;
         [DataMember] public int schema = 0;
         [DataMember] public uint level = 0;
         [DataMember] public long generation = 0;
@@ -41,6 +43,7 @@ namespace JfgLauncher
         [DataMember] public string label = "";
         [DataMember] public uint address = 0;
         [DataMember] public int destination_code = 0;
+        [DataMember] public uint radius = 0;
         [DataMember] public float[] normal = null;
     }
     [DataContract] internal sealed class MapInventory
@@ -251,7 +254,7 @@ namespace JfgLauncher
                 throw new InvalidDataException("Unsupported map export.");
             if (!live.mesh_ready || live.player == null)
                 throw new InvalidDataException("Waiting for gameplay and room geometry...");
-            MapGeometry mesh = cached;
+            MapGeometry mesh = cached==null?null:cached.BaseGeometry??cached;
             if (mesh == null || mesh.generation != live.generation || mesh.level != live.level)
             {
                 mesh = Read<MapGeometry>(Path.Combine(directory, "mesh.json"));
@@ -306,7 +309,7 @@ namespace JfgLauncher
                     throw new InvalidDataException("Invalid NPC label.");
             }
             if (live.progression != null) live.progression.Validate();
-            return new MapSnapshot { Mesh = mesh, Live = live };
+            return new MapSnapshot { Mesh = NavigationCollision.Merge(mesh,live,cached), Live = live };
         }
     }
 
@@ -365,8 +368,9 @@ namespace JfgLauncher
                 float lx=Single.MaxValue,lz=Single.MaxValue,hx=Single.MinValue,hz=Single.MinValue;
                 foreach(float[] p in value.Mesh.vertices) {lx=Math.Min(lx,p[0]);hx=Math.Max(hx,p[0]);lz=Math.Min(lz,p[2]);hz=Math.Max(hz,p[2]);}
                 centerX=(lx+hx)/2;centerZ=(lz+hz)/2;spanX=Math.Max(1,hx-lx);spanZ=Math.Max(1,hz-lz);
-                layers=new MapLayers(value.Mesh);follower=new FloorFollower();
-                trail.Clear();lastUpdate=-1;movement=new PointF();Fit();
+                layers=new MapLayers(value.Mesh);
+                bool changedRoom=snapshot==null||snapshot.Live.level!=value.Live.level||snapshot.Live.generation!=value.Live.generation;
+                if(changedRoom) {follower=new FloorFollower();trail.Clear();lastUpdate=-1;movement=new PointF();Fit();}
             }
             snapshot=value;
             if(value==null) {layers=null;trail.Clear();Invalidate();return;}
@@ -425,7 +429,7 @@ namespace JfgLauncher
             float low=CenterHeight-SliceWidth/2,high=CenterHeight+SliceWidth/2;
             g.SmoothingMode=SmoothingMode.None;
             if(Mode!=2&&OtherLevels) {
-                using(Brush context=new SolidBrush(Color.FromArgb(13,145,163,176)))
+                using(Brush context=new SolidBrush(Color.FromArgb(65,145,163,176)))
                     foreach(HeightSurface floor in layers.Floors)
                         if(floor.Low<low||floor.High>high) g.FillPolygon(context,Project(floor.Points));
             }
@@ -635,7 +639,7 @@ namespace JfgLauncher
             bar.Controls.Add(new Label { Text = "Slice width", AutoSize = true, Padding = new Padding(0, 5, 0, 0) });
             bar.Controls.Add(thickness); bar.Controls.Add(context);
             bar.SetFlowBreak(context, true);
-            bar.Controls.Add(new Label { Text = "Filled surfaces: height colors   Hollow markers: above/below slice   Stacked floors remain separate", AutoSize = true, Padding = new Padding(6, 0, 0, 0) });
+            bar.Controls.Add(new Label { Text = "Bright: current height slice   Gray: other heights (including rising ramps)   Hollow markers: above/below", AutoSize = true, Padding = new Padding(6, 0, 0, 0) });
 
             Controls.Add(bar);
             status.Dock = DockStyle.Bottom; status.Height = 38; status.Padding = new Padding(8);

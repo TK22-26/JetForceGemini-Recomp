@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
+using System.Text;
+using System.Globalization;
 using System.Runtime.Serialization;
 
 namespace JfgLauncher {
@@ -16,6 +18,7 @@ namespace JfgLauncher {
     [DataContract] internal sealed class MapCollisionModel {
         [DataMember] public uint address = 0;
         [DataMember] public bool enabled = false;
+        [DataMember] public MapGeometry surface = null;
         [DataMember] public float[] lower = null, upper = null;
         internal bool Overlaps(float low,float high) {return upper[1]>=low && lower[1]<=high;}
     }
@@ -34,6 +37,16 @@ namespace JfgLauncher {
                 if(m==null || m.address==0 || !available.Contains(m.address & 0x1FFFFFFF) || !seen.Add(m.address & 0x1FFFFFFF))
                     throw new InvalidDataException("Collision model has no unique current entity.");
                 MapSnapshot.Point(m.lower);MapSnapshot.Point(m.upper);
+                if(m.surface!=null) {
+                    if(m.surface.vertices==null||m.surface.vertices.Length<3||m.surface.vertices.Length>8192||
+                       m.surface.triangles==null||m.surface.triangles.Length<1||m.surface.triangles.Length>8192)
+                        throw new InvalidDataException("Invalid entity collision surface.");
+                    foreach(var v in m.surface.vertices) {MapSnapshot.Point(v);foreach(float c in v)if(Math.Abs(c)>1000000)throw new InvalidDataException("Invalid entity vertex.");}
+                    foreach(var f in m.surface.triangles) {
+                        if(f==null||f.v==null||f.v.Length!=3||f.normal==null)throw new InvalidDataException("Invalid entity face.");
+                        MapSnapshot.Point(f.normal);foreach(int i in f.v)if(i<0||i>=m.surface.vertices.Length)throw new InvalidDataException("Invalid entity face index.");
+                    }
+                }
                 for(int i=0;i<3;i++)if(m.lower[i]>m.upper[i] || Math.Abs(m.lower[i])>1000000 || Math.Abs(m.upper[i])>1000000)
                     throw new InvalidDataException("Invalid collision bounds.");
             }
@@ -61,13 +74,55 @@ namespace JfgLauncher {
             float a=(low-p)/d,b=(high-p)/d;
             enter=Math.Max(enter,Math.Min(a,b));leave=Math.Min(leave,Math.Max(a,b));return enter<=leave;
         }
+        internal static MapGeometry Merge(MapGeometry basis,MapLive live,MapGeometry cached) {
+            var key=new StringBuilder();
+            if(live.collision!=null&&live.collision.known)foreach(var m in live.collision.models)if(m.enabled&&m.surface!=null) {
+                key.Append(m.address).Append(':');
+                foreach(var v in m.surface.vertices)foreach(float x in v)key.Append(x.ToString("R",CultureInfo.InvariantCulture)).Append(',');
+                foreach(var f in m.surface.triangles) {foreach(int i in f.v)key.Append(i).Append(',');foreach(float n in f.normal)key.Append(n.ToString("R",CultureInfo.InvariantCulture)).Append(',');}
+            }
+            string signature=key.ToString();
+            if(signature.Length==0)return basis;
+            if(cached!=null&&cached.BaseGeometry==basis&&cached.EntitySignature==signature)return cached;
+            var vertices=new List<float[]>(basis.vertices);var faces=new List<MapFace>(basis.triangles);
+            foreach(var m in live.collision.models)if(m.enabled&&m.surface!=null) {
+                int offset=vertices.Count;vertices.AddRange(m.surface.vertices);
+                foreach(var f in m.surface.triangles)faces.Add(new MapFace{v=new[]{f.v[0]+offset,f.v[1]+offset,f.v[2]+offset},normal=f.normal});
+            }
+            return new MapGeometry{schema=basis.schema,level=basis.level,generation=basis.generation,vertices=vertices.ToArray(),triangles=faces.ToArray(),BaseGeometry=basis,EntitySignature=signature};
+        }
+        private static HeightPoint Sub(HeightPoint a,HeightPoint b){return new HeightPoint(a.X-b.X,a.Y-b.Y,a.Z-b.Z);}
+        private static HeightPoint Cross(HeightPoint a,HeightPoint b){return new HeightPoint(a.Y*b.Z-a.Z*b.Y,a.Z*b.X-a.X*b.Z,a.X*b.Y-a.Y*b.X);}
+        private static float Dot(HeightPoint a,HeightPoint b){return a.X*b.X+a.Y*b.Y+a.Z*b.Z;}
+        private static bool TriangleHit(HeightPoint[] t,HeightPoint from,HeightPoint to,float radius) {
+            var axes=new List<HeightPoint>{new HeightPoint(1,0,0),new HeightPoint(0,1,0),new HeightPoint(0,0,1)};
+            axes.Add(Cross(Sub(t[1],t[0]),Sub(t[2],t[0])));
+            for(int i=0;i<3;i++){var edge=Sub(t[(i+1)%3],t[i]);axes.Add(Cross(edge,new HeightPoint(1,0,0)));axes.Add(Cross(edge,new HeightPoint(0,1,0)));axes.Add(Cross(edge,new HeightPoint(0,0,1)));}
+            // Same step allowance as room-triangle walking probes.
+            const float bottom=28,half=(BodyHeight-bottom)/2,center=(BodyHeight+bottom)/2;
+            from.Y+=center;to.Y+=center;float enter=0,leave=1;
+            foreach(var axis in axes) {
+                if(Dot(axis,axis)<.000001)continue;
+                float lo=Single.MaxValue,hi=Single.MinValue;
+                foreach(var v in t){float d=Dot(v,axis);lo=Math.Min(lo,d);hi=Math.Max(hi,d);}
+                float extent=radius*(Math.Abs(axis.X)+Math.Abs(axis.Z))+half*Math.Abs(axis.Y);
+                if(!Clip(Dot(from,axis),Dot(Sub(to,from),axis),lo-extent,hi+extent,ref enter,ref leave))return false;
+            }
+            return true;
+        }
         internal static bool Intersects(MapCollisionModel m,HeightPoint a,HeightPoint b,float radius=Radius) {
             float enter=0,leave=1;
             // Swept upright body box via Minkowski expansion. Height varies with
             // the route segment; an upper-story box does not block lower floors.
-            return Clip(a.X,b.X-a.X,m.lower[0]-radius,m.upper[0]+radius,ref enter,ref leave) &&
+            bool box=Clip(a.X,b.X-a.X,m.lower[0]-radius,m.upper[0]+radius,ref enter,ref leave) &&
                 Clip(a.Y,b.Y-a.Y,m.lower[1]-BodyHeight,m.upper[1]-FootClearance,ref enter,ref leave) &&
                 Clip(a.Z,b.Z-a.Z,m.lower[2]-radius,m.upper[2]+radius,ref enter,ref leave);
+            if(!box||m.surface==null)return box;
+            foreach(var f in m.surface.triangles) {
+                var t=new HeightPoint[3];for(int i=0;i<3;i++)t[i]=new HeightPoint(m.surface.vertices[f.v[i]]);
+                if(TriangleHit(t,a,b,radius))return true;
+            }
+            return false;
         }
         internal static MapCollisionModel Blocking(MapLive live,HeightPoint a,HeightPoint b,float radius=Radius) {
             foreach(MapCollisionModel m in live.collision.models)
@@ -114,7 +169,7 @@ namespace JfgLauncher {
                 Color top=MapLayers.HeightColor((m.upper[1]-layers.Low)/(layers.High-layers.Low));
                 Color bottom=MapLayers.HeightColor((m.lower[1]-layers.Low)/(layers.High-layers.Low));
                 bool chosen=NavigationCollision.SameActor(m.address,selected);
-                if(overlap && m.enabled) {
+                if(overlap && m.enabled && m.surface==null) {
                     using(Brush fill=new SolidBrush(Color.FromArgb(155,top)))g.FillRectangle(fill,box);
                     using(Brush band=new SolidBrush(bottom))g.FillRectangle(band,box.X,box.Y,Math.Min(4,box.Width),box.Height);
                 }

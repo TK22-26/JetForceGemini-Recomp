@@ -1797,6 +1797,23 @@ bool sample_xinput_controller(const jfg::ControllerMapping& mapping, std::uint16
   return true;
 }
 
+jfg::mod::DialogueState navigation_dialogue(State &state) {
+  jfg::mod::Memory ram({state.rdram,kRdramSize});
+  const auto base=section_addresses!=nullptr?static_cast<std::uint32_t>(section_addresses[7U]):0U;
+  if(ram.valid(base,0x2C44U))return jfg::mod::read_dialogue(ram,base);
+  JfgGeneratedSectionMetadata metadata{};
+  if(!state.active_overlay_sections.contains(7U) ||
+     !jfg_generated_section_metadata(7U,&metadata) || metadata.is_overlay!=1U ||
+     base!=metadata.linked_vram || (base&3U))return {};
+  const std::uint64_t extent=std::uint64_t(metadata.text_size)+metadata.data_size+metadata.bss_size;
+  const std::uint32_t offset=base-kKseg0;
+  if(extent<0x2C44U || extent>0x10000U || offset>kGuestAddressSpan ||
+     extent>kGuestAddressSpan-offset || (extent&3U))return {};
+  jfg::mod::DialogueMemory memory(ram,base,
+      std::span<const std::uint8_t>(state.rdram+offset,static_cast<std::size_t>(extent)));
+  return jfg::mod::read_dialogue(memory,base);
+}
+
 void sample_live_controller(State &state) noexcept {
   constexpr std::uint16_t kButtonA = 0x8000U;
   constexpr std::uint16_t kButtonB = 0x4000U;
@@ -1869,8 +1886,7 @@ void sample_live_controller(State &state) noexcept {
     }
     if (state.controller_samples % 6U == 0U) {
       jfg::mod::Memory memory({state.rdram,kRdramSize});
-      const auto base=section_addresses!=nullptr?static_cast<std::uint32_t>(section_addresses[7U]):0U;
-      const auto dialogue=jfg::mod::read_dialogue(memory,base);
+      const auto dialogue=navigation_dialogue(state);
       if(dialogue.known&&dialogue.active) {
         state.navigation_mod.pilot.stop("dialogue_active");
         if(!manual&&!state.input_replay_loaded){buttons=0;stick_x=stick_y=0;}
@@ -2137,7 +2153,7 @@ bool write_mod_export(const std::filesystem::path &path, const std::string &text
 void update_navigation_mod(State &state) {
   if(!state.navigation_mod.enabled)return;
   auto &mod=state.navigation_mod;
-  mod.hint_base=section_addresses!=nullptr?static_cast<std::uint32_t>(section_addresses[7U]):0U;
+  mod.dialogue=navigation_dialogue(state);
   jfg::mod::Memory memory({state.rdram,kRdramSize});
   try {
     const auto list=jfg::mod::actors(memory);

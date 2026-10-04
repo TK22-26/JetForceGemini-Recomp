@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
   navigation_pilot_tests();
   const auto npc_catalog = NpcFixture().catalog();
   using namespace jfg::mod;
-  if (argc == 3) {
+  if (argc == 3 || argc == 4) {
     std::ifstream in(argv[1], std::ios::binary);
     std::vector<std::uint8_t> bytes{std::istreambuf_iterator<char>(in),
                                     std::istreambuf_iterator<char>()};
@@ -35,6 +35,10 @@ int main(int argc, char **argv) {
     const auto mesh = decode_mesh(m, m.u32(0x800A0D60U));
     const auto list = actors(m);
     const auto doors = exits(m, list);
+    if(argc==4) {
+      std::ofstream collision(argv[3]);write_collision(collision,collision_models(m,list));
+      check(bool(collision));
+    }
     for (const auto &item : item_markers(m, list))
       std::cout << item.label << "\n";
     std::ofstream out(argv[2]);
@@ -80,6 +84,16 @@ int main(int argc, char **argv) {
     put32(hint+0x2A44U,1);put32(hint+0x2A5CU,choice);
     m.put16(choice,2);m.put16(choice+2,1);m.put16(choice+4+8,0);m.put16(choice+4+16+8,0x5000);
     dialogue=read_dialogue(m,hint);check(dialogue.choices&&dialogue.rows.size()==2&&dialogue.selected==1);
+    std::vector<std::uint8_t> hint_section(0x3000U);
+    for(unsigned i=0;i<hint_section.size();++i)
+      hint_section[i^3U]=m.u8(hint+i);
+    DialogueMemory synthetic(m,0x00700000U,std::span<const std::uint8_t>(hint_section));
+    const auto synthetic_state=read_dialogue(synthetic,0x00700000U);
+    check(!m.valid(0x00700000U,4));
+    check(synthetic_state.known&&synthetic_state.active&&synthetic_state.ready);
+    check(synthetic_state.rows.size()==2&&synthetic_state.selected==1);
+    check(!synthetic.valid(0x006FFFFCU,4)&&!synthetic.valid(0x00703000U,1));
+    check(!read_dialogue(synthetic,0x00800000U).known);
     DialogueInput dialogue_input;
     auto dialogue_send=[&](unsigned nonce,unsigned token,int action,bool manual=false,bool replay=false,unsigned room=27,unsigned gen=13,unsigned epoch=7,int stamp=1000) {
       std::ostringstream text;text<<"JFGDIALOGUE1 "<<room<<' '<<gen<<' '<<nonce<<' '<<stamp<<' '<<epoch<<' '<<token<<' '<<action;

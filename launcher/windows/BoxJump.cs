@@ -197,6 +197,22 @@ namespace JfgLauncher {
                 if(u>=-.001f&&v>=-.001f&&u+v<=1.001f&&Math.Abs(u*a.Y+v*b.Y+(1-u-v)*c.Y-point.Point.Y)<3) {point.Surface=Root(parent,i);break;}
             }
         }
+        // An elevated trigger is not a platform. Classify the actual floor
+        // before measuring or issuing any jump input.
+        internal static bool NeedsPlatformTraversal(MapSnapshot map,HeightPoint goal) {
+            if(map==null||map.Mesh==null||map.Live==null||map.Live.player==null||
+               map.Live.collision==null||!map.Live.collision.known)return false;
+            if(NavigationRoute.HasDirectSurfaceWalk(map,goal))return false;
+            var initial=new JumpLanding{Point=new HeightPoint(map.Live.player.position)};
+            float y;
+            if(!Floor(map.Mesh,goal.X,goal.Z,goal.Y,180,out y))return false;
+            var target=new JumpLanding{Point=new HeightPoint(goal.X,y,goal.Z)};
+            var points=new List<JumpLanding>{initial,target};AssignSurfaces(map.Mesh,points);
+            if(initial.Surface<0||target.Surface<0||initial.Surface==target.Surface)return false;
+            // A ramp already leads to the target's elevation: investigate its
+            // walking clearance or missing geometry, not a standing jump.
+            return target.Point.Y>surfaceBounds[initial.Surface][1].Y+12;
+        }
         private static bool PossibleSurfaceStep(int from,int to,MapJump profile) {
             HeightPoint[] a=surfaceBounds[from],b=surfaceBounds[to];
             float rise=b[0].Y-a[1].Y;

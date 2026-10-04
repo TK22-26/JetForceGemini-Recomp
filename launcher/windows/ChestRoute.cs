@@ -116,6 +116,10 @@ namespace JfgLauncher {
             try{ground=NavigationRoute.Plan(map,new float[]{goal.X,goal.Y,goal.Z});}
             catch(InvalidDataException error){Report("Checking platforms: "+error.Message);}
             if(ground!=null){Walk(ground);return;}
+            if(!BoxJumpPlanner.NeedsPlatformTraversal(map,goal))
+                throw new InvalidDataException("Walking route is blocked or geometry is incomplete; no verified elevated platform requires a jump.");
+            if(map.Live.progression!=null&&map.Live.progression.inventory!=null&&map.Live.progression.inventory.character==2)
+                throw new InvalidDataException("Lupus hover traversal needs its own verified movement profile.");
             if(map.Live.box_jump==null||!map.Live.box_jump.calibrated||map.Live.box_jump.button!=button) {
                 Report("Measuring jump capability on the current floor...");Jump(0,null,button);Delay(500);
             }

@@ -174,6 +174,7 @@ struct CollisionModel {
   std::uint32_t address{};
   Vec3 lower{}, upper{};
   bool enabled{};
+  Mesh surface; // Present only for qualified live bridge geometry.
 };
 struct CollisionInventory {
   bool known{};
@@ -194,6 +195,68 @@ inline std::string actor_name(const Memory &m, std::uint32_t actor) {
   } catch (const std::runtime_error &) {}
   return name.empty() ? "Unnamed entity" : name;
 }
+// Registered deformable bridges (behavior 55) use a current vertex buffer.
+// Read that buffer and the collision face normals, transformed by the same
+// double-buffered local-to-world matrix used by the resident collision code.
+// Other model types retain conservative bounds until separately qualified.
+inline Mesh bridge_surface(const Memory &m, std::uint32_t actor, std::uint32_t state) {
+  Mesh result;
+  if (m.u16(actor+0x48U)!=55U) return result;
+  m.require(state,0x134U);
+  const auto matrix_index=m.u8(state+0x12BU), model_index=m.u8(state+0x133U);
+  if(matrix_index>1U||model_index>31U)throw std::runtime_error("bridge buffer index");
+  const auto table=m.u32(actor+0x6CU);
+  m.require(table,std::uint64_t(model_index+1U)*4U);
+  const auto instance=m.u32(table+model_index*4U);m.require(instance,0x98U);
+  const auto model=m.u32(instance);m.require(model,0x64U);
+  const auto nv=m.u16(model+0x12U),nf=m.u16(model+0x14U),nb=m.u16(model+0x16U);
+  if(nv<3U||nv>8192U||nf<1U||nf>8192U||nb<1U||nb>1024U)throw std::runtime_error("bridge mesh counts");
+  const auto vertices=m.u32(instance+4U),faces=m.u32(model+0x20U),batches=m.u32(model+0x24U);
+  const auto collision=m.u32(instance+12U)?m.u32(instance+12U):m.u32(model+0x60U);
+  m.require(vertices,std::uint64_t(nv)*10U);m.require(faces,std::uint64_t(nf)*16U);
+  m.require(batches,std::uint64_t(nb+1U)*16U);m.require(collision,16U);
+  const auto facets=m.u32(collision),planes=m.u32(collision+12U);
+  m.require(facets,std::uint64_t(nf)*14U);
+  std::array<float,16> matrix{};
+  for(unsigned i=0;i<16U;++i)matrix[i]=m.f32(state+0x80U+matrix_index*64U+i*4U);
+  const auto transform=[&](Vec3 p,bool point) {
+    return Vec3{p.x*matrix[0]+p.y*matrix[4]+p.z*matrix[8]+(point?matrix[12]:0),
+                p.x*matrix[1]+p.y*matrix[5]+p.z*matrix[9]+(point?matrix[13]:0),
+                p.x*matrix[2]+p.y*matrix[6]+p.z*matrix[10]+(point?matrix[14]:0)};
+  };
+  for(unsigned i=0;i<nv;++i) {
+    const auto at=vertices+i*10U;
+    const auto v=transform({float(m.s16(at)),float(m.s16(at+2U)),float(m.s16(at+4U))},true);
+    if(!std::isfinite(v.x)||!std::isfinite(v.y)||!std::isfinite(v.z)||
+       std::abs(v.x)>1000000||std::abs(v.y)>1000000||std::abs(v.z)>1000000)
+      throw std::runtime_error("bridge world coordinate");
+    result.vertices.push_back(v);
+  }
+  unsigned expected=0;
+  for(unsigned b=0;b<nb;++b) {
+    const auto at=batches+b*16U;
+    const auto base=m.u16(at+6U),first=m.u16(at+8U),end=m.u16(at+24U);
+    if(first!=expected||first>end||end>nf)throw std::runtime_error("bridge face ranges");
+    expected=end;
+    for(unsigned f=first;f<end;++f) {
+      Triangle tri;tri.flags=m.u32(at+12U);
+      for(unsigned j=0;j<3;++j) {
+        tri.vertices[j]=base+m.u8(faces+f*16U+1U+j);
+        if(tri.vertices[j]>=nv)throw std::runtime_error("bridge face index");
+      }
+      const auto index=m.u16(facets+f*14U);
+      if(index>8191U)throw std::runtime_error("bridge plane index");
+      m.require(planes,std::uint64_t(index)*16U+16U);
+      const auto plane=planes+unsigned(index)*16U;
+      tri.normal=transform({m.f32(plane),m.f32(plane+4U),m.f32(plane+8U)},false);
+      result.triangles.push_back(tri);
+    }
+  }
+  if(expected!=nf)throw std::runtime_error("incomplete bridge faces");
+  return result;
+}
+inline void write_mesh(std::ostream &, const Mesh &, std::uint32_t, std::uint64_t);
+
 inline CollisionInventory collision_models(const Memory &m,
                                            const std::vector<Actor> &list) {
   CollisionInventory result;
@@ -224,7 +287,7 @@ inline CollisionInventory collision_models(const Memory &m,
       const auto state = m.u32(actor + 0x5CU), properties = m.u32(actor + 0x4CU);
       if ((state | properties) & 3U) throw std::runtime_error("collision alignment");
       m.require(state, 0x118U); m.require(properties, 12U);
-      CollisionModel model{actor, {}, {}, (m.u16(properties + 10U) & 1U) != 0};
+      CollisionModel model{actor, {}, {}, (m.u16(properties + 10U) & 1U) != 0, {}};
       model.lower = {m.f32(state + 0x100U), m.f32(state + 0x104U), m.f32(state + 0x108U)};
       model.upper = {m.f32(state + 0x10CU), m.f32(state + 0x110U), m.f32(state + 0x114U)};
       const auto valid = [](float low, float high) {
@@ -232,7 +295,9 @@ inline CollisionInventory collision_models(const Memory &m,
       };
       if (!valid(model.lower.x, model.upper.x) || !valid(model.lower.y, model.upper.y) ||
           !valid(model.lower.z, model.upper.z)) throw std::runtime_error("invalid collision bounds");
-      result.models.push_back(model);
+      if(model.enabled)try {model.surface=bridge_surface(m,actor,state);}
+        catch(const std::runtime_error &) {model.surface={};}
+      result.models.push_back(std::move(model));
     }
     result.known = true; result.reason = "registered model bounds";
   } catch (const std::runtime_error &) {
@@ -250,7 +315,9 @@ inline void write_collision(std::ostream &out, const CollisionInventory &invento
     first = false;
     out << "{\"address\":" << model.address << ",\"enabled\":"
         << (model.enabled ? "true" : "false") << ",\"lower\":";
-    json_vec(out, model.lower); out << ",\"upper\":"; json_vec(out, model.upper); out << '}';
+    json_vec(out, model.lower); out << ",\"upper\":"; json_vec(out, model.upper);
+    if(!model.surface.triangles.empty()) {out << ",\"surface\":";write_mesh(out,model.surface,0,0);}
+    out << '}';
   }
   out << "]}";
 }
@@ -1044,7 +1111,7 @@ public:
   NavigationPilot pilot;
   NavigationConfirmation confirmation;
   DialogueInput dialogue_input;
-  std::uint32_t hint_base{};
+  DialogueState dialogue;
   bool enabled = false;
   std::uint32_t player = 0, last_track = 0, last_level = UINT32_MAX;
   std::uint64_t updates = 0, generation = 1, cleared = 0, health_restores = 0,
@@ -1130,7 +1197,7 @@ public:
                    const std::vector<Actor> &list, std::uint32_t level,
                    bool mesh_ready) const {
     out << "{\"inventory_tracker\":";write_inventory_tracker(out,m,player);
-    out << ",\"dialogue\":";write_dialogue(out,read_dialogue(m,hint_base));
+    out << ",\"dialogue\":";write_dialogue(out,dialogue);
     out << ",\"schema\":1,\"level\":" << level
         << ",\"generation\":" << generation << ",\"timestamp_ms\":"
         << std::chrono::duration_cast<std::chrono::milliseconds>(

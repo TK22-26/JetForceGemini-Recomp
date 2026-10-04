@@ -31,8 +31,67 @@ namespace JfgLauncher {
         private static Button Button(Control parent,string label) {
             foreach(Control c in parent.Controls){if(c is Button && c.Text==label)return (Button)c;Button b=Button(c,label);if(b!=null)return b;}return null;
         }
+        private static MapGeometry Quad(float left,float right,float y,float width) {
+            return new MapGeometry{schema=1,level=27,generation=1,vertices=new[]{new[]{left,y,-width},new[]{right,y,-width},new[]{left,y,width},new[]{right,y,width}},
+                triangles=new[]{new MapFace{v=new[]{0,2,1},normal=new float[]{0,1,0}},new MapFace{v=new[]{1,2,3},normal=new float[]{0,1,0}}}};
+        }
+        private static void BridgeTests() {
+            var map=Fixture();var left=Quad(-300,0,0,120);var right=Quad(300,600,0,120);
+            var vertices=new List<float[]>(left.vertices);vertices.AddRange(right.vertices);
+            map.Mesh=new MapGeometry{schema=1,level=27,generation=1,vertices=vertices.ToArray(),triangles=new[]{
+                left.triangles[0],left.triangles[1],new MapFace{v=new[]{4,6,5},normal=new float[]{0,1,0}},new MapFace{v=new[]{5,6,7},normal=new float[]{0,1,0}}}};
+            map.Live.player.position=new float[]{-150,0,0};
+            var bridge=new MapCollisionModel{address=0x80102000,enabled=true,lower=new float[]{0,-10,-60},upper=new float[]{300,20,60}};
+            map.Live.actors=new[]{new MapActor{address=bridge.address,behavior=55,name="Synthetic bridge",position=new float[]{150,0,0}}};
+            map.Live.collision.models=new[]{bridge};var basis=map.Mesh;
+            Reject(delegate{NavigationRoute.Plan(map,new float[]{450,0,0});},"missing deck accepted as supported floor");
+            bridge.surface=Quad(0,300,0,60);
+            map.Mesh=NavigationCollision.Merge(basis,map.Live,null);
+            Check(NavigationRoute.Plan(map,new float[]{450,0,0}).Points.Count>0,"verified deck does not bridge banks");
+            Check(!BoxJumpPlanner.NeedsPlatformTraversal(map,new HeightPoint(450,48,0)),"elevated exit trigger caused a jump");
+            Check(NavigationCollision.Merge(basis,map.Live,map.Mesh)==map.Mesh,"unchanged deck invalidates geometry cache");
+            Check(NavigationCollision.Intersects(bridge,new HeightPoint(-50,-40,0),new HeightPoint(350,-40,0)),"deck allows insufficient headroom");
+            Check(!NavigationCollision.Intersects(bridge,new HeightPoint(-50,-100,0),new HeightPoint(350,-100,0)),"deck blocks a lower level with headroom");
+            bridge.surface.vertices[0][1]=2;
+            Check(NavigationCollision.Merge(basis,map.Live,map.Mesh)!=map.Mesh,"moving surface failed to invalidate route geometry");
+            bridge.enabled=false;Check(NavigationCollision.Merge(basis,map.Live,map.Mesh)==basis,"disabled deck remains walkable");
+            bridge.enabled=true;bridge.surface.triangles[0].v[0]=99;
+            Reject(delegate{map.Live.collision.Validate(map.Live.actors);},"malformed deck accepted");
+        }
+        private static void RampTests() {
+            var map=Fixture();var vertices=new List<float[]>();var faces=new List<MapFace>();
+            var unknown=Fixture();unknown.Live.collision=null;
+            Check(!BoxJumpPlanner.NeedsPlatformTraversal(unknown,new HeightPoint(500,150,0)),"unknown collision triggered jump fallback");
+            Action<float,float,float,float> strip=delegate(float a,float ay,float b,float by) {
+                int n=vertices.Count;
+                vertices.AddRange(new[]{new[]{a,ay,-120},new[]{b,by,-120},new[]{a,ay,120},new[]{b,by,120}});
+                faces.Add(new MapFace{v=new[]{n,n+2,n+1},normal=new float[]{0,1,0}});
+                faces.Add(new MapFace{v=new[]{n+1,n+2,n+3},normal=new float[]{0,1,0}});
+            };
+            strip(-200,0,220,0);strip(100,0,300,100);strip(300,100,650,100);
+            map.Mesh=new MapGeometry{schema=1,level=27,generation=1,vertices=vertices.ToArray(),triangles=faces.ToArray()};
+            var route=NavigationRoute.Plan(map,new float[]{500,100,0});
+            HeightPoint previous=new HeightPoint(map.Live.player.position);
+            foreach(var point in route.Points) {
+                Check(NavigationRoute.ClearWalk(map,new MapLayers(map.Mesh).Floors,previous,point),"ramp route lost floor support");
+                previous=point;
+            }
+            Check(previous.Y==100,"ramp did not reach upper floor");
+            Check(!BoxJumpPlanner.NeedsPlatformTraversal(map,new HeightPoint(500,148,0)),"walking ramp requires jump calibration");
+            int wall=vertices.Count;
+            vertices.AddRange(new[]{new float[]{510,100,-120},new float[]{510,300,-120},new float[]{510,100,120},new float[]{510,300,120}});
+            faces.Add(new MapFace{v=new[]{wall,wall+1,wall+2}});
+            faces.Add(new MapFace{v=new[]{wall+1,wall+3,wall+2}});
+            map.Mesh.vertices=vertices.ToArray();map.Mesh.triangles=faces.ToArray();
+            var exit=new MapMarker{address=0x80103000,position=new float[]{555,148,0},normal=new float[]{-1,0,0},radius=64};
+            route=NavigationRoute.PlanExit(map,exit);var end=route.Points[route.Points.Count-1];
+            Check(end.X<510&&end.X>491&&Math.Abs(end.Y-100)<.01f,"exit approach did not remain on near-side floor within radius: "+end.X+","+end.Y+","+end.Z);
+            Check(route.CheckRemaining(map,0)==null,"exit approach crossed terminal wall");
+        }
         internal static int Run(string root) {
             checks=0;
+            BridgeTests();
+            RampTests();
             MapSnapshot speedMap=Fixture();
             NavigationRoute speedRoute=NavigationRoute.Plan(speedMap,new float[]{500,0,0});
             Check(speedRoute.CheckRemaining(speedMap,0)==null && speedRoute.RunningWaypoint==0,"open straight segment cannot run");

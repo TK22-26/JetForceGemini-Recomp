@@ -26,5 +26,33 @@ static void navigation_collision_tests() {
     put32(0x801047E0U,1025);check(!collision_models(m,list).known);
     put32(actor+0x40U,0x80005000U);m.put16(0x80005004U,0x4122U);m.put16(0x80005006U,0x5C01U);m.put16(0x80005008U,0);
     check(actor_name(m,actor)=="A???");
+
+    // Original bridge fixture: rotated/translated triangle in the current
+    // deforming buffer, then an invalid face index. No game geometry embedded.
+    const unsigned modelTable=0x80006000U,instance=0x80006100U,header=0x80006200U,
+      verts=0x80006400U,faces=0x80006500U,batches=0x80006600U,col=0x80006700U,
+      facets=0x80006800U,planes=0x80006900U;
+    m.put16(actor+0x48U,55);put32(actor+0x6CU,modelTable);put32(modelTable,instance);put32(instance,header);
+    put32(instance+4U,verts);put32(instance+12U,0);put32(header+0x60U,col);
+    m.put16(state+0x12AU,0);m.put16(state+0x132U,0);
+    m.put16(header+0x12U,3);m.put16(header+0x14U,1);m.put16(header+0x16U,1);
+    put32(header+0x20U,faces);put32(header+0x24U,batches);
+    put32(col,facets);put32(col+12U,planes);m.put16(facets,0);
+    putfloat(planes,0);putfloat(planes+4U,1);putfloat(planes+8U,0);
+    for(unsigned i=0;i<15;++i)m.put16(verts+i*2U,0);
+    m.put16(verts+14U,40);m.put16(verts+20U,40);
+    m.put16(faces,0);m.put16(faces+2U,0x0102);
+    m.put16(batches+6U,0);m.put16(batches+8U,0);m.put16(batches+24U,1);
+    for(unsigned i=0;i<16;++i)putfloat(state+0x80U+i*4U,0);
+    putfloat(state+0x88U,-1);putfloat(state+0x94U,1);putfloat(state+0xA0U,1);putfloat(state+0xBCU,1);
+    putfloat(state+0xB0U,10);putfloat(state+0xB4U,20);putfloat(state+0xB8U,30);
+    const auto surface=bridge_surface(m,actor,state);
+    check(surface.vertices.size()==3&&surface.triangles.size()==1);
+    check(surface.vertices[1].x==50&&surface.vertices[1].y==20&&surface.vertices[2].z==-10);
+    check(surface.triangles[0].normal.y==1);
+    m.put16(faces+2U,0x0103);bool invalid=false;
+    try{(void)bridge_surface(m,actor,state);}catch(const std::runtime_error &){invalid=true;}check(invalid);
+    m.put16(actor+0x48U,7);check(bridge_surface(m,actor,state).triangles.empty());
+
   }
 }

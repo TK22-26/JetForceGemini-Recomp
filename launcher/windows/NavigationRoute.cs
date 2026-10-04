@@ -66,6 +66,43 @@ namespace JfgLauncher {
             });
             return floors;
         }
+        // Follow the changing floor height along a clear horizontal corridor.
+        // Triangle-center graphs can miss an overlapping ramp foot or thin deck.
+        private static NavigationRoute FollowSurfaceLine(MapSnapshot map,List<HeightSurface> floors,HeightPoint start,HeightPoint goal) {
+            float dx=goal.X-start.X,dz=goal.Z-start.Z,length=(float)Math.Sqrt(dx*dx+dz*dz);
+            if(length<1||length>5000)return null;
+            int count=(int)Math.Ceiling(length/20);if(count>250)return null;
+            var raw=new List<HeightPoint>();HeightPoint previous=start;
+            for(int i=1;i<=count;i++) {
+                var sample=HeightPoint.Lerp(start,goal,(float)i/count);bool found=false;HeightPoint next=sample;
+                foreach(var floor in floors) {
+                    HeightPoint p;if(!Project(floor,sample,out p)||Math.Abs(p.Y-previous.Y)>24)continue;
+                    if(!found||p.Y>next.Y){found=true;next=p;}
+                }
+                if(!found||!ClearWalk(map,floors,previous,next,PlanningMargin))return null;
+                raw.Add(next);previous=next;
+            }
+            if(Math.Abs(previous.Y-goal.Y)>3)return null;
+            var route=new NavigationRoute{Level=map.Live.level,Generation=map.Live.generation};
+            previous=start;int at=0;
+            while(at<raw.Count) {
+                int next=at;
+                for(int i=at+1;i<raw.Count;i++) {
+                    if(!Supported(floors,previous,raw[i],2)||!ClearWalk(map,floors,previous,raw[i],PlanningMargin))break;
+                    next=i;
+                }
+                route.Points.Add(raw[next]);previous=raw[next];at=next+1;
+            }
+            float weighted=0,distance=0;previous=start;
+            foreach(var point in route.Points){weighted+=TravelCost(map.Live,previous,point);distance+=Distance(previous,point);previous=point;}
+            return weighted<=distance*1.01f?route:null;
+        }
+        internal static bool HasDirectSurfaceWalk(MapSnapshot map,HeightPoint destination) {
+            var floors=WalkingFloors(map.Mesh);HeightPoint a,b;
+            if(Floor(floors,new HeightPoint(map.Live.player.position),true,out a)<0||
+               Floor(floors,destination,false,out b)<0)return false;
+            return FollowSurfaceLine(map,floors,a,b)!=null;
+        }
         internal static NavigationRoute Plan(MapSnapshot snapshot,float[] destination) {
             if(snapshot==null||snapshot.Live.player==null)throw new InvalidDataException("Enter a room before planning.");
             NavigationCollision.Require(snapshot.Live);
@@ -76,6 +113,7 @@ namespace JfgLauncher {
             int start=Floor(floors,new HeightPoint(snapshot.Live.player.position),true,out startPoint);
             int goal=Floor(floors,new HeightPoint(destination),false,out endPoint);
             if(start<0||goal<0)throw new InvalidDataException("No matching floor under player or exit. Jump/dive exits need manual control.");
+            var surfaceLine=FollowSurfaceLine(snapshot,floors,startPoint,endPoint);if(surfaceLine!=null)return surfaceLine;
             List<Edge>[] graph=new List<Edge>[floors.Count];HeightPoint[] centers=new HeightPoint[floors.Count];
             Dictionary<string,List<Owner>> edges=new Dictionary<string,List<Owner>>();
             for(int i=0;i<floors.Count;i++) {
@@ -456,7 +494,28 @@ namespace JfgLauncher {
                     float distance=Distance(new HeightPoint(node.position),new HeightPoint(exit.position));
                     if(distance<best){best=distance;nearest=node;}
                 }
-                if(nearest==null)throw;
+                if(nearest==null) {
+                    if(exit.radius>=24&&exit.radius<=256&&exit.normal!=null) {
+                        float approachX=exit.normal[0],approachZ=exit.normal[2],len=(float)Math.Sqrt(approachX*approachX+approachZ*approachZ);
+                        if(len>.1f) {
+                            approachX/=len;approachZ/=len;
+                            var p=snapshot.Live.player.position;
+                            if((p[0]-exit.position[0])*approachX+(p[2]-exit.position[2])*approachZ<0){approachX=-approachX;approachZ=-approachZ;}
+                            foreach(float offset in new float[]{24,40,56})if(offset<exit.radius)
+                                try {
+                                    var near=Plan(snapshot,new[]{exit.position[0]+approachX*offset,exit.position[1],exit.position[2]+approachZ*offset});
+                                    var nearEnd=near.Points[near.Points.Count-1];
+                                    var through=new HeightPoint(exit.position[0]-approachX*48,nearEnd.Y,exit.position[2]-approachZ*48);
+                                    // Only the final doorway leg may shed the extra steering
+                                    // margin. Retain full body, floor and headroom clearance.
+                                    if(ClearWalk(snapshot,WalkingFloors(snapshot.Mesh),nearEnd,through))
+                                        near.Points.Add(through);
+                                    return near;
+                                }catch(InvalidDataException){}
+                        }
+                    }
+                    throw;
+                }
                 MapCollisionModel gate=NavigationCollision.Model(snapshot.Live,nearest.address);
                 float x=(gate.lower[0]+gate.upper[0])/2,z=(gate.lower[2]+gate.upper[2])/2;
                 float gateDx=exit.position[0]-x,gateDz=exit.position[2]-z,margin=NavigationCollision.Radius+36;

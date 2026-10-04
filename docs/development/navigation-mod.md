@@ -395,7 +395,8 @@ new obstruction releases movement and names the blocker. Manual routes require
 replanning; automatic exploration first stops, waits for the player to settle, and
 replans the same exit within a bounded retry allowance.
 
-These are conservative bounding boxes, not exact polygon collision or decoded
+Except for the qualified bridge surface described below, these are conservative
+bounding boxes, not exact polygon collision or decoded
 character-specific capsules. A rotated or hollow object can have usable space
 inside its box that this planner refuses. Unregistered collision types, player
 steering/calibration, dynamic platforms, door-opening requirements and parkour
@@ -636,3 +637,42 @@ and ship-part slots retain numeric labels. Bright tiles are owned, dim tiles are
 missing. These are original text tiles, with no bundled game artwork.
 Counts such as ammunition, health capacity and Tribal totals are not decoded
 by this first inventory view. Unknown/stale telemetry is labeled explicitly.
+
+## Tutorial ramps, bridge surfaces and dialogue (2026-10-04)
+
+Walking follows changing floor height before trying the triangle-center graph.
+This covers a ramp overlapping a lower floor and retains floor support,
+headroom, obstacle spacing and slope checks. An elevated exit marker is projected
+onto its supporting floor; its marker height alone no longer triggers jump
+calibration. A wall-adjacent exit can use a checked approach inside its trigger
+radius. Reaching that point is only an attempt: exploration still requires an
+observed room transition. The final short doorway segment can use the standing
+body allowance without the extra steering margin; terrain, headroom and entity
+checks still apply.
+
+The supported bridge actor (behavior 55) exports its current transformed collision
+surface in collision.models[].surface. The launcher combines that deck with the
+room mesh and uses triangle checks inside its bounding box. Unsupported actors
+and invalid surface data retain conservative boxes. Moving geometry invalidates
+the surface cache without resetting map pan, zoom or the movement trail.
+
+**Player floor** remains a height slice. **Other levels** now keeps ascending ramps
+visible as gray context; select **All heights** to inspect the whole route.
+This display is not proof that every shown floor is connected.
+
+The native dialogue reader also accepts the supported active overlay in the
+runtime's separately mapped section, with metadata and instruction checks.
+Normal guest pointers keep their original RDRAM bounds. This allows forced
+tutorial conversations to be identified without treating them as walking stalls.
+
+Lupus remains excluded from the measured Juno/Vela ballistic action: hover/fly
+movement still needs a separately verified profile. General moving platforms,
+campaign completion and every NPC reward branch are not established.
+
+Validation: the paired native build and Live Map coordinator walked from a copied
+tutorial save (room 92), ascended the ramp, crossed the bridge, advanced Magnus's
+forced dialogue, and confirmed entry to room 47 without jump calibration. Original
+saves were preserved. The run used bounded local recovery along the route; it is
+not a smooth-motion or full-campaign acceptance. Original synthetic regression
+fixtures cover overlapping ramp floors, missing/live/disabled bridge surfaces,
+headroom, terminal walls and the separately mapped dialogue state.
