@@ -7,6 +7,18 @@ Download `JFG-Launcher.exe` from the public release on Windows x64 and select
 your supported North American ROM. The launcher sets up the tools, builds the
 game locally, and remembers the resulting executable for later play.
 
+## Preview 0.4.0-preview.3
+
+This preview adds live volume/mute controls, the original player-shadow mask
+processing fix and sound-player clock recovery. Rebuild an existing game with
+**Set up and build** to use native fixes from this source revision; keep your
+existing save profile.
+
+The optional **Navigation mod** enables the live map and character inventory,
+with one movement executor for supported walking, jump chains, chests, NPC
+rewards and exits. Leave it disabled for normal play. Automation remains
+experimental; see [its validation and limits](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/development/navigation-mod.md).
+
 ## First setup
 
 1. Open the launcher and choose your US big-endian `.z64` ROM.

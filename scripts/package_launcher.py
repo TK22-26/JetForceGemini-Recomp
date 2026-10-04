@@ -10,7 +10,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'build' / 'launcher'
-NAME = 'JFG-Launcher-0.4.0-preview.2-windows-x64.zip'
+NAME = 'JFG-Launcher-0.4.0-preview.3-windows-x64.zip'
 
 
 def main() -> int:

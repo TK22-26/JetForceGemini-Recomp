@@ -15,7 +15,7 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("JFG Launcher Preview")]
 [assembly: AssemblyDescription("Local ROM build and launch prototype for JFG")]
 [assembly: AssemblyVersion("0.4.0.0")]
-[assembly: AssemblyInformationalVersion("0.4.0-preview.2")]
+[assembly: AssemblyInformationalVersion("0.4.0-preview.3")]
 
 namespace JfgLauncher
 {

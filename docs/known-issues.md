@@ -53,7 +53,7 @@ failure with the location and reproduction steps using the
 
 The native renderer retained a raw player silhouette because its offscreen
 intensity buffer was not returned to game memory. The game's CPU blur and
-opacity reduction therefore read an empty buffer. Current development builds
+opacity reduction therefore read an empty buffer. Preview 0.4.0-preview.3 builds
 return these masks before task completion and preserve subsequent CPU edits.
 A copied-save Juno test in the tutorial confirmed the processed opacity range
 against Angrylion and exited cleanly. See [the renderer fix and validation
@@ -68,3 +68,14 @@ native capture features. Capture remains best effort: forced termination, early
 startup failures, corrupted stacks or access restrictions can leave partial logs.
 These are text stack snapshots, not full-memory dumps. See [playtesting](playtesting.md)
 for the file inventory and attachment instructions. Nothing uploads automatically.
+
+## Experimental navigation mod
+
+Preview 0.4.0-preview.3 includes an opt-in Navigation mod with a live height map,
+item/NPC markers, a character inventory tracker, and shared walking/jump routing.
+NPC reward dialogue, item-room returns and door requirements have focused tests.
+The unified stair/NPC route has recorded-geometry and simulated-command coverage;
+a full native run of that sequence and autonomous campaign completion remain
+unverified. Lupus hover, moving platforms, shooting/explosive gates and unsupported
+scripted traversal still need manual play. Normal gameplay leaves the mod off.
+See [navigation validation and limits](development/navigation-mod.md).

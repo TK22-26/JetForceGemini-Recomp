@@ -11,6 +11,14 @@ ROM and build the game locally using the launcher or command-line tools.
 [Report a problem](docs/playtesting.md) ·
 [Contribute](CONTRIBUTING.md)
 
+## Current preview
+
+Preview 0.4.0-preview.3 adds live volume/mute controls, the player-shadow
+correction, sound-player recovery, and optional live map/inventory tools.
+The Navigation mod combines supported walking, jumps and NPC interactions;
+it remains experimental and does not establish autonomous campaign completion.
+HD cosmetic variants stay in independently maintained community branches.
+
 ## What works
 
 - Native rendering and audio.
