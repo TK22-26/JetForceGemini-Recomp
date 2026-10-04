@@ -7,6 +7,18 @@ Download `JFG-Launcher.exe` from the public release on Windows x64 and select
 your supported North American ROM. The launcher sets up the tools, builds the
 game locally, and remembers the resulting executable for later play.
 
+## Preview 0.4.0-preview.3
+
+This preview adds live volume/mute controls, the original player-shadow mask
+processing fix and sound-player clock recovery. Rebuild an existing game with
+**Set up and build** to use native fixes from this source revision; keep your
+existing save profile.
+
+The optional **Navigation mod** enables the live map and character inventory,
+with one movement executor for supported walking, jump chains, chests, NPC
+rewards and exits. Leave it disabled for normal play. Automation remains
+experimental; see [its validation and limits](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/development/navigation-mod.md).
+
 ## First setup
 
 1. Open the launcher and choose your US big-endian `.z64` ROM.
@@ -126,3 +138,29 @@ end. The local ROM-to-game build and launch were demonstrated separately; the
 new setup flow has automated tests and a real pinned-source download check.
 Please report installer failures with the stage, reproduction steps, and the
 exported support ZIP.
+
+
+## Navigation mod preview
+
+The optional **Navigation mod** checkbox enables full health, automatic clearing
+of ordinary squad enemies during gameplay, and local map/exit exports.
+It creates a separate campaign profile on first use. **Live map** opens the
+exports, and **Controllers** continues to control the shared input mappings.
+When a complete native build is beside the launcher, it is selected automatically.
+
+Use the matching native build from the mod source revision.
+See [navigation mod setup and limits](navigation-mod.md), including scripted-scene
+exclusions and the remaining route-following work.
+
+## Master volume
+
+The launcher has a 0-100% **Volume** slider and a **Mute** checkbox.
+They remain usable while the game runs and are remembered for subsequent
+launches. Muting preserves the chosen volume so unmuting restores it.
+Normal and Navigation mod launches share these audio preferences.
+
+The native game reads the launcher's audio.ini preference before its first audio
+buffer, then polls for changes every 100 ms. Updates affect final host PCM only;
+the original game's music/SFX levels still apply. Already queued audio can take
+a few tenths of a second to drain after a change. Brief gain ramps avoid clicks.
+This requires the updated native game executable paired with this launcher.

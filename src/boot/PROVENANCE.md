@@ -264,3 +264,30 @@ the user's verified ROM at runtime. The adapter also supplies `osCicId`.
 No IPL3 bytes or upstream implementation are redistributed. Synthetic bounds
 tests and the private idle replay validate this limited correction. See
 `docs/development/boot-gameplay-fix.md` for the health/ammo regression and limits.
+
+The US retail synchronous-print sink is independently authored from its local
+ROM-observed ABI: three argument-home stores and a non-null return, with no
+output buffer access. The dispatch adapter validates the loaded instruction
+identity and guest stack range before applying this behavior. No upstream
+implementation source was copied.
+
+The US sound-player empty-queue recovery is independently authored from local
+recorded behavior and the supported ROM's event ABI. A full 200-node pool drops
+its periodic event, then the sound player spins on an empty queue. The adapter
+qualifies the sound-player identity, empty result, prior overflow and interval,
+then delivers a periodic event with a positive delay. Original queue links,
+event ordering and accounting are untouched. No upstream code or ROM payload
+is included; only private reproductions and synthetic fixtures were used.
+
+
+### Opt-in box-jump prototype (2026-10-04)
+
+The controller and movement telemetry are independently authored from local
+position/input observations and synthetic fixtures. They use ordinary input
+commands with room/generation binding, bounded trials and manual cancellation.
+No game source, assets or upstream traversal implementation are redistributed.
+Player movement state and animation telemetry use signature-qualified local
+ROM observations. The incorrect ledge-trial assumption was removed: the
+recorded intermediate stop is supported on a gently tilted box top.
+Live tests confirmed ordinary jumps through the five SS Anubis platforms;
+automatic whole-route discovery and item interaction require separate evidence.

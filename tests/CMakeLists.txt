@@ -494,3 +494,34 @@ target_include_directories(jfg_vi_presentation_tests PRIVATE "${PROJECT_SOURCE_D
 target_compile_features(jfg_vi_presentation_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_vi_presentation_tests)
 add_test(NAME jfg.vi_presentation COMMAND jfg_vi_presentation_tests)
+
+add_executable(jfg_navigation_mod_tests navigation_mod_tests.cpp)
+target_include_directories(jfg_navigation_mod_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_navigation_mod_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_navigation_mod_tests)
+add_test(NAME jfg.navigation_mod COMMAND jfg_navigation_mod_tests)
+
+add_executable(jfg_master_volume_tests master_volume_tests.cpp)
+target_include_directories(jfg_master_volume_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_master_volume_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_master_volume_tests)
+add_test(NAME jfg.master_volume COMMAND jfg_master_volume_tests)
+
+add_executable(jfg_sync_print_sink_tests sync_print_sink_tests.cpp)
+target_link_libraries(jfg_sync_print_sink_tests PRIVATE jfg_boot)
+target_compile_features(jfg_sync_print_sink_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_sync_print_sink_tests)
+add_test(NAME jfg.sync_print_sink COMMAND jfg_sync_print_sink_tests)
+
+add_executable(jfg_sound_queue_recovery_tests sound_queue_recovery_tests.cpp)
+target_link_libraries(jfg_sound_queue_recovery_tests PRIVATE jfg_boot)
+target_compile_features(jfg_sound_queue_recovery_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_sound_queue_recovery_tests)
+add_test(NAME jfg.sound_queue_recovery COMMAND jfg_sound_queue_recovery_tests)
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME jfg.rt64_shader_dependencies
+    COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/test_rt64_shader_dependencies.py"
+        --cmake "${CMAKE_COMMAND}" --generator "${CMAKE_GENERATOR}"
+        --make-program "${CMAKE_MAKE_PROGRAM}"
+        --work-root "${CMAKE_CURRENT_BINARY_DIR}/shader-fixtures")

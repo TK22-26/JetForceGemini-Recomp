@@ -19,7 +19,7 @@ before starting.
 
 ## Use the launcher
 
-1. Download `JFG-Launcher.exe` from [v0.4.0-preview.2](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v0.4.0-preview.2),
+1. Download `JFG-Launcher.exe` from [v0.4.0-preview.3](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v0.4.0-preview.3),
    the preview described by this guide.
 2. Open it and select your ROM.
 3. Click **Set up and build**. Review the setup information and approve the

@@ -15,7 +15,7 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("JFG Launcher Preview")]
 [assembly: AssemblyDescription("Local ROM build and launch prototype for JFG")]
 [assembly: AssemblyVersion("0.4.0.0")]
-[assembly: AssemblyInformationalVersion("0.4.0-preview.2")]
+[assembly: AssemblyInformationalVersion("0.4.0-preview.3")]
 
 namespace JfgLauncher
 {
@@ -36,6 +36,60 @@ namespace JfgLauncher
         {
             get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "JFGRecomp", "profiles", "default"); }
+        }
+
+        internal static string PreferredRuntime(string directory, string savedRuntime)
+        {
+            string paired = Path.Combine(directory, "jfg-native-boot.exe");
+            if (File.Exists(paired))
+            {
+                try { return ValidateRuntime(paired); }
+                catch (InvalidDataException) { }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+            return savedRuntime ?? "";
+        }
+
+        internal static string NavigationProfile(string profile)
+        {
+            return Path.Combine(Path.GetDirectoryName(FullPath(profile)), "navigation-mod");
+        }
+
+        internal static string PrepareNavigationProfile(string profile)
+        {
+            string target = NavigationProfile(profile);
+            Directory.CreateDirectory(target);
+            string marker = Path.Combine(target, "initialized.txt");
+            if (!File.Exists(marker))
+            {
+                foreach (string name in new string[] {"jfg.flash", "controller-1.pak"})
+                {
+                    string source = Path.Combine(profile, name), destination = Path.Combine(target, name);
+                    if (File.Exists(source) && !File.Exists(destination)) File.Copy(source, destination, false);
+                }
+                File.WriteAllText(marker, "Separate navigation mod save profile.\n");
+            }
+            // Controller settings remain shared; campaign saves never are.
+            string controller = ControllerProfile.FileName(profile);
+            if (File.Exists(controller))
+            {
+                ControllerProfile.Load(profile);
+                File.Copy(controller, ControllerProfile.FileName(target), true);
+            }
+            return target;
+        }
+
+        internal static ProcessStartInfo NavigationStartInfo(string runtime, string rom, string profile)
+        {
+            string target = PrepareNavigationProfile(profile);
+            ProcessStartInfo info = StartInfo(runtime, rom, target);
+            info.EnvironmentVariables["JFG_MASTER_VOLUME_CONFIG"] = AudioPreferences.FileName(profile);
+            // Each run has a new export directory, so old maps cannot look current.
+            string exports = Path.Combine(target, "maps", DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N"));
+            info.EnvironmentVariables["JFG_NAVIGATION_MOD"] = "1";
+            info.EnvironmentVariables["JFG_MOD_OUTPUT"] = exports;
+            return info;
         }
 
         internal static string FindSourceRoot(string start)
@@ -175,6 +229,7 @@ namespace JfgLauncher
                 ControllerProfile.Load(profile);
                 info.EnvironmentVariables["JFG_CONTROLLER_CONFIG"] = ControllerProfile.FileName(profile);
             }
+            info.EnvironmentVariables["JFG_MASTER_VOLUME_CONFIG"] = AudioPreferences.FileName(profile);
             return info;
         }
 
@@ -223,9 +278,14 @@ namespace JfgLauncher
         private readonly TextBox rom = new TextBox();
         private readonly Label status = new Label();
         private readonly Button play = new Button();
+        private readonly CheckBox navigation = new CheckBox();
+        private readonly TrackBar volume = new TrackBar();
+        private readonly CheckBox mute = new CheckBox();
+        private readonly Label volumeValue = new Label();
         private readonly ProgressBar progress = new ProgressBar();
         private readonly List<Control> inputs = new List<Control>();
         private bool busy;
+        private NavigationMapWindow mapWindow;
         private Process activeGame;
         private SupportSession activeSupport;
         private readonly Button freeze = new Button { Text = "Capture freeze", Size = new Size(145, 34), Enabled = false };
@@ -233,8 +293,8 @@ namespace JfgLauncher
         internal LauncherWindow()
         {
             Text = "JFG Launcher Preview";
-            ClientSize = new Size(760, 560);
-            MinimumSize = new Size(776, 599);
+            ClientSize = new Size(760, 610);
+            MinimumSize = new Size(776, 649);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10);
             BackColor = Color.FromArgb(245, 247, 251);
@@ -243,13 +303,15 @@ namespace JfgLauncher
             layout.Dock = DockStyle.Fill;
             layout.Padding = new Padding(24);
             layout.ColumnCount = 1;
-            layout.RowCount = 9;
+            layout.RowCount = 11;
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 8));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
@@ -268,15 +330,20 @@ namespace JfgLauncher
             AddPicker(layout, rom, 3, "N64 ROM|*.z64;*.n64;*.v64|All files|*.*", "Select your North American retail ROM");
             AddLabel(layout, "2  Set up and build below, or select an existing build", 4);
             AddPicker(layout, runtime, 5, "Native game build|jfg-native-boot.exe", "Select the native game build");
+            navigation.Text = "Navigation mod: full health, clear enemies, export maps (separate saves)";
+            navigation.Dock = DockStyle.Fill;
+            navigation.Checked = false;
+            layout.Controls.Add(navigation, 0, 6);
+            inputs.Add(navigation);
             status.Text = "First setup downloads missing tools and source. Windows may require a restart.\nFuture launches reuse your build. Saves stay in your user profile.";
             status.Dock = DockStyle.Fill;
             status.Padding = new Padding(0, 12, 0, 0);
             status.ForeColor = Color.FromArgb(64, 76, 92);
-            layout.Controls.Add(status, 0, 6);
+            layout.Controls.Add(status, 0, 8);
             progress.Dock = DockStyle.Fill;
             progress.Visible = false;
             progress.Style = ProgressBarStyle.Marquee;
-            layout.Controls.Add(progress, 0, 7);
+            layout.Controls.Add(progress, 0, 9);
             FlowLayoutPanel actions = new FlowLayoutPanel();
             actions.Dock = DockStyle.Fill;
             actions.Padding = new Padding(0, 10, 0, 0);
@@ -322,6 +389,54 @@ namespace JfgLauncher
                 } catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
             };
             actions.Controls.Add(report);
+            Button maps = new Button { Text = "Live map", Size = new Size(120, 34) };
+            maps.Click += delegate {
+                try {
+                    string directory = Path.Combine(LocalSetup.NavigationProfile(LocalSetup.ProfileRoot), "maps");
+                    if (!Directory.Exists(directory) || Directory.GetDirectories(directory).Length == 0) {
+                        status.Text = "Launch with Navigation mod enabled to start exporting a live map.";
+                        return;
+                    }
+                    string[] sessions = Directory.GetDirectories(directory);
+                    Array.Sort(sessions, StringComparer.Ordinal);
+                    ShowNavigationMap(sessions[sessions.Length - 1]);
+                } catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
+            };
+            actions.Controls.Add(maps);
+            var inventoryButton=new Button{Text="Live inventory",Size=new Size(130,34)};
+            InventoryWindow inventoryWindow=null;
+            inventoryButton.Click+=delegate {
+                try {
+                    string root=Path.Combine(LocalSetup.NavigationProfile(LocalSetup.ProfileRoot),"maps");
+                    string[] sessions=Directory.Exists(root)?Directory.GetDirectories(root):new string[0];
+                    if(sessions.Length==0){status.Text="Launch with Navigation mod enabled to export live inventory.";return;}
+                    Array.Sort(sessions,StringComparer.Ordinal);
+                    if(inventoryWindow==null||inventoryWindow.IsDisposed)inventoryWindow=new InventoryWindow(sessions[sessions.Length-1]);
+                    else inventoryWindow.BindDirectory(sessions[sessions.Length-1]);
+                    inventoryWindow.Show();inventoryWindow.BringToFront();
+                }catch(Exception error){status.Text=LocalSetup.FriendlyError(error);}
+            };
+            actions.Controls.Add(inventoryButton);
+            layout.Controls.Add(actions, 0, 10);
+            AudioPreferences audio;
+            try { audio = AudioPreferences.Load(LocalSetup.ProfileRoot); }
+            catch (Exception) {
+                audio = new AudioPreferences { Muted = true };
+                status.Text = "Saved audio settings could not be read. Choose a volume or uncheck Mute to save new settings.";
+            }
+            FlowLayoutPanel audioRow = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false };
+            audioRow.Controls.Add(new Label { Text = "Volume", Width = 75, Padding = new Padding(0, 8, 0, 0) });
+            volume.Minimum = 0; volume.Maximum = 100; volume.TickFrequency = 10;
+            volume.SmallChange = 5; volume.LargeChange = 10; volume.Width = 330;
+            volume.Value = audio.Volume; volume.AccessibleName = "Master volume";
+            mute.Text = "Mute"; mute.Checked = audio.Muted; mute.AutoSize = true;
+            mute.Padding = new Padding(0, 8, 0, 0); mute.AccessibleName = "Mute game audio";
+            volumeValue.Width = 100; volumeValue.Padding = new Padding(0, 8, 0, 0);
+            volumeValue.Text = audio.Muted ? "Muted (" + audio.Volume + "%)" : audio.Volume + "%";
+            audioRow.Controls.Add(volume); audioRow.Controls.Add(volumeValue); audioRow.Controls.Add(mute);
+            layout.Controls.Add(audioRow, 0, 7);
+            volume.ValueChanged += delegate { SaveAudioPreference(); };
+            mute.CheckedChanged += delegate { SaveAudioPreference(); };
             freeze.Click += async delegate {
                 if (activeGame == null || activeSupport == null) return;
                 freeze.Enabled = false;
@@ -332,9 +447,8 @@ namespace JfgLauncher
                 finally { freeze.Enabled = activeGame != null; }
             };
             actions.Controls.Add(freeze);
-            layout.Controls.Add(actions, 0, 8);
             Settings saved = LocalSetup.LoadSettings(LocalSetup.ProfileRoot);
-            runtime.Text = saved.RuntimePath ?? "";
+            runtime.Text = LocalSetup.PreferredRuntime(AppDomain.CurrentDomain.BaseDirectory, saved.RuntimePath);
             rom.Text = saved.RomPath ?? "";
             FormClosing += delegate(object sender, FormClosingEventArgs e) {
                 if (busy)
@@ -344,6 +458,13 @@ namespace JfgLauncher
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             };
+        }
+
+        private void SaveAudioPreference()
+        {
+            volumeValue.Text = mute.Checked ? "Muted (" + volume.Value + "%)" : volume.Value + "%";
+            try { new AudioPreferences { Volume = volume.Value, Muted = mute.Checked }.Save(LocalSetup.ProfileRoot); }
+            catch (Exception error) { status.Text = "Could not save volume: " + LocalSetup.FriendlyError(error); }
         }
 
         private static void AddLabel(TableLayoutPanel layout, string text, int row)
@@ -428,6 +549,7 @@ namespace JfgLauncher
                         support.SetupLine(e.Data);
                         if (!String.IsNullOrWhiteSpace(e.Data)) failure = e.Data.Length > 400 ? e.Data.Substring(0, 400) : e.Data;
                     };
+                    new AudioPreferences { Volume = volume.Value, Muted = mute.Checked }.Save(LocalSetup.ProfileRoot);
                     if (!process.Start()) throw new IOException();
                     process.BeginOutputReadLine();
                     process.BeginErrorReadLine();
@@ -463,6 +585,14 @@ namespace JfgLauncher
             }
         }
 
+        private void ShowNavigationMap(string path)
+        {
+            if (mapWindow == null || mapWindow.IsDisposed) mapWindow = new NavigationMapWindow(path);
+            else mapWindow.BindDirectory(path);
+            mapWindow.Show();
+            mapWindow.BringToFront();
+        }
+
         private async Task Launch()
         {
             if (busy) return;
@@ -484,14 +614,21 @@ namespace JfgLauncher
                 LocalSetup.SaveSettings(LocalSetup.ProfileRoot, new Settings { RuntimePath = game, RomPath = selectedRom });
                 using (Process process = new Process())
                 {
-                    process.StartInfo = LocalSetup.StartInfo(game, selectedRom, LocalSetup.ProfileRoot);
+                    process.StartInfo = navigation.Checked
+                        ? LocalSetup.NavigationStartInfo(game, selectedRom, LocalSetup.ProfileRoot)
+                        : LocalSetup.StartInfo(game, selectedRom, LocalSetup.ProfileRoot);
+                    support.Write(navigation.Checked ? "mod=navigation-enabled" : "mod=disabled");
                     process.StartInfo.EnvironmentVariables["JFG_SUPPORT_LOG"] = support.NativePath;
+                    new AudioPreferences { Volume = volume.Value, Muted = mute.Checked }.Save(LocalSetup.ProfileRoot);
                     if (!process.Start()) throw new IOException();
+                    if (navigation.Checked) ShowNavigationMap(process.StartInfo.EnvironmentVariables["JFG_MOD_OUTPUT"]);
                     support.Write("stage=started");
                     activeGame = process; freeze.Enabled = captureAvailable;
                     Task stdout = support.Drain(process.StandardOutput), stderr = support.Drain(process.StandardError);
                     progress.Visible = false;
-                    status.Text = "Game started. Close the game to return here.\nYour saves remain in your Windows user profile.";
+                    status.Text = navigation.Checked
+                        ? "Navigation mod started. Full health and automatic enemy clearing are enabled.\nMaps are exported locally. This run uses separate mod saves."
+                        : "Game started. Close the game to return here.\nYour saves remain in your Windows user profile.";
                     await Task.Run(delegate { process.WaitForExit(); });
                     await Task.WhenAll(stdout, stderr);
                     activeGame = null; freeze.Enabled = false;
@@ -516,8 +653,14 @@ namespace JfgLauncher
     internal static class Program
     {
         [STAThread]
-        private static void Main()
+        private static void Main(string[] args)
         {
+            if (args.Length == 2 && args[0] == "--map-view") {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new NavigationMapWindow(args[1]));
+                return;
+            }
             bool owner;
             using (Mutex instance = new Mutex(true, @"Local\JFGRecompLauncher", out owner))
             {

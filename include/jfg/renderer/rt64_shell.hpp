@@ -66,6 +66,8 @@ struct Rt64ShellConfiguration {
     bool developer_mode = false;
     Rt64MemoryLayout memory_layout = Rt64MemoryLayout::big_endian;
     bool cpu_writeback = false;
+    // Return intensity masks to the guest for its CPU postprocessing.
+    bool cpu_mask_writeback = false;
 };
 
 struct Rt64RdramRange {
@@ -76,9 +78,12 @@ struct Rt64RdramRange {
 // Commit completed device-owned ranges, never an old whole-memory snapshot.
 // All spans are host-word-swapped. Validate every range and CPU ownership
 // before writing anything; intervening CPU writes reject the entire commit.
+// When supplied, previous_source advances with the commit so later CPU edits
+// back to pre-render values are still recognized by snapshot merging.
 [[nodiscard]] Rt64ShellError commit_rt64_rdram_ranges(
     std::span<const std::byte> submitted, std::span<const std::byte> rendered,
-    std::span<std::byte> live, std::span<const Rt64RdramRange> ranges) noexcept;
+    std::span<std::byte> live, std::span<const Rt64RdramRange> ranges,
+    std::span<std::byte> previous_source = {}) noexcept;
 
 struct Rt64GraphicsTask {
     std::uint32_t ucode_address = 0U;

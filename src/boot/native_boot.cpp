@@ -1,8 +1,12 @@
 #include "funcs.h"
 #include "jfg/boot/hle.hpp"
+#include "jfg/boot/sync_print_sink.hpp"
+#include "jfg/boot/sound_queue_recovery.hpp"
 #include "jfg/boot/reset_handoff.hpp"
 #include "jfg/boot/ipl_handoff.hpp"
 #include "jfg/boot/gameplay_trace.hpp"
+#include "jfg/mod/navigation_mod.hpp"
+#include "jfg/audio/master_volume.hpp"
 #include "jfg/boot/runlink_module_table.hpp"
 #include "jfg/boot/thread_scheduler.hpp"
 #include "jfg/boot/guest_thread_transport.hpp"
@@ -610,6 +614,7 @@ public:
         (!initialized_ && !initialize(frequency)) || frequency_ != frequency)
       return false;
 
+    refresh_volume(frequency);
     update_metrics();
     converted_.resize(length);
     for (std::uint32_t offset = 0U; offset < length; offset += 2U) {
@@ -620,6 +625,7 @@ public:
       converted_[offset] = static_cast<std::uint8_t>(sample);
       converted_[offset + 1U] = static_cast<std::uint8_t>(sample >> 8U);
     }
+    master_volume_.apply(converted_);
     if (device_ != 0U &&
         SDL_QueueAudio(device_, converted_.data(), length) != 0)
       return false;
@@ -698,6 +704,39 @@ public:
   }
 
 private:
+  void refresh_volume(const std::uint32_t frequency) {
+    if (!volume_path_checked_) {
+      volume_path_checked_ = true;
+      wchar_t *path = nullptr;
+      std::size_t length = 0;
+      if (_wdupenv_s(&path, &length, L"JFG_MASTER_VOLUME_CONFIG") == 0 && path) {
+        volume_path_ = std::filesystem::path(path);
+        std::free(path);
+      }
+    }
+    if (volume_path_.empty()) return;
+    const auto now = std::chrono::steady_clock::now();
+    if (now < volume_next_read_) return;
+    volume_next_read_ = now + std::chrono::milliseconds(100);
+    // Runs on the existing producer thread, never an SDL audio callback.
+    // Missing/partial replacements keep the last accepted preference.
+    const HANDLE file = CreateFileW(volume_path_.c_str(), GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return;
+    std::array<char, 129> buffer{};
+    DWORD count = 0;
+    const bool read = ReadFile(file, buffer.data(),
+        static_cast<DWORD>(buffer.size()), &count, nullptr) != 0;
+    CloseHandle(file);
+    if (!read || count > 128U) return;
+    if (const auto settings = jfg::audio::parse_volume(
+            std::string_view(buffer.data(), count))) {
+      master_volume_.configure(*settings, frequency, !volume_received_);
+      volume_received_ = true;
+    }
+  }
+
   bool initialize(const std::uint32_t frequency) {
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0)
       return false;
@@ -846,6 +885,10 @@ private:
 
   GameplayTrace *gameplay_trace_ = nullptr;
   SDL_AudioDeviceID device_ = 0U;
+  jfg::audio::MasterVolume master_volume_;
+  std::filesystem::path volume_path_;
+  std::chrono::steady_clock::time_point volume_next_read_{};
+  bool volume_path_checked_ = false, volume_received_ = false;
   std::vector<std::uint8_t> converted_;
   std::ofstream capture_pcm_;
   std::ofstream capture_events_;
@@ -1355,6 +1398,8 @@ struct State {
   std::uint64_t generated_calls = 0U;
   std::uint64_t mapped_calls = 0U;
   std::uint64_t dispatch_calls = 0U;
+  std::uint64_t sync_print_sink_calls = 0U;
+  std::uint64_t sound_queue_recoveries = 0U;
   std::uint64_t phase9_player_control_calls = 0U;
   std::uint64_t phase9_weapon_update_calls = 0U;
   std::uint64_t phase9_weapon_fire_held_updates = 0U;
@@ -1373,6 +1418,8 @@ struct State {
   std::uint64_t health_overlay_death_reload_generation = 0U;
   std::uint64_t phase9_player_hit_check_calls = 0U;
   std::uint32_t phase9_player_actor = 0U;
+  jfg::mod::NavigationMod navigation_mod;
+  std::filesystem::path navigation_output;
   std::uint64_t phase9_hints_control_calls = 0U;
   std::uint64_t phase9_hints_talk_calls = 0U;
   std::uint32_t phase9_hints_actor = 0U;
@@ -1750,6 +1797,23 @@ bool sample_xinput_controller(const jfg::ControllerMapping& mapping, std::uint16
   return true;
 }
 
+jfg::mod::DialogueState navigation_dialogue(State &state) {
+  jfg::mod::Memory ram({state.rdram,kRdramSize});
+  const auto base=section_addresses!=nullptr?static_cast<std::uint32_t>(section_addresses[7U]):0U;
+  if(ram.valid(base,0x2C44U))return jfg::mod::read_dialogue(ram,base);
+  JfgGeneratedSectionMetadata metadata{};
+  if(!state.active_overlay_sections.contains(7U) ||
+     !jfg_generated_section_metadata(7U,&metadata) || metadata.is_overlay!=1U ||
+     base!=metadata.linked_vram || (base&3U))return {};
+  const std::uint64_t extent=std::uint64_t(metadata.text_size)+metadata.data_size+metadata.bss_size;
+  const std::uint32_t offset=base-kKseg0;
+  if(extent<0x2C44U || extent>0x10000U || offset>kGuestAddressSpan ||
+     extent>kGuestAddressSpan-offset || (extent&3U))return {};
+  jfg::mod::DialogueMemory memory(ram,base,
+      std::span<const std::uint8_t>(state.rdram+offset,static_cast<std::size_t>(extent)));
+  return jfg::mod::read_dialogue(memory,base);
+}
+
 void sample_live_controller(State &state) noexcept {
   constexpr std::uint16_t kButtonA = 0x8000U;
   constexpr std::uint16_t kButtonB = 0x4000U;
@@ -1810,6 +1874,51 @@ void sample_live_controller(State &state) noexcept {
               (host_key_down(state, 'S') ? stick_magnitude : 0);
     }
   }
+  if (state.navigation_mod.enabled) {
+    const bool escape = host_key_down(state, VK_ESCAPE) || (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+    const bool manual = buttons != 0U || stick_x != 0 || stick_y != 0 || escape;
+    // Retain manual cancellation across room resets and between map exports.
+    if (manual) ++state.navigation_mod.manual_inputs;
+    if (escape) state.navigation_mod.pilot.stop("manual_takeover");
+    const auto ai = state.navigation_mod.pilot.sample(manual, state.input_replay_loaded, true);
+    if (!manual && !state.input_replay_loaded && state.navigation_mod.pilot.active()) {
+      buttons = ai.buttons; stick_x = ai.x; stick_y = ai.y;
+    }
+    if (state.controller_samples % 6U == 0U) {
+      jfg::mod::Memory memory({state.rdram,kRdramSize});
+      const auto dialogue=navigation_dialogue(state);
+      if(dialogue.known&&dialogue.active) {
+        state.navigation_mod.pilot.stop("dialogue_active");
+        if(!manual&&!state.input_replay_loaded){buttons=0;stick_x=stick_y=0;}
+      }
+      std::ifstream request(state.navigation_output/L"ai-dialogue.txt",std::ios::binary|std::ios::ate);
+      if(request&&request.tellg()<=256) {
+        request.seekg(0);
+        const auto now=std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::system_clock::now().time_since_epoch()).count();
+        const int input=state.navigation_mod.dialogue_input.command(request,dialogue,manual,
+          state.input_replay_loaded,memory.u32(0x800FB114U),state.navigation_mod.generation,
+          state.navigation_mod.manual_inputs,now);
+        if(input!=0){buttons=input==1?kButtonA:0;stick_x=0;stick_y=input==2?60:input==3?-60:0;}
+      }
+    }
+    if (state.controller_samples % 6U == 0U) {
+      const auto path = state.navigation_output / L"ai-confirm.txt";
+      std::ifstream command(path, std::ios::binary | std::ios::ate);
+      if (command && command.tellg() <= 256) {
+        command.seekg(0);
+        jfg::mod::Memory memory({state.rdram, kRdramSize});
+        const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        if (state.navigation_mod.confirmation.command(command,
+              jfg::mod::transition_confirmation(memory), manual, state.input_replay_loaded,
+              memory.u32(0x800FB114U), state.navigation_mod.generation,
+              state.navigation_mod.manual_inputs, now)) {
+          buttons = kButtonA; stick_x = stick_y = 0;
+        }
+      }
+    }
+  }
   if (connected != state.latched_controller_connected) {
     if (connected)
       ++state.controller_reconnects;
@@ -1847,7 +1956,7 @@ void sample_live_controller(State &state) noexcept {
       static_cast<std::uint8_t>(stick_y)});
   if (buttons != 0U || stick_x != 0 || stick_y != 0)
     ++state.non_neutral_controller_samples;
-  if (!state.input_replay_loaded && host_key_down(state, VK_ESCAPE))
+  if (!state.input_replay_loaded && !state.navigation_mod.enabled && host_key_down(state, VK_ESCAPE))
     state.exit_requested = true;
   state.host_key_presses.fill(false);
 }
@@ -2032,6 +2141,85 @@ bool write_private_rt64_snapshot(
   }
   return static_cast<bool>(stream);
 }
+
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+bool write_mod_export(const std::filesystem::path &path, const std::string &text) {
+  auto temporary=path;temporary += ".tmp";
+  { std::ofstream stream(temporary,std::ios::binary|std::ios::trunc);
+    stream << text;stream.flush();if(!stream)return false; }
+  return MoveFileExW(temporary.c_str(),path.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)!=0;
+}
+
+void update_navigation_mod(State &state) {
+  if(!state.navigation_mod.enabled)return;
+  auto &mod=state.navigation_mod;
+  mod.dialogue=navigation_dialogue(state);
+  jfg::mod::Memory memory({state.rdram,kRdramSize});
+  try {
+    const auto list=jfg::mod::actors(memory);
+    bool player_present=false;
+    for(const auto &actor:list) {
+      if(actor.address==mod.player)player_present=true;
+      (void)mod.clear_enemy(memory,actor.address);
+    }
+    if(!player_present)mod.player=0;
+    else (void)mod.full_health(memory,mod.player);
+    ++mod.updates;
+    const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    const auto ai_level = memory.u32(0x800FB114U);
+    if (mod.updates % 6U == 0U) {
+      const auto command_path = state.navigation_output / L"ai-command.txt";
+      std::ifstream command(command_path, std::ios::binary | std::ios::ate);
+      if (command && command.tellg() <= 32768) { command.seekg(0); (void)mod.pilot.command(command, ai_level, mod.generation, now); }
+    }
+    if (mod.player != 0U) {
+      const auto p = jfg::mod::position(memory, mod.player);
+      const auto camera = jfg::mod::control_camera(memory);
+      mod.pilot.camera_heading(camera.known, camera.yaw);
+      mod.pilot.tick({p.x,p.y,p.z}, jfg::mod::gameplay_active(memory,mod.player),ai_level,mod.generation,now);
+      const auto movement=jfg::mod::player_motion(memory,mod.player);
+      if(movement.known && (movement.state==6U||movement.state==12U) &&
+         mod.pilot.active() && std::string_view(mod.pilot.state).starts_with("jump_"))
+        mod.pilot.stop("jump_unexpected_grab_state");
+      // Small bounded trace also covers manually demonstrated movement.
+      if(jfg::mod::gameplay_active(memory,mod.player)) {
+        const auto path=state.navigation_output/L"movement-samples.csv";
+        std::error_code ec;const auto size=std::filesystem::file_size(path,ec);
+        if(ec||size<4U*1024U*1024U) {
+          std::ofstream trace(path,std::ios::app);
+          trace<<mod.updates<<','<<now<<','<<ai_level<<','<<p.x<<','<<p.y<<','<<p.z
+               <<','<<movement.known<<','<<movement.state<<','<<movement.animation
+               <<','<<movement.animation_frame<<','<<memory.u32(0x800F6DA0U)<<std::endl;
+        }
+      }
+      // Bounded, opt-in mod evidence at every movement update during jump trials.
+      if(std::string_view(mod.pilot.state).starts_with("jump_") && mod.pilot.active()) {
+        const auto path=state.navigation_output/L"jump-samples.csv";
+        std::error_code ec;const auto size=std::filesystem::file_size(path,ec);
+        if(ec || size<4U*1024U*1024U) {
+          std::ofstream trace(path,std::ios::app);const auto input=mod.pilot.observed_input();
+          trace<<mod.updates<<','<<now<<','<<ai_level<<','<<p.x<<','<<p.y<<','<<p.z
+               <<','<<input.x<<','<<input.y<<','<<input.buttons<<','<<mod.pilot.state
+               <<','<<camera.yaw<<','<<memory.s16(mod.player)<<'\n';
+        }
+      }
+    } else mod.pilot.stop("player_unavailable");
+    if(mod.updates%6U!=0U)return;
+    const auto track=memory.u32(0x800A0D60U), level=memory.u32(0x800FB114U);
+    bool mesh_ready=mod.player!=0U && track==mod.last_track && level==mod.last_level;
+    if(mod.player!=0U && !mesh_ready) {
+      try {
+        const auto mesh=jfg::mod::decode_mesh(memory,track);
+        std::ostringstream output;jfg::mod::write_mesh(output,mesh,level,mod.generation);
+        mesh_ready=write_mod_export(state.navigation_output/L"mesh.json",output.str());
+        if(mesh_ready){mod.last_track=track;mod.last_level=level;}
+      }catch(const std::runtime_error &){++mod.invalid;}
+    }
+    std::ostringstream output;mod.write_state(output,memory,list,level,mesh_ready);
+    if(!write_mod_export(state.navigation_output/L"live.json",output.str()))++mod.invalid;
+  }catch(const std::runtime_error &){++mod.invalid;}
+}
+#endif
 
 void trace_gameplay_state(State &state, bool update) {
   if (!state.gameplay_trace || state.rdram == nullptr) return;
@@ -2327,6 +2515,8 @@ void write_private_progress(State &state,
          << ",\"last_dispatch\":\"0x" << std::hex << last_dispatch
          << std::dec << '"'
          << ",\"generated_calls\":" << state.generated_calls
+         << ",\"sync_print_sink_calls\":" << state.sync_print_sink_calls
+         << ",\"sound_queue_recoveries\":" << state.sound_queue_recoveries
          << ",\"mapped_calls\":" << state.mapped_calls
          << ",\"interrupt_timeslices\":" << state.interrupt_timeslices
          << ",\"receive_successes\":" << state.receive_successes
@@ -3424,7 +3614,7 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
            reinterpret_cast<const std::byte *>(state.rom),
            jfg::kRt64RequiredHeaderBytes),
        state.rt64_rdram, &state.rt64_vi, false,
-       jfg::Rt64MemoryLayout::host_word_swapped, state.renderer_writeback_probe},
+       jfg::Rt64MemoryLayout::host_word_swapped, state.renderer_writeback_probe, true},
       error);
   std::fflush(stdout);
   (void)_dup2(saved_stdout, _fileno(stdout));
@@ -4412,7 +4602,9 @@ void complete_pending_live_graphics_tasks(
         pending.rdram, jfg::Rt64MemoryLayout::host_word_swapped);
     if (state.last_rt64_error == jfg::Rt64ShellError::none)
       state.last_rt64_error = state.rt64_shell->submit(pending.task);
-    if (state.last_rt64_error == jfg::Rt64ShellError::none && state.renderer_writeback_probe)
+    // Return completed intensity masks before delivering DP/SP completion:
+    // the guest blurs and attenuates its shadow mask on the CPU.
+    if (state.last_rt64_error == jfg::Rt64ShellError::none)
       state.last_rt64_error = state.rt64_shell->commit_cpu_writeback(pending.rdram,
           std::as_writable_bytes(std::span(state.rdram, kRdramSize)));
     const jfg::Rt64GraphicsDiagnostics submission_graphics =
@@ -4934,6 +5126,23 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       state.mmio_trace->unsupported_accesses != 0U)
     fail_closed_dispatch(state, "mmio", "unsupported-register", target);
   ++state.dispatch_calls;
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  if (state.navigation_mod.enabled) {
+    jfg::mod::Memory memory({rdram,kRdramSize});
+    if (target==0x8004665CU) {
+      state.navigation_mod.transition();
+      // Invalidate the old map before the game starts loading another room.
+      std::ostringstream output;
+      state.navigation_mod.write_state(output,memory,{},UINT32_MAX,false);
+      if(!write_mod_export(state.navigation_output/L"live.json",output.str()))
+        ++state.navigation_mod.invalid;
+    }
+    if (target==0x80032A48U)
+      (void)state.navigation_mod.full_health(memory,static_cast<std::uint32_t>(context->r4));
+    if (target==0x00310600U)
+      (void)state.navigation_mod.clear_enemy(memory,static_cast<std::uint32_t>(context->r4));
+  }
+#endif
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
   switch (target) {
   case 0x020002E8U: // overlay 32: mrhintsControl / KingBear
@@ -5030,6 +5239,14 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   if (state.vi_retraces >= 5683U && state.dispatch_calls % 1024U == 0U)
     write_private_progress(state, "dispatch");
 #endif
+  if (target == jfg::boot::kSyncPrintSink) {
+    hle::GuestMemory memory({rdram, kRdramSize},
+                           hle::GuestMemory::Layout::native_word_big_endian);
+    if (!jfg::boot::invoke_sync_print_sink(memory, *context))
+      fail_closed_dispatch(state, "guest-leaf", "sync-print-sink-state", target);
+    ++state.sync_print_sink_calls;
+    return 1;
+  }
   const auto mapping = std::lower_bound(
       std::begin(kMappings), std::end(kMappings), target,
       [](const Mapping &candidate, const std::uint32_t address) {
@@ -5247,7 +5464,23 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
       }
 #endif
+      [[maybe_unused]] const auto mod_actor_argument=static_cast<std::uint32_t>(context->r4);
+      const auto sound_event_argument = static_cast<std::uint32_t>(context->r5);
       generated(rdram, context);
+      if (target == jfg::boot::kSoundNextEvent) {
+        hle::GuestMemory memory({rdram, kRdramSize},
+                               hle::GuestMemory::Layout::native_word_big_endian);
+        if (jfg::boot::recover_empty_sound_queue(
+                memory, *context, mod_actor_argument, sound_event_argument))
+          ++state.sound_queue_recoveries;
+      }
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+      if (state.navigation_mod.enabled && target==0x80032A48U) {
+        jfg::mod::Memory memory({rdram,kRdramSize});
+        (void)state.navigation_mod.full_health(memory,mod_actor_argument);
+      }
+      if (target==0x80044FACU) update_navigation_mod(state);
+#endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
       if (state.entry_probe_target == target && focus_window)
         trace_guest_clock(state, "entry-return", target);
@@ -7784,6 +8017,19 @@ int run_child(const char *path, const unsigned retrace_target,
   jfg::GeneratedOverlayRuntime runtime(std::as_writable_bytes(rdram));
   State state{};
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  char mod_flag[2]{};
+  if (GetEnvironmentVariableA("JFG_NAVIGATION_MOD",mod_flag,2U)==1U && mod_flag[0]=='1') {
+    wchar_t output[32768]{};
+    const DWORD length=GetEnvironmentVariableW(L"JFG_MOD_OUTPUT",output,32768U);
+    if(length==0U || length>=32768U) {
+      std::fputs("navigation mod requires JFG_MOD_OUTPUT\n",stderr);return 2;
+    }
+    state.navigation_output=std::filesystem::path(output);
+    std::error_code error;std::filesystem::create_directories(state.navigation_output,error);
+    if(error)return 2;
+    state.navigation_mod.enabled=true;
+    jfg::support_event("mod=navigation-enabled");
+  }
   wchar_t gameplay_trace_path[32768]{};
   const DWORD trace_path_length = GetEnvironmentVariableW(L"JFG_GAMEPLAY_TRACE", gameplay_trace_path, 32768U);
   if (trace_path_length != 0U && (trace_path_length >= 32768U ||
@@ -8522,6 +8768,8 @@ int run_child(const char *path, const unsigned retrace_target,
   state.rdram = rdram.data();
   state.rom = rom.data();
   state.rom_size = rom.size();
+  if (state.navigation_mod.enabled && !state.navigation_mod.npc_rewards.load_rom(rom))
+    std::fputs("navigation mod: NPC reward catalog unavailable; rewards remain unknown\n", stderr);
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
   char *poll_path = nullptr;
   std::size_t poll_path_size = 0U;

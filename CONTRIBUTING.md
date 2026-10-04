@@ -14,6 +14,19 @@ You do not need a development branch, a pull request, or the developer test
 suite to report a bug. Clear steps, the affected build, and useful diagnostics
 help us reproduce it. Retesting a specific fix is valuable too.
 
+## Core fidelity and community enhancements
+
+The base repository prioritizes a faithful 1:1 recreation of the original
+N64 game's behavior and rendering. Fidelity fixes, compatibility fixes,
+and build or diagnostic improvements support that goal.
+
+HD textures, cosmetic shaders, replacement artwork, and other visual
+enhancements belong in independently maintained community branches.
+Their authors are welcome to keep developing and sharing them. The base
+repository does not collect or maintain those variants. Future mod support
+is a separate project; it is not a prerequisite for contributing a focused
+correctness fix today.
+
 ## Contribute code
 
 1. Check existing issues and discuss substantial changes before implementing

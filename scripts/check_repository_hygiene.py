@@ -173,7 +173,9 @@ REPEATED_IDENTICAL_OPAQUE_TOKEN_PATTERN = re.compile(
     r"(?![A-Za-z0-9+/=])"
 )
 SPACED_HEX_PAYLOAD_PATTERN = re.compile(
-    r"(?<![0-9A-Fa-f])(?:[0-9A-Fa-f]{2}[\s,:-]+){7,}"
+    # A separator is whitespace or one punctuation character with whitespace.
+    # Treating comma-minus as a separator misreads signed decimal arrays as hex.
+    r"(?<![0-9A-Fa-f+-])(?:[0-9A-Fa-f]{2}(?:\s+|\s*[,:-]\s*)){7,}"
     r"[0-9A-Fa-f]{2}(?![0-9A-Fa-f])"
 )
 READELF_SYMBOL_LINE_PATTERN = re.compile(

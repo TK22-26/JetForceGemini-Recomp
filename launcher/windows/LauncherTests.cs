@@ -34,6 +34,49 @@ namespace JfgLauncher
             return data;
         }
 
+        private static void LayerTests()
+        {
+            MapGeometry mesh = new MapGeometry {
+                vertices = new float[][] { new float[]{0,0,0}, new float[]{0,0,100}, new float[]{100,0,0},
+                    new float[]{0,100,0}, new float[]{0,100,100}, new float[]{100,100,0},
+                    new float[]{0,200,0}, new float[]{100,200,0}, new float[]{0,200,100},
+                    new float[]{0,0,0}, new float[]{0,100,0}, new float[]{0,0,100} },
+                triangles = new MapFace[] { new MapFace {v=new int[]{0,1,2}}, new MapFace {v=new int[]{3,4,5}},
+                    new MapFace {v=new int[]{6,7,8}}, new MapFace {v=new int[]{9,10,11}} }
+            };
+            MapLayers layers = new MapLayers(mesh);
+            Check(layers.Floors.Count == 2, "walls and downward ceilings must not be filled as floors");
+            float ground;
+            Check(layers.Support(new HeightPoint(20,2,20), out ground) && ground == 0, "upper floor incorrectly obscures lower support");
+            Check(layers.Support(new HeightPoint(20,102,20), out ground) && ground == 100, "upper floor support missing");
+            Check(!layers.Support(new HeightPoint(200,2,200), out ground), "support extends outside triangle");
+            FloorFollower follow = new FloorFollower();
+            follow.Update(layers, new HeightPoint(20,2,20));
+            follow.Update(layers, new HeightPoint(20,150,20));
+            Check(follow.Height == 0 && !follow.Grounded, "jump switches to a floor far below airborne player");
+            follow.Update(layers, new HeightPoint(20,102,20));
+            Check(follow.Height == 100 && follow.Grounded, "landing does not switch floor");
+            Check(MapLayers.Clip(layers.Floors[0].Points, -10, 10).Length == 3 &&
+                MapLayers.Clip(layers.Floors[1].Points, -10, 10).Length == 0, "lower slice merges stacked floors");
+            Check(MapLayers.Clip(layers.Floors[0].Points, 90, 110).Length == 0 &&
+                MapLayers.Clip(layers.Floors[1].Points, 90, 110).Length == 3, "upper slice merges stacked floors");
+            HeightPoint[] ramp = {new HeightPoint(0,0,0),new HeightPoint(0,0,100),new HeightPoint(100,100,0)};
+            HeightPoint[] clipped = MapLayers.Clip(ramp,40,60);
+            Check(clipped.Length == 4, "partial ramp should remain a quadrilateral");
+            bool lower=false,upper=false; double area=0;
+            for(int i=0;i<clipped.Length;i++) {
+                HeightPoint p=clipped[i],q=clipped[(i+1)%clipped.Length];
+                Check(p.Y >= 39.999f && p.Y <= 60.001f && Math.Abs(p.X-p.Y)<.001f, "ramp intersection misplaced");
+                lower |= Math.Abs(p.Y-40)<.001f; upper |= Math.Abs(p.Y-60)<.001f;
+                area += p.X*q.Z-q.X*p.Z;
+            }
+            Check(lower && upper && Math.Abs(Math.Abs(area)/2-1000)<.01, "ramp cross-section area incorrect");
+            Check(layers.Low == 0 && layers.High == 100, "height scale includes ceilings or changes with slice");
+            Check(layers.Patches.Count == 2 && layers.Patches[0].Color != layers.Patches[1].Color, "stacked floor colors indistinguishable");
+            mesh.triangles[0].normal = new float[]{0,-1,0};
+            Check(new MapLayers(mesh).Floors.Count == 1, "exported normal ignored");
+        }
+
         [STAThread]
         private static int Main(string[] args)
         {
@@ -79,6 +122,10 @@ namespace JfgLauncher
                 Reject(delegate { LocalSetup.ValidateRuntime(game); }, "non-x64 library accepted");
                 File.WriteAllBytes(game, new byte[2]);
                 Reject(delegate { LocalSetup.ValidateRuntime(game); }, "truncated executable accepted");
+                Check(LocalSetup.PreferredRuntime(directory, "saved runtime") == "saved runtime", "invalid paired build accepted");
+                File.WriteAllBytes(game, Pe());
+                File.WriteAllBytes(Path.Combine(directory, "SDL2.dll"), Pe());
+                Check(LocalSetup.PreferredRuntime(directory, "saved runtime") == game, "paired native build not selected");
                 Settings settings = new Settings { RuntimePath = "Synthetic build & Unicode \u00e9", RomPath = "Selected synthetic ROM" };
                 LocalSetup.SaveSettings(directory, settings);
                 Settings loaded = LocalSetup.LoadSettings(directory);
@@ -96,6 +143,21 @@ namespace JfgLauncher
                 ProcessStartInfo start = LocalSetup.StartInfo(game, wrongRom, directory);
                 Check(!start.UseShellExecute && start.CreateNoWindow, "launch uses shell or console");
                 Check(!start.EnvironmentVariables.ContainsKey("JFG_PHASE9_INPUT_RECORD"), "diagnostic environment inherited");
+                Check(start.EnvironmentVariables["JFG_MASTER_VOLUME_CONFIG"] == AudioPreferences.FileName(directory), "audio preferences not forwarded");
+                AudioPreferences audio = AudioPreferences.Load(directory);
+                Check(audio.Volume == 100 && !audio.Muted, "default audio settings changed");
+                audio.Volume = 37; audio.Muted = true; audio.Save(directory);
+                audio = AudioPreferences.Load(directory);
+                Check(audio.Volume == 37 && audio.Muted, "mute or retained volume did not persist");
+                audio.Muted = false; audio.Save(directory);
+                Check(AudioPreferences.Load(directory).Volume == 37 && !AudioPreferences.Load(directory).Muted, "unmute lost prior volume");
+                Check(AudioPreferences.Parse("version=1\r\nvolume=0\r\nmuted=0\r\n").Volume == 0, "zero volume or CRLF rejected");
+                foreach (string invalidAudio in new string[] {
+                    "version=1\nvolume=101\nmuted=0\n", "version=1\nvolume=-1\nmuted=0\n",
+                    "version=1\nvolume=01\nmuted=0\n", "version=1\nvolume=50\nmuted=2\n",
+                    "version=1\nvolume=50\nmuted=0\nextra", new string('x',129) })
+                    Reject(delegate { AudioPreferences.Parse(invalidAudio); }, "invalid audio settings accepted");
+
                 Check(start.WorkingDirectory == directory && start.Arguments.EndsWith(" --play"), "incorrect game launch plan");
                 Check(start.Arguments.Contains(LocalSetup.Quote(flash)), "save path not isolated");
                 Check(!LocalSetup.FriendlyError(new IOException("PRIVATE-PATH-CANARY")).Contains("PRIVATE-PATH-CANARY"), "exception discloses path");
@@ -120,6 +182,26 @@ namespace JfgLauncher
                 ControllerProfile recovered = ControllerProfile.Load(directory);
                 Check(recovered.Device == 2 && recovered.Bindings[3] == 3 && recovered.Deadzone == 18000, "controller settings did not persist");
                 Check(LocalSetup.StartInfo(game, wrongRom, directory).EnvironmentVariables["JFG_CONTROLLER_CONFIG"] == ControllerProfile.FileName(directory), "controller mapping not forwarded to game");
+                string normalProfile = Path.Combine(directory, "profiles", "default");
+                Directory.CreateDirectory(normalProfile);
+                File.WriteAllText(Path.Combine(normalProfile, "jfg.flash"), "normal campaign");
+                File.WriteAllText(Path.Combine(normalProfile, "controller-1.pak"), "normal pak");
+                controller.Save(normalProfile);
+                ProcessStartInfo modStart = LocalSetup.NavigationStartInfo(game, wrongRom, normalProfile);
+                string modProfile = LocalSetup.NavigationProfile(normalProfile);
+                Check(modProfile != normalProfile && modStart.Arguments.Contains(LocalSetup.Quote(Path.Combine(modProfile, "jfg.flash"))), "mod shares normal saves");
+                Check(File.ReadAllText(Path.Combine(modProfile, "jfg.flash")) == "normal campaign", "mod did not copy initial progress");
+                Check(modStart.EnvironmentVariables["JFG_NAVIGATION_MOD"] == "1", "mod not enabled explicitly");
+                Check(modStart.EnvironmentVariables["JFG_MASTER_VOLUME_CONFIG"] == AudioPreferences.FileName(normalProfile), "mod must share normal volume settings");
+                Check(modStart.EnvironmentVariables["JFG_MOD_OUTPUT"].StartsWith(Path.Combine(modProfile, "maps")), "map export outside mod profile");
+                Check(modStart.EnvironmentVariables["JFG_CONTROLLER_CONFIG"] == ControllerProfile.FileName(modProfile), "mod controller profile missing");
+                File.WriteAllText(Path.Combine(modProfile, "jfg.flash"), "mod progress");
+                ProcessStartInfo secondModStart = LocalSetup.NavigationStartInfo(game, wrongRom, normalProfile);
+                Check(File.ReadAllText(Path.Combine(modProfile, "jfg.flash")) == "mod progress", "mod launch overwrites mod progress");
+                Check(File.ReadAllText(Path.Combine(normalProfile, "jfg.flash")) == "normal campaign", "mod changed normal campaign");
+                Check(secondModStart.EnvironmentVariables["JFG_MOD_OUTPUT"] != modStart.EnvironmentVariables["JFG_MOD_OUTPUT"], "export sessions share stale maps");
+                ProcessStartInfo normalStart = LocalSetup.StartInfo(game, wrongRom, normalProfile);
+                Check(!normalStart.EnvironmentVariables.ContainsKey("JFG_NAVIGATION_MOD") && !normalStart.EnvironmentVariables.ContainsKey("JFG_MOD_OUTPUT"), "mod enabled for normal launch");
                 Reject(delegate { ControllerProfile.Parse(controller.Encode() + "map0=27\n"); }, "duplicate mapping accepted");
                 Reject(delegate { ControllerProfile.Parse(controller.Encode().Replace("device=2", "device=4")); }, "bad controller port accepted");
                 Reject(delegate { ControllerProfile.Parse(controller.Encode().Replace("map3=3", "map3=99")); }, "bad binding accepted");
@@ -129,6 +211,8 @@ namespace JfgLauncher
                 buttons[6] = false; axes[3] = -24000; Check(ControllerInput.Pressed(buttons, axes) == 22, "stick direction capture failed");
                 string reportRoot = Path.Combine(directory, "reports");
                 SupportSession support = new SupportSession(reportRoot, "launch");
+                support.Write("mod=navigation-enabled");
+                support.Write("mod=PRIVATE-PATH-CANARY");
                 support.Error(new IOException("PRIVATE-PATH-CANARY"));
                 ProcessStartInfo crashPlan = new ProcessStartInfo(System.Reflection.Assembly.GetExecutingAssembly().Location, "--crash-fixture") {
                     UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
@@ -155,6 +239,7 @@ namespace JfgLauncher
                     foreach (var entry in zip.Entries) using (StreamReader reader = new StreamReader(entry.Open())) combined += reader.ReadToEnd();
                     Check(!combined.Contains("CANARY") && !combined.Contains(directory), "private contents leaked into support report");
                     Check(combined.Contains("exit=0x00000011") && combined.Contains("native_exit=0xc0000005") && combined.Contains("failure=runlink/guest-overlay-load"), "crash evidence lost");
+                    Check(combined.Contains("mod=navigation-enabled"), "mod context lost from support report");
                     if (!String.IsNullOrEmpty(diagnosticFixture)) {
                         Check(combined.Contains("snapshot=crash-v1") && combined.Contains("snapshot=hang-v1") && combined.Contains("/jfg-support-fixture.exe/"), "native stack evidence lost during ZIP export");
                     }
@@ -219,6 +304,106 @@ namespace JfgLauncher
                 Check(Convert.ToBase64String(File.ReadAllBytes(installer)) == Convert.ToBase64String(FirstRun.SetupScript()),
                     "setup resource was not restored from the executable");
                 Reject(delegate { FirstRun.StartInfo("bad\npath", setupFixture); }, "setup accepted malformed ROM path");
+                MapGeometry routeMesh = new MapGeometry { vertices = new float[][] {new float[]{0,0,0},new float[]{200,0,0},new float[]{0,0,200},new float[]{200,0,200}},
+                    triangles = new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{1,2,3},normal=new float[]{0,1,0}}} };
+                MapSnapshot routeSnapshot = new MapSnapshot {Mesh=routeMesh,Live=new MapLive {collision=MapCollision.Empty(),level=35,generation=2,player=new MapPlayer {position=new float[]{20,0,20}}}};
+                NavigationRoute route = NavigationRoute.Plan(routeSnapshot,new float[]{180,0,180});
+                Check(route.Points.Count==1 && route.Points[0].X==180 && route.Points[0].Z==180,"open floor route was not straightened");
+                route.Send(directory,123,false,false);
+                Check(File.ReadAllText(Path.Combine(directory,"ai-command.txt")).StartsWith("JFGNAV3 35 2 123 "),"route command room identity missing");
+                route.Send(directory,124,false,true);
+                Check(File.ReadAllLines(Path.Combine(directory,"ai-command.txt")).Length==1,"stop command retained waypoints");
+                Reject(delegate { NavigationRoute.Plan(routeSnapshot,new float[]{500,0,500}); },"unmapped exit accepted");
+                MapGeometry stepMesh = new MapGeometry {vertices=new float[][] {new float[]{0,0,0},new float[]{200,0,0},new float[]{0,0,200},new float[]{200,20,0},new float[]{0,20,200},new float[]{200,20,200}},triangles=new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{3,4,5},normal=new float[]{0,1,0}}}};
+                MapSnapshot stepSnapshot=new MapSnapshot {Mesh=stepMesh,Live=routeSnapshot.Live};
+                NavigationRoute stepRoute=NavigationRoute.Plan(stepSnapshot,new float[]{180,20,180});
+                Check(stepRoute.Points[stepRoute.Points.Count-1].Y==20,"small step not connected");
+                stepMesh.vertices[3][1]=stepMesh.vertices[4][1]=stepMesh.vertices[5][1]=80;
+                Reject(delegate {NavigationRoute.Plan(stepSnapshot,new float[]{180,80,180});},"tall step silently bridged");
+                routeMesh.vertices = new float[][] {new float[]{0,0,0},new float[]{200,0,0},new float[]{0,0,200},new float[]{0,500,0},new float[]{200,500,0},new float[]{0,500,200}};
+                routeMesh.triangles = new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{3,5,4},normal=new float[]{0,1,0}}};
+                Reject(delegate { NavigationRoute.Plan(routeSnapshot,new float[]{20,500,20}); },"disconnected stacked floors merged");
+                LayerTests();
+                string mapDirectory = Path.Combine(directory, "map");
+                Directory.CreateDirectory(mapDirectory);
+                string meshFixture = "{\"schema\":1,\"level\":21,\"generation\":2,\"vertices\":[[0,0,0],[0,0,100],[100,0,0]],\"triangles\":[{\"v\":[0,1,2]}]}";
+                long mapNow = (long)(DateTime.UtcNow - new DateTime(1970,1,1,0,0,0,DateTimeKind.Utc)).TotalMilliseconds;
+                string liveFixture = "{\"schema\":1,\"level\":21,\"generation\":2,\"timestamp_ms\":" + mapNow +
+                    ",\"update\":1,\"mesh_ready\":true,\"clearing_active\":true,\"player\":{\"position\":[20,0,20]},\"exits\":[{\"position\":[80,0,10],\"destination_code\":123}],\"markers\":[{\"position\":[10,0,80],\"kind\":\"chest\",\"label\":\"Chest\"}]}";
+                File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture);
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture);
+                MapSnapshot map = MapSnapshot.Load(mapDirectory, null);
+                Check(map.IsLive && map.Live.markers.Length == 1 && map.Live.exits.Length == 1, "live map markers missing");
+                Check(map.Live.npcs.Length == 0, "legacy maps should have no NPC markers");
+                string npcFixture = ",\"npcs\":[{\"position\":[25,0,40],\"kind\":\"npc\",\"label\":\"NPC: Guide\"},{\"position\":[40,0,65],\"kind\":\"tribal\",\"label\":\"Tribal\"}]}";
+                liveFixture = liveFixture.Substring(0, liveFixture.Length - 1) + npcFixture;
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture);
+                map = MapSnapshot.Load(mapDirectory, map.Mesh);
+                Check(map.Live.npcs.Length == 2 && map.Live.npcs[1].kind == "tribal", "NPC and Tribal markers missing");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture.Replace("[25,0,40]", "[25,0]"));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "malformed NPC position accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture.Replace("\"kind\":\"npc\"", "\"kind\":\"enemy\""));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "unknown NPC category accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture.Replace("NPC: Guide", new string('x', 81)));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "oversized NPC label accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture);
+                Check(Object.ReferenceEquals(map.Mesh, MapSnapshot.Load(mapDirectory, map.Mesh).Mesh), "map cache not reused");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture.Replace("\"generation\":2", "\"generation\":3"));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "map mixed two room generations");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture.Replace(mapNow.ToString(), "1"));
+                Check(!MapSnapshot.Load(mapDirectory, map.Mesh).IsLive, "stale map presented as live");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), liveFixture);
+                File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture.Replace("[0,1,2]", "[0,1,9]"));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, null); }, "invalid map face accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture);
+                File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture.Replace("\"v\":[0,1,2]", "\"v\":[0,1,2],\"normal\":[0,1]"));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, null); }, "malformed surface normal accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "mesh.json"), meshFixture);
+                string progressFixture = @"{""schema"":1,""inventory"":{""known"":true,""character"":1,""red_key"":false,""weapons_mask"":4},""nodes"":[{""address"":2148712448,""position"":[20,0,40],""kind"":""npc"",""label"":""Magnus: Red key"",""action"":""talk"",""status"":""available"",""requirement"":""Talk to Magnus"",""reward"":""Red key"",""requirement_known"":true,""reward_item"":1,""reward_weapon"":-1,""required_weapon"":-1,""spoken"":1,""traversal"":""unknown""}]}";
+                string withProgress = liveFixture.Substring(0, liveFixture.Length - 1) + ",\"progression\":" + progressFixture + "}";
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), withProgress);
+                map = MapSnapshot.Load(mapDirectory, map.Mesh);
+                Check(map.Live.progression.nodes[0].spoken == 1 && map.Live.progression.nodes[0].status == "available", "spoken NPC incorrectly marked complete");
+                Check(map.Live.progression.inventory.Summary.Contains("Red key: missing") && map.Live.progression.inventory.Summary.Contains("Machine gun: owned"), "inventory display incorrect");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), withProgress.Replace("\"known\":true", "\"known\":false"));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "unknown inventory accepted ownership");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), withProgress.Replace("\"traversal\":\"unknown\"", "\"traversal\":\"open\""));
+                Reject(delegate { MapSnapshot.Load(mapDirectory, map.Mesh); }, "unsupported route status accepted");
+                File.WriteAllText(Path.Combine(mapDirectory, "live.json"), withProgress);
+                MapNpcOffer sampleOffer = new MapNpcOffer { id = "7:0/1:0", kind = "item", reward = "Crowbar", status = "blocked", scope = "any_character",
+                    action = 5, item = 21, weapon = -1, flag = -1, destination = -1, consumed_items = new int[] {20},
+                    conditions = new MapNpcCondition[] { new MapNpcCondition { domain = "prerequisite", id = 3, description = "Current character payment", state = "missing" } } };
+                sampleOffer.Validate();
+                Check(sampleOffer.Details.Contains("missing") && sampleOffer.Details.Contains("consumed"), "NPC trade requirement or consumption omitted");
+                sampleOffer.conditions[0].state = "complete";
+                Reject(delegate { sampleOffer.Validate(); }, "invalid NPC condition accepted");
+                sampleOffer.conditions[0].state = "missing";
+                sampleOffer.consumed_items = new int[] {27};
+                Reject(delegate { sampleOffer.Validate(); }, "invalid NPC payment accepted");
+                sampleOffer.consumed_items = new int[] {20};
+                MapInteraction npcNode = map.Live.progression.nodes[0];
+                npcNode.npc_catalog_known = true; npcNode.offers = new MapNpcOffer[] { sampleOffer };
+                map.Live.progression.Validate();
+                Check(npcNode.Details.Contains("Crowbar") && npcNode.Details.Contains("NPC offers"), "NPC offer not displayed in inspector");
+                npcNode.offers = new MapNpcOffer[] { sampleOffer, sampleOffer };
+                Reject(delegate { map.Live.progression.Validate(); }, "duplicate NPC offer accepted");
+                npcNode.offers = new MapNpcOffer[] { sampleOffer }; npcNode.npc_catalog_known = false;
+                Reject(delegate { map.Live.progression.Validate(); }, "unknown NPC catalog accepted rewards");
+                npcNode.npc_catalog_known = true;
+                npcNode.label = "NPC: Trader"; npcNode.reward = "Crowbar"; npcNode.status = "blocked";
+                using (FileStream fixtureStream = File.Create(Path.Combine(mapDirectory, "live.json")))
+                    new System.Runtime.Serialization.Json.DataContractJsonSerializer(typeof(MapLive)).WriteObject(fixtureStream, map.Live);
+                map = MapSnapshot.Load(mapDirectory, map.Mesh);
+                Check(map.Live.progression.nodes[0].offers[0].conditions[0].state == "missing", "NPC offers lost during JSON round trip");
+                using (NavigationMapWindow mapWindow = new NavigationMapWindow(mapDirectory)) {
+                    mapWindow.StartPosition = FormStartPosition.Manual; mapWindow.Location = new Point(-32000, -32000);
+                    mapWindow.ShowInTaskbar = false; mapWindow.Show(); Application.DoEvents();
+                    using (Bitmap preview = new Bitmap(mapWindow.Width, mapWindow.Height)) {
+                        mapWindow.DrawToBitmap(preview, new Rectangle(Point.Empty, preview.Size));
+                        preview.Save(Path.Combine(repo, "build", "launcher", "map-preview.png"));
+                    }
+                    mapWindow.Close(); checks++;
+                }
                 using (LauncherWindow window = new LauncherWindow())
                 {
                     // Realize controls without putting a test window on the user's desktop.
@@ -240,10 +425,15 @@ namespace JfgLauncher
                     Check(window.Text == "JFG Launcher Preview", "UI construction failed");
                     window.Close();
                 }
+                checks += NavigationExplorerTests.Run(directory);
+                checks += NavigationCollisionTests.Run(directory);
+                checks += BoxJumpTests.Run();
+                checks += AutonomousExplorerTests.Run();
+                checks += UnifiedNavigationTests.Run(directory);
                 Console.WriteLine("Launcher checks passed: " + checks);
                 return 0;
             }
-            catch (Exception error) { Console.Error.WriteLine(error.GetType().Name + ": " + error.Message); return 1; }
+            catch (Exception error) { Console.Error.WriteLine(error.ToString()); return 1; }
             finally
             {
                 // This path is an explicitly created disposable fixture, never a user profile.

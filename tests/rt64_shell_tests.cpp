@@ -154,6 +154,38 @@ int main() {
     const std::array<jfg::Rt64RdramRange, 1U> invalid = {{{0U, live.size() + 1U}}};
     require(jfg::commit_rt64_rdram_ranges(submitted, rendered, live, invalid) ==
         jfg::Rt64ShellError::invalid_memory);
+    // GPU -> CPU -> GPU mask processing must observe edits back to an old
+    // source value (zero), as well as nonzero attenuation. An unrelated GPU
+    // framebuffer must survive the next snapshot import.
+    std::fill(submitted.begin(), submitted.end(), std::byte{0});
+    rendered = submitted;
+    live = submitted;
+    previous = submitted;
+    const std::array<jfg::Rt64RdramRange, 1U> mask_range = {{{0x100U, 0x104U}}};
+    rendered[0x100U ^ 3U] = std::byte{0x8E};
+    rendered[0x101U ^ 3U] = std::byte{0x0E};
+    rendered[0x200U ^ 3U] = std::byte{0x77};
+    live[0x102U ^ 3U] = std::byte{1};
+    require(jfg::commit_rt64_rdram_ranges(submitted, rendered, live,
+        mask_range, previous) == jfg::Rt64ShellError::conflicting_cpu_write);
+    require(previous == submitted);
+    require(live[0x100U ^ 3U] == std::byte{0});
+    live[0x102U ^ 3U] = std::byte{0};
+    require(jfg::commit_rt64_rdram_ranges(submitted, rendered, live,
+        mask_range, previous) == jfg::Rt64ShellError::none);
+    require(live[0x100U ^ 3U] == std::byte{0x8E});
+    require(previous[0x101U ^ 3U] == std::byte{0x0E});
+    require(previous[0x200U ^ 3U] == std::byte{0});
+    live[0x100U ^ 3U] = std::byte{0x08};
+    live[0x101U ^ 3U] = std::byte{0};
+    require(jfg::merge_rt64_rdram_snapshot(live, rendered, previous,
+        jfg::Rt64MemoryLayout::host_word_swapped) == jfg::Rt64ShellError::none);
+    require(rendered[0x100U ^ 3U] == std::byte{0x08});
+    require(rendered[0x101U ^ 3U] == std::byte{0});
+    require(rendered[0x200U ^ 3U] == std::byte{0x77});
+    require(jfg::commit_rt64_rdram_ranges(submitted, rendered, live,
+        mask_range, std::span(previous).first(4U)) ==
+        jfg::Rt64ShellError::invalid_memory);
     jfg::Rt64ViRegisters framebuffer_vi;
     framebuffer_vi.status = 0x0000'320EU;
     framebuffer_vi.origin = 0x0010'0000U;
