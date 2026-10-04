@@ -22,8 +22,14 @@ namespace JfgLauncher
         [DataMember] public float[][] vertices = null;
         [DataMember] public MapFace[] triangles = null;
     }
+    [DataContract] internal sealed class MapPlayerMotion {
+        [DataMember] public bool known=false,hang_entry=false,grab_entry=false;
+        [DataMember] public int state_id=0,animation_id=0;
+        [DataMember] public float animation_frame=0;
+    }
     [DataContract] internal sealed class MapPlayer
     {
+        [DataMember] public MapPlayerMotion motion=null;
         [DataMember] public uint address = 0;
         [DataMember] public float[] position = null;
     }
@@ -195,6 +201,7 @@ namespace JfgLauncher
         [DataMember] public MapAi navigation_ai = null;
         [DataMember] public MapActor[] actors = null;
         [DataMember] public MapCollision collision = null;
+        [DataMember] public MapJump box_jump = null;
     }
     internal sealed class MapSnapshot
     {
@@ -614,7 +621,7 @@ namespace JfgLauncher
             Controls.Add(bar);
             status.Dock = DockStyle.Bottom; status.Height = 38; status.Padding = new Padding(8);
             Controls.Add(status);
-            bar.Height = 225;
+            bar.Height = 255;
             bar.SetFlowBreak(bar.Controls[bar.Controls.Count-1],true);
             CheckBox collisionToggle=new CheckBox {Text="Entity collision boxes",Checked=true,AutoSize=true};
             CheckBox originsToggle=new CheckBox {Text="Unknown entity origins",Checked=false,AutoSize=true};
@@ -633,6 +640,10 @@ namespace JfgLauncher
             aiStatus.MaximumSize=new Size(980,0);
             bar.Controls.Add(planAi);bar.Controls.Add(startAi);bar.Controls.Add(stopAi);bar.Controls.Add(explore);bar.Controls.Add(retry);bar.Controls.Add(jumpAssist);
             bar.SetFlowBreak(jumpAssist,true);bar.Controls.Add(aiStatus);
+            Button boxJump=new Button {Text="Box jumping prototype",AutoSize=true};
+            bar.Controls.Add(boxJump);
+            boxJump.Click+=delegate {StopAi();aiRoute=null;canvas.Route=null;new BoxJumpWindow(directory).ShowDialog(this);};
+
             planAi.Click += delegate {
                 StopAi();
                 try {

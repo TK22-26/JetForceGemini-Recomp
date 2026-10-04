@@ -15,10 +15,12 @@ check(bool ok,
     std::abort();
   }
 }
+#include "box_jump_tests.hpp"
 #include "npc_rewards_tests.hpp"
 #include "navigation_pilot_tests.hpp"
 #include "navigation_collision_tests.hpp"
 int main(int argc, char **argv) {
+  box_jump_tests();
   navigation_collision_tests();
   npc_reward_tests();
   navigation_pilot_tests();
@@ -65,6 +67,19 @@ int main(int argc, char **argv) {
     const auto putfloat = [&](std::uint32_t a, float v) {
       put32(a, std::bit_cast<std::uint32_t>(v));
     };
+    const std::uint32_t motion_actor=0x80300000U,motion_control=0x80301000U;
+    put32(motion_actor+0x68U,motion_control);put8(motion_control+0x568U,6);
+    put8(motion_actor+0x3BU,42);putfloat(motion_actor+0x28U,3.5f);
+    check(!player_motion(m,motion_actor).known);
+    put32(0x80036234U,0x24190006U);put32(0x80036248U,0xA2190568U);
+    put32(0x80036944U,0x2408000CU);put32(0x8003696CU,0xA2280568U);
+    put32(0x80011580U,0xA086003BU);
+    const auto motion=player_motion(m,motion_actor);
+    check(motion.known && motion.state==6 && motion.animation==42 && motion.animation_frame==3.5f);
+    put8(motion_control+0x568U,12);check(player_motion(m,motion_actor).state==12);
+    put32(motion_actor+0x68U,motion_control+1U);check(!player_motion(m,motion_actor).known);
+    put32(motion_actor+0x68U,0x80400000U);check(!player_motion(m,motion_actor).known);
+    put32(0x80011580U,0);check(!player_motion(m,motion_actor).known);
     check(!control_camera(m).known);
     put32(0x80041E0CU,0x3C028010U);put32(0x80041E10U,0x03E00008U);
     put32(0x80041E14U,0x2442A4D0U);put32(0x80032ACCU,0xAC226DC0U);

@@ -121,3 +121,80 @@ large inputs while oscillating or pushing a wall are not successful fast travel.
 Report scripted door/cutscene waits separately and also retain whole-trip time.
 Jump setup, crawl sections and landing stabilization need their own speed
 profiles; do not force a sprint target onto those actions.
+
+## Box-jump prototype research and first implementation (2026-10-03)
+
+The new opt-in prototype uses explicit connections to supported landing patches,
+following Detour's endpoint model. Epic's navigation-link documentation separates
+link generation from executing the traversal, and exposes jump length, height,
+edge distance and landing tolerance. We retain that separation in the existing
+planner without adding an engine dependency. CMU's motion-primitive work motivates
+measuring a reusable jump and accounting for momentum; it does not supply Juno's
+physics or guarantee collision avoidance.
+
+Research checked during this implementation:
+- https://recastnav.com/structdtOffMeshConnection.html
+- https://dev.epicgames.com/documentation/en-us/unreal-engine/automatic-navigation-link-generation
+- https://publications.ri.cmu.edu/a-framework-for-extreme-locomotion-planning
+- https://arxiv.org/abs/1809.02399
+
+The prototype adds standing-jump calibration, a bounded one-jump feedback
+controller, private movement-update telemetry, supported landing search,
+body/ceiling/entity arc checks, approach walking, a side-view preview and stop.
+Normal controls use C-Up; Expert controls use A. Calibration is tied to the
+selected control mode. Inputs remain ordinary controller inputs; position,
+velocity, inventory and jump physics are not rewritten.
+
+Live evidence on 2026-10-04 used private copies of NORMAL save slot 2 in
+SS Anubis, room 35, with audio muted. Measured standing-jump velocity was 23.1,
+gravity 1.8 per movement update and apex rise 148.2. Ordinary trials reached
+the left stack's 83, 166 and 230 surfaces, and the right stack's 96 surface.
+The original triangle-centroid search missed the small 230 top; edge-midpoint
+and inset samples now include small supported tops. Braking uses observed
+momentum and landing confirmation checks a connected supported patch instead
+of accepting height alone or requiring an exact centroid.
+
+The owner's later manual recording establishes a normal-jump route through
+96, approximately 190, 256, 320 and 384. The previous interpretation of the
+intermediate pause as a ledge hang was wrong. Mesh triangles 494 and 495 form
+a 64-by-64 top varying from Y188 to Y192; the recorded feet agree with that
+surface within 0.23 units. The old height-span filter rejected it. Candidates
+now use surface slope and local support, with a body radius of 20 and a
+minimum landing tolerance of 8. Speculative ledge-control mode was removed.
+
+The prototype searches a bounded graph of ascending supported platforms and
+tests multiple landing entries, full jump clearance and walking approaches.
+Platform bounds only prune impossible links; they do not authorize motion.
+Planning runs in the background; execution rechecks live room, position,
+collision and support. Each jump requires a confirmed landing before the next.
+A platform route ends on the selected surface, not necessarily at an item.
+No complete autonomous shotgun retrieval has yet been demonstrated.
+
+Player motion telemetry reads the state byte at player-state +0x568,
+animation ID at actor +0x3B and animation frame at actor +0x28. The player-state
+pointer is actor +0x68. Reads require the supported ROM's handler signatures.
+Hang acceptance writes state 6; grab acceptance writes state 12. These are
+confirmed entry values, not a fully decoded movement-state enum. The native
+jump controller stops on either entry instead of assuming a normal landing.
+Private per-update CSV telemetry captures these fields during manual play too.
+
+Jump steering can delay lateral motion until a measured vertical rise, and
+brakes using observed momentum before the apex. Walking approaches also brake
+before the final waypoint rather than coast beyond their checked takeoff.
+All changes use ordinary controller input; saves, physics and inventory are
+not patched. Native and launcher fixtures do not establish general parkour,
+crawl dimensions or complete level progression.
+
+## Current validation (2026-10-04)
+
+339 launcher checks, 10 setup checks and the native navigation fixtures pass.
+A copied-save native run confirmed five ordinary jumps through Y96, Y190,
+Y256, Y320 and Y384 using individually chosen targets. Normal saves retain
+their original hashes. Automatic graph search finds all five links.
+Automatic execution remains unreliable: an earlier first landing and a
+subsequent small-box landing drifted beyond the verified support footprint.
+Those trials stopped rather than continuing from an unsafe landing. The final
+fresh-save attempt did not establish end-to-end completion. Shotgun pickup
+remains unverified. Takeoff orientation and landing control need further work.
+The private paired launcher/native bundle is for local testing only. No
+release has been published for these changes.

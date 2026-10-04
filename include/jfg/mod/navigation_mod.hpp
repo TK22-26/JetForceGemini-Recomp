@@ -79,6 +79,37 @@ inline void json_vec(std::ostream &out, Vec3 p) {
   out << '[' << p.x << ',' << p.y << ',' << p.z << ']';
 }
 
+// Read-only player telemetry for the qualified US control/animation layout.
+// Hang acceptance writes state 6; grab acceptance writes state 12. Other
+// movement-state values stay numeric until separately identified.
+struct PlayerMotion {
+  bool known{}; unsigned state{}, animation{}; float animation_frame{};
+};
+inline PlayerMotion player_motion(const Memory &m,std::uint32_t actor) noexcept {
+  PlayerMotion result;
+  try {
+    if(!m.valid(actor,0x6CU) || (actor&3U) ||
+       m.u32(0x80036234U)!=0x24190006U || m.u32(0x80036248U)!=0xA2190568U ||
+       m.u32(0x80036944U)!=0x2408000CU || m.u32(0x8003696CU)!=0xA2280568U ||
+       m.u32(0x80011580U)!=0xA086003BU)return result;
+    const auto control=m.u32(actor+0x68U);
+    if((control&3U)||!m.valid(control,0x569U))return result;
+    result.state=m.u8(control+0x568U);
+    result.animation=m.u8(actor+0x3BU);
+    result.animation_frame=m.f32(actor+0x28U);
+    result.known=true;
+  }catch(const std::runtime_error &){}
+  return result;
+}
+inline void write_player_motion(std::ostream &out,const PlayerMotion &value) {
+  out<<"{\"known\":"<<(value.known?"true":"false");
+  if(value.known)out<<",\"state_id\":"<<value.state<<",\"animation_id\":"<<value.animation
+      <<",\"animation_frame\":"<<value.animation_frame
+      <<",\"hang_entry\":"<<(value.state==6?"true":"false")
+      <<",\"grab_entry\":"<<(value.state==12?"true":"false");
+  out<<'}';
+}
+
 // Identifiers observed in the game's tribal classification, not name matching.
 inline bool tribal(std::uint16_t type) noexcept {
   return (type >= 0x11CU && type < 0x121U) || type == 0x66U || type == 0x70U ||
@@ -1062,7 +1093,8 @@ public:
         out << "{\"address\":" << player << ",\"position\":";
         json_vec(out, a.position);
         out << ",\"yaw\":" << m.s16(player)
-            << ",\"health\":" << m.s16(m.u32(player + 0x4CU) + 6U) << '}';
+            << ",\"health\":" << m.s16(m.u32(player + 0x4CU) + 6U) << ",\"motion\":";
+        write_player_motion(out,player_motion(m,player));out<<'}';
         found = true;
         break;
       }
@@ -1115,6 +1147,7 @@ public:
     write_progression(out, m, list, player, level, &npc_rewards);
     out << ",\"navigation_ai\":{\"state\":\"" << pilot.state << "\",\"active\":" << (pilot.active() ? "true" : "false")
         << ",\"confirmations\":" << confirmation.count << ",\"manual_inputs\":" << manual_inputs << ",\"nonce\":" << pilot.nonce() << ",\"waypoint\":" << pilot.waypoint << ",\"count\":" << pilot.count() << ",\"jump_attempts\":" << pilot.jump_attempts << "}";
+    out << ",\"box_jump\":";pilot.write_box_jump(out);
     out << ",\"collision\":";
     write_collision(out, collision_models(m, list));
     out << ",\"actors\":[";

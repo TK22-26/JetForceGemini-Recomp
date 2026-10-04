@@ -293,7 +293,7 @@ namespace JfgLauncher {
         private static HeightPoint Subtract(HeightPoint a,HeightPoint b){return new HeightPoint(a.X-b.X,a.Y-b.Y,a.Z-b.Z);}
         private static HeightPoint Cross(HeightPoint a,HeightPoint b){return new HeightPoint(a.Y*b.Z-a.Z*b.Y,a.Z*b.X-a.X*b.Z,a.X*b.Y-a.Y*b.X);}
         private static float Dot(HeightPoint a,HeightPoint b){return a.X*b.X+a.Y*b.Y+a.Z*b.Z;}
-        private static bool Obstructed(MapGeometry mesh,HeightPoint from,HeightPoint to) {
+        internal static bool Obstructed(MapGeometry mesh,HeightPoint from,HeightPoint to) {
             HeightPoint direction=Subtract(to,from);
             foreach(MapFace face in mesh.triangles) {
                 HeightPoint a=new HeightPoint(mesh.vertices[face.v[0]]),edge1=Subtract(new HeightPoint(mesh.vertices[face.v[1]]),a),edge2=Subtract(new HeightPoint(mesh.vertices[face.v[2]]),a);

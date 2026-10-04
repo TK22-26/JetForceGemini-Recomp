@@ -1,4 +1,5 @@
 #pragma once
+#include "jfg/mod/box_jump.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -18,6 +19,8 @@ struct PilotInput {
 // Jump assist is a single bounded recovery attempt, not a ballistic route
 // solver.
 class NavigationPilot {
+  BoxJumpPilot box_jump_;
+  bool box_mode_ = false;
   std::vector<PilotPoint> route_;
   std::uint64_t nonce_ = 0, generation_ = 0;
   std::uint32_t level_ = 0;
@@ -25,7 +28,7 @@ class NavigationPilot {
   PilotPoint last_{}, origin_{}, basis_x_{}, basis_y_{};
   bool initialized_ = false, allow_jump_ = false, active_ = false;
   bool basis_valid_ = false, reuse_basis_ = false;
-  bool camera_known_ = false, corner_braking_ = false;
+  bool camera_known_ = false, corner_braking_ = false, endpoint_braking_ = false;
   PilotPoint velocity_{};
   std::int64_t basis_time_ = 0;
   unsigned frame_ = 0, phase_frame_ = 0, stalled_ = 0, stable_ = 0, flight_ = 0;
@@ -45,10 +48,12 @@ public:
   const char *state = "off";
   unsigned waypoint = 0, jump_attempts = 0;
   std::uint64_t nonce() const { return nonce_; }
-  bool active() const { return active_; }
-  PilotInput observed_input() const { return input_; }
+  bool active() const { return active_ || box_jump_.active(); }
+  PilotInput observed_input() const { if(box_mode_){const auto i=box_jump_.input();return {i.x,i.y,i.buttons};}return input_; }
+  void write_box_jump(std::ostream &out) const {box_jump_.write(out);}
   std::size_t count() const { return route_.size(); }
   void stop(const char *reason = "stopped") {
+    box_jump_.stop(reason);
     active_ = false;
     input_ = {};
     state = reason;
@@ -58,6 +63,7 @@ public:
   // The live game supplies a validated control-camera heading each update.
   // This avoids interpreting turn inertia as a change in camera orientation.
   void camera_heading(bool known, std::int16_t yaw) {
+    box_jump_.camera(known,yaw);
     if (!known && camera_known_ && active_) stop("camera_unavailable");
     camera_known_ = known;
     if (!known) return;
@@ -68,6 +74,7 @@ public:
   }
   void reset() {
     stop("room_changed");
+    box_jump_.reset();box_mode_=false;
     route_.clear();
     nonce_ = 0;
     initialized_ = false;
@@ -80,7 +87,16 @@ public:
     std::uint64_t gen, nonce;
     std::int64_t stamp;
     int jumps, count, running = -1, through = -1;
-    if (!(in >> magic >> room >> gen >> nonce >> stamp >> jumps >> count) ||
+    if (!(in >> magic)) {stop("invalid_command");return false;}
+    if(magic=="JFGJUMP1" || magic=="JFGJUMP2") {
+      JumpPoint p;float radius=0,lift=0;int mode=0,button=8;std::string extra;
+      if(!(in>>room>>gen>>nonce>>stamp>>mode>>p.x>>p.y>>p.z>>radius>>button) ||
+          (magic=="JFGJUMP2" && !(in>>lift)) || room!=level || gen!=generation || (in>>extra)) {stop("invalid_jump_command");return false;}
+      const bool accepted=box_jump_.command(room,gen,nonce,stamp,now,mode,p,radius,button,lift);
+      if(accepted){active_=false;box_mode_=true;nonce_=nonce;state=box_jump_.state;}
+      return accepted;
+    }
+    if (!(in >> room >> gen >> nonce >> stamp >> jumps >> count) ||
         (magic != "JFGNAV1" && magic != "JFGNAV2" && magic != "JFGNAV3") || room != level || gen != generation ||
         nonce == 0 || stamp < 0 || now < stamp || now - stamp > 1500 ||
         (jumps != 0 && jumps != 1) || count < 0 || count > 256) {
@@ -120,6 +136,7 @@ public:
       stop();
       return true;
     }
+    box_jump_.stop();box_mode_=false;
     heartbeat_ = now;
     // A heartbeat may never re-arm after manual takeover or a failed run.
     if (nonce == nonce_) {
@@ -147,20 +164,24 @@ public:
     best_ = 1e30f;
     input_ = {};
     velocity_ = {};
-    corner_braking_ = false;
+    corner_braking_ = false;endpoint_braking_=false;
     state = reuse_basis_ ? "following" : "calibrating_forward";
     return true;
   }
   PilotInput sample(bool manual, bool replay, bool focused) {
     if (manual || replay || !focused) basis_valid_ = false;
-    if (active_ && (manual || replay || !focused))
+    if (active() && (manual || replay || !focused))
       stop(manual   ? "manual_takeover"
            : replay ? "replay_active"
                     : "focus_lost");
-    return active_ ? input_ : PilotInput{};
+    return active() ? observed_input() : PilotInput{};
   }
   void tick(PilotPoint p, bool gameplay, std::uint32_t level,
             std::uint64_t generation, std::int64_t now) {
+    if(box_mode_) {
+      box_jump_.tick({p.x,p.y,p.z},gameplay,level,generation,now);
+      state=box_jump_.state;return;
+    }
     if (!active_)
       return;
     if (!gameplay) {
@@ -259,6 +280,19 @@ public:
       return camera_known_ && int(waypoint)>=running_waypoint_ && running_waypoint_>=0 &&
           int(waypoint)<=running_through_ && now>=running_stamp_ && now-running_stamp_<=500;
     };
+    if(camera_known_ && waypoint+1==route_.size()) {
+      const float remain=distance(p,route_[waypoint]),speed=std::hypot(velocity_.x,velocity_.z);
+      const auto to=difference(route_[waypoint],p);
+      const float alignment=speed>.1f?(to.x*velocity_.x+to.z*velocity_.z)/std::max(.01f,remain*speed):1;
+      if(!endpoint_braking_ && speed>.25f &&
+         (remain<8 || (alignment>.85f && remain<=speed*10.3f+3)))endpoint_braking_=true;
+      if(endpoint_braking_) {
+        input_={};state="approach_braking";
+        if(speed>.2f)return;
+        endpoint_braking_=false;best_=1e30f;stalled_=0;
+        if(remain<8 && std::abs(p.y-route_[waypoint].y)<45){stop("approach_complete");return;}
+      }
+    }
     const auto reached = [&] {
       if(waypoint>=route_.size() || std::abs(p.y-route_[waypoint].y)>=45)return false;
       if(distance(p,route_[waypoint]) < (continuous_ && waypoint+1<route_.size()?16:8))return true;

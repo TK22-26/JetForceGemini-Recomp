@@ -2140,6 +2140,32 @@ void update_navigation_mod(State &state) {
       const auto camera = jfg::mod::control_camera(memory);
       mod.pilot.camera_heading(camera.known, camera.yaw);
       mod.pilot.tick({p.x,p.y,p.z}, jfg::mod::gameplay_active(memory,mod.player),ai_level,mod.generation,now);
+      const auto movement=jfg::mod::player_motion(memory,mod.player);
+      if(movement.known && (movement.state==6U||movement.state==12U) &&
+         mod.pilot.active() && std::string_view(mod.pilot.state).starts_with("jump_"))
+        mod.pilot.stop("jump_unexpected_grab_state");
+      // Small bounded trace also covers manually demonstrated movement.
+      if(jfg::mod::gameplay_active(memory,mod.player)) {
+        const auto path=state.navigation_output/L"movement-samples.csv";
+        std::error_code ec;const auto size=std::filesystem::file_size(path,ec);
+        if(ec||size<4U*1024U*1024U) {
+          std::ofstream trace(path,std::ios::app);
+          trace<<mod.updates<<','<<now<<','<<ai_level<<','<<p.x<<','<<p.y<<','<<p.z
+               <<','<<movement.known<<','<<movement.state<<','<<movement.animation
+               <<','<<movement.animation_frame<<','<<memory.u32(0x800F6DA0U)<<std::endl;
+        }
+      }
+      // Bounded, opt-in mod evidence at every movement update during jump trials.
+      if(std::string_view(mod.pilot.state).starts_with("jump_") && mod.pilot.active()) {
+        const auto path=state.navigation_output/L"jump-samples.csv";
+        std::error_code ec;const auto size=std::filesystem::file_size(path,ec);
+        if(ec || size<4U*1024U*1024U) {
+          std::ofstream trace(path,std::ios::app);const auto input=mod.pilot.observed_input();
+          trace<<mod.updates<<','<<now<<','<<ai_level<<','<<p.x<<','<<p.y<<','<<p.z
+               <<','<<input.x<<','<<input.y<<','<<input.buttons<<','<<mod.pilot.state
+               <<','<<camera.yaw<<','<<memory.s16(mod.player)<<'\n';
+        }
+      }
     } else mod.pilot.stop("player_unavailable");
     if(mod.updates%6U!=0U)return;
     const auto track=memory.u32(0x800A0D60U), level=memory.u32(0x800FB114U);

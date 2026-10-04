@@ -397,6 +397,7 @@ namespace JfgLauncher
                 }
                 checks += NavigationExplorerTests.Run(directory);
                 checks += NavigationCollisionTests.Run(directory);
+                checks += BoxJumpTests.Run();
                 Console.WriteLine("Launcher checks passed: " + checks);
                 return 0;
             }
