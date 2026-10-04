@@ -16,12 +16,12 @@ namespace JfgLauncher {
         internal uint Level;
         internal long Generation;
         internal uint ApproachGate;
-        internal float[] ExitPosition;
+        internal float[] GatePosition;
         internal bool ApproachOnly {get {return ApproachGate!=0;} }
         internal bool GateCleared(MapSnapshot map) {
             MapCollisionModel gate=NavigationCollision.Model(map.Live,ApproachGate);
             if(gate==null || !gate.enabled)return true;
-            HeightPoint from=Points[Points.Count-1],to=new HeightPoint(ExitPosition[0],from.Y,ExitPosition[2]);
+            HeightPoint from=Points[Points.Count-1],to=new HeightPoint(GatePosition[0],from.Y,GatePosition[2]);
             return !NavigationCollision.Intersects(gate,from,to);
         }
         private sealed class Edge { internal int To; internal HeightPoint Portal; }
@@ -555,29 +555,40 @@ namespace JfgLauncher {
                 float d=Distance(new HeightPoint(node.position),new HeightPoint(exit.position));
                 if(d<best){best=d;gateNode=node;}
             }
-            if(gateNode!=null) {
-                if(gateNode.access_known&&!gateNode.access_allowed&&gateNode.status!="enemies_remaining")
-                    throw new InvalidDataException("Door requirement: "+gateNode.requirement+".");
-                var gate=NavigationCollision.Model(snapshot.Live,gateNode.address);
-                float x=(gate.lower[0]+gate.upper[0])/2,z=(gate.lower[2]+gate.upper[2])/2;
-                float dx=exit.position[0]-x,dz=exit.position[2]-z;
-                // Within the live approach radius, but outside the solid model.
-                var margins=new List<float>{36,20,8};
-                if(gateNode.approach_radius>=64&&gateNode.approach_radius<=4096)
-                    margins.Insert(0,gateNode.approach_radius*.72f-NavigationCollision.Radius);
-                foreach(float margin in margins) {
-                    float px=x,pz=z,pad=NavigationCollision.Radius+margin;
-                    if(Math.Abs(dx)>Math.Abs(dz))px=dx>=0?gate.lower[0]-pad:gate.upper[0]+pad;
-                    else pz=dz>=0?gate.lower[2]-pad:gate.upper[2]+pad;
-                    try {
-                        var route=Plan(snapshot,new[]{px,gateNode.position[1],pz});
-                        if(gateNode.approach_radius!=0 &&
-                           Distance(route.Points[route.Points.Count-1],new HeightPoint(gateNode.position))>=gateNode.approach_radius-12)continue;
-                        route.ApproachGate=gate.address;route.ExitPosition=(float[])exit.position.Clone();return route;
-                    }catch(InvalidDataException){}
-                }
-            }
+            if(gateNode!=null)return PlanDoorApproach(snapshot,exit,gateNode);
             throw new InvalidDataException("No clear walking lane crosses this exit trigger; inspect floor, height and door requirements.");
+        }
+        // The exit sphere can lie in front of, inside, or behind a door.
+        // Approach from the player's side of the door plane, independently of
+        // the trigger's location. Never plan to the far side of closed collision.
+        private static NavigationRoute PlanDoorApproach(MapSnapshot snapshot,MapMarker exit,MapInteraction node) {
+            if(node.access_known&&!node.access_allowed&&node.status!="enemies_remaining")
+                throw new InvalidDataException("Door requirement: "+node.requirement+".");
+            var gate=NavigationCollision.Model(snapshot.Live,node.address);
+            float x=(gate.lower[0]+gate.upper[0])/2,z=(gate.lower[2]+gate.upper[2])/2;
+            bool alongX=exit.normal!=null&&(Math.Abs(exit.normal[0])+Math.Abs(exit.normal[2])>.1f)
+                ? Math.Abs(exit.normal[0])>Math.Abs(exit.normal[2])
+                : gate.upper[0]-gate.lower[0]<gate.upper[2]-gate.lower[2];
+            var player=snapshot.Live.player.position;
+            var margins=new List<float>{36,20,8};
+            if(node.approach_radius>=64&&node.approach_radius<=4096)
+                margins.Insert(0,node.approach_radius*.72f-NavigationCollision.Radius);
+            foreach(float margin in margins) {
+                float px=x,pz=z,pad=NavigationCollision.Radius+margin;
+                if(alongX)px=player[0]<x?gate.lower[0]-pad:gate.upper[0]+pad;
+                else pz=player[2]<z?gate.lower[2]-pad:gate.upper[2]+pad;
+                try {
+                    var route=Plan(snapshot,new[]{px,node.position[1],pz});
+                    if(node.approach_radius!=0&&
+                       Distance(route.Points[route.Points.Count-1],new HeightPoint(node.position))>=node.approach_radius-12)continue;
+                    route.ApproachGate=gate.address;
+                    // Keep the original doorway location while its model moves.
+                    // A trigger before the door cannot prove the door has lifted.
+                    route.GatePosition=new[]{x,node.position[1],z};
+                    return route;
+                }catch(InvalidDataException){}
+            }
+            throw new InvalidDataException("No clear approach reaches the door's opening radius.");
         }
         private static NavigationRoute PlanExitLegacy(MapSnapshot snapshot,MapMarker exit) {
             NavigationRoute route;
@@ -615,13 +626,7 @@ namespace JfgLauncher {
                     }
                     throw;
                 }
-                MapCollisionModel gate=NavigationCollision.Model(snapshot.Live,nearest.address);
-                float x=(gate.lower[0]+gate.upper[0])/2,z=(gate.lower[2]+gate.upper[2])/2;
-                float gateDx=exit.position[0]-x,gateDz=exit.position[2]-z,margin=NavigationCollision.Radius+36;
-                if(Math.Abs(gateDx)>Math.Abs(gateDz))x=gateDx>=0?gate.lower[0]-margin:gate.upper[0]+margin;
-                else z=gateDz>=0?gate.lower[2]-margin:gate.upper[2]+margin;
-                route=Plan(snapshot,new float[]{x,nearest.position[1],z});
-                route.ApproachGate=gate.address;route.ExitPosition=(float[])exit.position.Clone();return route;
+                return PlanDoorApproach(snapshot,exit,nearest);
             }
             HeightPoint end=route.Points[route.Points.Count-1];
             HeightPoint from=route.Points.Count>1?route.Points[route.Points.Count-2]:new HeightPoint(snapshot.Live.player.position);

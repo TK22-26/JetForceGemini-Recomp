@@ -413,6 +413,44 @@ namespace JfgLauncher {
             s=new Simulation(DoorRoom(),NavigationRoute.PlanExit);door=s.Tick(0);waiting=door.Route.Points[door.Route.Points.Count-1];
             s.Map.Live.player.position=new float[]{waiting.X,waiting.Y,waiting.Z};s.Map.Live.navigation_ai.active=false;s.Map.Live.navigation_ai.state="approach_complete";
             s.Tick(200);Check(s.Tick(8100).Stop && s.Explorer.Describe(107,s.Map.Live.exits[0]).Contains("door"),"locked door caused endless waiting or pushing");
+            // King's hut: the trigger is BEFORE the closed curtain. Approach
+            // from this room and wait on the curtain, not the earlier trigger.
+            var hutExit=Exit(480,0,364);hutExit.position[1]=48;
+            hutExit.normal=new float[]{0,0,-1};hutExit.plane_d=364;hutExit.radius=71;hutExit.directional=-1;
+            var hut=Room(48,1,hutExit);hut.Live.player.position=new float[]{0,0,291};
+            hut.Live.actors=new[]{new MapActor{address=4800,position=new float[]{0,9,390}}};
+            var curtain=new MapCollisionModel{address=4800,enabled=true,lower=new float[]{-80,9,389},upper=new float[]{80,125,392}};
+            var curtainNode=new MapInteraction{address=4800,kind="gate",action="pass_door",position=new float[]{0,9,390},
+                status="opens_on_approach",access_known=true,access_allowed=true,approach_radius=90};
+            hut.Live.collision.models=new[]{curtain};hut.Live.progression.nodes=new[]{curtainNode};
+            var hutApproach=NavigationRoute.PlanExit(hut,hutExit);
+            var hutWait=hutApproach.Points[hutApproach.Points.Count-1];
+            Check(hutApproach.ApproachOnly&&hutWait.Z<369&&hutWait.Z>312,
+                "trigger in front of curtain sent approach to its far side or outside opening radius");
+            Check(hutApproach.CheckRemaining(hut,0)==null,"curtain approach crossed closed collision");
+            Check(!hutApproach.GateCleared(hut),"trigger before curtain falsely proved passage was clear");
+            curtain.lower[1]=40;curtain.upper[1]=156;
+            Check(!hutApproach.GateCleared(hut),"partially raised curtain admitted player without headroom");
+            curtain.lower[1]=100;curtain.upper[1]=216;
+            Check(hutApproach.GateCleared(hut),"raised curtain did not clear the stored doorway");
+            hut.Live.player.position=new[]{hutWait.X,hutWait.Y,hutWait.Z};
+            var hutCross=NavigationRoute.PlanExit(hut,hutExit);
+            var hutEnd=hutCross.Points[hutCross.Points.Count-1];
+            Check(!hutCross.ApproachOnly&&hutEnd.Z>372&&hutEnd.Z<410,"opened curtain did not route through live exit sphere");
+            curtain.lower[1]=9;curtain.upper[1]=125;
+            hut.Live.player.position=new float[]{0,0,480};
+            hutExit.position[2]=416;hutExit.normal[2]=1;hutExit.plane_d=-416;
+            var reverseCurtain=NavigationRoute.PlanExit(hut,hutExit);
+            Check(reverseCurtain.ApproachOnly&&reverseCurtain.Points[reverseCurtain.Points.Count-1].Z>412,
+                "opposite side of curtain used the wrong approach face");
+            // A sideways opening keeps the probe anchored to the original
+            // doorway instead of following the moving door model.
+            curtain.lower[0]+=200;curtain.upper[0]+=200;
+            Check(reverseCurtain.GateCleared(hut),"clearance probe followed a sliding door away from its opening");
+            curtain.lower[0]-=200;curtain.upper[0]-=200;
+            curtainNode.access_allowed=false;curtainNode.status="key_missing";curtainNode.requirement="Yellow key";
+            bool hutLocked=false;try{NavigationRoute.PlanExit(hut,hutExit);}catch(InvalidDataException e){hutLocked=e.Message.Contains("Yellow key");}
+            Check(hutLocked,"curtain approach bypassed a real key requirement");
             s=new Simulation(Room(109,1,good));s.Tick(0);s.Block("terrain");s.Map.Live.navigation_ai.manual_inputs++;
             Check(s.Tick(750).Stop && !s.Explorer.Running,"manual input during recovery was ignored");
             s=new Simulation(Room(110,1,good));s.Tick(0);s.Block("terrain");s.Explorer.Stop("user stopped");

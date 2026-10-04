@@ -450,3 +450,28 @@ The inventory preview retains recognized unowned items as dim tiles and omits
 unnamed storage bits. Overlapping inactive exit labels no longer obscure the
 active map label; all variants remain in the interaction list. ROM-derived
 snapshots, captures, and paired executables remain private.
+
+### Hut curtain return route (2026-10-04)
+
+The King's hut (room 48) places its exit trigger in front of the curtain.
+The old approach calculation assumed the trigger was beyond the door and
+targeted the far side of its closed collision, leaving the explorer stopped.
+Door approaches now choose the player's side of the doorway independently
+of trigger placement. Clearance observation stays anchored to the original
+doorway while its collision moves, so a trigger before a closed curtain
+cannot falsely prove passage is clear.
+
+The launcher passes 430 checks and 12 setup checks. Added synthetic coverage
+checks both approach sides, opening-radius reach, body clearance, partial
+lifts, sideways opening, crossing the real trigger volume and rejection of
+a missing key. The recorded room-48 stop now yields a collision-checked
+approach instead of the former route failure.
+
+A muted native trial used separate save copies and the production explorer:
+tutorial 92 -> Goldwood 47 -> King's hut 48 -> Goldwood 47. From the hut's
+actual entry position, it approached the curtain, observed clearance,
+continued through the exit and confirmed room 47. Game and observer both
+exited with code 0; source save hashes were unchanged. This verifies the
+reported hut return. It does not establish full-campaign completion or
+resolve the separately documented chest/dialogue interruptions. Private
+snapshots, copied saves and native trial evidence remain outside the repo.
