@@ -518,3 +518,10 @@ target_link_libraries(jfg_sound_queue_recovery_tests PRIVATE jfg_boot)
 target_compile_features(jfg_sound_queue_recovery_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_sound_queue_recovery_tests)
 add_test(NAME jfg.sound_queue_recovery COMMAND jfg_sound_queue_recovery_tests)
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME jfg.rt64_shader_dependencies
+    COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/test_rt64_shader_dependencies.py"
+        --cmake "${CMAKE_COMMAND}" --generator "${CMAKE_GENERATOR}"
+        --make-program "${CMAKE_MAKE_PROGRAM}"
+        --work-root "${CMAKE_CURRENT_BINARY_DIR}/shader-fixtures")

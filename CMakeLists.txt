@@ -183,8 +183,14 @@ if(JFG_ENABLE_RT64)
     set(RT64_STATIC ON CACHE BOOL "Build RT64 as a static library" FORCE)
     set(ZSTD_BUILD_TESTS OFF CACHE BOOL
         "Do not register dependency-owned Zstd tests" FORCE)
+    # Extend shader dependencies in RT64's directory without modifying its checkout.
+    set(jfg_saved_rt64_project_include "${CMAKE_PROJECT_rt64_INCLUDE}")
+    list(APPEND CMAKE_PROJECT_rt64_INCLUDE
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/rt64_shader_dependencies.cmake")
     add_subdirectory("${jfg_rt64_root}"
         "${CMAKE_CURRENT_BINARY_DIR}/_deps/rt64-build" EXCLUDE_FROM_ALL)
+    set(CMAKE_PROJECT_rt64_INCLUDE "${jfg_saved_rt64_project_include}")
+    unset(jfg_saved_rt64_project_include)
 
     # The pinned transform uploader treats the mere existence of a previous
     # game frame as proof that every current workload was matched to it. On a

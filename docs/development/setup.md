@@ -68,3 +68,20 @@ python scripts/check_repository_hygiene.py --history
 [CI](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml)
 records the exact checks used for public pull requests. See
 [test quarantine](../tests/quarantine.md) for the documented Linux test exclusion.
+
+## RT64 shader header changes
+
+The pinned RT64 build originally tracked shader entry files but omitted their
+shared include files. Following [Luke Deardoff's report in issue #4](https://github.com/TK22-26/JetForceGemini-Recomp/issues/4#issuecomment-5985126218),
+the host build now adds the shared .h and shader .hlsli dependency set
+to the existing shader-generation commands. It leaves the upstream checkout
+and shader contents unchanged. A header edit conservatively rebuilds shader
+outputs; unchanged builds remain incremental. Added headers are discovered
+at build time.
+
+The jfg.rt64_shader_dependencies test uses synthetic files to check shared,
+nested and newly added headers, downstream generated files, and unchanged
+builds. It exercises DXIL, SPIR-V, Metal's shared SPIR-V input, and preprocessed
+shader-source rules without requiring a ROM or shader compiler. Keep its
+Visual Studio fixture under the build tree: MSBuild excludes the Windows
+temporary-file directory from dependency tracking.
