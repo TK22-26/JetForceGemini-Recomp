@@ -1,21 +1,19 @@
-# Patch Categories
+# Patches
 
-Handwritten game patches are not part of the Phase 2 skeleton. When patches
-begin, each must have a validated manifest and belong to exactly one category:
+The [N64Recomp patch series](n64recomp/README.md) supports local generation.
+`scripts/apply_n64recomp_patchset.py` applies the maintained series to its
+pinned upstream revision. Retain patch ordering and upstream license notices.
 
-- `required`
-- `compatibility`
-- `widescreen`
-- `hfr`
-- `input`
-- `save`
-- `fix`
-- `mod`
-- `debug`
+`rt64/`, `plume/`, and `cic/` retain notices for third-party material used in
+the project. See [third-party notices](../THIRD_PARTY_NOTICES.md).
 
-Every manifest records the original behavior, a non-copying upstream evidence
-reference, an accountable owner, tests, and rollback. Enhancement categories
-(`widescreen`, `hfr`, `input`, `mod`, and `debug`) require a nonempty feature
-flag; they cannot silently alter the compatibility baseline.
+## Game patch manifests
 
-Compatibility and enhancement changes may not share a pull request.
+The manifest schema supports `required`, `compatibility`, `widescreen`, `hfr`,
+`input`, `save`, `fix`, `mod`, and `debug` categories. Each patch records original
+behavior, supporting evidence, owner, tests, and rollback.
+
+Enhancements require explicit feature flags and must preserve the compatibility
+baseline. Keep compatibility fixes and enhancements in separate pull requests.
+The [example manifest](../examples/patch-manifest.example.json) is a validation
+fixture, not a shipped game patch.

@@ -1,6 +1,6 @@
 # ADR 0002: Orthogonal execution profiles and deterministic test backend
 
-- Status: Accepted for Phase 0; backend implementation pending
+- Status: Accepted execution-profile contract; implementation coverage is recorded in the development dashboard
 - Date: 2026-08-03
 - Decision owners: Human maintainers for scheduler and hash semantics
 - Supersedes: The three mutually exclusive modes described by the initial plan

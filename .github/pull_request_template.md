@@ -1,18 +1,17 @@
-## What changed
+## Problem
 
-## Why
+Describe the problem and link its issue, if any.
 
-## Evidence
+## Change
 
-- [ ] ROM-free build passes.
-- [ ] Focused tests pass.
-- [ ] `python scripts/validate_project.py` passes.
-- [ ] `python scripts/check_repository_hygiene.py --history` passes.
+Explain the resulting behavior and keep the scope focused.
 
-## Data and licensing
+## Validation
 
-- [ ] No ROM-derived expressive material, private data, local paths, or secrets.
-- [ ] No unlicensed upstream material was copied.
-- [ ] Third-party changes and generated changes are isolated and identified.
+List the checks you ran and their results, plus anything you could not verify.
+For documentation, check links and formatting. For behavior changes, include
+the relevant build/tests and regression coverage. See CONTRIBUTING.md.
 
-## Risk and rollback
+## Remaining concerns
+
+Mention limitations, compatibility risks, or follow-up work when applicable.
