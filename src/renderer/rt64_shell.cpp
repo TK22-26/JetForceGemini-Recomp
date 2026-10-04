@@ -319,6 +319,7 @@ struct Rt64Shell::Impl {
     bool initialized = false;
     bool setup_started = false;
     bool cpu_writeback = false;
+    bool cpu_mask_writeback = false;
     bool writeback_pending = false;
     std::vector<Rt64RdramRange> writeback_ranges;
     std::uint64_t last_rdram_check_microseconds = 0U;
@@ -414,10 +415,12 @@ Rt64ShellError commit_rt64_rdram_ranges(
     const std::span<const std::byte> submitted,
     const std::span<const std::byte> rendered,
     const std::span<std::byte> live,
-    const std::span<const Rt64RdramRange> ranges) noexcept {
+    const std::span<const Rt64RdramRange> ranges,
+    const std::span<std::byte> previous_source) noexcept {
     if (submitted.size() != kRt64RequiredRdramBytes ||
         rendered.size() != submitted.size() || live.empty() ||
-        live.size() > submitted.size() || live.size() % 4U != 0U)
+        live.size() > submitted.size() || live.size() % 4U != 0U ||
+        (!previous_source.empty() && previous_source.size() != submitted.size()))
         return Rt64ShellError::invalid_memory;
     for (const auto range : ranges) {
         if (range.begin >= range.end || range.end > live.size())
@@ -428,8 +431,11 @@ Rt64ShellError commit_rt64_rdram_ranges(
         }
     }
     for (const auto range : ranges)
-        for (std::size_t address = range.begin; address < range.end; ++address)
+        for (std::size_t address = range.begin; address < range.end; ++address) {
             live[address ^ 3U] = rendered[address ^ 3U];
+            if (!previous_source.empty())
+                previous_source[address ^ 3U] = rendered[address ^ 3U];
+        }
     return Rt64ShellError::none;
 }
 
@@ -580,6 +586,7 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
         auto impl = std::make_unique<Impl>();
         impl->developer_mode = configuration.developer_mode;
         impl->cpu_writeback = configuration.cpu_writeback;
+        impl->cpu_mask_writeback = configuration.cpu_mask_writeback;
         for (std::size_t index = 0U; index < impl->header.size(); ++index) {
             impl->header[index] = std::to_integer<std::uint8_t>(
                 configuration.rom_header[index]);
@@ -709,13 +716,18 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
         if (!impl_->f3ddkr->complete()) {
             return Rt64ShellError::unsupported_commands;
         }
-        if (impl_->cpu_writeback) {
+        if (impl_->cpu_writeback || impl_->cpu_mask_writeback) {
             // RT64's render-to-RAM full sync has finished its readback here.
             // Own whole touched framebuffer extents, including unchanged
             // pixels, so same-value GPU writes cannot hide CPU conflicts.
             for (const auto& [address, framebuffer] : application.state->framebufferManager.framebuffers) {
                 (void)address;
-                if (framebuffer.lastWriteTimestamp > previous_write) {
+                const bool cpu_mask =
+                    framebuffer.lastWriteType == RT64::Framebuffer::Type::Color &&
+                    framebuffer.lastWriteFmt == G_IM_FMT_I &&
+                    framebuffer.siz == G_IM_SIZ_8b;
+                if (framebuffer.lastWriteTimestamp > previous_write &&
+                    (impl_->cpu_writeback || cpu_mask)) {
                     impl_->writeback_ranges.push_back(
                         {framebuffer.addressStart, framebuffer.addressEnd});
                 }
@@ -732,11 +744,13 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
 Rt64ShellError Rt64Shell::commit_cpu_writeback(
     const std::span<const std::byte> submitted,
     const std::span<std::byte> live) noexcept {
-    if (impl_ == nullptr || !impl_->initialized || !impl_->cpu_writeback ||
+    if (impl_ == nullptr || !impl_->initialized ||
+        !(impl_->cpu_writeback || impl_->cpu_mask_writeback) ||
         !impl_->writeback_pending)
         return Rt64ShellError::not_initialized;
     const auto result = commit_rt64_rdram_ranges(submitted,
-        std::as_bytes(std::span(impl_->rdram)), live, impl_->writeback_ranges);
+        std::as_bytes(std::span(impl_->rdram)), live, impl_->writeback_ranges,
+        std::as_writable_bytes(std::span(impl_->simulation_rdram)));
     if (result == Rt64ShellError::none) {
         impl_->writeback_pending = false;
         impl_->writeback_ranges.clear();

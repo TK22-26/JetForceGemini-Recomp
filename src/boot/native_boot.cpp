@@ -3614,7 +3614,7 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
            reinterpret_cast<const std::byte *>(state.rom),
            jfg::kRt64RequiredHeaderBytes),
        state.rt64_rdram, &state.rt64_vi, false,
-       jfg::Rt64MemoryLayout::host_word_swapped, state.renderer_writeback_probe},
+       jfg::Rt64MemoryLayout::host_word_swapped, state.renderer_writeback_probe, true},
       error);
   std::fflush(stdout);
   (void)_dup2(saved_stdout, _fileno(stdout));
@@ -4602,7 +4602,9 @@ void complete_pending_live_graphics_tasks(
         pending.rdram, jfg::Rt64MemoryLayout::host_word_swapped);
     if (state.last_rt64_error == jfg::Rt64ShellError::none)
       state.last_rt64_error = state.rt64_shell->submit(pending.task);
-    if (state.last_rt64_error == jfg::Rt64ShellError::none && state.renderer_writeback_probe)
+    // Return completed intensity masks before delivering DP/SP completion:
+    // the guest blurs and attenuates its shadow mask on the CPU.
+    if (state.last_rt64_error == jfg::Rt64ShellError::none)
       state.last_rt64_error = state.rt64_shell->commit_cpu_writeback(pending.rdram,
           std::as_writable_bytes(std::span(state.rdram, kRdramSize)));
     const jfg::Rt64GraphicsDiagnostics submission_graphics =

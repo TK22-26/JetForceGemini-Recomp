@@ -51,10 +51,14 @@ failure with the location and reproduction steps using the
 
 ## Player shadow darkness
 
-A maintainer reports that the shadow beneath the playable character looks
-darker than on an N64 and emulator (2026-10-04). This is pending a matched
-scene comparison and renderer investigation; no shadow correction has been
-validated yet.
+The native renderer retained a raw player silhouette because its offscreen
+intensity buffer was not returned to game memory. The game's CPU blur and
+opacity reduction therefore read an empty buffer. Current development builds
+return these masks before task completion and preserve subsequent CPU edits.
+A copied-save Juno test in the tutorial confirmed the processed opacity range
+against Angrylion and exited cleanly. See [the renderer fix and validation
+scope](development/boot-gameplay-fix.md#player-shadow-cpu-postprocessing).
+Older builds need rebuilding; full-campaign shadow accuracy remains unverified.
 
 ## Support reports
 

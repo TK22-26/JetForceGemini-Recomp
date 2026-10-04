@@ -233,3 +233,40 @@ Private before/after replays use identical saved progress and controller input:
 Raw screenshots, generated mesh data, saves, traces and binaries remain private.
 These checks cover the reported screens and retained regression recordings;
 campaign-wide rendering parity remains unverified.
+
+
+## Player shadow CPU postprocessing
+
+The game renders a small intensity silhouette, then reads that image on the
+CPU to blur it and reduce its opacity before using it as an intensity/alpha
+texture. Normal native play kept the rendered image in RT64's private RDRAM;
+only the optional all-framebuffer diagnostic returned GPU writes to game
+memory. The CPU therefore processed zeros while the renderer kept displaying
+the raw, much darker silhouette.
+
+Normal play now commits completed 8-bit intensity color buffers to guest RAM
+before delivering graphics task completion. Main color and depth buffers stay
+private. The existing ownership check rejects intervening CPU writes before
+any range is committed. Committed pixels also update the snapshot comparison
+baseline, so a subsequent CPU edit back to zero replaces the renderer's old
+pixel instead of being mistaken for unchanged input. The original game
+performs the blur and opacity reduction; there is no new shadow-opacity preset.
+
+Validation on 2026-10-04:
+
+- Built the release native runtime and passed the renderer regression tests.
+  Added GPU-to-CPU-to-GPU mask coverage, including edits back to zero,
+  unrelated framebuffer preservation, invalid tracking memory and atomic
+  rejection of conflicting CPU writes.
+- Booted a copy of the navigation save into Juno's tutorial landing room.
+  Twelve live memory samples contained the processed mask with values 0
+  through 8. A fresh Angrylion/LLE boot of the same room also produced that
+  range; the previous native renderer retained raw silhouette values 0 and
+  142. Idle animation phases differ, so this is not a pixel-identical replay.
+- The muted native trial reached gameplay and closed normally. Original save
+  hashes were unchanged. Private captures retain the before/after render and
+  the emulator reference.
+
+This check covers the reported Juno shadow in the supported US build.
+Other characters and full-campaign rendering parity remain unverified.
+ROM-derived images, memory captures and executables remain private.
