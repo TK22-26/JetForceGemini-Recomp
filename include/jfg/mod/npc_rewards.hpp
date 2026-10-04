@@ -60,27 +60,24 @@ struct NpcFacts {
   }
 };
 inline std::string npc_item_name(int id) {
-  switch (id) {
-  case 1:
-    return "Red key";
-  case 16:
-    return "Miner magazine";
-  case 17:
-    return "Mine key";
-  case 20:
-    return "Pants";
-  case 21:
-    return "Crowbar";
-  case 22:
-    return "Night vision goggles";
-  case 23:
-    return "Gold coin 1";
-  case 24:
-    return "Gold coin 2";
-  case 25:
-    return "Gold coin 3";
-  default:
-    return "Quest item " + std::to_string(id);
+  switch(id) {
+  case 0: return "Yellow key";
+  case 1: return "Red key";
+  case 2: return "Magenta key";
+  case 3: return "Green key";
+  case 9: return "Blue key";
+  case 10: return "Tri-rocket key";
+  case 16: return "Specialist magazine";
+  case 17: return "Mine key";
+  case 20: return "Pants";
+  case 21: return "Crowbar";
+  case 22: return "Night vision goggles";
+  case 23: return "Gold bar 3";
+  case 24: return "Gold bar 2";
+  case 25: return "Gold bar 1";
+  case 26: return "Ear plugs";
+  case 27: return "Arcade chip";
+  default: return "Quest item " + std::to_string(id);
   }
 }
 inline std::string npc_flag_name(int id) {
@@ -95,6 +92,12 @@ inline std::string npc_flag_name(int id) {
     return "Cargo bay key";
   case 36:
     return "Deflector shield";
+  case 37: return "Fuse";
+  case 38: return "Vela's hatch key";
+  case 39: return "Juno's hatch key";
+  case 40: return "Lupus's hatch key";
+  case 41: return "Nitrogen tank";
+  case 42: return "Oxygen tank";
   case 43:
     return "Stabilizer";
   case 88:

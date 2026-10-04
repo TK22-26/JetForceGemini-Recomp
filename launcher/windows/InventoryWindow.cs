@@ -20,7 +20,7 @@ namespace JfgLauncher {
                 throw new InvalidDataException("Inventory telemetry is incomplete.");
             bool[] seen=new bool[3];
             foreach(var c in characters) {
-                if(c==null||c.id<0||c.id>2||seen[c.id]||c.weapons<0||c.weapons>65535||c.items==null||c.items.Length!=27)
+                if(c==null||c.id<0||c.id>2||seen[c.id]||c.weapons<0||c.weapons>65535||c.items==null||(c.items.Length!=27&&c.items.Length!=28))
                     throw new InvalidDataException("Invalid character inventory.");
                 seen[c.id]=true;
             }
@@ -81,18 +81,18 @@ namespace JfgLauncher {
     internal sealed class InventoryCanvas:ScrollableControl {
         internal CharacterInventory Value;
         internal bool[] Shared;
-        private static readonly string[] weapons={"Pistol","Homing missiles","Machine gun","Shotgun","Shrink ray","Rocket launcher","Flamethrower","Grenades","Shurikens","Fish food","Proximity mines","Timed mines","Remote mines","Flares","Cluster bombs"};
-        private static readonly string[] parts={"Power cell","Radar dish","Fin","Cargo bay key","Deflector shield","Ship part 37","Ship part 38","Ship part 39","Ship part 40","Ship part 41","Ship part 42","Stabilizer"};
+        internal static readonly string[] weapons={"Pistol", "Homing missiles", "Machine gun", "Plasma shotgun", "Shocker", "Tri-rocket launcher", "Flamethrower", "Sniper rifle", "Grenades", "Shurikens", "Fish Food", "Timed mines", "Remote mines", "Flares", "Cluster bombs"};
+        private static readonly string[] parts={"Power cell", "Radar dish", "Fin", "Cargo bay key", "Deflector shield", "Fuse", "Vela's hatch key", "Juno's hatch key", "Lupus's hatch key", "Nitrogen tank", "Oxygen tank", "Stabilizer"};
         internal InventoryCanvas(){DoubleBuffered=true;AutoScroll=true;BackColor=Color.FromArgb(15,25,34);}
-        private static string Item(int id) {
-            switch(id){case 1:return "Red key";case 16:return "Miner magazine";case 17:return "Mine key";case 20:return "Pants";case 21:return "Crowbar";case 22:return "Night vision";case 23:return "Gold coin 1";case 24:return "Gold coin 2";case 25:return "Gold coin 3";default:return "Item "+id+" (unidentified)";}
+        internal static string Item(int id) {
+            switch(id){case 0:return "Yellow key";case 1:return "Red key";case 2:return "Magenta key";case 3:return "Green key";case 9:return "Blue key";case 10:return "Tri-rocket key";case 16:return "Specialist magazine";case 17:return "Mine key";case 20:return "Pants";case 21:return "Crowbar";case 22:return "Night vision goggles";case 23:return "Gold bar 3";case 24:return "Gold bar 2";case 25:return "Gold bar 1";case 26:return "Ear plugs";case 27:return "Arcade chip";default:return "Unmapped bit "+id;}
         }
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);var g=e.Graphics;
             int columns=Math.Max(3,(ClientSize.Width-28)/138),width=Math.Max(100,(ClientSize.Width-28)/columns),y=16+AutoScrollPosition.Y;
             if(Value==null){TextRenderer.DrawText(g,"Inventory appears when a game is loaded.",Font,new Point(16,y),Color.Silver);return;}
             DrawGroup(g,"WEAPONS",weapons,delegate(int i){return (Value.weapons&(1<<i))!=0;},columns,width,ref y);
-            var labels=new string[27];for(int i=0;i<labels.Length;i++)labels[i]=Item(i);
+            var labels=new string[Value.items.Length];for(int i=0;i<labels.Length;i++)labels[i]=Item(i);
             DrawGroup(g,"KEYS & QUEST ITEMS",labels,delegate(int i){return Value.items[i];},columns,width,ref y);
             DrawGroup(g,"SHIP PARTS · SHARED",parts,delegate(int i){return Shared!=null&&Shared[i];},columns,width,ref y);
             int height=y-AutoScrollPosition.Y;

@@ -476,11 +476,7 @@ struct ItemMarker {
 };
 // Weapon indices used by the inventory and weapon-pickup controller.
 inline const char *weapon_name(unsigned index) {
-  constexpr std::array<const char *, 15> names = {
-      "Pistol",       "Homing missiles", "Machine gun",     "Shotgun",
-      "Shrink ray",   "Rocket launcher", "Flamethrower",    "Grenades",
-      "Shurikens",    "Fish food",       "Proximity mines", "Timed mines",
-      "Remote mines", "Flares",          "Cluster bombs"};
+  constexpr std::array<const char *, 15> names = {"Pistol", "Homing missiles", "Machine gun", "Plasma shotgun", "Shocker", "Tri-rocket launcher", "Flamethrower", "Sniper rifle", "Grenades", "Shurikens", "Fish Food", "Timed mines", "Remote mines", "Flares", "Cluster bombs"};
   return index < names.size() ? names[index] : "Unknown weapon";
 }
 inline std::vector<ItemMarker> item_markers(const Memory &m,
@@ -632,7 +628,7 @@ inline void write_inventory_tracker(std::ostream &out,const Memory &m,std::uint3
       if(c)out<<',';
       const auto saved=game+0x15CU+c*0x76U;
       out<<"{\"id\":"<<c<<",\"weapons\":"<<m.u16(saved+0xAU)<<",\"items\":[";
-      for(unsigned i=0;i<27;++i){if(i)out<<',';out<<((facts.items[c][i>>3]&(0x80U>>(i&7)))?"true":"false");}
+      for(unsigned i=0;i<28;++i){if(i)out<<',';out<<((facts.items[c][i>>3]&(0x80U>>(i&7)))?"true":"false");}
       out<<"]}";
     }
     out<<"],\"shared\":[";

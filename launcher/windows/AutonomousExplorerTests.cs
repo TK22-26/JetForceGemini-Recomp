@@ -66,6 +66,10 @@ namespace JfgLauncher {
             Check(command.Stop&&!explorer.Running,"manual input cancels unified system");
             var inventory=new InventoryTracker{known=true,current=1,shared=new bool[12],characters=new[]{
                 new CharacterInventory{id=0,items=new bool[27]},new CharacterInventory{id=1,items=new bool[27],weapons=13},new CharacterInventory{id=2,items=new bool[27]}}};
+            Check(InventoryCanvas.weapons[7]=="Sniper rifle"&&InventoryCanvas.weapons[10]=="Fish Food","weapon bit positions mislabeled");
+            Check(InventoryCanvas.Item(9)=="Blue key"&&InventoryCanvas.Item(26)=="Ear plugs"&&InventoryCanvas.Item(27)=="Arcade chip","big-endian item bit labels");
+            inventory.Validate(); // Older 27-bit exports remain readable.
+            inventory.characters[1].items=new bool[28];inventory.characters[1].items[27]=true;inventory.Validate();
             using(var window=new InventoryWindow(Path.GetTempPath())) {
                 window.Apply(inventory,true);Check(window.SelectedCharacter==1,"inventory selects Juno's actual ID 1");
                 inventory.current=0;window.Apply(inventory,true);Check(window.SelectedCharacter==0,"inventory follows Vela ID 0");

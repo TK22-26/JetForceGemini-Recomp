@@ -242,7 +242,7 @@ int main(int argc, char **argv) {
     put32(chest + 0x68U, chest_control);
     std::vector<Actor> chest_list{{chest, 98U, {10, 20, 30}}};
     auto items = item_markers(m, chest_list);
-    check(items.size() == 1U && items[0].label == "Chest: Shotgun" &&
+    check(items.size() == 1U && items[0].label == "Chest: Plasma shotgun" &&
           !items[0].opened);
     put8(chest_control + 4U, 5U);
     items = item_markers(m, chest_list);
@@ -391,6 +391,7 @@ int main(int argc, char **argv) {
     std::vector<Actor> progression_list{{player, 1U, {1, 2, 3}},
                                         {guide, 90U, {20, 30, 40}}};
     const auto before_progression = bytes;
+    check(std::string(weapon_name(7))=="Sniper rifle"&&std::string(weapon_name(10))=="Fish Food");
     auto inv = inventory(m, player);
     check(inv.known && inv.character == 1U && !inv.red_key &&
           inv.magnus_spoken && inv.weapons == 4U);
