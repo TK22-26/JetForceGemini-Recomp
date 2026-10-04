@@ -108,6 +108,7 @@ namespace JfgLauncher
     [DataContract] internal sealed class MapInteraction
     {
         [DataMember] public MapChestAccess activation=null;
+        [DataMember] public float talk_radius=0,talk_lower=0,talk_upper=0;
         [DataMember] public uint address = 0, linked_actor = 0;
         [DataMember] public float[] position = null;
         [DataMember] public string kind = "", label = "", action = "", status = "";
@@ -212,6 +213,8 @@ namespace JfgLauncher
         [DataMember] public MapMarker[] markers = null;
         [DataMember] public MapMarker[] npcs = null;
         [DataMember] public MapProgression progression = null;
+        [DataMember] public MapDialogue dialogue=null;
+        [DataMember] public InventoryTracker inventory_tracker=null;
         [DataMember] public MapAi navigation_ai = null;
         [DataMember] public MapActor[] actors = null;
         [DataMember] public MapCollision collision = null;
@@ -271,6 +274,7 @@ namespace JfgLauncher
                 live.generation != mesh.generation || live.level != mesh.level)
                 throw new InvalidDataException("Room is changing...");
             Point(live.player.position);
+            if(live.dialogue!=null)live.dialogue.Validate();
             if(live.player.yaw.HasValue&&(live.player.yaw.Value< -32768||live.player.yaw.Value>32767))throw new InvalidDataException("Invalid player facing.");
             if(live.actors==null)live.actors=new MapActor[0];
             if(live.actors.Length>1024)throw new InvalidDataException("Too many entities.");
@@ -504,7 +508,7 @@ namespace JfgLauncher
         private readonly Label inventoryStatus = new Label { Dock = DockStyle.Top, Height = 68, Padding = new Padding(8) };
         private readonly ListBox interactionList = new ListBox { Dock = DockStyle.Top, Height = 170, HorizontalScrollbar = true };
         private readonly TextBox interactionDetails = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BorderStyle = BorderStyle.None, BackColor = SystemColors.Control };
-        private NavigationExplorer explorer = new NavigationExplorer();
+        private AutonomousExplorer explorer = new AutonomousExplorer(null,new NavigationExplorer());
         private string explorerError;
         private uint selectedEntity;
         private void EntityDetails(MapSnapshot value) {
@@ -521,7 +525,7 @@ namespace JfgLauncher
         private readonly Label aiStatus = new Label { Text = "AI off - select an exit and plan a candidate route", AutoSize = true };
         private void StopAi() {
             explorer.Stop("Explorer stopped");StopPilot();
-            if(directory!=null)try {File.Delete(Path.Combine(directory,"ai-confirm.txt"));}catch(IOException){}catch(UnauthorizedAccessException){}
+            if(directory!=null)try {File.Delete(Path.Combine(directory,"ai-confirm.txt"));File.Delete(Path.Combine(directory,"ai-dialogue.txt"));}catch(IOException){}catch(UnauthorizedAccessException){}
             aiStatus.Text="AI stopped";
         }
         private void StopPilot() {
@@ -649,18 +653,33 @@ namespace JfgLauncher
             Button startAi = new Button { Text = "Start AI", AutoSize = true };
             Button stopAi = new Button { Text = "Stop AI", AutoSize = true };
             Button explore = new Button { Text = "Explore automatically", AutoSize = true };
+            var aiControls=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Width=170};
+            aiControls.Items.AddRange(new object[]{"Normal (C-Up jump)","Expert (A jump)"});aiControls.SelectedIndex=0;
             Button retry = new Button {Text="Retry room exits",AutoSize=true};
             bar.SetFlowBreak(context, true);
             bar.SetFlowBreak(bar.Controls[bar.Controls.Count-1],true);
             aiStatus.MaximumSize=new Size(980,0);
-            bar.Controls.Add(planAi);bar.Controls.Add(startAi);bar.Controls.Add(stopAi);bar.Controls.Add(explore);bar.Controls.Add(retry);bar.Controls.Add(jumpAssist);
+            bar.Controls.Add(planAi);bar.Controls.Add(startAi);bar.Controls.Add(stopAi);bar.Controls.Add(explore);bar.Controls.Add(aiControls);bar.Controls.Add(retry);bar.Controls.Add(jumpAssist);
             bar.SetFlowBreak(jumpAssist,true);bar.Controls.Add(aiStatus);
             Button boxJump=new Button {Text="Box jumping prototype",AutoSize=true};
             bar.Controls.Add(boxJump);
-            boxJump.Click+=delegate {StopAi();aiRoute=null;canvas.Route=null;new BoxJumpWindow(directory).ShowDialog(this);};
+            boxJump.Click+=delegate {StopAi();if(explorer.Busy)return;aiRoute=null;canvas.Route=null;new BoxJumpWindow(directory).ShowDialog(this);};
             Button chestTrial=new Button {Text="Weapon chest route",AutoSize=true};
             bar.Controls.Add(chestTrial);
-            chestTrial.Click+=delegate {StopAi();aiRoute=null;canvas.Route=null;new ChestTrialWindow(directory).ShowDialog(this);};
+            var inventory=new Button{Text="Live inventory",AutoSize=true};
+            InventoryWindow inventoryWindow=null;bar.Controls.Add(inventory);
+            inventory.Click+=delegate {
+                if(inventoryWindow==null||inventoryWindow.IsDisposed)inventoryWindow=new InventoryWindow(directory);
+                else inventoryWindow.BindDirectory(directory);
+                inventoryWindow.Show();inventoryWindow.BringToFront();
+            };
+            var advanced=new CheckBox{Text="Advanced individual tests",AutoSize=true};
+            bar.Controls.Add(advanced);
+            planAi.Visible=startAi.Visible=retry.Visible=jumpAssist.Visible=boxJump.Visible=chestTrial.Visible=false;
+            advanced.CheckedChanged+=delegate {
+                planAi.Visible=startAi.Visible=retry.Visible=jumpAssist.Visible=boxJump.Visible=chestTrial.Visible=advanced.Checked;
+            };
+            chestTrial.Click+=delegate {StopAi();if(explorer.Busy)return;aiRoute=null;canvas.Route=null;new ChestTrialWindow(directory).ShowDialog(this);};
 
             planAi.Click += delegate {
                 StopAi();
@@ -674,6 +693,7 @@ namespace JfgLauncher
                 }catch(InvalidDataException error){aiRoute=null;canvas.Route=null;aiStatus.Text=error.Message;}
             };
             startAi.Click += delegate {
+                if(explorer.Busy){aiStatus.Text="Wait for the current action to stop.";return;}
                 explorer.Stop("Explorer stopped for manual route");
                 if(aiRoute==null || aiSnapshot==null || !aiSnapshot.IsLive || !aiSnapshot.Live.clearing_active ||
                     aiRoute.Level!=aiSnapshot.Live.level || aiRoute.Generation!=aiSnapshot.Live.generation){aiStatus.Text="Plan a route in active gameplay first.";return;}
@@ -686,6 +706,7 @@ namespace JfgLauncher
                 StopAi();aiRoute=null;canvas.Route=null;
                 try {
                     if(explorerError!=null)throw new InvalidDataException(explorerError);
+                    explorer.JumpButton=aiControls.SelectedIndex==0?8:32768;
                     explorer.Start(aiSnapshot,NavigationExplorer.Clock);aiStatus.Text=explorer.Status;RefreshMap();
                 }catch(InvalidDataException error){aiStatus.Text=error.Message;}
             };
@@ -703,10 +724,10 @@ namespace JfgLauncher
         }
         internal void BindDirectory(string path) {
             StopAi();aiRoute=null;canvas.Route=null;selectedEntity=0;directory=LocalSetup.FullPath(path);cached=null;explorerError=null;
-            try { explorer=NavigationExplorer.Load(directory); }
+            try { explorer=AutonomousExplorer.Load(directory); }
             catch(Exception error) {
                 if(!(error is IOException) && !(error is UnauthorizedAccessException))throw;
-                explorer=new NavigationExplorer();explorerError="Cannot load exploration history: "+error.Message;aiStatus.Text=explorerError;
+                explorer=new AutonomousExplorer(directory,new NavigationExplorer());explorerError="Cannot load exploration history: "+error.Message;aiStatus.Text=explorerError;
             }
             canvas.UpdateMap(null);UpdateInteractions(null);RefreshMap();
         }

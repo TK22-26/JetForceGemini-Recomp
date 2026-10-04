@@ -1868,6 +1868,25 @@ void sample_live_controller(State &state) noexcept {
       buttons = ai.buttons; stick_x = ai.x; stick_y = ai.y;
     }
     if (state.controller_samples % 6U == 0U) {
+      jfg::mod::Memory memory({state.rdram,kRdramSize});
+      const auto base=section_addresses!=nullptr?static_cast<std::uint32_t>(section_addresses[7U]):0U;
+      const auto dialogue=jfg::mod::read_dialogue(memory,base);
+      if(dialogue.known&&dialogue.active) {
+        state.navigation_mod.pilot.stop("dialogue_active");
+        if(!manual&&!state.input_replay_loaded){buttons=0;stick_x=stick_y=0;}
+      }
+      std::ifstream request(state.navigation_output/L"ai-dialogue.txt",std::ios::binary|std::ios::ate);
+      if(request&&request.tellg()<=256) {
+        request.seekg(0);
+        const auto now=std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::system_clock::now().time_since_epoch()).count();
+        const int input=state.navigation_mod.dialogue_input.command(request,dialogue,manual,
+          state.input_replay_loaded,memory.u32(0x800FB114U),state.navigation_mod.generation,
+          state.navigation_mod.manual_inputs,now);
+        if(input!=0){buttons=input==1?kButtonA:0;stick_x=0;stick_y=input==2?60:input==3?-60:0;}
+      }
+    }
+    if (state.controller_samples % 6U == 0U) {
       const auto path = state.navigation_output / L"ai-confirm.txt";
       std::ifstream command(path, std::ios::binary | std::ios::ate);
       if (command && command.tellg() <= 256) {
@@ -2118,6 +2137,7 @@ bool write_mod_export(const std::filesystem::path &path, const std::string &text
 void update_navigation_mod(State &state) {
   if(!state.navigation_mod.enabled)return;
   auto &mod=state.navigation_mod;
+  mod.hint_base=section_addresses!=nullptr?static_cast<std::uint32_t>(section_addresses[7U]):0U;
   jfg::mod::Memory memory({state.rdram,kRdramSize});
   try {
     const auto list=jfg::mod::actors(memory);

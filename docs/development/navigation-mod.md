@@ -289,7 +289,7 @@ The game's **Area Cleared** prompt can be acknowledged automatically once
 per pending exit. This is a normal A-button pulse, permitted only while the
 supported US ROM's transition-prompt flag (0x800A329C) and pause-mode byte
 (0x800FD7BD) both equal one. Its transition update at 0x800468EC checks A/Start
-in that state. The host does not edit those game flags or advance NPC dialogue.
+in that state. The transition confirmer does not edit game flags. The separate autonomous dialogue controller described below can advance verified ready dialogue.
 The request is tied to room, generation, current manual-input counter, nonce
 and a 1.5-second expiry. Manual input and replay exclude acknowledgement.
 These state observations were checked against the pinned local decompilation's
@@ -585,3 +585,54 @@ after 1.5 seconds without a heartbeat and cannot rearm after completion or manua
 cancellation under the same nonce. The map client still checks body clearance,
 activation bounds, facing and the inventory result. These commands do not alter
 the game state directly.
+
+
+### Combined autonomous exploration (2026-10-04)
+
+Use a paired current launcher and native build. Select the game's Normal or
+Expert control scheme, then click **Explore automatically** in Live map.
+**Advanced individual tests** exposes the separate walking, jumping and chest
+controls. The combined coordinator owns the controller for one action at a
+time and retains directed exit history, arrival avoidance and the session limit.
+
+The coordinator interrupts walking for verified hinttext dialogue, advances
+ready text, and resumes from the observed position. It selects available NPC
+item, weapon and ship-part offers from the ROM-derived catalog, walks into the
+NPC's horizontal and vertical conversation bounds, follows known choice actions,
+and checks the ownership flag before resuming. This includes the red-key offer;
+a spoken flag alone is not completion. Paid services, unknown choices and
+unmet prerequisites do not receive arbitrary button presses.
+
+Unowned weapon chests use the shared walking/platform/opening executor. When
+surface exploration exhausts forward exits, an elevated forward exit can invoke
+the measured platform planner. Normal walking and lifting-door handling retain
+collision checks. Every supported landing is verified; known hang/grab entry
+flags stop an action because an automatic release has not been qualified.
+
+The native dialogue request is bound to the room, generation, manual-input
+counter, a short timestamp and the current ready-page fingerprint. Replays,
+manual input, scrolling text, stale pages and mismatched room state refuse it.
+Dialogue has a one-minute/64-input bound, individual actions have three minutes,
+and a combined session has fifteen minutes. Stop AI or manual input cancels;
+restart waits for the action worker to finish releasing control.
+
+Validation includes native memory-layout and stale/input/room rejection fixtures,
+launcher dialogue-choice tests, and coordinator tests for NPC reward to exit,
+forced dialogue interruption/resumption, and manual cancellation. The earlier
+shared chest runner was live-tested through SS Anubis's shotgun route. These
+checks do not establish a complete campaign playthrough: crawl clearance,
+shooting/explosive gates, arbitrary downward parkour, and unrecognized dialogue
+branches still require additional executors and live qualification.
+
+
+### Live inventory window
+
+**Live inventory** is available in the launcher and Live map. Juno, Vela and
+Lupus have separate tabs; **Follow active character** switches tabs when the
+game changes character. You can inspect another tab between character changes.
+The tracker shows all 15 weapon ownership bits, 27 quest-item bits per character,
+and 12 shared ship-part flags. Verified names are displayed; unidentified item
+and ship-part slots retain numeric labels. Bright tiles are owned, dim tiles are
+missing. These are original text tiles, with no bundled game artwork.
+Counts such as ammunition, health capacity and Tribal totals are not decoded
+by this first inventory view. Unknown/stale telemetry is labeled explicitly.

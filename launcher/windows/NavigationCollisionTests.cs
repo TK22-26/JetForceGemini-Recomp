@@ -116,6 +116,8 @@ namespace JfgLauncher {
             Write(folder,map);
             using(NavigationMapWindow window=new NavigationMapWindow(folder)) {
                 window.ShowInTaskbar=false;window.StartPosition=FormStartPosition.Manual;window.Location=new Point(-32000,-32000);window.Show();Application.DoEvents();
+                foreach(Control panel in window.Controls)foreach(Control control in panel.Controls)
+                    if(control is CheckBox&&control.Text=="Advanced individual tests")((CheckBox)control).Checked=true;
                 Button(window,"Plan exit route").PerformClick();Button(window,"Start AI").PerformClick();
                 string command=File.ReadAllText(Path.Combine(folder,"ai-command.txt"));string[] words=command.Split(new char[]{' ','\r','\n'},StringSplitOptions.RemoveEmptyEntries);
                 Check(Int32.Parse(words[6])>0,"UI did not dispatch collision-checked route");

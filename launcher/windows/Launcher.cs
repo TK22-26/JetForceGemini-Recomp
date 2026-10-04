@@ -403,6 +403,20 @@ namespace JfgLauncher
                 } catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
             };
             actions.Controls.Add(maps);
+            var inventoryButton=new Button{Text="Live inventory",Size=new Size(130,34)};
+            InventoryWindow inventoryWindow=null;
+            inventoryButton.Click+=delegate {
+                try {
+                    string root=Path.Combine(LocalSetup.NavigationProfile(LocalSetup.ProfileRoot),"maps");
+                    string[] sessions=Directory.Exists(root)?Directory.GetDirectories(root):new string[0];
+                    if(sessions.Length==0){status.Text="Launch with Navigation mod enabled to export live inventory.";return;}
+                    Array.Sort(sessions,StringComparer.Ordinal);
+                    if(inventoryWindow==null||inventoryWindow.IsDisposed)inventoryWindow=new InventoryWindow(sessions[sessions.Length-1]);
+                    else inventoryWindow.BindDirectory(sessions[sessions.Length-1]);
+                    inventoryWindow.Show();inventoryWindow.BringToFront();
+                }catch(Exception error){status.Text=LocalSetup.FriendlyError(error);}
+            };
+            actions.Controls.Add(inventoryButton);
             layout.Controls.Add(actions, 0, 10);
             AudioPreferences audio;
             try { audio = AudioPreferences.Load(LocalSetup.ProfileRoot); }

@@ -40,15 +40,143 @@ namespace JfgLauncher {
         private MapSnapshot map;
         private uint level;private long generation,nonce,started,manual;
         private bool bound;
+        private uint npcAddress;
+        private MapNpcOffer npcOffer;
+        private int dialogueSerial;
         internal ChestTrial(string path){directory=path;nonce=NavigationExplorer.Clock;}
-        private MapSnapshot Read() {
+        private MapSnapshot Raw() {
             if(Cancelled)throw new OperationCanceledException();
-            map=MapSnapshot.Load(directory,map==null?null:map.Mesh);BoxJumpPlanner.NeedLive(map);
-            if(bound&&(map.Live.level!=level||map.Live.generation!=generation))throw new InvalidDataException("Room changed; chest trial stopped.");
+            map=MapSnapshot.Load(directory,map==null?null:map.Mesh);
+            if(!map.IsLive)throw new InvalidDataException("Map updates stopped.");
+            if(bound&&(map.Live.level!=level||map.Live.generation!=generation))throw new InvalidDataException("Room changed during an action.");
             if(bound&&map.Live.navigation_ai!=null&&map.Live.navigation_ai.manual_inputs!=manual)
-                throw new InvalidDataException("Manual input detected; chest trial stopped.");
-            if(bound&&NavigationExplorer.Clock-started>180000)throw new InvalidDataException("Chest trial reached its three-minute limit.");
+                throw new InvalidDataException("Manual input detected; autonomous action stopped.");
+            if(bound&&NavigationExplorer.Clock-started>180000)throw new InvalidDataException("Action reached its three-minute limit.");
+            if(map.Live.player.motion!=null&&map.Live.player.motion.known&&
+               (map.Live.player.motion.hang_entry||map.Live.player.motion.grab_entry))
+                throw new InvalidDataException("Ledge grab detected; no verified release action.");
             return map;
+        }
+        private void Bind() {
+            Raw();level=map.Live.level;generation=map.Live.generation;started=NavigationExplorer.Clock;
+            manual=map.Live.navigation_ai==null?0:map.Live.navigation_ai.manual_inputs;bound=true;
+        }
+        private bool RewardOwned() {
+            if(npcOffer==null)return false;
+            var node=Find(npcAddress);
+            if(node.offers!=null)foreach(var value in node.offers)
+                if(value.action==npcOffer.action&&value.status=="owned")return true;
+            return false;
+        }
+        private void Dialogue() {
+            long deadline=NavigationExplorer.Clock+60000,nextInput=0;int inputs=0;
+            Report("Dialogue: waiting for ready text or the selected reward choice...");
+            while(NavigationExplorer.Clock<deadline) {
+                Raw();
+                if(!DialogueFlow.Active(map)) {
+                    if(map.Live.clearing_active){++dialogueSerial;return;}
+                    Thread.Sleep(100);continue;
+                }
+                var d=map.Live.dialogue;
+                if(d.ready&&NavigationExplorer.Clock>=nextInput) {
+                    bool owned=RewardOwned();
+                    if(npcOffer!=null&&!owned) {
+                        bool available=false;var npc=Find(npcAddress);
+                        if(npc.offers!=null)foreach(var value in npc.offers)
+                            if(value.action==npcOffer.action&&value.status=="available")available=true;
+                        if(!available)throw new InvalidDataException("NPC reward prerequisites changed during dialogue.");
+                    }
+                    int action=DialogueFlow.Select(d,npcOffer,owned);
+                    if(action>=0) {
+                        if(++inputs>64)throw new InvalidDataException("Dialogue did not finish within the input limit.");
+                        if(Cancelled)throw new OperationCanceledException();
+                        DialogueFlow.Send(directory,map.Live,Next(),action);nextInput=NavigationExplorer.Clock+650;
+                    }
+                }
+                Thread.Sleep(100);
+            }
+            throw new InvalidDataException("Dialogue did not return gameplay control within one minute.");
+        }
+        private MapSnapshot Read() {
+            Raw();if(DialogueFlow.Active(map)){Dialogue();Raw();}
+            BoxJumpPlanner.NeedLive(map);return map;
+        }
+        private void Finish() {
+            if(bound)try{new NavigationRoute{Level=level,Generation=generation}.Send(directory,Next(),false,true);}
+                catch(IOException){}catch(UnauthorizedAccessException){}
+            try{File.Delete(Path.Combine(directory,"ai-dialogue.txt"));}catch(IOException){}catch(UnauthorizedAccessException){}
+        }
+        internal void RunDialogue() {
+            try{Bind();Dialogue();Report("Dialogue finished; gameplay control returned.");}
+            finally{Finish();}
+        }
+        private void Traverse(HeightPoint goal,int button) {
+            Read();
+            NavigationRoute ground=null;
+            try{ground=NavigationRoute.Plan(map,new float[]{goal.X,goal.Y,goal.Z});}
+            catch(InvalidDataException error){Report("Checking platforms: "+error.Message);}
+            if(ground!=null){Walk(ground);return;}
+            if(map.Live.box_jump==null||!map.Live.box_jump.calibrated||map.Live.box_jump.button!=button) {
+                Report("Measuring jump capability on the current floor...");Jump(0,null,button);Delay(500);
+            }
+            var steps=BoxJumpPlanner.Sequence(map,new JumpLanding{Point=goal});
+            for(int i=0;i<steps.Count;i++) {
+                Report("Platform "+(i+1)+"/"+steps.Count+": approaching takeoff...");
+                JumpPlan plan=null;
+                for(int retry=0;retry<3;retry++) {
+                    Read();var approach=BoxJumpPlanner.Approach(map,steps[i]);
+                    if(approach.Walk!=null)Walk(approach.Walk);
+                    Delay(800);
+                    try{plan=BoxJumpPlanner.Plan(map,steps[i]);break;}catch(InvalidDataException){if(retry==2)throw;}
+                }
+                Report("Jump "+(i+1)+"/"+steps.Count+"; checking landing state...");
+                Jump(1,plan,button);
+            }
+            Read();Walk(NavigationRoute.Plan(map,new float[]{goal.X,goal.Y,goal.Z}));
+        }
+        internal void RunTraversal(float[] goal,int button) {
+            try{Bind();Traverse(new HeightPoint(goal),button);Report("Platform route complete; replanning exit.");}
+            finally{Finish();}
+        }
+        internal void RunNpc(uint address,MapNpcOffer reward) {
+            try {
+                Bind();npcAddress=address;npcOffer=reward;
+                var npc=Find(address);
+                if(AutonomousExplorer.UsefulOffer(npc)==null)throw new InvalidDataException("NPC reward is no longer available.");
+                if(npc.talk_radius<=8)throw new InvalidDataException("NPC conversation bounds are unavailable.");
+                var centre=new HeightPoint(npc.position);
+                var pos=new HeightPoint(map.Live.player.position);
+                float dx=pos.X-centre.X,dz=pos.Z-centre.Z,len=(float)Math.Sqrt(dx*dx+dz*dz);
+                if(len<1){dx=0;dz=1;len=1;}dx/=len;dz/=len;
+                NavigationRoute route=null;HeightPoint target=new HeightPoint();HeightPoint stage=new HeightPoint();
+                for(int sample=0;sample<12;sample++) {
+                    double angle=sample*Math.PI/6;
+                    float x=(float)(dx*Math.Cos(angle)-dz*Math.Sin(angle));
+                    float z=(float)(dx*Math.Sin(angle)+dz*Math.Cos(angle));
+                    float radius=Math.Max(10,npc.talk_radius*.55f),floor;
+                    target=new HeightPoint(centre.X+x*radius,centre.Y,centre.Z+z*radius);
+                    if(!BoxJumpPlanner.Floor(map.Mesh,target.X,target.Z,centre.Y,64,out floor))continue;
+                    target.Y=floor+BoxJumpPlanner.Offset(map);
+                    if(target.Y-centre.Y<=npc.talk_lower||target.Y-centre.Y>=npc.talk_upper)continue;
+                    stage=new HeightPoint(target.X+x*40,target.Y,target.Z+z*40);
+                    if(!NavigationRoute.ClearWalk(map,new MapLayers(map.Mesh).Floors,stage,target,0))continue;
+                    try{route=NavigationRoute.Plan(map,new float[]{stage.X,stage.Y,stage.Z});break;}catch(InvalidDataException){}
+                }
+                if(route==null)throw new InvalidDataException("No clear supported approach to NPC "+npc.label+".");
+                Report("Approaching "+npc.label+" for "+reward.reward+"...");
+                Walk(route);Delay(600);Interaction(0,target);Delay(300);
+                for(int attempt=0;attempt<3;attempt++) {
+                    Read();if(RewardOwned()){Report("NPC reward confirmed: "+reward.reward);return;}
+                    npc=Find(address);pos=new HeightPoint(map.Live.player.position);
+                    if(BoxJumpPlanner.Horizontal(pos,new HeightPoint(npc.position))>=npc.talk_radius||
+                       pos.Y-npc.position[1]<=npc.talk_lower||pos.Y-npc.position[1]>=npc.talk_upper)
+                        throw new InvalidDataException("Player is outside NPC conversation bounds.");
+                    Report("Talking to "+npc.label+"; verifying "+reward.reward+"...");
+                    Interaction(1,pos);Delay(1500);
+                }
+                if(!RewardOwned())throw new InvalidDataException("Conversation finished without the expected NPC reward.");
+                Report("NPC reward confirmed: "+reward.reward);
+            }finally{Finish();}
         }
         private long Next(){return nonce=Math.Max(nonce+1,NavigationExplorer.Clock);}
         private void Delay(int ms) {for(int n=0;n<ms;n+=100){Thread.Sleep(Math.Min(100,ms-n));Read();}}
@@ -63,9 +191,10 @@ namespace JfgLauncher {
                 catch(UnauthorizedAccessException){if(i==5)throw;Thread.Sleep(10);}
         }
         private void Interaction(int mode,HeightPoint target) {
-            Next();long until=NavigationExplorer.Clock+12000;
+            Next();int beforeDialogue=dialogueSerial;long until=NavigationExplorer.Clock+12000;
             while(NavigationExplorer.Clock<until) {
-                Read();var ai=map.Live.navigation_ai;
+                Read();if(mode==1&&dialogueSerial!=beforeDialogue)return;
+                var ai=map.Live.navigation_ai;
                 if(ai!=null&&ai.nonce==nonce&&!ai.active) {
                     if(ai.state!=(mode==0?"precision_complete":"action_complete"))
                         throw new InvalidDataException("Chest interaction stopped: "+ai.state);
@@ -77,9 +206,15 @@ namespace JfgLauncher {
             }throw new InvalidDataException("Chest interaction timed out.");
         }
         private void Walk(NavigationRoute route) {
-            Next();long until=NavigationExplorer.Clock+45000;
+            Next();int beforeDialogue=dialogueSerial;long until=NavigationExplorer.Clock+45000;
             while(NavigationExplorer.Clock<until) {
-                Read();var ai=map.Live.navigation_ai;
+                Read();
+                if(dialogueSerial!=beforeDialogue) {
+                    beforeDialogue=dialogueSerial;var end=route.Points[route.Points.Count-1];
+                    route=NavigationRoute.Plan(map,new float[]{end.X,end.Y,end.Z});Next();
+                    until=NavigationExplorer.Clock+45000;
+                }
+                var ai=map.Live.navigation_ai;
                 if(ai!=null&&ai.nonce==nonce&&!ai.active) {
                     if(ai.state!="approach_complete")throw new InvalidDataException("Walking stopped: "+ai.state);return;
                 }
@@ -108,7 +243,7 @@ namespace JfgLauncher {
         private MapInteraction Find(uint address) {
             if(map.Live.progression!=null&&map.Live.progression.nodes!=null)
                 foreach(var node in map.Live.progression.nodes)if(node.address==address)return node;
-            throw new InvalidDataException("Selected chest is no longer present.");
+            throw new InvalidDataException("Selected interaction actor is no longer present.");
         }
         private bool Owns(int weapon) {
             var p=map.Live.progression;
@@ -117,31 +252,15 @@ namespace JfgLauncher {
         }
         internal void Run(uint address,int button) {
             try {
-                Read();level=map.Live.level;generation=map.Live.generation;started=NavigationExplorer.Clock;
-                manual=map.Live.navigation_ai==null?0:map.Live.navigation_ai.manual_inputs;bound=true;
+                Bind();Read();
                 var chest=Find(address);int weapon=chest.reward_weapon;
                 if(weapon<0||weapon>14)throw new InvalidDataException("Prototype requires a weapon chest with an observable inventory reward.");
                 if(Owns(weapon))throw new InvalidDataException("This weapon is already owned. Use a copy of a save before pickup.");
                 Report("Refreshing chest opening geometry...");
                 Interaction(1,new HeightPoint(map.Live.player.position));Delay(600);chest=Find(address);
                 var access=ChestPlanner.Approach(map,chest);
-                if(map.Live.box_jump==null||!map.Live.box_jump.calibrated||map.Live.box_jump.button!=button) {
-                    Report("Measuring a standing jump. Keep the game focused.");Jump(0,null,button);Delay(500);
-                }
-                Report("Planning supported platforms to "+chest.reward+"...");
-                var steps=BoxJumpPlanner.Sequence(map,new JumpLanding{Point=access.Staging});
-                for(int i=0;i<steps.Count;i++) {
-                    Report("Platform "+(i+1)+"/"+steps.Count+": walking to takeoff...");
-                    JumpPlan plan=null;
-                    for(int retry=0;retry<3;retry++) {
-                        Read();var approach=BoxJumpPlanner.Approach(map,steps[i]);
-                        if(approach.Walk!=null)Walk(approach.Walk);
-                        Delay(800);
-                        try{plan=BoxJumpPlanner.Plan(map,steps[i]);break;}catch(InvalidDataException){if(retry==2)throw;}
-                    }
-                    Report("Jump "+(i+1)+"/"+steps.Count+"...");Jump(1,plan,button);
-                    Report("Platform "+(i+1)+" confirmed.");
-                }
+                Report("Planning walk or supported platforms to "+chest.reward+"...");
+                Traverse(access.Staging,button);
                 Read();access=ChestPlanner.Approach(map,Find(address));
                 Report("Walking to the chest...");
                 Walk(NavigationRoute.Plan(map,new float[]{access.Staging.X,access.Staging.Y,access.Staging.Z}));Delay(800);
@@ -160,8 +279,7 @@ namespace JfgLauncher {
                 if(!Owns(weapon))throw new InvalidDataException("Chest action finished without the expected inventory reward.");
                 Report("Complete: "+chest.reward+" confirmed in inventory.");
             } finally {
-                if(bound)try{new NavigationRoute{Level=level,Generation=generation}.Send(directory,Next(),false,true);}
-                    catch(IOException){}catch(UnauthorizedAccessException){}
+                Finish();
             }
         }
     }

@@ -176,13 +176,23 @@ namespace JfgLauncher {
         }
         internal void Start(MapSnapshot snapshot,long now) {
             Stop("Explorer off");
-            if(!Fresh(snapshot,now) || !snapshot.Live.clearing_active || snapshot.Live.transition_confirm)throw new InvalidDataException("Enter active gameplay and finish any transition prompt before exploring.");
+            if(!Fresh(snapshot,now) || (!snapshot.Live.clearing_active&&!DialogueFlow.Active(snapshot)) || snapshot.Live.transition_confirm)throw new InvalidDataException("Enter active gameplay and finish any transition prompt before exploring.");
             if(snapshot.Live.exits==null)throw new InvalidDataException("Exit data unavailable.");
             ObserveRoom(snapshot,room==null || room.level!=snapshot.Live.level || generation!=snapshot.Live.generation);manualInputs=snapshot.Live.navigation_ai==null?0:snapshot.Live.navigation_ai.manual_inputs;started=lastNow=now;transitions=revisits=0;segmentVisits.Clear();
             nextPlan=now;suspended=scriptedWaiting=false;waitAt=completedAt=0;Running=true;Status="Explorer: choosing an untried exit";
         }
         internal void Stop(string reason) { Running=false;pending=null;suspended=settling=scriptedWaiting=false;candidateGeneration=-1;completedAt=waitAt=0;Status=reason; }
         private ExploreCommand Halt(string reason) { Stop(reason);return new ExploreCommand {Stop=true}; }
+        internal bool OwnsRoom(MapSnapshot snapshot) {return room!=null&&room.level==snapshot.Live.level&&generation==snapshot.Live.generation;}
+        internal bool IsArrival(uint level,MapMarker marker) {
+            return History.arrivalLevel==level&&History.arrivalKeys.Contains(ExitKey(marker));
+        }
+        internal void ResumeAfterAction(MapSnapshot snapshot,long now) {
+            if(!OwnsRoom(snapshot)) {lastStamp=now;return;}
+            ObserveRoom(snapshot,false);pending=null;completedAt=waitAt=0;
+            suspended=settling=scriptedWaiting=false;candidateGeneration=-1;
+            nextPlan=now;lastNow=now;Running=true;Status="Explorer: action confirmed; replanning";
+        }
         internal void Dispatched(long nonce,long now) {
             if(!Running || pending==null || nonce<=0)throw new InvalidOperationException("No exploration route awaiting dispatch.");
             pending.Nonce=nonce;pending.Started=now;

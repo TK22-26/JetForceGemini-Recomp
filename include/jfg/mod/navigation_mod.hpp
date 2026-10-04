@@ -5,6 +5,7 @@
 #include "jfg/mod/npc_rewards.hpp"
 #include "jfg/mod/navigation_pilot.hpp"
 #include "jfg/mod/navigation_confirmation.hpp"
+#include "jfg/mod/navigation_dialogue.hpp"
 #include <array>
 #include <bit>
 #include <chrono>
@@ -555,6 +556,23 @@ inline NpcFacts npc_facts(const Memory &m, const Inventory &inv,
   }
   return f;
 }
+inline void write_inventory_tracker(std::ostream &out,const Memory &m,std::uint32_t player) {
+  const auto inv=inventory(m,player);
+  out<<"{\"known\":"<<(inv.known?"true":"false")<<",\"current\":"<<(inv.known?int(inv.character):-1)<<",\"characters\":[";
+  if(inv.known) {
+    const auto game=m.u32(0x800FD7D4U);const auto facts=npc_facts(m,inv,player);
+    for(unsigned c=0;c<3;++c) {
+      if(c)out<<',';
+      const auto saved=game+0x15CU+c*0x76U;
+      out<<"{\"id\":"<<c<<",\"weapons\":"<<m.u16(saved+0xAU)<<",\"items\":[";
+      for(unsigned i=0;i<27;++i){if(i)out<<',';out<<((facts.items[c][i>>3]&(0x80U>>(i&7)))?"true":"false");}
+      out<<"]}";
+    }
+    out<<"],\"shared\":[";
+    for(unsigned i=32;i<=43;++i){if(i!=32)out<<',';out<<(facts.flag(i)==Fact::met?"true":"false");}
+  }else out<<"],\"shared\":[";
+  out<<"]}";
+}
 struct ChestAccess {
   bool known{};
   Vec3 point{};
@@ -588,6 +606,7 @@ struct Interaction {
   std::string requirement = "Unknown", reward = "Unknown";
   std::vector<NpcOffer> offers;
   bool npc_catalog_known = false;
+  float talk_radius{},talk_lower{},talk_upper{};
   bool requirement_known = false;
   int reward_item = -1, reward_weapon = -1, required_weapon = -1;
   int spoken = -1, encounter = -1, dialogue = -1;
@@ -610,6 +629,11 @@ interactions(const Memory &m, const std::vector<Actor> &list,
     node.action = npc.behavior == 90U ? "talk" : "rescue";
     if (npc.behavior == 90U) {
       const auto control = m.u32(npc.address + 0x68U);
+      node.raw_state = m.u8(control);
+      node.talk_radius=m.f32(control+0x18U);
+      node.talk_lower=m.f32(control+0x20U);node.talk_upper=m.f32(control+0x1CU);
+      if(node.talk_radius<8||node.talk_radius>500||node.talk_lower>node.talk_upper||
+         node.talk_lower< -1000||node.talk_upper>1000)node.talk_radius=0;
       node.dialogue = m.u8(control + 0x31U);
       node.encounter = m.u8(control + 0x32U);
       auto facts = npc_facts(m, inv, player);
@@ -828,6 +852,7 @@ inline void write_progression(std::ostream &out, const Memory &m,
         << ",\"required_weapon\":" << node.required_weapon
         << ",\"spoken\":" << node.spoken << ",\"encounter\":" << node.encounter
         << ",\"dialogue\":" << node.dialogue
+        << ",\"talk_radius\":" << node.talk_radius << ",\"talk_lower\":" << node.talk_lower << ",\"talk_upper\":" << node.talk_upper
         << ",\"raw_state\":" << node.raw_state
         << ",\"raw_condition\":" << node.raw_condition
         << ",\"door_id\":" << node.door_id
@@ -1018,6 +1043,8 @@ public:
   NpcRewardCatalog npc_rewards;
   NavigationPilot pilot;
   NavigationConfirmation confirmation;
+  DialogueInput dialogue_input;
+  std::uint32_t hint_base{};
   bool enabled = false;
   std::uint32_t player = 0, last_track = 0, last_level = UINT32_MAX;
   std::uint64_t updates = 0, generation = 1, cleared = 0, health_restores = 0,
@@ -1102,7 +1129,9 @@ public:
   void write_state(std::ostream &out, const Memory &m,
                    const std::vector<Actor> &list, std::uint32_t level,
                    bool mesh_ready) const {
-    out << "{\"schema\":1,\"level\":" << level
+    out << "{\"inventory_tracker\":";write_inventory_tracker(out,m,player);
+    out << ",\"dialogue\":";write_dialogue(out,read_dialogue(m,hint_base));
+    out << ",\"schema\":1,\"level\":" << level
         << ",\"generation\":" << generation << ",\"timestamp_ms\":"
         << std::chrono::duration_cast<std::chrono::milliseconds>(
                std::chrono::system_clock::now().time_since_epoch())

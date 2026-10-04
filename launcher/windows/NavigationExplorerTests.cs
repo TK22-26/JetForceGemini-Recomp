@@ -12,11 +12,11 @@ namespace JfgLauncher {
         private static MapMarker Exit(int id,float x,float z) {
             return new MapMarker {address=(uint)id,destination_code=65000+id,position=new float[]{x,0,z},normal=new float[]{1,0,0}};
         }
-        private static MapSnapshot Room(uint level,long generation,params MapMarker[] exits) {
+        internal static MapSnapshot Room(uint level,long generation,params MapMarker[] exits) {
             return new MapSnapshot {
                 Mesh=new MapGeometry {schema=1,level=level,generation=generation,vertices=new float[][] {new float[]{-1000,0,-1000},new float[]{1000,0,-1000},new float[]{-1000,0,1000},new float[]{1000,0,1000}},
                     triangles=new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{1,2,3},normal=new float[]{0,1,0}}}},
-                Live=new MapLive {collision=MapCollision.Empty(),actors=new MapActor[0],schema=1,level=level,generation=generation,mesh_ready=true,clearing_active=true,timestamp_ms=100000,update=1,
+                Live=new MapLive {dialogue=new MapDialogue{rows=new MapDialogueChoice[0]},collision=MapCollision.Empty(),actors=new MapActor[0],schema=1,level=level,generation=generation,mesh_ready=true,clearing_active=true,timestamp_ms=100000,update=1,
                     player=new MapPlayer {position=new float[]{0,0,0}},exits=exits,markers=new MapMarker[0],npcs=new MapMarker[0],navigation_ai=new MapAi(),
                     progression=new MapProgression {schema=1,inventory=new MapInventory {known=true,character=0,red_key=false,weapons_mask=1},nodes=new MapInteraction[0]}}
             };
