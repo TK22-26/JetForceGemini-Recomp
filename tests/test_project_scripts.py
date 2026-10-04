@@ -70,6 +70,27 @@ class RepositoryHygieneTests(unittest.TestCase):
         errors = scan_blob(spaced_hex, "fixture")
         self.assertTrue(any("spaced hexadecimal" in error for error in errors))
 
+    def test_signed_decimal_offsets_are_not_hex_payloads(self) -> None:
+        offsets = [value for distance in range(4, 100, 4)
+                   for value in (distance, -distance)]
+        for separator in (",", ", ", ",\n"):
+            with self.subTest(separator=separator):
+                source = "new float[]{" + separator.join(map(str, offsets)) + "}"
+                self.assertEqual(scan_blob(source.encode(), "fixture"), [])
+
+    def test_hex_separators_remain_rejected(self) -> None:
+        for values in (["ab"] * 8, [str(n) for n in range(10, 18)]):
+            for separator in (" ", "\t", "\n", ",", " , ", ":", " : ", "-", " - "):
+                with self.subTest(values=values, separator=separator):
+                    errors = scan_blob(separator.join(values).encode(), "fixture")
+                    self.assertTrue(any("spaced hexadecimal" in error for error in errors))
+
+    def test_decimal_array_does_not_hide_an_adjacent_hex_dump(self) -> None:
+        offsets = ",".join(str(value) for value in (12, -12, 16, -16) * 4)
+        dump = "-".join(["ab"] * 8)
+        errors = scan_blob((offsets + "\n" + dump).encode(), "fixture")
+        self.assertTrue(any("spaced hexadecimal" in error for error in errors))
+
     def test_json_body_cannot_hide_chunked_digest_sized_payloads(self) -> None:
         body = ('{"body":"' + ("a" * 64) + " " + ("b" * 64) + '"}').encode()
         errors = scan_blob(body, "fixture")
