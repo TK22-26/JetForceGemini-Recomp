@@ -551,5 +551,37 @@ pauses. Report actual room completion time alongside stick magnitude: large
 inputs without forward progress are not success. Door and scripted-camera
 waits release input and are reported separately from active-input averages.
 
-SS Anubis jump/crawl work remains a separate measured capability task.
+SS Anubis box jumping has a local testable prototype; crawl dimensions remain unmeasured.
 See [traversal research and measurement plan](navigation-traversal-plan.md).
+
+
+### Box jumping and weapon chests (2026-10-04)
+
+Use a paired current launcher and locally built native runtime. In **Live map**,
+**Box jumping prototype** provides individual landing and ascending-platform
+trials. **Weapon chest route** combines calibration, platform planning,
+walking, jumping and chest pickup. Choose a mapped weapon chest, select Normal
+(C-Up jump) or Expert (A jump), then press **Run chest route** from open ground.
+The game must already be in gameplay. Use a copy of a save from before pickup.
+
+The chest trial is bounded to three minutes. It rechecks room identity, live
+geometry and each landing, stops on manual input or cancellation, and confirms
+the weapon in inventory before reporting completion. The shared runner was
+tested with Normal controls from NORMAL save slot 2 in SS Anubis. It collected
+the shotgun through the five-box route. Expert mode and other chest routes
+remain unverified. Stop or manual movement releases control; another attempt
+requires an explicit Run.
+
+Chest progression nodes may include an optional activation object: known,
+point, radius, max_height and facing. These describe the game's cached opening
+region, qualified by object behavior and supported handler identity. Pressing
+A refreshes the game's cached region for the current character; the trial does
+this once before planning. Unknown geometry is not treated as an opening target.
+
+JFGINTERACT1 carries room, generation, nonce, timestamp, mode and target XYZ.
+Mode 0 is a bounded precision approach with up to 40 stick units and a two-unit
+arrival tolerance. Mode 1 holds only A for five movement updates. Commands expire
+after 1.5 seconds without a heartbeat and cannot rearm after completion or manual
+cancellation under the same nonce. The map client still checks body clearance,
+activation bounds, facing and the inventory result. These commands do not alter
+the game state directly.

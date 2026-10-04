@@ -120,7 +120,26 @@ namespace JfgLauncher {
        foreach(System.Windows.Forms.Control control in window.Controls)if(control is System.Windows.Forms.Label && control.Text.Contains("Waiting for gameplay"))waiting=true;
        Check(waiting,"pre-game map state caused an exception instead of a waiting message");window.Close();
      }
+     using(ChestTrialWindow window=new ChestTrialWindow(pending)) {
+       window.Show();System.Windows.Forms.Application.DoEvents();bool waiting=false;
+       foreach(System.Windows.Forms.Control control in window.Controls)if(control is System.Windows.Forms.Label&&control.Text.Contains("Waiting for gameplay"))waiting=true;
+       Check(waiting,"chest trial pre-game state caused a JIT error");window.Close();
+     }
+     var cancelled=new ChestTrial(pending){Cancelled=true};bool stopped=false;
+     try{cancelled.Run(0x80100000,8);}catch(OperationCanceledException){stopped=true;}
+     Check(stopped&&!File.Exists(Path.Combine(pending,"ai-command.txt")),"cancelled chest trial dispatched input");
    }finally {File.Delete(Path.Combine(pending,"live.json"));Directory.Delete(pending);}
+   m=Fixture();m.Live.player.position=new float[]{100,60,0};
+   Check(BoxJumpPlanner.Sequence(m,new JumpLanding{Point=new HeightPoint(140,60,0)}).Count==0,"same-platform chest requires a spurious jump");
+   m=NavigationCollisionTests.Fixture();m.Live.player.position=new float[]{-150,0,0};
+   var chest=new MapInteraction{action="open_chest",position=new float[]{100,0,0},
+       activation=new MapChestAccess{known=true,point=new float[]{60,0,0},radius=20,max_height=8}};
+   var access=ChestPlanner.Approach(m,chest);
+   Check(Math.Abs(access.Target.X-45)<.01f&&Math.Abs(access.Staging.X+15)<.01f,"chest approach entered solid actor centre");
+   chest.activation.known=false;Reject(delegate{ChestPlanner.Approach(m,chest);},"unknown chest region accepted");chest.activation.known=true;
+   m.Live.actors=new MapActor[]{new MapActor{address=0x80102000,position=new float[]{20,0,0}}};
+   m.Live.collision.models=new MapCollisionModel[]{new MapCollisionModel{address=0x80102000,enabled=true,lower=new float[]{10,0,-80},upper=new float[]{60,100,80}}};
+   Reject(delegate{ChestPlanner.Approach(m,chest);},"chest route ignored blocking entity");
    return checks;
   }
  }

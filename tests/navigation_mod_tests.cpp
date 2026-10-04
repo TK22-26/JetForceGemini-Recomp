@@ -67,6 +67,18 @@ int main(int argc, char **argv) {
     const auto putfloat = [&](std::uint32_t a, float v) {
       put32(a, std::bit_cast<std::uint32_t>(v));
     };
+    const std::uint32_t chest_actor=0x8030D000U,chest_data=0x8030E000U;
+    put32(chest_actor+0x68U,chest_data);m.put16(chest_actor+0x48U,98U);
+    m.put16(chest_actor,0xC000U);
+    putfloat(chest_actor+0xCU,100);putfloat(chest_actor+0x10U,60);putfloat(chest_actor+0x14U,20);
+    putfloat(chest_data+0x10U,40);putfloat(chest_data+0x14U,0);putfloat(chest_data+0x18U,0);
+    putfloat(chest_data+0x1CU,30);putfloat(chest_data+0x20U,40);
+    check(!chest_access(m,chest_actor).known);
+    put32(0x8003B6C8U,0x27BDFFE8U);
+    auto access=chest_access(m,chest_actor);
+    check(access.known&&access.point.x==140&&access.point.y==60&&access.radius==30&&access.facing==0x4000);
+    put32(chest_data+0x1CU,0x7FC00000U);check(!chest_access(m,chest_actor).known);
+    putfloat(chest_data+0x1CU,30);m.put16(chest_actor+0x48U,3U);check(!chest_access(m,chest_actor).known);
     const std::uint32_t motion_actor=0x80300000U,motion_control=0x80301000U;
     put32(motion_actor+0x68U,motion_control);put8(motion_control+0x568U,6);
     put8(motion_actor+0x3BU,42);putfloat(motion_actor+0x28U,3.5f);

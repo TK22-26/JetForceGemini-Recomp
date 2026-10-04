@@ -555,9 +555,35 @@ inline NpcFacts npc_facts(const Memory &m, const Inventory &inv,
   }
   return f;
 }
+struct ChestAccess {
+  bool known{};
+  Vec3 point{};
+  float radius{}, max_height{};
+  std::int16_t facing{};
+};
+inline ChestAccess chest_access(const Memory &m,std::uint32_t actor) {
+  // Observe the game's cached activation region. ObjectChest refreshes these
+  // fields for the current character when A is pressed; never infer access
+  // from the decorative model centre or skip its facing/height requirements.
+  if(!m.valid(actor,0x6CU)||m.u16(actor+0x48U)!=98U||
+      m.u32(0x8003B6C8U)!=0x27BDFFE8U)return {};
+  const auto data=m.u32(actor+0x68U);
+  if(!m.valid(data,0x24U))return {};
+  try {
+    const auto p=position(m,actor);
+    const float dx=m.f32(data+0x10U),dy=m.f32(data+0x14U),dz=m.f32(data+0x18U);
+    const float radius=m.f32(data+0x1CU),height=m.f32(data+0x20U);
+    if(!std::isfinite(dx)||!std::isfinite(dy)||!std::isfinite(dz)||!std::isfinite(radius)||!std::isfinite(height)||
+        std::abs(dx)>1000||std::abs(dy)>1000||std::abs(dz)>1000||
+        radius<1||radius>256||height<0||height>256)return {};
+    return {true,{p.x+dx,p.y+dy,p.z+dz},radius,height,
+      static_cast<std::int16_t>(static_cast<std::uint16_t>(m.s16(actor))+0x8000U)};
+  }catch(const std::runtime_error &){return {};}
+}
 struct Interaction {
   std::uint32_t address{}, linked_actor{};
   Vec3 position{};
+  ChestAccess activation{};
   std::string kind, label, action, status = "unknown";
   std::string requirement = "Unknown", reward = "Unknown";
   std::vector<NpcOffer> offers;
@@ -645,6 +671,7 @@ interactions(const Memory &m, const std::vector<Actor> &list,
     node.action = behavior == 98U ? "open_chest" : "collect";
     node.reward = item.label;
     if (behavior == 98U) {
+      node.activation=chest_access(m,item.address);
       constexpr std::array<int, 21> weapons = {3,  1,  2,  2,  9,  8,  -1,
                                                -1, 14, 13, 14, 12, 11, 10,
                                                7,  6,  4,  -1, -1, -1, 5};
@@ -794,6 +821,10 @@ inline void write_progression(std::ostream &out, const Memory &m,
         << (node.requirement_known ? "true" : "false")
         << ",\"reward_item\":" << node.reward_item
         << ",\"reward_weapon\":" << node.reward_weapon
+        << ",\"activation\":{\"known\":" << (node.activation.known?"true":"false")
+        << ",\"point\":[" << node.activation.point.x << ',' << node.activation.point.y << ',' << node.activation.point.z
+        << "],\"radius\":" << node.activation.radius << ",\"max_height\":" << node.activation.max_height
+        << ",\"facing\":" << node.activation.facing << '}'
         << ",\"required_weapon\":" << node.required_weapon
         << ",\"spoken\":" << node.spoken << ",\"encounter\":" << node.encounter
         << ",\"dialogue\":" << node.dialogue

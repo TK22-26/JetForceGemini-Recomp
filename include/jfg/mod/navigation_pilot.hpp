@@ -21,6 +21,7 @@ struct PilotInput {
 class NavigationPilot {
   BoxJumpPilot box_jump_;
   bool box_mode_ = false;
+  int interaction_mode_ = -1;
   std::vector<PilotPoint> route_;
   std::uint64_t nonce_ = 0, generation_ = 0;
   std::uint32_t level_ = 0;
@@ -74,7 +75,7 @@ public:
   }
   void reset() {
     stop("room_changed");
-    box_jump_.reset();box_mode_=false;
+    box_jump_.reset();box_mode_=false;interaction_mode_=-1;
     route_.clear();
     nonce_ = 0;
     initialized_ = false;
@@ -88,12 +89,33 @@ public:
     std::int64_t stamp;
     int jumps, count, running = -1, through = -1;
     if (!(in >> magic)) {stop("invalid_command");return false;}
+    // Bounded terminal movement or one A press. Collision planning remains
+    // in the map client; no position, animation or inventory writes occur.
+    if(magic=="JFGINTERACT1") {
+      PilotPoint p;int mode;std::string extra;
+      if(!(in>>room>>gen>>nonce>>stamp>>mode>>p.x>>p.y>>p.z) ||
+          room!=level || gen!=generation || nonce==0 || stamp<0 || now<stamp || now-stamp>1500 ||
+          (mode!=0&&mode!=1) || !std::isfinite(p.x)||!std::isfinite(p.y)||!std::isfinite(p.z)||
+          std::abs(p.x)>1000000||std::abs(p.y)>1000000||std::abs(p.z)>1000000||(in>>extra)) {
+        if(active())stop("invalid_interaction");return false;
+      }
+      if(nonce==nonce_) {
+        if(interaction_mode_!=mode||route_.size()!=1||route_[0].x!=p.x||route_[0].y!=p.y||route_[0].z!=p.z) {
+          stop("invalid_interaction");return false;
+        }
+        heartbeat_=now;return true; // A heartbeat cannot rearm a finished/cancelled command.
+      }
+      box_jump_.stop();box_mode_=false;interaction_mode_=mode;
+      nonce_=nonce;level_=room;generation_=gen;heartbeat_=now;
+      route_={p};initialized_=false;frame_=stable_=0;input_={};active_=true;
+      state=mode==0?"precision_approach":"interaction_press";return true;
+    }
     if(magic=="JFGJUMP1" || magic=="JFGJUMP2") {
       JumpPoint p;float radius=0,lift=0;int mode=0,button=8;std::string extra;
       if(!(in>>room>>gen>>nonce>>stamp>>mode>>p.x>>p.y>>p.z>>radius>>button) ||
           (magic=="JFGJUMP2" && !(in>>lift)) || room!=level || gen!=generation || (in>>extra)) {stop("invalid_jump_command");return false;}
       const bool accepted=box_jump_.command(room,gen,nonce,stamp,now,mode,p,radius,button,lift);
-      if(accepted){active_=false;box_mode_=true;nonce_=nonce;state=box_jump_.state;}
+      if(accepted){interaction_mode_=-1;active_=false;box_mode_=true;nonce_=nonce;state=box_jump_.state;}
       return accepted;
     }
     if (!(in >> room >> gen >> nonce >> stamp >> jumps >> count) ||
@@ -136,7 +158,7 @@ public:
       stop();
       return true;
     }
-    box_jump_.stop();box_mode_=false;
+    box_jump_.stop();box_mode_=false;interaction_mode_=-1;
     heartbeat_ = now;
     // A heartbeat may never re-arm after manual takeover or a failed run.
     if (nonce == nonce_) {
@@ -194,6 +216,39 @@ public:
     }
     if (now < heartbeat_ || now - heartbeat_ > 1500) {
       stop("map_disconnected");
+      return;
+    }
+    if(interaction_mode_>=0) {
+      if(!camera_known_){stop("camera_unavailable");return;}
+      if(++frame_>240){stop("interaction_timeout");return;}
+      if(!initialized_){initialized_=true;last_=origin_=p;input_={};return;}
+      if(interaction_mode_==1) {
+        if(frame_>6){stop("action_complete");return;}
+        input_={0,0,0x8000};return;
+      }
+      const auto delta=difference(p,last_);last_=p;
+      const auto goal=route_.front();
+      if(std::abs(p.y-goal.y)>6){stop("interaction_height_changed");return;}
+      if(distance(p,goal)<=2.0f && std::hypot(delta.x,delta.z)<.2f)++stable_;else stable_=0;
+      if(stable_>=6){stop("precision_complete");return;}
+      float ex=goal.x-p.x-delta.x*(1.0f/(1.0f-.9025f));
+      float ez=goal.z-p.z-delta.z*(1.0f/(1.0f-.9025f));
+      const float length=distance(origin_,goal);
+      // The final chest approach must preserve facing. Reverse corrections
+      // can stop precisely but turn the player away from the A-button trigger.
+      // Settle under neutral drag when braking would demand backward input.
+      if(length>1 && distance(p,goal)<20) {
+        const float ux=(goal.x-origin_.x)/length,uz=(goal.z-origin_.z)/length;
+        const float forward=std::max(0.0f,ex*ux+ez*uz);
+        ex=ux*forward;ez=uz*forward;
+      }
+      const float error=std::hypot(ex,ez);
+      input_={};
+      if(error>1.0f) {
+        const float power=std::min(40.0f,8.0f+1.3f*error);
+        input_.x=int(std::round((ex*basis_x_.x+ez*basis_x_.z)/error*power));
+        input_.y=int(std::round((ex*basis_y_.x+ez*basis_y_.z)/error*power));
+      }
       return;
     }
     if (++frame_ > 3600) {

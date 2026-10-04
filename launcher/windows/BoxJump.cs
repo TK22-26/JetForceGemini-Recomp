@@ -209,7 +209,9 @@ namespace JfgLauncher {
         internal static List<JumpLanding> Sequence(MapSnapshot map,JumpLanding goal,Action<string> trace=null) {
             NeedLive(map);
             if(map.Live.box_jump==null||!map.Live.box_jump.calibrated)throw new InvalidDataException("Calibrate a standing jump first.");
-            var all=Candidates(map,true);all.Add(goal);AssignSurfaces(map.Mesh,all);
+            var all=Candidates(map,true);all.Add(goal);
+            var initial=new JumpLanding{Point=new HeightPoint(map.Live.player.position)};all.Add(initial);AssignSurfaces(map.Mesh,all);
+            if(initial.Surface>=0&&initial.Surface==goal.Surface)return new List<JumpLanding>();
             if(goal.Surface<0)throw new InvalidDataException("Goal has no supported platform.");
             var groups=new Dictionary<int,List<JumpLanding>>();
             foreach(JumpLanding c in all) {

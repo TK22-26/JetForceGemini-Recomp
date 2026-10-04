@@ -168,7 +168,8 @@ Platform bounds only prune impossible links; they do not authorize motion.
 Planning runs in the background; execution rechecks live room, position,
 collision and support. Each jump requires a confirmed landing before the next.
 A platform route ends on the selected surface, not necessarily at an item.
-No complete autonomous shotgun retrieval has yet been demonstrated.
+The weapon-chest trial now joins platform traversal, checked chest approach,
+A-button interaction and inventory verification.
 
 Player motion telemetry reads the state byte at player-state +0x568,
 animation ID at actor +0x3B and animation frame at actor +0x28. The player-state
@@ -187,14 +188,32 @@ crawl dimensions or complete level progression.
 
 ## Current validation (2026-10-04)
 
-339 launcher checks, 10 setup checks and the native navigation fixtures pass.
-A copied-save native run confirmed five ordinary jumps through Y96, Y190,
-Y256, Y320 and Y384 using individually chosen targets. Normal saves retain
-their original hashes. Automatic graph search finds all five links.
-Automatic execution remains unreliable: an earlier first landing and a
-subsequent small-box landing drifted beyond the verified support footprint.
-Those trials stopped rather than continuing from an unsafe landing. The final
-fresh-save attempt did not establish end-to-end completion. Shotgun pickup
-remains unverified. Takeoff orientation and landing control need further work.
-The private paired launcher/native bundle is for local testing only. No
-release has been published for these changes.
+353 launcher checks, 12 setup checks and the Windows native navigation tests
+pass after merging main's playtest diagnostics and build-path changes.
+The old radial braking latch could coast while still drifting sideways.
+Landing control now continually corrects the predicted stopping point in both
+horizontal axes, with lower gain near the landing. Synthetic delayed-input and
+turning tests exercise convergence; these models do not claim exact game physics.
+
+Two native trials automatically completed the five-jump graph through Y96,
+Y190, Y256, Y320 and Y384. A subsequent trial using the shared launcher chest
+runner started from a fresh copy of NORMAL save slot 2, calibrated its jump,
+completed the five jumps, walked into the chest's activation region and acquired
+the shotgun. The live inventory weapon mask changed from 5 to 13. Inputs were
+ordinary controls, with no position, physics or inventory writes.
+
+The chest activation centre partly overlaps its collision model. The planner
+selects a supported point inside the activation circle and outside body collision,
+then walks through a normal-clearance staging point. Only the short final
+approach reduces the soft route margin; the body checks stay enabled. Its
+precision controller uses low input and neutral braking near the destination
+to retain the facing direction needed to open the chest. An earlier precise
+approach turned away and was stopped by the facing check; that failed trial
+remains in private evidence.
+
+Player motion telemetry distinguishes the confirmed hang/grab entry states;
+the tested staircase uses ordinary jumps. This establishes one SS Anubis
+shotgun route, not general parkour, crawl dimensions, every chest, or campaign
+completion. The paired launcher/native bundle, saves and ROM-derived recordings
+remain private. Original normal-profile saves were verified unchanged. No release
+has been published for these changes.

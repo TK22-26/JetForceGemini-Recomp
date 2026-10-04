@@ -386,3 +386,26 @@ The existing continuous-running navigation tests also pass.
 The exact recorded failing input was replayed with copied saves, first without presentation and then with the native game window rendering normally. Both exited with code 0, reached room 54 and VI 13980, and required exactly one clock recovery. The rendered run presented 2205 more frames and decoded 2205 more audio tasks after recovery; no warning callback was needed. Both runs were muted and original navigation saves were hash-checked unchanged. Private evidence is retained under room54-hang-evidence. The initial rejected combination of interactive and probe CLI options is retained separately and is not counted as a successful trial.
 
 This fixes the observed dispatch crash and subsequent empty-queue hang. It does not eliminate sound-pool overload or recover sound events already dropped by the guest. The source of the event burst and any audible effect remain unvalidated. Jumping, crawling, SS Anubis traversal and campaign completion remain separate work. ROM-derived replays and the paired local runtime remain private.
+
+
+### SS Anubis box route and shotgun (2026-10-04)
+
+The refreshed launcher passes 353 checks and 12 setup checks. Windows Release
+native navigation tests pass, including stopping-point jump steering, movement
+state identity, chest activation geometry in both memory layouts, precise
+terminal movement, fixed A-button input, cancellation, stale commands and room
+changes. UI checks cover waiting for gameplay without a JIT dialog and cancelling
+before dispatch.
+
+Two automatic native platform trials completed the five-jump staircase. The
+shared launcher chest runner then completed a fresh NORMAL slot-2 trial: standing
+jump calibration, five supported landings, collision-checked chest approach,
+normal A interaction and shotgun inventory verification (weapon mask 5 to 13).
+Audio was muted and original normal-profile saves were hash-checked unchanged.
+A prior shared-runner attempt reached the chest but failed its facing check after
+a reverse braking correction; neutral final braking corrected that case.
+Evidence remains private under box-jump-evidence/precision-chest-shared-2.
+
+This validates that specific Normal-controls shotgun route. It does not establish
+universal chest access, Expert-controls execution, crawl height, arbitrary
+multi-storey traversal or full-stage completion.

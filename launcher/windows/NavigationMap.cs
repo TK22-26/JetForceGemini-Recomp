@@ -30,6 +30,7 @@ namespace JfgLauncher
     [DataContract] internal sealed class MapPlayer
     {
         [DataMember] public MapPlayerMotion motion=null;
+        [DataMember] public int? yaw=null;
         [DataMember] public uint address = 0;
         [DataMember] public float[] position = null;
     }
@@ -98,8 +99,15 @@ namespace JfgLauncher
         [DataMember] public bool known = false;
         [DataMember] public int dialogue_groups = 0, choice_tables = 0;
     }
+    [DataContract] internal sealed class MapChestAccess {
+        [DataMember] public bool known=false;
+        [DataMember] public float[] point=null;
+        [DataMember] public float radius=0,max_height=0;
+        [DataMember] public int facing=0;
+    }
     [DataContract] internal sealed class MapInteraction
     {
+        [DataMember] public MapChestAccess activation=null;
         [DataMember] public uint address = 0, linked_actor = 0;
         [DataMember] public float[] position = null;
         [DataMember] public string kind = "", label = "", action = "", status = "";
@@ -167,6 +175,12 @@ namespace JfgLauncher
                     }
                 }
                 MapSnapshot.Point(node.position);
+                if(node.activation!=null&&node.activation.known) {
+                    MapSnapshot.Point(node.activation.point);
+                    if(node.action!="open_chest"||Single.IsNaN(node.activation.radius)||node.activation.radius<1||node.activation.radius>256||
+                       Single.IsNaN(node.activation.max_height)||node.activation.max_height<0||node.activation.max_height>256||
+                       node.activation.facing< -32768||node.activation.facing>32767)throw new InvalidDataException("Invalid chest activation region.");
+                }
                 foreach (string text in new string[] { node.kind, node.label, node.action, node.status, node.requirement, node.reward })
                     if (String.IsNullOrEmpty(text) || text.Length > 160) throw new InvalidDataException("Invalid interaction text.");
                 if (node.traversal != "unknown" || node.spoken < -1 || node.spoken > 1 ||
@@ -257,6 +271,7 @@ namespace JfgLauncher
                 live.generation != mesh.generation || live.level != mesh.level)
                 throw new InvalidDataException("Room is changing...");
             Point(live.player.position);
+            if(live.player.yaw.HasValue&&(live.player.yaw.Value< -32768||live.player.yaw.Value>32767))throw new InvalidDataException("Invalid player facing.");
             if(live.actors==null)live.actors=new MapActor[0];
             if(live.actors.Length>1024)throw new InvalidDataException("Too many entities.");
             HashSet<uint> actorIds=new HashSet<uint>();
@@ -643,6 +658,9 @@ namespace JfgLauncher
             Button boxJump=new Button {Text="Box jumping prototype",AutoSize=true};
             bar.Controls.Add(boxJump);
             boxJump.Click+=delegate {StopAi();aiRoute=null;canvas.Route=null;new BoxJumpWindow(directory).ShowDialog(this);};
+            Button chestTrial=new Button {Text="Weapon chest route",AutoSize=true};
+            bar.Controls.Add(chestTrial);
+            chestTrial.Click+=delegate {StopAi();aiRoute=null;canvas.Route=null;new ChestTrialWindow(directory).ShowDialog(this);};
 
             planAi.Click += delegate {
                 StopAi();

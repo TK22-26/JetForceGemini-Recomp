@@ -8,6 +8,57 @@ static void navigation_pilot_tests() {
             << " 2\n0 0 150\n150 0 150\n";
     return pilot.command(command, 35, 2, now);
   };
+  {
+    NavigationPilot terminal;terminal.camera_heading(true,0);
+    auto send=[&](const std::string& command,std::int64_t now=1000) {
+      std::istringstream in(command);return terminal.command(in,35,2,now);
+    };
+    check(send("JFGINTERACT1 35 2 1 1000 0 -50 0 0"));
+    terminal.tick({0,0,0},true,35,2,1000);terminal.tick({0,0,0},true,35,2,1033);
+    check(terminal.observed_input().x>0&&terminal.observed_input().x<=40&&terminal.observed_input().buttons==0);
+    terminal.sample(true,false,true);check(!terminal.active());
+    check(send("JFGINTERACT1 35 2 1 1000 0 -50 0 0")&&!terminal.active());
+    check(!send("JFGINTERACT1 35 2 1 1000 1 -50 0 0"));
+    terminal.camera_heading(true,0);
+    check(send("JFGINTERACT1 35 2 2 1000 0 -50 0 0"));
+    for(int i=0;i<10;i++)terminal.tick({-50,0,0},true,35,2,1000+i*33);
+    check(!terminal.active()&&std::string(terminal.state)=="precision_complete");
+    {
+      NavigationPilot precision;precision.camera_heading(true,0);
+      PilotPoint point{60,0,1};float vx=0,vz=0;bool done=false;
+      for(int step=0;step<230;step++) {
+        const auto now=1000+step*33;
+        std::stringstream command;command<<"JFGINTERACT1 35 2 10 "<<now<<" 0 0 0 0";
+        check(precision.command(command,35,2,now));precision.tick(point,true,35,2,now);
+        if(!precision.active()){done=std::string(precision.state)=="precision_complete";break;}
+        const auto in=precision.observed_input();
+        if(point.x<20)check(in.x>=0); // Never turn away during the close approach.
+        vx=vx*.9025f-in.x*.005f;vz=vz*.9025f+in.y*.005f;
+        point.x+=vx;point.z+=vz;
+      }
+      check(done&&std::hypot(point.x,point.z)<=2);
+    }
+    check(send("JFGINTERACT1 35 2 3 1000 1 -50 0 0"));
+    terminal.tick({-50,0,0},true,35,2,1000);terminal.tick({-50,0,0},true,35,2,1033);
+    check(terminal.observed_input().buttons==0x8000);
+    for(int i=2;i<10;i++)terminal.tick({-50,0,0},true,35,2,1000+i*33);
+    check(!terminal.active()&&std::string(terminal.state)=="action_complete");
+    check(send("JFGINTERACT1 35 2 3 1000 1 -50 0 0")&&!terminal.active());
+    check(!send("JFGINTERACT1 35 2 3 1000 1 -50 0 0",2600));
+    check(std::string(terminal.state)=="action_complete"); // Old file cannot overwrite a completed result.
+
+    for(const char* bad:{"JFGINTERACT1 36 2 4 1000 0 0 0 0",
+        "JFGINTERACT1 35 1 4 1000 0 0 0 0","JFGINTERACT1 35 2 4 1000 2 0 0 0",
+        "JFGINTERACT1 35 2 4 -1 0 0 0 0","JFGINTERACT1 35 2 4 1001 0 0 0 0",
+        "JFGINTERACT1 35 2 4 1000 0 0 0 0 extra",
+        "JFGINTERACT1 35 2 4 1000 0 1e20 0 0"})check(!send(bad));
+    check(send("JFGINTERACT1 35 2 4 1000 0 0 0 0"));terminal.tick({},true,36,2,1000);
+    check(std::string(terminal.state)=="room_changed");
+    check(send("JFGINTERACT1 35 2 5 1000 0 0 0 0"));terminal.tick({},true,35,2,2501);
+    check(std::string(terminal.state)=="map_disconnected");
+    check(send("JFGINTERACT1 35 2 6 1000 0 0 0 0"));terminal.tick({},false,35,2,1000);
+    check(std::string(terminal.state)=="controls_suspended");
+  }
   NavigationPilot pilot;
   check(!pilot.active());
   check(start(pilot));
