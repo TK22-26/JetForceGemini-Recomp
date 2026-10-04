@@ -137,19 +137,49 @@ namespace JfgLauncher
                     child.WaitForExit(); System.Threading.Tasks.Task.WaitAll(stdout, stderr); support.Exit(child.ExitCode);
                 }
                 support.Finish();
+                string diagnosticFixture = Environment.GetEnvironmentVariable("JFG_SUPPORT_TEST_FIXTURES");
+                if (!String.IsNullOrEmpty(diagnosticFixture)) {
+                    foreach (string name in new string[] { "crash", "hang" }) {
+                        string evidence = File.ReadAllText(Path.Combine(diagnosticFixture, "support-fixture-" + name + ".log"));
+                        File.WriteAllText(Path.Combine(support.DirectoryPath, name + ".log"), evidence + "PRIVATE-MEMORY-CANARY\n");
+                    }
+                }
                 File.WriteAllText(support.NativePath, "native=running\nfailure=runlink/guest-overlay-load\nPRIVATE-PATH-CANARY\nnative_exception=0xc0000005\n");
                 File.WriteAllText(Path.Combine(support.DirectoryPath, "jfg.flash"), "SAVE-CONTENTS-CANARY");
                 File.WriteAllText(Path.Combine(support.DirectoryPath, "game.z64"), "ROM-CONTENTS-CANARY");
                 string zipPath = SupportSession.Export(reportRoot, Path.Combine(directory, "exports"));
                 using (FileStream file = File.OpenRead(zipPath))
                 using (System.IO.Compression.ZipArchive zip = new System.IO.Compression.ZipArchive(file)) {
-                    Check(zip.Entries.Count == 3, "unexpected support archive members");
+                    Check(zip.Entries.Count == 9, "unexpected support archive members");
                     string combined = "";
                     foreach (var entry in zip.Entries) using (StreamReader reader = new StreamReader(entry.Open())) combined += reader.ReadToEnd();
                     Check(!combined.Contains("CANARY") && !combined.Contains(directory), "private contents leaked into support report");
                     Check(combined.Contains("exit=0x00000011") && combined.Contains("native_exit=0xc0000005") && combined.Contains("failure=runlink/guest-overlay-load"), "crash evidence lost");
+                    if (!String.IsNullOrEmpty(diagnosticFixture)) {
+                        Check(combined.Contains("snapshot=crash-v1") && combined.Contains("snapshot=hang-v1") && combined.Contains("/jfg-support-fixture.exe/"), "native stack evidence lost during ZIP export");
+                    }
                     Check(combined.Contains("native_exception=0xc0000005") && combined.Contains("omitted="), "exception or omitted count lost");
                 }
+                SupportSession later = new SupportSession(reportRoot, "launch"); later.Exit(0);
+                Check(SupportSession.Sessions(reportRoot).Find(delegate(SupportChoice c) { return c.Path == support.DirectoryPath; }).Failed, "failed session lost after successful launch");
+                string oldZip = SupportSession.Export(reportRoot, Path.Combine(directory, "exports"));
+                using (FileStream file = File.OpenRead(oldZip)) using (System.IO.Compression.ZipArchive zip = new System.IO.Compression.ZipArchive(file))
+                using (StreamReader reader = new StreamReader(zip.GetEntry("launcher.log").Open())) Check(reader.ReadToEnd().Contains("exit=0x00000011"), "default export did not select failed session");
+                Reject(delegate { SupportSession.ExportSelected(reportRoot, directory, Path.Combine(directory, "exports")); }, "export accepted unrelated directory");
+                support.SetupLine("PRIVATE-PATH-CANARY fatal error C1083: missing header");
+                support.SetupLine("error 0x80370102 PRIVATE-PATH-CANARY");
+                string safe = SupportSession.SanitizeFile(Path.Combine(support.DirectoryPath, "launcher.log"));
+                Check(safe.Contains("compiler_error=c1083") && safe.Contains("setup_error=virtualization-unavailable") && !safe.Contains("CANARY"), "setup error projection failed");
+                support.SystemDetails();
+                Check(SupportSession.SanitizeFile(Path.Combine(support.DirectoryPath, "system.log")).Contains("architecture=x64"), "system diagnostics missing");
+                Check(!support.RuntimeDetails(game, directory), "legacy executable incorrectly advertises capture");
+                string runtimeHash = SupportSession.Hash(game);
+                File.WriteAllText(game + ".support", "build_runtime_sha256=" + runtimeHash + "\nbuild_source=" + new string('b', 40) + "\nPRIVATE-PATH-CANARY\n");
+                support.RuntimeDetails(game, directory);
+                Check(SupportSession.SanitizeFile(Path.Combine(support.DirectoryPath, "build.log")).Contains("build_source=" + new string('b', 40)), "independent game build identity missing");
+                File.WriteAllText(game + ".support", "build_runtime_sha256=" + new string('0', 64) + "\nbuild_source=" + new string('c', 40) + "\n");
+                support.RuntimeDetails(game, directory);
+                Check(SupportSession.SanitizeFile(Path.Combine(support.DirectoryPath, "build.log")) == "build_identity=unavailable\n", "stale build manifest trusted");
                 for (int i = 0; i < 6000; ++i) support.Write("native=running");
                 Check(new FileInfo(Path.Combine(support.DirectoryPath, "launcher.log")).Length <= SupportSession.MaximumBytes, "support log grew without bound");
                 for (int i = 0; i < 12; ++i) new SupportSession(reportRoot, "launch");

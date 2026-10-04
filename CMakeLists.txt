@@ -1,5 +1,15 @@
 cmake_minimum_required(VERSION 3.20)
 
+# MSBuild's tracking paths repeat target names and remain subject to MAX_PATH.
+# CMAKE_OBJECT_PATH_MAX only shortens object names, not these .tlog paths.
+if(CMAKE_HOST_WIN32 AND CMAKE_GENERATOR MATCHES "Visual Studio")
+    string(LENGTH "${CMAKE_BINARY_DIR}" jfg_binary_root_length)
+    if(jfg_binary_root_length GREATER 80)
+        message(FATAL_ERROR "Windows build output path is too long for MSBuild. Use python scripts/build_windows.py --test (or --build-root D:/JFG-builds). Existing files are preserved.")
+    endif()
+endif()
+
+
 project(
     jfg_recomp
     VERSION 0.1.0
@@ -83,6 +93,34 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(Warnings)
 include(GeneratedCode)
 include(CTest)
+
+if(WIN32)
+    add_executable(jfg-support-capture src/app/support_capture.cpp)
+    target_include_directories(jfg-support-capture PRIVATE include)
+    target_compile_features(jfg-support-capture PRIVATE cxx_std_20)
+    target_link_libraries(jfg-support-capture PRIVATE dbghelp psapi)
+    jfg_set_project_warnings(jfg-support-capture)
+    if(BUILD_TESTING AND JFG_BUILD_TESTS)
+        add_executable(jfg-support-fixture tests/support_snapshot_fixture.cpp)
+        target_include_directories(jfg-support-fixture PRIVATE include)
+        target_compile_features(jfg-support-fixture PRIVATE cxx_std_20)
+        target_link_libraries(jfg-support-fixture PRIVATE psapi)
+        jfg_set_project_warnings(jfg-support-fixture)
+        if(MSVC)
+            target_compile_options(jfg-support-fixture PRIVATE /Zi)
+            target_link_options(jfg-support-fixture PRIVATE /DEBUG /INCREMENTAL:NO)
+        endif()
+        find_package(Python3 REQUIRED COMPONENTS Interpreter)
+        add_test(NAME jfg.support_capture COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test_support_capture.py"
+            --fixture "$<TARGET_FILE:jfg-support-fixture>" --capture "$<TARGET_FILE:jfg-support-capture>")
+        set_tests_properties(jfg.support_capture PROPERTIES TIMEOUT 45)
+    endif()
+endif()
+option(JFG_SUPPORT_SYMBOLS "Keep matching local symbols for support stack traces" OFF)
+if(MSVC AND JFG_SUPPORT_SYMBOLS)
+    add_compile_options(/Zi)
+    add_link_options(/DEBUG /INCREMENTAL:NO)
+endif()
 
 add_library(jfg_runtime STATIC
     src/platform/host.cpp
@@ -542,7 +580,8 @@ if(JFG_ENABLE_GENERATED_CODE)
             endif()
         endif()
         if(WIN32)
-            target_link_libraries(jfg-native-boot PRIVATE advapi32)
+            target_link_libraries(jfg-native-boot PRIVATE advapi32 psapi)
+            add_dependencies(jfg-native-boot jfg-support-capture)
             # Recompiled MIPS calls are ordinary host calls; boot-time overlay
             # initialization is substantially deeper than the MSVC 1 MiB
             # default, including on the deterministic guest-thread workers.

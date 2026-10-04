@@ -31,15 +31,17 @@ python -m unittest discover -s tests -p "test_*.py" -v
 
 ## Windows builds
 
-Use a Visual Studio 2022 developer shell:
+The build command locates CMake and Visual Studio automatically. It uses a
+short, separate output directory for each checkout, including deep source paths:
 
 ```powershell
-cmake --preset windows-msvc
-cmake --build --preset windows-msvc
-ctest --preset windows-msvc
-cmake --build --preset windows-msvc-release
-ctest --preset windows-msvc-release
+python scripts/build_windows.py --config Debug --test
+python scripts/build_windows.py --config Release --test
 ```
+
+Output lives in `%LOCALAPPDATA%\JFG\b\<checkout-id>\c`; the command prints
+the exact path. Use `--build-root D:/JFG-builds` to choose another short, writable
+local cache location. Existing source, builds and dependency caches are preserved.
 
 ## Linux builds
 

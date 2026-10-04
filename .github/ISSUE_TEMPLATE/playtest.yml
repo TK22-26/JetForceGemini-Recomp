@@ -60,4 +60,4 @@ body:
     id: report
     attributes:
       label: Support ZIP and additional details
-      description: Use Create support report before starting another session and attach its ZIP. If unavailable, explain why. Do not attach ROMs, game assets, saves, generated builds, or raw setup logs.
+      description: Use Create support report and select the affected session. For a freeze, use Capture freeze first if available. Preview .1 users should export before another session. Attach the ZIP. If unavailable, explain why. Do not attach ROMs, game assets, saves, generated builds, or raw setup logs.

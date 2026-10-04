@@ -275,6 +275,14 @@ class WorkflowPolicyTests(unittest.TestCase):
         errors = validate_workflow(modified, self.actions)
         self.assertTrue(any("linux-release" in error for error in errors))
 
+    def test_windows_debug_and_release_test_gates_cannot_be_removed(self) -> None:
+        for configuration in ("Debug", "Release"):
+            command = f"python scripts/build_windows.py --config {configuration} --test"
+            with self.subTest(configuration=configuration):
+                modified = self.workflow.replace(command, command.replace(" --test", ""))
+                errors = validate_workflow(modified, self.actions)
+                self.assertTrue(any(command in error for error in errors))
+
     def test_clang_build_gate_is_rejected_when_removed(self) -> None:
         modified = self.workflow.replace(
             "          cmake --build --preset linux-clang\n", "", 1
