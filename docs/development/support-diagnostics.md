@@ -1,6 +1,6 @@
 # Support diagnostics
 
-Source candidate: 0.4.0-preview.2. These additions have not been released.
+Available in [v0.4.0-preview.2](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v0.4.0-preview.2).
 
 Validated locally on 2026-10-04: full Windows Debug and Release builds from the
 deep checkout, all 69 native tests in each configuration, 66 launcher checks

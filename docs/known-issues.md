@@ -15,10 +15,19 @@ setup failures with `v0.4.0-preview.1` and Windows PowerShell 5.1:
 - Long RT64 dependency paths can fail checkout; a retry can skip incomplete
   submodules left by the first attempt.
 
-These installer fixes are pending. The issue records the reporter's workarounds;
-they have not been validated as a general automatic repair. Repeated restarts
-alone will not resolve every setup failure. [Manual build setup](development/rom-bootstrap.md)
-is available for users comfortable installing and checking prerequisites.
+[Preview 0.4.0-preview.2](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v0.4.0-preview.2)
+uses short build/dependency cache paths, enables Git long-path handling for
+dependency downloads, and retries submodule initialization when a checkout
+already exists. Its checked-command wrapper also preserves native stderr and
+exit codes under PowerShell 5.1. These changes have automated coverage; the
+reporter's complete Windows 10 installation sequence still needs a retest.
+
+Firmware-virtualization detection, older WSL distribution handling, and
+PowerShell prerequisite probes such as `Test-LinuxPackages` remain open.
+Repeated restarts alone will not resolve every setup failure. The issue records
+the reporter's workarounds; they are not a validated general automatic repair.
+[Manual build setup](development/rom-bootstrap.md) is available for users
+comfortable installing and checking prerequisites.
 
 ## Release and source versions
 
@@ -42,7 +51,9 @@ failure with the location and reproduction steps using the
 
 ## Support reports
 
-The current support ZIP contains filtered text logs. It exports the latest
-session, so create it before starting another session after a failure.
-Crash-dump and freeze-capture collection are not available in the released
-reporting workflow.
+Preview 0.4.0-preview.2 supports session selection, filtered system/build details,
+crash stacks and an on-demand freeze snapshot. Rebuild an older game to gain the
+native capture features. Capture remains best effort: forced termination, early
+startup failures, corrupted stacks or access restrictions can leave partial logs.
+These are text stack snapshots, not full-memory dumps. See [playtesting](playtesting.md)
+for the file inventory and attachment instructions. Nothing uploads automatically.

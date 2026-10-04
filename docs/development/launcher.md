@@ -33,7 +33,7 @@ licenses. See Microsoft's [WinGet installation reference](https://learn.microsof
 and [WSL installation guide](https://learn.microsoft.com/en-us/windows/wsl/install).
 
 Source stays in `%LOCALAPPDATA%\JFGRecomp\source`; setup diagnostics stay in
-`%LOCALAPPDATA%\JFGRecomp\setup.log`. The source candidate stores generated
+`%LOCALAPPDATA%\JFGRecomp\setup.log`. Preview 0.4.0-preview.2 stores generated
 inputs, dependencies, game builds and build logs under the short per-checkout
 cache `%LOCALAPPDATA%\JFG\b\<checkout-id>`. Earlier previews retain their
 original `tools/private/local-builds` directories; no existing files are moved.
@@ -88,12 +88,12 @@ crashes, click **Create support report**, inspect the ZIP if desired, and attach
 it to a [playtest issue](https://github.com/TK22-26/JetForceGemini-Recomp/issues/new?template=playtest.yml).
 Include the level/menu, what you pressed, what you expected and whether the
 problem repeats. If Windows or the launcher closes unexpectedly, reopen the
-launcher and create the report before starting another session.
+launcher and select the affected session when creating the report.
 
-The source candidate **0.4.0-preview.2** expands reports with session selection,
+[Preview 0.4.0-preview.2](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v0.4.0-preview.2) expands reports with session selection,
 recognized setup/compiler errors, system/configuration details, game build and
 symbol identity, automatic crash stacks and an on-demand **Capture freeze** action.
-The released **0.4.0-preview.1** retains its original two-log exporter.
+The older **0.4.0-preview.1** retains its original two-log exporter.
 
 See [playtesting and reporting](../playtesting.md) for the file inventory, retention,
 older-build behavior and GitHub attachment instructions, and

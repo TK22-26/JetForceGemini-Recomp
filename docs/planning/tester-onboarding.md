@@ -3,7 +3,8 @@
 Prepare a clear public project introduction and an issue-focused playtesting
 workflow before inviting more contributors. The maintainer reviewed the README
 and approved final review and publication of this documentation cleanup.
-The reply to issue 4 and richer diagnostic tooling remain separate work.
+The diagnostics follow-up is included in preview 0.4.0-preview.2.
+The reply to issue 4 still requires the maintainer's separate review.
 
 ## Decisions
 
@@ -21,7 +22,7 @@ The reply to issue 4 and richer diagnostic tooling remain separate work.
   Superseded publication discussions and experiment journals remain in Git history.
   Preserve licenses, attribution, historical evidence, and guard requirements.
 - GitHub issue attachments are the intended destination for diagnostic bundles.
-  Describe the current log ZIP honestly while planning richer logs and dumps.
+  Describe the filtered logs and stack snapshots, their limits, and how to attach them.
 
 ## Audit findings
 
@@ -32,7 +33,7 @@ The reply to issue 4 and richer diagnostic tooling remain separate work.
 | Contributions | The contribution guide opens with restrictions and assumes code changes. | Lead with playtesting, then offer the PR workflow. |
 | Reporting | The form lacks consistent problem type and frequency; successful reporting expectations are unclear. | Document problem-only reporting and update the issue form. |
 | Known limitations | Windows 10 setup failures are recorded in issue 4 but absent from the initial setup path. | Link a short known-issues page from README and getting started. |
-| Diagnostics | The released preview has two logs; the source candidate adds selected sessions and stack snapshots. | Validate and release the candidate before promising its capture features. |
+| Diagnostics | Preview .2 adds selected sessions and stack snapshots. | Keep release links and reporting instructions aligned with the available tools. |
 | Historical handoff | Old onboarding mixes operational history with instructions for newcomers. | Use Git history for the old text and provide a short development index. |
 
 The audited public baseline is `2c55b0f082395e2be4407958637dbb4effb3c43d`.
@@ -67,8 +68,7 @@ runtime, and reporting features remain separate implementation work.
 
 ## Reporting improvements
 
-The diagnostics follow-up implements these in the source candidate; the released
-launcher still needs a separate release. See [support diagnostics](../development/support-diagnostics.md)
+Preview 0.4.0-preview.2 implements the diagnostics follow-up. See [support diagnostics](../development/support-diagnostics.md)
 for its scope and validation.
 
 1. Select the affected session and retain failures across later launches.
@@ -99,6 +99,6 @@ Before sending a reply to [issue 4](https://github.com/TK22-26/JetForceGemini-Re
 - Keep the reply brief and practical; acknowledge the report and describe
   the useful next contribution.
 
-Publish the reviewed documentation through the protected-branch workflow.
-Contributor contact, runtime changes, and a new launcher release are outside
-this documentation delivery.
+The maintainer authorized publishing the diagnostics through the protected-branch
+workflow, releasing the matching launcher, and updating the onboarding links.
+Contributor contact remains pending a separately reviewed reply.

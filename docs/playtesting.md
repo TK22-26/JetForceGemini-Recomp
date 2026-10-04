@@ -23,9 +23,9 @@ Keep repeated occurrences of the same problem in that issue.
 
 ## Create a report
 
-The expanded reporter below is in source preview **0.4.0-preview.2**, pending
-release. The downloadable **0.4.0-preview.1** still exports only its latest
-session's two filtered logs; export those before starting another session.
+The workflow below is available in [v0.4.0-preview.2](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v0.4.0-preview.2).
+Older **0.4.0-preview.1** launchers export only their latest session's two logs;
+upgrade the launcher and rebuild the game to use native crash/freeze capture.
 
 1. For a freeze, leave the game open and click **Capture freeze** in the launcher.
    Wait for its result, then click **Create support report**. After a crash,
