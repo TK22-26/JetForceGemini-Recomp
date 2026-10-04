@@ -1,4 +1,5 @@
 #include "jfg/boot/sound_queue_recovery.hpp"
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -22,6 +23,10 @@ int main() {
     put(event,0xFFFF1234U);put(event+4U,0x80004000U);
     put(event+8U,0xDEADBEEFU);put(event+12U,0xFFFFFFFFU);
     const auto original=bytes;
+    auto restore = [&](const std::vector<std::uint8_t> &snapshot) {
+      check(snapshot.size() == bytes.size());
+      std::copy(snapshot.begin(), snapshot.end(), bytes.begin());
+    };
     Context context;
     check(recover_empty_sound_queue(memory,context,queue,event));
     check(context.r2==16000 && context.r29==0x80000100 && context.r31==0x800844E0);
@@ -33,7 +38,7 @@ int main() {
       if (i < (event & 0x1FFFFFFFU) || i >= (event & 0x1FFFFFFFU)+16U)
         check(bytes[i]==original[i]);
     // A second empty read is not manufactured while the periodic event exists.
-    bytes=recovered;context.r2=0;
+    restore(recovered);context.r2=0;
     check(!recover_empty_sound_queue(memory,context,queue,event) && bytes==recovered);
     const std::uint32_t changes[][2]={
       {queue+8U,0x80003000U}, {queue+0x10U,0x00010114U}, {queue+0x10U,0},
@@ -42,11 +47,11 @@ int main() {
       {event,0x00200000U}, {0x80084468U,0}, {kSoundPlayerGlobal,0xFFFFFFF0U}
     };
     for (const auto &change:changes) {
-      bytes=original;context=Context{};put(change[0],change[1]);const auto before=bytes;
+      restore(original);context=Context{};put(change[0],change[1]);const auto before=bytes;
       check(!recover_empty_sound_queue(memory,context,queue,event));
       check(bytes==before && context.r2==0);
     }
-    bytes=original;context=Context{};context.r2=1;
+    restore(original);context=Context{};context.r2=1;
     check(!recover_empty_sound_queue(memory,context,queue,event) && bytes==original);
     context.r2=0;
     check(!recover_empty_sound_queue(memory,context,queue+4U,event) && bytes==original);
