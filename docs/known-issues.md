@@ -64,13 +64,3 @@ native capture features. Capture remains best effort: forced termination, early
 startup failures, corrupted stacks or access restrictions can leave partial logs.
 These are text stack snapshots, not full-memory dumps. See [playtesting](playtesting.md)
 for the file inventory and attachment instructions. Nothing uploads automatically.
-
-## Rotated chest approach
-
-The tutorial Fish Food chest in room 122 is reachable on foot, but automatic
-collection currently rejects its opening point. A captured live export identifies
-the chest's own conservative world-aligned box as the blocker, including after
-projecting staging points onto the floor. The opening region overlaps an empty
-corner of that box. Precise chest collision geometry is needed before accepting
-this approach; the nearby terrain wall must remain an obstacle. The old
-"Proximity mines" label was separately corrected to Fish Food.

@@ -264,17 +264,20 @@ manual game input, or closing the map stops exploration. With the mod enabled,
 Escape cancels automation; close the game window when you want to quit.
 Jump assist remains optional and off by default.
 
-The explorer prefers untried exits with candidate surface routes. It excludes
-the nearby entrance candidate remembered on arrival. Other confirmed directed
-connections can lead toward rooms with unexplored exits; returning through the
-current entrance requires manual selection. It never assumes that a drop, dive or doorway works in reverse.
+The coordinator prioritizes loose keys and available item-giving NPCs, then
+other supported NPC rewards and unowned weapon chests, before selecting an exit.
+The explorer prefers untried forward exits with candidate surface routes. When
+these are exhausted, the remembered entrance is a return-route candidate. It
+plans and observes that transition normally; it never assumes that a drop, dive
+or doorway works in reverse. Confirmed directed connections lead toward rooms
+with unexplored exits, avoiding repeated visits to a cleared one-door item room.
 Known loops without an unexplored destination are not selected. Repeat-transition
 limits stop stale or changing graphs from producing endless circuits.
 
 Room IDs come from the live game. Exit identities combine their position,
 normal and raw destination code; actor pointers and generation numbers are
 not persistent room/exit identities. A raw destination code is not interpreted
-as a room number. The interaction list shows untried, skipped entrance,
+as a room number. The interaction list shows untried, return candidate,
 confirmed destination, unavailable and blocked states with reasons.
 
 Only observed transitions establish connections. A command must have been
@@ -411,7 +414,7 @@ snapshots refresh, including when earlier rows disappear. Selection and scroll
 reset when the room changes. Manual **Plan exit route** now uses the same
 floor-checked doorway approach as automatic exploration.
 
-**Explore automatically** excludes the entrance candidate observed when the
+**Explore automatically** defers the entrance candidate observed when the
 map first sees gameplay in a room. That candidate is the nearest doorway within
 400 world units; it is a heuristic, not a decoded entry trigger. Walking elsewhere
 before clicking Explore does not change it. The candidate survives reopening
@@ -420,10 +423,10 @@ room may not know the actual entrance. Manual exit selection remains available.
 
 Other exits are attempted in order, with unknown destinations preferred and a
 route required before movement starts. When no forward route passes clearance,
-exploration stops and explains why; it does not fall back through the entrance.
+exploration tries the entrance as a checked return route before stopping.
 A live obstruction releases movement and starts a bounded local replan of the
 same exit. Exhausting that allowance records the failure and considers another
-forward candidate.
+candidate.
 Each update checks the actual player-to-waypoint segment against static terrain
 and floor coverage as well as remaining entity bounds. Automatic movement stops
 when distance to the waypoint fails to improve for about 1.8 seconds (3.5 seconds
@@ -676,3 +679,38 @@ saves were preserved. The run used bounded local recovery along the route; it is
 not a smooth-motion or full-campaign acceptance. Original synthetic regression
 fixtures cover overlapping ramp floors, missing/live/disabled bridge surfaces,
 headroom, terminal walls and the separately mapped dialogue state.
+
+
+## Chest clearance and item-room returns (2026-10-04)
+
+Registered chest models (behavior 98), like qualified bridges, export their
+current transformed surface. Walking checks the surface inside the broad
+bounding box, preserving collision with the actual chest and nearby walls.
+This avoids treating the empty corner of a rotated chest's enclosing box as
+solid. Staging points are projected onto the floor independently. Terminal
+movement permits a small verified floor rise and stops on height deviation
+from that segment; opening still requires the native activation radius,
+height and facing, followed by an observed inventory reward.
+
+Loose key collection requires a new active-character item flag. The explorer
+remembers all exported character-item and shared ship-part flags as progress,
+so a newly acquired key can allow reconsidering a previously blocked return
+door. Unknown rewards, unsupported chest types and unqualified gate mechanics
+remain explicit limitations.
+
+Mizar tokens (behavior 109) appear as small gold dots, without text or interaction
+list rows. Their markers follow current actor presence and the selected map
+height view. They are informational and do not distract the AI from progression
+objectives.
+
+
+Validation: a muted native test on copied saves traversed tutorial rooms
+92 -> 47 -> 122, reached the Fish Food chest on foot, opened it, advanced its
+message, observed the weapon mask change from 1 to 1025, stepped back from
+the chest and returned through the same doorway to room 47. Five live Mizar
+token markers were exported in room 122. Original saves were unchanged.
+Synthetic regressions cover rotated chest clearance and blocking walls,
+sloped terminal movement, settled-position tolerance, objective-before-exit
+ordering, one-door returns, new-key retries and exhausted-room loop avoidance.
+Loose key pickup and the revised NPC priority have fixture coverage; a
+complete campaign and every live NPC/key branch remain unverified.

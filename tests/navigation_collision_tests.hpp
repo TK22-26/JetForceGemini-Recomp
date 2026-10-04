@@ -50,9 +50,15 @@ static void navigation_collision_tests() {
     check(surface.vertices.size()==3&&surface.triangles.size()==1);
     check(surface.vertices[1].x==50&&surface.vertices[1].y==20&&surface.vertices[2].z==-10);
     check(surface.triangles[0].normal.y==1);
+    m.put16(actor+0x48U,98);
+    const auto chest_surface=bridge_surface(m,actor,state);
+    check(chest_surface.vertices.size()==3 && chest_surface.vertices[2].z==-10);
     m.put16(faces+2U,0x0103);bool invalid=false;
     try{(void)bridge_surface(m,actor,state);}catch(const std::runtime_error &){invalid=true;}check(invalid);
     m.put16(actor+0x48U,7);check(bridge_surface(m,actor,state).triangles.empty());
+    m.put16(actor+0x48U,109);
+    const auto tokens=item_markers(m,{{actor,109,{1,2,3}}});
+    check(tokens.size()==1 && tokens[0].kind=="token" && tokens[0].position.z==3);
 
   }
 }

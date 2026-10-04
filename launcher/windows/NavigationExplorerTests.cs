@@ -251,14 +251,30 @@ namespace JfgLauncher {
                 explore.PerformClick();window.Close();Check(Command(ui)[6]=="0","closing map did not release controls");
             }
 
-            // Forward exploration never falls back through the arrival doorway.
+            // A blocked forward path can return through the arrival doorway.
             int entrancePlans=0;
             s=new Simulation(Room(100,1,entrance,forward),delegate(MapSnapshot map,MapMarker exit){
-                if(exit==entrance)++entrancePlans;
+                if(exit==entrance){++entrancePlans;return SimplePlan(map,exit);}
                 throw new InvalidDataException("Forward gate blocked");
             });
-            s.Tick(0);Check(s.Tick(400).Stop && entrancePlans==0,"blocked forward exit sent player back through entrance");
-            Check(s.Explorer.Describe(100,entrance).Contains("skipped"),"entrance exclusion not explained");
+            s.Tick(0);Check(s.Tick(400).Route!=null && entrancePlans==1,"blocked forward exit prevented a valid return");
+            Check(s.Explorer.Describe(100,entrance).Contains("Return route"),"return candidate not explained");
+            // One-door item room returns to its parent; observed edges prevent
+            // bouncing back into the now exhausted room.
+            var toItem=Exit(200,500,0);var back=Exit(201,0,0);var onward=Exit(202,700,0);
+            s=new Simulation(Room(200,1,toItem,onward));s.Tick(0);s.Reach(toItem);
+            s.Arrive(Room(201,2,back));
+            Check(s.Tick(700).Route!=null && s.Explorer.TargetKey==NavigationExplorer.ExitKey(back),"one-door room could not return");
+            s.Reach(back);s.Arrive(Room(200,3,toItem,onward));
+            Check(s.Tick(700).Route!=null && s.Explorer.TargetKey==NavigationExplorer.ExitKey(onward),"returned into cleared item room");
+            bool unlocked=false;
+            s=new Simulation(Room(203,1,back),delegate(MapSnapshot map,MapMarker exit) {
+                if(!unlocked)throw new InvalidDataException("Return door needs key");
+                return SimplePlan(map,exit);
+            });
+            s.Tick(0);Check(s.Tick(400).Stop,"locked return doorway did not stop");
+            unlocked=true;s.Map.Live.progression.inventory.red_key=true;s.Explorer.Start(s.Map,s.Now);
+            Check(s.Tick(0).Route!=null,"new key could not reopen a previously blocked return door");
             // Starting after manual movement must retain the observed entrance.
             MapSnapshot idle=Room(101,1,entrance,forward);
             NavigationExplorer idleExplorer=new NavigationExplorer(SimplePlan);idleExplorer.ObserveIdle(idle,100000);

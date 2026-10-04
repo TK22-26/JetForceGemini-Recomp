@@ -107,6 +107,13 @@ namespace JfgLauncher {
                     }
                 }
             }
+            var tracker=snapshot.Live.inventory_tracker;
+            if(tracker!=null&&tracker.known) {
+                tracker.Validate();
+                foreach(var c in tracker.characters)
+                    for(int i=0;i<c.items.Length;i++)if(c.items[i])facts.Add("item:"+c.id+":"+i);
+                for(int i=0;i<tracker.shared.Length;i++)if(tracker.shared[i])facts.Add("shared:"+i);
+            }
             if(facts.Count>8192)throw new InvalidDataException("Exploration progress history is full.");
             if(facts.Count!=History.facts.Count) {
                 History.facts=new List<string>(facts);History.facts.Sort(StringComparer.Ordinal);
@@ -249,9 +256,15 @@ namespace JfgLauncher {
             MapMarker best=null;double bestScore=Double.MaxValue;
             foreach(MapMarker marker in snapshot.Live.exits) {
                 string key=ExitKey(marker);ExploreExit exit=room.exits.Find(delegate(ExploreExit e){return e.key==key;});
-                if(exit==null || IsBlocked(exit) || arrivals.Contains(key))continue;
+                if(exit==null || IsBlocked(exit))continue;
                 double score;
-                if(!exit.destination.HasValue)score=0;
+                if(!exit.destination.HasValue) {
+                    // Probe an arrival door only after forward exploration. Its
+                    // reverse destination is unknown until an actual transition.
+                    if(arrivals.Contains(key)) {
+                        score=200000000;
+                    } else score=0;
+                }
                 else {
                     if(exit.destination.Value==room.level)continue;
                     int distance=FrontierDistance(exit.destination.Value);if(distance<0)continue;
@@ -412,7 +425,7 @@ namespace JfgLauncher {
             }
             if(now<nextPlan)return new ExploreCommand();
             MapMarker selected=Choose(snapshot);
-            if(selected==null)return Halt("Explorer stopped: no reachable forward exits remain. Entrance skipped; check blocked routes or move manually.");
+            if(selected==null)return Halt("Explorer stopped: no reachable forward exits or useful return routes remain. Check blocked routes or move manually.");
             string selectedKey=ExitKey(selected);ExploreExit chosen=room.exits.Find(delegate(ExploreExit e){return e.key==selectedKey;});
             ++chosen.attempts;Dirty=true;
             try {
@@ -436,7 +449,7 @@ namespace JfgLauncher {
             if(room==target && pending!=null && pending.Exit==exit && pending.Route.ApproachOnly)return "Door approach - waiting for clearance before crossing";
             if(IsBlocked(exit))return "Blocked: "+exit.blocked;
             if(exit.destination.HasValue)return "Confirmed -> room "+exit.destination.Value;
-            if(room==target && arrivals.Contains(key))return "Entrance candidate - skipped by automatic exploration";
+            if(room==target && arrivals.Contains(key))return "Return route candidate - used after local objectives and forward exits";
             return exit.blocked.Length==0?"Untried":"Retry available after progress change";
         }
         internal void Save(string directory) {

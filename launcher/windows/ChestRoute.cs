@@ -25,6 +25,10 @@ namespace JfgLauncher {
                 throw new InvalidDataException("Chest opening point has no supporting floor.");
             target.Y=y+BoxJumpPlanner.Offset(map);
             var stage=new HeightPoint(target.X+dx*60,target.Y,target.Z+dz*60);
+            float stageY;
+            if(!BoxJumpPlanner.Floor(map.Mesh,stage.X,stage.Z,target.Y,64,out stageY))
+                throw new InvalidDataException("Chest staging point has no supporting floor.");
+            stage.Y=stageY+BoxJumpPlanner.Offset(map);
             var floors=new MapLayers(map.Mesh).Floors;
             if(!NavigationRoute.ClearWalk(map,floors,stage,target,0))
                 throw new InvalidDataException("Chest opening point lacks body clearance.");
@@ -182,6 +186,35 @@ namespace JfgLauncher {
                 Report("NPC reward confirmed: "+reward.reward);
             }finally{Finish();}
         }
+        private CharacterInventory CurrentItems() {
+            var inventory=map.Live.inventory_tracker;
+            if(inventory==null||!inventory.known)throw new InvalidDataException("Key pickup needs live inventory telemetry.");
+            inventory.Validate();
+            foreach(var c in inventory.characters)if(c.id==inventory.current)return c;
+            throw new InvalidDataException("Current character inventory is unavailable.");
+        }
+        internal static bool GainedItem(bool[] before,bool[] after) {
+            if(before==null||after==null||before.Length!=after.Length)return false;
+            for(int i=0;i<before.Length;i++)if(!before[i]&&after[i])return true;
+            return false;
+        }
+        internal void RunPickup(uint address,int button) {
+            try {
+                Bind();Read();var node=Find(address);
+                if(node.action!="collect"||node.kind!="key")throw new InvalidDataException("Unsupported progression pickup.");
+                var initial=CurrentItems();int character=initial.id;var before=(bool[])initial.items.Clone();
+                var target=new HeightPoint(node.position);float floor;
+                if(!BoxJumpPlanner.Floor(map.Mesh,target.X,target.Z,target.Y,96,out floor))
+                    throw new InvalidDataException("Key has no verified supporting floor.");
+                target.Y=floor+BoxJumpPlanner.Offset(map);
+                Report("Collecting "+node.label+"; checking inventory...");
+                Traverse(target,button);Delay(500);
+                var current=CurrentItems();
+                if(current.id!=character||!GainedItem(before,current.items))
+                    throw new InvalidDataException("Pickup approach finished without a new item flag.");
+                Report("Key pickup confirmed by inventory.");
+            }finally{Finish();}
+        }
         private long Next(){return nonce=Math.Max(nonce+1,NavigationExplorer.Clock);}
         private void Delay(int ms) {for(int n=0;n<ms;n+=100){Thread.Sleep(Math.Min(100,ms-n));Read();}}
         private void InteractionSend(int mode,HeightPoint point) {
@@ -254,6 +287,15 @@ namespace JfgLauncher {
             return p!=null&&p.inventory!=null&&p.inventory.known&&p.inventory.weapons_mask.HasValue&&
                 (p.inventory.weapons_mask.Value&(1<<weapon))!=0;
         }
+        private void LeaveChest(ChestApproach access,string reward) {
+            Read();
+            // The opening point intentionally uses body clearance rather than
+            // the wider running margin. Return along the verified approach
+            // before handing control back to room-wide route planning.
+            Report("Reward confirmed; stepping back into the clear route...");
+            Interaction(0,access.Staging);Delay(300);
+            Report("Complete: "+reward+" confirmed in inventory; approach released.");
+        }
         internal void Run(uint address,int button) {
             try {
                 Bind();Read();
@@ -270,7 +312,7 @@ namespace JfgLauncher {
                 Walk(NavigationRoute.Plan(map,new float[]{access.Staging.X,access.Staging.Y,access.Staging.Z}));Delay(800);
                 Report("Precise final approach...");Interaction(0,access.Target);Delay(300);
                 for(int attempt=0;attempt<3;attempt++) {
-                    Read();if(Owns(weapon)){Report("Complete: "+chest.reward+" confirmed in inventory.");return;}
+                    Read();if(Owns(weapon)){LeaveChest(access,chest.reward);return;}
                     var liveChest=Find(address);var a=liveChest.activation;var pos=new HeightPoint(map.Live.player.position);
                     if(a==null||!a.known||BoxJumpPlanner.Horizontal(pos,new HeightPoint(a.point))>=a.radius||
                         pos.Y<a.point[1]-4||pos.Y>a.point[1]+a.max_height)
@@ -281,7 +323,7 @@ namespace JfgLauncher {
                     Report("Opening chest; checking inventory...");Interaction(1,pos);Delay(5000);
                 }
                 if(!Owns(weapon))throw new InvalidDataException("Chest action finished without the expected inventory reward.");
-                Report("Complete: "+chest.reward+" confirmed in inventory.");
+                LeaveChest(access,chest.reward);
             } finally {
                 Finish();
             }

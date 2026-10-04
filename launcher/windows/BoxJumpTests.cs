@@ -140,6 +140,33 @@ namespace JfgLauncher {
    m.Live.actors=new MapActor[]{new MapActor{address=0x80102000,position=new float[]{20,0,0}}};
    m.Live.collision.models=new MapCollisionModel[]{new MapCollisionModel{address=0x80102000,enabled=true,lower=new float[]{10,0,-80},upper=new float[]{60,100,80}}};
    Reject(delegate{ChestPlanner.Approach(m,chest);},"chest route ignored blocking entity");
+   // An original diamond-shaped chest fixture: its enclosing square blocks
+   // the opening corner, but the actual surfaces leave room for the body.
+   m=NavigationCollisionTests.Fixture();m.Live.player.position=new float[]{-150,0,-150};
+   var vertices=new[]{new float[]{-40,0,0},new float[]{0,0,40},new float[]{40,0,0},new float[]{0,0,-40},
+       new float[]{-40,36,0},new float[]{0,36,40},new float[]{40,36,0},new float[]{0,36,-40}};
+   var triangles=new System.Collections.Generic.List<MapFace>();
+   for(int edge=0;edge<4;edge++) {
+       int next=(edge+1)%4;
+       triangles.Add(new MapFace{v=new[]{edge,next,edge+4},normal=new float[]{1,0,0}});
+       triangles.Add(new MapFace{v=new[]{next,next+4,edge+4},normal=new float[]{1,0,0}});
+   }
+   triangles.Add(new MapFace{v=new[]{4,5,6},normal=new float[]{0,1,0}});
+   triangles.Add(new MapFace{v=new[]{4,6,7},normal=new float[]{0,1,0}});
+   var rotated=new MapCollisionModel{address=0x80103000,enabled=true,lower=new float[]{-40,0,-40},upper=new float[]{40,36,40}};
+   m.Live.actors=new[]{new MapActor{address=rotated.address,behavior=98,position=new float[]{0,0,0}}};
+   m.Live.collision.models=new[]{rotated};
+   chest=new MapInteraction{action="open_chest",position=new float[]{0,0,0},
+       activation=new MapChestAccess{known=true,point=new float[]{-34,0,-34},radius=20,max_height=8}};
+   Reject(delegate{ChestPlanner.Approach(m,chest);},"fixture must reproduce rotated bounding-box obstruction");
+   rotated.surface=new MapGeometry{vertices=vertices,triangles=triangles.ToArray()};
+   access=ChestPlanner.Approach(m,chest);
+   Check(access.Target.X< -44 && access.Target.Z< -44,"rotated chest lost safe opening corner");
+   Check(NavigationRoute.ClearWalk(m,new MapLayers(m.Mesh).Floors,access.Target,access.Staging,0),"chest cannot release approach after pickup");
+   Check(NavigationCollision.Intersects(rotated,new HeightPoint(-90,0,0),new HeightPoint(0,0,0)),"precise surface allowed walking through chest");
+   m.Live.collision.models=new[]{rotated,new MapCollisionModel{address=0x80104000,enabled=true,
+       lower=new float[]{-75,0,-150},upper=new float[]{-65,120,150}}};
+   Reject(delegate{ChestPlanner.Approach(m,chest);},"precise chest approach ignored separate wall");
    return checks;
   }
  }

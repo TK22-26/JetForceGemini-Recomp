@@ -228,8 +228,20 @@ public:
       }
       const auto delta=difference(p,last_);last_=p;
       const auto goal=route_.front();
-      if(std::abs(p.y-goal.y)>6){stop("interaction_height_changed");return;}
-      if(distance(p,goal)<=2.0f && std::hypot(delta.x,delta.z)<.2f)++stable_;else stable_=0;
+      // The launcher verifies floor/body clearance for the terminal segment.
+      // Follow its small floor rise instead of requiring the entire approach
+      // to start at the destination height. Drops away from that segment stop.
+      const auto line=difference(goal,origin_);
+      const auto horizontal2=line.x*line.x+line.z*line.z;
+      const auto along=horizontal2>1 ? std::clamp(
+          ((p.x-origin_.x)*line.x+(p.z-origin_.z)*line.z)/horizontal2,0.0f,1.0f) : 1.0f;
+      const auto floor_height=origin_.y+line.y*along;
+      if(horizontal2>180*180 || std::abs(line.y)>24 ||
+         std::abs(p.y-floor_height)>6) {stop("interaction_height_changed");return;}
+      // A close approach can settle slightly beside the centerline while
+      // preserving facing. Three units remain inside the launcher's five-unit
+      // activation margin; the client still checks the actual trigger and yaw.
+      if(distance(p,goal)<=3.0f && std::hypot(delta.x,delta.z)<.2f)++stable_;else stable_=0;
       if(stable_>=6){stop("precision_complete");return;}
       float ex=goal.x-p.x-delta.x*(1.0f/(1.0f-.9025f));
       float ez=goal.z-p.z-delta.z*(1.0f/(1.0f-.9025f));

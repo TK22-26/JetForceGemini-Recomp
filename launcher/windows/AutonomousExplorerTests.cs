@@ -29,6 +29,11 @@ namespace JfgLauncher {
             reward.status="owned";Check(AutonomousExplorer.UsefulOffer(npc)==null,"do not repeat owned reward");
             reward.status="blocked";Check(AutonomousExplorer.UsefulOffer(npc)==null,"respect unmet prerequisites");
             reward.status="available";reward.cost=5;Check(AutonomousExplorer.UsefulOffer(npc)==null,"do not buy incidental services");
+            reward.cost=0;reward.kind="item";
+            Check(AutonomousExplorer.ObjectivePriority(npc)<AutonomousExplorer.ObjectivePriority(new MapInteraction{action="open_chest"}),"key NPC should precede weapon chests");
+            Check(AutonomousExplorer.ObjectivePriority(new MapInteraction{action="collect",kind="key"})==0,"prioritize loose keys");
+            Check(ChestTrial.GainedItem(new[]{false,true},new[]{true,true}),"new key bit not detected");
+            Check(!ChestTrial.GainedItem(new[]{false,true},new[]{false,true}),"unchanged inventory counted as key collection");
             var marker=new MapMarker{address=123,position=new float[]{500,0,0},normal=new float[]{1,0,0},destination_code=2};
             var map=NavigationExplorerTests.Room(1,1,marker);long now=NavigationExplorer.Clock;
             map.Live.timestamp_ms=now;map.Live.dialogue=new MapDialogue{rows=new MapDialogueChoice[0]};
@@ -64,6 +69,26 @@ namespace JfgLauncher {
             ++map.Live.navigation_ai.manual_inputs;
             command=explorer.Tick(map,now+1400);
             Check(command.Stop&&!explorer.Running,"manual input cancels unified system");
+            var back=new MapMarker{address=444,position=new float[]{0,0,0},normal=new float[]{0,0,1},destination_code=4};
+            var itemRoom=NavigationExplorerTests.Room(122,1,back);
+            itemRoom.Live.timestamp_ms=now;itemRoom.Live.dialogue=new MapDialogue{rows=new MapDialogueChoice[0]};
+            itemRoom.Live.progression.inventory.weapons_mask=1;
+            itemRoom.Live.progression.nodes=new[]{new MapInteraction{address=445,action="open_chest",kind="weapon",
+                position=new float[]{200,0,0},status="unopened",reward_weapon=10}};
+            int opened=0;
+            var itemExplorer=new AutonomousExplorer(Path.GetTempPath(),new NavigationExplorer(),
+                delegate(ChestTrial runner,string action,uint address,MapNpcOffer selected,float[] destination) {
+                    if(action!="weapon chest")throw new Exception("Expected Fish Food chest");
+                    ++opened;itemRoom.Live.progression.inventory.weapons_mask|=1024;
+                    itemRoom.Live.progression.nodes[0].status="opened";
+                });
+            itemExplorer.Start(itemRoom,now);
+            Check(itemExplorer.Tick(itemRoom,now).Stop&&opened==0,"left item room before collecting objective");
+            itemExplorer.Tick(itemRoom,now);
+            for(int n=0;n<100&&itemExplorer.Busy;n++)Thread.Sleep(5);
+            command=itemExplorer.Tick(itemRoom,now);
+            Check(opened==1&&command.Route!=null&&itemExplorer.TargetKey==NavigationExplorer.ExitKey(back),"did not return after Fish Food ownership");
+            itemExplorer.Stop("test");
             var inventory=new InventoryTracker{known=true,current=1,shared=new bool[12],characters=new[]{
                 new CharacterInventory{id=0,items=new bool[27]},new CharacterInventory{id=1,items=new bool[27],weapons=13},new CharacterInventory{id=2,items=new bool[27]}}};
             Check(InventoryCanvas.weapons[7]=="Sniper rifle"&&InventoryCanvas.weapons[10]=="Fish Food","weapon bit positions mislabeled");

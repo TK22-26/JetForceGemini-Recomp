@@ -407,11 +407,13 @@ namespace JfgLauncher
             float low=CenterHeight-SliceWidth/2,high=CenterHeight+SliceWidth/2;
             bool off=Mode!=2&&(p.Y<low||p.Y>high);
             if(off&&!OtherLevels) return;
-            if(off) {color=Color.FromArgb(130,color);text+=(p.Y>high?" \u2191":" \u2193")+Math.Abs(p.Y-CenterHeight).ToString("0");}
+            if(off) {color=Color.FromArgb(130,color);if(!String.IsNullOrEmpty(text))text+=(p.Y>high?" \u2191":" \u2193")+Math.Abs(p.Y-CenterHeight).ToString("0");}
             PointF at=Project(p);
             using(Brush brush=new SolidBrush(color))
             using(Pen pen=new Pen(off?color:Color.Black,2)) {
-                if(shape==2) {
+                if(shape==3) {
+                    if(!off)g.FillEllipse(brush,at.X-3,at.Y-3,6,6);g.DrawEllipse(pen,at.X-3,at.Y-3,6,6);
+                } else if(shape==2) {
                     PointF[] diamond={new PointF(at.X,at.Y-6),new PointF(at.X+6,at.Y),new PointF(at.X,at.Y+6),new PointF(at.X-6,at.Y)};
                     if(!off)g.FillPolygon(brush,diamond);g.DrawPolygon(pen,diamond);
                 } else if(shape==1) {
@@ -420,7 +422,7 @@ namespace JfgLauncher
                     if(!off)g.FillEllipse(brush,at.X-5,at.Y-5,10,10);g.DrawEllipse(pen,at.X-5,at.Y-5,10,10);
                 }
             }
-            Label(g,text,new PointF(at.X+8,at.Y-8),color);
+            if(!String.IsNullOrEmpty(text))Label(g,text,new PointF(at.X+8,at.Y-8),color);
         }
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);Graphics g=e.Graphics;
@@ -471,8 +473,8 @@ namespace JfgLauncher
                 if (node.status == "owned" || node.status == "opened" || node.status == "activated") color = Color.Gray;
                 Marker(g, node.position, color, node.Caption, node.kind == "npc" || node.kind == "tribal" ? 2 : node.kind == "exit" ? 0 : 1);
             }
-            if (snapshot.Live.progression == null) foreach (MapMarker marker in snapshot.Live.markers)
-                if (!enriched.Contains(marker.address)) Marker(g, marker.position, marker.kind == "opened" ? Color.Gray : marker.kind == "key" ? Color.Plum : marker.kind == "weapon" ? Color.Orange : Color.LightGreen, marker.label, 1);
+            foreach (MapMarker marker in snapshot.Live.markers)
+                if (!enriched.Contains(marker.address)) Marker(g, marker.position, marker.kind == "token" ? Color.Gold : marker.kind == "opened" ? Color.Gray : marker.kind == "key" ? Color.Plum : marker.kind == "weapon" ? Color.Orange : Color.LightGreen, marker.kind == "token" ? null : marker.label, marker.kind == "token" ? 3 : 1);
             if (snapshot.Live.progression == null) foreach (MapMarker npc in snapshot.Live.npcs)
                 if (!enriched.Contains(npc.address)) Marker(g, npc.position, npc.kind == "tribal" ? Color.White : Color.CornflowerBlue, npc.label, 2);
             if (Route != null && Route.Level == snapshot.Live.level && Route.Generation == snapshot.Live.generation) {

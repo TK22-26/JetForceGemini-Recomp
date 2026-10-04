@@ -36,7 +36,40 @@ static void navigation_pilot_tests() {
         vx=vx*.9025f-in.x*.005f;vz=vz*.9025f+in.y*.005f;
         point.x+=vx;point.z+=vz;
       }
-      check(done&&std::hypot(point.x,point.z)<=2);
+      check(done&&std::hypot(point.x,point.z)<=3);
+    }
+    {
+      NavigationPilot settled;settled.camera_heading(true,0);
+      std::stringstream c("JFGINTERACT1 35 2 1 1000 0 0 0 0");
+      check(settled.command(c,35,2,1000));settled.tick({60,0,0},true,35,2,1000);
+      for(int n=1;n<10;n++)settled.tick({0,0,2.7f},true,35,2,1000+33*n);
+      check(!settled.active()&&std::string(settled.state)=="precision_complete");
+      // A settled point farther away must not claim success.
+      NavigationPilot outside;outside.camera_heading(true,0);
+      std::stringstream far("JFGINTERACT1 35 2 1 1000 0 0 0 0");
+      check(outside.command(far,35,2,1000));outside.tick({60,0,0},true,35,2,1000);
+      for(int n=1;n<10;n++)outside.tick({0,0,5},true,35,2,1000+33*n);
+      check(outside.active());
+    }
+    // A gentle sloped terminal approach reaches its target; falling away
+    // from the expected floor, or targeting another story, must stop.
+    for(float rise:{-10.0f,10.0f}) {
+      NavigationPilot slope;slope.camera_heading(true,0);PilotPoint p{60,0,0};float vx=0;bool complete=false;
+      for(int step=0;step<230;++step) {
+        auto now=1000+step*33;std::stringstream c;
+        c<<"JFGINTERACT1 35 2 1 "<<now<<" 0 0 "<<rise<<" 0";
+        check(slope.command(c,35,2,now));p.y=rise*(1-p.x/60);slope.tick(p,true,35,2,now);
+        if(!slope.active()){complete=std::string(slope.state)=="precision_complete";break;}
+        vx=vx*.9025f-slope.observed_input().x*.005f;p.x+=vx;
+      }
+      check(complete&&std::abs(p.y-rise)<1);
+    }
+    for(bool falling:{false,true}) {
+      NavigationPilot unsafe;unsafe.camera_heading(true,0);
+      std::stringstream c;c<<"JFGINTERACT1 35 2 1 1000 0 60 "<<(falling?10:40)<<" 0";
+      check(unsafe.command(c,35,2,1000));unsafe.tick({},true,35,2,1000);
+      unsafe.tick({10,falling?-10.0f:0.0f,0},true,35,2,1033);
+      check(!unsafe.active()&&std::string(unsafe.state)=="interaction_height_changed");
     }
     check(send("JFGINTERACT1 35 2 3 1000 1 -50 0 0"));
     terminal.tick({-50,0,0},true,35,2,1000);terminal.tick({-50,0,0},true,35,2,1033);

@@ -149,7 +149,9 @@ namespace JfgLauncher {
                 "\r\nBase Y: "+model.lower[1].ToString("0.0")+"\r\nTop Y: "+model.upper[1].ToString("0.0")+
                 "\r\nHeight: "+(model.upper[1]-model.lower[1]).ToString("0.0")+
                 "\r\nWidth X: "+(model.upper[0]-model.lower[0]).ToString("0.0")+" | Depth Z: "+(model.upper[2]-model.lower[2]).ToString("0.0")+
-                "\r\n\r\nConservative bounding box; empty space inside irregular shapes may also be excluded from routes.";
+                (model.surface!=null
+                    ? "\r\n\r\nRoutes use the transformed model surface inside these bounds."
+                    : "\r\n\r\nConservative bounding box; empty space inside irregular shapes may also be excluded from routes.");
         }
     }
     internal static class CollisionMapDrawing {

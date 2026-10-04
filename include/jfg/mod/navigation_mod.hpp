@@ -195,13 +195,14 @@ inline std::string actor_name(const Memory &m, std::uint32_t actor) {
   } catch (const std::runtime_error &) {}
   return name.empty() ? "Unnamed entity" : name;
 }
-// Registered deformable bridges (behavior 55) use a current vertex buffer.
+// Qualified bridges (55) and chests (98) use the registered current vertex buffer.
 // Read that buffer and the collision face normals, transformed by the same
 // double-buffered local-to-world matrix used by the resident collision code.
 // Other model types retain conservative bounds until separately qualified.
 inline Mesh bridge_surface(const Memory &m, std::uint32_t actor, std::uint32_t state) {
   Mesh result;
-  if (m.u16(actor+0x48U)!=55U) return result;
+  const auto behavior=m.u16(actor+0x48U);
+  if (behavior!=55U && behavior!=98U) return result;
   m.require(state,0x134U);
   const auto matrix_index=m.u8(state+0x12BU), model_index=m.u8(state+0x133U);
   if(matrix_index>1U||model_index>31U)throw std::runtime_error("bridge buffer index");
@@ -510,6 +511,10 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
                                 " (unidentified)";
         if (item.opened)
           item.label += " (opened)";
+      } else if (a.behavior == 109U) {
+        // robotTokenControl pickup actor, confirmed in the tutorial Fish Food room.
+        item.kind = "token";
+        item.label = "Mizar token";
       } else if (a.behavior == 61U) {
         item.kind = "health";
         item.label = "Health";
@@ -749,6 +754,7 @@ interactions(const Memory &m, const std::vector<Actor> &list,
     result.push_back(std::move(node));
   }
   for (const auto &item : item_markers(m, list)) {
+    if (item.kind == "token") continue; // Compact map dots, not interaction rows.
     Interaction node;
     node.address = item.address;
     node.position = item.position;

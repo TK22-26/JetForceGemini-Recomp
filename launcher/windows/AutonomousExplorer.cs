@@ -80,6 +80,7 @@ namespace JfgLauncher {
             if(action=="dialogue")runner.RunDialogue();
             else if(action=="NPC reward")runner.RunNpc(address,reward);
             else if(action=="weapon chest")runner.Run(address,JumpButton);
+            else if(action=="key pickup")runner.RunPickup(address,JumpButton);
             else runner.RunTraversal(destination,JumpButton);
         }
         internal static AutonomousExplorer Load(string path){return new AutonomousExplorer(path,NavigationExplorer.Load(path));}
@@ -112,9 +113,31 @@ namespace JfgLauncher {
         }
         internal static MapNpcOffer UsefulOffer(MapInteraction node) {
             if(node.action!="talk"||node.offers==null)return null;
+            MapNpcOffer best=null;int priority=Int32.MaxValue;
             foreach(var o in node.offers)if(o.status=="available"&&
-                (o.kind=="item"||o.kind=="weapon"||o.kind=="ship_part")&&o.cost==0)return o;
-            return null;
+                (o.kind=="item"||o.kind=="weapon"||o.kind=="ship_part")&&o.cost==0) {
+                int rank=o.kind=="item"?0:o.kind=="ship_part"?1:2;
+                if(rank<priority){priority=rank;best=o;}
+            }
+            return best;
+        }
+        internal static int ObjectivePriority(MapInteraction node) {
+            var reward=UsefulOffer(node);
+            if(reward!=null)return reward.kind=="item"?0:reward.kind=="ship_part"?1:2;
+            if(node.action=="collect"&&node.kind=="key")return 0;
+            if(node.action=="open_chest")return 3;
+            return 10;
+        }
+        private static MapInteraction[] OrderedObjectives(MapSnapshot map) {
+            var nodes=(MapInteraction[])map.Live.progression.nodes.Clone();
+            Array.Sort(nodes,delegate(MapInteraction a,MapInteraction b) {
+                int priority=ObjectivePriority(a).CompareTo(ObjectivePriority(b));
+                if(priority!=0)return priority;
+                var p=new HeightPoint(map.Live.player.position);
+                return BoxJumpPlanner.Horizontal(p,new HeightPoint(a.position)).CompareTo(
+                    BoxJumpPlanner.Horizontal(p,new HeightPoint(b.position)));
+            });
+            return nodes;
         }
         private ExploreCommand Prepare(string action,uint address,MapNpcOffer reward,float[] destination) {
             kind=action;actor=address;offer=reward;goal=destination;
@@ -151,13 +174,16 @@ namespace JfgLauncher {
                 exits.ResumeAfterAction(map,now);resume=false;
             }
             if(exits.OwnsRoom(map)&&map.Live.clearing_active&&map.Live.progression!=null) {
-                foreach(var node in map.Live.progression.nodes) {
+                foreach(var node in OrderedObjectives(map)) {
                     string key=map.Live.level+":"+map.Live.generation+":"+node.address;
                     var reward=UsefulOffer(node);
                     key+=reward==null?":chest":":offer:"+reward.action;
                     if(attempted.Contains(key))continue;
                     if(reward!=null) {
                         attempted.Add(key);return Prepare("NPC reward",node.address,reward,null);
+                    }
+                    if(node.action=="collect"&&node.kind=="key"&&node.status=="present") {
+                        attempted.Add(key);return Prepare("key pickup",node.address,null,null);
                     }
                     var inv=map.Live.progression.inventory;
                     if(node.action=="open_chest"&&node.reward_weapon>=0&&node.reward_weapon<15&&
