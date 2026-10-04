@@ -34,6 +34,7 @@
 #include "jfg/runtime/input_stick.hpp"
 #include "jfg/runtime/controller_mapping.hpp"
 #include "jfg/runtime/support_log.hpp"
+#include "jfg/runtime/support_snapshot.hpp"
 #include <iterator>
 #include "jfg/runtime/rt64_overlay_address.hpp"
 #include "jfg/renderer/rt64_f3ddkr_address.hpp"
@@ -3751,6 +3752,7 @@ void ledger(State &state, std::string_view category, std::string_view operation,
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
 LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
+  jfg::support_crash(exception);
   State *const state = g_active_child_state;
   if (state != nullptr) {
     const std::uint32_t target =
@@ -5839,6 +5841,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       if (!memory.read_u32(a1, message)) fail_closed_dispatch(state, "guest-vi", "message-unreadable", target);
       if (message == state.vi_message) {
         ++state.vi_retraces;
+        jfg::support_breadcrumb(state.vi_frames, state.vi_retraces, state.controller_samples);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
         write_retrace_semantic_hash(state);
         write_private_progress(state);
@@ -7202,6 +7205,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         result.return_value == hle::kOsSuccess && received_vi_message() &&
         state.vi_messages_delivered > state.vi_retraces) {
       ++state.vi_retraces;
+      jfg::support_breadcrumb(state.vi_frames, state.vi_retraces, state.controller_samples);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
       trace_phase9_event(state, "vi-consumed", state.controller_samples);
 #endif
@@ -7256,6 +7260,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     if (receive_result == hle::kOsSuccess && received_vi_message() &&
         state.vi_messages_delivered > state.vi_retraces) {
       ++state.vi_retraces;
+      jfg::support_breadcrumb(state.vi_frames, state.vi_retraces, state.controller_samples);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
       trace_phase9_event(state, "vi-consumed", state.controller_samples);
 #endif
@@ -7757,6 +7762,7 @@ extern "C" void jfg_phase9_execution_probe(unsigned section, unsigned pc,
         case ReferenceEvent::vi:
           mmio.mi_pending |= 8U;
           ++state.vi_frames;
+          jfg::support_breadcrumb(state.vi_frames, state.vi_retraces, state.controller_samples);
           if (mmio.vi_v_sync != 0U && mmio.vi_v_sync != 525U)
             fail_closed_dispatch(state, "guest-os", "unqualified-vi-mode", pc);
           mmio.vi_period = mmio.vi_v_sync == 0U ? 500000U : (mmio.vi_v_sync + 1U) * 1500U;

@@ -1,149 +1,56 @@
-# Test-corpus classification and handling policy
+# Test corpus and isolated execution
 
-- Status: Mandatory Phase 0 policy
-- Last reviewed: 2026-08-03
-- Approval authority: Human maintainers
-- Private-corpus owner: `TK22-26`
-
-This policy governs replay inputs, state snapshots, emulator captures, graphics
-and audio references, fuzz corpora, first-divergence evidence, and golden
-baselines. It must be read together with `rom-and-assets-policy.md`.
+This policy covers developer fixtures, replay inputs, snapshots, reference
+captures, and golden baselines. Public playtest reports follow the separate
+[reporting guide](../playtesting.md).
 
 ## Classification
 
-Every corpus item has exactly one classification in its manifest.
+| Class | Contents and handling |
+|---|---|
+| `PUBLIC_SAFE` | Project-authored input recipes, synthetic fixtures, schemas, reviewed hashes and aggregates; may be tracked after review. |
+| `PRIVATE_REGENERABLE` | ROM-backed snapshots, generated code, captures, save bodies, detailed traces, or dumps containing game data; local/isolated storage only. |
+| `PROHIBITED` | Unknown-origin or unauthorized material, or material that cannot meet isolation requirements; do not retain/process its contents. Escalate metadata to a maintainer. |
 
-### `PUBLIC_SAFE`
+Each corpus manifest records its classification, stable ID, generator/schema,
+recipe, expected digest, permitted output fields, retention, and owner.
+Use repository-relative recipe paths without personal paths, secrets, or raw data.
+Minimization does not change classification.
 
-Independently authored, non-expressive data that may be tracked after review:
+`TK22-26` owns corpus access, retention, deletion, and backup decisions. Keep
+private bodies ignored, access-restricted, and read-only during normal tests.
+Use fresh scratch output. GitHub/cloud artifacts and shared caches are not
+private-corpus backups; new off-machine storage requires owner authorization.
 
-- Controller input sequences created by the project.
-- Scenario recipes and semantic assertions.
-- Synthetic memory/device fixtures created without game bytes.
-- Schemas, parsers, generators, and minimization tools.
-- Cryptographic hashes and aggregate counts that do not enable reconstruction.
-- Project-assigned opaque scenario, subsystem, and function identifiers.
+## Trusted ROM-backed runners
 
-### `PRIVATE_REGENERABLE`
+Public PR CI uses synthetic inputs without a ROM. A ROM-backed runner requires:
 
-ROM-backed material that may exist only on an approved local or isolated
-runner and must be regenerable from an authorized local input:
+1. A human-approved trusted commit and workflow from a human-controlled branch.
+2. A fresh ephemeral VM or equivalent disposable instance.
+3. No outbound network or inbound service, tokens, keys, or cloud credentials.
+4. Read-only private inputs mounted only after trust verification.
+5. Disposable private scratch storage, destroyed after the job.
+6. No caches, artifact uploads, core dumps, unrestricted logs, or job summaries.
+7. An allowlisted validating output gateway for fixed-schema aggregates only.
+8. Harmless isolation canaries covering file, path, environment, log, artifact,
+   cache, and network disclosure. Failed isolation blocks execution.
 
-- RDRAM pages and function-call snapshots.
-- Emulator save states and game save bodies.
-- ROM pages, extracted assets, generated code, and symbol exports.
-- Display lists, graphics/RSP task buffers, framebuffers, screenshots, video,
-  audio command streams, and PCM.
-- Full traces, crash dumps, and divergence bundles containing game data.
+Fork heads, issue commands, unreviewed dependency changes, and unreviewed agent
+branches must not execute inside that boundary. Reconstruct reviewed external
+contributions on a trusted branch before exposing private inputs.
 
-`PRIVATE_REGENERABLE` data is forbidden from every GitHub storage or output
-channel, even while the repository is private.
+The gateway rejects free-form process output, source/stack contents, memory
+ranges, filenames, and binary attachments. Permitted aggregates include
+pass/fail, test IDs, schema versions, approved hashes, and divergence ticks.
 
-### `PROHIBITED`
+## Baselines
 
-Material whose origin, permission, or ability to avoid disclosure is unknown;
-material received from an unauthorized source; and private material that is
-not necessary or cannot be handled by the approved isolation controls.
+Bind results to exact source, inputs, tools, profiles, and producer identities.
+Keep original failures and their evidence before minimization. Golden updates,
+tolerances, state-hash exclusions, and scheduler/save semantics require explicit
+review; never change them merely to make a failing test pass.
 
-`PROHIBITED` data is not retained or processed. Its metadata is escalated to a
-human maintainer without copying the content.
-
-## Corpus manifests
-
-Tracked manifests describe how to regenerate and validate private items but do
-not contain them. A manifest includes:
-
-```yaml
-id: scenario-boot-smoke
-classification: PRIVATE_REGENERABLE
-generator_schema: 1
-supported_rom_id: jfg-us-retail
-input_recipe: corpus/manifests/scenario-boot-smoke.yaml
-expected_private_body_sha256: "<hash>"
-sanitized_outputs:
-  - pass
-  - first_divergent_tick
-  - state_hash
-retention: ephemeral
-owner: compatibility
-```
-
-Manifests record repository-relative recipe paths only. They MUST NOT contain
-personal identifiers, machine-specific paths, raw bytes, screenshots, source
-excerpts, or secrets.
-
-## Local corpus rules
-
-- Private bodies reside under ignored `corpus/private/`, `captures/private/`,
-  or outside the checkout.
-- Private bodies are content-addressed, access-restricted, and read-only during
-  a normal test run.
-- Test output goes to a fresh private scratch directory.
-- Private bodies have a documented retention period and can be regenerated;
-  they are not backed up to GitHub, cloud artifact stores, or shared caches.
-- For Phase 0-4, no off-machine backup of private corpus bodies is authorized.
-  `TK22-26` owns access, retention, deletion, and any future backup decision.
-- A minimizer working on private data produces a private result. Minimization
-  does not change classification.
-
-## ROM-backed CI isolation
-
-ROM-backed CI executes only trusted commits reconstructed or approved by a
-human maintainer. It MUST NOT execute code directly from an untrusted pull
-request, fork, issue command, dependency update, or agent branch.
-
-The runner boundary requires:
-
-- An ephemeral disposable VM or equivalent clean instance for each job.
-- No inbound access and deny-by-default outbound network access.
-- No GitHub token, SSH key, cloud credential, package-publish credential, or
-  user credential inside the test environment.
-- A read-only private input mount made available only after source checkout and
-  trust verification.
-- Workflows sourced from a protected trusted commit.
-- No Actions artifact upload, cache save, job-summary body, core dump, or
-  automatic diagnostic attachment from the private execution environment.
-- Log capture disabled by default for child processes; sanitized orchestration
-  emits only an allowlisted result schema.
-- A fresh writable scratch disk destroyed with the runner.
-
-The only allowed output crosses a validating gateway and contains fixed-schema
-aggregate fields such as pass/fail, test ID, elapsed bucket, schema version,
-approved hashes, first divergent tick, and project-owned opaque IDs. Free-form
-stdout, stderr, filenames, memory ranges, source names, stack contents, and
-binary attachments are rejected.
-
-An isolation test MUST attempt harmless file-read, path-print, log, artifact,
-cache, environment, and network-exfiltration canaries and prove they cannot
-leave the runner.
-
-## Goldens and evidence
-
-- Public-safe goldens are versioned and human-reviewed.
-- Private goldens are regenerated locally and verified by a tracked public-safe
-  hash manifest.
-- An AI agent may propose but may not apply or approve a golden change.
-- Evidence bundles inherit the highest classification of any input or field.
-- Passing a sanitizer or redactor does not automatically downgrade evidence.
-- A golden update records old and new approved hashes, reason, affected tests,
-  oracle provenance, and human approver without including private bodies.
-
-## Failure handling
-
-Private detailed failures remain inside the isolated runner or an explicitly
-approved local environment. The sanitized result identifies the first failing
-test and tells a trusted maintainer how to reproduce it locally. It does not
-upload a crash dump, screenshot, audio clip, trace, disassembly, memory bytes,
-or unrestricted log.
-
-## Acceptance criteria
-
-Corpus automation is acceptable only when:
-
-1. Every item and output has a classification.
-2. No `PRIVATE_REGENERABLE` or `PROHIBITED` body is tracked or uploaded.
-3. A clean runner can regenerate private bodies from approved local inputs.
-4. The output gateway rejects unknown fields, oversized values, free-form text,
-   and binary data.
-5. Isolation canaries demonstrate that private data cannot escape through
-   network, logs, summaries, artifacts, or caches.
+See [data handling](rom-and-assets-policy.md), [execution profiles](../adr/0002-execution-profiles.md),
+and [security](../../SECURITY.md). Automated work also follows the
+[production guard](../planning/autonomy-progress-guard.md).

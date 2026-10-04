@@ -6,6 +6,16 @@ function Assert-Setup($Condition, [string]$Description) {
     if (-not $Condition) { throw $Description }
     $script:checks++
 }
+$probe = Join-Path ([IO.Path]::GetTempPath()) ('jfg-stderr-' + [Guid]::NewGuid().ToString('N') + '.ps1')
+[IO.File]::WriteAllText($probe, "[Console]::Error.WriteLine('fixture native stderr'); exit 7")
+try {
+    $script:nativeProbe = @()
+    $rejected = $false
+    try { Invoke-Checked "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" @('-NoProfile', '-File', $probe) | ForEach-Object { $script:nativeProbe += $_ } }
+    catch { $rejected = $_.Exception.Message -like '*failed (7)*' }
+    Assert-Setup $rejected 'Native stderr must preserve the actual command failure.'
+    Assert-Setup ($script:nativeProbe -contains 'JFG-SUPPORT setup_exit=0x00000007') 'Native exit code was not included in diagnostics.'
+} finally { Remove-Item -LiteralPath $probe }
 function Find-Git { if ($script:hasGit) { 'synthetic-git' } }
 function Find-Python { if ($script:hasPython) { 'synthetic-python' } }
 function Find-VisualStudio { if ($script:hasVs) { 'synthetic-vs' } }

@@ -1,6 +1,7 @@
 # Phase 9.5: Autonomous gameplay exploration
 
-Status: implementation started; all milestone gates remain open. Updated 2026-09-07.
+Status: acceptance requirements remain open. Bounded capabilities are implemented;
+see the [runtime summary](../development/runtime-research.md) for their limits.
 
 ## Purpose and sequencing
 
@@ -9,26 +10,24 @@ that navigates, fights, explores alternate branches, recovers from failure, and
 generates reproducible native/oracle tests. Repeating a fixed recording is not
 completion of this phase. No LLM inference is required during gameplay.
 
-This is the next development workstream, starting while Phase 9 remains open.
+This workstream supports the campaign slice while Phase 9 remains open.
 The decimal label is an enabling addition, not a dependency on Phase 9 completion.
 It supports Phase 9 acceptance and subsequent Phase 10/11 expansion without
 weakening their gates. The maintainer need not demonstrate every level or path;
 missing map/mechanic knowledge is an engineering task, not a routine request for
 another manual playthrough.
 
-## Existing foundation versus missing capability
+## Foundation and remaining acceptance
 
-Available: controller.input v2 recording/playback, accelerated native replay,
-parallel determinism runner, BizHawk Lua input injection and memory observation,
-player/actor tracing, state comparators, isolated initial-save preparation, and a
-scripted cold-boot route reaching gameplay.
+The source includes controller-input recording/playback, native replay,
+determinism comparison, state observation, checkpoint tools, generated navigation,
+and bounded failure triage. Earlier scenario results demonstrate parts of the
+loop, not completion of every milestone below.
 
-Missing: decoded navigation maps, validated gameplay observations, closed-loop
-navigation/combat, branch scheduling, checkpoint-based exploration, native runtime
-snapshots, and automatic failure minimization/ASan triage. Completed-update hash
-instrumentation exists but paired runtime verification is pending. Gameplay
-parity remains open. The milestones below describe required work, not delivered
-features. See [implementation evidence](phase9-5-progress.md) for verified progress.
+Still establish general varied-path exploration, combined recovery coverage,
+frontier scheduling, a fully qualified failure-reduction/sanitizer workflow,
+and native snapshot equivalence. Use the [runtime summary](../development/runtime-research.md)
+and [automation plan](autonomous-full-scope-execution.md) for current boundaries.
 
 ## Architecture
 
@@ -229,4 +228,4 @@ This planning document alone does not start implementation or unattended batches
 - Generated replay bundles, native comparison integration, and failure triage.
 - Coverage dashboard with milestone evidence, limitations, and explicit unknowns.
 
-Full-game acceptance remains governed by the master plan and scope assessment.
+Full-game acceptance remains governed by the [project roadmap](JFG_RECOMP_MASTER_PLAN.md).

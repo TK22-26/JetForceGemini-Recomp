@@ -1,5 +1,8 @@
 # Windows ROM-to-play launcher
 
+Start with [getting started](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/getting-started.md)
+for downloads, requirements, and known setup issues.
+
 Download `JFG-Launcher.exe` from the public release on Windows x64 and select
 your supported North American ROM. The launcher sets up the tools, builds the
 game locally, and remembers the resulting executable for later play.
@@ -29,9 +32,11 @@ is rejected while its files are preserved. Package installers retain their own
 licenses. See Microsoft's [WinGet installation reference](https://learn.microsoft.com/en-us/windows/package-manager/winget/install)
 and [WSL installation guide](https://learn.microsoft.com/en-us/windows/wsl/install).
 
-Source and generated output stay in `%LOCALAPPDATA%\JFGRecomp\source`; setup
-diagnostics stay in `%LOCALAPPDATA%\JFGRecomp\setup.log`. Failed build diagnostics
-also remain in that source checkout's `tools/private/local-builds` directory.
+Source stays in `%LOCALAPPDATA%\JFGRecomp\source`; setup diagnostics stay in
+`%LOCALAPPDATA%\JFGRecomp\setup.log`. Preview 0.4.0-preview.2 stores generated
+inputs, dependencies, game builds and build logs under the short per-checkout
+cache `%LOCALAPPDATA%\JFG\b\<checkout-id>`. Earlier previews retain their
+original `tools/private/local-builds` directories; no existing files are moved.
 The selected ROM stays at its original path and is required when playing.
 If you move it, select its new location in the launcher. An existing playable
 build can be selected directly as `jfg-native-boot.exe` with its runtime DLLs.
@@ -76,34 +81,23 @@ Existing game builds must be rebuilt with this launcher version to consume the
 mapping and write native support diagnostics. An older selected executable can
 still produce an exit-code report but does not gain new runtime features.
 
-## Crash reports
+## Reporting a problem
 
 Launch through `JFG-Launcher.exe` to keep a local support session. If the game
 crashes, click **Create support report**, inspect the ZIP if desired, and attach
 it to a [playtest issue](https://github.com/TK22-26/JetForceGemini-Recomp/issues/new?template=playtest.yml).
 Include the level/menu, what you pressed, what you expected and whether the
 problem repeats. If Windows or the launcher closes unexpectedly, reopen the
-launcher and create the report before starting another session.
+launcher and select the affected session when creating the report.
 
-The ZIP contains only `launcher.log`, `native.log` and reporting instructions.
-It includes UTC start time, launcher/source version, Windows version, runtime
-executable hash, setup stages, exit/exception codes, and host failure categories.
-Each log is bounded to 64 KiB; the ten newest owned sessions are retained under
-`%LOCALAPPDATA%\JFGRecomp\reports`. Exported ZIPs stay in `support-exports` until
-you remove them. Reports are filtered again during export and never upload
-automatically. ROM contents, generated game code, saves, usernames/file paths,
-raw setup/console output, screenshots, audio and memory dumps are excluded.
-The existing raw `setup.log` is for local troubleshooting; do not attach it.
+[Preview 0.4.0-preview.2](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v0.4.0-preview.2) expands reports with session selection,
+recognized setup/compiler errors, system/configuration details, game build and
+symbol identity, automatic crash stacks and an on-demand **Capture freeze** action.
+The older **0.4.0-preview.1** retains its original two-log exporter.
 
-The pause-screen crash reported during preview testing was traced to a suspended
-overlay being sent to the cold loader. The runtime now calls the original guest
-resume routine for suspended entries, preserving their retained data. The
-recorded failure and six further pause presses passed local replay after the fix.
-This verifies that reported route, not every pause menu or campaign state.
-
-This is a development prototype. Campaign completion and full original-console
-parity remain open. See [the handoff](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/development/handoff.md)
-for known limitations and useful playtest reports.
+See [playtesting and reporting](../playtesting.md) for the file inventory, retention,
+older-build behavior and GitHub attachment instructions, and
+[support diagnostics](support-diagnostics.md) for maintainer validation.
 
 ## Build the launcher
 

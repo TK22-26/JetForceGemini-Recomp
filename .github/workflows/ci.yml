@@ -77,21 +77,15 @@ jobs:
           ctest --preset linux-release -E "^jfg\.g2_trap_probe_runtime$"
           cmake --build --preset linux-clang
           ctest --preset linux-clang -E "^jfg\.g2_trap_probe_runtime$"
-      - name: Configure Windows
+      - name: Build and test Windows Debug
         if: runner.os == 'Windows'
-        run: cmake --preset windows-msvc
-      - name: Build and test Windows
+        run: python scripts/build_windows.py --config Debug --test
+      - name: Build and test Windows Release
         # The trap-probe quarantine is Linux-runner-specific (see
         # docs/tests/quarantine.md); it passes on Windows and runs here.
         if: runner.os == 'Windows'
         run: |
-          cmake --build --preset windows-msvc
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ctest --preset windows-msvc
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake --build --preset windows-msvc-release
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ctest --preset windows-msvc-release
+          python scripts/build_windows.py --config Release --test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   renderer:

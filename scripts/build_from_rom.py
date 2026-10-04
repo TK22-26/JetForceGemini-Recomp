@@ -12,6 +12,9 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
+from build_paths import windows_cache, check_binary_path
+from runtime_identity import write_identity
 
 ROOT = Path(__file__).resolve().parents[1]
 ROM_SHA1 = "493ced9008dbe932d6e91179b68e8630cf23a023"
@@ -59,6 +62,7 @@ def main() -> int:
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 4, 8))
     parser.add_argument("--dependency-root", type=Path,
                         help="Optional existing pinned upstream source/tool cache")
+    parser.add_argument("--build-root", type=Path, help="Optional short writable Windows build-cache folder")
     parser.add_argument("--play", action="store_true")
     parser.add_argument("--resume-native", type=Path,
                         help="Resume compilation in a local build whose ROM generation completed")
@@ -77,11 +81,12 @@ def main() -> int:
     for tool in ("git", "wsl"):
         if not shutil.which(tool):
             raise ValueError(f"Required tool missing: {tool}")
-    deps = (args.dependency_root or ROOT / "tools/upstream").resolve()
+    cache = windows_cache(ROOT, args.build_root)
+    deps = (args.dependency_root or cache / "d").resolve()
     if args.resume_native:
         workspace = args.resume_native.resolve()
-        if not workspace.is_relative_to((ROOT / "tools/private/local-builds").resolve()):
-            raise ValueError("Resume requires a local workspace under tools/private/local-builds.")
+        if not any(workspace.is_relative_to(parent.resolve()) for parent in [cache / "w", ROOT / "tools/private/local-builds"]):
+            raise ValueError("Resume requires this checkout's build cache or its legacy tools/private/local-builds folder.")
         generation = json.loads((workspace / "generation.json").read_text())
         expected = {"normalized/sources.json", "libultra.json", "audio/production-audio-adapter.cpp",
                     "audio/brokered-rsp.hpp", "audio/brokered-jfg-audio-probe.cpp", "audio/jfg-audio-probe.cpp"}
@@ -91,8 +96,10 @@ def main() -> int:
             if hashlib.sha256((workspace / name).read_bytes()).hexdigest() != digest:
                 raise ValueError("Generated build input changed; start a new build.")
     else:
-        workspace = ROOT / "tools/private/local-builds" / time.strftime("%Y%m%d-%H%M%S")
+        workspace = cache / "w" / uuid.uuid4().hex[:12]
         workspace.mkdir(parents=True, exist_ok=False)
+    build = check_binary_path(workspace / ("native" if args.resume_native and (workspace / "native").exists() else "n"))
+    print("Local build workspace: " + str(workspace), flush=True)
     status_file = workspace / "status.json"
     records: list[dict] = (json.loads(status_file.read_text()).get("steps", [])
                            if args.resume_native and status_file.is_file() else [])
@@ -100,6 +107,7 @@ def main() -> int:
 
     def run(name: str, command: list[str], cwd: Path = ROOT) -> None:
         print(name, flush=True)
+        print("JFG-SUPPORT setup_step=" + name, flush=True)
         started = time.monotonic()
         log = workspace / (name + ".log")
         if log.exists():
@@ -112,6 +120,12 @@ def main() -> int:
                                   stderr=subprocess.STDOUT, text=True, errors="replace") as process:
                 for line in process.stdout:
                     stream.write(line)
+                    # Emit only stable diagnostics; raw compiler output stays local.
+                    for token, category in {"Filename too long": "path-too-long", "exceeds the OS max path limit": "path-too-long", "Permission denied": "permission-denied", "Could not resolve": "dns-failed", "No space left": "disk-full", "CMake Error": "cmake-failed", "0x80370102": "virtualization-unavailable"}.items():
+                        if token.lower() in line.lower():
+                            print("JFG-SUPPORT setup_error=" + category, flush=True)
+                    for error_code in re.findall(r"\b(?:error|fatal error) (C[0-9]{4}|LNK[0-9]{4}|MSB[0-9]{4})\b", line, re.I):
+                        print("JFG-SUPPORT compiler_error=" + error_code.lower(), flush=True)
                     if name == "generate" and re.fullmatch(r"[a-z][a-z-]+\n?", line):
                         print("  " + line.strip(), flush=True)
                 code = process.wait()
@@ -119,6 +133,7 @@ def main() -> int:
                         "seconds": round(time.monotonic() - started, 3)})
         (workspace / "status.json").write_text(json.dumps(
             {"complete": False, "steps": records}, indent=2) + "\n")
+        print("JFG-SUPPORT setup_exit=0x" + format(code & 0xffffffff, "08x"), flush=True)
         if code:
             raise RuntimeError(f"{name} failed. Local diagnostic log: {log}")
 
@@ -131,15 +146,17 @@ def main() -> int:
             dest = deps / NAMES[entry["id"]]
             if not dest.exists():
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                run("clone-" + entry["id"], ["git", "clone", "--config", "core.autocrlf=false", "--no-checkout", entry["url"], str(dest)])
+                run("clone-" + entry["id"], ["git", "clone", "--config", "core.autocrlf=false", "--config", "core.longpaths=true", "--no-checkout", entry["url"], str(dest)])
                 run("pin-" + entry["id"], ["git", "-C", str(dest), "checkout", "--detach", entry["commit"]])
-                run("submodules-" + entry["id"], ["git", "-c", "core.autocrlf=false", "-C", str(dest), "submodule", "update", "--init", "--recursive"])
+
     for entry in lock["repositories"]:
         if entry["id"] in NAMES:
             dest = deps / NAMES[entry["id"]]
             head = subprocess.check_output(["git", "-C", str(dest), "rev-parse", "HEAD"], text=True).strip()
             if head != entry["commit"]:
                 raise ValueError(f"Dependency revision mismatch: {entry['id']}; existing files were preserved.")
+            if not args.dependency_root:
+                run("submodules-" + entry["id"], ["git", "-c", "core.autocrlf=false", "-c", "core.longpaths=true", "-C", str(dest), "submodule", "update", "--init", "--recursive"])
 
     if not args.resume_native:
         run("generate", ["wsl", "-d", args.distro, "--exec", "timeout", "--kill-after=3s",
@@ -148,9 +165,8 @@ def main() -> int:
             "--workspace", wsl_path(workspace), "--dependency-root", wsl_path(deps),
             "--jobs", str(args.jobs)])
     generated = workspace / "normalized"
-    build = workspace / "native"
     run("configure", [cmake, "-S", str(ROOT), "-B", str(build),
-        "-G", "Visual Studio 17 2022", "-A", "x64", "-DBUILD_TESTING=OFF",
+        "-G", "Visual Studio 17 2022", "-A", "x64", "-DBUILD_TESTING=OFF", "-DJFG_SUPPORT_SYMBOLS=ON",
         "-DJFG_MSVC_GENERATED_COMPILE_JOBS=" + str(args.jobs),
         "-DJFG_ENABLE_GENERATED_CODE=ON", "-DJFG_BUILD_PHASE6_NATIVE_BOOT=ON",
         "-DJFG_BUILD_PHASE8_LIVE=ON", "-DJFG_ENABLE_RT64=ON",
@@ -167,6 +183,7 @@ def main() -> int:
     (workspace / "status.json").write_text(json.dumps({"complete": True,
         "scope": "Compilation only; gameplay acceptance is separate",
         "rom_sha1": ROM_SHA1, "executable": str(executable), "steps": records}, indent=2) + "\n")
+    write_identity(executable, ROOT)
     print("Built: " + str(executable), flush=True)
     print("Keep this build local. It contains code generated from your ROM.", flush=True)
     if args.play:

@@ -1,11 +1,14 @@
-# ROM-to-build prototype
+# Build the game from your ROM
+
+For downloads and the first-run path, start with [getting started](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/getting-started.md).
+See [known setup issues](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/known-issues.md#windows-10-setup) before installation.
 
 This Windows x64 prototype starts with the supported US big-endian ROM and
 creates a local native executable. The launcher can install missing developer
 tools and obtain its pinned source checkout automatically. Open the standalone
 EXE, choose your ROM, then click **Set up and build**. Administrator prompts and
 a Windows restart may be needed; reopen the launcher to continue afterward.
-See [the launcher guide](launcher.md) for downloads, storage, and requirements.
+See [the launcher guide](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/development/launcher.md) for downloads, storage, and requirements.
 
 For manual setup or command-line use, install Git, Python 3.11 or newer, Visual Studio 2022 with Desktop development
 with C++ and CMake, and WSL2 with Ubuntu 24.04. Inside Ubuntu, install the
@@ -36,14 +39,16 @@ decompilation locally; no upstream game source is copied into this repository.
 Its generated audio configuration comes from the ROM's DMA descriptors and
 command table. The host audio adapter under `src/bootstrap` is project code.
 
-ROM copies, generated code, logs, and binaries remain under `tools/private/local-builds`
-and a private WSL temporary directory. Both are local artifacts; do not upload
-them or add them to a release. The local `linux-workspace.txt` identifies the
-WSL folder retained for diagnosis. A failed run preserves its files. A normal
-invocation creates a fresh build directory. If ROM generation completed but
-Windows compilation failed, use `--resume-native tools/private/local-builds/BUILD-ID`
-with the same `--rom` argument to resume compilation. The script checks the
-generation manifest and hashes before resuming.
+ROM copies, generated code, logs and binaries stay in the short local cache
+`%LOCALAPPDATA%\JFG\b\<checkout-id>\w\<run-id>` and a private WSL temporary
+directory. Do not upload either directory or add it to a release. The command
+prints the exact workspace; its `linux-workspace.txt` identifies the WSL folder
+retained for diagnosis. A failed run preserves its files. A normal invocation
+creates a fresh workspace. If generation finished but compilation failed, pass
+that workspace to `--resume-native` with the same `--rom` (and `--build-root`, if
+used). The script checks the generation manifest and hashes before resuming.
+Legacy workspaces under `tools/private/local-builds` remain intact and can be
+resumed when their native output path fits MSBuild's limit.
 
 `--dependency-root` accepts an existing pinned upstream source/tool cache. This
 can reuse IDO tools and repository objects; it creates a fresh Python environment.
@@ -75,12 +80,18 @@ ROM-derived code and detailed diagnostics remain local.
 
 The launcher and setup tests use ROM-free fixtures. Public CI exercises the
 build recipe, native output paths, launcher compilation, and source policy.
-Oracle identity tests use synthetic input digests without restoring excluded
-emulator patches. Historical evidence remains pinned to its original source;
-tests authenticate those records separately and verify that drifted checkouts
-cannot reuse their acceptance claims. Neither CI nor compilation certifies a
-completed campaign. A pristine Windows installation with installer elevation
-and reboot remains an outstanding playtest of the new setup flow.
+Neither CI nor compilation certifies a completed campaign. A pristine Windows
+installation with installer elevation and reboot remains an outstanding
+playtest of the setup flow.
 
 A successful build establishes compilation. Game parity and campaign completion
 remain open. Keep generated game code and binaries local.
+
+
+Windows build paths: use `python scripts/build_windows.py --test` for ROM-free
+development builds. It keeps output under `%LOCALAPPDATA%\JFG\b\<checkout-id>`
+so deep source checkouts do not lengthen MSBuild tracking paths. The ROM builder
+uses the same cache for dependencies, generated inputs and native output. Existing
+workspaces are preserved; `--build-root D:/JFG-builds` selects a shorter writable
+location when necessary. Different checkouts receive separate cache IDs. Keep
+these local generated builds and symbols out of issue attachments.

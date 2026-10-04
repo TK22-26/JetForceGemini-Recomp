@@ -31,27 +31,18 @@ views paragraph are retained both in that source and in
 The project integration uses C++ types and packed PIF RAM. This notice applies
 to the upstream algorithm; the project license does not override upstream rights.
 
-Five GPL-covered `scripts/oracle_*.patch` diagnostic patches are intentionally
-absent from this public snapshot because the licensing of the modifications
-has not been settled. Their associated license inventory is also omitted.
-Historical documents may name these maintainer-local inputs. Workflows that
-require them cannot run from this snapshot. See the
-[publication audit](docs/legal/publication-audit.md).
-
-The current candidates are:
+## Components and attribution
 
 | Component | Status |
 |---|---|
-| N64Recomp | MIT; local build tool candidate; tracked patch context carries `patches/n64recomp/LICENSE.upstream` |
+| N64Recomp | MIT; local build tool; tracked patch context carries `patches/n64recomp/LICENSE.upstream` |
 | LLVM/Clang | Apache-2.0 WITH LLVM-exception; ignored local compiler toolchain |
 | OpenSSH `ssh-keygen` | BSD-style/component-specific notices; OS-provided signature tool only |
 | N64ModernRuntime | GPL-3.0; runtime candidate |
-| RT64 | MIT; renderer candidate |
+| RT64 | MIT; renderer |
 | Plume | MIT; embedded compatibility patch context carries `patches/plume/LICENSE.upstream` |
 | CIC-NUS-6105 algorithm | X-Scale (2011), permissive two-condition notice retained in source and `patches/cic/LICENSE.upstream` |
-| Mupen64Plus within BizHawk | External local oracle only; diagnostic patches excluded from this snapshot |
 | Jet Force Gemini decompilation | No root license found; consulted facts-only for libultra identification (see attribution below) |
-| RecompFrontend | No project-level license found; excluded pending permission |
 
 ## Attribution: Jet Force Gemini decompilation (facts-only consultation)
 
@@ -69,6 +60,5 @@ The decomp carries no observed license, so this is a maintainer-approved
 research consultation of factual metadata, not a grant of copy rights; it
 does not affect the underlying game copyright.
 
-This is an engineering inventory, not a final license opinion. The detailed
-review and source links are in
-`docs/legal/dependency-license-inventory.md`.
+Pinned dependency records and build-tool inventory are in the
+[dependency inventory](docs/legal/dependency-license-inventory.md).

@@ -1,9 +1,9 @@
 # Phase 9 acceptance tracker
 
-Status: open. Updated 2026-09-05 against `1565d1c`.
+Status: open. Historical route evidence is described below; it does not certify the current preview.
 
-Authority: the master plan's Phase 9 and the scope assessment's G6/M4.
-This tracker does not replace or weaken either document's requirements.
+Authority: the [project roadmap](JFG_RECOMP_MASTER_PLAN.md), G6/M4.
+This tracker does not replace or weaken the roadmap requirements.
 
 ## Scope and evidence
 
@@ -11,18 +11,13 @@ The candidate is the recorded Goldwood route. Its preserved long replay ends
 at retrace 40,452; reaching that input limit is not, by itself, slice completion.
 An explicit in-game completion predicate and subsystem/overlay coverage matrix
 are still required. The latest preserved full-render result is described in
-`phase9-hardening-audit.md`.
+`../development/runtime-research.md`.
 
-The fresh `goal-fullroute-baseline-20260905` full-render replay completed at
-40,452 retraces with zero unsupported accesses. Its state hash
-`4d294ef6b615b5dd05218c76c4a405ba963b763e39728f4fc3e47f76e5c2a9f0`
-and journal hash
-`cfd8c4e252d077261e009fd96a093ec750bf44f56ef607054b9a7a234907b392`
-match the preserved `audit-final3-20260902` result. Counters record 216 shot
-calls, 25 enemy-kill calls, one death/restart call, and two flash persistence
-writes. These counters establish exercised paths, not complete gameplay or
-save-relaunch acceptance. Input, saves, logs, and per-retrace hashes remain in
-the ignored manual-test directory; no private capture bodies are published.
+The preserved full-render route reached 40,452 retraces with zero unsupported
+accesses and repeated state/journal hashes. It exercised shots, enemy kills,
+death/restart, and persistence writes. Those counters establish exercised paths,
+not complete gameplay or save/relaunch acceptance. Detailed run records remain
+in [Git history](../history.md).
 
 | Requirement | Current evidence / remaining work |
 |---|---|
@@ -31,7 +26,7 @@ the ignored manual-test directory; no private capture bodies are published.
 | Canonical checkpoints | Per-retrace native hashes exist; raw pointer-bearing hashes alone are not canonical cross-runtime state. Resolve timing and representation differences without concealing behavioral divergences. |
 | All active overlays instrumented and reloaded | Runtime diagnostics exist; route-specific overlay denominator and reload coverage remain to be published. |
 | First-divergence fixing and documented patches | Diagnostic and hardening documents exist; retain a replay/checkpoint regression for each accepted fix. |
-| Active-subsystem function corpora | Phase 5 boundary corpus exists; demonstrate slice subsystem coverage and the scope assessment's cumulative minimum of 100 captured functions at M4. |
+| Active-subsystem function corpora | Phase 5 boundary corpus exists; demonstrate slice subsystem coverage and the roadmap's cumulative minimum of 100 captured functions at M4. |
 | Reset to slice completion | Long replay exists; certify the gameplay endpoint, not merely process exit at the requested retrace. |
 | Mid-slice save, exit, relaunch, resume | Phase 8 persistence evidence exists; bind a passing recovery scenario to this slice's progression state. |
 | Death/retry, pause, controller loss | Manual evidence and route generators exist; require passing automated slice-specific outcomes. |

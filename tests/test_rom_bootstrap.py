@@ -82,3 +82,22 @@ class BootstrapTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WindowsBuildPathTests(unittest.TestCase):
+    def test_deep_checkouts_get_distinct_short_output_roots(self):
+        from build_paths import windows_cache
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            with patch.dict('os.environ', {'LOCALAPPDATA': str(Path(temporary).anchor + 'jfg-fixture')}):
+                first = windows_cache(base / ('nested-' * 30) / 'checkout')
+                second = windows_cache(base / ('different-' * 20) / 'checkout')
+                self.assertNotEqual(first, second)
+                self.assertLessEqual(len(str(first / 'w' / ('0' * 12) / 'n')), 80)
+                self.assertFalse(first.exists())
+
+    def test_long_override_rejected_before_any_build(self):
+        from build_paths import windows_cache
+        with self.assertRaisesRegex(ValueError, '--build-root'):
+            windows_cache(ROOT, ROOT / ('too-long-' * 20))
