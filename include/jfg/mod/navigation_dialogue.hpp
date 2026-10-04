@@ -84,7 +84,8 @@ inline void write_dialogue(std::ostream &out,const DialogueState &d) {
      <<",\"ready\":"<<(d.ready?"true":"false")<<",\"choices\":"<<(d.choices?"true":"false")
      <<",\"token\":"<<d.token<<",\"selected\":"<<d.selected<<",\"rows\":[";
   bool first=true;for(const auto &row:d.rows) {
-    if(!first)out<<',';first=false;
+    if (!first) { out << ','; }
+    first = false;
     out<<"{\"action\":"<<row.action<<",\"prerequisite\":"<<row.prerequisite<<'}';
   }out<<"]}";
 }

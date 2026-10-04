@@ -97,7 +97,8 @@ public:
           room!=level || gen!=generation || nonce==0 || stamp<0 || now<stamp || now-stamp>1500 ||
           (mode!=0&&mode!=1) || !std::isfinite(p.x)||!std::isfinite(p.y)||!std::isfinite(p.z)||
           std::abs(p.x)>1000000||std::abs(p.y)>1000000||std::abs(p.z)>1000000||(in>>extra)) {
-        if(active())stop("invalid_interaction");return false;
+        if (active()) { stop("invalid_interaction"); }
+        return false;
       }
       if(nonce==nonce_) {
         if(interaction_mode_!=mode||route_.size()!=1||route_[0].x!=p.x||route_[0].y!=p.y||route_[0].z!=p.z) {
@@ -127,11 +128,11 @@ public:
       return false;
     }
     if (magic != "JFGNAV1") {
-      if (!(in >> running)) { if(active_)stop("invalid_command");return false; }
+      if (!(in >> running)) { if (active_) { stop("invalid_command"); } return false; }
       through=running;
-      if (magic=="JFGNAV3" && !(in >> through)) { if(active_)stop("invalid_command");return false; }
+      if (magic=="JFGNAV3" && !(in >> through)) { if (active_) { stop("invalid_command"); } return false; }
       if(running < -1 || through < running || through >= count || (running==-1 && through!=-1)) {
-        if(active_)stop("invalid_command");return false;
+        if (active_) { stop("invalid_command"); } return false;
       }
     }
     std::vector<PilotPoint> points;
@@ -324,8 +325,8 @@ public:
     // Adapt the controller basis to camera rotation from measured movement.
     if (!camera_known_ && flight_ == 0 && std::hypot(delta.x, delta.z) > 0.5f &&
         (input_.x != 0 || input_.y != 0)) {
-      const auto x = basis_x_.x * input_.x + basis_y_.x * input_.y;
-      const auto z = basis_x_.z * input_.x + basis_y_.z * input_.y;
+      const auto x = basis_x_.x * static_cast<float>(input_.x) + basis_y_.x * static_cast<float>(input_.y);
+      const auto z = basis_x_.z * static_cast<float>(input_.x) + basis_y_.z * static_cast<float>(input_.y);
       const auto angle = std::clamp(
           std::atan2(x * delta.z - z * delta.x, x * delta.x + z * delta.z),
           -0.06f, 0.06f);

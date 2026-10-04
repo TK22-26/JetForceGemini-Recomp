@@ -48,7 +48,7 @@ static void box_jump_tests() {
   for(int i=0;i<10;++i){now+=33;pilot.tick({},true,1,1,now);}
   now+=33;pilot.tick({20,120,0},true,1,1,now);
   now+=33;pilot.tick({40,60,0},true,1,1,now);
-  for(int i=0;i<8;++i){now+=33;pilot.tick({43.0f+i*3,60,0},true,1,1,now);}
+  for(int i=0;i<8;++i){now+=33;pilot.tick({43.0f+static_cast<float>(i)*3.0f,60,0},true,1,1,now);}
   check(pilot.active());
   for(int i=0;i<12;++i){now+=33;pilot.tick({80,60,0},true,1,1,now);}
   check(std::string(pilot.state)=="jump_landed");

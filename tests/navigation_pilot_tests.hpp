@@ -33,7 +33,7 @@ static void navigation_pilot_tests() {
         if(!precision.active()){done=std::string(precision.state)=="precision_complete";break;}
         const auto in=precision.observed_input();
         if(point.x<20)check(in.x>=0); // Never turn away during the close approach.
-        vx=vx*.9025f-in.x*.005f;vz=vz*.9025f+in.y*.005f;
+        vx=vx*.9025f-static_cast<float>(in.x)*.005f;vz=vz*.9025f+static_cast<float>(in.y)*.005f;
         point.x+=vx;point.z+=vz;
       }
       check(done&&std::hypot(point.x,point.z)<=3);
@@ -60,7 +60,7 @@ static void navigation_pilot_tests() {
         c<<"JFGINTERACT1 35 2 1 "<<now<<" 0 0 "<<rise<<" 0";
         check(slope.command(c,35,2,now));p.y=rise*(1-p.x/60);slope.tick(p,true,35,2,now);
         if(!slope.active()){complete=std::string(slope.state)=="precision_complete";break;}
-        vx=vx*.9025f-slope.observed_input().x*.005f;p.x+=vx;
+        vx=vx*.9025f-static_cast<float>(slope.observed_input().x)*.005f;p.x+=vx;
       }
       check(complete&&std::abs(p.y-rise)<1);
     }
@@ -102,8 +102,8 @@ static void navigation_pilot_tests() {
     check(start(pilot, 0, 1, now));
     pilot.tick(p, true, 35, 2, now);
     auto input = pilot.sample(false, false, true);
-    p.x += input.x / 30.0f;
-    p.z += input.y / 30.0f;
+    p.x += static_cast<float>(input.x) / 30.0f;
+    p.z += static_cast<float>(input.y) / 30.0f;
   }
   check(!pilot.active() && std::string(pilot.state) == "approach_complete" &&
         pilot.waypoint == 2);
@@ -148,8 +148,8 @@ static void navigation_pilot_tests() {
       check(start(blocked, jump, 1, now));
       blocked.tick(p, true, 35, 2, now);
       auto input = blocked.sample(false, false, true);
-      p.x += input.x / 30.0f;
-      p.z = std::min(70.0f, p.z + input.y / 30.0f);
+      p.x += static_cast<float>(input.x) / 30.0f;
+      p.z = std::min(70.0f, p.z + static_cast<float>(input.y) / 30.0f);
       if (input.buttons & 0x8000U)
         ++jumpFrames;
     }
@@ -163,7 +163,7 @@ static void navigation_pilot_tests() {
   check(start(recovery));p={};now=1000;
   for(unsigned frame=0;frame<30;++frame) {
     now+=33;check(start(recovery,0,1,now));recovery.tick(p,true,35,2,now);
-    auto input=recovery.sample(false,false,true);p.x+=input.x/30.0f;p.z+=input.y/30.0f;
+    auto input=recovery.sample(false,false,true);p.x+=static_cast<float>(input.x)/30.0f;p.z+=static_cast<float>(input.y)/30.0f;
   }
   std::stringstream stopCommand;stopCommand<<"JFGNAV1 35 2 2 "<<now<<" 0 0";
   check(recovery.command(stopCommand,35,2,now));check(!recovery.active());
@@ -186,8 +186,8 @@ static void navigation_pilot_tests() {
     check(guided.command(command,35,2,now));guided.tick(position,true,35,2,now);
     if(!guided.active()) {reached=std::string(guided.state)=="approach_complete";break;}
     auto input=guided.sample(false,false,true);auto angle=float(yaw)*6.283185307179586f/65536;
-    float wx=-std::cos(angle)*input.x-std::sin(angle)*input.y,
-          wz=-std::sin(angle)*input.x+std::cos(angle)*input.y;
+    float wx=-std::cos(angle)*static_cast<float>(input.x)-std::sin(angle)*static_cast<float>(input.y),
+          wz=-std::sin(angle)*static_cast<float>(input.x)+std::cos(angle)*static_cast<float>(input.y);
     velocity.x=velocity.x*.9f+wx*.005f;velocity.z=velocity.z*.9f+wz*.005f;
     position.x+=velocity.x;position.z+=velocity.z;
     float error=guided.waypoint==0?std::abs(position.x):guided.waypoint==1?std::abs(position.z+200):std::abs(position.x-200);
@@ -236,8 +236,8 @@ static void navigation_pilot_tests() {
     auto i=runner.observed_input();float magnitude=strength(i);ran=ran||magnitude>70;
     if(runner.waypoint==0 && rp.z>400 && magnitude<=40)slowed=true;
     float angle=float(yaw)*6.283185307179586f/65536;
-    rv.x=rv.x*.9f+(-std::cos(angle)*i.x-std::sin(angle)*i.y)*.005f;
-    rv.z=rv.z*.9f+(-std::sin(angle)*i.x+std::cos(angle)*i.y)*.005f;
+    rv.x=rv.x*.9f+(-std::cos(angle)*static_cast<float>(i.x)-std::sin(angle)*static_cast<float>(i.y))*.005f;
+    rv.z=rv.z*.9f+(-std::sin(angle)*static_cast<float>(i.x)+std::cos(angle)*static_cast<float>(i.y))*.005f;
     rp.x+=rv.x;rp.z+=rv.z;
     deviation=std::max(deviation,runner.waypoint==0?std::abs(rp.x):runner.waypoint==1?std::abs(rp.z-500):std::abs(rp.x-500));
   }
@@ -258,8 +258,8 @@ static void navigation_pilot_tests() {
     if(!continuous.active()){complete=std::string(continuous.state)=="approach_complete";break;}
     auto i=continuous.observed_input();input_sum+=strength(i);++moving_frames;
     auto a=float(yaw)*6.283185307179586f/65536;
-    cv.x=cv.x*.9f+(-std::cos(a)*i.x-std::sin(a)*i.y)*.005f;
-    cv.z=cv.z*.9f+(-std::sin(a)*i.x+std::cos(a)*i.y)*.005f;
+    cv.x=cv.x*.9f+(-std::cos(a)*static_cast<float>(i.x)-std::sin(a)*static_cast<float>(i.y))*.005f;
+    cv.z=cv.z*.9f+(-std::sin(a)*static_cast<float>(i.x)+std::cos(a)*static_cast<float>(i.y))*.005f;
     cp.x+=cv.x;cp.z+=cv.z;
     float err=continuous.waypoint<10?std::abs(cp.x):continuous.waypoint<20?std::abs(cp.z-400):std::abs(cp.x-400);
     path_error=std::max(path_error,err);
