@@ -61,32 +61,35 @@ namespace JfgLauncher {
     internal sealed class AutonomousExplorer {
         private NavigationExplorer exits;
         private readonly string directory;
-        private readonly Action<ChestTrial,string,uint,MapNpcOffer,float[]> execute;
-        private ChestTrial trial;
+        private readonly Action<NavigationRunner,string,uint,MapNpcOffer,float[]> execute;
+        private NavigationRunner trial;
         private Thread worker;
         private volatile bool done;
         private volatile string message="",failure;
-        private bool running,launchPending,resume;
+        private bool running,launchPending,resume,waitingForMap;
         private string kind;
         private uint actor;
         private MapNpcOffer offer;
         private float[] goal;
+        private NavigationRoute movementRoute;
         private long started,manual,lastNow;
         private readonly HashSet<string> attempted=new HashSet<string>();
         internal int JumpButton=8;
         internal AutonomousExplorer(string path,NavigationExplorer explorer) {directory=path;exits=explorer;execute=Execute;}
-        internal AutonomousExplorer(string path,NavigationExplorer explorer,Action<ChestTrial,string,uint,MapNpcOffer,float[]> executor) {directory=path;exits=explorer;execute=executor;}
-        private void Execute(ChestTrial runner,string action,uint address,MapNpcOffer reward,float[] destination) {
+        internal AutonomousExplorer(string path,NavigationExplorer explorer,Action<NavigationRunner,string,uint,MapNpcOffer,float[]> executor) {directory=path;exits=explorer;execute=executor;}
+        private void Execute(NavigationRunner runner,string action,uint address,MapNpcOffer reward,float[] destination) {
             if(action=="dialogue")runner.RunDialogue();
-            else if(action=="NPC reward")runner.RunNpc(address,reward);
+            else if(action=="NPC reward")runner.RunNpc(address,reward,JumpButton);
             else if(action=="weapon chest")runner.Run(address,JumpButton);
             else if(action=="key pickup")runner.RunPickup(address,JumpButton);
+            else if(action=="route")runner.RunRoute(movementRoute,JumpButton);
             else runner.RunTraversal(destination,JumpButton);
         }
         internal static AutonomousExplorer Load(string path){return new AutonomousExplorer(path,NavigationExplorer.Load(path));}
+        internal NavigationRoute ActiveRoute {get{return trial==null?null:trial.CurrentRoute;}}
         internal bool Busy {get{return worker!=null&&!done;}}
         internal bool Running {get{return running;}}
-        internal bool MayHeartbeat {get{return running&&!Busy&&!launchPending&&!resume&&exits.MayHeartbeat;}}
+        internal bool MayHeartbeat {get{return false;}}
         internal string Status {get{return Busy||launchPending?message:!running&&!String.IsNullOrEmpty(failure)?failure:exits.Status;}}
         internal string TargetKey {get{return exits.TargetKey;}}
         internal string Describe(uint level,MapMarker marker){return exits.Describe(level,marker);}
@@ -101,13 +104,22 @@ namespace JfgLauncher {
         }
         internal void Start(MapSnapshot map,long now) {
             if(Busy)throw new InvalidDataException("The previous action is stopping; wait before restarting.");
-            worker=null;trial=null;done=false;failure=null;attempted.Clear();
+            worker=null;trial=null;done=false;failure=null;waitingForMap=false;attempted.Clear();
             if(map==null||map.Live.dialogue==null)throw new InvalidDataException("Update the native runtime for autonomous dialogue support.");
             started=lastNow=now;manual=map.Live.navigation_ai==null?0:map.Live.navigation_ai.manual_inputs;
             exits.Start(map,now);running=true;resume=false;
         }
+        internal void StartRoute(MapSnapshot map,NavigationRoute route,long now) {
+            Start(map,now);movementRoute=route;Prepare("route",0,null,null);
+            // Establish the same exit bookkeeping used by automatic selection.
+            exits.StartSelected(map,route,now);
+        }
         private ExploreCommand Halt(string reason){Stop(reason);return new ExploreCommand{Stop=true};}
         internal ExploreCommand MissingMap(long now) {
+            if((Busy||launchPending)&&kind=="route") {
+                if(trial!=null){exits.TrackExecution(trial.LastObservation,trial.Progress,false);trial.Cancelled=true;}
+                var waiting=exits.MissingMap(now);waitingForMap=exits.Running;return waiting;
+            }
             if(Busy||launchPending)return Halt("Autonomous AI stopped: map unavailable during action.");
             var result=exits.MissingMap(now);running=exits.Running;return result;
         }
@@ -141,12 +153,12 @@ namespace JfgLauncher {
         }
         private ExploreCommand Prepare(string action,uint address,MapNpcOffer reward,float[] destination) {
             kind=action;actor=address;offer=reward;goal=destination;
-            launchPending=true;resume=true;message="Autonomous AI: "+action+"; releasing walking controls";
+            launchPending=true;resume=action!="route";message="Autonomous AI: "+action+"; releasing walking controls";
             return new ExploreCommand{Stop=true};
         }
         private void Launch() {
             launchPending=false;done=false;failure=null;
-            trial=new ChestTrial(directory);
+            trial=new NavigationRunner(directory);
             trial.Report=delegate(string text){message="Autonomous AI: "+text;};
             worker=new Thread(delegate(){
                 try {
@@ -162,13 +174,25 @@ namespace JfgLauncher {
             if(!map.IsLive)return Halt("Autonomous AI stopped: stale map.");
             if(map.Live.navigation_ai!=null&&map.Live.navigation_ai.manual_inputs!=manual)
                 return Halt("Autonomous AI stopped: manual input.");
-            if(Busy)return new ExploreCommand();
-            if(worker!=null) {
-                worker.Join();worker=null;trial=null;
-                if(failure!=null)return Halt("Autonomous AI stopped: "+failure);
+            if(Busy) {
+                if(kind=="route")exits.TrackExecution(trial.LastObservation,trial.Progress,false);
+                return new ExploreCommand();
             }
+            if(worker!=null) {
+                worker.Join();worker=null;
+                if(kind=="route") {
+                    exits.TrackExecution(trial.LastObservation,trial.Progress,failure==null);
+                    trial=null;
+                    if(waitingForMap){failure=null;waitingForMap=false;}
+                    if(failure!=null) {
+                        string reason=failure;failure=null;
+                        if(reason.Contains("Manual")||reason.Contains("manual_takeover")||reason.Contains("Action cancelled"))return Halt(reason);
+                        return exits.ExecutionFailed(reason,now);
+                    }
+                }else {trial=null;if(failure!=null)return Halt("Autonomous AI stopped: "+failure);}
+            }
+            if(DialogueFlow.Active(map)&&(!launchPending||kind=="route"))return Prepare("dialogue",0,null,null);
             if(launchPending){Launch();return new ExploreCommand();}
-            if(DialogueFlow.Active(map))return Prepare("dialogue",0,null,null);
             if(resume) {
                 if(!map.Live.clearing_active)return new ExploreCommand();
                 exits.ResumeAfterAction(map,now);resume=false;
@@ -193,14 +217,12 @@ namespace JfgLauncher {
                 }
             }
             var command=exits.Tick(map,now);
-            if(!exits.Running&&exits.Status.Contains("no reachable forward exits")) {
-                foreach(var marker in map.Live.exits) {
-                    string key="jump:"+map.Live.level+":"+map.Live.generation+":"+NavigationExplorer.ExitKey(marker);
-                    if(exits.IsArrival(map.Live.level,marker)||attempted.Contains(key))continue;
-                    if(NavigationRoute.ExitRequirement(map,marker)!=null)continue;
-                    if(!BoxJumpPlanner.NeedsPlatformTraversal(map,new HeightPoint(marker.position)))continue;
-                    attempted.Add(key);return Prepare("platform route",0,null,marker.position);
-                }
+            if(command.Route!=null) {
+                movementRoute=command.Route;
+                Prepare("route",0,null,null);
+                // Expose the same plan for drawing; the shared worker owns all
+                // movement commands, including ordinary walking to an exit.
+                command.Stop=true;
             }
             running=exits.Running;return command;
         }

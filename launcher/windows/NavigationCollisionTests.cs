@@ -14,7 +14,7 @@ namespace JfgLauncher {
             return new MapSnapshot {
                 Mesh=new MapGeometry {schema=1,level=27,generation=1,vertices=new float[][] {new float[]{-1000,0,-1000},new float[]{1000,0,-1000},new float[]{-1000,0,1000},new float[]{1000,0,1000}},
                     triangles=new MapFace[] {new MapFace {v=new int[]{0,2,1},normal=new float[]{0,1,0}},new MapFace {v=new int[]{1,2,3},normal=new float[]{0,1,0}}}},
-                Live=new MapLive {schema=1,level=27,generation=1,mesh_ready=true,clearing_active=true,timestamp_ms=NavigationExplorer.Clock,update=1,
+                Live=new MapLive {dialogue=new MapDialogue{rows=new MapDialogueChoice[0]},schema=1,level=27,generation=1,mesh_ready=true,clearing_active=true,timestamp_ms=NavigationExplorer.Clock,update=1,
                     player=new MapPlayer {address=0x80100000,position=new float[]{0,0,0}},exits=new MapMarker[0],markers=new MapMarker[0],npcs=new MapMarker[0],
                     navigation_ai=new MapAi(),actors=new MapActor[0],collision=MapCollision.Empty()}
             };
@@ -177,11 +177,11 @@ namespace JfgLauncher {
                 foreach(Control panel in window.Controls)foreach(Control control in panel.Controls)
                     if(control is CheckBox&&control.Text=="Advanced individual tests")((CheckBox)control).Checked=true;
                 Button(window,"Plan exit route").PerformClick();Button(window,"Start AI").PerformClick();
-                string command=File.ReadAllText(Path.Combine(folder,"ai-command.txt"));string[] words=command.Split(new char[]{' ','\r','\n'},StringSplitOptions.RemoveEmptyEntries);
+                string[] words=NavigationExplorerTests.WaitCommand(window,folder,true);
                 Check(Int32.Parse(words[6])>0,"UI did not dispatch collision-checked route");
                 map.Live.navigation_ai=new MapAi {nonce=Int64.Parse(words[3]),active=true,state="following",waypoint=0};
                 map.Live.collision.models[0].enabled=true;++map.Live.update;Write(folder,map);window.RefreshMap();
-                words=File.ReadAllText(Path.Combine(folder,"ai-command.txt")).Split(new char[]{' ','\r','\n'},StringSplitOptions.RemoveEmptyEntries);
+                words=NavigationExplorerTests.WaitCommand(window,folder,false);
                 Check(words[6]=="0","UI kept moving after entity blocked the route");window.Close();
             }
             using(MapCanvas canvas=new MapCanvas()) {

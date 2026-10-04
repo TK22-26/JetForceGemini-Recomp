@@ -70,7 +70,24 @@ namespace JfgLauncher {
             using(FileStream file=File.Create(Path.Combine(directory,"mesh.json")))new DataContractJsonSerializer(typeof(MapGeometry)).WriteObject(file,map.Mesh);
             using(FileStream file=File.Create(Path.Combine(directory,"live.json")))new DataContractJsonSerializer(typeof(MapLive)).WriteObject(file,map.Live);
         }
-        private static string[] Command(string directory) { return File.ReadAllText(Path.Combine(directory,"ai-command.txt")).Split(new char[]{' ','\n','\r'},StringSplitOptions.RemoveEmptyEntries); }
+        private static string[] Command(string directory) {
+            using(var file=new FileStream(Path.Combine(directory,"ai-command.txt"),FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))
+            using(var reader=new StreamReader(file))return reader.ReadToEnd().Split(new char[]{' ','\n','\r'},StringSplitOptions.RemoveEmptyEntries);
+        }
+        internal static string[] WaitCommand(NavigationMapWindow window,string directory,bool moving,string oldNonce=null) {
+            long end=NavigationExplorer.Clock+5000;
+            while(NavigationExplorer.Clock<end) {
+                Application.DoEvents();window.RefreshMap();
+                if(File.Exists(Path.Combine(directory,"ai-command.txt"))) {
+                    try {
+                        string[] cmd=Command(directory);
+                        if(cmd.Length>6&&(cmd[6]!="0")==moving&&(oldNonce==null||cmd[3]!=oldNonce))return cmd;
+                    }catch(IOException){}
+                }
+                System.Threading.Thread.Sleep(25);
+            }
+            throw new Exception("Timed out waiting for shared navigation command; moving="+moving);
+        }
         internal static int Run(string directory) {
             checks=0;
             MapMarker entrance=Exit(1,0,0),forward=Exit(2,500,0);
@@ -300,15 +317,15 @@ namespace JfgLauncher {
                 Button explore=FindButton(window,"Explore automatically"),stop=FindButton(window,"Stop AI");
                 Check(explore!=null && stop!=null,"explorer controls missing");
                 Check(FindButton(window,"Retry room exits")!=null,"explicit room retry control missing");
-                explore.PerformClick();string[] command=Command(ui);
+                explore.PerformClick();string[] command=WaitCommand(window,ui,true);
                 Check(command[0]=="JFGNAV3" && command[1]=="90" && Int32.Parse(command[6])>0,"Explore button did not dispatch route");
                 uiMap.Live.navigation_ai=new MapAi {nonce=Int64.Parse(command[3]),active=false,state="manual_takeover"};WriteSnapshot(ui,uiMap);window.RefreshMap();
-                command=Command(ui);Check(command[6]=="0","native manual takeover did not send stop");
+                command=WaitCommand(window,ui,false);Check(command[6]=="0","native manual takeover did not send stop");
                 string stopped=File.ReadAllText(Path.Combine(ui,"ai-command.txt"));window.RefreshMap();
                 Check(File.ReadAllText(Path.Combine(ui,"ai-command.txt"))==stopped,"UI rearmed after manual takeover");
-                explore.PerformClick();Check(Command(ui)[6]!="0","explicit restart failed");
-                stop.PerformClick();Check(Command(ui)[6]=="0","Stop AI did not cancel exploration");
-                explore.PerformClick();window.Close();Check(Command(ui)[6]=="0","closing map did not release controls");
+                System.Threading.Thread.Sleep(150);window.RefreshMap();explore.PerformClick();Check(WaitCommand(window,ui,true)[6]!="0","explicit restart failed");
+                stop.PerformClick();Check(WaitCommand(window,ui,false)[6]=="0","Stop AI did not cancel exploration");
+                System.Threading.Thread.Sleep(150);window.RefreshMap();explore.PerformClick();WaitCommand(window,ui,true);window.Close();System.Threading.Thread.Sleep(150);Check(Command(ui)[6]=="0","closing map did not release controls");
             }
 
             // A blocked forward path can return through the arrival doorway.
@@ -383,15 +400,15 @@ namespace JfgLauncher {
             MapSnapshot recoveryMap=Room(106,1,Exit(106,500,0),Exit(107,0,700));WriteSnapshot(recovery,recoveryMap);
             using(NavigationMapWindow window=new NavigationMapWindow(recovery)) {
                 window.ShowInTaskbar=false;window.StartPosition=FormStartPosition.Manual;window.Location=new Point(-32000,-32000);window.Show();Application.DoEvents();
-                FindButton(window,"Explore automatically").PerformClick();string[] initial=Command(recovery);
+                FindButton(window,"Explore automatically").PerformClick();string[] initial=WaitCommand(window,recovery,true);
                 recoveryMap.Live.navigation_ai=new MapAi {nonce=Int64.Parse(initial[3]),active=true,state="following",waypoint=0};
                 recoveryMap.Live.actors=new MapActor[]{new MapActor {address=12345,name="Moving door",position=new float[]{150,0,0}}};
                 recoveryMap.Live.collision.models=new MapCollisionModel[]{new MapCollisionModel {address=12345,enabled=true,lower=new float[]{100,-5,-100},upper=new float[]{200,100,100}}};
                 WriteSnapshot(recovery,recoveryMap);window.RefreshMap();
-                Check(Command(recovery)[6]=="0","automatic route did not release input for new blocker");
+                Check(WaitCommand(window,recovery,false)[6]=="0","automatic route did not release input for new blocker");
                 recoveryMap.Live.navigation_ai.active=false;recoveryMap.Live.navigation_ai.state="stopped";
                 WriteSnapshot(recovery,recoveryMap);window.RefreshMap();
-                System.Threading.Thread.Sleep(750);WriteSnapshot(recovery,recoveryMap);window.RefreshMap();string[] alternative=Command(recovery);
+                System.Threading.Thread.Sleep(750);WriteSnapshot(recovery,recoveryMap);window.RefreshMap();string[] alternative=WaitCommand(window,recovery,true,initial[3]);
                 Check(alternative[6]!="0" && alternative[3]!=initial[3],"map window failed to dispatch alternative after blockage");
                 NavigationExplorer history=NavigationExplorer.Load(recovery);
                 Check(history.History.rooms[0].exits[0].blocked=="" && history.History.rooms[0].exits[0].attempts==1,"recoverable map collision was persisted as unreachable exit");

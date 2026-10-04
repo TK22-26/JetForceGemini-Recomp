@@ -236,7 +236,7 @@ precise character clearance, jumps, moving platforms, dive exits, and door-openi
 The mod only reads these progression fields; it never grants keys or weapons.
 
 
-## Experimental exit approach and jump assist
+## Shared navigation and exit approach
 
 In **Live map**, select an exit in the interaction list, click **Plan exit route**,
 inspect the dashed yellow candidate route, then click **Start AI**. **Stop AI**,
@@ -261,12 +261,17 @@ the exit floor position; reaching that point does not prove an exit transition.
 Map commands expire after 1.5 seconds without a heartbeat. A stopped command
 cannot restart through repeated heartbeats; Start AI must issue a new command.
 
-**Experimental jump assist** permits one short A-button pulse after movement
-stalls on stable ground. It releases A, monitors movement and limits the attempt.
-This is obstacle recovery, not a gap/parkour planner. Precise jumps, tree dives,
-moving platforms and scripted campaign requirements remain manual. Expect to intervene
-while testing. The latest collision-map validation observed one live room
-transition; successful parkour and jumping over the earlier obstacle remain unproved.
+NPC rewards, loose keys, weapon chests and exits now use one shared planner
+and movement executor. It chooses supported walking or calibrated ascending
+jump chains for each destination. Jumping is part of destination routing; there
+is no separate jump-assist toggle or prototype movement window. Select the
+correct jump controls (Normal or Expert) before starting automation.
+
+The executor checks each takeoff, arc, landing and final interaction. Takeoff
+support allows the same small steps and slopes as walking; landing support
+retains its tighter tolerance. Door requirements and collision remain independent
+checks. Unmeasured Lupus hover, moving platforms and unsupported scripted
+traversal still stop with an explicit reason.
 
 `live.json.navigation_ai` reports state, command nonce, active flag, waypoint
 index/count and jump attempts. `ai-command.txt` is a bounded, atomically replaced
@@ -280,7 +285,7 @@ Start the game with **Navigation mod** enabled. In **Live map**, click
 **Explore automatically**. No exit selection is required. **Stop AI**, Escape,
 manual game input, or closing the map stops exploration. With the mod enabled,
 Escape cancels automation; close the game window when you want to quit.
-Jump assist remains optional and off by default.
+All supported movement uses the shared executor, including multi-jump NPC approaches.
 
 The coordinator prioritizes loose keys and available item-giving NPCs, then
 other supported NPC rewards and unowned weapon chests, before selecting an exit.
@@ -341,7 +346,7 @@ update does not establish straight-line tracking under all camera conditions.
 remembers rooms, directed exits, attempts, failures and monotonic progress facts
 within that game run. Closing/reopening the map preserves that history but
 does not arm movement. Every new game launch uses a new export directory;
-history is not shared across saves or game sessions. It stays local. After moving past an obstacle yourself or enabling jump assist,
+history is not shared across saves or game sessions. It stays local. After moving past an obstacle yourself,
 use **Retry room exits**, then **Explore automatically** to request another attempt.
 This explicit action clears local failure blocks while retaining discovered
 connections and attempt counts; it never starts movement by itself.
@@ -732,3 +737,16 @@ sloped terminal movement, settled-position tolerance, objective-before-exit
 ordering, one-door returns, new-key retries and exhausted-room loop avoidance.
 Loose key pickup and the revised NPC priority have fixture coverage; a
 complete campaign and every live NPC/key branch remain unverified.
+
+## Unified navigation validation (2026-10-04)
+
+The launcher regression suite exercises NPC routing from distant ground through
+multiple elevated landings, selected jump controls, calibration, rejected
+landings, verified reward ownership, and observed exit transitions including
+a temporary map-loading gap. These use simulated command acknowledgements;
+they establish orchestration behavior, not native game physics.
+
+The saved level-157 stair geometry produced four validated jump links in an
+offline check using a previously measured Juno jump profile. This is a route prediction, not a live traversal
+claim. The current room still needs a native run with live calibration to verify
+the complete walk, stair chain and conversation together.

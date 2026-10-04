@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
-using System.Windows.Forms;
 
 namespace JfgLauncher {
     [DataContract] internal sealed class MapJump {
@@ -43,17 +41,19 @@ namespace JfgLauncher {
             List<JumpPlan> arcs=new List<JumpPlan>();
             float[] saved=map.Live.player.position;
             try {
-                for(int r=56;r<=88;r+=8)for(int a=0;a<24;a++) {
+                for(int r=56;r<=120;r+=8)for(int a=0;a<24;a++) {
                     double angle=a*Math.PI/12;float x=landing.Point.X+(float)Math.Cos(angle)*r,z=landing.Point.Z+(float)Math.Sin(angle)*r,y;
                     if(!Floor(map.Mesh,x,z,origin.Y-offset,24,out y))continue;
                     HeightPoint start=new HeightPoint(x,y+offset,z);
-                    if(!Patch(map,start,24,offset))continue;
+                    // Takeoff may be on a walkable step or slope; flat landing
+                    // tolerances must not reject supported standing positions.
+                    if(!Patch(map,start,24,offset,24))continue;
                     map.Live.player.position=new float[]{start.X,start.Y,start.Z};
-                    try {JumpPlan candidate=Plan(map,landing);if(Horizontal(candidate.Start,candidate.Target)<=candidate.Duration*4.0f)arcs.Add(candidate);}catch(InvalidDataException){}
+                    try {JumpPlan candidate=Plan(map,landing);arcs.Add(candidate);}catch(InvalidDataException){}
                 }
             }finally {map.Live.player.position=saved;}
             arcs.Sort(delegate(JumpPlan a,JumpPlan b){return Horizontal(origin,a.Start).CompareTo(Horizontal(origin,b.Start));});
-            int tried=0;
+            int tried=0;string failedWalk="no clear takeoff arc";
             foreach(JumpPlan arc in arcs) {
                 if(++tried>12)break;
                 try {
@@ -61,12 +61,14 @@ namespace JfgLauncher {
                     HeightPoint end=walk.Points[walk.Points.Count-1];
                     if(Math.Abs(end.Y+offset-arc.Start.Y)>4)continue;
                     return new JumpApproach {Walk=walk,Jump=arc};
-                }catch(InvalidDataException){}
+                }catch(InvalidDataException error){failedWalk=error.Message;}
             }
-            throw new InvalidDataException("No supported walking approach and clear jump arc to this landing.");
+            throw new InvalidDataException("No supported walking approach and clear jump arc to this landing ("+arcs.Count+" takeoff arcs; "+failedWalk+").");
         }
 
 
+        [ThreadStatic] internal static Func<bool> PlanningCancelled;
+        [ThreadStatic] private static long searchDeadline;
         [ThreadStatic] private static bool searchingSnapshot;
         [ThreadStatic] private static Dictionary<int,HeightPoint[]> surfaceBounds;
         [ThreadStatic] private static MapGeometry floorMesh;
@@ -94,11 +96,11 @@ namespace JfgLauncher {
             if(!Floor(map.Mesh,p.X,p.Z,p.Y,60,out y))throw new InvalidDataException("No supported starting floor. Move onto open, level ground.");
             return p.Y-y;
         }
-        internal static bool Patch(MapSnapshot map,HeightPoint p,float radius,float offset) {
+        internal static bool Patch(MapSnapshot map,HeightPoint p,float radius,float offset,float tolerance=3) {
             for(int i=0;i<9;i++) {
                 float angle=(float)(i*Math.PI/4),x=p.X+(i==8?0:(float)Math.Cos(angle)*radius);
                 float z=p.Z+(i==8?0:(float)Math.Sin(angle)*radius),height;
-                if(!Floor(map.Mesh,x,z,p.Y-offset,3,out height))return false;
+                if(!Floor(map.Mesh,x,z,p.Y-offset,tolerance,out height))return false;
                 if(NavigationRoute.Obstructed(map.Mesh,new HeightPoint(x,height+4,z),new HeightPoint(x,height+80,z)))return false;
             }
             return true;
@@ -110,6 +112,7 @@ namespace JfgLauncher {
 
             List<HeightPoint> samples=new List<HeightPoint>();
             foreach(HeightSurface s in Floors(map.Mesh)) {
+                if(PlanningCancelled!=null&&PlanningCancelled())throw new OperationCanceledException();
                 // Use slope, not triangle height span: large or gently tilted box
                 // tops are valid landing surfaces. The patch check still requires
                 // continuous support and small local height variation.
@@ -142,10 +145,11 @@ namespace JfgLauncher {
                 }
             }
             foreach(HeightPoint sample in samples) {
+                if(PlanningCancelled!=null&&PlanningCancelled())throw new OperationCanceledException();
                 float support;
                 if(!Floor(map.Mesh,sample.X,sample.Z,sample.Y-offset,8,out support))continue;
                 HeightPoint p=new HeightPoint(sample.X,support+offset,sample.Z);
-                if(p.Y-player.Y<12||p.Y-player.Y>(upperPlatforms?1200:180)||Horizontal(p,player)>(upperPlatforms?1600:650))continue;
+                if(p.Y-player.Y<12||p.Y-player.Y>(upperPlatforms?1200:180)||(!upperPlatforms&&Horizontal(p,player)>650))continue;
                 if(!Patch(map,p,28,offset))continue;
                 float radius=8;
                 for(float candidate=12;candidate<=32;candidate+=4) {
@@ -209,14 +213,18 @@ namespace JfgLauncher {
             var target=new JumpLanding{Point=new HeightPoint(goal.X,y,goal.Z)};
             var points=new List<JumpLanding>{initial,target};AssignSurfaces(map.Mesh,points);
             if(initial.Surface<0||target.Surface<0||initial.Surface==target.Surface)return false;
-            // A ramp already leads to the target's elevation: investigate its
-            // walking clearance or missing geometry, not a standing jump.
-            return target.Point.Y>surfaceBounds[initial.Surface][1].Y+12;
+            // Compare with the floor under this player, not a remote high
+            // point belonging to the same connected ground component.
+            return target.Point.Y>initial.Point.Y-Offset(map)+12;
         }
         private static bool PossibleSurfaceStep(int from,int to,MapJump profile) {
+            if(from==to)return false;
             HeightPoint[] a=surfaceBounds[from],b=surfaceBounds[to];
-            float rise=b[0].Y-a[1].Y;
-            if(rise<8||rise>profile.apex-8)return false;
+            // Bounds describe every elevation on a connected surface. Its
+            // highest vertex is not the actual takeoff height. Overlapping
+            // ranges may still contain an ascending link; exact arcs decide.
+            if(b[1].Y<a[0].Y+8||b[0].Y-a[1].Y>profile.apex-8)return false;
+            float rise=Math.Max(8,b[0].Y-a[1].Y);
             float dx=Math.Max(0,Math.Max(b[0].X-a[1].X,a[0].X-b[1].X));
             float dz=Math.Max(0,Math.Max(b[0].Z-a[1].Z,a[0].Z-b[1].Z));
             float disc=profile.velocity*profile.velocity-2*profile.gravity*rise;
@@ -229,6 +237,7 @@ namespace JfgLauncher {
             var initial=new JumpLanding{Point=new HeightPoint(map.Live.player.position)};all.Add(initial);AssignSurfaces(map.Mesh,all);
             if(initial.Surface>=0&&initial.Surface==goal.Surface)return new List<JumpLanding>();
             if(goal.Surface<0)throw new InvalidDataException("Goal has no supported platform.");
+            if(trace!=null)trace("START surface "+initial.Surface+" to "+goal.Surface);
             var groups=new Dictionary<int,List<JumpLanding>>();
             foreach(JumpLanding c in all) {
                 if(c.Surface<0||c.Point.Y>goal.Point.Y+3)continue;
@@ -254,51 +263,57 @@ namespace JfgLauncher {
             }
             float[] saved=map.Live.player.position;bool previousSearch=searchingSnapshot;
             var watch=System.Diagnostics.Stopwatch.StartNew();int expansions=0;searchingSnapshot=true;
+            long previousDeadline=searchDeadline;searchDeadline=NavigationExplorer.Clock+12000;
             try {
-                var route=SearchPlatforms(map,-2,new HeightPoint(saved),goal,groups,hops,watch,0,ref expansions,trace);
+                var route=SearchPlatforms(map,initial.Surface,new HeightPoint(saved),goal,groups,hops,watch,0,ref expansions,trace);
                 if(route!=null)return route;
-            }finally {map.Live.player.position=saved;searchingSnapshot=previousSearch;}
+            }catch(TimeoutException error){throw new InvalidDataException(error.Message,error);}
+            finally {map.Live.player.position=saved;searchingSnapshot=previousSearch;searchDeadline=previousDeadline;}
             throw new InvalidDataException("No verified ascending platform sequence found within the search limit. Try a nearer platform.");
         }
         private static List<JumpLanding> SearchPlatforms(MapSnapshot map,int surface,HeightPoint position,JumpLanding goal,
             Dictionary<int,List<JumpLanding>> groups,Dictionary<int,int> hops,System.Diagnostics.Stopwatch watch,int depth,ref int expansions,Action<string> trace) {
             if(surface==goal.Surface)return new List<JumpLanding>();
             if(depth>=8||++expansions>32||watch.ElapsedMilliseconds>=12000)return null;
-            var ordered=new List<int>(hops.Keys);ordered.Sort(delegate(int a,int b){return hops[a].CompareTo(hops[b]);});
+            var ordered=new List<int>(hops.Keys);
+            Func<int,float> estimate=delegate(int id) {
+                float distance=Single.MaxValue;
+                foreach(var candidate in groups[id])distance=Math.Min(distance,Horizontal(position,candidate.Point));
+                return hops[id]*8+distance;
+            };
+            ordered.Sort(delegate(int a,int b){return estimate(a).CompareTo(estimate(b));});
+            if(trace!=null)trace("SEARCH "+surface+" y="+position.Y+" hops="+String.Join(",",ordered)+" apex="+map.Live.box_jump.apex);
             foreach(int next in ordered) {
-                if(next==surface||(surface>=0&&!PossibleSurfaceStep(surface,next,map.Live.box_jump)))continue;
+                // The first link may walk across stitched floor components to takeoff.
+                if(next==surface||(depth>0&&surface>=0&&!PossibleSurfaceStep(surface,next,map.Live.box_jump)))continue;
                 var candidates=new List<JumpLanding>(groups[next]);
                 candidates.Sort(delegate(JumpLanding a,JumpLanding b){return Horizontal(position,a.Point).CompareTo(Horizontal(position,b.Point));});
-                int tried=0;var deferred=new List<JumpLanding>();
+                int tried=0;
                 foreach(JumpLanding candidate in candidates) {
                     float rise=candidate.Point.Y-position.Y;
-                    if(rise<12||rise>map.Live.box_jump.apex-8||Horizontal(position,candidate.Point)>800)continue;
+                    if(rise<12||rise>map.Live.box_jump.apex-8)continue;
                     if(watch.ElapsedMilliseconds>=12000)return null;
                     if(++tried>8)break;
+                    if(trace!=null)trace("TRY "+next+" y="+candidate.Point.Y);
                     map.Live.player.position=new float[]{position.X,position.Y,position.Z};
                     try {
                         var edge=Approach(map,candidate);
-                        float length=Math.Max(1,Horizontal(edge.Jump.Start,edge.Jump.Target));
-                        HeightPoint forward=new HeightPoint(candidate.Point.X+(candidate.Point.X-edge.Jump.Start.X)/length*16,
-                            candidate.Point.Y,candidate.Point.Z+(candidate.Point.Z-edge.Jump.Start.Z)/length*16);
-                        if(!Patch(map,forward,20,edge.Jump.FootOffset)){deferred.Add(candidate);continue;}
+                        // Approach already checked landing support, body clearance
+                        // and the complete arc. Recurse now: scanning every wider
+                        // entry first can consume the budget on a narrow stair.
                         if(trace!=null)trace("EDGE "+surface+" -> "+next+" at "+candidate.Point.X+","+candidate.Point.Y+","+candidate.Point.Z);
                         var rest=SearchPlatforms(map,next,candidate.Point,goal,groups,hops,watch,depth+1,ref expansions,trace);
                         if(rest!=null){rest.Insert(0,candidate);return rest;}
                     }catch(InvalidDataException error){if(trace!=null)trace("REJECT "+next+": "+error.Message);}
                 }
-                // Keep small, necessary steps available, but prefer landings
-                // with room for residual forward momentum whenever one exists.
-                foreach(JumpLanding candidate in deferred) {
-                    if(watch.ElapsedMilliseconds>=12000)return null;
-                    var rest=SearchPlatforms(map,next,candidate.Point,goal,groups,hops,watch,depth+1,ref expansions,trace);
-                    if(rest!=null){rest.Insert(0,candidate);return rest;}
-                }
+
             }
             return null;
         }
         internal static float Horizontal(HeightPoint a,HeightPoint b) {float x=a.X-b.X,z=a.Z-b.Z;return (float)Math.Sqrt(x*x+z*z);}
         internal static void NeedLive(MapSnapshot map) {
+            if(PlanningCancelled!=null&&PlanningCancelled())throw new OperationCanceledException();
+            if(searchDeadline!=0&&NavigationExplorer.Clock>=searchDeadline)throw new TimeoutException("Platform search reached its bounded time limit.");
             if(map==null||(!searchingSnapshot&&!map.IsLive)||!map.Live.clearing_active||map.Live.scripted_camera||map.Live.player==null)
                 throw new InvalidDataException("Enter active gameplay before a jump trial.");
             NavigationCollision.Require(map.Live);
@@ -386,196 +401,6 @@ namespace JfgLauncher {
                 try {if(File.Exists(path))File.Replace(temp,path,null);else File.Move(temp,path);break;}
                 catch(IOException) {if(retry>=5)throw;System.Threading.Thread.Sleep(10);}
                 catch(UnauthorizedAccessException) {if(retry>=5)throw;System.Threading.Thread.Sleep(10);}
-            }
-        }
-    }
-    internal sealed class JumpArcPanel : Panel {
-        internal JumpPlan Plan;
-        internal readonly List<HeightPoint> Observed=new List<HeightPoint>();
-        internal JumpArcPanel(){DoubleBuffered=true;BackColor=Color.FromArgb(16,24,34);Dock=DockStyle.Fill;}
-        protected override void OnPaint(PaintEventArgs e) {
-            base.OnPaint(e);Graphics g=e.Graphics;
-            g.DrawString("Side view: yellow predicted arc; cyan observed motion",Font,Brushes.White,12,10);
-            if(Plan==null)return;
-            float distance=Math.Max(80,BoxJumpPlanner.Horizontal(Plan.Start,Plan.Target)),high=Plan.Start.Y+40,low=Math.Min(Plan.Start.Y,Plan.Target.Y)-20;
-            foreach(HeightPoint p in Plan.Arc)high=Math.Max(high,p.Y+30);
-            foreach(HeightPoint p in Observed){high=Math.Max(high,p.Y+30);low=Math.Min(low,p.Y-20);}
-            high=Math.Max(high,Plan.Target.Y+30);
-            Func<HeightPoint,PointF> point=delegate(HeightPoint p) {
-                float dx=Plan.Target.X-Plan.Start.X,dz=Plan.Target.Z-Plan.Start.Z,len=Math.Max(1,(float)Math.Sqrt(dx*dx+dz*dz));
-                float x=((p.X-Plan.Start.X)*dx+(p.Z-Plan.Start.Z)*dz)/len;
-                return new PointF(30+x/distance*(Width-60),Height-35-(p.Y-low)/(high-low)*(Height-80));
-            };
-            using(Pen line=new Pen(Color.Gold,2))for(int i=1;i<Plan.Arc.Count;i++)g.DrawLine(line,point(Plan.Arc[i-1]),point(Plan.Arc[i]));
-            using(Pen line=new Pen(Color.Cyan,2))for(int i=1;i<Observed.Count;i++)g.DrawLine(line,point(Observed[i-1]),point(Observed[i]));
-            
-            PointF end=point(Plan.Target);g.FillEllipse(Brushes.Lime,end.X-5,end.Y-5,10,10);
-            g.DrawString("Landing Y "+Plan.Target.Y.ToString("0.0"),Font,Brushes.Lime,end.X-90,end.Y+8);
-        }
-    }
-    internal sealed class BoxJumpWindow : Form {
-        private readonly string directory;
-        private readonly Timer timer=new Timer();
-        private readonly ListBox targets=new ListBox {Dock=DockStyle.Left,Width=290};
-        private readonly Label status=new Label {Dock=DockStyle.Bottom,Height=76,Padding=new Padding(8)};
-        private readonly JumpArcPanel arc=new JumpArcPanel();
-        private readonly ComboBox controls=new ComboBox {DropDownStyle=ComboBoxStyle.DropDownList,Width=145};
-        private int jumpButton=8;
-        private List<JumpLanding> sequence;private int sequenceIndex;
-        private MapSnapshot snapshot;private MapGeometry cached;private JumpPlan plan;
-        private JumpApproach approach;private HeightPoint previewOrigin;private long settleUntil;private int approachRetries;
-        private long nonce=NavigationExplorer.Clock,lastUpdate=-1,started;
-        private int planningVersion;
-        private bool running;private int mode;private HeightPoint commandTarget;private uint room;private long generation;
-        internal BoxJumpWindow(string path) {
-            directory=path;Text="Box jumping prototype";ClientSize=new Size(980,600);
-            Controls.Add(arc);Controls.Add(targets);Controls.Add(status);
-            FlowLayoutPanel bar=new FlowLayoutPanel {Dock=DockStyle.Top,Height=78};
-            Button calibrate=new Button {Text="1. Calibrate jump",AutoSize=true},scan=new Button {Text="2. Find landings",AutoSize=true},
-                preview=new Button {Text="3. Plan platform route",AutoSize=true},run=new Button {Text="4. Run route",AutoSize=true},stop=new Button {Text="Stop",AutoSize=true};
-            controls.Items.AddRange(new object[]{"Normal: C-Up","Expert: A"});controls.SelectedIndex=0;
-            controls.SelectedIndexChanged+=delegate {Stop();sequence=null;plan=null;status.Text="Calibrate again after changing controls.";};
-            bar.Controls.AddRange(new Control[]{controls,calibrate,scan,preview,run,stop});
-            bar.SetFlowBreak(stop,true);bar.Controls.Add(new Label {Text="Prototype: checked approaches and ascending box jumps. Movement input or Esc cancels. Use copied saves.",AutoSize=true});
-            Controls.Add(bar);
-            calibrate.Click+=delegate {Action(delegate {
-                BoxJumpPlanner.NeedLive(snapshot);
-                Stop();sequence=null;plan=null;arc.Plan=null;Start(0,new HeightPoint(snapshot.Live.player.position));
-            });};
-            scan.Click+=delegate {Action(delegate {
-                Stop();targets.Items.Clear();foreach(JumpLanding p in BoxJumpPlanner.Candidates(snapshot,true))targets.Items.Add(p);
-                if(targets.Items.Count>0)targets.SelectedIndex=0;
-                status.Text=targets.Items.Count+" supported landing candidates. Select one and preview.";
-            });};
-            preview.Click+=delegate {Action(delegate {
-                Stop();JumpLanding selected=targets.SelectedItem as JumpLanding;
-                if(selected==null)throw new InvalidDataException("Find and select a landing first.");
-                BoxJumpPlanner.NeedLive(snapshot);
-                MapSnapshot planningMap=snapshot;
-                HeightPoint origin=new HeightPoint(planningMap.Live.player.position);
-                int version=++planningVersion;plan=null;sequence=null;arc.Plan=null;arc.Invalidate();
-                status.Text="Searching supported platform links...";preview.Enabled=false;
-                var worker=new System.ComponentModel.BackgroundWorker();
-                worker.DoWork+=delegate(object sender,System.ComponentModel.DoWorkEventArgs e) {e.Result=BoxJumpPlanner.Sequence(planningMap,selected);};
-                worker.RunWorkerCompleted+=delegate(object sender,System.ComponentModel.RunWorkerCompletedEventArgs e) {
-                    worker.Dispose();if(IsDisposed||Disposing)return;preview.Enabled=true;
-                    if(version!=planningVersion)return;
-                    if(e.Error!=null){status.Text=e.Error.Message;return;}
-                    Action(delegate {
-                        BoxJumpPlanner.NeedLive(snapshot);
-                        HeightPoint current=new HeightPoint(snapshot.Live.player.position);
-                        if(snapshot.Live.level!=planningMap.Live.level||snapshot.Live.generation!=planningMap.Live.generation||
-                            BoxJumpPlanner.Horizontal(current,origin)>4||Math.Abs(current.Y-origin.Y)>3)
-                            throw new InvalidDataException("Player or room changed; preview again.");
-                        sequence=(List<JumpLanding>)e.Result;
-                        if(sequence.Count==0)throw new InvalidDataException("Already on the selected platform.");
-                        previewOrigin=current;sequenceIndex=0;approach=BoxJumpPlanner.Approach(snapshot,sequence[0]);
-                        plan=approach.Jump;arc.Plan=plan;arc.Observed.Clear();arc.Invalidate();
-                        status.Text=sequence.Count+" jumps planned. "+(approach.Walk==null?"Jump from here. ":"Walk to takeoff, then jump. ")+"The route ends on the selected platform; item interaction is separate.";
-                    });
-                };
-                worker.RunWorkerAsync();
-            });};
-            run.Click+=delegate {Action(delegate {
-                if(plan==null)throw new InvalidDataException("Preview a jump first.");
-                BoxJumpPlanner.NeedLive(snapshot);
-                if(BoxJumpPlanner.Horizontal(new HeightPoint(snapshot.Live.player.position),previewOrigin)>4 ||
-                    Math.Abs(snapshot.Live.player.position[1]-previewOrigin.Y)>3)throw new InvalidDataException("Player moved; preview again.");
-                BoxJumpPlanner.ValidateArc(snapshot,plan);
-                approachRetries=0;if(approach.Walk==null)Start(1,plan.Target);else StartWalk();
-            });};
-            stop.Click+=delegate {Stop();status.Text="Jump stopped.";};
-            KeyPreview=true;KeyDown+=delegate(object sender,KeyEventArgs e){if(e.KeyCode==Keys.Escape)Stop();};
-            FormClosing+=delegate {Stop();};FormClosed+=delegate {timer.Stop();timer.Dispose();};
-            timer.Interval=100;timer.Tick+=delegate {RefreshLive();};RefreshLive();timer.Start();
-        }
-        private void Action(System.Action action) {
-            try {RefreshLive();action();}
-            catch(Exception error) {
-                if(!(error is IOException)&&!(error is InvalidDataException)&&!(error is UnauthorizedAccessException)&&!(error is SerializationException))throw;
-                Stop();status.Text=error.Message;
-            }
-        }
-
-        private void StartWalk() {
-            BoxJumpPlanner.NeedLive(snapshot);
-            string problem=approach.Walk.CheckRemaining(snapshot,0);
-            if(problem!=null)throw new InvalidDataException(problem);
-            jumpButton=controls.SelectedIndex==0?8:32768;
-            if(snapshot.Live.box_jump==null||snapshot.Live.box_jump.button!=jumpButton||!snapshot.Live.box_jump.calibrated)
-                throw new InvalidDataException("Calibrate with the selected controls first.");
-            room=snapshot.Live.level;generation=snapshot.Live.generation;mode=2;settleUntil=0;
-            nonce=Math.Max(nonce+1,NavigationExplorer.Clock);started=NavigationExplorer.Clock;running=true;
-            approach.Walk.Send(directory,nonce,false,false);status.Text="Walking to takeoff...";
-        }
-        private void Start(int value,HeightPoint target) {
-            BoxJumpPlanner.NeedLive(snapshot);jumpButton=controls.SelectedIndex==0?8:32768;
-            if(value==1 && (snapshot.Live.box_jump==null || snapshot.Live.box_jump.button!=jumpButton))throw new InvalidDataException("Calibrate with the selected controls first.");
-            mode=value;commandTarget=target;room=snapshot.Live.level;generation=snapshot.Live.generation;
-            nonce=Math.Max(nonce+1,NavigationExplorer.Clock);started=NavigationExplorer.Clock;running=true;arc.Observed.Clear();
-            BoxJumpPlanner.Send(directory,snapshot.Live,nonce,mode,target,mode==1?plan.Radius:12,jumpButton,mode==1?plan.Lift:0);status.Text="Starting jump trial...";
-        }
-        private void Stop() {
-            ++planningVersion;
-            if(!running)return;running=false;
-            try {new NavigationRoute {Level=room,Generation=generation}.Send(directory,++nonce,false,true);}catch(IOException){}catch(UnauthorizedAccessException){}
-        }
-        private void RefreshLive() {
-            try {
-                snapshot=MapSnapshot.Load(directory,cached);cached=snapshot.Mesh;
-                MapJump jump=snapshot.Live.box_jump;
-                if(!running)return;
-                if(!snapshot.IsLive||!snapshot.Live.clearing_active||snapshot.Live.level!=room||snapshot.Live.generation!=generation) {
-                    Stop();status.Text="Jump stopped: gameplay or room changed.";return;
-                }
-
-                if(mode==2) {
-                    if(NavigationExplorer.Clock-started>45000){Stop();status.Text="Walking approach timed out.";return;}
-                    if(settleUntil!=0) {
-                        if(NavigationExplorer.Clock<settleUntil)return;
-                        
-                        JumpLanding landing=new JumpLanding{Point=plan.Target,Radius=plan.Radius};
-                        try {plan=BoxJumpPlanner.Plan(snapshot,landing);}
-                        catch(InvalidDataException) {
-                            if(++approachRetries>2)throw;
-                            approach=BoxJumpPlanner.Approach(snapshot,landing);plan=approach.Jump;
-                            if(approach.Walk!=null){StartWalk();status.Text="Correcting settled takeoff position ("+approachRetries+"/2)...";return;}
-                        }
-                        arc.Plan=plan;Start(1,plan.Target);return;
-                    }
-                    MapAi walking=snapshot.Live.navigation_ai;
-                    if(walking!=null&&walking.nonce==nonce&&!walking.active) {
-                        if(walking.state!="approach_complete"){Stop();status.Text="Approach stopped: "+walking.state;return;}
-                        settleUntil=NavigationExplorer.Clock+800;status.Text="Waiting for takeoff motion to settle...";return;
-                    }
-                    string blocked=approach.Walk.CheckRemaining(snapshot,walking!=null&&walking.nonce==nonce?walking.waypoint:0);
-                    if(blocked!=null){Stop();status.Text=blocked;return;}
-                    approach.Walk.Send(directory,nonce,false,false);status.Text="Walking to takeoff...";return;
-                }
-                if(jump!=null&&jump.nonce==nonce&&!jump.active) {
-                    running=false;
-                    if(mode==1 && BoxJumpPlanner.SupportedLanding(snapshot,plan)){
-                        if(sequence!=null && ++sequenceIndex<sequence.Count) {
-                            approach=BoxJumpPlanner.Approach(snapshot,sequence[sequenceIndex]);plan=approach.Jump;arc.Plan=plan;approachRetries=0;
-                            if(approach.Walk==null)Start(1,plan.Target);else StartWalk();
-                            status.Text="Platform "+sequenceIndex+" confirmed; continuing to "+(sequenceIndex+1)+"/"+sequence.Count+".";return;
-                        }
-                        status.Text="Route complete; supported landing confirmed.";return;
-                    }status.Text=jump.state.Replace('_',' ')+" | apex "+jump.apex.ToString("0.0")+" | fit error "+jump.fit_error.ToString("0.00");
-                    return;
-                }
-                if(NavigationExplorer.Clock-started>12000){Stop();status.Text="Jump timed out.";return;}
-                if(mode==1 && plan!=null)BoxJumpPlanner.ValidateArc(snapshot,plan);
-                BoxJumpPlanner.Send(directory,snapshot.Live,nonce,mode,commandTarget,mode==1?plan.Radius:12,jumpButton,mode==1?plan.Lift:0);
-                if(snapshot.Live.update!=lastUpdate) {
-                    lastUpdate=snapshot.Live.update;if(arc.Observed.Count<300)arc.Observed.Add(new HeightPoint(snapshot.Live.player.position));arc.Invalidate();
-                }
-                status.Text=jump==null?"Waiting for native jump support":jump.state.Replace('_',' ')+" | apex "+jump.apex.ToString("0.0")+" | gravity/update² "+jump.gravity.ToString("0.00");
-                if(snapshot.Live.player.motion!=null&&snapshot.Live.player.motion.known)
-                    status.Text+=" | movement "+snapshot.Live.player.motion.state_id+" | animation "+snapshot.Live.player.motion.animation_id;
-            } catch(Exception error) {
-                if(!(error is IOException)&&!(error is InvalidDataException)&&!(error is UnauthorizedAccessException)&&!(error is SerializationException))throw;
-                Stop();status.Text=error.Message;
             }
         }
     }

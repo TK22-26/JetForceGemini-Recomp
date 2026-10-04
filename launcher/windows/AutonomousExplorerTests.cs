@@ -32,8 +32,8 @@ namespace JfgLauncher {
             reward.cost=0;reward.kind="item";
             Check(AutonomousExplorer.ObjectivePriority(npc)<AutonomousExplorer.ObjectivePriority(new MapInteraction{action="open_chest"}),"key NPC should precede weapon chests");
             Check(AutonomousExplorer.ObjectivePriority(new MapInteraction{action="collect",kind="key"})==0,"prioritize loose keys");
-            Check(ChestTrial.GainedItem(new[]{false,true},new[]{true,true}),"new key bit not detected");
-            Check(!ChestTrial.GainedItem(new[]{false,true},new[]{false,true}),"unchanged inventory counted as key collection");
+            Check(NavigationRunner.GainedItem(new[]{false,true},new[]{true,true}),"new key bit not detected");
+            Check(!NavigationRunner.GainedItem(new[]{false,true},new[]{false,true}),"unchanged inventory counted as key collection");
             var marker=new MapMarker{address=123,position=new float[]{500,0,0},normal=new float[]{1,0,0},destination_code=2};
             var map=NavigationExplorerTests.Room(1,1,marker);long now=NavigationExplorer.Clock;
             map.Live.timestamp_ms=now;map.Live.dialogue=new MapDialogue{rows=new MapDialogueChoice[0]};
@@ -41,7 +41,7 @@ namespace JfgLauncher {
             npc=new MapInteraction{address=321,action="talk",position=new float[]{100,0,0},talk_radius=100,offers=new[]{reward}};
             map.Live.progression.nodes=new[]{npc};int executions=0;
             var explorer=new AutonomousExplorer(Path.GetTempPath(),new NavigationExplorer(),
-                delegate(ChestTrial runner,string action,uint address,MapNpcOffer selected,float[] destination) {
+                delegate(NavigationRunner runner,string action,uint address,MapNpcOffer selected,float[] destination) {
                     ++executions;
                     if(action=="NPC reward") {selected.status="owned";map.Live.progression.inventory.red_key=true;}
                     else if(action=="dialogue") {map.Live.dialogue.active=false;map.Live.clearing_active=true;}
@@ -77,7 +77,7 @@ namespace JfgLauncher {
                 position=new float[]{200,0,0},status="unopened",reward_weapon=10}};
             int opened=0;
             var itemExplorer=new AutonomousExplorer(Path.GetTempPath(),new NavigationExplorer(),
-                delegate(ChestTrial runner,string action,uint address,MapNpcOffer selected,float[] destination) {
+                delegate(NavigationRunner runner,string action,uint address,MapNpcOffer selected,float[] destination) {
                     if(action!="weapon chest")throw new Exception("Expected Fish Food chest");
                     ++opened;itemRoom.Live.progression.inventory.weapons_mask|=1024;
                     itemRoom.Live.progression.nodes[0].status="opened";

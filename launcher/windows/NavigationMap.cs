@@ -497,7 +497,11 @@ namespace JfgLauncher
                 using(Pen routePen = new Pen(RouteBlocked?Color.OrangeRed:Color.Yellow,3)) {
                     routePen.DashStyle = DashStyle.Dash;
                     PointF previous = Project(new HeightPoint(snapshot.Live.player.position));
-                    foreach(HeightPoint p in Route.Points) { PointF next=Project(p); g.DrawLine(routePen,previous,next);previous=next; }
+                    if(Route.PlatformGoal.HasValue) {
+                        PointF goal=Project(Route.PlatformGoal.Value);
+                        g.DrawEllipse(routePen,goal.X-7,goal.Y-7,14,14);
+                        g.DrawString("Planning supported jumps",Font,Brushes.Yellow,goal.X+10,goal.Y);
+                    }else foreach(HeightPoint p in Route.Points) { PointF next=Project(p); g.DrawLine(routePen,previous,next);previous=next; }
                 }
             }
             HeightPoint player=new HeightPoint(snapshot.Live.player.position);PointF atPlayer=Project(player);
@@ -541,9 +545,7 @@ namespace JfgLauncher
         }
         private MapSnapshot aiSnapshot;
         private NavigationRoute aiRoute;
-        private bool aiRunning;
         private long aiNonce = DateTime.UtcNow.Ticks;
-        private readonly CheckBox jumpAssist = new CheckBox { Text = "Experimental jump assist", AutoSize = true };
         private readonly Label aiStatus = new Label { Text = "AI off - select an exit and plan a candidate route", AutoSize = true };
         private void StopAi() {
             explorer.Stop("Explorer stopped");StopPilot();
@@ -551,7 +553,9 @@ namespace JfgLauncher
             aiStatus.Text="AI stopped";
         }
         private void StopPilot() {
-            aiRunning=false;
+            // The runner checks cancellation and writes its final stop itself.
+            // Do not race its atomic command file with a second UI writer.
+            if(explorer!=null&&explorer.Busy)return;
             if(aiRoute!=null)try { aiRoute.Send(directory,++aiNonce,false,true); } catch(IOException) {} catch(UnauthorizedAccessException) {}
         }
         private bool updatingInteractions;
@@ -681,13 +685,8 @@ namespace JfgLauncher
             bar.SetFlowBreak(context, true);
             bar.SetFlowBreak(bar.Controls[bar.Controls.Count-1],true);
             aiStatus.MaximumSize=new Size(980,0);
-            bar.Controls.Add(planAi);bar.Controls.Add(startAi);bar.Controls.Add(stopAi);bar.Controls.Add(explore);bar.Controls.Add(aiControls);bar.Controls.Add(retry);bar.Controls.Add(jumpAssist);
-            bar.SetFlowBreak(jumpAssist,true);bar.Controls.Add(aiStatus);
-            Button boxJump=new Button {Text="Box jumping prototype",AutoSize=true};
-            bar.Controls.Add(boxJump);
-            boxJump.Click+=delegate {StopAi();if(explorer.Busy)return;aiRoute=null;canvas.Route=null;new BoxJumpWindow(directory).ShowDialog(this);};
-            Button chestTrial=new Button {Text="Weapon chest route",AutoSize=true};
-            bar.Controls.Add(chestTrial);
+            bar.Controls.Add(planAi);bar.Controls.Add(startAi);bar.Controls.Add(stopAi);bar.Controls.Add(explore);bar.Controls.Add(aiControls);bar.Controls.Add(retry);
+            bar.SetFlowBreak(retry,true);bar.Controls.Add(aiStatus);
             var inventory=new Button{Text="Live inventory",AutoSize=true};
             InventoryWindow inventoryWindow=null;bar.Controls.Add(inventory);
             inventory.Click+=delegate {
@@ -697,11 +696,10 @@ namespace JfgLauncher
             };
             var advanced=new CheckBox{Text="Advanced individual tests",AutoSize=true};
             bar.Controls.Add(advanced);
-            planAi.Visible=startAi.Visible=retry.Visible=jumpAssist.Visible=boxJump.Visible=chestTrial.Visible=false;
+            planAi.Visible=startAi.Visible=retry.Visible=false;
             advanced.CheckedChanged+=delegate {
-                planAi.Visible=startAi.Visible=retry.Visible=jumpAssist.Visible=boxJump.Visible=chestTrial.Visible=advanced.Checked;
+                planAi.Visible=startAi.Visible=retry.Visible=advanced.Checked;
             };
-            chestTrial.Click+=delegate {StopAi();if(explorer.Busy)return;aiRoute=null;canvas.Route=null;new ChestTrialWindow(directory).ShowDialog(this);};
 
             planAi.Click += delegate {
                 StopAi();
@@ -710,7 +708,7 @@ namespace JfgLauncher
                     if(target==null || target.kind!="exit")throw new InvalidDataException("Select an exit in the interaction list first.");
                     MapMarker marker=Array.Find(aiSnapshot.Live.exits,delegate(MapMarker e){return e.address==target.address;});
                     if(marker==null)throw new InvalidDataException("That exit is no longer loaded.");
-                    aiRoute=NavigationRoute.PlanExit(aiSnapshot,marker);canvas.Route=aiRoute;canvas.RouteBlocked=false;canvas.Invalidate();
+                    aiRoute=NavigationPlanner.ToExit(aiSnapshot,marker);canvas.Route=aiRoute;canvas.RouteBlocked=false;canvas.Invalidate();
                     aiStatus.Text=(aiRoute.ApproachOnly?"Verified approach to blocked door: ":"Collision-checked candidate: ")+aiRoute.Points.Count+" waypoints. Body allowance R20 / H80; parkour needs verification.";
                 }catch(InvalidDataException error){aiRoute=null;canvas.Route=null;aiStatus.Text=error.Message;}
             };
@@ -719,10 +717,10 @@ namespace JfgLauncher
                 explorer.Stop("Explorer stopped for manual route");
                 if(aiRoute==null || aiSnapshot==null || !aiSnapshot.IsLive || !aiSnapshot.Live.clearing_active ||
                     aiRoute.Level!=aiSnapshot.Live.level || aiRoute.Generation!=aiSnapshot.Live.generation){aiStatus.Text="Plan a route in active gameplay first.";return;}
-                string obstruction=aiRoute.CheckRemaining(aiSnapshot,0);
-                if(obstruction!=null){canvas.RouteBlocked=true;aiStatus.Text=obstruction;canvas.Invalidate();return;}
-                try { ++aiNonce;aiRoute.Send(directory,aiNonce,jumpAssist.Checked,false);aiRunning=true;aiStatus.Text="AI starting; any controller input or Esc stops it."; }
-                catch(IOException error){StopAi();aiStatus.Text=error.Message;aiRunning=false;}
+                try {
+                    explorer.JumpButton=aiControls.SelectedIndex==0?8:32768;
+                    explorer.StartRoute(aiSnapshot,aiRoute,NavigationExplorer.Clock);aiStatus.Text=explorer.Status;
+                }catch(InvalidDataException error){StopAi();aiStatus.Text=error.Message;}
             };
             explore.Click += delegate {
                 StopAi();aiRoute=null;canvas.Route=null;
@@ -760,67 +758,23 @@ namespace JfgLauncher
             }else StopPilot();
             aiSnapshot=null;cached=null;canvas.UpdateMap(null);UpdateInteractions(null);
         }
-        private void RecordRouteStop(MapSnapshot snapshot,int waypoint,string reason) {
-            // Local mod exports only; retain the triggering state before inertia
-            // or a later snapshot hides the transient failure.
-            try {
-                string path=Path.Combine(directory,"route-events.tsv");
-                if(!File.Exists(path) || new FileInfo(path).Length<4*1024*1024)
-                    File.AppendAllText(path,NavigationExplorer.Clock+"\t"+snapshot.Live.level+"\t"+snapshot.Live.generation+"\t"+waypoint+"\t"+
-                        String.Join(",",snapshot.Live.player.position)+"\t"+reason.Replace('\t',' ').Replace('\n',' ')+"\n");
-                using(FileStream file=File.Create(Path.Combine(directory,"last-route-stop.json")))
-                    new DataContractJsonSerializer(typeof(MapLive)).WriteObject(file,snapshot.Live);
-                if(aiRoute!=null) {
-                    System.Text.StringBuilder points=new System.Text.StringBuilder();
-                    foreach(HeightPoint point in aiRoute.Points)points.AppendLine(point.X.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+","+point.Y.ToString("R",System.Globalization.CultureInfo.InvariantCulture)+","+point.Z.ToString("R",System.Globalization.CultureInfo.InvariantCulture));
-                    File.WriteAllText(Path.Combine(directory,"last-route-stop.csv"),points.ToString());
-                }
-            }catch(IOException){}catch(UnauthorizedAccessException){}
-        }
         internal void RefreshMap()
         {
             try {
                 MapSnapshot value = MapSnapshot.Load(directory, cached);
                 if(aiSnapshot!=null && (aiSnapshot.Live.level!=value.Live.level || aiSnapshot.Live.generation!=value.Live.generation))selectedEntity=0;
                 aiSnapshot=value;
-                string collisionStop=null;
-                if(aiRunning && aiRoute!=null && aiRoute.Level==value.Live.level && aiRoute.Generation==value.Live.generation && value.Live.clearing_active) {
-                    int waypoint=value.Live.navigation_ai!=null && value.Live.navigation_ai.nonce==aiNonce?value.Live.navigation_ai.waypoint:0;
-                    collisionStop=aiRoute.CheckRemaining(value,waypoint);
-                    if(collisionStop!=null){
-                        RecordRouteStop(value,waypoint,collisionStop);
-                        if(explorer.Running) { explorer.RouteBlocked(collisionStop,NavigationExplorer.Clock);StopPilot(); }
-                        else StopAi();
-                        canvas.RouteBlocked=true;
-                    }
-                }
                 if(explorer.Running) {
                     ExploreCommand command=explorer.Tick(value,NavigationExplorer.Clock);
                     if(command.Stop){StopPilot();aiRoute=null;canvas.Route=null;}
                     if(command.Confirm)NavigationRoute.ConfirmTransition(directory,value.Live,++aiNonce);
                     if(command.Route!=null) {
                         aiRoute=command.Route;canvas.Route=aiRoute;canvas.RouteBlocked=false;
-                        MapSnapshot latest=MapSnapshot.Load(directory,value.Mesh);
-                        string dispatchProblem=aiRoute.DispatchProblem(value,latest);
-                        value=latest;aiSnapshot=latest;
-                        if(dispatchProblem!=null){explorer.Stop("Explorer stopped: "+dispatchProblem);StopPilot();}
-                        else {aiRoute.Send(directory,++aiNonce,jumpAssist.Checked,false);explorer.Dispatched(aiNonce,NavigationExplorer.Clock);aiRunning=true;}
                     }
-                    if(explorer.MayHeartbeat && aiRoute!=null)aiRoute.Send(directory,aiNonce,jumpAssist.Checked,false);
                     aiStatus.Text=explorer.Status;
-                }else {
-                if(aiRoute!=null && (aiRoute.Level!=value.Live.level || aiRoute.Generation!=value.Live.generation || !value.IsLive || !value.Live.clearing_active)) { StopPilot();aiRoute=null;canvas.Route=null; }
-                if(aiRunning && aiRoute!=null) aiRoute.Send(directory,aiNonce,jumpAssist.Checked,false);
-                if(value.Live.navigation_ai!=null && aiRoute!=null) {
-                    MapAi ai=value.Live.navigation_ai;
-                    if(ai.nonce==aiNonce && (ai.active || (aiRunning && ai.state!="off" && ai.state!="stopped"))) {
-                        aiStatus.Text="AI: "+ai.state.Replace('_',' ')+" | waypoint "+ai.waypoint+" / "+ai.count+" | jumps "+ai.jump_attempts;
-                        if(!ai.active)aiRunning=false;
-                    }
                 }
-                }
+                if(explorer.Busy){aiRoute=explorer.ActiveRoute;canvas.Route=aiRoute;}
                 if(explorerError==null) {explorer.ObserveIdle(value,NavigationExplorer.Clock);explorer.Save(directory);}
-                if(collisionStop!=null)aiStatus.Text=explorer.Running?explorer.Status:collisionStop+". Replan before restarting.";
                 cached = value.Mesh; canvas.UpdateMap(value); UpdateInteractions(value);EntityDetails(value);
                 if (canvas.Mode != 1) layerHeight.Value = Math.Max(layerHeight.Minimum, Math.Min(layerHeight.Maximum, (decimal)canvas.CenterHeight));
                 int tribalCount = 0;

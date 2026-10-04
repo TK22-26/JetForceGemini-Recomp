@@ -15,6 +15,8 @@ namespace JfgLauncher {
         internal readonly List<HeightPoint> Points = new List<HeightPoint>();
         internal uint Level;
         internal long Generation;
+        internal HeightPoint? PlatformGoal;
+        internal MapMarker ExitTarget;
         internal uint ApproachGate;
         internal float[] GatePosition;
         internal bool ApproachOnly {get {return ApproachGate!=0;} }
@@ -655,6 +657,7 @@ namespace JfgLauncher {
         private MapGeometry clearanceMesh;
         private List<HeightSurface> clearanceFloors;
         internal string CheckRemaining(MapSnapshot map,int waypoint) {
+            if(PlatformGoal.HasValue)return "Platform traversal requires the shared navigation runner";
             RunningWaypoint=RunningThrough=-1;runningUntil=0;
             string blocked=NavigationCollision.CheckRoute(map.Live,this,waypoint);
             if(blocked!=null)return blocked;
@@ -696,6 +699,7 @@ namespace JfgLauncher {
             if(File.Exists(path))File.Replace(temp,path,null);else File.Move(temp,path);
         }
         internal void Send(string directory,long nonce,bool jumps,bool stop) {
+            if(!stop&&PlatformGoal.HasValue)throw new InvalidDataException("Platform traversal must execute through the navigation runner.");
             long now=(long)(DateTime.UtcNow-new DateTime(1970,1,1,0,0,0,DateTimeKind.Utc)).TotalMilliseconds;
             int running=!stop && now<=runningUntil?RunningWaypoint:-1;
             StringBuilder text=new StringBuilder("JFGNAV3 "+Level+" "+Generation+" "+nonce+" "+now+" "+(jumps?1:0)+" "+(stop?0:Points.Count)+" "+running+" "+(running<0?-1:RunningThrough)+"\n");

@@ -115,17 +115,7 @@ namespace JfgLauncher {
    Directory.CreateDirectory(pending);
    try {
      File.WriteAllText(Path.Combine(pending,"live.json"),"{\"schema\":1,\"generation\":1,\"mesh_ready\":false,\"player\":null}");
-     using(BoxJumpWindow window=new BoxJumpWindow(pending)) {
-       window.Show();System.Windows.Forms.Application.DoEvents();bool waiting=false;
-       foreach(System.Windows.Forms.Control control in window.Controls)if(control is System.Windows.Forms.Label && control.Text.Contains("Waiting for gameplay"))waiting=true;
-       Check(waiting,"pre-game map state caused an exception instead of a waiting message");window.Close();
-     }
-     using(ChestTrialWindow window=new ChestTrialWindow(pending)) {
-       window.Show();System.Windows.Forms.Application.DoEvents();bool waiting=false;
-       foreach(System.Windows.Forms.Control control in window.Controls)if(control is System.Windows.Forms.Label&&control.Text.Contains("Waiting for gameplay"))waiting=true;
-       Check(waiting,"chest trial pre-game state caused a JIT error");window.Close();
-     }
-     var cancelled=new ChestTrial(pending){Cancelled=true};bool stopped=false;
+     var cancelled=new NavigationRunner(pending){Cancelled=true};bool stopped=false;
      try{cancelled.Run(0x80100000,8);}catch(OperationCanceledException){stopped=true;}
      Check(stopped&&!File.Exists(Path.Combine(pending,"ai-command.txt")),"cancelled chest trial dispatched input");
    }finally {File.Delete(Path.Combine(pending,"live.json"));Directory.Delete(pending);}
