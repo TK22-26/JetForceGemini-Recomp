@@ -15,7 +15,7 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("JFG Launcher Preview")]
 [assembly: AssemblyDescription("Local ROM build and launch prototype for JFG")]
 [assembly: AssemblyVersion("0.4.0.0")]
-[assembly: AssemblyInformationalVersion("0.4.0-preview.1")]
+[assembly: AssemblyInformationalVersion("0.4.0-preview.2")]
 
 namespace JfgLauncher
 {
@@ -226,12 +226,15 @@ namespace JfgLauncher
         private readonly ProgressBar progress = new ProgressBar();
         private readonly List<Control> inputs = new List<Control>();
         private bool busy;
+        private Process activeGame;
+        private SupportSession activeSupport;
+        private readonly Button freeze = new Button { Text = "Capture freeze", Size = new Size(145, 34), Enabled = false };
 
         internal LauncherWindow()
         {
             Text = "JFG Launcher Preview";
-            ClientSize = new Size(760, 520);
-            MinimumSize = new Size(776, 559);
+            ClientSize = new Size(760, 560);
+            MinimumSize = new Size(776, 599);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10);
             BackColor = Color.FromArgb(245, 247, 251);
@@ -249,7 +252,7 @@ namespace JfgLauncher
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 8));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
             Controls.Add(layout);
             Label title = new Label();
             title.Text = "Jet Force Gemini";
@@ -315,12 +318,20 @@ namespace JfgLauncher
             Button report = new Button { Text = "Create support report", Size = new Size(205, 34) };
             report.Click += delegate {
                 try {
-                    string zip = SupportSession.Export(SupportSession.Root, Path.Combine(FirstRun.Root, "support-exports"));
-                    Process.Start(new ProcessStartInfo("explorer.exe", "/select," + LocalSetup.Quote(zip)) { UseShellExecute = false });
-                    status.Text = "Support ZIP created. Attach it to a GitHub issue with what happened and how to reproduce it.\nYou can inspect the text files before sharing.";
+                    using (SupportWindow window = new SupportWindow(SupportSession.Root, Path.Combine(FirstRun.Root, "support-exports"), activeSupport == null ? null : activeSupport.DirectoryPath)) window.ShowDialog(this);
                 } catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
             };
             actions.Controls.Add(report);
+            freeze.Click += async delegate {
+                if (activeGame == null || activeSupport == null) return;
+                freeze.Enabled = false;
+                try {
+                    bool captured = await activeSupport.CaptureFreeze(activeGame, activeGame.StartInfo.FileName);
+                    status.Text = captured ? "Freeze captured. Create a support report for this session and attach the ZIP to your issue." : "Capture was incomplete. Create a support report; the remaining logs are still useful.";
+                } catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
+                finally { freeze.Enabled = activeGame != null; }
+            };
+            actions.Controls.Add(freeze);
             layout.Controls.Add(actions, 0, 8);
             Settings saved = LocalSetup.LoadSettings(LocalSetup.ProfileRoot);
             runtime.Text = saved.RuntimePath ?? "";
@@ -391,6 +402,8 @@ namespace JfgLauncher
             try
             {
                 support = new SupportSession(SupportSession.Root, "setup");
+                activeSupport = support;
+                await Task.Run(delegate { try { support.SystemDetails(); } catch (IOException) { support.Write("diagnostic=system-partial"); } catch (UnauthorizedAccessException) { support.Write("diagnostic=system-partial"); } });
                 string selectedRom = LocalSetup.FullPath(rom.Text);
                 status.Text = "Verifying your ROM locally...";
                 checkedRom = await Task.Run(delegate { return LocalSetup.OpenVerifiedRom(selectedRom); });
@@ -406,12 +419,13 @@ namespace JfgLauncher
                     process.StartInfo = FirstRun.StartInfo(selectedRom, Path.Combine(FirstRun.Root, "setup", BuildInfo.SourceCommit));
                     process.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e) {
                         if (String.IsNullOrWhiteSpace(e.Data)) return;
-                        support.ConsoleLine(e.Data);
+                        support.SetupLine(e.Data);
                         if (e.Data.StartsWith("Built: ", StringComparison.Ordinal)) built = e.Data.Substring(7);
                         string message = e.Data.Length > 300 ? e.Data.Substring(0, 300) : e.Data;
                         BeginInvoke((Action)delegate { status.Text = message + "\nSetup and compilation can take a while. Progress is saved in setup.log."; });
                     };
                     process.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs e) {
+                        support.SetupLine(e.Data);
                         if (!String.IsNullOrWhiteSpace(e.Data)) failure = e.Data.Length > 400 ? e.Data.Substring(0, 400) : e.Data;
                     };
                     if (!process.Start()) throw new IOException();
@@ -440,6 +454,7 @@ namespace JfgLauncher
             catch (Exception error) { if (support != null) support.Error(error); status.Text = LocalSetup.FriendlyError(error); }
             finally
             {
+                activeSupport = null; activeGame = null; freeze.Enabled = false;
                 if (support != null) support.Finish();
                 if (checkedRom != null) checkedRom.Dispose();
                 busy = false;
@@ -459,9 +474,10 @@ namespace JfgLauncher
             try
             {
                 support = new SupportSession(SupportSession.Root, "launch");
+                activeSupport = support;
+                await Task.Run(delegate { try { support.SystemDetails(); } catch (IOException) { support.Write("diagnostic=system-partial"); } catch (UnauthorizedAccessException) { support.Write("diagnostic=system-partial"); } });
                 string game = LocalSetup.ValidateRuntime(runtime.Text);
-                using (FileStream input = File.OpenRead(game))
-                using (SHA256 sha = SHA256.Create()) support.Write("runtime_sha256=" + BitConverter.ToString(sha.ComputeHash(input)).Replace("-", "").ToLowerInvariant());
+                bool captureAvailable = await Task.Run(delegate { try { return support.RuntimeDetails(game, LocalSetup.ProfileRoot); } catch (IOException) { return false; } catch (UnauthorizedAccessException) { return false; } });
                 string selectedRom = LocalSetup.FullPath(rom.Text);
                 status.Text = "Verifying your ROM locally...";
                 checkedRom = await Task.Run(delegate { return LocalSetup.OpenVerifiedRom(selectedRom); });
@@ -472,11 +488,13 @@ namespace JfgLauncher
                     process.StartInfo.EnvironmentVariables["JFG_SUPPORT_LOG"] = support.NativePath;
                     if (!process.Start()) throw new IOException();
                     support.Write("stage=started");
+                    activeGame = process; freeze.Enabled = captureAvailable;
                     Task stdout = support.Drain(process.StandardOutput), stderr = support.Drain(process.StandardError);
                     progress.Visible = false;
                     status.Text = "Game started. Close the game to return here.\nYour saves remain in your Windows user profile.";
                     await Task.Run(delegate { process.WaitForExit(); });
                     await Task.WhenAll(stdout, stderr);
+                    activeGame = null; freeze.Enabled = false;
                     support.Exit(process.ExitCode);
                     status.Text = process.ExitCode == 0 ? "Game closed. Your save profile is ready for next time." :
                         "The game exited with code " + process.ExitCode.ToString() + ". Click Create support report and attach the ZIP to a GitHub issue.";
@@ -485,6 +503,7 @@ namespace JfgLauncher
             catch (Exception error) { if (support != null) support.Error(error); status.Text = LocalSetup.FriendlyError(error); }
             finally
             {
+                activeSupport = null; activeGame = null; freeze.Enabled = false;
                 if (support != null) support.Finish();
                 if (checkedRom != null) checkedRom.Dispose();
                 busy = false;

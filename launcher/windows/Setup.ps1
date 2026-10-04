@@ -72,12 +72,21 @@ function Test-LinuxPackages {
 }
 
 function Invoke-Checked([string]$File, [string[]]$Arguments) {
-    & $File @Arguments
-    if ($LASTEXITCODE -in @(3010, 1641)) {
+    $tool = [IO.Path]::GetFileNameWithoutExtension($File).ToLowerInvariant()
+    if ($tool -in @('git', 'python', 'python3', 'winget', 'wsl')) { Write-Output "JFG-SUPPORT setup_step=$tool" }
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $File @Arguments 2>&1 | ForEach-Object { Write-Output ([string]$_) }
+        $commandExit = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previousPreference }
+    if ($null -eq $commandExit) { throw 'Setup command did not start.' }
+    Write-Output ('JFG-SUPPORT setup_exit=0x{0:x8}' -f $commandExit)
+    if ($commandExit -in @(3010, 1641)) {
         Write-Output 'JFG-RESTART: Restart Windows, reopen this launcher and click Set up and build again.'
         exit 3010
     }
-    if ($LASTEXITCODE -ne 0) { throw "Setup command failed ($LASTEXITCODE): $([IO.Path]::GetFileName($File)). See setup.log." }
+    if ($commandExit -ne 0) { throw "Setup command failed ($commandExit): $([IO.Path]::GetFileName($File)). See setup.log." }
 }
 
 function Install-Package([string]$Id, [string]$Override = '') {
@@ -121,6 +130,7 @@ function Ensure-BuildTools {
         $process = Start-Process -FilePath "$env:WINDIR\System32\wsl.exe" `
             -ArgumentList '--install -d Ubuntu-24.04 --no-launch --web-download' `
             -Verb RunAs -WindowStyle Hidden -Wait -PassThru
+        Write-Output ('JFG-SUPPORT setup_exit=0x{0:x8}' -f $process.ExitCode)
         if ($process.ExitCode -in @(3010, 1641) -or -not (Test-Ubuntu)) {
             Write-Output 'JFG-RESTART: Restart Windows, reopen the launcher and continue setup. WSL needs virtualization enabled.'
             exit 3010
@@ -198,5 +208,8 @@ function Invoke-Setup {
 
 if ($MyInvocation.InvocationName -ne '.') {
     try { Invoke-Setup }
-    catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
+    catch {
+        Write-Output ('JFG-SUPPORT setup_error=' + $_.CategoryInfo.Category.ToString().ToLowerInvariant())
+        [Console]::Error.WriteLine($_.Exception.Message); exit 1
+    }
 }

@@ -231,12 +231,10 @@ def validate_workflow(workflow: str, github_actions: dict[str, str]) -> list[str
             'ctest --preset linux-release -E "^jfg\\.g2_trap_probe_runtime$"',
             "cmake --build --preset linux-clang",
             'ctest --preset linux-clang -E "^jfg\\.g2_trap_probe_runtime$"',
-            "cmake --preset windows-msvc",
-            "cmake --build --preset windows-msvc",
-            # The trap-probe quarantine is Linux-runner-specific; Windows runs it.
-            "ctest --preset windows-msvc",
-            "cmake --build --preset windows-msvc-release",
-            "ctest --preset windows-msvc-release",
+            # The wrapper builds and tests the same full Windows target set,
+            # using a short checkout-specific directory outside the source tree.
+            "python scripts/build_windows.py --config Debug --test",
+            "python scripts/build_windows.py --config Release --test",
         }
         build_commands = set(extract_run_commands(build_job))
         for command in sorted(required_build_commands - build_commands):
