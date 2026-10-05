@@ -12,7 +12,7 @@
 namespace jfg {
 namespace {
 
-constexpr std::uintmax_t kMaximumReplayBytes = 1024U * 1024U;
+constexpr std::uintmax_t kMaximumReplayBytes = 8U * 1024U * 1024U;
 
 template <typename Value>
 [[nodiscard]] bool parse_integer(

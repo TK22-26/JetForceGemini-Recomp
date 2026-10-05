@@ -1206,6 +1206,8 @@ public:
   DialogueInput dialogue_input;
   DialogueState dialogue;
   bool enabled = false;
+  bool juno_double_run = false;
+  std::uint64_t juno_run_boosts = 0;
   std::uint32_t player = 0, last_track = 0, last_level = UINT32_MAX;
   std::uint64_t updates = 0, generation = 1, cleared = 0, health_restores = 0,
                 invalid = 0, manual_inputs = 0;
@@ -1217,6 +1219,29 @@ public:
     last_track = 0;
     last_level = UINT32_MAX;
     ++generation;
+  }
+
+  // US Juno ground control (0x01002708), a2: stick-derived target speed.
+  // Scale the freshly computed target, never accumulated velocity/position.
+  // Original acceleration, wall/floor collision and vertical physics still run.
+  // This is opt-in separately from navigation, and excludes other movement states.
+  std::uint32_t juno_run_target(const Memory &m, std::uint32_t actor,
+                                std::uint32_t control, std::uint32_t bits) noexcept {
+    if (!enabled || !juno_double_run) return bits;
+    try {
+      if ((actor & 3U) || (control & 3U) || !gameplay_active(m, actor) ||
+          static_camera_active(m) || m.u32(actor + 0x68U) != control ||
+          (m.u8(control + 1U) & 3U) != 1U || m.u8(control + 0x568U) != 0U)
+        return bits;
+      const float speed = std::bit_cast<float>(bits);
+      // The original input is a nonnegative stick magnitude times run scale.
+      // Reject invalid data and leave zero input completely untouched.
+      if (!std::isfinite(speed) || speed <= 0.0F || speed > 25.0F) return bits;
+      ++juno_run_boosts;
+      return std::bit_cast<std::uint32_t>(speed * 2.0F);
+    } catch (const std::runtime_error &) {
+      return bits;
+    }
   }
   bool full_health(Memory &m, std::uint32_t actor) noexcept {
     if (!enabled)

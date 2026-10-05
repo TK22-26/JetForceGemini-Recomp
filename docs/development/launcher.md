@@ -7,12 +7,16 @@ Download `JFG-Launcher.exe` from the public release on Windows x64 and select
 your supported North American ROM. The launcher sets up the tools, builds the
 game locally, and remembers the resulting executable for later play.
 
-## Preview 0.4.0-preview.3
+## Preview 0.4.0-preview.4
 
-This preview adds live volume/mute controls, the original player-shadow mask
-processing fix and sound-player clock recovery. Rebuild an existing game with
-**Set up and build** to use native fixes from this source revision; keep your
-existing save profile.
+This preview fixes graphics completion timing during the Vela unlock scene
+and avoids pausing audio while valid samples remain queued. It also refreshes
+CPU texture memory after framebuffer reuse, fixing the recorded rectangular
+water splash. Input recordings now support longer playtests.
+
+Rebuild an existing game with **Set up and build** to use native fixes from
+this source revision; keep your existing save profile. See the [release notes](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/releases/0.4.0-preview.4.md)
+for validation and remaining limits.
 
 The optional **Navigation mod** enables the live map and character inventory,
 with one movement executor for supported walking, jump chains, chests, NPC

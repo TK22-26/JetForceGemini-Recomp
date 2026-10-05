@@ -13,8 +13,11 @@ ROM and build the game locally using the launcher or command-line tools.
 
 ## Current preview
 
-Preview 0.4.0-preview.3 adds live volume/mute controls, the player-shadow
-correction, sound-player recovery, and optional live map/inventory tools.
+Preview 0.4.0-preview.4 includes graphics/audio timing fixes,
+a correction for opaque particle textures, and longer input recordings.
+
+Live volume/mute controls, player-shadow correction, sound-player recovery,
+and optional live map/inventory tools are available in preview.3.
 The Navigation mod combines supported walking, jumps and NPC interactions;
 it remains experimental and does not establish autonomous campaign completion.
 HD cosmetic variants stay in independently maintained community branches.
@@ -24,12 +27,21 @@ HD cosmetic variants stay in independently maintained community branches.
 - Native rendering and audio.
 - Keyboard controls and configurable Xbox/XInput controllers.
 - Persistent saves and a launcher for setup and subsequent launches.
-- A maintainer playtest completed Goldwood and reached SS Anubis.
 
 Full campaign completion and original-console accuracy remain unverified.
 This preview needs playtesting across more PCs, controllers, and gameplay.
 See [recent gameplay fixes](docs/development/boot-gameplay-fix.md) and
 [development progress](docs/dashboard.md) for details.
+
+## Campaign playtest progress
+
+Current maintainer-reported progress for the three playable characters:
+
+| Character | Campaign progress |
+| --- | --- |
+| Juno | Reached Mizar's Palace after Tawfret. |
+| Vela | Tested up to Cerulean. |
+| Lupus | Progress not yet reported. |
 
 ## Getting started
 

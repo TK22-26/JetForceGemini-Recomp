@@ -186,6 +186,62 @@ int main() {
     require(jfg::commit_rt64_rdram_ranges(submitted, rendered, live,
         mask_range, std::span(previous).first(4U)) ==
         jfg::Rt64ShellError::invalid_memory);
+    // Recycled framebuffer memory now holds a CPU texture. The CPU writes
+    // the SAME old source value, while the renderer still has stale pixels.
+    std::fill(submitted.begin(), submitted.end(), std::byte{0xF0});
+    rendered = submitted;
+    previous = submitted;
+    rendered[0x303U ^ 3U] = std::byte{0xFF}; // Stale opaque particle alpha.
+    rendered[0x101U ^ 3U] = std::byte{0x8E}; // Still-owned GPU image.
+    const std::array<jfg::Rt64RdramRange, 3U> owners = {{{0x101U, 0x105U}, {0x103U, 0x108U}, {0x200U, 0x202U}}};
+    require(jfg::merge_rt64_rdram_snapshot(submitted, rendered, previous,
+        jfg::Rt64MemoryLayout::host_word_swapped) == jfg::Rt64ShellError::none);
+    require(rendered[0x303U ^ 3U] == std::byte{0xFF});
+    require(jfg::refresh_rt64_cpu_memory(submitted, rendered, owners,
+        jfg::Rt64MemoryLayout::host_word_swapped) == jfg::Rt64ShellError::none);
+    require(rendered[0x303U ^ 3U] == std::byte{0xF0});
+    require(rendered[0x101U ^ 3U] == std::byte{0x8E});
+    // Compare both byte layouts with unaligned, overlapping owned regions.
+    for (std::size_t i = 0U; i < submitted.size(); ++i)
+        submitted[i] = static_cast<std::byte>(i & 0xFFU);
+    std::vector<std::byte> big_endian(submitted.size());
+    require(jfg::copy_rt64_rdram_snapshot(submitted, big_endian,
+        jfg::Rt64MemoryLayout::big_endian) == jfg::Rt64ShellError::none);
+    std::fill(rendered.begin(), rendered.end(), std::byte{0xAA});
+    auto big_result = rendered;
+    require(jfg::refresh_rt64_cpu_memory(submitted, rendered, owners,
+        jfg::Rt64MemoryLayout::host_word_swapped) == jfg::Rt64ShellError::none);
+    require(jfg::refresh_rt64_cpu_memory(big_endian, big_result, owners,
+        jfg::Rt64MemoryLayout::big_endian) == jfg::Rt64ShellError::none);
+    require(rendered == big_result);
+    for (std::size_t i = 0U; i < submitted.size(); ++i) {
+        const bool owned = (i >= 0x101U && i < 0x108U) || (i >= 0x200U && i < 0x202U);
+        require(rendered[i ^ 3U] == (owned ? std::byte{0xAA} : submitted[i ^ 3U]));
+    }
+    const auto before_invalid = rendered;
+    const std::array<jfg::Rt64RdramRange, 2U> unsorted = {{{8U, 12U}, {2U, 5U}}};
+    require(jfg::refresh_rt64_cpu_memory(submitted, rendered, unsorted,
+        jfg::Rt64MemoryLayout::host_word_swapped) == jfg::Rt64ShellError::invalid_memory);
+    require(rendered == before_invalid);
+    require(jfg::refresh_rt64_cpu_memory(submitted, rendered, {},
+        jfg::Rt64MemoryLayout::host_word_swapped) == jfg::Rt64ShellError::none);
+    require(rendered == submitted);
+    // Reject malformed ownership without changing any destination byte.
+    const auto before_bad_ownership = rendered;
+    const std::array<jfg::Rt64RdramRange, 1U> inverted = {{{9U, 8U}}};
+    const std::array<jfg::Rt64RdramRange, 1U> empty = {{{8U, 8U}}};
+    const std::array<jfg::Rt64RdramRange, 1U> oversized = {{{
+        jfg::kRt64RequiredRdramBytes - 1U, jfg::kRt64RequiredRdramBytes + 1U}}};
+    for (const auto bad_ownership : {inverted, empty, oversized}) {
+        require(jfg::refresh_rt64_cpu_memory(submitted, rendered, bad_ownership,
+            jfg::Rt64MemoryLayout::host_word_swapped) ==
+            jfg::Rt64ShellError::invalid_memory);
+        require(rendered == before_bad_ownership);
+    }
+    require(jfg::refresh_rt64_cpu_memory(std::span(submitted).first(4U),
+        rendered, {}, jfg::Rt64MemoryLayout::host_word_swapped) ==
+        jfg::Rt64ShellError::invalid_memory);
+    require(rendered == before_bad_ownership);
     jfg::Rt64ViRegisters framebuffer_vi;
     framebuffer_vi.status = 0x0000'320EU;
     framebuffer_vi.origin = 0x0010'0000U;

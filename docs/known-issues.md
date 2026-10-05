@@ -44,8 +44,8 @@ DirectInput/HID mapping and rumble configuration are not implemented.
 
 ## Gameplay coverage
 
-A maintainer playtest completed Goldwood and reached SS Anubis. Full campaign
-completion and original-console accuracy remain unverified. Report a specific
+Maintainer-reported progress is tracked in the [README](../README.md#campaign-playtest-progress).
+Full campaign completion and original-console accuracy remain unverified. Report a specific
 failure with the location and reproduction steps using the
 [playtesting guide](playtesting.md).
 
@@ -59,6 +59,15 @@ A copied-save Juno test in the tutorial confirmed the processed opacity range
 against Angrylion and exited cleanly. See [the renderer fix and validation
 scope](development/boot-gameplay-fix.md#player-shadow-cpu-postprocessing).
 Older builds need rebuilding; full-campaign shadow accuracy remains unverified.
+
+## Particle textures
+
+Preview.4 fixes stale renderer memory that produced opaque
+particle rectangles. The recorded Vela water splash has before/after replay
+validation. The maintainer also confirms that all previously reported broken
+particle effects now render correctly, including dust, pickup sparkles, ship
+exhaust and Tawfret rain. Juno's water splash has not been tested.
+See [the renderer evidence](development/boot-gameplay-fix.md#cpu-texture-refresh-after-framebuffer-reuse).
 
 ## Support reports
 

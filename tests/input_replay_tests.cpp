@@ -108,6 +108,31 @@ void test_poll_replay_eof_is_neutral() {
           "later polls after EOF remain neutral");
 }
 
+void test_long_manual_recording() {
+    std::string contents = "jfg-phase8-input-v2\n";
+    for (std::size_t i = 0U; i < jfg::kMaximumInputReplayEvents; ++i) {
+        contents += std::to_string(i * 2U) + "," +
+                    std::to_string(i * 2U + 1U) + ",1,8000,12,-34\n";
+    }
+    check(contents.size() > 1024U * 1024U,
+          "manual recording exceeds the former one MiB limit");
+    jfg::DeterministicInputReplay replay;
+    const TemporaryReplay valid(contents);
+    check(jfg::DeterministicInputReplay::load(valid.path(), replay) ==
+              jfg::InputReplayError::none, "long manual recording loads");
+    check(replay.sample_by_poll(jfg::kMaximumInputReplayEvents - 1U) ==
+              jfg::ControllerReplaySample{true, 0x8000U, 12, -34},
+          "final input of long recording remains intact");
+    contents += "900000,900001,1,0,0,0\n";
+    const TemporaryReplay excess(contents);
+    check(jfg::DeterministicInputReplay::load(excess.path(), replay) ==
+              jfg::InputReplayError::invalid_record,
+          "event limit still rejects oversized event counts");
+    const TemporaryReplay too_large(std::string(8U * 1024U * 1024U + 1U, 'x'));
+    check(jfg::DeterministicInputReplay::load(too_large.path(), replay) ==
+              jfg::InputReplayError::too_large, "byte limit remains enforced");
+}
+
 void test_rejects_invalid_records() {
     for (const std::string_view contents : {
              "wrong-header\n1800,1810,1000,0,0\n",
@@ -130,6 +155,7 @@ void test_rejects_invalid_records() {
 
 int main() {
     test_valid_replay();
+    test_long_manual_recording();
     test_connection_transitions();
     test_poll_replay_eof_is_neutral();
     test_rejects_invalid_records();

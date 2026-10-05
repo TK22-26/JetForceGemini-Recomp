@@ -525,3 +525,9 @@ add_test(NAME jfg.rt64_shader_dependencies
         --cmake "${CMAKE_COMMAND}" --generator "${CMAKE_GENERATOR}"
         --make-program "${CMAKE_MAKE_PROGRAM}"
         --work-root "${CMAKE_CURRENT_BINARY_DIR}/shader-fixtures")
+
+add_executable(jfg_playback_buffer_tests playback_buffer_tests.cpp)
+target_include_directories(jfg_playback_buffer_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_playback_buffer_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_playback_buffer_tests)
+add_test(NAME jfg.playback_buffer COMMAND jfg_playback_buffer_tests)

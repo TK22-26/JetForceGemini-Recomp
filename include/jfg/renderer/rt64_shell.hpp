@@ -168,6 +168,12 @@ struct Rt64GraphicsDiagnostics {
     std::span<std::byte> previous_source,
     Rt64MemoryLayout layout) noexcept;
 
+// Refresh CPU-owned bytes even when the CPU rewrites their previous value.
+// Only the sorted (possibly overlapping) live framebuffer ranges retain GPU data.
+[[nodiscard]] Rt64ShellError refresh_rt64_cpu_memory(
+    std::span<const std::byte> source, std::span<std::byte> destination,
+    std::span<const Rt64RdramRange> gpu_ranges, Rt64MemoryLayout layout) noexcept;
+
 [[nodiscard]] Rt64ShellError inspect_rt64_framebuffer(
     const Rt64ViRegisters& vi,
     std::size_t rdram_size,

@@ -179,6 +179,42 @@ int main(int argc, char **argv) {
     put32(0x800FD7D4U, game);
     m.put16(game + 0x15EU, 6U);
     m.put16(props + 6U, 42U);
+    // Speed boost must preserve guest memory, exclude other characters and
+    // scripted/special movement, and apply to each fresh input only once.
+    {
+      NavigationMod speed_mod;
+      const auto run = std::bit_cast<std::uint32_t>(6.5F);
+      const auto twice = std::bit_cast<std::uint32_t>(13.0F);
+      auto target = [&] { return speed_mod.juno_run_target(m, player, control, run); };
+      put8(control + 1U, 1U);
+      check(target() == run);
+      speed_mod.enabled = true; check(target() == run);
+      speed_mod.juno_double_run = true;
+      const auto original_memory = bytes;
+      for (int frame = 0; frame < 1000; ++frame) check(target() == twice);
+      check(bytes == original_memory && speed_mod.juno_run_boosts == 1000U);
+      for (auto character : {0U, 2U, 3U}) {
+        put8(control + 1U, static_cast<std::uint8_t>(character)); check(target() == run);
+      }
+      put8(control + 1U, 1U);
+      for (auto state : {1U, 2U, 3U, 5U, 6U, 12U}) {
+        put8(control + 0x568U, static_cast<std::uint8_t>(state)); check(target() == run);
+      }
+      put8(control + 0x568U, 0U);
+      for (auto gate : {0x800FD7C4U, 0x801045B8U, 0x800F6DBCU, control + 0x5C0U}) {
+        put32(gate, 1U); check(target() == run); put32(gate, 0U);
+      }
+      put8(0x800A4FC4U, 1U); check(target() == run); put8(0x800A4FC4U, 0U);
+      put32(0x8004271CU, 0x3C028010U); put32(0x800FB084U, 0x8010B000U);
+      check(target() == run); put32(0x800FB084U, 0U);
+      for (auto invalid : {0U, 0x80000000U, 0x7FC00000U, 0x7F800000U,
+                           0xBF800000U, 0x7F7FFFFFU})
+        check(speed_mod.juno_run_target(m, player, control, invalid) == invalid);
+      check(speed_mod.juno_run_target(m, 0U, control, run) == run);
+      check(speed_mod.juno_run_target(m, player, control + 4U, run) == run);
+      speed_mod.enabled = false; check(target() == run);
+      put8(control + 1U, 0U);
+    }
     NavigationMod mod;
     const auto unchanged = bytes;
     check(!mod.full_health(m, player) && bytes == unchanged);

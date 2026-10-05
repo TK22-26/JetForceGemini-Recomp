@@ -7,6 +7,7 @@
 #include "jfg/boot/gameplay_trace.hpp"
 #include "jfg/mod/navigation_mod.hpp"
 #include "jfg/audio/master_volume.hpp"
+#include "jfg/audio/playback_buffer.hpp"
 #include "jfg/boot/runlink_module_table.hpp"
 #include "jfg/boot/thread_scheduler.hpp"
 #include "jfg/boot/guest_thread_transport.hpp"
@@ -765,7 +766,6 @@ private:
     // Give the first renderer/shader work a generous cushion, then keep normal
     // host latency bounded independently of the emulated AI DMA clock.
     prebuffer_bytes_ = frequency_ * 4U / 4U;
-    low_watermark_bytes_ = frequency_ * 4U * 3U / 40U;
     resume_bytes_ = frequency_ * 4U * 3U / 20U;
     pacing_bytes_ = frequency_ * 4U / 5U;
     overrun_bytes_ = frequency_ * 4U * 2U;
@@ -828,23 +828,28 @@ private:
         started_ = true;
       return;
     }
-    if (!started_ && current_queued_bytes_ >= prebuffer_bytes_) {
+    switch (jfg::audio::playback_buffer_action(started_, device_playing_,
+                current_queued_bytes_, prebuffer_bytes_, resume_bytes_)) {
+    case jfg::audio::PlaybackBufferAction::start:
       SDL_PauseAudioDevice(device_, 0);
       started_ = true;
       device_playing_ = true;
       empty_episode_ = false;
       capture_event("start");
-    } else if (device_playing_ &&
-               current_queued_bytes_ <= low_watermark_bytes_) {
+      break;
+    case jfg::audio::PlaybackBufferAction::pause_empty:
       SDL_PauseAudioDevice(device_, 1);
       device_playing_ = false;
-      capture_event("pause-low");
-    } else if (started_ && !device_playing_ &&
-               current_queued_bytes_ >= resume_bytes_) {
+      capture_event("pause-empty");
+      break;
+    case jfg::audio::PlaybackBufferAction::resume:
       SDL_PauseAudioDevice(device_, 0);
       device_playing_ = true;
       empty_episode_ = false;
       capture_event("resume");
+      break;
+    case jfg::audio::PlaybackBufferAction::none:
+      break;
     }
   }
 
@@ -897,7 +902,6 @@ private:
   std::uint64_t emulated_byte_accumulator_ = 0U;
   std::uint32_t frequency_ = 0U;
   std::uint32_t prebuffer_bytes_ = 0U;
-  std::uint32_t low_watermark_bytes_ = 0U;
   std::uint32_t resume_bytes_ = 0U;
   std::uint32_t pacing_bytes_ = 0U;
   std::uint32_t overrun_bytes_ = 0U;
@@ -1436,6 +1440,7 @@ struct State {
   std::uint64_t phase9_hinttext_accept_calls = 0U;
   std::uint32_t phase9_hinttext_active_last_return = 0U;
   std::uint64_t interrupt_timeslices = 0U;
+  std::uint64_t rsp_yield_requests = 0U, rsp_yield_queries = 0U;
   std::unordered_map<std::uint32_t, std::uint32_t> empty_receive_polls;
   std::uint64_t receive_successes = 0U;
   std::uint64_t receive_empties = 0U;
@@ -1479,6 +1484,7 @@ struct State {
   jfg::FlashRamStore flashram;
   bool play_mode = false;
   bool fast_replay = false;
+  bool realtime_replay = false;
   bool exit_requested = false;
   std::array<bool, 256U> host_keys{};
   std::array<bool, 256U> host_key_presses{};
@@ -1981,9 +1987,11 @@ bool service_host_audio(State &state, const bool pace) {
   // Interactive mode is already paced by the VI/window clock.  Waiting on
   // the SDL queue as well creates a second, drifting clock and visible frame
   // hitches whenever a graphics frame arrives late.  Headless probes have no
-  // window clock, so retain audio throttling there.
+  // window clock, so retain audio throttling there unless a diagnostic replay
+  // explicitly uses the same VI clock as interactive playback.
   state.host_audio.service(
-      pace, pace && !state.play_mode && !state.fast_replay);
+      pace, pace && !state.play_mode && !state.fast_replay &&
+                !state.realtime_replay);
   state.audio_device_initialized = state.host_audio.initialized();
   state.audio_device_started = state.host_audio.started();
   state.audio_device_frequency = state.host_audio.frequency();
@@ -4886,7 +4894,7 @@ void advance_legacy_vi_clock(State &state, const std::uint32_t target) {
 // graphics task, advance Count, or deliver a guest interrupt.
 void present_completed_video(State &state, const std::uint32_t target) {
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-  if (state.play_mode) {
+  if (state.play_mode || state.realtime_replay) {
     service_live_window(state);
     if (state.exit_requested)
       play_exit(state);
@@ -5466,6 +5474,17 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
       [[maybe_unused]] const auto mod_actor_argument=static_cast<std::uint32_t>(context->r4);
       const auto sound_event_argument = static_cast<std::uint32_t>(context->r5);
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+      if (state.navigation_mod.enabled && target == 0x01002708U) {
+        jfg::mod::Memory memory({rdram, kRdramSize});
+        const auto original = static_cast<std::uint32_t>(context->r6);
+        const auto boosted = state.navigation_mod.juno_run_target(
+            memory, mod_actor_argument, sound_event_argument, original);
+        context->r6 = boosted;
+        if (boosted != original && state.navigation_mod.juno_run_boosts == 1U)
+          jfg::support_event("mod=juno-run-speed-2x-applied");
+      }
+#endif
       generated(rdram, context);
       if (target == jfg::boot::kSoundNextEvent) {
         hle::GuestMemory memory({rdram, kRdramSize},
@@ -6881,6 +6900,32 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
     return 1;
   }
+#if defined(JFG_PHASE8_LIVE_RUNTIME)
+  if (!state.guest_leaf_probe && std::strcmp(name, "osSpTaskYield") == 0) {
+    // A yield request gives waiting audio a chance to run. Our RSP backend
+    // cannot suspend a task, so finish the pending graphics work now through
+    // its sole SP/DP completion path. Waiting for another VI here delays the
+    // audio task and changes the guest scheduler's buffer/frame cadence.
+    // This neither advances the VI clock nor resubmits a graphics task.
+    if (++state.rsp_yield_requests == 1U)
+      jfg::support_event("rsp=yield-request-run-to-completion");
+#if defined(_WIN32)
+    state.gameplay_trace.event("rsp-yield", {state.vi_retraces,
+        state.controller_samples, state.gameplay_trace_updates,
+        state.pending_graphics_tasks.size(), state.rsp_yield_requests});
+    complete_pending_live_graphics_tasks(state, target);
+#endif
+    return 1;
+  }
+  if (!state.guest_leaf_probe && std::strcmp(name, "osSpTaskYielded") == 0) {
+    // The scheduler asks after SP completion. No task was suspended, so it
+    // must retire this task rather than enqueueing it again as yielded.
+    set_result(context, 0);
+    if (++state.rsp_yield_queries == 1U)
+      jfg::support_event("rsp=yield-query-completed");
+    return 1;
+  }
+#endif
   hle::HleFunction function{};
   if (std::strcmp(name, "osCreateMesgQueue") == 0) {
     function = hle::HleFunction::kOsCreateMesgQueue;
@@ -8029,6 +8074,12 @@ int run_child(const char *path, const unsigned retrace_target,
     if(error)return 2;
     state.navigation_mod.enabled=true;
     jfg::support_event("mod=navigation-enabled");
+    char speed_flag[2]{};
+    state.navigation_mod.juno_double_run =
+        GetEnvironmentVariableA("JFG_MOD_JUNO_DOUBLE_RUN", speed_flag, 2U) == 1U &&
+        speed_flag[0] == '1';
+    if (state.navigation_mod.juno_double_run)
+      jfg::support_event("mod=juno-run-speed-2x-enabled");
   }
   wchar_t gameplay_trace_path[32768]{};
   const DWORD trace_path_length = GetEnvironmentVariableW(L"JFG_GAMEPLAY_TRACE", gameplay_trace_path, 32768U);
@@ -8250,6 +8301,27 @@ int run_child(const char *path, const unsigned retrace_target,
     state.input_replay_by_poll = true;
   }
   std::free(replay_by_poll);
+  // A bounded, hidden replay can exercise the interactive VI/audio cadence
+  // without opening another game window or consuming live controller input.
+  char *realtime_replay = nullptr;
+  std::size_t realtime_replay_size = 0U;
+  if (_dupenv_s(&realtime_replay, &realtime_replay_size,
+                "JFG_PHASE9_REALTIME_REPLAY") != 0) {
+    std::fputs("native boot setup failed: realtime replay environment\n", stderr);
+    return 3;
+  }
+  if (realtime_replay != nullptr && *realtime_replay != '\0') {
+    if (std::strcmp(realtime_replay, "1") != 0 ||
+        !state.input_replay_loaded || state.play_mode || state.fast_replay ||
+        state.guest_leaf_probe) {
+      std::free(realtime_replay);
+      std::fputs("native boot setup failed: realtime replay value\n", stderr);
+      return 3;
+    }
+    state.realtime_replay = true;
+    jfg::support_event("replay=hidden-realtime-vi-clock");
+  }
+  std::free(realtime_replay);
   if (state.poll_target != 0U &&
       (!state.input_replay_loaded || !state.input_replay_by_poll)) {
     std::fputs("native boot setup failed: poll target requires replay-by-poll\n",

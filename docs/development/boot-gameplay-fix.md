@@ -270,3 +270,44 @@ Validation on 2026-10-04:
 This check covers the reported Juno shadow in the supported US build.
 Other characters and full-campaign rendering parity remain unverified.
 ROM-derived images, memory captures and executables remain private.
+
+## CPU texture refresh after framebuffer reuse
+
+The renderer's private RDRAM can retain GPU-written bytes after a framebuffer
+is discarded and the game reuses its storage for textures. The snapshot importer
+previously copied only bytes that differed from its previous CPU snapshot.
+A texture byte equal to that previous value therefore left a stale rendered
+pixel in place. For intensity/alpha particles, this could turn transparent
+background texels into visible rectangles.
+
+Snapshot replacement now refreshes bytes outside RT64's tracked, written
+framebuffer ranges from the submitted CPU snapshot. The existing delta merge
+still imports CPU changes within those ranges. Live color/depth framebuffer
+contents and the intensity-mask CPU writeback path remain protected. The
+refresh supports both byte layouts and validates all ownership ranges before
+copying; it has no texture-address or character-specific exceptions.
+
+Validation on 2026-10-05:
+
+- A recorded Vela water jump reproduced the rectangular splash. A diagnostic
+  CPU texture refresh and then the general ownership fix restored transparency.
+- The matching 30,642-VI replay completed normally with exactly the same final
+  CPU memory as the broken baseline. Before/after frames show the rectangular
+  footprint replaced by the transparent ripple.
+- The current native runtime, including the separate graphics-yield and audio
+  continuity fixes, was rebuilt and replayed successfully.
+- Eight focused renderer, scheduler, graphics/audio bridge, replay, mod and
+  playback-buffer tests passed. Ownership tests cover stale same-value CPU
+  bytes, protected GPU bytes, both byte layouts, overlapping and unaligned
+  ranges, and atomic rejection of malformed ownership.
+
+One earlier validation attempt failed in the background DirectX shader
+compiler during a session in which Windows also recorded a desktop compositor
+crash. A monitored rerun of that same candidate completed normally; the cause
+of the wider failure is not established.
+
+The automated visual acceptance above covers Vela's recorded splash. The
+maintainer subsequently confirmed that all previously reported broken particle
+effects now render correctly, including dust, pickup sparkles, ship exhaust
+and Tawfret rain. Juno's water splash remains untested. Private
+recordings, saves, ROM-derived frames and executables are not distributed.

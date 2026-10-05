@@ -7,6 +7,7 @@
 #include "hle/rt64_vi.h"
 #include "rhi/rt64_render_hooks.h"
 
+#include <algorithm>
 #include <atomic>
 #include <array>
 #include <chrono>
@@ -411,6 +412,45 @@ Rt64ShellError merge_rt64_rdram_snapshot(
     return Rt64ShellError::none;
 }
 
+Rt64ShellError refresh_rt64_cpu_memory(
+    const std::span<const std::byte> source,
+    const std::span<std::byte> destination,
+    const std::span<const Rt64RdramRange> gpu_ranges,
+    const Rt64MemoryLayout layout) noexcept {
+    if (source.size() != kRt64RequiredRdramBytes || destination.size() != source.size())
+        return Rt64ShellError::invalid_memory;
+    std::size_t previous_begin = 0U;
+    for (const auto range : gpu_ranges) {
+        if (range.begin >= range.end || range.end > source.size() || range.begin < previous_begin)
+            return Rt64ShellError::invalid_memory;
+        previous_begin = range.begin;
+    }
+    const auto copy_gap = [&](std::size_t begin, const std::size_t end) {
+        if (layout == Rt64MemoryLayout::big_endian) {
+            for (; begin < end; ++begin)
+                destination[begin ^ 3U] = source[begin];
+            return;
+        }
+        // Physical ranges use N64 byte addresses, including unaligned edges.
+        for (; begin < end && (begin & 3U) != 0U; ++begin)
+            destination[begin ^ 3U] = source[begin ^ 3U];
+        const std::size_t aligned_end = end & ~std::size_t{3U};
+        if (aligned_end > begin) {
+            std::memcpy(destination.data() + begin, source.data() + begin, aligned_end - begin);
+            begin = aligned_end;
+        }
+        for (; begin < end; ++begin)
+            destination[begin ^ 3U] = source[begin ^ 3U];
+    };
+    std::size_t cursor = 0U;
+    for (const auto range : gpu_ranges) {
+        if (range.begin > cursor) copy_gap(cursor, range.begin);
+        cursor = (std::max)(cursor, range.end);
+    }
+    if (cursor < source.size()) copy_gap(cursor, source.size());
+    return Rt64ShellError::none;
+}
+
 Rt64ShellError commit_rt64_rdram_ranges(
     const std::span<const std::byte> submitted,
     const std::span<const std::byte> rendered,
@@ -546,6 +586,25 @@ Rt64ShellError Rt64Shell::replace_rdram_snapshot(
     if (merge_error != Rt64ShellError::none) {
         return merge_error;
     }
+    // Framebuffer storage can be recycled for CPU textures. A byte-only
+    // delta import misses same-value CPU writes after RT64 changed that RAM.
+    // Preserve private GPU results only while a live framebuffer owns them.
+    std::vector<Rt64RdramRange> gpu_ranges;
+    try {
+        for (const auto& [address, framebuffer] : impl_->application->state->framebufferManager.framebuffers) {
+            (void)address;
+            if (framebuffer.lastWriteType != RT64::Framebuffer::Type::None &&
+                framebuffer.addressStart < framebuffer.addressEnd)
+                gpu_ranges.push_back({framebuffer.addressStart, framebuffer.addressEnd});
+        }
+        std::sort(gpu_ranges.begin(), gpu_ranges.end(), [](const auto left, const auto right) {
+            return left.begin < right.begin;
+        });
+    }
+    catch (...) { return Rt64ShellError::renderer_exception; }
+    const auto refresh_error = refresh_rt64_cpu_memory(rdram,
+        std::as_writable_bytes(std::span(impl_->rdram)), gpu_ranges, layout);
+    if (refresh_error != Rt64ShellError::none) return refresh_error;
     if (layout == Rt64MemoryLayout::host_word_swapped) {
         impl_->task_rdram = {
             reinterpret_cast<const std::uint8_t*>(rdram.data()),

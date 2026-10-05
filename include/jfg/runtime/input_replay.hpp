@@ -11,9 +11,9 @@ inline constexpr char kInputReplayHeaderV1[] = "jfg-phase8-input-v1";
 inline constexpr char kInputReplayHeader[] = "jfg-phase8-input-v2";
 // Manual play recordings sample input throughout long routes. The byte-size
 // limit in the loader remains the primary bound; allow enough individual
-// samples for roughly an hour of controller polling without rejecting a
+// samples for roughly two hours of 30 Hz controller polling without rejecting a
 // recorder-produced file.
-inline constexpr std::size_t kMaximumInputReplayEvents = 65536U;
+inline constexpr std::size_t kMaximumInputReplayEvents = 262144U;
 
 struct ControllerReplaySample {
     bool connected = true;
