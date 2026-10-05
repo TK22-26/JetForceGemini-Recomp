@@ -699,7 +699,7 @@ inline void door_access(Interaction &node,const Memory &m,std::uint32_t control,
     node.required_item=node.raw_condition-2;
     node.requirement=npc_item_name(node.required_item);
     node.label=node.requirement+" door";
-    const auto owned=node.required_item==1&&inv.known?fact(inv.red_key):facts.item(node.required_item);
+    const auto owned=node.required_item==1&&inv.known?fact(inv.red_key):facts.item(static_cast<unsigned>(node.required_item));
     node.access_known=!locked||owned!=Fact::unknown;node.access_allowed=!locked||owned==Fact::met;
     node.status=!locked?"key_lock_cleared":owned==Fact::met?"key_owned":owned==Fact::missing?"key_missing":"key_inventory_unavailable";
   } else if(node.raw_state&0x20) {

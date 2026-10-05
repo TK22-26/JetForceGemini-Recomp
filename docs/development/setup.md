@@ -83,5 +83,8 @@ The jfg.rt64_shader_dependencies test uses synthetic files to check shared,
 nested and newly added headers, downstream generated files, and unchanged
 builds. It exercises DXIL, SPIR-V, Metal's shared SPIR-V input, and preprocessed
 shader-source rules without requiring a ROM or shader compiler. Keep its
-Visual Studio fixture under the build tree: MSBuild excludes the Windows
-temporary-file directory from dependency tracking.
+Visual Studio fixture outside Windows Temp and AppData: MSBuild excludes
+both from dependency tracking. If the build cache lives there, the test uses
+the source checkout's ignored build/shader-tests directory instead. Source
+checkouts also inside those directories require an explicit --work-root
+outside them when running the fixture directly.

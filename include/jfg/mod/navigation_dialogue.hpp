@@ -64,7 +64,7 @@ template<class M> DialogueState read_dialogue(const M &m,std::uint32_t base) noe
     if(d.choices) {
       if(!m.valid(d.table,4))return {};
       const int count=m.s16(d.table),selected=m.s16(d.table+2);
-      if(count<1||count>32||selected<0||selected>=count||!m.valid(d.table,4U+16U*count))return {};
+      if(count<1||count>32||selected<0||selected>=count||!m.valid(d.table,4U+16U*static_cast<unsigned>(count)))return {};
       d.selected=unsigned(selected);
       for(int i=0;i<count;++i) {
         const auto row=d.table+4U+unsigned(i)*16U;

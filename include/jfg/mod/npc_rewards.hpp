@@ -402,7 +402,7 @@ inline NpcOffer reward_action(int action, const NpcFacts &f) {
     o.scope = "shared";
     o.flag = action == 18 ? 43 : action + 24;
     o.reward = npc_flag_name(o.flag);
-    owned = f.flag(o.flag);
+    owned = f.flag(static_cast<unsigned>(o.flag));
     if (action == 8)
       o.consumed_items = {26};
     break;
@@ -426,7 +426,7 @@ inline NpcOffer reward_action(int action, const NpcFacts &f) {
   }
   if (o.item >= 0) {
     o.reward = npc_item_name(o.item);
-    owned = f.item(o.item, o.scope == "any_character");
+    owned = f.item(static_cast<unsigned>(o.item), o.scope == "any_character");
   }
   if (owned == Fact::met)
     o.status = "owned";

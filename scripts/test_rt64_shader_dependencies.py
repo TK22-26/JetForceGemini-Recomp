@@ -1,5 +1,6 @@
 """Exercise incremental shader builds without RT64, a compiler, or a ROM."""
 import argparse
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -13,8 +14,21 @@ def main():
     parser.add_argument("--work-root", type=Path, default=Path(__file__).resolve().parents[1] / "build/shader-tests")
     args = parser.parse_args()
     hook = (Path(__file__).resolve().parents[1] / "cmake/rt64_shader_dependencies.cmake").as_posix()
-    # Keep MSBuild tracking inputs outside the OS temporary-file directory.
+    # MSBuild excludes Temp and AppData inputs from its file tracker. Windows
+    # build caches can live there even when the source checkout does not.
+    if os.name == "nt" and args.generator.startswith("Visual Studio"):
+        excluded = [Path(tempfile.gettempdir()).resolve()]
+        excluded.extend(Path(os.environ[key]).resolve()
+                        for key in ("LOCALAPPDATA", "APPDATA") if os.environ.get(key))
+        def untracked(path):
+            resolved = path.resolve()
+            return any(resolved == root or root in resolved.parents for root in excluded)
+        if untracked(args.work_root):
+            args.work_root = Path(__file__).resolve().parents[1] / "build/shader-tests"
+        if untracked(args.work_root):
+            raise RuntimeError("Use --work-root outside Temp and AppData for MSBuild tracking")
     args.work_root.mkdir(parents=True, exist_ok=True)
+    print("Shader fixture root:", args.work_root.resolve(), flush=True)
     with tempfile.TemporaryDirectory(prefix="deps-", dir=args.work_root.resolve()) as directory:
         root = Path(directory)
         source, build = root / "source", root / "build"
