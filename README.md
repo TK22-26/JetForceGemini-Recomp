@@ -26,7 +26,7 @@ HD cosmetic variants stay in independently maintained community branches.
 
 - Native rendering and audio.
 - Keyboard controls and configurable Xbox/XInput controllers.
-- Persistent saves and a launcher for setup and subsequent launches.
+- Verified saving and loading, with a launcher for setup and subsequent launches.
 
 Full campaign completion and original-console accuracy remain unverified.
 This preview needs playtesting across more PCs, controllers, and gameplay.
@@ -70,8 +70,8 @@ The goal is a complete, faithful PC version of Jet Force Gemini with optional
 modern enhancements. Planned work and remaining validation include:
 
 - **A complete campaign (unverified):** the campaign may already be complete,
-  including all playable characters and required progression. Full playthroughs
-  and reliable saving/loading throughout have not yet been verified.
+  including all playable characters and required progression. Saving and loading
+  are verified; full campaign playthroughs remain untested.
 - **Original local multiplayer and optional content:** broader coverage of the
   modes and activities beyond the main campaign.
 - **Ultrawide support:** wider aspect ratios with correct gameplay presentation,
