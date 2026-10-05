@@ -67,10 +67,11 @@ code, [CONTRIBUTING.md](CONTRIBUTING.md) explains the pull request workflow.
 ## Future additions
 
 The goal is a complete, faithful PC version of Jet Force Gemini with optional
-modern enhancements. Planned work includes:
+modern enhancements. Planned work and remaining validation include:
 
-- **A complete campaign:** all playable characters and required progression,
-  with reliable saving and loading throughout.
+- **A complete campaign (unverified):** the campaign may already be complete,
+  including all playable characters and required progression. Full playthroughs
+  and reliable saving/loading throughout have not yet been verified.
 - **Original local multiplayer and optional content:** broader coverage of the
   modes and activities beyond the main campaign.
 - **Ultrawide support:** wider aspect ratios with correct gameplay presentation,
