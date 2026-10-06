@@ -711,6 +711,10 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
         }
         impl->application->userConfig.developerMode =
             configuration.developer_mode;
+        // JFG draws CPU overlays into the buffer selected by the N64 VI.
+        // Skipping to a newer rendered buffer can display it before those edits.
+        impl->application->enhancementConfig.presentation.mode =
+            RT64::EnhancementConfiguration::Presentation::Mode::Console;
         impl->setup_started = true;
         const Rt64ShellError result = setup_error(
             impl->application->setup(configuration.window_thread_id));

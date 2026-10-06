@@ -3622,7 +3622,9 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
            reinterpret_cast<const std::byte *>(state.rom),
            jfg::kRt64RequiredHeaderBytes),
        state.rt64_rdram, &state.rt64_vi, false,
-       jfg::Rt64MemoryLayout::host_word_swapped, state.renderer_writeback_probe, true},
+       // Software overlays read and modify completed color pixels.
+       // RT64 already completes its RAM readback before DP completion.
+       jfg::Rt64MemoryLayout::host_word_swapped, true, true},
       error);
   std::fflush(stdout);
   (void)_dup2(saved_stdout, _fileno(stdout));
@@ -4927,6 +4929,14 @@ void present_completed_video(State &state, const std::uint32_t target) {
           state.rt64_vi.current_line == 0U ? 2U : 0U;
       if (!apply_live_vi_field(state, selected_vi_framebuffer))
         fail_closed_dispatch(state, "renderer", "vi-field", target);
+      // CPU overlays can modify the completed framebuffer between DP and VI.
+      // Refresh the displayed pixels before RT64 tests its framebuffer hash.
+      // Preserve the upper RDRAM scratch space used by captured display lists.
+      std::memcpy(state.rt64_rdram.data(), state.rdram, kRdramSize);
+      state.last_rt64_error = state.rt64_shell->replace_rdram_snapshot(
+          state.rt64_rdram, jfg::Rt64MemoryLayout::host_word_swapped);
+      if (state.last_rt64_error != jfg::Rt64ShellError::none)
+        fail_closed_dispatch(state, "renderer", "present-cpu-import", target);
       write_private_progress(state, "graphics-present-begin");
       const auto present_start = std::chrono::steady_clock::now();
       const bool capture_frame = !state.frame_capture_path.empty() &&
