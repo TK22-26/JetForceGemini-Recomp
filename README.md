@@ -35,7 +35,12 @@ See [recent gameplay fixes](docs/development/boot-gameplay-fix.md) and
 
 ## Campaign playtest progress
 
-Current maintainer-reported progress for the three playable characters:
+**Latest maintainer playtest:** the game is playable up to the final cutscene for
+the final ship part. Testing stopped there; progression beyond that point and
+full campaign completion remain unverified. This run used the optional
+infinite-health and enemy auto-kill testing mods.
+
+Earlier character-specific checkpoints:
 
 | Character | Campaign progress |
 | --- | --- |
