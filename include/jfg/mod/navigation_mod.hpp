@@ -480,6 +480,15 @@ inline const char *weapon_name(unsigned index) {
   constexpr std::array<const char *, 15> names = {"Pistol", "Homing missiles", "Machine gun", "Plasma shotgun", "Shocker", "Tri-rocket launcher", "Flamethrower", "Sniper rifle", "Grenades", "Shurikens", "Fish Food", "Timed mines", "Remote mines", "Flares", "Cluster bombs"};
   return index < names.size() ? names[index] : "Unknown weapon";
 }
+// Chest reward codes differ from the saved-inventory item bit indices.
+// Confirmed by the original pickup messages during the owner's live playtest.
+inline int chest_inventory_item(int content_code) noexcept {
+  switch (content_code) {
+  case 7: return 16; // Specialist magazine.
+  case 18: return 9; // Blue key.
+  default: return -1;
+  }
+}
 inline std::vector<ItemMarker> item_markers(const Memory &m,
                                             const std::vector<Actor> &list) {
   std::vector<ItemMarker> result;
@@ -495,7 +504,7 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
         item.opened = m.u8(control + 4U) == 5U;
         // Chest reward switch, including duplicate entries, verified against
         // the supported ROM's jump table. -1 denotes a special collectable
-        // whose player-facing name has not yet been verified.
+        // decoded separately from weapon reward indices.
         constexpr std::array<int, 21> weapons = {3,  1,  2,  2,  9,  8,  -1,
                                                  -1, 14, 13, 14, 12, 11, 10,
                                                  7,  6,  4,  -1, -1, -1, 5};
@@ -505,10 +514,14 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
                 : -1;
         item.kind = item.opened ? "opened" : weapon >= 0 ? "weapon" : "chest";
         item.label = "Chest: ";
-        item.label += weapon >= 0
-                          ? weapon_name(static_cast<unsigned>(weapon))
-                          : "item " + std::to_string(item.content_code) +
-                                " (unidentified)";
+        const int inventory_item = chest_inventory_item(item.content_code);
+        if (weapon >= 0)
+          item.label += weapon_name(static_cast<unsigned>(weapon));
+        else if (inventory_item >= 0)
+          item.label += npc_item_name(inventory_item);
+        else
+          item.label += "item " + std::to_string(item.content_code) +
+                        " (unidentified)";
         if (item.opened)
           item.label += " (opened)";
       } else if (a.behavior == 109U) {
@@ -848,8 +861,12 @@ interactions(const Memory &m, const std::vector<Actor> &list,
       node.status = item.opened ? "opened" : "unopened";
       if (node.reward_weapon >= 0)
         node.reward = weapon_name(static_cast<unsigned>(node.reward_weapon));
-      else
-        node.reward = "Unknown special collectable";
+      else {
+        node.reward_item = chest_inventory_item(item.content_code);
+        node.reward = node.reward_item >= 0
+                          ? npc_item_name(node.reward_item)
+                          : "Unknown special collectable";
+      }
     } else if (item.kind == "weapon") {
       node.reward_weapon = item.content_code;
       node.status = "present";
