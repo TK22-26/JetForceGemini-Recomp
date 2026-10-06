@@ -703,6 +703,12 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
         app_configuration.useConfigurationFile = false;
         impl->application =
             std::make_unique<RT64::Application>(core, app_configuration);
+        if (configuration.cpu_mask_writeback) {
+            // JFG softens rendered shadow masks on the CPU before sampling them.
+            // A cached GPU framebuffer copy bypasses those edits. Load textures
+            // from the updated RAM when the game owns mask postprocessing.
+            impl->application->emulatorConfig.framebuffer.copyWithGPU = false;
+        }
         impl->capture = std::make_unique<CaptureContext>();
         impl->capture->application = impl->application.get();
         if (!impl->capture->activate()) {
