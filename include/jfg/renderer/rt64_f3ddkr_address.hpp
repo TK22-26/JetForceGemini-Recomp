@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace jfg::detail {
@@ -51,6 +52,17 @@ inline constexpr std::uint32_t kF3ddkrMaximumResolvedAddress = 0x00FF'FFFFU;
     if (physical > kF3ddkrMaximumResolvedAddress)
         return kF3ddkrInvalidAddress;
     return physical;
+}
+
+// JFG's DMA texture-offset tables hold 40 u16 shifts (0x50 bytes). The game
+// keeps them double-buffered back to back, 0x50 bytes apart. A texture image
+// after the 40th entry must not read past the table: that slot is the other
+// buffer's first shift, which loads the next texture from the wrong address.
+inline constexpr std::size_t kF3ddkrTextureOffsetEntries = 40U;
+
+[[nodiscard]] constexpr bool f3ddkr_texture_offset_entry_available(
+    const std::size_t texture_count) noexcept {
+    return texture_count < kF3ddkrTextureOffsetEntries;
 }
 
 [[nodiscard]] constexpr std::uint32_t resolve_f3ddkr_byte_source(

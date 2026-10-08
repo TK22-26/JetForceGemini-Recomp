@@ -287,6 +287,14 @@ void set_texture_image(RT64::State* state, RT64::DisplayList** dl) {
     const std::uint16_t width = static_cast<std::uint16_t>(
         (*dl)->p0(0U, 12U) + 1U);
     std::uint32_t address = segmented_physical(*state, (*dl)->w1);
+    if (context->texture_offset != 0U &&
+        !detail::f3ddkr_texture_offset_entry_available(
+            context->texture_count)) {
+        // The table is exhausted; later images use their own addresses.
+        context->texture_offset = 0U;
+        context->texture_shift = 0U;
+        context->texture_count = 0U;
+    }
     if (context->texture_offset != 0U) {
         if (format == G_IM_FMT_RGBA) {
             const std::uint32_t shift_address = context->texture_offset +

@@ -18,6 +18,11 @@ void require(const bool condition) {
 }  // namespace
 
 int main() {
+    static_assert(jfg::detail::kF3ddkrTextureOffsetEntries == 40U);
+    require(jfg::detail::f3ddkr_texture_offset_entry_available(0U));
+    require(jfg::detail::f3ddkr_texture_offset_entry_available(39U));
+    require(!jfg::detail::f3ddkr_texture_offset_entry_available(40U));
+    require(!jfg::detail::f3ddkr_texture_offset_entry_available(41U));
     static_assert(jfg::kRt64RequiredRdramBytes == 8U * 1024U * 1024U);
     require(jfg::kPinnedRt64Revision[0] == '5');
     require(jfg::detail::resolve_f3ddkr_dma_base(
