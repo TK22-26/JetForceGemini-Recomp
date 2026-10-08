@@ -10,7 +10,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'build' / 'launcher'
-NAME = 'JFG-Launcher-0.4.0-preview.4-windows-x64.zip'
+NAME = 'JFG-Launcher-0.5.0-preview.1-windows-x64.zip'
 
 
 def main() -> int:
@@ -24,13 +24,13 @@ def main() -> int:
         if not path.is_file() or path.is_symlink():
             raise SystemExit('Missing or linked package input: ' + name)
     binary = members['JFG-Launcher.exe'].read_bytes()
-    if not binary.startswith(b'MZ') or len(binary) > 1_048_576:
+    if not binary.startswith(b'MZ') or len(binary) > 4_194_304:
         raise SystemExit('Unexpected launcher executable')
     receipt = json.loads((OUTPUT / 'launcher-build.json').read_text(encoding='utf-8-sig'))
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     if subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=ROOT, text=True).strip():
         raise SystemExit('Commit the reviewed source changes before packaging the pinned launcher')
-    expected_inputs = {'launcher/windows/Launcher.cs', 'launcher/windows/FirstRun.cs',
+    expected_inputs = {'launcher/windows/Launcher.cs', 'launcher/windows/FrontendBridge.cs', 'src/app/frontend_win32.cpp', 'launcher/native/CMakeLists.txt', 'launcher/windows/FirstRun.cs',
                        'launcher/windows/Setup.ps1', 'launcher/windows/Support.cs', 'launcher/windows/Diagnostics.cs', 'launcher/windows/Controller.cs', 'launcher/windows/NavigationMap.cs', 'launcher/windows/Audio.cs', 'launcher/windows/MapLayers.cs', 'launcher/windows/NavigationRoute.cs', 'launcher/windows/NavigationExplorer.cs', 'launcher/windows/NavigationCollision.cs', 'launcher/windows/BoxJump.cs', 'launcher/windows/ChestRoute.cs', 'launcher/windows/NavigationRunner.cs', 'launcher/windows/AutonomousExplorer.cs', 'launcher/windows/InventoryWindow.cs', 'scripts/build_launcher.ps1'}
     if (receipt.get('source_commit') != revision or set(receipt.get('inputs', {})) != expected_inputs
             or receipt.get('executable_sha256') != hashlib.sha256(binary).hexdigest()

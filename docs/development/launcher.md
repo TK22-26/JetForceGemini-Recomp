@@ -1,5 +1,37 @@
 # Windows ROM-to-play launcher
 
+## Unified frontend (next release)
+
+The native launcher owns one window for setup, home, and gameplay. Stop returns
+to home and flushes the game session; closing a running session waits for it to
+stop. The setup/settings helper is embedded in the launcher EXE and extracted
+locally. Existing profile saves are reused.
+
+Use the top menu during play. F11 toggles fullscreen; Esc opens settings in
+fullscreen. Fullscreen preserves the game aspect ratio and is independent of
+the original in-game widescreen setting. Audio > Volume and mute applies live.
+
+Controllers provides Player 1 through Player 4 tabs. Choose a distinct physical
+XInput device for each player and click Apply mapping before switching tabs.
+Automatic assigns each connected controller to a different player; empty ports
+remain disconnected. Choose Disconnected to disable a port. One port may use
+Keyboard. Automatic
+assignment reserves its selected XInput slot across disconnects for the current
+session, so another player does not take it over. XInput may renumber hardware
+across a complete reconnect/restart; verify assignments in the input display.
+Mappings apply while playing; release held inputs when returning from settings.
+Native HID/DirectInput devices still require an XInput-compatible adapter.
+
+Game > Navigation testing mod uses separate mod saves. Tools opens map,
+inventory, saved profiles, and support reports. Mod windows remain optional.
+
+The new frontend requires a game build with the frontend protocol. An older
+build receives a rebuild message. Setup remains pinned to the launcher source
+revision; local uncommitted development binaries are for testing, not a public
+release. See [the implementation plan](../planning/unified-frontend.md).
+
+
+
 Start with [getting started](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/getting-started.md)
 for downloads, requirements, and known setup issues.
 
@@ -30,7 +62,7 @@ experimental; see [its validation and limits](https://github.com/TK22-26/JetForc
    Allow the official Windows installers when prompted.
 3. If setup requests a Windows restart, restart, reopen the launcher and click
    **Set up and build** again. Your selections and saves are preserved.
-4. When compilation finishes, click **Launch game**. Future launches reuse the
+4. When compilation finishes, click **Play**. Future launches reuse the
    game build and do not require setup or recompilation.
 
 The first setup needs internet access and can download several GB. Allow ample
@@ -66,7 +98,7 @@ the public instructions in your browser.
 
 Saves and remembered file selections live under
 `%LOCALAPPDATA%\JFGRecomp\profiles\default`. **Open saves** opens that folder.
-Existing saves are preserved. Close the game before closing the launcher.
+Existing saves are preserved. Closing the frontend stops the game and waits for saves to flush.
 Only one launcher instance runs in a Windows session.
 
 | Keys | Action |
@@ -79,16 +111,19 @@ Only one launcher instance runs in a Windows session.
 | Q / E | L / R |
 | I, J, K, L | C buttons |
 | Arrow keys | D-pad |
-| Escape | Exit |
+| Escape | Open frontend settings (standalone diagnostic game: exit) |
+| F11 | Toggle frontend fullscreen |
 
-**Controllers** detects Xbox/XInput devices, lets you choose the active controller,
+**Controllers** detects Xbox/XInput devices, lets you assign each player,
 remap all N64 buttons (including Start/pause), select the movement stick, invert
 its axes, and adjust dead zones and trigger/stick thresholds. Click **Learn**,
-release the controls, then press a button or move a stick. Save the mapping to
-apply it on the next launch. **Restore defaults** restores the standard layout.
-Mappings are stored as `controller.ini` alongside your default save profile.
-If a controller disconnects, keyboard fallback remains available; automatic
-selection uses the first connected XInput device. Other controller types need
+release the controls, then press a button or move a stick. Apply the mapping to
+update the running game. **Restore defaults** restores the standard layout.
+Mappings are stored as controller.ini, controller-2.ini, controller-3.ini,
+and controller-4.ini alongside your default save profile. Player 1 starts with
+keyboard fallback when no controller has been assigned automatically. A later
+disconnection keeps the assignment reserved; select Keyboard explicitly to use
+it while that controller is unplugged. Other controller types need
 an XInput-compatible driver or adapter. Native DirectInput/HID mapping and
 rumble configuration are not implemented in this preview. Hardware coverage
 still needs tester feedback; automated tests use synthetic controller samples.

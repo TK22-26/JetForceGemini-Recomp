@@ -34,6 +34,7 @@
 #include "jfg/runtime/generated_overlay_runtime.hpp"
 #include "jfg/runtime/input_stick.hpp"
 #include "jfg/runtime/controller_mapping.hpp"
+#include "jfg/runtime/controller_ports.hpp"
 #include "jfg/runtime/support_log.hpp"
 #include "jfg/runtime/support_snapshot.hpp"
 #include <iterator>
@@ -1329,6 +1330,10 @@ struct State {
   std::unordered_set<std::uint32_t> active_overlay_sections;
   std::unordered_set<std::uint32_t> guest_overlay_loads_in_progress;
   jfg::ControllerMapping controller_mapping{};
+  jfg::ControllerPorts controller_ports;
+  jfg::ControllerInputGate controller_input_gate;
+  std::filesystem::path controller_config_path;
+  std::chrono::steady_clock::time_point controller_config_check{};
   std::uint32_t executing_generated_section = UINT32_MAX;
   bool executing_generated_overlay = false;
   const char *last_overlay_publication_failure = "none";
@@ -1668,15 +1673,24 @@ public:
     atom_ = RegisterClassW(&window_class);
     if (atom_ == 0U)
       return;
-    constexpr DWORD style = WS_OVERLAPPEDWINDOW;
+    wchar_t parent_text[32]{};
+    HWND parent=nullptr;
+    if(GetEnvironmentVariableW(L"JFG_FRONTEND_PARENT",parent_text,32)>0) {
+      wchar_t* end=nullptr;const auto value=wcstoull(parent_text,&end,10);
+      parent=reinterpret_cast<HWND>(static_cast<std::uintptr_t>(value));
+      if(!end || *end || !IsWindow(parent) || !GetPropW(GetAncestor(parent,GA_ROOT),L"JfgFrontend"))return;
+    }
+    const DWORD style=parent ? WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS : WS_OVERLAPPEDWINDOW;
     RECT rectangle{0, 0, 640, 480};
-    if (AdjustWindowRectEx(&rectangle, style, FALSE, 0U) == FALSE)
+    if(parent)GetClientRect(parent,&rectangle);
+    if (!parent && AdjustWindowRectEx(&rectangle, style, FALSE, 0U) == FALSE)
       return;
     window_ = CreateWindowExW(
-        0U, kClassName, L"Jet Force Gemini Recomp", style, CW_USEDEFAULT,
-        CW_USEDEFAULT, rectangle.right - rectangle.left,
-        rectangle.bottom - rectangle.top, nullptr, nullptr, instance_, &state);
+        0U, kClassName, L"Jet Force Gemini Recomp", style, parent?0:CW_USEDEFAULT,
+        parent?0:CW_USEDEFAULT, rectangle.right - rectangle.left,
+        rectangle.bottom - rectangle.top, parent, nullptr, instance_, &state);
     state.native_window = window_;
+    if(parent && window_)PostMessageW(GetAncestor(parent,GA_ROOT),WM_APP+20,reinterpret_cast<WPARAM>(window_),0);
     if (window_ != nullptr && visible) {
       ShowWindow(window_, SW_SHOW);
       UpdateWindow(window_);
@@ -1707,6 +1721,9 @@ private:
         GetWindowLongPtrW(window, GWLP_USERDATA));
     if (state != nullptr &&
         (message == WM_KEYDOWN || message == WM_KEYUP) && wparam < 256U) {
+      if(GetParent(window) && message==WM_KEYDOWN && (wparam==VK_F11 || wparam==VK_ESCAPE)) {
+        PostMessageW(GetAncestor(window,GA_ROOT),WM_APP+21,wparam,0);return 0;
+      }
       const std::size_t key = static_cast<std::size_t>(wparam);
       if (message == WM_KEYDOWN && !state->host_keys[key])
         state->host_key_presses[key] = true;
@@ -1714,6 +1731,7 @@ private:
       return 0;
     }
     if (message == WM_KILLFOCUS && state != nullptr) {
+      state->host_key_presses.fill(false);
       state->host_keys.fill(false);
       return 0;
     }
@@ -1762,13 +1780,12 @@ void trace_phase9_event(State &state, const char *event,
                     << static_cast<int>(state.latched_controller_stick_y) << '\n';
 }
 
-bool sample_xinput_controller(const jfg::ControllerMapping& mapping, std::uint16_t &buttons, int &stick_x,
-                              int &stick_y) noexcept {
+bool read_xinput_device(int device,
+                        jfg::StandardControllerSample &sample) noexcept {
   using XInputGetStateFn = DWORD(WINAPI *)(DWORD, XINPUT_STATE *);
   static XInputGetStateFn get_state = []() noexcept -> XInputGetStateFn {
-    constexpr const wchar_t *kLibraries[] = {L"xinput1_4.dll",
-                                              L"xinput1_3.dll",
-                                              L"xinput9_1_0.dll"};
+    constexpr const wchar_t *kLibraries[] = {L"xinput1_4.dll", L"xinput1_3.dll",
+                                             L"xinput9_1_0.dll"};
     for (const wchar_t *library : kLibraries) {
       HMODULE module = LoadLibraryW(library);
       if (module == nullptr)
@@ -1781,26 +1798,118 @@ bool sample_xinput_controller(const jfg::ControllerMapping& mapping, std::uint16
   }();
   if (get_state == nullptr)
     return false;
+  if (device < 0 || device >= 4)
+    return false;
   XINPUT_STATE state{};
   bool connected = false;
+  static std::array<ULONGLONG, 4> retry_after{};
+  const auto now = GetTickCount64();
   for (DWORD port = 0U; port < 4U; ++port) {
-    if (mapping.device >= 0 && port != static_cast<DWORD>(mapping.device)) continue;
-    if (get_state(port, &state) == ERROR_SUCCESS) { connected = true; break; }
+    if (now < retry_after[port])
+      continue;
+    if (port != static_cast<DWORD>(device))
+      continue;
+    if (get_state(port, &state) == ERROR_SUCCESS) {
+      connected = true;
+      break;
+    }
+    retry_after[port] = now + 500;
   }
-  if (!connected) return false;
-  constexpr std::array<WORD, 15> masks{
-      0x1000, 0x2000, 0x4000, 0x8000, 0x20, 0, 0x10, 0x40, 0x80, 0x100, 0x200, 1, 2, 4, 8};
-  jfg::StandardControllerSample sample;
+  if (!connected)
+    return false;
+  constexpr std::array<WORD, 15> masks{0x1000, 0x2000, 0x4000, 0x8000, 0x20,
+                                       0,      0x10,   0x40,   0x80,   0x100,
+                                       0x200,  1,      2,      4,      8};
   for (std::size_t i = 0U; i < masks.size(); ++i)
     sample.buttons[i] = (state.Gamepad.wButtons & masks[i]) != 0;
-  sample.axes = {state.Gamepad.sThumbLX, -static_cast<int>(state.Gamepad.sThumbLY),
-      state.Gamepad.sThumbRX, -static_cast<int>(state.Gamepad.sThumbRY),
-      state.Gamepad.bLeftTrigger * 32767 / 255, state.Gamepad.bRightTrigger * 32767 / 255};
-  const auto mapped = jfg::map_controller(mapping, sample);
-  buttons = mapped.buttons;
-  stick_x = mapped.stick.x;
-  stick_y = mapped.stick.y;
+  sample.axes = {state.Gamepad.sThumbLX,
+                 -static_cast<int>(state.Gamepad.sThumbLY),
+                 state.Gamepad.sThumbRX,
+                 -static_cast<int>(state.Gamepad.sThumbRY),
+                 state.Gamepad.bLeftTrigger * 32767 / 255,
+                 state.Gamepad.bRightTrigger * 32767 / 255};
   return true;
+}
+
+void reload_controller_ports(State &state) {
+  const auto now = std::chrono::steady_clock::now();
+  if (now - state.controller_config_check < std::chrono::milliseconds(250))
+    return;
+  state.controller_config_check = now;
+  if (state.controller_config_path.empty())
+    return;
+  for (std::size_t p = 0; p < 4; ++p) {
+    const auto path =
+        p == 0 ? state.controller_config_path
+               : state.controller_config_path.parent_path() /
+                     ("controller-" + std::to_string(p + 1) + ".ini");
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file || file.tellg() <= 0 || file.tellg() > 4096)
+      continue;
+    file.seekg(0);
+    const std::string text{std::istreambuf_iterator<char>(file), {}};
+    jfg::ControllerMapping mapping;
+    if (jfg::parse_controller_mapping(text, mapping))
+      state.controller_ports.configure(p, mapping);
+  }
+}
+jfg::ControllerPortSample sample_keyboard_port(const State &state) {
+  jfg::ControllerPortSample result;
+  result.connected = true;
+  constexpr std::array<std::pair<int, std::uint16_t>, 14> keys{
+      {{'Z', 0x8000},
+       {'X', 0x4000},
+       {'C', 0x2000},
+       {VK_RETURN, 0x1000},
+       {VK_UP, 0x0800},
+       {VK_DOWN, 0x0400},
+       {VK_LEFT, 0x0200},
+       {VK_RIGHT, 0x0100},
+       {'Q', 0x0020},
+       {'E', 0x0010},
+       {'I', 8},
+       {'K', 4},
+       {'J', 2},
+       {'L', 1}}};
+  for (const auto &[key, mask] : keys)
+    if (host_key_down(state, key))
+      result.buttons |= mask;
+  if (host_key_down(state, VK_SPACE))
+    result.buttons |= 0x8000;
+  const int magnitude = host_key_down(state, VK_SHIFT) ? 127 : 80;
+  result.x =
+      static_cast<std::int8_t>((host_key_down(state, 'D') ? magnitude : 0) -
+                               (host_key_down(state, 'A') ? magnitude : 0));
+  result.y =
+      static_cast<std::int8_t>((host_key_down(state, 'W') ? magnitude : 0) -
+                               (host_key_down(state, 'S') ? magnitude : 0));
+  return result;
+}
+void sample_controller_ports(State &state) {
+  reload_controller_ports(state);
+  std::array<bool, 4> available{};
+  std::array<jfg::StandardControllerSample, 4> hardware{};
+  for (std::size_t p = 0; p < 4; ++p)
+    available[p] = read_xinput_device(static_cast<int>(p), hardware[p]);
+  const auto devices = state.controller_ports.devices(available);
+  for (std::size_t p = 0; p < 4; ++p) {
+    auto &sample = state.controller_ports.samples[p];
+    sample = {};
+    const int device = devices[p];
+    if (device == -3) {
+      sample = sample_keyboard_port(state);
+      continue;
+    }
+    if (device < 0 || !available[static_cast<std::size_t>(device)])
+      continue;
+    const auto mapped =
+        jfg::map_controller(state.controller_ports.mappings[p],
+                            hardware[static_cast<std::size_t>(device)]);
+    sample = {mapped.buttons, static_cast<std::int8_t>(mapped.stick.x),
+              static_cast<std::int8_t>(mapped.stick.y), true};
+  }
+  state.controller_mapping = state.controller_ports.mappings[0];
+  state.controller_mapping.device = devices[0];
 }
 
 jfg::mod::DialogueState navigation_dialogue(State &state) {
@@ -1822,23 +1931,11 @@ jfg::mod::DialogueState navigation_dialogue(State &state) {
 
 void sample_live_controller(State &state) noexcept {
   constexpr std::uint16_t kButtonA = 0x8000U;
-  constexpr std::uint16_t kButtonB = 0x4000U;
-  constexpr std::uint16_t kButtonZ = 0x2000U;
-  constexpr std::uint16_t kButtonStart = 0x1000U;
-  constexpr std::uint16_t kDpadUp = 0x0800U;
-  constexpr std::uint16_t kDpadDown = 0x0400U;
-  constexpr std::uint16_t kDpadLeft = 0x0200U;
-  constexpr std::uint16_t kDpadRight = 0x0100U;
-  constexpr std::uint16_t kButtonL = 0x0020U;
-  constexpr std::uint16_t kButtonR = 0x0010U;
-  constexpr std::uint16_t kCUp = 0x0008U;
-  constexpr std::uint16_t kCDown = 0x0004U;
-  constexpr std::uint16_t kCLeft = 0x0002U;
-  constexpr std::uint16_t kCRight = 0x0001U;
   std::uint16_t buttons = 0U;
   int stick_x = 0;
   int stick_y = 0;
-  bool connected = true;
+  if(!state.input_replay_loaded)sample_controller_ports(state);
+  bool connected = state.controller_ports.samples[0].connected;
   if (state.input_replay_loaded) {
     const jfg::ControllerReplaySample replay =
         state.input_replay_by_poll
@@ -1849,37 +1946,20 @@ void sample_live_controller(State &state) noexcept {
     stick_x = replay.stick_x;
     stick_y = replay.stick_y;
   } else {
-    if (sample_xinput_controller(state.controller_mapping, buttons, stick_x, stick_y)) {
-      connected = true;
-    } else {
-    // Keep the literal N64 layout available while also providing conventional
-    // keyboard gameplay bindings: Space jumps and Shift selects the full
-    // analog-stick magnitude used for sprinting.
-    buttons |= (host_key_down(state, 'Z') ||
-                host_key_down(state, VK_SPACE))
-                   ? kButtonA
-                   : 0U;
-    buttons |= host_key_down(state, 'X') ? kButtonB : 0U;
-    buttons |= host_key_down(state, 'C') ? kButtonZ : 0U;
-    buttons |= host_key_down(state, VK_RETURN) ? kButtonStart : 0U;
-    buttons |= host_key_down(state, VK_UP) ? kDpadUp : 0U;
-    buttons |= host_key_down(state, VK_DOWN) ? kDpadDown : 0U;
-    buttons |= host_key_down(state, VK_LEFT) ? kDpadLeft : 0U;
-    buttons |= host_key_down(state, VK_RIGHT) ? kDpadRight : 0U;
-    buttons |= host_key_down(state, 'Q') ? kButtonL : 0U;
-    buttons |= host_key_down(state, 'E') ? kButtonR : 0U;
-    buttons |= host_key_down(state, 'I') ? kCUp : 0U;
-    buttons |= host_key_down(state, 'K') ? kCDown : 0U;
-    buttons |= host_key_down(state, 'J') ? kCLeft : 0U;
-    buttons |= host_key_down(state, 'L') ? kCRight : 0U;
-    const int stick_magnitude =
-        host_key_down(state, VK_SHIFT) ? 127 : 80;
-    stick_x = (host_key_down(state, 'D') ? stick_magnitude : 0) -
-              (host_key_down(state, 'A') ? stick_magnitude : 0);
-    stick_y = (host_key_down(state, 'W') ? stick_magnitude : 0) -
-              (host_key_down(state, 'S') ? stick_magnitude : 0);
-    }
+    const auto sample=state.controller_ports.samples[0];
+    buttons=sample.buttons;stick_x=sample.x;stick_y=sample.y;
   }
+
+  const HWND root=state.native_window ? GetAncestor(static_cast<HWND>(state.native_window),GA_ROOT) : nullptr;
+  const bool settings_capture=state.play_mode && root && GetPropW(root,L"JfgSettingsOpen")!=nullptr;
+  const bool ui_capture=state.play_mode && root && (GetForegroundWindow()!=root || settings_capture);
+  const bool block_physical=state.controller_input_gate.blocked(ui_capture,state.controller_ports.samples);
+  if(block_physical && !state.input_replay_loaded) {
+    buttons=0;stick_x=stick_y=0;
+    for(auto& sample:state.controller_ports.samples){sample.buttons=0;sample.x=sample.y=0;}
+  }
+  // Map-driven automation may run while its tool window has focus. Settings
+  // still suppress synthesized inputs below, as well as physical controller input.
   if (state.navigation_mod.enabled) {
     const bool escape = host_key_down(state, VK_ESCAPE) || (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
     const bool manual = buttons != 0U || stick_x != 0 || stick_y != 0 || escape;
@@ -1925,6 +2005,11 @@ void sample_live_controller(State &state) noexcept {
       }
     }
   }
+  if(settings_capture && !state.input_replay_loaded) {
+    buttons=0;stick_x=stick_y=0;
+  }
+  state.controller_ports.samples[0]={buttons,static_cast<std::int8_t>(stick_x),static_cast<std::int8_t>(stick_y),connected};
+  if(state.input_replay_loaded) for(std::size_t p=1;p<4;++p)state.controller_ports.samples[p]={};
   if (connected != state.latched_controller_connected) {
     if (connected)
       ++state.controller_reconnects;
@@ -1962,7 +2047,7 @@ void sample_live_controller(State &state) noexcept {
       static_cast<std::uint8_t>(stick_y)});
   if (buttons != 0U || stick_x != 0 || stick_y != 0)
     ++state.non_neutral_controller_samples;
-  if (!state.input_replay_loaded && !state.navigation_mod.enabled && host_key_down(state, VK_ESCAPE))
+  if (!GetParent(static_cast<HWND>(state.native_window)) && !state.input_replay_loaded && !state.navigation_mod.enabled && host_key_down(state, VK_ESCAPE))
     state.exit_requested = true;
   state.host_key_presses.fill(false);
 }
@@ -2038,7 +2123,7 @@ void service_live_window(State &state) {
     // Keep maximized/minimized windows under the user's control. The renderer
     // fits the same aspect into their current client area with black borders.
     RECT client{};
-    if (!IsZoomed(window) && !IsIconic(window) && GetClientRect(window, &client) &&
+    if (!GetParent(window) && !IsZoomed(window) && !IsIconic(window) && GetClientRect(window, &client) &&
         client.bottom > client.top) {
       const LONG height = client.bottom - client.top;
       const LONG width = static_cast<LONG>((std::uint64_t(height) *
@@ -5847,9 +5932,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     if (std::strcmp(name, "osContStartReadData") == 0) {
       ++state.controller_read_start_calls;
       sample_live_controller(state);
-      state.mmio_trace->si_dma.sample(state.latched_controller_buttons,
-          state.latched_controller_stick_x, state.latched_controller_stick_y,
-          state.latched_controller_connected);
+      state.mmio_trace->si_dma.sample(state.controller_ports.samples);
     }
     if (std::strcmp(name, "osContGetReadData") == 0)
       ++state.controller_get_data_calls;
@@ -6370,7 +6453,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         // data produced by that HLE path.
         if (jfg::process_cic_nus_6105_challenge(transfer) ||
             (state.controller_guest_init_probe &&
-             jfg::process_controller_status_query(transfer))) {
+             jfg::process_controller_status_query(transfer, state.controller_ports.mask()))) {
           state.pif_ram = transfer;
           state.cic_response_pending = true;
         }
@@ -6556,13 +6639,19 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       state.controller_initialized = static_cast<std::uint32_t>(context->r2) == 0U;
       return 1;
     }
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+    sample_controller_ports(state);
+    const auto connected_mask=state.input_replay_loaded ? std::uint8_t{1} : state.controller_ports.mask();
+#else
+    const std::uint8_t connected_mask=1;
+#endif
     if (state.scheduler == nullptr || !state.queues.contains(a0) || a1 == 0U ||
-        a2 == 0U || !write_guest_byte(state, a1, 1U)) {
+        a2 == 0U || !write_guest_byte(state, a1, connected_mask)) {
       fail_closed_dispatch(state, "hle", "controller-init", target);
     }
     for (std::uint32_t controller = 0U; controller < 4U; ++controller) {
       const std::uint32_t status = a2 + controller * 4U;
-      const bool connected = controller == 0U;
+      const bool connected = (connected_mask & (1U<<controller))!=0;
       if (!write_guest_byte(state, status, 0U) ||
           !write_guest_byte(state, status + 1U, connected ? 5U : 0U) ||
           !write_guest_byte(state, status + 2U, 0U) ||
@@ -6668,33 +6757,33 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       for (std::uint32_t byte = 0U; byte < 6U; ++byte) {
         std::uint8_t value = byte == 4U && controller != 0U ? 8U : 0U;
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-        if ((state.play_mode || state.input_replay_loaded) &&
-            controller == 0U) {
-          if (!state.latched_controller_connected) {
+        if (state.play_mode || state.input_replay_loaded) {
+          const auto& port=state.controller_ports.samples[controller];
+          if (!port.connected) {
             value = byte == 4U ? 8U : 0U;
           } else {
           switch (byte) {
           case 0U:
             value = static_cast<std::uint8_t>(
-                state.latched_controller_buttons >> 8U);
+                port.buttons >> 8U);
             break;
           case 1U:
             value = static_cast<std::uint8_t>(
-                state.latched_controller_buttons);
+                port.buttons);
             break;
           case 2U:
             value = static_cast<std::uint8_t>(
-                state.latched_controller_stick_x);
+                port.x);
             break;
           case 3U:
             value = static_cast<std::uint8_t>(
-                state.latched_controller_stick_y);
+                port.y);
             break;
           default:
             value = 0U;
             break;
           }
-          if (byte == 0U && state.latched_controller_buttons != 0U)
+          if (byte == 0U && port.buttons != 0U)
             ++state.non_neutral_controller_writes;
           }
         }
@@ -8104,6 +8193,7 @@ int run_child(const char *path, const unsigned retrace_target,
   wchar_t mapping_path[32768]{};
   const DWORD mapping_length = GetEnvironmentVariableW(L"JFG_CONTROLLER_CONFIG", mapping_path, 32768U);
   if (mapping_length != 0U) {
+    state.controller_config_path=std::filesystem::path(mapping_path);
     std::ifstream mapping_file(std::filesystem::path(mapping_path), std::ios::binary | std::ios::ate);
     if (mapping_length >= 32768U || !mapping_file || mapping_file.tellg() > 4096 || mapping_file.tellg() <= 0) {
       jfg::support_event("native=controller-invalid");
@@ -8116,6 +8206,8 @@ int run_child(const char *path, const unsigned retrace_target,
       return 2;
     }
   }
+  state.controller_ports.configure(0,state.controller_mapping);
+  sample_controller_ports(state);
   char writeback_flag[2]{};
   state.renderer_writeback_probe =
       GetEnvironmentVariableA("JFG_PHASE9_RENDERER_WRITEBACK_PROBE", writeback_flag, 2U) == 1U &&

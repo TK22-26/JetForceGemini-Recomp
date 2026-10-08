@@ -9,13 +9,15 @@
 #include <optional>
 #include <span>
 #include "jfg/runtime/cic_nus_6105.hpp"
+#include "jfg/runtime/controller_ports.hpp"
 
 namespace jfg::boot {
 class ReferenceSiDma final {
 public:
   void sample(std::uint16_t buttons, std::int8_t x, std::int8_t y, bool connected) {
-    buttons_ = buttons; x_ = x; y_ = y; connected_ = connected;
+    pads_[0]={buttons,x,y,connected};
   }
+  void sample(const std::array<jfg::ControllerPortSample,4>& pads) { pads_=pads; }
   [[nodiscard]] std::optional<std::uint32_t> read(std::uint32_t offset) const {
     switch (offset) {
     case 0: return dram_;
@@ -80,16 +82,17 @@ private:
       const auto command = ram[cursor + 2];
       if (cursor + 3 + rx > 63 ||
           !((rx == 3 && (command == 0 || command == 0xff)) || (rx == 4 && command == 1))) return false;
-      const bool connected = channel == 0 && connected_;
+      const auto& pad=pads_[channel];
+      const bool connected = pad.connected;
       ram[cursor + 1] = static_cast<std::uint8_t>(rx | (connected ? 0U : 0x80U));
       if (connected && reply) {
         if (rx == 3) {
           ram[cursor + 3] = 5; ram[cursor + 4] = 0; ram[cursor + 5] = 0;
         } else {
-          ram[cursor + 3] = static_cast<std::uint8_t>(buttons_ >> 8);
-          ram[cursor + 4] = static_cast<std::uint8_t>(buttons_);
-          ram[cursor + 5] = static_cast<std::uint8_t>(x_);
-          ram[cursor + 6] = static_cast<std::uint8_t>(y_);
+          ram[cursor + 3] = static_cast<std::uint8_t>(pad.buttons >> 8);
+          ram[cursor + 4] = static_cast<std::uint8_t>(pad.buttons);
+          ram[cursor + 5] = static_cast<std::uint8_t>(pad.x);
+          ram[cursor + 6] = static_cast<std::uint8_t>(pad.y);
         }
       }
       cursor += 3 + rx; ++channel; ++commands;
@@ -100,8 +103,7 @@ private:
   std::optional<std::uint64_t> deadline_;
   std::uint32_t dram_ = 0, read_address_ = 0, write_address_ = 0;
   std::uint64_t transfers_ = 0;
-  std::uint16_t buttons_ = 0;
-  std::int8_t x_ = 0, y_ = 0;
-  bool controller_ = false, interrupt_ = false, connected_ = true;
+  std::array<jfg::ControllerPortSample,4> pads_{{{0,0,0,true},{},{},{}}};
+  bool controller_ = false, interrupt_ = false;
 };
 } // namespace jfg::boot

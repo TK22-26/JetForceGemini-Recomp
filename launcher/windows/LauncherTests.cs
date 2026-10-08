@@ -80,6 +80,12 @@ namespace JfgLauncher
         [STAThread]
         private static int Main(string[] args)
         {
+            if(args.Length>0 && args[0]=="--frontend-version") {
+                string fixture=Environment.GetEnvironmentVariable("JFG_FRONTEND_TEST_PROTOCOL");
+                if(fixture=="hang")System.Threading.Thread.Sleep(5000);
+                Console.WriteLine(fixture=="ok"?"jfg-frontend-1":"old-runtime");
+                return 0;
+            }
             if (args.Length > 0 && args[0] == "--echo")
             {
                 for (int i = 1; i < args.Length; i++) Console.WriteLine(Convert.ToBase64String(Encoding.UTF8.GetBytes(args[i])));
@@ -182,6 +188,36 @@ namespace JfgLauncher
                 ControllerProfile recovered = ControllerProfile.Load(directory);
                 Check(recovered.Device == 2 && recovered.Bindings[3] == 3 && recovered.Deadzone == 18000, "controller settings did not persist");
                 Check(LocalSetup.StartInfo(game, wrongRom, directory).EnvironmentVariables["JFG_CONTROLLER_CONFIG"] == ControllerProfile.FileName(directory), "controller mapping not forwarded to game");
+                string oldProtocol=Environment.GetEnvironmentVariable("JFG_FRONTEND_TEST_PROTOCOL");
+                try {
+                    string fixtureExe=System.Reflection.Assembly.GetExecutingAssembly().Location;
+                    Environment.SetEnvironmentVariable("JFG_FRONTEND_TEST_PROTOCOL","ok");
+                    FrontendBridge.CheckRuntimeProtocol(fixtureExe,3000);Check(true,"compatible game protocol rejected");
+                    Environment.SetEnvironmentVariable("JFG_FRONTEND_TEST_PROTOCOL","old");
+                    Reject(delegate{FrontendBridge.CheckRuntimeProtocol(fixtureExe,3000);},"old runtime protocol accepted");
+                    Environment.SetEnvironmentVariable("JFG_FRONTEND_TEST_PROTOCOL","hang");
+                    var protocolWatch=Stopwatch.StartNew();
+                    Reject(delegate{FrontendBridge.CheckRuntimeProtocol(fixtureExe,250);},"hung runtime protocol accepted");
+                    Check(protocolWatch.ElapsedMilliseconds<3000,"runtime compatibility check hung");
+                } finally {Environment.SetEnvironmentVariable("JFG_FRONTEND_TEST_PROTOCOL",oldProtocol);}
+                string portRoot=Path.Combine(directory,"four-ports");
+                for(int p=1;p<4;++p)Check(ControllerProfile.Load(portRoot,p).Device==-1,"new multiplayer port must discover unassigned controllers");
+                for(int p=0;p<4;++p) {
+                    var perPort=new ControllerProfile{Device=p,Deadzone=1000+p*100};
+                    perPort.Bindings[0]=p;perPort.Save(portRoot,p);
+                }
+                for(int p=0;p<4;++p) {
+                    var perPort=ControllerProfile.Load(portRoot,p);
+                    Check(perPort.Device==p && perPort.Bindings[0]==p && perPort.Deadzone==1000+p*100,"one player's save changed another port");
+                }
+                Reject(delegate { new ControllerProfile{Device=2}.ValidateAssignment(portRoot,0); },"physical device shared by two players");
+                new ControllerProfile{Device=-3}.Save(portRoot,1);
+                Reject(delegate { new ControllerProfile{Device=-3}.ValidateAssignment(portRoot,3); },"keyboard shared by two players");
+                new ControllerProfile{Device=-2}.Save(portRoot,1);
+                Check(ControllerProfile.Load(portRoot,1).Device==-2 && ControllerProfile.Load(portRoot,0).Device==0,"disconnect changed the wrong player");
+                Check(ControllerProfile.Parse(new ControllerProfile{Device=-3}.Encode()).Device==-3,"keyboard profile rejected");
+                Reject(delegate { ControllerProfile.Parse(new ControllerProfile{Device=-4}.Encode()); },"invalid device sentinel accepted");
+
                 string normalProfile = Path.Combine(directory, "profiles", "default");
                 Directory.CreateDirectory(normalProfile);
                 File.WriteAllText(Path.Combine(normalProfile, "jfg.flash"), "normal campaign");

@@ -14,8 +14,8 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("JFG Launcher Preview")]
 [assembly: AssemblyDescription("Local ROM build and launch prototype for JFG")]
-[assembly: AssemblyVersion("0.4.0.0")]
-[assembly: AssemblyInformationalVersion("0.4.0-preview.4")]
+[assembly: AssemblyVersion("0.5.0.0")]
+[assembly: AssemblyInformationalVersion("0.5.0-preview.1")]
 
 namespace JfgLauncher
 {
@@ -655,6 +655,7 @@ namespace JfgLauncher
         [STAThread]
         private static void Main(string[] args)
         {
+            if (FrontendBridge.TryRun(args)) return;
             if (args.Length == 2 && args[0] == "--map-view") {
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);

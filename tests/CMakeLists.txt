@@ -531,3 +531,10 @@ target_include_directories(jfg_playback_buffer_tests PRIVATE "${PROJECT_SOURCE_D
 target_compile_features(jfg_playback_buffer_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_playback_buffer_tests)
 add_test(NAME jfg.playback_buffer COMMAND jfg_playback_buffer_tests)
+
+add_executable(jfg_controller_ports_tests controller_ports_tests.cpp)
+target_link_libraries(jfg_controller_ports_tests PRIVATE jfg_runtime)
+target_include_directories(jfg_controller_ports_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_controller_ports_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_controller_ports_tests)
+add_test(NAME jfg.controller_ports COMMAND jfg_controller_ports_tests)
