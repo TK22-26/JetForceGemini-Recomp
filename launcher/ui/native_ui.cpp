@@ -428,7 +428,7 @@ struct Ui : Rml::EventListener {
           html += button("size720", "1280 x 720") +
                   button("size1080", "1920 x 1080");
         else
-          html += "Original game setting";
+          html += "<span>Original game setting</span>";
         html += "</div>";
       }
       note = "Window size and fullscreen apply immediately. Aspect follows the "
@@ -475,8 +475,8 @@ struct Ui : Rml::EventListener {
                         std::pair{"trigger", m.trigger}})
         html += "<div class=\"row\"><span class=\"grow\">" +
                 std::string(pair.first) + "</span>" +
-                button(std::string(pair.first) + "-", "-") + " " +
-                std::to_string(pair.second) + " " +
+                button(std::string(pair.first) + "-", "-") + "<span>" +
+                std::to_string(pair.second) + "</span>" +
                 button(std::string(pair.first) + "+", "+") + "</div>";
       html += "<div class=\"row\">" +
               button("invertx", m.invert_x ? "Invert X: on" : "Invert X: off") +
@@ -490,8 +490,8 @@ struct Ui : Rml::EventListener {
              "Play</button></div><div class=\"name\">Set up your game</div><p "
              "class=\"muted\">Setup verifies your ROM and downloads the source "
              "and missing build tools. Your ROM stays on this PC.</p>";
-      html += "<div class=\"row\" id=\"setup-status\">" +
-              escape(u8(state.status)) + "</div>";
+      html += "<div class=\"row\" id=\"setup-status\"><span>" +
+              escape(u8(state.status)) + "</span></div>";
       if (!state.runtime.empty())
         html +=
             "<p class=\"muted\">Installed build: " + escape(u8(state.runtime)) +
@@ -932,7 +932,7 @@ void FrontendUiFrame(const FrontendUiState &state) {
   if (state.status != ui.state.status) {
     ui.status(u8(state.status));
     if (auto *e = ui.el("setup-status"))
-      e->SetInnerRML(escape(u8(state.status)));
+      e->SetInnerRML("<span>" + escape(u8(state.status)) + "</span>");
   }
   ui.doc->SetClass("paused",
                    state.playing &&

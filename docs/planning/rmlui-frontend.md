@@ -98,4 +98,4 @@ binary additions; modified and unknown font bodies remain rejected.
 
 Four simultaneously connected physical controllers and the final visual
 direction still need owner testing. The local candidate is
-0.5.0-preview.3; it is not a published release.
+0.5.0-preview.4; it is not a published release.
