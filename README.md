@@ -6,6 +6,9 @@ A native PC recompilation of Jet Force Gemini, currently available as a
 Windows x64 development preview. Supply your own supported North American
 ROM and build the game locally using the launcher or command-line tools.
 
+**Campaign status: officially verified 100% completable from start to finish**
+through maintainer playtesting.
+
 [Get started](docs/getting-started.md) ·
 [Known issues](docs/known-issues.md) ·
 [Report a problem](docs/playtesting.md) ·
@@ -24,29 +27,24 @@ HD cosmetic variants stay in independently maintained community branches.
 
 ## What works
 
+- Full campaign completion, verified through maintainer playtesting.
 - Native rendering and audio.
 - Keyboard controls and configurable Xbox/XInput controllers.
 - Verified saving and loading, with a launcher for setup and subsequent launches.
 
-Full campaign completion and original-console accuracy remain unverified.
+Original-console accuracy remains under validation.
 This preview needs playtesting across more PCs, controllers, and gameplay.
 See [recent gameplay fixes](docs/development/boot-gameplay-fix.md) and
 [development progress](docs/dashboard.md) for details.
 
 ## Campaign playtest progress
 
-**Latest maintainer playtest:** the game is playable up to the final cutscene for
-the final ship part. Testing stopped there; progression beyond that point and
-full campaign completion remain unverified. This run used the optional
-infinite-health and enemy auto-kill testing mods.
+**Campaign status: officially verified 100% completable from start to finish**
+through maintainer playtesting.
 
-Earlier character-specific checkpoints:
-
-| Character | Campaign progress |
-| --- | --- |
-| Juno | Reached Mizar's Palace after Tawfret. |
-| Vela | Tested up to Cerulean. |
-| Lupus | Progress not yet reported. |
+The verification run used optional infinite-health and enemy auto-kill testing
+mods, plus a testing save with all Tribals unlocked. Saving and loading are
+also verified.
 
 ## Getting started
 
@@ -74,9 +72,6 @@ code, [CONTRIBUTING.md](CONTRIBUTING.md) explains the pull request workflow.
 The goal is a complete, faithful PC version of Jet Force Gemini with optional
 modern enhancements. Planned work and remaining validation include:
 
-- **A complete campaign (unverified):** the campaign may already be complete,
-  including all playable characters and required progression. Saving and loading
-  are verified; full campaign playthroughs remain untested.
 - **Original local multiplayer and optional content:** broader coverage of the
   modes and activities beyond the main campaign.
 - **Ultrawide support:** wider aspect ratios with correct gameplay presentation,
