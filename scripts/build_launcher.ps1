@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$Test)
+param([switch]$Test, [string]$NativeBuildDirectory)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $launcherRepoRoot = Split-Path -Parent $PSScriptRoot
@@ -41,10 +41,10 @@ $frontendVswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/I
 $frontendVs = (& $frontendVswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | Select-Object -First 1)
 if (-not $frontendVs) { throw 'Visual Studio C++ tools are required to build the native launcher.' }
 $frontendCmake = Join-Path $frontendVs 'Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe'
-$frontendBuild = Join-Path $launcherOutput 'native'
+$frontendBuild = if ($NativeBuildDirectory) { [IO.Path]::GetFullPath($NativeBuildDirectory) } else { Join-Path $launcherOutput 'native' }
 & $frontendCmake -S (Join-Path $launcherRepoRoot 'launcher/native') -B $frontendBuild -G 'Visual Studio 17 2022' -A x64 "-DJFG_FRONTEND_HELPER=$launcherHelper"
 if ($LASTEXITCODE -ne 0) { throw 'Native frontend configuration failed.' }
-& $frontendCmake --build $frontendBuild --config Release --parallel 2
+& $frontendCmake --build $frontendBuild --config Release --target JFG-Launcher --parallel 4
 if ($LASTEXITCODE -ne 0) { throw 'Native frontend compilation failed.' }
 Copy-Item -LiteralPath (Join-Path $frontendBuild 'Release/JFG-Launcher.exe') -Destination $launcherExe -Force
 
@@ -52,6 +52,10 @@ $launcherInputs = [ordered]@{}
 foreach ($relative in @('launcher/windows/Launcher.cs', 'launcher/windows/FrontendBridge.cs', 'src/app/frontend_win32.cpp', 'launcher/native/CMakeLists.txt', 'launcher/windows/FirstRun.cs',
         'launcher/windows/Setup.ps1', 'launcher/windows/Support.cs', 'launcher/windows/Diagnostics.cs', 'launcher/windows/Controller.cs', 'launcher/windows/NavigationMap.cs', 'launcher/windows/Audio.cs', 'launcher/windows/MapLayers.cs', 'launcher/windows/NavigationRoute.cs', 'launcher/windows/NavigationExplorer.cs', 'launcher/windows/NavigationCollision.cs', 'launcher/windows/BoxJump.cs', 'launcher/windows/ChestRoute.cs', 'launcher/windows/NavigationRunner.cs', 'launcher/windows/AutonomousExplorer.cs', 'launcher/windows/InventoryWindow.cs', 'scripts/build_launcher.ps1')) {
     $launcherInputs[$relative] = (Get-FileHash -LiteralPath (Join-Path $launcherRepoRoot $relative) -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+Get-ChildItem -LiteralPath (Join-Path $launcherRepoRoot 'launcher/ui') -File -Recurse | Sort-Object FullName | ForEach-Object {
+    $relative = $_.FullName.Substring($launcherRepoRoot.Length + 1).Replace('\', '/')
+    $launcherInputs[$relative] = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 $launcherReceipt = [ordered]@{ source_commit = $launcherCommit;
     executable_sha256 = (Get-FileHash -LiteralPath $launcherExe -Algorithm SHA256).Hash.ToLowerInvariant(); inputs = $launcherInputs }

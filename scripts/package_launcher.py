@@ -10,7 +10,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'build' / 'launcher'
-NAME = 'JFG-Launcher-0.5.0-preview.1-windows-x64.zip'
+NAME = 'JFG-Launcher-0.5.0-preview.2-windows-x64.zip'
 
 
 def main() -> int:
@@ -20,11 +20,15 @@ def main() -> int:
         'BUILD-SETUP.md': ROOT / 'docs/development/rom-bootstrap.md',
         'LICENSE': ROOT / 'LICENSE',
     }
+    for folder in ('licenses', 'fonts'):
+        for path in (ROOT / 'launcher/ui' / folder).glob('*.txt'):
+            members['licenses/' + path.name] = path
+    members['THIRD-PARTY.txt'] = ROOT / 'launcher/ui/THIRD-PARTY.txt'
     for name, path in members.items():
         if not path.is_file() or path.is_symlink():
             raise SystemExit('Missing or linked package input: ' + name)
     binary = members['JFG-Launcher.exe'].read_bytes()
-    if not binary.startswith(b'MZ') or len(binary) > 4_194_304:
+    if not binary.startswith(b'MZ') or len(binary) > 33_554_432:
         raise SystemExit('Unexpected launcher executable')
     receipt = json.loads((OUTPUT / 'launcher-build.json').read_text(encoding='utf-8-sig'))
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
@@ -32,6 +36,7 @@ def main() -> int:
         raise SystemExit('Commit the reviewed source changes before packaging the pinned launcher')
     expected_inputs = {'launcher/windows/Launcher.cs', 'launcher/windows/FrontendBridge.cs', 'src/app/frontend_win32.cpp', 'launcher/native/CMakeLists.txt', 'launcher/windows/FirstRun.cs',
                        'launcher/windows/Setup.ps1', 'launcher/windows/Support.cs', 'launcher/windows/Diagnostics.cs', 'launcher/windows/Controller.cs', 'launcher/windows/NavigationMap.cs', 'launcher/windows/Audio.cs', 'launcher/windows/MapLayers.cs', 'launcher/windows/NavigationRoute.cs', 'launcher/windows/NavigationExplorer.cs', 'launcher/windows/NavigationCollision.cs', 'launcher/windows/BoxJump.cs', 'launcher/windows/ChestRoute.cs', 'launcher/windows/NavigationRunner.cs', 'launcher/windows/AutonomousExplorer.cs', 'launcher/windows/InventoryWindow.cs', 'scripts/build_launcher.ps1'}
+    expected_inputs.update(path.relative_to(ROOT).as_posix() for path in (ROOT / 'launcher/ui').rglob('*') if path.is_file())
     if (receipt.get('source_commit') != revision or set(receipt.get('inputs', {})) != expected_inputs
             or receipt.get('executable_sha256') != hashlib.sha256(binary).hexdigest()
             or any(hashlib.sha256((ROOT / name).read_bytes()).hexdigest() != digest

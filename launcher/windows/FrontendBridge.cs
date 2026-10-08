@@ -92,6 +92,24 @@ internal static class FrontendBridge
     }
     private static async Task<int> Execute(string action, IntPtr owner)
     {
+        if (action == "sessions" || action == "export")
+        {
+            var choices = SupportSession.Sessions(SupportSession.Root);
+            var list = new StringBuilder();
+            foreach (var item in choices)
+                list.Append(Path.GetFileName(item.Path)).Append('\t').Append(item.Label.Replace("\t", " ").Replace("\n", " ")).Append('\n');
+            Write("frontend-sessions.tsv", list.ToString());
+            if (action == "export")
+            {
+                string selection = Read("frontend-report.txt");
+                var selected = choices.Find(delegate(SupportChoice item) { return Path.GetFileName(item.Path) == selection; });
+                if (selected == null) throw new InvalidDataException("Select an available session first.");
+                string zip = SupportSession.ExportSelected(SupportSession.Root, selected.Path, Path.Combine(FirstRun.Root, "support-exports"));
+                State("Support ZIP ready: " + zip);
+                Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + zip + "\"") { UseShellExecute = true });
+            }
+            return 0;
+        }
         if (action == "controllers")
         {
             using (var f = new ControllerWindow(root)) f.ShowDialog(new Owner(owner));
@@ -208,7 +226,22 @@ internal static class FrontendBridge
                     var stdout = support.Session.Drain(process.StandardOutput);
                     var stderr = support.Session.Drain(process.StandardError);
                     State("Playing. F11 fullscreen. Esc settings.");
-                    await Task.Run(delegate { process.WaitForExit(); });
+                    string captureRequest = Path.Combine(root, "frontend-capture.request");
+                    if (File.Exists(captureRequest)) File.Delete(captureRequest);
+                    while (!process.HasExited)
+                    {
+                        if (File.Exists(captureRequest))
+                        {
+                            File.Delete(captureRequest);
+                            try
+                            {
+                                bool captured = await support.Session.CaptureFreeze(process, game);
+                                State(captured ? "Freeze captured. Create a support ZIP for this session." : "Freeze capture unavailable. Existing logs are preserved.");
+                            }
+                            catch (Exception e) { State("Freeze capture failed: " + LocalSetup.FriendlyError(e)); }
+                        }
+                        await Task.Delay(200);
+                    }
                     await Task.WhenAll(stdout, stderr);
                     support.Session.Exit(process.ExitCode);
                     State(process.ExitCode == 0 ? "Game stopped. Your saves are ready for next time."
@@ -242,7 +275,7 @@ internal static class FrontendBridge
             if (!Int64.TryParse(args[3], out handle))
                 throw new InvalidDataException("Invalid frontend owner.");
             if (Array.IndexOf(
-                    new[] { "init", "setup", "play", "controllers", "audio", "support", "map", "inventory" },
+                    new[] { "init", "setup", "play", "controllers", "audio", "support", "map", "inventory", "sessions", "export" },
                     args[1]) < 0)
                 throw new InvalidDataException("Unknown frontend action.");
             Application.EnableVisualStyles();

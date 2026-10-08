@@ -589,6 +589,10 @@ public:
   HostAudioDevice &operator=(const HostAudioDevice &) = delete;
 
   void set_gameplay_trace(GameplayTrace *trace) noexcept { gameplay_trace_ = trace; }
+  void frontend_pause(bool paused) noexcept {
+    if (device_ != 0U && device_playing_) SDL_PauseAudioDevice(device_, paused ? 1 : 0);
+  }
+
 
   bool configure_capture(const std::string &path) {
     capture_pcm_.open(path, std::ios::binary | std::ios::trunc);
@@ -2142,6 +2146,28 @@ void service_live_window(State &state) {
       state.exit_requested = true;
     TranslateMessage(&message);
     DispatchMessageW(&message);
+  }
+  const auto frontend = state.native_window ? GetAncestor(static_cast<HWND>(state.native_window), GA_ROOT) : nullptr;
+  bool frontend_paused = false;
+  while (!state.exit_requested && frontend && IsWindow(frontend) &&
+         GetPropW(frontend, L"JfgFrontendPause") != nullptr) {
+    if (!frontend_paused) {
+      state.host_audio.frontend_pause(true);
+      SetPropW(frontend,L"JfgFrontendPaused",reinterpret_cast<HANDLE>(1));
+      frontend_paused = true;
+    }
+    while (PeekMessageW(&message, nullptr, 0U, 0U, PM_REMOVE) != FALSE) {
+      if (message.message == WM_QUIT) state.exit_requested = true;
+      TranslateMessage(&message);
+      DispatchMessageW(&message);
+    }
+    MsgWaitForMultipleObjects(0, nullptr, FALSE, 20, QS_ALLINPUT);
+  }
+  if (frontend_paused) {
+    RemovePropW(frontend,L"JfgFrontendPaused");
+    state.host_audio.frontend_pause(false);
+    state.host_frame_deadline_initialized = false;
+    state.host_frame_start_initialized = false;
   }
   if (!state.host_frame_deadline_initialized) {
     state.host_frame_deadline = std::chrono::steady_clock::now();

@@ -2,17 +2,17 @@
 
 ## Unified frontend (next release)
 
-The native launcher owns one window for setup, home, and gameplay. Stop returns
+The RmlUi/C++ launcher owns one window for setup, home, and gameplay. Its fonts and UI resources are embedded in the EXE. Stop returns
 to home and flushes the game session; closing a running session waits for it to
 stop. The setup/settings helper is embedded in the launcher EXE and extracted
 locally. Existing profile saves are reused.
 
-Use the top menu during play. F11 toggles fullscreen; Esc opens settings in
-fullscreen. Fullscreen preserves the game aspect ratio and is independent of
-the original in-game widescreen setting. Audio > Volume and mute applies live.
+Use the top menu during play. F11 toggles fullscreen; Esc opens or closes the Game menu. Fullscreen preserves the game aspect ratio and is independent of
+the original in-game widescreen setting. Audio provides a live volume slider and mute. Settings pause the game at a frame boundary and resume it when closed.
 
 Controllers provides Player 1 through Player 4 tabs. Choose a distinct physical
-XInput device for each player and click Apply mapping before switching tabs.
+XInput device for each player. Changes save automatically. Click a binding,
+release all controls, and press its replacement; Escape cancels learning.
 Automatic assigns each connected controller to a different player; empty ports
 remain disconnected. Choose Disconnected to disable a port. One port may use
 Keyboard. Automatic
@@ -22,13 +22,16 @@ across a complete reconnect/restart; verify assignments in the input display.
 Mappings apply while playing; release held inputs when returning from settings.
 Native HID/DirectInput devices still require an XInput-compatible adapter.
 
-Game > Navigation testing mod uses separate mod saves. Tools opens map,
+Game > Testing mods uses separate mod saves. Tools opens map,
 inventory, saved profiles, and support reports. Mod windows remain optional.
 
 The new frontend requires a game build with the frontend protocol. An older
 build receives a rebuild message. Setup remains pinned to the launcher source
 revision; local uncommitted development binaries are for testing, not a public
-release. See [the implementation plan](../planning/unified-frontend.md).
+release. See [the implementation plan](../planning/unified-frontend.md) and
+[RmlUi design handoff](../planning/rmlui-frontend.md). PR #10 stays draft for
+maintainer UI approval. The home screen asks only for the required ROM; Setup
+manages the game build and shows its installation path.
 
 
 

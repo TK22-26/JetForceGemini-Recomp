@@ -4,8 +4,8 @@
 #include <windows.h> // Must precede commdlg.h and shellapi.h.
 
 #include <algorithm>
-#include <cstdint>
 #include <commdlg.h>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -13,6 +13,9 @@
 #include <shlobj.h>
 #include <string>
 #include <vector>
+#ifdef JFG_RML_UI
+#include "native_ui.hpp"
+#endif
 namespace fs = std::filesystem;
 namespace {
 constexpr UINT kReady = WM_APP + 20, kHotkey = WM_APP + 21;
@@ -50,7 +53,8 @@ struct Process {
 };
 struct App {
   HWND window = nullptr, viewport = nullptr, render = nullptr, status = nullptr,
-       rom = nullptr, runtime = nullptr;
+       rom = nullptr, runtime = nullptr, shield = nullptr;
+  bool uiReady = false;
   std::vector<HWND> home;
   HMENU menu = nullptr;
   HFONT font = nullptr, titleFont = nullptr;
@@ -207,11 +211,25 @@ void fonts() {
 void layout() {
   RECT area{};
   GetClientRect(app.window, &area);
+#ifdef JFG_RML_UI
+  const int top = scaled(36);
+  MoveWindow(app.viewport, 0, top, std::max<LONG>(1, area.right),
+             std::max<LONG>(1, area.bottom - top), TRUE);
+  if (app.render && IsWindow(app.render))
+    MoveWindow(app.render, 0, 0, std::max<LONG>(1, area.right),
+               std::max<LONG>(1, area.bottom - top), TRUE);
+  if (app.shield)
+    MoveWindow(app.shield, 0, top, std::max<LONG>(1, area.right),
+               std::max<LONG>(1, area.bottom - top), FALSE);
+  if (app.uiReady)
+    FrontendUiResize();
+#else
   const int w = MulDiv(area.right, 96, static_cast<int>(app.dpi));
   const int footer =
       (app.fullscreen && app.render && IsWindow(app.render)) ? 0 : 44;
   ShowWindow(app.status, footer ? SW_SHOW : SW_HIDE);
-  MoveWindow(app.status, scaled(20), std::max<LONG>(0, area.bottom - scaled(36)),
+  MoveWindow(app.status, scaled(20),
+             std::max<LONG>(0, area.bottom - scaled(36)),
              std::max<LONG>(1, area.right - scaled(40)), scaled(28), TRUE);
   MoveWindow(app.viewport, 0, 0, std::max<LONG>(1, area.right),
              std::max<LONG>(1, area.bottom - scaled(footer)), TRUE);
@@ -235,11 +253,16 @@ void layout() {
     move(app.home[8], left, 366, 190, 46);
     move(app.home[9], left + 210, 366, 190, 46);
   }
+#endif
 }
 
 void showHome(bool show) {
   for (HWND control : app.home) {
+#ifdef JFG_RML_UI
+    ShowWindow(control, SW_HIDE);
+#else
     ShowWindow(control, show ? SW_SHOW : SW_HIDE);
+#endif
     EnableWindow(control, !app.session.running());
   }
   ShowWindow(app.viewport, show ? SW_HIDE : SW_SHOW);
@@ -271,7 +294,9 @@ void fullscreen() {
                  SWP_NOZORDER | SWP_FRAMECHANGED);
   } else {
     app.fullscreen = false;
+#ifndef JFG_RML_UI
     SetMenu(app.window, app.menu);
+#endif
     SetWindowLongPtrW(app.window, GWL_STYLE,
                       WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_CLIPCHILDREN);
     SetWindowPlacement(app.window, &app.placement);
@@ -292,8 +317,10 @@ void pick(bool rom) {
   dialog.lpstrFilter = rom ? L"N64 ROM\0*.z64;*.n64;*.v64\0All files\0*.*\0"
                            : L"Native game build\0jfg-native-boot.exe\0";
   dialog.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-  if (GetOpenFileNameW(&dialog))
+  if (GetOpenFileNameW(&dialog)) {
     SetWindowTextW(rom ? app.rom : app.runtime, path.data());
+    write(rom ? L"frontend-rom.txt" : L"frontend-runtime.txt", path.data());
+  }
 }
 void capture(bool enabled) {
   app.setting = enabled;
@@ -313,6 +340,10 @@ void settings(const wchar_t *action) {
     capture(false);
 }
 void popup() {
+#ifdef JFG_RML_UI
+  FrontendUiPanel(FrontendUiCapturing() ? "" : "game");
+  return;
+#endif
   capture(true);
   HMENU menu = CreatePopupMenu();
   AppendMenuW(menu, MF_STRING, Controllers, L"Controllers");
@@ -343,6 +374,10 @@ void persist() {
                                     (app.fullscreen ? L"1" : L"0"));
 }
 void stop() {
+  RemovePropW(app.window, L"JfgFrontendPause");
+#ifdef JFG_RML_UI
+  FrontendUiPanel("");
+#endif
   app.stopRequested = true;
   if (app.render && IsWindow(app.render)) {
     PostMessageW(app.render, WM_CLOSE, 0, 0);
@@ -376,7 +411,8 @@ void menus() {
                  {0, nullptr},
                  {Mods, L"Navigation testing mod"},
                  {Quit, L"&Quit"}});
-  add(L"&Controllers", {{Controllers, L"Player 1–4 assignments and mappings"}});
+  add(L"&Controllers",
+      {{Controllers, L"Player 1â€“4 assignments and mappings"}});
   add(L"&Video", {{Fullscreen, L"&Fullscreen\tF11"}});
   add(L"&Audio", {{Audio, L"&Volume and mute"}});
   add(L"&Tools", {{Map, L"Live map"},
@@ -384,10 +420,106 @@ void menus() {
                   {Support, L"Support report"},
                   {Saves, L"Open saves"}});
   add(L"&Help", {{Guide, L"Setup guide"}});
+#ifndef JFG_RML_UI
   SetMenu(app.window, app.menu);
+#endif
 }
+#ifdef JFG_RML_UI
+void uiAction(const std::string &a) {
+  UINT command = 0;
+  if (a == "play") {
+    if (text(app.rom).empty()) {
+      pick(true);
+      if (text(app.rom).empty())
+        return;
+    }
+    std::error_code runtimeError;
+    if (!fs::is_regular_file(fs::path(text(app.runtime)), runtimeError)) {
+      FrontendUiPanel("setup");
+      return;
+    }
+    command = Play;
+  } else if (a == "stop")
+    command = Stop;
+  else if (a == "setup-start")
+    command = Setup;
+  else if (a == "cancel-setup")
+    command = Cancel;
+  else if (a == "rom")
+    command = Rom;
+  else if (a == "fullscreen")
+    command = Fullscreen;
+  else if (a == "map")
+    command = Map;
+  else if (a == "inventory")
+    command = Inventory;
+  else if (a == "saves")
+    command = Saves;
+  else if (a == "guide")
+    command = Guide;
+  else if (a == "mods")
+    command = Mods;
+  else if (a == "quit")
+    command = Quit;
+  else if (a == "sessions" || a == "export") {
+    auto tool = std::make_unique<Process>();
+    if (launch(*tool, a == "sessions" ? L"sessions" : L"export", app.window))
+      app.tools.push_back(std::move(tool));
+  } else if (a == "size720" || a == "size1080") {
+    if (app.fullscreen)
+      fullscreen();
+    RECT r{0, 0, a == "size720" ? 1280 : 1920, a == "size720" ? 756 : 1116};
+    AdjustWindowRectExForDpi(&r, WS_OVERLAPPEDWINDOW, FALSE, 0, app.dpi);
+    SetWindowPos(app.window, nullptr, 0, 0, r.right - r.left, r.bottom - r.top,
+                 SWP_NOMOVE | SWP_NOZORDER);
+  }
+  if (command)
+    PostMessageW(app.window, WM_COMMAND, command, 0);
+}
+void syncUiCapture() {
+  bool enabled = FrontendUiCapturing() || app.dialog.running();
+  if (enabled == app.setting)
+    return;
+  capture(enabled);
+  if (enabled)
+    SetPropW(app.window, L"JfgFrontendPause", reinterpret_cast<HANDLE>(1));
+  else
+    RemovePropW(app.window, L"JfgFrontendPause");
+  ShowWindow(app.shield, enabled ? SW_SHOW : SW_HIDE);
+  if (enabled) {
+    SetWindowPos(app.shield, HWND_TOP, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    SetFocus(app.shield);
+  }
+}
+LRESULT CALLBACK shieldProcedure(HWND window, UINT m, WPARAM w, LPARAM l) {
+  if ((m >= WM_MOUSEFIRST && m <= WM_MOUSELAST) || m == WM_KEYDOWN ||
+      m == WM_KEYUP || m == WM_CHAR) {
+    if (m >= WM_MOUSEFIRST && m <= WM_MOUSELAST && m != WM_MOUSEWHEEL &&
+        m != WM_MOUSEHWHEEL) {
+      POINT p{static_cast<short>(LOWORD(l)), static_cast<short>(HIWORD(l))};
+      MapWindowPoints(window, app.window, &p, 1);
+      l = MAKELPARAM(p.x, p.y);
+    }
+    SendMessageW(app.window, m, w, l);
+    return 0;
+  }
+  if (m == WM_ERASEBKGND)
+    return 1;
+  return DefWindowProcW(window, m, w, l);
+}
+#endif
 LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
                            LPARAM lparam) {
+#ifdef JFG_RML_UI
+  if (app.uiReady &&
+      ((message >= WM_MOUSEFIRST && message <= WM_MOUSELAST) ||
+       message == WM_KEYDOWN || message == WM_KEYUP || message == WM_CHAR ||
+       message == WM_SETFOCUS || message == WM_KILLFOCUS)) {
+    FrontendUiMessage(message, wparam, lparam);
+    syncUiCapture();
+  }
+#endif
   switch (message) {
   case WM_CREATE: {
     app.window = window;
@@ -426,6 +558,22 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     app.mods = read(L"frontend-mods.txt") == L"1";
     CheckMenuItem(app.menu, Mods,
                   MF_BYCOMMAND | (app.mods ? MF_CHECKED : MF_UNCHECKED));
+#ifdef JFG_RML_UI
+    ShowWindow(app.status, SW_HIDE);
+    WNDCLASSW shieldClass{};
+    shieldClass.lpfnWndProc = shieldProcedure;
+    shieldClass.hInstance = GetModuleHandleW(nullptr);
+    shieldClass.lpszClassName = L"JfgUiShield";
+    shieldClass.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    RegisterClassW(&shieldClass);
+    app.shield =
+        CreateWindowExW(0, shieldClass.lpszClassName, L"", WS_CHILD, 0, 0, 1, 1,
+                        window, nullptr, shieldClass.hInstance, nullptr);
+    if (!FrontendUiInit(window, app.profile, uiAction))
+      return -1;
+    app.uiReady = true;
+    SetTimer(window, 2, 16, nullptr);
+#endif
     launch(app.session, L"init", window);
     SetTimer(window, 1, 200, nullptr);
     showHome(true);
@@ -503,6 +651,15 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       SetFocus(app.render);
     return 0;
   case WM_TIMER: {
+#ifdef JFG_RML_UI
+    if (wparam == 2) {
+      syncUiCapture();
+      FrontendUiFrame({app.render && IsWindow(app.render),
+                       app.session.running(), app.fullscreen, app.mods,
+                       text(app.rom), text(app.runtime), app.lastStatus});
+      return 0;
+    }
+#endif
     std::erase_if(app.tools, [](const auto &tool) { return !tool->running(); });
     const auto messageText = read(L"frontend-status.txt");
     if (!messageText.empty() && messageText != app.lastStatus)
@@ -636,7 +793,13 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       DestroyWindow(window);
     return 0;
   case WM_DESTROY:
+#ifdef JFG_RML_UI
+    KillTimer(window, 2);
+    app.uiReady = false;
+    FrontendUiShutdown();
+#endif
     KillTimer(window, 1);
+    RemovePropW(window, L"JfgFrontendPause");
     RemovePropW(window, L"JfgFrontend");
     RemovePropW(window, L"JfgSettingsOpen");
     PostQuitMessage(0);
@@ -727,8 +890,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
   HWND window = CreateWindowExW(
       0, wc.lpszClassName, L"Jet Force Gemini",
       WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT,
-      MulDiv(960, static_cast<int>(GetDpiForSystem()), 96),
-      MulDiv(650, static_cast<int>(GetDpiForSystem()), 96), nullptr, nullptr,
+      MulDiv(1280, static_cast<int>(GetDpiForSystem()), 96),
+      MulDiv(760, static_cast<int>(GetDpiForSystem()), 96), nullptr, nullptr,
       instance, nullptr);
   if (!window)
     return 1;
@@ -754,7 +917,11 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
       popup();
       continue;
     }
+#ifdef JFG_RML_UI
+    {
+#else
     if (!IsDialogMessageW(window, &msg)) {
+#endif
       TranslateMessage(&msg);
       DispatchMessageW(&msg);
     }

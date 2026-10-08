@@ -13,6 +13,13 @@ from pathlib import Path, PurePosixPath
 
 MAX_TRACKED_BYTES = 1_048_576
 MAX_HISTORY_SCAN_BYTES = 2_097_152
+# Exact reviewed OFL font bodies only. No suffix-based binary exemption.
+# Provenance and license texts: launcher/ui/fonts/manifest.json and *-OFL.txt.
+APPROVED_UI_FONT_SHA256 = frozenset({
+    "95aa02c7c43096e0dd44d787ba6216864a67157e402adab59b35572e0c1577ea",
+    "86577cb32f8abe3673db53ca0f4221e6856751a4f6730c867e00f720f8bb1fc5",
+    "65fbf76d95651697275e19db4d717c0e95a789ddd3476478b05292104db278a0",
+})
 ALLOWED_GIT_IDENTITY_NAME = "TK22-26"
 ALLOWED_GIT_IDENTITY_EMAIL = "254768757+TK22-26@users.noreply.github.com"
 # Keep the original public snapshot valid without rewriting its history.
@@ -281,6 +288,9 @@ def scan_blob(data: bytes, label: str, *, enforce_size: bool = True) -> list[str
 
     if any(marker in data for marker in PRIVATE_CORPUS_MARKERS):
         errors.append(f"{label}: contains a private-corpus body marker")
+
+    if hashlib.sha256(data).hexdigest() in APPROVED_UI_FONT_SHA256:
+        return errors
 
     if b"\0" in data:
         errors.append(f"{label}: binary content is not allowlisted")
