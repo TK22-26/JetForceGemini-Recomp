@@ -99,3 +99,7 @@ input.volume sliderprogress { height:6dp; background:#ffb23e; }
 .paused .pause-label {display:block;}
 
 select selectbox { max-height:170dp; overflow-y:auto; }
+
+.dialog { max-width:94%; }
+.dialog-footer .muted { flex:1; min-width:0; margin-right:12dp; }
+@media (max-width:800dp) { .bindings .row { width:100%; } }
