@@ -27,6 +27,19 @@ ALLOWED_GIT_IDENTITIES = frozenset({
     (ALLOWED_GIT_IDENTITY_NAME, ALLOWED_GIT_IDENTITY_EMAIL),
     ("JFG Recomp Maintainer", "jfg-recomp-local@users.noreply.github.com"),
 })
+# Contributors retain their own chosen identities. Reserve the maintainer
+# pairs above so this does not relax the owner's personal-email policy.
+CONTRIBUTOR_EMAIL_PATTERN = re.compile(r"[^@\s<>]+@[^@\s<>]+")
+
+
+def approved_git_identity(name: str, email: str) -> bool:
+    if (name, email) in ALLOWED_GIT_IDENTITIES:
+        return True
+    if any(name.casefold() == known_name.casefold() or email.casefold() == known_email.casefold()
+           for known_name, known_email in ALLOWED_GIT_IDENTITIES):
+        return False
+    return CONTRIBUTOR_EMAIL_PATTERN.fullmatch(email) is not None
+
 
 FORBIDDEN_PREFIXES = (
     "roms/",
@@ -386,7 +399,7 @@ def scan_path(root: Path, path: Path) -> list[str]:
 
 
 def scan_git_metadata(data: bytes, label: str, *, object_type: str) -> list[str]:
-    """Scan reachable commit/tag content and require an approved no-reply identity and UTC."""
+    """Preserve contributor identities; enforce maintainer privacy and UTC policy."""
     errors = scan_blob(data, label, enforce_size=False)
     text = data.decode("utf-8", errors="replace")
     expected_roles = {"author", "committer"} if object_type == "commit" else {"tagger"}
@@ -402,7 +415,7 @@ def scan_git_metadata(data: bytes, label: str, *, object_type: str) -> list[str]
         and sum(1 for line in header.splitlines() if line.startswith("parent ")) >= 2
     )
 
-    for line in text.splitlines():
+    for line in header.splitlines():
         if not line.startswith(("author ", "committer ", "tagger ")):
             continue
         match = GIT_IDENTITY_PATTERN.fullmatch(line)
@@ -413,11 +426,11 @@ def scan_git_metadata(data: bytes, label: str, *, object_type: str) -> list[str]
         observed_roles.add(role)
         if is_merge_commit:
             continue
-        if (name, email) not in ALLOWED_GIT_IDENTITIES:
+        if not approved_git_identity(name, email):
             errors.append(
-                f"{label}: {role} must use an approved repository no-reply identity"
+                f"{label}: {role} must use a valid contributor identity or an approved maintainer no-reply identity"
             )
-        if offset != "+0000":
+        if (name, email) in ALLOWED_GIT_IDENTITIES and offset != "+0000":
             errors.append(f"{label}: {role} timestamp must use UTC (+0000)")
 
     missing_roles = expected_roles - observed_roles

@@ -67,6 +67,12 @@ public-safe aggregate.
 
 ## Opening asteroid texture corruption (2026-10-08)
 
+Reported and investigated by **Luke Deardoff (@lukedeardoff)** in
+[PR #9](https://github.com/TK22-26/JetForceGemini-Recomp/pull/9). His trace of the
+incorrect texture addresses was reproduced and guided the diagnosis below.
+The final command-boundary reset was implemented independently after checking
+the original microcode; Luke's proposed 40-entry cutoff was not incorporated.
+
 The new-game opening cinematic could apply a previous model's texture-offset
 table to a later asteroid. The F3DDKR `BF` DMA-base command changes model state;
 the original RSP handler also clears the texture-offset enable byte. Our handler
@@ -95,3 +101,7 @@ repeated resets, and explicit rearming by a later model. Both
 [opening-asteroid-texture-reset.json](../../evidence/opening-asteroid-texture-reset.json).
 ROM-derived captures remain private. This verification covers the opening
 sequence and reset behavior, not full-campaign renderer equivalence.
+
+The owner replayed the corrected opening cinematic on 2026-10-08 and confirmed
+that the asteroids look good. This is additional visual acceptance of this
+sequence, not a full-campaign or pixel-exact parity claim.

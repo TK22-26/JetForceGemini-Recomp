@@ -59,5 +59,16 @@
     "asteroidemu/summary.json": "5f2bb49d52bca3ba7233547ab01450c0f3477046d68f02ee123fadf6349a6296",
     "cmakecheck/test.stdout": "61641b042ddc08304df2d9abaca39cc5610bbbbb97b40e096a3af1e361a30c04"
   },
-  "contains_game_assets": false
+  "contains_game_assets": false,
+  "contribution_credit": {
+    "name": "Luke Deardoff",
+    "github": "lukedeardoff",
+    "reference": "https://github.com/TK22-26/JetForceGemini-Recomp/pull/9",
+    "contribution": "Reported corruption and traced stale texture-offset addresses; final microcode-based reset implemented independently."
+  },
+  "owner_visual_review": {
+    "date": "2026-10-08",
+    "result": "Owner replayed the corrected opening cinematic and confirmed that the asteroids look good.",
+    "scope": "Opening asteroid appearance; not full-campaign or pixel-exact parity."
+  }
 }
