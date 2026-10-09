@@ -34,6 +34,258 @@ namespace JfgLauncher
             return data;
         }
 
+        private static void InventoryAssetTests(string directory) {
+            byte[] rgba16=new byte[48];rgba16[0]=4;rgba16[1]=2;rgba16[2]=1;
+            // Red then transparent; on the odd row blue is stored in the swapped half.
+            rgba16[32]=0xf8;rgba16[33]=1;rgba16[44]=0;rgba16[45]=0x3f;
+            using(var image=InventoryImages.Decode(rgba16)) {
+                Check(image.Width==4&&image.Height==2,"texture dimensions changed");
+                Check(image.GetPixel(0,0).R==255&&image.GetPixel(0,0).A==255,"RGBA5551 red decode failed");
+                Check(image.GetPixel(1,0).A==0,"RGBA5551 transparency lost");
+                Check(image.GetPixel(0,1).B==255&&image.GetPixel(0,1).A==255,"odd texture row not unswizzled");
+            }
+            byte[] rgba32=new byte[64];rgba32[0]=4;rgba32[1]=2;rgba32[2]=0;
+            rgba32[56]=25;rgba32[57]=80;rgba32[58]=160;rgba32[59]=123;
+            using(var image=InventoryImages.Decode(rgba32))Check(image.GetPixel(0,1)==Color.FromArgb(123,25,80,160),"RGBA32 swizzle or alpha decode failed");
+            byte[] compressed;
+            using(var output=new MemoryStream()) {
+                byte[] header=new byte[37];header[25]=1;header[32]=(byte)rgba16.Length;output.Write(header,0,header.Length);
+                using(var deflate=new System.IO.Compression.DeflateStream(output,System.IO.Compression.CompressionMode.Compress,true))deflate.Write(rgba16,0,rgba16.Length);
+                compressed=output.ToArray();
+            }
+            using(var image=InventoryImages.Decode(compressed))Check(image.GetPixel(0,1).B==255,"compressed texture was not decoded");
+            Reject(delegate{InventoryImages.Decode(new byte[4]);},"short texture header accepted");
+            var invalid=(byte[])rgba16.Clone();invalid[2]=7;Reject(delegate{InventoryImages.Decode(invalid);},"unsupported palette texture accepted");
+            invalid=(byte[])rgba16.Clone();invalid[0]=128;Reject(delegate{InventoryImages.Decode(invalid);},"truncated pixels accepted");
+            invalid=(byte[])compressed.Clone();invalid[35]=127;Reject(delegate{InventoryImages.Decode(invalid);},"unbounded decompression allocation accepted");
+            invalid=(byte[])compressed.Clone();invalid[32]++;Reject(delegate{InventoryImages.Decode(invalid);},"incorrect expanded length accepted");
+            string wrongRom=Path.Combine(directory,"wrong-art-rom.z64");File.WriteAllBytes(wrongRom,Fixture());
+            Reject(delegate{InventoryImages.Load(wrongRom);},"art cache bypassed ROM verification");
+            var tracker=new InventoryTracker{known=true,current=0,shared=new bool[12],characters=new[]{
+                new CharacterInventory{id=0,weapons=1,items=new bool[27]},new CharacterInventory{id=1,weapons=2,items=new bool[28]},new CharacterInventory{id=2,weapons=4,items=new bool[28]}}};
+            tracker.Validate();
+            using(var window=new InventoryWindow(directory,"")) {
+                window.Apply(tracker,true);Check(window.SelectedCharacter==0,"inventory did not follow Vela enum 0");
+                tracker.current=2;window.Apply(tracker,false);Check(window.SelectedCharacter==0,"stale inventory changed selected character");
+                window.Apply(tracker,true);Check(window.SelectedCharacter==2,"live inventory did not follow Lupus");
+                var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+                var follow=(CheckBox)typeof(InventoryWindow).GetField("follow",flags).GetValue(window);follow.Checked=false;
+                tracker.current=1;window.Apply(tracker,true);Check(window.SelectedCharacter==2,"manual character selection was overridden");
+                var canvas=(InventoryCanvas)typeof(InventoryWindow).GetField("canvas",flags).GetValue(window);
+                window.Apply(tracker,false);Check(canvas.Value==null&&canvas.Shared==null,"stale ownership persisted after telemetry stopped");
+                window.Apply(null,false);Check(canvas.Value==null&&canvas.Shared==null,"stale ownership persisted after unavailable telemetry");
+                follow.Checked=true;window.Apply(tracker,true);Check(window.SelectedCharacter==1,"follow did not resume for Juno enum 1");
+                string badInventory=Path.Combine(directory,"bad-inventory");Directory.CreateDirectory(badInventory);
+                File.WriteAllText(Path.Combine(badInventory,"live.json"),"{\"schema\":2}");
+                window.BindDirectory(badInventory);Check(canvas.Value==null,"invalid schema retained ownership instead of waiting");
+            }
+        }
+
+        private static void MenuLiveRegressionTests(string directory) {
+            var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+            using(var map=new MapCanvas()) {
+                map.Size=new Size(800,600);
+                var project=typeof(MapCanvas).GetMethod("Project",flags,null,new[]{typeof(HeightPoint)},null);
+                var point=new HeightPoint(new float[]{.2f,0,.1f});
+                PointF anchor=(PointF)project.Invoke(map,new object[]{point});
+                var wheel=typeof(MapCanvas).GetMethod("OnMouseWheel",flags);
+                var cursor=new Point((int)anchor.X,(int)anchor.Y);
+                // Use an exact integral projected anchor and verify actual wheel dispatch.
+                point=new HeightPoint(new float[]{(cursor.X-(map.Width-30)/2f)/525f,0,(cursor.Y-(map.Height-25)/2f)/525f});
+                wheel.Invoke(map,new object[]{new MouseEventArgs(MouseButtons.None,0,cursor.X,cursor.Y,120)});
+                PointF after=(PointF)project.Invoke(map,new object[]{point});
+                Check(Math.Abs(after.X-cursor.X)<.01f&&Math.Abs(after.Y-cursor.Y)<.01f,"wheel zoom moved point under cursor");
+                for(int i=0;i<80;i++)map.ZoomAt(1.2f,cursor);
+                after=(PointF)project.Invoke(map,new object[]{point});
+                Check(Math.Abs(after.X-cursor.X)<.01f&&Math.Abs(after.Y-cursor.Y)<.01f,"zoom clamp drifted cursor anchor");
+                for(int i=0;i<100;i++)map.ZoomAt(1/1.2f,cursor);
+                after=(PointF)project.Invoke(map,new object[]{point});
+                Check(Math.Abs(after.X-cursor.X)<.01f&&Math.Abs(after.Y-cursor.Y)<.01f,"zoom out drifted cursor anchor");
+            }
+            string profile=Path.Combine(directory,"session-follow","default");Directory.CreateDirectory(profile);
+            string older=Path.Combine(LocalSetup.NavigationProfile(profile),"maps","aaa"),newer=Path.Combine(LocalSetup.NavigationProfile(profile),"maps","zzz");
+            Directory.CreateDirectory(older);Directory.CreateDirectory(newer);
+            Check(FrontendBridge.MapDirectory(profile)==Path.Combine(profile,"no-active-live-session"),"inactive tool resurrected saved map data");
+            string marker=Path.Combine(profile,"frontend-map-session.txt");File.WriteAllText(marker,older);
+            Check(FrontendBridge.MapDirectory(profile)!=older,"stopped process left a stale active map");
+            using(var process=Process.GetCurrentProcess())InventorySession.Record(profile,process);
+            Check(FrontendBridge.MapDirectory(profile)==older,"active map session was replaced by cached latest folder");
+            File.WriteAllText(marker,"disabled");
+            Check(FrontendBridge.MapDirectory(profile)!=newer,"ordinary run exposed an old map session");
+            File.Delete(marker);
+            Check(InventorySession.IsActive(profile),"live process identity not recognized");
+            File.WriteAllText(Path.Combine(profile,"inventory-session.txt"),Process.GetCurrentProcess().Id+"\n1");
+            Check(!InventorySession.IsActive(profile),"reused PID masqueraded as a live game");
+        }
+
+        private sealed class PublishedMarker {
+            internal uint Id,Color;
+            internal int Shape;
+            internal float X,Y,Z;
+            internal string Label,Details,Kind;
+        }
+        private static string SnapshotText(BinaryReader r) {
+            return Encoding.UTF8.GetString(r.ReadBytes(r.ReadInt32()));
+        }
+        private static System.Collections.Generic.List<PublishedMarker> PublishedMarkers(string path) {
+            var markers=new System.Collections.Generic.List<PublishedMarker>();
+            using(var r=new BinaryReader(File.OpenRead(path))) {
+                Check(r.ReadUInt32()==0x32544c4a,"Live tool snapshot signature");
+                r.BaseStream.Position=44;
+                for(int i=0;i<4;i++)SnapshotText(r);
+                r.BaseStream.Position+=68;
+                int triangles=r.ReadInt32();r.BaseStream.Position+=triangles*28;
+                int lines=r.ReadInt32();r.BaseStream.Position+=lines*24;
+                int count=r.ReadInt32();
+                for(int i=0;i<count;i++) {
+                    var m=new PublishedMarker {Id=r.ReadUInt32(),X=r.ReadSingle(),Y=r.ReadSingle(),Z=r.ReadSingle(),Shape=r.ReadInt32(),Color=r.ReadUInt32(),Label=SnapshotText(r),Details=SnapshotText(r),Kind=SnapshotText(r)};
+                    SnapshotText(r);markers.Add(m);
+                }
+            }
+            return markers;
+        }
+        private static void MapModPreferenceTests(string directory) {
+            string profile=Path.Combine(directory,"mod-preferences");Directory.CreateDirectory(profile);
+            var prefs=new MapModPreferences(profile);
+            Check(!prefs.Failed&&!prefs.Values.Health,"Waiting for a game must not fail Mods");
+            prefs.Choose(new MapMods{Health=true,Warp=true});
+            prefs.Sync("",null,false);
+            Check(!prefs.Failed&&prefs.Values.Health&&prefs.Values.Warp&&!prefs.Values.Kill,"Pre-game choice lost");
+            var reopened=new MapModPreferences(profile);
+            Check(reopened.Values.Health&&reopened.Values.Warp,"Reopening map lost preferences");
+            // Launch applies saved choices even with no map service running.
+            var launch=LocalSetup.LiveToolsStartInfo(Path.Combine(profile,"jfg-native-boot.exe"),Path.Combine(profile,"game.z64"),profile);
+            string session=launch.EnvironmentVariables["JFG_LIVE_OUTPUT"];
+            var applied=MapMods.Load(session,null);
+            Check(applied.Warp&&applied.Health&&!applied.Kill,"Launch did not apply pre-game preferences");
+            var live=new MapLive{mods_available=true,mod_warp_exits=true,mod_infinite_health=true,update=100};
+            prefs.Sync(session,live,true);Check(!prefs.Failed,"Compatible runtime was rejected");
+            live.mods_available=false;prefs.Sync(session,live,true);
+            Check(prefs.Failed&&prefs.ErrorVersion==1,"Confirmed unsupported runtime did not report failure");
+            prefs.Sync(session,live,true);Check(prefs.ErrorVersion==1,"Same failed connection repeated notification");
+            prefs.Sync("",null,false);Check(!prefs.Failed,"Disconnected session kept controls locked");
+            string next=Path.Combine(profile,"new-session");Directory.CreateDirectory(next);live.mods_available=true;
+            prefs.Sync(next,live,true);Check(!prefs.Failed&&prefs.Values.Health,"New session did not recover saved choices");
+            prefs.Choose(new MapMods{Kill=true});prefs.Sync(next,live,true);
+            for(int i=0;i<20;i++)prefs.Sync(next,live,true);
+            Check(!prefs.Failed,"Paused updates incorrectly timed out Mods");
+            live.update+=18;prefs.Sync(next,live,true);
+            Check(prefs.Failed&&prefs.ErrorVersion==2,"Ignored settings were not detected after game updates");
+            prefs.Choose(new MapMods());live.mod_warp_exits=live.mod_infinite_health=false;prefs.Sync(next,live,true);
+            Check(!prefs.Failed&&!new MapModPreferences(profile).Values.Kill,"Restore defaults did not recover and persist");
+            string broken=Path.Combine(directory,"unwritable-mods");Directory.CreateDirectory(broken);File.WriteAllText(Path.Combine(broken,"map-settings"),"block directory");
+            var failed=new MapModPreferences(broken);failed.Choose(new MapMods{Health=true});
+            Check(failed.Failed&&failed.ErrorVersion==1&&!failed.Values.Health,"Write failure looked like a successful toggle");
+            string invalid=Path.Combine(directory,"invalid-mods");Directory.CreateDirectory(Path.Combine(invalid,"map-settings"));File.WriteAllText(Path.Combine(invalid,"map-settings/mods.txt"),"broken");
+            Check(new MapModPreferences(invalid).Failed,"Corrupt saved Mods were ignored");
+            // Native bridge can save choices with no running game and no map.
+            string bridgeProfile=Path.Combine(directory,"pre-game-bridge");
+            var bridge=new NativeLiveTools(bridgeProfile,IntPtr.Zero,false);
+            var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+            string output=(string)typeof(NativeLiveTools).GetField("output",flags).GetValue(bridge);
+            File.WriteAllText(Path.Combine(output,"command-1.txt"),"health-mod 1");
+            typeof(NativeLiveTools).GetMethod("Commands",flags).Invoke(bridge,null);
+            Check(new MapModPreferences(bridgeProfile).Values.Health,"Native pre-game toggle was blocked");
+        }
+        private static void MapModsTests(string directory) {
+            string root=Path.Combine(directory,"mods-test");Directory.CreateDirectory(root);
+            var exit=new MapMarker{address=0x80120000,position=new float[]{10,20,30}};
+            var live=new MapLive{level=27,generation=3,timestamp_ms=NavigationExplorer.Clock,mods_available=true,gameplay_active=true,exits=new[]{exit}};
+            var map=new MapSnapshot{Live=live};
+            var mods=MapMods.Load(root,live);
+            Check(!mods.Warp&&!mods.Health&&!mods.Kill,"Ordinary session Mods must default off");
+            Reject(delegate{mods.WarpTo(root,map,exit.address,1,false);},"Disabled warp accepted");
+            mods.Health=true;mods.Save(root);mods=MapMods.Load(root,live);
+            Check(mods.Health&&!mods.Warp&&!mods.Kill,"Health toggle enabled unrelated Mods");
+            mods.Warp=true;mods.Kill=true;mods.Save(root);mods=MapMods.Load(root,live);
+            Check(mods.Warp&&mods.Health&&mods.Kill,"Mods did not survive reopening");
+            mods.WarpTo(root,map,exit.address,17,false);
+            string text=File.ReadAllText(Path.Combine(root,"warp-exit.txt"));
+            Check(text.StartsWith("JFGWARP1 27 3 17 ")&&text.TrimEnd().EndsWith(exit.address.ToString()),"Warp did not bind to current room and exit");
+            Reject(delegate{mods.WarpTo(root,map,0x80120004,18,false);},"Non-exit warp accepted");
+            live.timestamp_ms=NavigationExplorer.Clock-6000;
+            Reject(delegate{mods.WarpTo(root,map,exit.address,19,false);},"Stale map accepted");
+            mods.WarpTo(root,map,exit.address,20,true);
+            live.scripted_camera=true;Reject(delegate{mods.WarpTo(root,map,exit.address,21,true);},"Scripted scene warp accepted");
+            live.scripted_camera=false;live.timestamp_ms=NavigationExplorer.Clock;
+            live.mods_available=false;Reject(delegate{mods.WarpTo(root,map,exit.address,22,false);},"Old runtime accepted Mods");live.mods_available=true;
+            // Exercise the actual native bridge commands, including exact uint exit IDs.
+            var service=new NativeLiveTools(Path.Combine(root,"profile"),IntPtr.Zero,false);
+            var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;var type=typeof(NativeLiveTools);
+            type.GetField("map",flags).SetValue(service,map);type.GetField("active",flags).SetValue(service,true);type.GetField("directory",flags).SetValue(service,root);
+            var commands=type.GetMethod("Commands",flags);string output=(string)type.GetField("output",flags).GetValue(service);
+            Action<string> send=delegate(string command){File.WriteAllText(Path.Combine(output,"command-1.txt"),command);commands.Invoke(service,null);};
+            send("mods-off");mods=MapMods.Load(root,live);Check(!mods.Warp&&!mods.Health&&!mods.Kill,"Restore defaults did not disable Mods");
+            send("health-mod 1");send("kill-mod 1");mods=MapMods.Load(root,live);Check(mods.Health&&mods.Kill&&!mods.Warp,"Bridge toggles coupled");
+            send("warp-mod 1");send("warp "+exit.address);Check(File.ReadAllText(Path.Combine(root,"warp-exit.txt"))!=text,"Bridge did not dispatch warp");
+            string before=File.ReadAllText(Path.Combine(root,"warp-exit.txt"));send("warp-mod 0");send("warp "+exit.address);
+            Check(File.ReadAllText(Path.Combine(root,"warp-exit.txt"))==before,"Bridge dispatched disabled warp");
+            send("mods-off");Check(File.ReadAllText(Path.Combine(root,"mods.txt")).Trim()=="JFGMODS1 0 0 0","Defaults not persisted");
+        }
+        private static void EnemyMarkerTests(string directory) {
+            var enemy=new MapActor {address=0x80001000,behavior=24,name="Squad member",position=new float[]{20,0,40},hostile_known=true,hostile=true,health=200};
+            var dead=new MapActor {address=0x80002000,behavior=24,position=new float[]{50,0,60},hostile_known=true,hostile=true,health=0};
+            var friendly=new MapActor {address=0x80003000,behavior=24,position=new float[]{30,0,60},hostile_known=true,health=100};
+            var unknown=new MapActor {address=0x80004000,behavior=24,position=new float[]{40,0,60},health=100};
+            var playerActor=new MapActor {address=0x80005000,position=new float[]{50,0,50},hostile_known=true,hostile=true,health=100};
+            var mesh=new MapGeometry {vertices=new[]{new float[]{0,0,0},new float[]{0,0,100},new float[]{100,0,0}},triangles=new[]{new MapFace{v=new[]{0,1,2}}}};
+            var live=new MapLive {level=1,generation=1,update=1,player=new MapPlayer{address=playerActor.address,position=playerActor.position},actors=new[]{enemy,dead,friendly,unknown,playerActor},exits=new MapMarker[0],markers=new MapMarker[0],npcs=new MapMarker[0]};
+            var service=new NativeLiveTools(Path.Combine(directory,"enemy-map"),IntPtr.Zero,false);
+            var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+            var type=typeof(NativeLiveTools);
+            type.GetField("map",flags).SetValue(service,new MapSnapshot{Mesh=mesh,Live=live});
+            type.GetField("layers",flags).SetValue(service,new MapLayers(mesh));
+            type.GetField("active",flags).SetValue(service,true);
+            type.GetField("collision",flags).SetValue(service,false);
+            type.GetField("origins",flags).SetValue(service,false);
+            var publish=type.GetMethod("Publish",flags);
+            string output=Path.Combine((string)type.GetField("output",flags).GetValue(service),"snapshot.bin");
+            publish.Invoke(service,null);var first=PublishedMarkers(output);
+            Check(first.Count==2,"Enemies must appear with overlays off; dead, friendly, unknown and player actors must not");
+            var marker=first.Find(delegate(PublishedMarker m){return m.Kind=="enemy";});
+            Check(marker!=null&&marker.Id==enemy.address&&marker.Shape==2&&marker.Color==0xef6b73ff,"Enemy marker identity/style");
+            Check(marker.Label=="Enemy: Squad member"&&marker.Details.Contains("Health: 200"),"Enemy inspector health");
+            enemy.position=new float[]{75,0,25};live.update++;
+            publish.Invoke(service,null);var moved=PublishedMarkers(output).Find(delegate(PublishedMarker m){return m.Kind=="enemy";});
+            Check(moved!=null&&moved.X==75&&moved.Z==25,"Enemy markers must follow current positions");
+            type.GetField("origins",flags).SetValue(service,true);
+            publish.Invoke(service,null);var overlays=PublishedMarkers(output);
+            Check(overlays.FindAll(delegate(PublishedMarker m){return m.Id==enemy.address;}).Count==1,"Origin overlay must not duplicate enemy markers");
+            type.GetField("origins",flags).SetValue(service,false);
+            enemy.health=0;publish.Invoke(service,null);
+            Check(PublishedMarkers(output).Count==1,"Dead enemy marker must disappear on the next update");
+            enemy.health=100;live.actors=new MapActor[0];publish.Invoke(service,null);
+            Check(PublishedMarkers(output).Count==1,"Despawned enemy marker must disappear on the next update");
+            using(var json=new MemoryStream(Encoding.UTF8.GetBytes("{\"address\":2147487744,\"behavior\":24,\"position\":[1,2,3]}"))) {
+                var old=(MapActor)new System.Runtime.Serialization.Json.DataContractJsonSerializer(typeof(MapActor)).ReadObject(json);
+                Check(!old.LiveEnemy,"Older telemetry must not guess enemy identity");
+            }
+        }
+        private static void InventoryModelTests(string directory) {
+            byte[] ia=new byte[48];ia[0]=8;ia[1]=2;ia[2]=5;ia[44]=0x4f;
+            using(var image=InventoryImages.Decode(ia))Check(image.GetPixel(0,1)==Color.FromArgb(255,68,68,68),"IA8 texture intensity or row order lost");
+            byte[] model=new byte[240];model[19]=3;model[21]=1;model[23]=1;
+            model[27]=136;model[31]=168;model[35]=208;model[39]=136;
+            model[136]=255;model[152]=255;model[161]=1;
+            // Three independently authored positions in the game's packed layout.
+            model[168]=255;model[169]=246;model[170]=255;model[171]=246;
+            model[178]=0;model[179]=10;model[180]=255;model[181]=246;
+            model[188]=0;model[189]=0;model[190]=0;model[191]=10;
+            model[209]=0;model[210]=1;model[211]=2;
+            using(var image=InventoryModel.Render(model,delegate(int id){throw new Exception("Untextured fixture loaded a texture");})) {
+                int visible=0;for(int y=0;y<128;y++)for(int x=0;x<128;x++)if(image.GetPixel(x,y).A>0)visible++;
+                Check(visible>2000&&visible<8000,"model triangle projection or rasterization failed");
+                Check(image.GetPixel(0,0).A==0,"thumbnail background is not transparent");
+            }
+            var invalid=(byte[])model.Clone();invalid[211]=4;
+            Reject(delegate{InventoryModel.Render(invalid,delegate(int id){return null;});},"model vertex index escaped bounds");
+            invalid=(byte[])model.Clone();invalid[19]=255;invalid[18]=255;
+            Reject(delegate{InventoryModel.Render(invalid,delegate(int id){return null;});},"oversized model was accepted");
+            string wrong=Path.Combine(directory,"wrong-checksum-art.z64");
+            using(var stream=File.Create(wrong)){stream.Write(Fixture(),0,32);stream.SetLength(LocalSetup.RomSize);}
+            Reject(delegate{InventoryImages.Load(wrong);},"art cache accepted a different ROM checksum");
+        }
+
         private static void LayerTests()
         {
             MapGeometry mesh = new MapGeometry {
@@ -237,6 +489,10 @@ namespace JfgLauncher
                 Check(File.ReadAllText(Path.Combine(normalProfile, "jfg.flash")) == "normal campaign", "mod changed normal campaign");
                 Check(secondModStart.EnvironmentVariables["JFG_MOD_OUTPUT"] != modStart.EnvironmentVariables["JFG_MOD_OUTPUT"], "export sessions share stale maps");
                 ProcessStartInfo normalStart = LocalSetup.StartInfo(game, wrongRom, normalProfile);
+                var liveStart=LocalSetup.LiveToolsStartInfo(game,wrongRom,normalProfile);
+                Check(liveStart.Arguments==normalStart.Arguments,"live tools changed the normal save profile");
+                Check(liveStart.EnvironmentVariables.ContainsKey("JFG_LIVE_OUTPUT")&&!liveStart.EnvironmentVariables.ContainsKey("JFG_NAVIGATION_MOD")&&!liveStart.EnvironmentVariables.ContainsKey("JFG_MOD_OUTPUT"),"live tools enabled navigation cheats");
+                Check(LocalSetup.LiveToolsStartInfo(game,wrongRom,normalProfile).EnvironmentVariables["JFG_LIVE_OUTPUT"]!=liveStart.EnvironmentVariables["JFG_LIVE_OUTPUT"],"live tools reused old session exports");
                 Check(!normalStart.EnvironmentVariables.ContainsKey("JFG_NAVIGATION_MOD") && !normalStart.EnvironmentVariables.ContainsKey("JFG_MOD_OUTPUT"), "mod enabled for normal launch");
                 Reject(delegate { ControllerProfile.Parse(controller.Encode() + "map0=27\n"); }, "duplicate mapping accepted");
                 Reject(delegate { ControllerProfile.Parse(controller.Encode().Replace("device=2", "device=4")); }, "bad controller port accepted");
@@ -267,6 +523,10 @@ namespace JfgLauncher
                 File.WriteAllText(support.NativePath, "native=running\nfailure=runlink/guest-overlay-load\nPRIVATE-PATH-CANARY\nnative_exception=0xc0000005\n");
                 File.WriteAllText(Path.Combine(support.DirectoryPath, "jfg.flash"), "SAVE-CONTENTS-CANARY");
                 File.WriteAllText(Path.Combine(support.DirectoryPath, "game.z64"), "ROM-CONTENTS-CANARY");
+                string assetCache=Path.Combine(support.DirectoryPath,"asset-cache");Directory.CreateDirectory(assetCache);
+                File.WriteAllText(Path.Combine(assetCache,"weapon-0.png"),"ROM-ART-CANARY");
+                File.WriteAllText(Path.Combine(assetCache,"manifest.json"),"ROM-MANIFEST-CANARY");
+                File.WriteAllText(Path.Combine(support.DirectoryPath,"item-200.png"),"ROM-THUMBNAIL-CANARY");
                 string zipPath = SupportSession.Export(reportRoot, Path.Combine(directory, "exports"));
                 using (FileStream file = File.OpenRead(zipPath))
                 using (System.IO.Compression.ZipArchive zip = new System.IO.Compression.ZipArchive(file)) {
@@ -461,6 +721,12 @@ namespace JfgLauncher
                     Check(window.Text == "JFG Launcher Preview", "UI construction failed");
                     window.Close();
                 }
+                InventoryAssetTests(directory);
+                InventoryModelTests(directory);
+                MapModPreferenceTests(directory);
+                MapModsTests(directory);
+                EnemyMarkerTests(directory);
+                MenuLiveRegressionTests(directory);
                 checks += NavigationExplorerTests.Run(directory);
                 checks += NavigationCollisionTests.Run(directory);
                 checks += BoxJumpTests.Run();

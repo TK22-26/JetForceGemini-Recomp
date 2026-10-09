@@ -33,6 +33,7 @@ scripts may still be part of the public build.
 
 - [Recent gameplay fixes](boot-gameplay-fix.md).
 - [Runtime research summary](runtime-research.md).
+- [Perfect Dark PC references](../upstream/perfect-dark-pc-reference.md): retained input sources, implemented PC bindings, experimental manual aim, and remaining modern-control work.
 - [Automation operation and boundaries](automation.md).
 - [Execution profiles](../adr/0002-execution-profiles.md).
 - [Dependency architecture](../adr/0003-phase4-dependency-architecture.md).

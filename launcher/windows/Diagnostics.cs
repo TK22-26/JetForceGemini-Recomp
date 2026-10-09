@@ -159,7 +159,7 @@ namespace JfgLauncher
         }
     }
 
-    internal sealed class SupportWindow : Form
+    internal sealed class SupportWindow : ApplicationWindow
     {
         internal SupportWindow(string root, string destination, string active)
         {

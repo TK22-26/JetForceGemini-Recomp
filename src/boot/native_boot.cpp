@@ -35,6 +35,7 @@
 #include "jfg/runtime/input_stick.hpp"
 #include "jfg/runtime/controller_mapping.hpp"
 #include "jfg/runtime/controller_ports.hpp"
+#include "jfg/runtime/pc_input.hpp"
 #include "jfg/runtime/support_log.hpp"
 #include "jfg/runtime/support_snapshot.hpp"
 #include <iterator>
@@ -1495,6 +1496,21 @@ struct State {
   bool fast_replay = false;
   bool realtime_replay = false;
   bool exit_requested = false;
+  bool pc_experimental = false;
+  std::array<jfg::PcInputConfig,4> pc_input{};
+  std::array<jfg::ControllerReplaySample,4> pc_frames{};
+  std::array<bool,4> pc_mouse_used{};
+  bool pc_record_extended = false;
+  std::array<jfg::PcOrbit,4> pc_orbits{};
+  std::uint32_t pc_camera_actor=0,pc_camera_control=0,pc_camera_stack=0;
+  jfg::PcLookDelta pc_camera_look{};
+  std::uint64_t pc_aim_calls = 0, pc_direct_aim_calls = 0;
+  std::array<jfg::N64StickSample,4> pc_aim{};
+  std::array<int,4> pc_devices{-2,-2,-2,-2};
+  jfg::PcWheelPulses pc_wheel;
+  jfg::PcMouseMotion pc_mouse;
+  int pc_wheel_key = 0;
+  bool pc_mouse_captured = false, pc_input_blocked = true, pc_raw_available = false;
   std::array<bool, 256U> host_keys{};
   std::array<bool, 256U> host_key_presses{};
   std::uint16_t latched_controller_buttons = 0U;
@@ -1673,6 +1689,7 @@ public:
     WNDCLASSW window_class{};
     window_class.lpfnWndProc = window_proc;
     window_class.hInstance = instance_;
+    window_class.hIcon = LoadIconW(instance_, MAKEINTRESOURCEW(1));
     window_class.lpszClassName = kClassName;
     atom_ = RegisterClassW(&window_class);
     if (atom_ == 0U)
@@ -1694,6 +1711,10 @@ public:
         parent?0:CW_USEDEFAULT, rectangle.right - rectangle.left,
         rectangle.bottom - rectangle.top, parent, nullptr, instance_, &state);
     state.native_window = window_;
+    if(window_) {
+      RAWINPUTDEVICE mouse{0x01,0x02,0,window_};
+      state.pc_raw_available=RegisterRawInputDevices(&mouse,1,sizeof(mouse))!=FALSE;
+    }
     if(parent && window_)PostMessageW(GetAncestor(parent,GA_ROOT),WM_APP+20,reinterpret_cast<WPARAM>(window_),0);
     if (window_ != nullptr && visible) {
       ShowWindow(window_, SW_SHOW);
@@ -1702,6 +1723,7 @@ public:
   }
 
   ~LiveRt64Window() {
+    ClipCursor(nullptr);
     if (window_ != nullptr)
       DestroyWindow(window_);
     if (atom_ != 0U)
@@ -1723,6 +1745,32 @@ private:
     }
     auto *const state = reinterpret_cast<State *>(
         GetWindowLongPtrW(window, GWLP_USERDATA));
+    if(state && message==WM_INPUT) {
+      RAWINPUT raw{};UINT size=sizeof(raw);
+      if(GetRawInputData(reinterpret_cast<HRAWINPUT>(lparam),RID_INPUT,&raw,&size,sizeof(RAWINPUTHEADER))!=UINT(-1) &&
+         raw.header.dwType==RIM_TYPEMOUSE && !(raw.data.mouse.usFlags&MOUSE_MOVE_ABSOLUTE) && state->pc_mouse_captured)
+        state->pc_mouse.add(raw.data.mouse.lLastX,raw.data.mouse.lLastY);
+    }
+    if(state && message==WM_SETCURSOR && state->pc_mouse_captured) { SetCursor(nullptr);return TRUE; }
+    if(state && message>=WM_MOUSEFIRST && message<=WM_MOUSELAST) {
+      int key=0;bool down=false;
+      switch(message) {
+      case WM_LBUTTONDOWN:case WM_LBUTTONUP:key=VK_LBUTTON;down=message==WM_LBUTTONDOWN;break;
+      case WM_RBUTTONDOWN:case WM_RBUTTONUP:key=VK_RBUTTON;down=message==WM_RBUTTONDOWN;break;
+      case WM_MBUTTONDOWN:case WM_MBUTTONUP:key=VK_MBUTTON;down=message==WM_MBUTTONDOWN;break;
+      case WM_XBUTTONDOWN:case WM_XBUTTONUP:key=HIWORD(wparam)==XBUTTON1?VK_XBUTTON1:VK_XBUTTON2;down=message==WM_XBUTTONDOWN;break;
+      case WM_MOUSEWHEEL:state->pc_wheel.add(static_cast<short>(HIWORD(wparam)));break;
+      default:break;
+      }
+      if(key) {
+        if(down){SetFocus(window);SetCapture(window);}
+        if(down && !state->host_keys[static_cast<std::size_t>(key)])state->host_key_presses[static_cast<std::size_t>(key)]=true;
+        state->host_keys[static_cast<std::size_t>(key)]=down;
+        if(!down && GetCapture()==window && !state->host_keys[VK_LBUTTON] && !state->host_keys[VK_RBUTTON] &&
+           !state->host_keys[VK_MBUTTON] && !state->host_keys[VK_XBUTTON1] && !state->host_keys[VK_XBUTTON2])ReleaseCapture();
+        return message==WM_XBUTTONDOWN || message==WM_XBUTTONUP?TRUE:0;
+      }
+    }
     if (state != nullptr &&
         (message == WM_KEYDOWN || message == WM_KEYUP) && wparam < 256U) {
       if(GetParent(window) && message==WM_KEYDOWN && (wparam==VK_F11 || wparam==VK_ESCAPE)) {
@@ -1734,7 +1782,13 @@ private:
       state->host_keys[key] = message == WM_KEYDOWN;
       return 0;
     }
+    if(state && message==WM_CAPTURECHANGED) {
+      for(auto key:{VK_LBUTTON,VK_RBUTTON,VK_MBUTTON,VK_XBUTTON1,VK_XBUTTON2})state->host_keys[static_cast<std::size_t>(key)]=false;
+    }
     if (message == WM_KILLFOCUS && state != nullptr) {
+      if(GetCapture()==window)ReleaseCapture();
+      state->pc_mouse_captured=false;state->pc_input_blocked=true;
+      state->pc_mouse.clear();state->pc_wheel.clear();ClipCursor(nullptr);
       state->host_key_presses.fill(false);
       state->host_keys.fill(false);
       return 0;
@@ -1842,7 +1896,27 @@ void reload_controller_ports(State &state) {
   state.controller_config_check = now;
   if (state.controller_config_path.empty())
     return;
+  std::string pc_optin;
+  std::ifstream pc_switch(state.controller_config_path.parent_path() / "experimental-controls.ini",std::ios::binary|std::ios::ate);
+  if(pc_switch && pc_switch.tellg()>0 && pc_switch.tellg()<=128) {
+    pc_switch.seekg(0);pc_optin.assign(std::istreambuf_iterator<char>(pc_switch),{});
+  }
+  const bool pc_enabled=jfg::pc_experiments_enabled(pc_optin);
+  if(pc_enabled!=state.pc_experimental) {
+    state.pc_experimental=pc_enabled;state.pc_aim.fill({});
+    state.pc_mouse.clear();state.pc_wheel.clear();state.pc_wheel_key=0;
+    state.pc_mouse_captured=false;ClipCursor(nullptr);
+    SetCursor(LoadCursorW(nullptr,MAKEINTRESOURCEW(32512)));
+    (void)state.controller_input_gate.blocked(true,state.controller_ports.samples);
+  }
   for (std::size_t p = 0; p < 4; ++p) {
+    const auto pc_path=state.controller_config_path.parent_path() /
+      (p==0?"pc-input.ini":"pc-input-"+std::to_string(p+1)+".ini");
+    std::ifstream pc_file(pc_path,std::ios::binary|std::ios::ate);
+    if(pc_file && pc_file.tellg()>0 && pc_file.tellg()<=4096) {
+      pc_file.seekg(0);const std::string text{std::istreambuf_iterator<char>(pc_file),{}};
+      (void)jfg::parse_pc_input(text,state.pc_input[p]);
+    }
     const auto path =
         p == 0 ? state.controller_config_path
                : state.controller_config_path.parent_path() /
@@ -1857,58 +1931,46 @@ void reload_controller_ports(State &state) {
       state.controller_ports.configure(p, mapping);
   }
 }
-jfg::ControllerPortSample sample_keyboard_port(const State &state) {
-  jfg::ControllerPortSample result;
-  result.connected = true;
-  constexpr std::array<std::pair<int, std::uint16_t>, 14> keys{
-      {{'Z', 0x8000},
-       {'X', 0x4000},
-       {'C', 0x2000},
-       {VK_RETURN, 0x1000},
-       {VK_UP, 0x0800},
-       {VK_DOWN, 0x0400},
-       {VK_LEFT, 0x0200},
-       {VK_RIGHT, 0x0100},
-       {'Q', 0x0020},
-       {'E', 0x0010},
-       {'I', 8},
-       {'K', 4},
-       {'J', 2},
-       {'L', 1}}};
-  for (const auto &[key, mask] : keys)
-    if (host_key_down(state, key))
-      result.buttons |= mask;
-  if (host_key_down(state, VK_SPACE))
-    result.buttons |= 0x8000;
-  const int magnitude = host_key_down(state, VK_SHIFT) ? 127 : 80;
-  result.x =
-      static_cast<std::int8_t>((host_key_down(state, 'D') ? magnitude : 0) -
-                               (host_key_down(state, 'A') ? magnitude : 0));
-  result.y =
-      static_cast<std::int8_t>((host_key_down(state, 'W') ? magnitude : 0) -
-                               (host_key_down(state, 'S') ? magnitude : 0));
-  return result;
+jfg::ControllerPortSample sample_keyboard_port(const State &state,std::size_t port) {
+  const auto down=[&](int key) {
+    return key>=256?state.pc_wheel_key==key:host_key_down(state,key);
+  };
+  auto sample=jfg::map_pc_keyboard(jfg::effective_pc_input(state.pc_experimental,state.pc_input[port]),down);
+  jfg::mod::Memory memory({state.rdram,kRdramSize});
+  if(state.pc_experimental && (!jfg::mod::gameplay_active(memory,state.phase9_player_actor) ||
+     memory.u8(0x800FD7BDU)!=0))
+    sample=jfg::map_pc_menu(sample,down);
+  return sample;
 }
 void sample_controller_ports(State &state) {
   reload_controller_ports(state);
+  state.pc_wheel_key=state.pc_wheel.sample();
+  state.pc_aim.fill({});
   std::array<bool, 4> available{};
   std::array<jfg::StandardControllerSample, 4> hardware{};
   for (std::size_t p = 0; p < 4; ++p)
     available[p] = read_xinput_device(static_cast<int>(p), hardware[p]);
   const auto devices = state.controller_ports.devices(available);
+  state.pc_devices=devices;
   for (std::size_t p = 0; p < 4; ++p) {
     auto &sample = state.controller_ports.samples[p];
     sample = {};
     const int device = devices[p];
     if (device == -3) {
-      sample = sample_keyboard_port(state);
+      sample = sample_keyboard_port(state,p);
       continue;
     }
     if (device < 0 || !available[static_cast<std::size_t>(device)])
       continue;
+    if(state.pc_experimental && state.pc_input[p].dual_stick)
+      state.pc_aim[p]=jfg::pc_aim_stick(state.pc_input[p],hardware[static_cast<std::size_t>(device)],state.controller_ports.mappings[p].stick);
+    auto movement=hardware[static_cast<std::size_t>(device)];
+    if(state.pc_experimental && state.pc_input[p].dual_stick) {
+      const std::size_t aim_axis=state.controller_ports.mappings[p].stick==0?2U:0U;
+      movement.axes[aim_axis]=movement.axes[aim_axis+1U]=0;
+    }
     const auto mapped =
-        jfg::map_controller(state.controller_ports.mappings[p],
-                            hardware[static_cast<std::size_t>(device)]);
+        jfg::map_controller(state.controller_ports.mappings[p],movement);
     sample = {mapped.buttons, static_cast<std::int8_t>(mapped.stick.x),
               static_cast<std::int8_t>(mapped.stick.y), true};
   }
@@ -1939,12 +2001,15 @@ void sample_live_controller(State &state) noexcept {
   int stick_x = 0;
   int stick_y = 0;
   if(!state.input_replay_loaded)sample_controller_ports(state);
+  else reload_controller_ports(state);
+  state.pc_frames.fill({});state.pc_mouse_used.fill(false);
   bool connected = state.controller_ports.samples[0].connected;
   if (state.input_replay_loaded) {
     const jfg::ControllerReplaySample replay =
         state.input_replay_by_poll
             ? state.input_replay.sample_by_poll(state.controller_samples)
             : state.input_replay.sample_at(state.vi_retraces);
+    if(state.pc_experimental)state.pc_frames[0]=replay;
     connected = replay.connected;
     buttons = replay.buttons;
     stick_x = replay.stick_x;
@@ -1957,7 +2022,44 @@ void sample_live_controller(State &state) noexcept {
   const HWND root=state.native_window ? GetAncestor(static_cast<HWND>(state.native_window),GA_ROOT) : nullptr;
   const bool settings_capture=state.play_mode && root && GetPropW(root,L"JfgSettingsOpen")!=nullptr;
   const bool ui_capture=state.play_mode && root && (GetForegroundWindow()!=root || settings_capture);
-  const bool block_physical=state.controller_input_gate.blocked(ui_capture,state.controller_ports.samples);
+  auto release_samples=state.controller_ports.samples;
+  for(std::size_t p=0;p<4;++p)if(state.pc_aim[p].x || state.pc_aim[p].y)release_samples[p].buttons|=1;
+  const bool block_physical=state.controller_input_gate.blocked(ui_capture,release_samples);
+  state.pc_input_blocked=block_physical && !state.input_replay_loaded;
+  jfg::mod::Memory pc_memory({state.rdram,kRdramSize});
+  bool want_mouse=false;
+  for(std::size_t p=0;p<4;++p)
+    want_mouse|=state.pc_devices[p]==-3 && state.pc_input[p].mouse_aim && state.controller_ports.samples[p].connected &&
+      (state.pc_input[p].modern || (state.controller_ports.samples[p].buttons&0x10)!=0);
+  want_mouse=want_mouse && state.pc_experimental && state.pc_raw_available && !block_physical && !state.input_replay_loaded && (state.input_record_path.empty() || state.pc_record_extended) &&
+    jfg::mod::gameplay_active(pc_memory,state.phase9_player_actor) && pc_memory.u8(0x800FD7BDU)==0 &&
+    !jfg::mod::scripted_camera_active(pc_memory,state.phase9_player_actor);
+  if(want_mouse && state.native_window) {
+    const HWND window=static_cast<HWND>(state.native_window);RECT rect{};GetClientRect(window,&rect);
+    MapWindowPoints(window,nullptr,reinterpret_cast<POINT*>(&rect),2);ClipCursor(&rect);SetCursor(nullptr);
+  } else {
+    if(state.pc_mouse_captured){ClipCursor(nullptr);SetCursor(LoadCursorW(nullptr,MAKEINTRESOURCEW(32512)));}
+    state.pc_mouse.clear();
+  }
+  state.pc_mouse_captured=want_mouse;
+  if(block_physical){state.pc_aim.fill({});state.pc_wheel.clear();state.pc_mouse.clear();state.pc_orbits.fill({});}
+  if(!state.pc_experimental || pc_memory.u8(0x800FD7BDU)!=0 || !jfg::mod::gameplay_active(pc_memory,state.phase9_player_actor) ||
+     jfg::mod::scripted_camera_active(pc_memory,state.phase9_player_actor))state.pc_orbits.fill({});
+  if(state.pc_experimental && !state.input_replay_loaded && !block_physical &&
+     (state.input_record_path.empty() || state.pc_record_extended)) {
+    for(std::size_t p=0;p<4;++p) {
+      auto &frame=state.pc_frames[p];const auto &config=state.pc_input[p];
+      if(state.pc_devices[p]==-3 && config.mouse_aim && state.pc_mouse_captured) {
+        frame.pc_mode=config.modern?3:1;
+        jfg::PcLookDelta motion;
+        if(config.modern)motion=state.pc_mouse.take_angles(config);
+        else {const auto raw=state.pc_mouse.take(config);motion={raw.x,raw.y};}
+        frame.look_x=static_cast<std::int16_t>(motion.x);frame.look_y=static_cast<std::int16_t>(motion.y);
+      } else if(state.pc_devices[p]>=0 && config.dual_stick) {
+        frame.pc_mode=config.modern?4:2;frame.look_x=state.pc_aim[p].x;frame.look_y=state.pc_aim[p].y;
+      }
+    }
+  }
   if(block_physical && !state.input_replay_loaded) {
     buttons=0;stick_x=stick_y=0;
     for(auto& sample:state.controller_ports.samples){sample.buttons=0;sample.x=sample.y=0;}
@@ -2025,11 +2127,18 @@ void sample_live_controller(State &state) noexcept {
   state.latched_controller_stick_x = static_cast<std::int8_t>(stick_x);
   state.latched_controller_stick_y = static_cast<std::int8_t>(stick_y);
   trace_phase9_event(state, "input-poll", state.controller_samples);
-  if (!state.input_replay_loaded && state.input_record.is_open()) {
+  // Record the effective packet and separate look channel, including an
+  // explicitly requested replay-to-recording conversion for qualification.
+  if (state.input_record.is_open()) {
     state.input_record << state.vi_retraces << ',' << state.vi_retraces + 1U
                        << ',' << (connected ? 1 : 0) << ',' << std::hex
                        << buttons << std::dec << ',' << stick_x << ','
-                       << stick_y << '\n';
+                       << stick_y;
+    if(state.pc_record_extended) {
+      const auto &pc=state.pc_frames[0];
+      state.input_record << ',' << int(pc.pc_mode) << ',' << pc.look_x << ',' << pc.look_y;
+    }
+    state.input_record << '\n';
   }
   if (state.phase95_poll_trace.is_open()) {
     hle::GuestMemory memory({state.rdram, kRdramSize},
@@ -2270,12 +2379,22 @@ bool write_mod_export(const std::filesystem::path &path, const std::string &text
 }
 
 void update_navigation_mod(State &state) {
-  if(!state.navigation_mod.enabled)return;
+  if(!state.navigation_mod.observing())return;
   auto &mod=state.navigation_mod;
   mod.dialogue=navigation_dialogue(state);
   jfg::mod::Memory memory({state.rdram,kRdramSize});
   try {
     const auto list=jfg::mod::actors(memory);
+    if (mod.updates % 6U == 0U) {
+      std::ifstream settings(state.navigation_output / L"mods.txt", std::ios::binary | std::ios::ate);
+      if (settings && settings.tellg() <= 128) { settings.seekg(0); (void)mod.configure_mods(settings); }
+      std::ifstream warp(state.navigation_output / L"warp-exit.txt", std::ios::binary | std::ios::ate);
+      if (warp && warp.tellg() <= 256) {
+        warp.seekg(0);
+        const auto stamp=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        (void)mod.warp_to_exit(warp, memory, list, stamp);
+      }
+    }
     bool player_present=false;
     for(const auto &actor:list) {
       if(actor.address==mod.player)player_present=true;
@@ -2286,12 +2405,12 @@ void update_navigation_mod(State &state) {
     ++mod.updates;
     const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     const auto ai_level = memory.u32(0x800FB114U);
-    if (mod.updates % 6U == 0U) {
+    if (mod.enabled && mod.updates % 6U == 0U) {
       const auto command_path = state.navigation_output / L"ai-command.txt";
       std::ifstream command(command_path, std::ios::binary | std::ios::ate);
       if (command && command.tellg() <= 32768) { command.seekg(0); (void)mod.pilot.command(command, ai_level, mod.generation, now); }
     }
-    if (mod.player != 0U) {
+    if (mod.enabled && mod.player != 0U) {
       const auto p = jfg::mod::position(memory, mod.player);
       const auto camera = jfg::mod::control_camera(memory);
       mod.pilot.camera_heading(camera.known, camera.yaw);
@@ -5256,7 +5375,166 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     fail_closed_dispatch(state, "mmio", "unsupported-register", target);
   ++state.dispatch_calls;
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-  if (state.navigation_mod.enabled) {
+  // The normal camera has computed its desired point, but has not yet run
+  // scenery constraints. Feed the orbit into that existing solver, never over
+  // its final position. Qualify both the owning routine and this call site.
+  if(target==0x800446E4U && state.pc_camera_actor!=0 &&
+     static_cast<std::uint32_t>(context->r29)==state.pc_camera_stack) {
+    jfg::mod::Memory ram({rdram,kRdramSize});
+    const auto stack=static_cast<std::uint32_t>(context->r29);
+    const auto actor=state.pc_camera_actor,control=state.pc_camera_control;
+    const auto port=ram.u8(control);
+    if(port<4 && ram.valid(stack,0xF4U) && ram.u32(stack+0xF0U)==actor && ram.u32(0x8002E158U)==0x0C0111B9U) {
+      auto &orbit=state.pc_orbits[port];
+      const auto camera=ram.u32(0x800F6DC0U);
+      const float px=ram.f32(actor+0xCU),py=ram.f32(actor+0x10U)+40.0F,pz=ram.f32(actor+0x14U);
+      const float dx=ram.f32(stack+0x8CU)-px,dy=ram.f32(stack+0x90U)-py,dz=ram.f32(stack+0x94U)-pz;
+      const float radius=std::sqrt(dx*dx+dy*dy+dz*dz);
+      if(ram.valid(camera,0x4CU) && std::isfinite(radius) && radius>=40.0F && radius<=1000.0F) {
+        if(!orbit.active || orbit.actor!=actor || state.vi_retraces-orbit.retrace>15U) {
+          orbit.yaw=ram.s16(camera);
+          orbit.pitch=static_cast<int>(std::lround(std::atan2(dy,std::sqrt(dx*dx+dz*dz))*65536.0F/6.283185307179586F));
+        }
+        orbit.active=true;orbit.actor=actor;orbit.retrace=state.vi_retraces;
+        orbit.yaw=jfg::pc_wrap_angle(orbit.yaw+state.pc_camera_look.x);
+        orbit.pitch=std::clamp(orbit.pitch-state.pc_camera_look.y,-8192,12288);
+        const auto point=jfg::pc_orbit_point(orbit.yaw,orbit.pitch,radius);
+        hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
+        (void)memory.write_u32(stack+0x8CU,std::bit_cast<std::uint32_t>(px+point.x));
+        (void)memory.write_u32(stack+0x90U,std::bit_cast<std::uint32_t>(py+point.y));
+        (void)memory.write_u32(stack+0x94U,std::bit_cast<std::uint32_t>(pz+point.z));
+        state.gameplay_trace.event("pc-orbit",{state.vi_retraces,state.controller_samples,port,
+          static_cast<std::uint16_t>(orbit.yaw),static_cast<std::uint16_t>(orbit.pitch),
+          std::bit_cast<std::uint32_t>(radius),static_cast<std::uint32_t>(state.pc_camera_look.x),
+          static_cast<std::uint32_t>(state.pc_camera_look.y)});
+      }
+    }
+  }
+  // The scenery solver can leave its point exactly on a wall. Keep a small
+  // near-plane clearance toward its focus, only when collision moved the
+  // requested orbit point. Preserve the solver's unblocked result verbatim.
+  if(target==0x8002CC70U && state.pc_camera_actor!=0 &&
+     static_cast<std::uint32_t>(context->r29)==state.pc_camera_stack) {
+    jfg::mod::Memory ram({rdram,kRdramSize});
+    const auto focus=static_cast<std::uint32_t>(context->r4),point=static_cast<std::uint32_t>(context->r5);
+    const auto stack=state.pc_camera_stack;
+    if(focus==stack+0x98U && point==stack+0x8CU && ram.valid(stack,0xA4U) &&
+       ram.u32(target)==0x27BDFF60U && ram.u32(target+4U)==0xAFBF002CU) {
+      const jfg::PcOrbitPoint from{ram.f32(focus),ram.f32(focus+4U),ram.f32(focus+8U)};
+      const jfg::PcOrbitPoint wanted{ram.f32(point),ram.f32(point+4U),ram.f32(point+8U)};
+      auto* original=jfg_generated_lookup_function(static_cast<std::int32_t>(target));
+      if(original) {
+        original(rdram,context);
+        const jfg::PcOrbitPoint resolved{ram.f32(point),ram.f32(point+4U),ram.f32(point+8U)};
+        const auto clear=jfg::pc_camera_clearance(from,wanted,resolved);
+        hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
+        (void)memory.write_u32(point,std::bit_cast<std::uint32_t>(clear.x));
+        (void)memory.write_u32(point+4U,std::bit_cast<std::uint32_t>(clear.y));
+        (void)memory.write_u32(point+8U,std::bit_cast<std::uint32_t>(clear.z));
+        state.gameplay_trace.event("pc-camera-clearance",{state.vi_retraces,
+          std::bit_cast<std::uint32_t>(wanted.x),std::bit_cast<std::uint32_t>(wanted.y),std::bit_cast<std::uint32_t>(wanted.z),
+          std::bit_cast<std::uint32_t>(resolved.x),std::bit_cast<std::uint32_t>(resolved.y),std::bit_cast<std::uint32_t>(resolved.z),
+          std::bit_cast<std::uint32_t>(clear.x),std::bit_cast<std::uint32_t>(clear.y),std::bit_cast<std::uint32_t>(clear.z)});
+        return 1;
+      }
+    }
+  }
+  if(target==0x8002CF6CU && state.pc_experimental && (state.play_mode || state.input_replay_loaded) &&
+     (state.input_record_path.empty() || state.pc_record_extended) && !state.pc_input_blocked &&
+     state.pc_camera_actor==0) {
+    jfg::mod::Memory ram({rdram,kRdramSize});
+    const auto actor=static_cast<std::uint32_t>(context->r4),control=static_cast<std::uint32_t>(context->r5);
+    if(ram.valid(control,0x5C4U) && ram.valid(actor,0xA4U) && ram.u32(actor+0x68U)==control &&
+       ram.u32(target)==0x27BDFF10U && ram.u32(target+4)==0xAFBF002CU &&
+       jfg::mod::gameplay_active(ram,actor) && ram.u8(0x800FD7BDU)==0 && !jfg::mod::scripted_camera_active(ram,actor)) {
+      const auto port=ram.u8(control);
+      if(port<4 && state.controller_ports.samples[port].connected) {
+        const auto &frame=state.pc_frames[port];
+        if((frame.pc_mode==3 || frame.pc_mode==4) && !(state.controller_ports.samples[port].buttons&0x10)) {
+          auto* original=jfg_generated_lookup_function(static_cast<std::int32_t>(target));
+          if(original) {
+            auto look=jfg::PcLookDelta{frame.look_x,frame.look_y};
+            if(frame.pc_mode==3) {
+              if(state.pc_mouse_used[port])look={};
+              state.pc_mouse_used[port]=true;
+            }
+            state.pc_camera_actor=actor;state.pc_camera_control=control;
+            state.pc_camera_stack=static_cast<std::uint32_t>(context->r29)-0xF0U;
+            state.pc_camera_look=jfg::pc_camera_delta(frame.pc_mode,look,
+              std::bit_cast<float>(static_cast<std::uint32_t>(context->r6)));
+            original(rdram,context);
+            state.pc_camera_actor=state.pc_camera_control=state.pc_camera_stack=0;state.pc_camera_look={};
+            return 1;
+          }
+        } else state.pc_orbits[port].active=false;
+      }
+    }
+  }
+  // Separate look input is recorded alongside movement; older replays remain stock.
+  if(target==0x8003AABCU && state.pc_experimental && (state.play_mode || state.input_replay_loaded) &&
+     (state.input_record_path.empty() || state.pc_record_extended) && !state.pc_input_blocked) {
+    jfg::mod::Memory pc_memory({rdram,kRdramSize});
+    const auto actor=static_cast<std::uint32_t>(context->r4);
+    const auto control=static_cast<std::uint32_t>(context->r5);
+    if(pc_memory.valid(control,0x5C4U) && pc_memory.valid(actor,0xA4U) &&
+       pc_memory.u32(actor+0x68U)==control && pc_memory.u32(target)==0x27BDFFA8U &&
+       pc_memory.u32(target+4)==0xAFB00018U &&
+       jfg::mod::gameplay_active(pc_memory,actor) && pc_memory.u8(0x800FD7BDU)==0 && !jfg::mod::scripted_camera_active(pc_memory,actor)) {
+      const auto port=pc_memory.u8(control);
+      if(port<4U && state.controller_ports.samples[port].connected) {
+        const auto &frame=state.pc_frames[port];
+        const bool mouse=frame.pc_mode==1 || frame.pc_mode==3;
+        const bool direct=frame.pc_mode==3 || frame.pc_mode==4;
+        if(frame.pc_mode!=0) {
+          auto look=jfg::PcLookDelta{frame.look_x,frame.look_y};
+          if(mouse && state.pc_mouse_used[port])look={};
+          if(mouse)state.pc_mouse_used[port]=true;
+          const auto stack=static_cast<std::uint32_t>(context->r29);
+          const bool valid_limits=pc_memory.valid(stack,0x24U);
+          if(frame.pc_mode==4)look=jfg::pc_camera_delta(frame.pc_mode,look,
+            valid_limits?std::bit_cast<float>(pc_memory.u32(stack+0x20U)):0.0F);
+          const int minimum=valid_limits?static_cast<std::int32_t>(pc_memory.u32(stack+0x10U)):0;
+          const int maximum=valid_limits?static_cast<std::int32_t>(pc_memory.u32(stack+0x14U)):0;
+          const auto before=jfg::PcLookDelta{pc_memory.s16(control+0x11CU),pc_memory.s16(control+0x1E2U)};
+          hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
+          std::uint32_t x=0,y=0;
+          if(memory.read_u32(0x800F6DB4U,x) && memory.read_u32(0x800F6DB8U,y)) {
+            auto* original=jfg_generated_lookup_function(static_cast<std::int32_t>(target));
+            if(original) {
+              (void)memory.write_u32(0x800F6DB4U,direct?0U:static_cast<std::uint32_t>(look.x));
+              (void)memory.write_u32(0x800F6DB8U,direct?0U:static_cast<std::uint32_t>(look.y));
+              original(rdram,context);
+              (void)memory.write_u32(0x800F6DB4U,x);(void)memory.write_u32(0x800F6DB8U,y);
+              ++state.pc_aim_calls;
+              if(direct && valid_limits && minimum>=-32768 && maximum<=32767 && minimum<=maximum) {
+                const auto after=jfg::pc_direct_aim(before.x,before.y,look,minimum,maximum);
+                pc_memory.put16(control+0x11CU,static_cast<std::uint16_t>(after.x));
+                pc_memory.put16(control+0x1E2U,static_cast<std::uint16_t>(after.y));
+                (void)memory.write_u32(control+0x1E4U,0);(void)memory.write_u32(control+0x1E8U,0);
+                ++state.pc_direct_aim_calls;
+              }
+              // Ground aiming otherwise ignores the movement stick. The guest
+              // consumes these local velocities in its ordinary physics/collision
+              // path. Leave jumps, swimming, damage and scripted states alone.
+              const auto movement_state=pc_memory.u8(control+0x568U);
+              if((frame.pc_mode==3 || frame.pc_mode==4) && (movement_state==10 || movement_state==11) && (pc_memory.u8(control+1U)&3U)<3U) {
+                const auto &move=state.controller_ports.samples[port];
+                const auto velocity=jfg::pc_aim_movement(move.x,move.y);
+                (void)memory.write_u32(control+0x10U,std::bit_cast<std::uint32_t>(velocity.side));
+                (void)memory.write_u32(control+0x4U,std::bit_cast<std::uint32_t>(velocity.forward));
+              }
+              state.gameplay_trace.event("pc-aim",{state.vi_retraces,state.controller_samples,port,frame.pc_mode,
+                static_cast<std::uint32_t>(look.x),static_cast<std::uint32_t>(look.y),
+                pc_memory.u16(control+0x11CU),pc_memory.u16(control+0x1E2U),movement_state,
+                pc_memory.u32(control+4U),pc_memory.u32(control+0x10U)});
+              return 1;
+            }
+          }
+        }
+      }
+    }
+  }
+  if (state.navigation_mod.observing()) {
     jfg::mod::Memory memory({rdram,kRdramSize});
     if (target==0x8004665CU) {
       state.navigation_mod.transition();
@@ -5266,8 +5544,10 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       if(!write_mod_export(state.navigation_output/L"live.json",output.str()))
         ++state.navigation_mod.invalid;
     }
-    if (target==0x80032A48U)
+    if (target==0x80032A48U) {
+      (void)state.navigation_mod.observe_player(memory,static_cast<std::uint32_t>(context->r4));
       (void)state.navigation_mod.full_health(memory,static_cast<std::uint32_t>(context->r4));
+    }
     if (target==0x00310600U)
       (void)state.navigation_mod.clear_enemy(memory,static_cast<std::uint32_t>(context->r4));
   }
@@ -5615,8 +5895,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           ++state.sound_queue_recoveries;
       }
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-      if (state.navigation_mod.enabled && target==0x80032A48U) {
+      if (state.navigation_mod.observing() && target==0x80032A48U) {
         jfg::mod::Memory memory({rdram,kRdramSize});
+        (void)state.navigation_mod.observe_player(memory,mod_actor_argument);
         (void)state.navigation_mod.full_health(memory,mod_actor_argument);
       }
       if (target==0x80044FACU) update_navigation_mod(state);
@@ -8206,6 +8487,16 @@ int run_child(const char *path, const unsigned retrace_target,
     if (state.navigation_mod.juno_double_run)
       jfg::support_event("mod=juno-run-speed-2x-enabled");
   }
+  // Live tools observe by default; map Mods explicitly opt into individual changes.
+  if (!state.navigation_mod.enabled) {
+    wchar_t output[32768]{};
+    const DWORD length=GetEnvironmentVariableW(L"JFG_LIVE_OUTPUT",output,32768U);
+    if (length != 0U && length < 32768U) {
+      state.navigation_output=std::filesystem::path(output);
+      std::error_code error;std::filesystem::create_directories(state.navigation_output,error);
+      if (!error) state.navigation_mod.telemetry_enabled=true;
+    }
+  }
   wchar_t gameplay_trace_path[32768]{};
   const DWORD trace_path_length = GetEnvironmentVariableW(L"JFG_GAMEPLAY_TRACE", gameplay_trace_path, 32768U);
   if (trace_path_length != 0U && (trace_path_length >= 32768U ||
@@ -8571,7 +8862,11 @@ int run_child(const char *path, const unsigned retrace_target,
       std::fputs("native boot setup failed: input record open\n", stderr);
       return 3;
     }
-    state.input_record << "jfg-phase8-input-v2\n";
+#if defined(_WIN32)
+    reload_controller_ports(state);
+    state.pc_record_extended=state.pc_experimental;
+#endif
+    state.input_record << (state.pc_record_extended?jfg::kInputReplayHeaderV3:jfg::kInputReplayHeader) << '\n';
   }
   if (!state.retrace_hash_path.empty()) {
     state.retrace_hash_trace.open(state.retrace_hash_path,
@@ -8968,7 +9263,7 @@ int run_child(const char *path, const unsigned retrace_target,
   state.rdram = rdram.data();
   state.rom = rom.data();
   state.rom_size = rom.size();
-  if (state.navigation_mod.enabled && !state.navigation_mod.npc_rewards.load_rom(rom))
+  if (state.navigation_mod.observing() && !state.navigation_mod.npc_rewards.load_rom(rom))
     std::fputs("navigation mod: NPC reward catalog unavailable; rewards remain unknown\n", stderr);
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
   char *poll_path = nullptr;

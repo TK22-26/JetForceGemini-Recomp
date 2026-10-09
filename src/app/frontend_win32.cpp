@@ -19,6 +19,9 @@
 namespace fs = std::filesystem;
 namespace {
 constexpr UINT kReady = WM_APP + 20, kHotkey = WM_APP + 21;
+#ifdef JFG_RML_UI
+constexpr int kMuteShortcut = 0x4a46;
+#endif
 enum : UINT {
   Play = 100,
   Stop,
@@ -55,6 +58,7 @@ struct App {
   HWND window = nullptr, viewport = nullptr, render = nullptr, status = nullptr,
        rom = nullptr, runtime = nullptr, shield = nullptr;
   bool uiReady = false;
+  bool muteShortcutFocus = false, muteShortcutRegistered = false;
   std::vector<HWND> home;
   HMENU menu = nullptr;
   HFONT font = nullptr, titleFont = nullptr;
@@ -62,8 +66,9 @@ struct App {
   fs::path profile, helper;
   Process session, dialog;
   std::vector<std::unique_ptr<Process>> tools;
+  std::vector<HWND> liveModals;
   bool playing = false, setting = false, fullscreen = false, closing = false,
-       mods = false;
+       mods = false, pauseInactive = false;
   bool stopRequested = false, initializing = true;
   ULONGLONG startedAt = 0;
   UINT dpi = 96;
@@ -151,6 +156,13 @@ bool launch(Process &process, const wchar_t *action, HWND owner) {
       quote(app.helper.wstring()) + L" --frontend-worker " + action + L" " +
       quote(app.profile.wstring()) + L" " +
       std::to_wstring(reinterpret_cast<std::uintptr_t>(owner));
+  fs::path executable=app.helper;
+#ifdef JFG_RML_UI
+  if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory") {
+    wchar_t module[32768]{};GetModuleFileNameW(nullptr,module,32768);executable=module;
+    command=quote(executable.wstring())+L" --live-tool "+action+L" --profile "+quote(app.profile.wstring())+L" --helper "+quote(app.helper.wstring())+L" --owner "+std::to_wstring(reinterpret_cast<std::uintptr_t>(owner));
+  }
+#endif
   STARTUPINFOW start{};
   start.cb = sizeof(start);
   PROCESS_INFORMATION child{};
@@ -164,7 +176,7 @@ bool launch(Process &process, const wchar_t *action, HWND owner) {
     status(L"Cannot create a supervised session.");
     return false;
   }
-  if (!CreateProcessW(app.helper.c_str(), command.data(), nullptr, nullptr,
+  if (!CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr,
                       FALSE, CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr,
                       app.helper.parent_path().c_str(), &start, &child)) {
     CloseHandle(job);
@@ -212,7 +224,7 @@ void layout() {
   RECT area{};
   GetClientRect(app.window, &area);
 #ifdef JFG_RML_UI
-  const int top = scaled(36);
+  const int top = app.fullscreen ? 0 : scaled(24);
   MoveWindow(app.viewport, 0, top, std::max<LONG>(1, area.right),
              std::max<LONG>(1, area.bottom - top), TRUE);
   if (app.render && IsWindow(app.render))
@@ -278,6 +290,10 @@ void showHome(bool show) {
   layout();
 }
 void fullscreen() {
+#ifdef JFG_RML_UI
+  if (app.uiReady && FrontendUiCapturing() && !FrontendUiModalOpen())
+    FrontendUiPanel("");
+#endif
   if (!app.fullscreen) {
     GetWindowPlacement(app.window, &app.placement);
     MONITORINFO monitor{sizeof(monitor)};
@@ -409,10 +425,9 @@ void menus() {
                  {Setup, L"Set up and &build"},
                  {Cancel, L"Cancel setup"},
                  {0, nullptr},
-                 {Mods, L"Navigation testing mod"},
                  {Quit, L"&Quit"}});
   add(L"&Controllers",
-      {{Controllers, L"Player 1â€“4 assignments and mappings"}});
+      {{Controllers, L"Player 1-4 assignments and mappings"}});
   add(L"&Video", {{Fullscreen, L"&Fullscreen\tF11"}});
   add(L"&Audio", {{Audio, L"&Volume and mute"}});
   add(L"&Tools", {{Map, L"Live map"},
@@ -427,6 +442,12 @@ void menus() {
 #ifdef JFG_RML_UI
 void uiAction(const std::string &a) {
   UINT command = 0;
+  if (a == "pause-inactive") {
+    if (write(L"frontend-pause-inactive.txt", app.pauseInactive ? L"0" : L"1"))
+      app.pauseInactive = !app.pauseInactive;
+    else status(L"Cannot save the pause preference.");
+    return;
+  }
   if (a == "play") {
     if (text(app.rom).empty()) {
       pick(true);
@@ -457,18 +478,24 @@ void uiAction(const std::string &a) {
     command = Saves;
   else if (a == "guide")
     command = Guide;
+  else if (a == "project" || a == "known-issues" || a == "notices") {
+    const wchar_t *url = a == "project" ? L"https://github.com/TK22-26/JetForceGemini-Recomp"
+        : a == "known-issues" ? L"https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/known-issues.md"
+        : L"https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/THIRD_PARTY_NOTICES.md";
+    ShellExecuteW(app.window, L"open", url, nullptr, nullptr, SW_SHOWNORMAL);
+  }
   else if (a == "mods")
     command = Mods;
   else if (a == "quit")
     command = Quit;
-  else if (a == "sessions" || a == "export") {
+  else if (a == "sessions" || a == "export" || a == "assets" || a == "shortcut") {
     auto tool = std::make_unique<Process>();
-    if (launch(*tool, a == "sessions" ? L"sessions" : L"export", app.window))
+    if (launch(*tool, a == "assets" ? L"assets" : a == "sessions" ? L"sessions" : a == "shortcut" ? L"shortcut" : L"export", app.window))
       app.tools.push_back(std::move(tool));
   } else if (a == "size720" || a == "size1080") {
     if (app.fullscreen)
       fullscreen();
-    RECT r{0, 0, a == "size720" ? 1280 : 1920, a == "size720" ? 756 : 1116};
+    RECT r{0, 0, a == "size720" ? 1280 : 1920, a == "size720" ? 744 : 1104};
     AdjustWindowRectExForDpi(&r, WS_OVERLAPPEDWINDOW, FALSE, 0, app.dpi);
     SetWindowPos(app.window, nullptr, 0, 0, r.right - r.left, r.bottom - r.top,
                  SWP_NOMOVE | SWP_NOZORDER);
@@ -477,24 +504,40 @@ void uiAction(const std::string &a) {
     PostMessageW(app.window, WM_COMMAND, command, 0);
 }
 void syncUiCapture() {
+  // Register only while this launcher is foreground. Windows delivers the
+  // chord even when its hosted game process has keyboard focus, without
+  // passing M through to gameplay or repeating while the keys are held.
+  const bool shortcutFocus = GetForegroundWindow() == app.window;
+  if (shortcutFocus != app.muteShortcutFocus) {
+    app.muteShortcutFocus = shortcutFocus;
+    if (app.muteShortcutRegistered) UnregisterHotKey(app.window, kMuteShortcut);
+    app.muteShortcutRegistered = shortcutFocus &&
+        RegisterHotKey(app.window, kMuteShortcut, MOD_CONTROL | MOD_NOREPEAT, 'M') != 0;
+    if (shortcutFocus && !app.muteShortcutRegistered)
+      status(L"Ctrl+M is already in use. Mute is available in the Audio menu.");
+  }
   bool enabled = FrontendUiCapturing() || app.dialog.running();
-  if (enabled == app.setting)
-    return;
-  capture(enabled);
-  if (enabled)
+  if (enabled != app.setting) {
+    capture(enabled);
+    ShowWindow(app.shield, enabled ? SW_SHOW : SW_HIDE);
+    if (enabled) {
+      SetWindowPos(app.shield, HWND_TOP, 0, 0, 0, 0,
+                   SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+      SetFocus(app.shield);
+    }
+  }
+  // Focus pause and modal capture are independent reasons. Regaining focus
+  // must not resume a game while a settings dialog is still open.
+  const bool inactive = GetForegroundWindow() != app.window || IsIconic(app.window);
+  app.liveModals.erase(std::remove_if(app.liveModals.begin(),app.liveModals.end(),[](HWND w){return !IsWindow(w)||!GetPropW(w,L"JfgLiveModal");}),app.liveModals.end());
+  if (FrontendUiModalOpen() || app.dialog.running() || !app.liveModals.empty() || (app.pauseInactive && inactive))
     SetPropW(app.window, L"JfgFrontendPause", reinterpret_cast<HANDLE>(1));
   else
     RemovePropW(app.window, L"JfgFrontendPause");
-  ShowWindow(app.shield, enabled ? SW_SHOW : SW_HIDE);
-  if (enabled) {
-    SetWindowPos(app.shield, HWND_TOP, 0, 0, 0, 0,
-                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-    SetFocus(app.shield);
-  }
 }
 LRESULT CALLBACK shieldProcedure(HWND window, UINT m, WPARAM w, LPARAM l) {
   if ((m >= WM_MOUSEFIRST && m <= WM_MOUSELAST) || m == WM_KEYDOWN ||
-      m == WM_KEYUP || m == WM_CHAR) {
+      m == WM_KEYUP || m == WM_CHAR || m == WM_SYSKEYDOWN || m == WM_SYSKEYUP) {
     if (m >= WM_MOUSEFIRST && m <= WM_MOUSELAST && m != WM_MOUSEWHEEL &&
         m != WM_MOUSEHWHEEL) {
       POINT p{static_cast<short>(LOWORD(l)), static_cast<short>(HIWORD(l))};
@@ -511,13 +554,20 @@ LRESULT CALLBACK shieldProcedure(HWND window, UINT m, WPARAM w, LPARAM l) {
 #endif
 LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
                            LPARAM lparam) {
+  if(message==WM_APP+22) {HWND tool=reinterpret_cast<HWND>(wparam);if(IsWindow(tool)&&GetPropW(tool,L"JfgLiveModal")&&std::find(app.liveModals.begin(),app.liveModals.end(),tool)==app.liveModals.end())app.liveModals.push_back(tool);return 0;}
+  if(message==WM_APP+23) {PostMessageW(window,WM_COMMAND,Inventory,0);return 0;}
 #ifdef JFG_RML_UI
   if (app.uiReady &&
       ((message >= WM_MOUSEFIRST && message <= WM_MOUSELAST) ||
        message == WM_KEYDOWN || message == WM_KEYUP || message == WM_CHAR ||
+       message == WM_SYSKEYDOWN || message == WM_SYSKEYUP || message == WM_ACTIVATEAPP ||
        message == WM_SETFOCUS || message == WM_KILLFOCUS)) {
     FrontendUiMessage(message, wparam, lparam);
     syncUiCapture();
+    // Do not let DefWindowProc enter its system-menu loop for our menu keys.
+    if ((message == WM_KEYDOWN || message == WM_KEYUP) && wparam == VK_F10) return 0;
+    if ((message == WM_SYSKEYDOWN || message == WM_SYSKEYUP) &&
+        (wparam == 'G' || wparam == 'C' || wparam == 'V' || wparam == 'A' || wparam == 'T' || wparam == 'H')) return 0;
   }
 #endif
   switch (message) {
@@ -556,6 +606,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
                                BS_PUSHBUTTON | WS_TABSTOP, Setup));
     app.status = control(L"STATIC", L"Preparing your profile...", SS_LEFT, 0);
     app.mods = read(L"frontend-mods.txt") == L"1";
+    app.pauseInactive = read(L"frontend-pause-inactive.txt") == L"1";
     CheckMenuItem(app.menu, Mods,
                   MF_BYCOMMAND | (app.mods ? MF_CHECKED : MF_UNCHECKED));
 #ifdef JFG_RML_UI
@@ -627,6 +678,14 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       return 0;
     }
     break;
+#ifdef JFG_RML_UI
+  case WM_HOTKEY:
+    if (wparam == kMuteShortcut && GetForegroundWindow() == app.window) {
+      FrontendUiToggleMute();
+      return 0;
+    }
+    break;
+#endif
   case kHotkey:
     if (wparam == VK_F11)
       fullscreen();
@@ -656,7 +715,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       syncUiCapture();
       FrontendUiFrame({app.render && IsWindow(app.render),
                        app.session.running(), app.fullscreen, app.mods,
-                       text(app.rom), text(app.runtime), app.lastStatus});
+                       text(app.rom), text(app.runtime), app.lastStatus, app.pauseInactive});
       return 0;
     }
 #endif
@@ -760,7 +819,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     case Guide:
       ShellExecuteW(window, L"open",
                     L"https://github.com/TK22-26/JetForceGemini-Recomp/blob/"
-                    L"develop/docs/development/launcher.md",
+                    L"main/docs/getting-started.md",
                     nullptr, nullptr, SW_SHOWNORMAL);
       break;
     case Mods:
@@ -794,6 +853,9 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     return 0;
   case WM_DESTROY:
 #ifdef JFG_RML_UI
+    if (app.muteShortcutRegistered) UnregisterHotKey(window, kMuteShortcut);
+#endif
+#ifdef JFG_RML_UI
     KillTimer(window, 2);
     app.uiReady = false;
     FrontendUiShutdown();
@@ -809,6 +871,9 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
 }
 } // namespace
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
+#ifdef JFG_RML_UI
+  int liveResult=FrontendLiveToolEntry(instance,show);if(liveResult>=0)return liveResult;
+#endif
   HANDLE singleton = CreateMutexW(nullptr, TRUE, L"Local\\JFGUnifiedFrontend");
   if (!singleton || GetLastError() == ERROR_ALREADY_EXISTS) {
     if (singleton)
@@ -823,6 +888,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     dpi(reinterpret_cast<HANDLE>(-4)); // same DPI context as hosted renderer
   wchar_t module[32768]{};
   GetModuleFileNameW(nullptr, module, 32768);
+#ifdef JFG_RML_UI
+  SetEnvironmentVariableW(L"JFG_LAUNCHER_EXE",module);
+#endif
   app.helper = fs::path(module).parent_path() / L"JFG-Setup.exe";
   PWSTR local = nullptr;
   if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &local)))
@@ -883,6 +951,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
   WNDCLASSW wc{};
   wc.lpfnWndProc = procedure;
   wc.hInstance = instance;
+  wc.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(1));
   wc.lpszClassName = L"JfgFrontend";
   wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
   wc.hbrBackground = app.background;

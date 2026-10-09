@@ -58,12 +58,12 @@ namespace JfgLauncher {
         private static ExploreExit Remember(MapMarker marker,uint? destination) {
             return new ExploreExit {key=NavigationExplorer.ExitKey(marker),position=marker.position,rawDestination=marker.destination_code,destination=destination};
         }
-        private static Button FindButton(Control parent,string label) {
-            foreach(Control child in parent.Controls) {
-                if(child is Button && child.Text==label)return (Button)child;
-                Button found=FindButton(child,label);if(found!=null)return found;
-            }
-            return null;
+        private static ToolStripMenuItem FindItem(ToolStripItemCollection items,string label) {
+            foreach(ToolStripItem item in items){var menu=item as ToolStripMenuItem;if(menu==null)continue;if(menu.Text==label)return menu;var child=FindItem(menu.DropDownItems,label);if(child!=null)return child;}return null;
+        }
+        internal static ToolStripMenuItem FindCommand(Control parent,string label) {
+            var map=parent as NavigationMapWindow;if(map!=null&&map.SettingsSections!=null)foreach(var section in map.SettingsSections){var setting=FindItem(section.DropDownItems,label);if(setting!=null)return setting;}
+            foreach(Control child in parent.Controls){var menu=child as MenuStrip;if(menu!=null){var item=FindItem(menu.Items,label);if(item!=null)return item;}var found=FindCommand(child,label);if(found!=null)return found;}return null;
         }
         private static void WriteSnapshot(string directory,MapSnapshot map) {
             map.Live.timestamp_ms=NavigationExplorer.Clock;++map.Live.update;
@@ -314,9 +314,9 @@ namespace JfgLauncher {
             MapSnapshot uiMap=Room(90,1,good);WriteSnapshot(ui,uiMap);
             using(NavigationMapWindow window=new NavigationMapWindow(ui)) {
                 window.StartPosition=FormStartPosition.Manual;window.Location=new Point(-32000,-32000);window.ShowInTaskbar=false;window.Show();Application.DoEvents();
-                Button explore=FindButton(window,"Explore automatically"),stop=FindButton(window,"Stop AI");
+                ToolStripMenuItem explore=FindCommand(window,"Explore automatically"),stop=FindCommand(window,"Stop AI");
                 Check(explore!=null && stop!=null,"explorer controls missing");
-                Check(FindButton(window,"Retry room exits")!=null,"explicit room retry control missing");
+                Check(FindCommand(window,"Retry room exits")!=null,"explicit room retry control missing");
                 explore.PerformClick();string[] command=WaitCommand(window,ui,true);
                 Check(command[0]=="JFGNAV3" && command[1]=="90" && Int32.Parse(command[6])>0,"Explore button did not dispatch route");
                 uiMap.Live.navigation_ai=new MapAi {nonce=Int64.Parse(command[3]),active=false,state="manual_takeover"};WriteSnapshot(ui,uiMap);window.RefreshMap();
@@ -393,14 +393,19 @@ namespace JfgLauncher {
                 List<MapInteraction> changedRows=new List<MapInteraction>(rows.Live.progression.nodes);changedRows.RemoveAt(5);rows.Live.progression.nodes=changedRows.ToArray();WriteSnapshot(scroll,rows);window.RefreshMap();
                 Check(((MapInteraction)list.Items[list.TopIndex]).address==1030 && ((MapInteraction)list.SelectedItem).address==1035,"row removal lost scroll anchor or selection");
                 rows.Live.generation=2;rows.Mesh.generation=2;WriteSnapshot(scroll,rows);window.RefreshMap();
-                Check(list.TopIndex==0 && list.SelectedIndex==0,"new room retained unrelated selection");window.Close();
+                Check(list.TopIndex==0 && list.SelectedIndex==0,"new room retained unrelated selection");
+                var filter=(ComboBox)typeof(NavigationMapWindow).GetField("interactionFilter",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).GetValue(window);
+                filter.SelectedIndex=1;Check(list.Items.Count==0,"chest filter displayed exit rows");
+                filter.SelectedIndex=3;Check(list.Items.Count==59,"exit filter omitted loaded exits");
+                filter.SelectedIndex=0;window.RefreshMap();Check(list.Items.Count==59,"returning to all interactions lost rows");
+                window.Close();
             }
             // Exercise automatic obstruction recovery through the actual map window.
             string recovery=Path.Combine(directory,"explorer-obstacle-ui");Directory.CreateDirectory(recovery);
             MapSnapshot recoveryMap=Room(106,1,Exit(106,500,0),Exit(107,0,700));WriteSnapshot(recovery,recoveryMap);
             using(NavigationMapWindow window=new NavigationMapWindow(recovery)) {
                 window.ShowInTaskbar=false;window.StartPosition=FormStartPosition.Manual;window.Location=new Point(-32000,-32000);window.Show();Application.DoEvents();
-                FindButton(window,"Explore automatically").PerformClick();string[] initial=WaitCommand(window,recovery,true);
+                FindCommand(window,"Explore automatically").PerformClick();string[] initial=WaitCommand(window,recovery,true);
                 recoveryMap.Live.navigation_ai=new MapAi {nonce=Int64.Parse(initial[3]),active=true,state="following",waypoint=0};
                 recoveryMap.Live.actors=new MapActor[]{new MapActor {address=12345,name="Moving door",position=new float[]{150,0,0}}};
                 recoveryMap.Live.collision.models=new MapCollisionModel[]{new MapCollisionModel {address=12345,enabled=true,lower=new float[]{100,-5,-100},upper=new float[]{200,100,100}}};

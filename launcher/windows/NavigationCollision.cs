@@ -13,6 +13,9 @@ namespace JfgLauncher {
         [DataMember] public int behavior = 0;
         [DataMember] public string name = "";
         [DataMember] public float[] position = null;
+        [DataMember] public bool hostile_known=false,hostile=false;
+        [DataMember] public int health=0;
+        internal bool LiveEnemy {get {return hostile_known&&hostile&&health>0;}}
         internal string Name { get {return String.IsNullOrWhiteSpace(name)?"Entity "+behavior:name;} }
     }
     [DataContract] internal sealed class MapCollisionModel {

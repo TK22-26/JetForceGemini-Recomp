@@ -1,0 +1,6 @@
+#pragma once
+namespace jfg::frontend {
+inline constexpr char version[] = "@JFG_UI_VERSION@";
+inline constexpr char revision[] = "@JFG_UI_REVISION@";
+inline constexpr char built[] = "@JFG_UI_BUILT@";
+}

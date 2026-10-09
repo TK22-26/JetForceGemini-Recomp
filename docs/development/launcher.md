@@ -8,7 +8,7 @@ stop. The setup/settings helper is embedded in the launcher EXE and extracted
 locally. Existing profile saves are reused.
 
 Use the top menu during play. F11 toggles fullscreen; Esc opens or closes the Game menu. Fullscreen preserves the game aspect ratio and is independent of
-the original in-game widescreen setting. Audio provides a live volume slider and mute. Settings pause the game at a frame boundary and resume it when closed.
+the original in-game widescreen setting. Audio provides a live volume slider and mute. Settings modals pause the game at a frame boundary and resume it when closed. Menu dropdowns keep gameplay running. Video settings also offers Pause when inactive. In fullscreen, the menu bar is hidden until Esc or F10 opens the controls.
 
 Controllers provides Player 1 through Player 4 tabs. Choose a distinct physical
 XInput device for each player. Changes save automatically. Click a binding,
@@ -22,8 +22,21 @@ across a complete reconnect/restart; verify assignments in the input display.
 Mappings apply while playing; release held inputs when returning from settings.
 Native HID/DirectInput devices still require an XInput-compatible adapter.
 
-Game > Testing mods uses separate mod saves. Tools opens map,
-inventory, saved profiles, and support reports. Mod windows remain optional.
+Tools opens Live Map, Live Inventory, saved profiles, and support reports.
+Both live-tool windows use the same RmlUi/Direct3D renderer, embedded fonts,
+and per-monitor DPI handling as the launcher. Live Map has a collapsible
+inspector, cursor-centered wheel zoom, and bottom-right zoom/Fit controls.
+View also retains Fit room and offers All object labels (off by default)
+for descriptions on every mapped room object. Map settings groups Display and AI in left-hand tabs; only opening that modal
+pauses gameplay. The Tools menu opens the inventory screen or current export folder.
+
+Map and inventory follow the current game process. They show a waiting state
+before gameplay and clear current data when the game stops or fresh telemetry
+is unavailable. A running game paused by the launcher is labelled PAUSED.
+Inventory artwork, including named character plaques, is extracted locally
+from the selected verified ROM. No game artwork is included in the launcher.
+Autopilot requires a navigation-enabled session; ordinary play exports only
+read-only telemetry.
 
 The new frontend requires a game build with the frontend protocol. An older
 build receives a rebuild message. Setup remains pinned to the launcher source
@@ -160,7 +173,10 @@ powershell -NoProfile -File scripts/build_launcher.ps1 -Test
 python scripts/package_launcher.py
 ```
 
-The C# launcher uses the Windows .NET Framework compiler and has no NuGet or
+Use `-OutputDirectory` to build into a separate folder while another launcher
+copy is running.
+
+The C# helper uses the Windows .NET Framework compiler and has no NuGet or
 game dependency. Outputs remain under ignored `build/launcher`. Tests cover ROM
 rejection, executable validation, argument forwarding, save preservation,
 source discovery, setup argument forwarding, embedded-script restoration,
@@ -182,6 +198,27 @@ Please report installer failures with the stage, reproduction steps, and the
 exported support ZIP.
 
 
+## Live map Mods
+
+Open **Live map > Settings > Map settings > Mods** for three independent toggles:
+
+- **Warp to exits:** double-click a loaded exit marker or an exit in the inspector
+  to move your current character to it. The game's normal exit requirements apply.
+- **Infinite health:** keep your current character at full health and prevent
+  damage during gameplay.
+- **Instant kill enemies:** automatically defeat loaded ordinary squad enemies.
+  Tribals and friendly NPCs are spared. Switching off does not revive enemies.
+
+These options use the existing gameplay helpers, work in ordinary live-tool
+sessions with the updated native runtime, and remain off by default. You can
+choose Mods before starting a game; the choices are saved with your profile and
+applied on subsequent launches, even if the map is closed. Pausing or waiting for
+a game does not disable the controls. An actual loading/applying failure shows an
+**Error loading mods** popup and disables Mods for that connection; reopening the
+map or starting a new game retries. **Restore defaults** switches all three off.
+Warping
+stops autopilot and rejects stale room requests and scripted scenes.
+
 ## Navigation mod preview
 
 The optional **Navigation mod** checkbox enables full health, automatic clearing
@@ -196,7 +233,7 @@ exclusions and the remaining route-following work.
 
 ## Master volume
 
-The launcher has a 0-100% **Volume** slider and a **Mute** checkbox.
+Audio > Audio settings has a 0-100% **Volume** slider. **Mute / Unmute** is directly in the Audio menu, with **Ctrl+M** available while the launcher or hosted game is foreground.
 They remain usable while the game runs and are remembered for subsequent
 launches. Muting preserves the chosen volume so unmuting restores it.
 Normal and Navigation mod launches share these audio preferences.
@@ -206,3 +243,79 @@ buffer, then polls for changes every 100 ms. Updates affect final host PCM only;
 the original game's music/SFX levels still apply. Already queued audio can take
 a few tenths of a second to drain after a change. Brief gain ramps avoid clicks.
 This requires the updated native game executable paired with this launcher.
+
+
+Live Map displays living enemies as red diamonds, independent of the collision
+and unknown-origin overlays. The inspector's Enemies filter shows their current
+position and health. Classification uses qualified normal squad-member records;
+tribals, dead members and unknown actors are not labelled as enemies. Unsupported
+enemy behaviors (including unqualified boss actors) retain ordinary entity
+markers rather than guessed hostility. Older runtimes without hostility metadata
+must be rebuilt to provide enemy markers. Telemetry does not alter game memory.
+
+
+## Keyboard, mouse and separate-stick aim
+
+Open **Controllers > Controller mapping…** and turn **Experimental PC controls**
+on. It is off by default, including when old PC input profiles already exist.
+Choose **Configure experimental controls…**, select the player, then select
+a keyboard or controller preset matching JFG's in-game **Normal** or **Expert**
+scheme. Assign **Keyboard** to that player's controller port to use keyboard
+and mouse. Presets do not change the guest game's control-scheme setting.
+
+Keyboard presets use WASD for the original analog movement, left mouse to fire,
+right mouse to aim, Space to jump and Tab for Start. Wheel up/down issue the
+original L/B weapon controls; these remain context-dependent guest actions.
+Every keyboard/mouse binding is editable, including five mouse buttons and
+both wheel directions. Menus also accept Enter to confirm, Backspace to go
+back and arrow keys to navigate. Escape and F11 retain their host shortcuts.
+
+Controller presets use RT to fire, LT to aim, A to jump and the other stick
+for aiming and camera control. The existing controller mapping page remains available.
+Mouse sensitivity, aim-stick sensitivity/deadzone and vertical inversion are
+saved separately for each player in `pc-input.ini` and `pc-input-2.ini`
+through `pc-input-4.ini` beside the controller profiles. Settings reload live.
+Malformed profiles are rejected without partially applying values.
+
+The profile-wide switch is stored in `experimental-controls.ini`; missing or
+malformed switch files disable the new input paths. Turning it off restores the
+original keyboard layout and disables mouse capture and separate-stick aiming,
+while retaining the saved experimental settings. Ordinary controller remapping
+remains available. Changes made to those normal mappings by a controller preset
+remain saved; the switch does not erase controller bindings.
+
+Keyboard and controller presets enable **Modern camera + movement**. In this
+mode, the mouse or other stick rotates the ordinary third-person camera.
+Hold aim for direct mouse aiming or steady-rate stick aiming; WASD / the
+movement stick can move forward, backward and sideways in ground aim states.
+Diagonal aim movement is normalized. JFG still applies movement collision and
+camera scenery constraints, with a small clearance from resolved wall hits.
+Special character actions retain their guest
+movement logic. The two sensitivity sliders apply to both camera and aim.
+
+Mouse input retains fractional movement at low sensitivity and does not queue
+delayed turns after a fast flick. Capture releases on focus loss, opening
+settings, pause and scripted cameras. Returning from settings requires neutral
+input, including the aim stick. The separate aim stick no longer also triggers
+its original C-button mappings. Turning **Modern camera + movement** off keeps
+the earlier separate-input aiming behavior and the original camera.
+
+PC profiles now use version 2. Existing version-1 profiles retain their saved
+bindings and earlier aiming behavior until modern mode is selected.
+Recordings started with the experimental switch enabled use input format v3,
+which records the first player's movement, look mode and look axes separately.
+V1/v2 recordings continue to use the original controls; v3 extensions also
+require the experimental switch when replayed. A recording started with the
+switch off stays v2 and suppresses extensions for that recording.
+
+The implementation targets the supported US build and checks the guest
+routines, camera stack and active actor before applying changes. Native replay
+checks cover direct aiming, ground movement and third-person orbit in the
+retained Juno scene. The experimental-off replay matches the stock player and
+camera state. Tests also cover pause/resume, firing, and a v3 recording that
+reproduces the actor, aim and camera event timelines exactly. All 67 input
+checks, replay checks and actual RmlUi persistence checks pass.
+These checks do not establish gameplay feel across all characters, weapons,
+rooms, scripted transitions or split-screen modes; those still need playtesting.
+A steep-angle camera test near a tree also exposed scenery occlusion; complete
+camera placement and feel are not yet qualified.

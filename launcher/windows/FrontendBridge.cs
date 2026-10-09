@@ -90,8 +90,78 @@ internal static class FrontendBridge
                     "This game build predates the unified frontend. Run setup to rebuild it.");
         }
     }
+    internal static string MapDirectory(string profile) {
+        if(!InventorySession.IsActive(profile))return Path.Combine(profile,"no-active-live-session");
+        string marker=Path.Combine(profile,"frontend-map-session.txt");
+        if(File.Exists(marker)) {
+            string current=File.ReadAllText(marker,Encoding.UTF8).Trim();
+            // An ordinary game run must never display an older mod session as current.
+            return current=="disabled"?Path.Combine(profile,"no-live-map-export"):current;
+        }
+        return File.Exists(Path.Combine(profile,"live.json"))?profile:Path.Combine(profile,"no-active-live-session");
+    }
+    private static void PrepareBackground() {
+        try {InventoryImages.ExportShips(Read("frontend-rom.txt"),Path.Combine(root,"frontend-ships.bin"));}
+        catch(InvalidDataException){}catch(IOException){}catch(UnauthorizedAccessException){}catch(ArgumentException){}
+    }
+    internal static void SaveDirectShortcut(string path, string profile, string launcher)
+    {
+        if (!String.Equals(Path.GetExtension(path), ".lnk", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Choose a Windows shortcut (.lnk) filename.");
+        object shell = null, shortcut = null;
+        try
+        {
+            var type = Type.GetTypeFromProgID("WScript.Shell", true);
+            shell = Activator.CreateInstance(type);
+            shortcut = type.InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, shell, new object[] { path });
+            var shortcutType = shortcut.GetType();
+            string helper = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            Action<string, object> set = delegate(string key, object value) {
+                shortcutType.InvokeMember(key, System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { value });
+            };
+            set("TargetPath", helper);
+            set("Arguments", "--frontend-worker direct-play " + LocalSetup.Quote(LocalSetup.FullPath(profile)) + " 0");
+            set("WorkingDirectory", Path.GetDirectoryName(helper));
+            set("IconLocation", (String.IsNullOrEmpty(launcher) ? helper : launcher) + ",0");
+            set("Description", "Launch Jet Force Gemini directly using your game profile.");
+            set("WindowStyle", 1);
+            shortcutType.InvokeMember("Save", System.Reflection.BindingFlags.InvokeMethod, null, shortcut, new object[0]);
+        }
+        finally
+        {
+            if (shortcut != null) Marshal.FinalReleaseComObject(shortcut);
+            if (shell != null) Marshal.FinalReleaseComObject(shell);
+        }
+    }
+
+    private static void SaveShortcutDialog(IntPtr owner)
+    {
+        LocalSetup.ValidateRuntime(Read("frontend-runtime.txt"));
+        if (!File.Exists(Read("frontend-rom.txt")))
+            throw new InvalidDataException("Choose your ROM and finish setup before saving a direct-launch shortcut.");
+        using (var dialog = new SaveFileDialog())
+        {
+            dialog.Title = "Save direct-launch shortcut";
+            dialog.Filter = "Windows shortcut (*.lnk)|*.lnk";
+            dialog.DefaultExt = "lnk";
+            dialog.AddExtension = true;
+            dialog.OverwritePrompt = true;
+            dialog.CheckPathExists = true;
+            dialog.RestoreDirectory = true;
+            dialog.FileName = "Jet Force Gemini.lnk";
+            if (dialog.ShowDialog(new Owner(owner)) != DialogResult.OK) return;
+            SaveDirectShortcut(dialog.FileName, root, Environment.GetEnvironmentVariable("JFG_LAUNCHER_EXE"));
+            State("Direct-launch shortcut saved: " + dialog.FileName);
+        }
+    }
+
     private static async Task<int> Execute(string action, IntPtr owner)
     {
+        if (action == "shortcut") { SaveShortcutDialog(owner); return 0; }
+        if ((action == "play" || action == "direct-play") && InventorySession.IsActive(root))
+            throw new InvalidOperationException("The game is already running for this profile.");
+        if (action == "map-data" || action == "inventory-data") return await NativeLiveTools.Run(root,owner,action == "inventory-data");
+        if (action == "assets") {await Task.Run((Action)PrepareBackground);return 0;}
         if (action == "sessions" || action == "export")
         {
             var choices = SupportSession.Sessions(SupportSession.Root);
@@ -127,18 +197,8 @@ internal static class FrontendBridge
                 f.ShowDialog(new Owner(owner));
             return 0;
         }
-        if (action == "map" || action == "inventory")
-        {
-            var folder = Path.Combine(LocalSetup.NavigationProfile(root), "maps");
-            var sessions = Directory.Exists(folder) ? Directory.GetDirectories(folder) : new string[0];
-            if (sessions.Length == 0)
-                throw new InvalidDataException(
-                    "Start a Navigation mod session to export map and inventory data.");
-            Array.Sort(sessions, StringComparer.Ordinal);
-            if (action == "map")
-                Application.Run(new NavigationMapWindow(sessions[sessions.Length - 1]));
-            else
-                Application.Run(new InventoryWindow(sessions[sessions.Length - 1]));
+        if (action == "map" || action == "inventory") {
+            using(var tool=NativeLiveTools.OpenWindow(action,root,owner))await Task.Run(delegate{tool.WaitForExit();});
             return 0;
         }
         if (action == "init")
@@ -152,6 +212,7 @@ internal static class FrontendBridge
                     LocalSetup.PreferredRuntime(AppDomain.CurrentDomain.BaseDirectory, settings.RuntimePath));
             if (!File.Exists(ControllerProfile.FileName(root)))
                 new ControllerProfile().Save(root);
+            await Task.Run((Action)PrepareBackground);
             State("Ready. Select your ROM and play, or run setup to build the game.");
             return 0;
         }
@@ -207,13 +268,14 @@ internal static class FrontendBridge
                 {
                     bool mods = Read("frontend-mods.txt") == "1";
                     process.StartInfo = mods ? LocalSetup.NavigationStartInfo(game, rom, root)
-                                             : LocalSetup.StartInfo(game, rom, root);
+                                             : LocalSetup.LiveToolsStartInfo(game, rom, root);
                     process.StartInfo.EnvironmentVariables["JFG_CONTROLLER_CONFIG"] =
                         ControllerProfile.FileName(root);
                     process.StartInfo.EnvironmentVariables["JFG_MASTER_VOLUME_CONFIG"] =
                         AudioPreferences.FileName(root);
-                    process.StartInfo.EnvironmentVariables["JFG_FRONTEND_PARENT"] =
-                        owner.ToInt64().ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (owner != IntPtr.Zero)
+                        process.StartInfo.EnvironmentVariables["JFG_FRONTEND_PARENT"] =
+                            owner.ToInt64().ToString(System.Globalization.CultureInfo.InvariantCulture);
                     process.StartInfo.EnvironmentVariables["JFG_SUPPORT_LOG"] = support.Session.NativePath;
                     try
                     {
@@ -222,7 +284,13 @@ internal static class FrontendBridge
                     catch (IOException)
                     {
                     }
+                    string mapDirectory=process.StartInfo.EnvironmentVariables[mods?"JFG_MOD_OUTPUT":"JFG_LIVE_OUTPUT"];
+                    Write("frontend-map-session.txt",mapDirectory);
+                    process.Exited+=delegate {try {File.Delete(Path.Combine(root,"frontend-map-session.txt"));}catch(IOException){}catch(UnauthorizedAccessException){}};
+                    process.EnableRaisingEvents=true;
                     process.Start();
+                    InventorySession.Record(root,process);
+                    InventorySession.Record(mapDirectory,process);
                     var stdout = support.Session.Drain(process.StandardOutput);
                     var stderr = support.Session.Drain(process.StandardError);
                     State("Playing. F11 fullscreen. Esc settings.");
@@ -267,6 +335,7 @@ internal static class FrontendBridge
     {
         if (args.Length != 4 || args[0] != "--frontend-worker")
             return false;
+        System.Threading.Mutex launchLock = null;
         try
         {
             root = LocalSetup.FullPath(args[2]);
@@ -275,9 +344,19 @@ internal static class FrontendBridge
             if (!Int64.TryParse(args[3], out handle))
                 throw new InvalidDataException("Invalid frontend owner.");
             if (Array.IndexOf(
-                    new[] { "init", "setup", "play", "controllers", "audio", "support", "map", "inventory", "sessions", "export" },
+                    new[] { "init", "assets", "setup", "play", "direct-play", "shortcut", "controllers", "audio", "support", "map", "inventory", "map-data", "inventory-data", "sessions", "export" },
                     args[1]) < 0)
                 throw new InvalidDataException("Unknown frontend action.");
+            if (args[1] == "play" || args[1] == "direct-play") {
+                string key;
+                using (var hash = System.Security.Cryptography.SHA256.Create())
+                    key = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(root.ToUpperInvariant()))).Replace("-", "");
+                launchLock = new System.Threading.Mutex(false, @"Local\JFGGameProfile-" + key);
+                bool acquired;
+                try { acquired = launchLock.WaitOne(0); }
+                catch (System.Threading.AbandonedMutexException) { acquired = true; }
+                if (!acquired) { launchLock.Dispose(); launchLock = null; throw new InvalidOperationException("The game is already starting or running for this profile."); }
+            }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Environment.ExitCode = Execute(args[1], new IntPtr(handle)).GetAwaiter().GetResult();
@@ -287,11 +366,14 @@ internal static class FrontendBridge
             if (root != null)
                 State(LocalSetup.FriendlyError(error));
             Environment.ExitCode = 1;
+            if (args[1] == "direct-play")
+                MessageBox.Show(LocalSetup.FriendlyError(error), "Jet Force Gemini", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+        finally { if (launchLock != null) { launchLock.ReleaseMutex(); launchLock.Dispose(); } }
         return true;
     }
 }
-internal sealed class FrontendAudio : Form
+internal sealed class FrontendAudio : ApplicationWindow
 {
     internal FrontendAudio(string root)
     {

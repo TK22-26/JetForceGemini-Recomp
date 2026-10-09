@@ -9,6 +9,10 @@
 - [Automation delivery plan](autonomous-full-scope-execution.md): remaining engineering-loop work.
 - [Tester onboarding](tester-onboarding.md): documentation and reporting delivery checkpoint.
 
+## PC enhancements
+
+- [PC controls and Perfect Dark references](../upstream/perfect-dark-pc-reference.md): implemented keyboard/mouse bindings and experimental separate-stick manual aim; full movement/strafing and camera integration remain open. Pinned host sources are retained locally.
+
 ## Operational requirements
 
 - [Production progress guard](autonomy-progress-guard.md).

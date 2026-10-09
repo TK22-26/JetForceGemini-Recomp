@@ -218,6 +218,16 @@ int main(int argc, char **argv) {
     NavigationMod mod;
     const auto unchanged = bytes;
     check(!mod.full_health(m, player) && bytes == unchanged);
+    mod.telemetry_enabled = true;
+    check(mod.observing() && mod.observe_player(m, player) && mod.player == player);
+    check(!mod.full_health(m, player) && bytes == unchanged);
+    std::ostringstream observer_state;
+    mod.write_state(observer_state, m, {}, 0, false);
+    check(bytes == unchanged && observer_state.str().find("\"navigation_enabled\":false") != std::string::npos &&
+          observer_state.str().find("\"clearing_active\":false") != std::string::npos);
+    mod.transition();check(mod.player == 0U && bytes == unchanged);
+    check(!mod.observe_player(m, 0U));
+    mod.telemetry_enabled = false;check(!mod.observe_player(m, player));
     mod.enabled = true;
     check(mod.full_health(m, player));
     check(m.u16(props + 6U) == 8704U && m.u16(game + 0x15CU) == 8704U &&
@@ -237,16 +247,31 @@ int main(int argc, char **argv) {
     put32(squad + 0x68U, sd);
     m.put16(sd + 0x2CU, 0x67U);
     m.put16(ep + 6U, 200U);
+    {
+      const auto snapshot = bytes;
+      const auto state = enemy_state(m, Actor{enemy, 24U, {}});
+      check(state.known && state.hostile && state.health == 200);
+      std::ostringstream flags; write_enemy_state(flags, state);
+      check(flags.str().find("\"hostile\":true") != std::string::npos);
+      check(flags.str().find("\"health\":200") != std::string::npos);
+      check(bytes == snapshot); // Telemetry must never modify game state.
+      check(!enemy_state(m, Actor{enemy, 90U, {}}).known);
+      check(!enemy_state(m, Actor{0x80400000U, 24U, {}}).known);
+    }
     check(mod.clear_enemy(m, enemy) && m.u16(ep + 6U) == 0U &&
           mod.cleared == 1U);
     check(!mod.clear_enemy(m, enemy) && mod.cleared == 1U);
+    check(enemy_state(m, Actor{enemy, 24U, {}}).health == 0);
     for (auto type : {0x11C, 0x11D, 0x11E, 0x11F, 0x120, 0x66, 0x70, 0x90, 0x97,
                       0x157, 0xA5}) {
       m.put16(sd + 0x2CU, static_cast<std::uint16_t>(type));
       m.put16(ep + 6U, 200U);
       check(!mod.clear_enemy(m, enemy) && m.u16(ep + 6U) == 200U);
+      const auto friendly = enemy_state(m, Actor{enemy, 24U, {}});
+      check(friendly.known && !friendly.hostile && friendly.health == 200);
     }
     put32(ec + 0x24U, 0xFFFFFFFFU);
+    check(!enemy_state(m, Actor{enemy, 24U, {}}).known);
     check(!mod.clear_enemy(m, enemy));
     check(!mod.clear_enemy(m, player));
     put32(ec + 0x24U, squad);
@@ -335,6 +360,7 @@ int main(int argc, char **argv) {
     check(npc_markers(m, characters).size() == 1U); // Dead Tribal.
     m.put16(ep + 6U, 1024U);
     put32(ec + 0x24U, 0xFFFFFFFFU);
+    check(!enemy_state(m, Actor{enemy, 24U, {}}).known);
     check(npc_markers(m, characters).size() == 1U);
     put32(ec + 0x24U, squad);
     characters[0].behavior = 51U;
@@ -420,6 +446,45 @@ int main(int argc, char **argv) {
     const auto doors = exits(m, {{exit, 8U, {1, 2, 3}}});
     check(doors.size() == 1U && doors[0].destination == 0x1234U &&
           doors[0].radius == 30U && doors[0].condition == -1);
+    // The three map Mods work independently in ordinary telemetry sessions.
+    {
+      NavigationMod mods; mods.telemetry_enabled=true;
+      check(mods.observe_player(m,player));
+      auto configure=[&](const char *text){std::istringstream in(text);return mods.configure_mods(in);};
+      m.put16(props+6U,123U);m.put16(ep+6U,200U);m.put16(sd+0x2CU,0x67U);
+      check(configure("JFGMODS1 0 0 0"));
+      auto unchanged_mods=bytes;
+      check(!mods.full_health(m,player)&&!mods.clear_enemy(m,enemy)&&bytes==unchanged_mods);
+      check(configure("JFGMODS1 0 1 0")&&mods.full_health(m,player));
+      check(!mods.clear_enemy(m,enemy)&&m.u16(ep+6U)==200U);
+      check(configure("JFGMODS1 0 0 1"));m.put16(props+6U,123U);
+      check(!mods.full_health(m,player)&&m.u16(props+6U)==123U&&mods.clear_enemy(m,enemy));
+      m.put16(ep+6U,200U);m.put16(sd+0x2CU,0x11CU);
+      check(!mods.clear_enemy(m,enemy)&&m.u16(ep+6U)==200U);
+      for(const auto text:{"JFGMODS1 1 1", "JFGMODS1 0 2 0", "JFGMODS1 0 0 0 extra", "BAD 0 0 0"})
+        check(!configure(text)&&mods.kill_enabled()&&!mods.health_enabled());
+      mods.enabled=true;check(configure("JFGMODS1 0 0 0"));
+      check(!mods.full_health(m,player)&&!mods.clear_enemy(m,enemy));mods.enabled=false;
+      auto send=[&](unsigned nonce,unsigned gen,unsigned room,unsigned address,int stamp=1000){
+        std::ostringstream text;text<<"JFGWARP1 "<<room<<' '<<gen<<' '<<nonce<<' '<<stamp<<' '<<address;
+        std::istringstream in(text.str());
+        return mods.warp_to_exit(in,m,{{player,1U,{}},{exit,8U,{101,202,303}},{enemy,24U,{}}},1000);
+      };
+      auto room=m.u32(0x800FB114U);unchanged_mods=bytes;
+      check(!send(1,1,room,exit)&&bytes==unchanged_mods);
+      check(configure("JFGMODS1 1 0 0"));
+      check(!send(2,2,room,exit)&&!send(3,1,room+1,exit)&&!send(4,1,room,enemy)&&bytes==unchanged_mods);
+      check(!send(5,1,room,exit,-1)&&!send(6,1,room,exit,1001)&&bytes==unchanged_mods);
+      put8(0x800A4FC4U,1U);check(!send(7,1,room,exit));put8(0x800A4FC4U,0U);
+      check(!send(7,1,room,exit));
+      check(send(8,1,room,exit));
+      check(m.f32(player+12U)==101&&m.f32(player+16U)==202&&m.f32(player+20U)==303);
+      check(!send(8,1,room,exit));
+      check(configure("JFGMODS1 0 0 0"));unchanged_mods=bytes;
+      check(!send(9,1,room,exit)&&bytes==unchanged_mods);
+      check(configure("JFGMODS1 1 0 0"));mods.transition();unchanged_mods=bytes;
+      check(!send(10,1,room,exit)&&bytes==unchanged_mods);
+    }
     // Inventory and dialogue completion are separate, character-scoped facts.
     put8(control + 1U, 1U);
     const auto saved1 = game + 0x15CU + 0x76U;

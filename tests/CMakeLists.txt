@@ -538,3 +538,9 @@ target_include_directories(jfg_controller_ports_tests PRIVATE "${PROJECT_SOURCE_
 target_compile_features(jfg_controller_ports_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_controller_ports_tests)
 add_test(NAME jfg.controller_ports COMMAND jfg_controller_ports_tests)
+
+add_executable(jfg_pc_input_tests pc_input_tests.cpp)
+target_link_libraries(jfg_pc_input_tests PRIVATE jfg_runtime)
+target_compile_features(jfg_pc_input_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_pc_input_tests)
+add_test(NAME jfg.pc_input COMMAND jfg_pc_input_tests)

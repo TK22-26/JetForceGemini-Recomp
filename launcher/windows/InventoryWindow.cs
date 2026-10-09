@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 namespace JfgLauncher {
     [DataContract] internal sealed class CharacterInventory {
@@ -26,93 +29,203 @@ namespace JfgLauncher {
             }
         }
     }
-    internal sealed class InventoryWindow:Form {
+    internal static class ToolColors {
+        internal static readonly Color Background=Color.FromArgb(11,15,23),Panel=Color.FromArgb(14,19,32),
+            Border=Color.FromArgb(46,58,87),Text=Color.FromArgb(232,236,244),Muted=Color.FromArgb(134,145,168),
+            Amber=Color.FromArgb(255,178,62),Blue=Color.FromArgb(111,211,238);
+        internal static Button Button(string text) {
+            var button=new Button{Text=text,FlatStyle=FlatStyle.Flat,BackColor=Panel,ForeColor=Text,UseVisualStyleBackColor=false};
+            button.FlatAppearance.BorderColor=Border;button.FlatAppearance.MouseOverBackColor=Color.FromArgb(32,42,62);return button;
+        }
+    }
+    // PID and process creation time prevent old exports or a reused PID from
+    // masquerading as a running game. No inventory contents are saved here.
+    internal static class InventorySession {
+        internal static void Record(string directory,System.Diagnostics.Process process) {
+            try {
+                Directory.CreateDirectory(directory);
+                File.WriteAllText(Path.Combine(directory,"inventory-session.txt"),process.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)+"\n"+process.StartTime.ToUniversalTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }catch(IOException){}catch(UnauthorizedAccessException){}catch(InvalidOperationException){}catch(System.ComponentModel.Win32Exception){}
+        }
+        internal static bool IsActive(string directory) {
+            try {
+                string path=Path.Combine(directory,"inventory-session.txt");
+                if(!File.Exists(path)||new FileInfo(path).Length>128)return false;
+                string[] fields=File.ReadAllLines(path);int pid;long started;
+                if(fields.Length!=2||!Int32.TryParse(fields[0],out pid)||!Int64.TryParse(fields[1],out started))return false;
+                using(var process=System.Diagnostics.Process.GetProcessById(pid))
+                    return !process.HasExited&&process.StartTime.ToUniversalTime().Ticks==started;
+            }catch(IOException){}catch(UnauthorizedAccessException){}catch(ArgumentException){}catch(InvalidOperationException){}catch(System.ComponentModel.Win32Exception){}
+            return false;
+        }
+    }
+    internal sealed class InventoryWindow: ApplicationWindow {
         private string directory;
-        private readonly TabControl tabs=new TabControl{Dock=DockStyle.Fill};
-        private readonly CheckBox follow=new CheckBox{Text="Follow active character",Checked=true,AutoSize=true};
-        private readonly Label status=new Label{AutoSize=true,Padding=new Padding(12,5,0,0)};
+        private readonly Func<bool> gameActive;
+        private readonly CheckBox follow=new CheckBox{Text="\u25ce",Font=new Font("Segoe UI",14),Checked=true,Appearance=Appearance.Button,TextAlign=ContentAlignment.MiddleCenter,FlatStyle=FlatStyle.Flat,Width=48,Height=36,AccessibleName="Follow active character"};
+        private readonly Label status=new Label{Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleRight,ForeColor=ToolColors.Blue,Text="NO GAME RUNNING",Padding=new Padding(0,0,14,0)};
+        private readonly Label details=new Label{Dock=DockStyle.Bottom,Height=72,Padding=new Padding(16,12,16,8),BackColor=ToolColors.Panel};
+        private readonly Label artStatus=new Label{Dock=DockStyle.Bottom,Height=30,Padding=new Padding(12,5,0,0),ForeColor=ToolColors.Muted,Text="Item images: select a supported ROM in the launcher."};
         private readonly Timer timer=new Timer{Interval=500};
-        private readonly InventoryCanvas[] canvases=new InventoryCanvas[3];
-        private int current=-1;
-        internal int SelectedCharacter {get{return new[]{1,0,2}[tabs.SelectedIndex];}}
-        internal InventoryWindow(string path) {
-            directory=path;Text="JFG Live Inventory";ClientSize=new Size(760,680);MinimumSize=new Size(530,430);
-            Font=new Font("Segoe UI",9);BackColor=Color.FromArgb(15,25,34);ForeColor=Color.White;
-            var bar=new FlowLayoutPanel{Dock=DockStyle.Top,Height=34,Padding=new Padding(8,4,0,0)};
-            bar.Controls.Add(follow);bar.Controls.Add(status);
-            // Supported game enum: Vela=0, Juno=1, Lupus=2.
+        private readonly InventoryCanvas canvas=new InventoryCanvas{Dock=DockStyle.Fill};
+        private readonly Button[] characters=new Button[3];
+        private readonly ToolTip characterTips=new ToolTip();
+        private InventoryTracker value;
+        private int selected=1;
+        private Dictionary<int,Bitmap> images;
+        internal int SelectedCharacter {get{return selected;}}
+        internal InventoryWindow(string path):this(path,LocalSetup.LoadSettings(LocalSetup.ProfileRoot).RomPath){}
+        internal InventoryWindow(string path,string romPath):this(path,romPath,null){}
+        internal InventoryWindow(string path,string romPath,Func<bool> isGameActive) {
+            directory=path;gameActive=isGameActive??delegate{return InventorySession.IsActive(directory);};Text="JFG Live Inventory";ClientSize=new Size(470,790);MinimumSize=new Size(450,580);
+            DoubleBuffered=true;AutoScaleMode=AutoScaleMode.Dpi;Font=new Font("Segoe UI",9);BackColor=ToolColors.Background;ForeColor=ToolColors.Text;
+            var header=new Panel{Dock=DockStyle.Top,Height=42,BackColor=ToolColors.Panel};
+            header.Controls.Add(status);header.Controls.Add(new Label{Text="INVENTORY",Dock=DockStyle.Left,Width=165,Padding=new Padding(16,12,0,0),Font=new Font(Font,FontStyle.Bold)});
+            var rail=new FlowLayoutPanel{Dock=DockStyle.Right,Width=68,Padding=new Padding(4,14,0,0),BackColor=ToolColors.Panel,FlowDirection=FlowDirection.TopDown};
             string[] names={"Vela","Juno","Lupus"};
             foreach(int id in new[]{1,0,2}) {
-                var page=new TabPage(names[id]){BackColor=BackColor};
-                canvases[id]=new InventoryCanvas{Dock=DockStyle.Fill};page.Controls.Add(canvases[id]);tabs.TabPages.Add(page);
+                int character=id;var button=new CharacterButton{Text=names[id].Substring(0,1),FlatStyle=FlatStyle.Flat,BackColor=ToolColors.Panel,ForeColor=ToolColors.Text};button.Size=new Size(56,56);button.AccessibleName=names[id];
+                button.Click+=delegate{follow.Checked=false;selected=character;UpdateSelection();};characters[id]=button;characterTips.SetToolTip(button,names[id]);rail.Controls.Add(button);
             }
-            Controls.Add(tabs);Controls.Add(bar);
-            follow.CheckedChanged+=delegate{if(follow.Checked&&current>=0)tabs.SelectedIndex=current==1?0:current==0?1:2;};
-            timer.Tick+=delegate{RefreshInventory();};Shown+=delegate{RefreshInventory();timer.Start();};
-            FormClosed+=delegate{timer.Stop();timer.Dispose();};
+            follow.Margin=new Padding(0,16,0,0);follow.ForeColor=ToolColors.Blue;follow.BackColor=ToolColors.Panel;follow.FlatAppearance.CheckedBackColor=Color.FromArgb(23,56,66);follow.FlatAppearance.BorderColor=ToolColors.Border;rail.Controls.Add(follow);rail.Controls.Add(new Label{Text="FOLLOW",Width=48,Height=20,TextAlign=ContentAlignment.MiddleCenter,ForeColor=ToolColors.Muted,Font=new Font("Segoe UI",6.5f)});
+            Controls.Add(canvas);Controls.Add(rail);Controls.Add(artStatus);Controls.Add(details);Controls.Add(header);
+            canvas.SelectionChanged+=delegate{UpdateDetails();};follow.CheckedChanged+=delegate{if(follow.Checked&&value!=null)selected=value.current;UpdateSelection();};
+            timer.Tick+=delegate{RefreshInventory();};
+            Shown+=async delegate {
+                RefreshInventory();timer.Start();BeginInvoke(new Action(delegate{Invalidate(true);Update();}));
+                if(String.IsNullOrWhiteSpace(romPath))return;
+                artStatus.Text="Reading item images from your ROM...";
+                try {
+                    var result=await Task.Run(delegate{return InventoryImages.Load(romPath);});
+                    if(IsDisposed){foreach(var bitmap in result.Values)bitmap.Dispose();return;}
+                    images=result;
+                    for(int id=0;id<3;id++){Bitmap emblem;if(images.TryGetValue(300+id,out emblem)){characters[id].Image=emblem;characters[id].ImageAlign=ContentAlignment.MiddleCenter;characters[id].Text="";}}
+                    canvas.SetImages(images);artStatus.Text="Images from your ROM. Names shown when unavailable.";Invalidate(true);Update();
+                }catch(Exception error) {
+                    if(IsDisposed)return;
+                    if(!(error is InvalidDataException)&&!(error is IOException)&&!(error is UnauthorizedAccessException)&&!(error is ArgumentException))throw;
+                    artStatus.Text="Images unavailable; inventory remains readable.";
+                    new ToolTip().SetToolTip(artStatus,error.Message);
+                }
+            };
+            FormClosed+=delegate{timer.Stop();timer.Dispose();characterTips.Dispose();if(images!=null)foreach(var image in images.Values)image.Dispose();};
+            UpdateSelection();
         }
-        internal void BindDirectory(string path){directory=path;current=-1;RefreshInventory();}
-        internal void Apply(InventoryTracker value,bool live) {
-            if(value==null||!value.known) {
-                status.Text="Waiting for gameplay inventory...";
-                foreach(var canvas in canvases){canvas.Value=null;canvas.Invalidate();}
-                current=-1;return;
-            }
-            value.Validate();
-            if(current!=value.current&&follow.Checked)tabs.SelectedIndex=value.current==1?0:value.current==0?1:2;
-            current=value.current;status.Text=live?"LIVE  •  Bright: owned   Dim: missing":"Saved snapshot • game closed or paused";
-            foreach(var c in value.characters){canvases[c.id].Value=c;canvases[c.id].Shared=value.shared;canvases[c.id].Invalidate();}
+        internal void BindDirectory(string path){directory=path;value=null;RefreshInventory();}
+        internal void Apply(InventoryTracker next,bool live) {
+            if(live&&next!=null)next.Validate();value=live&&next!=null&&next.known?next:null;
+            status.Text=value==null?"WAITING FOR LIVE DATA":"LIVE";
+            status.ForeColor=live?ToolColors.Blue:ToolColors.Muted;
+            if(value!=null&&follow.Checked)selected=value.current;UpdateSelection();
         }
+        private void UpdateSelection() {
+            foreach(int id in new[]{0,1,2}){characters[id].FlatAppearance.BorderColor=id==selected?ToolColors.Amber:ToolColors.Border;characters[id].ForeColor=id==selected?ToolColors.Amber:ToolColors.Muted;}
+            canvas.Value=value==null?null:Array.Find(value.characters,delegate(CharacterInventory c){return c.id==selected;});
+            canvas.Shared=value==null?null:value.shared;canvas.RefreshTiles();UpdateDetails();
+        }
+        private void UpdateDetails(){details.Text=canvas.SelectionDescription;}
         private void RefreshInventory() {
+            if(!gameActive()) {Apply(null,false);status.Text="NO GAME RUNNING";return;}
             try {
                 using(var file=new FileStream(Path.Combine(directory,"live.json"),FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete)) {
                     if(file.Length>16*1024*1024)throw new InvalidDataException("Inventory export is too large.");
                     var live=(MapLive)new DataContractJsonSerializer(typeof(MapLive)).ReadObject(file);
                     if(live==null||live.schema!=1)throw new InvalidDataException("Unsupported inventory export.");
-                    long age=NavigationExplorer.Clock-live.timestamp_ms;
-                    Apply(live.inventory_tracker,age>=0&&age<5000);
+                    long age=NavigationExplorer.Clock-live.timestamp_ms;Apply(live.inventory_tracker,age>=0&&age<5000);
                 }
             }catch(Exception error) {
-                if(!(error is IOException)&&!(error is UnauthorizedAccessException)&&!(error is SerializationException))throw;
-                status.Text=error.Message;foreach(var canvas in canvases){canvas.Value=null;canvas.Invalidate();}
+                if(!(error is InvalidDataException)&&!(error is IOException)&&!(error is UnauthorizedAccessException)&&!(error is SerializationException))throw;
+                Apply(null,false);
             }
         }
     }
-    internal sealed class InventoryCanvas:ScrollableControl {
-        internal CharacterInventory Value;
-        internal bool[] Shared;
-        internal static readonly string[] weapons={"Pistol", "Homing missiles", "Machine gun", "Plasma shotgun", "Shocker", "Tri-rocket launcher", "Flamethrower", "Sniper rifle", "Grenades", "Shurikens", "Fish Food", "Timed mines", "Remote mines", "Flares", "Cluster bombs"};
-        private static readonly string[] parts={"Power cell", "Radar dish", "Fin", "Cargo bay key", "Deflector shield", "Fuse", "Vela's hatch key", "Juno's hatch key", "Lupus's hatch key", "Nitrogen tank", "Oxygen tank", "Stabilizer"};
-        internal InventoryCanvas(){DoubleBuffered=true;AutoScroll=true;BackColor=Color.FromArgb(15,25,34);}
-        internal static string Item(int id) {
-            switch(id){case 0:return "Yellow key";case 1:return "Red key";case 2:return "Magenta key";case 3:return "Green key";case 9:return "Blue key";case 10:return "Tri-rocket key";case 16:return "Specialist magazine";case 17:return "Mine key";case 20:return "Pants";case 21:return "Crowbar";case 22:return "Night vision goggles";case 23:return "Gold bar 3";case 24:return "Gold bar 2";case 25:return "Gold bar 1";case 26:return "Ear plugs";case 27:return "Arcade chip";default:return "Unmapped bit "+id;}
-        }
+    internal sealed class CharacterButton:Button {
+        internal CharacterButton(){SetStyle(ControlStyles.OptimizedDoubleBuffer|ControlStyles.AllPaintingInWmPaint|ControlStyles.UserPaint,true);UseVisualStyleBackColor=false;}
         protected override void OnPaint(PaintEventArgs e) {
-            base.OnPaint(e);var g=e.Graphics;
-            int columns=Math.Max(3,(ClientSize.Width-28)/138),width=Math.Max(100,(ClientSize.Width-28)/columns),y=16+AutoScrollPosition.Y;
-            if(Value==null){TextRenderer.DrawText(g,"Inventory appears when a game is loaded.",Font,new Point(16,y),Color.Silver);return;}
-            DrawGroup(g,"WEAPONS",weapons,delegate(int i){return (Value.weapons&(1<<i))!=0;},columns,width,ref y);
-            // Show the recognized catalogue, including uncollected items.
-            // Storage bits without an item identity belong in diagnostics.
-            var ids=new System.Collections.Generic.List<int>();
-            for(int i=0;i<Value.items.Length;i++)if(!Item(i).StartsWith("Unmapped bit "))ids.Add(i);
-            var labels=ids.ConvertAll(delegate(int id){return Item(id);}).ToArray();
-            DrawGroup(g,"KEYS & QUEST ITEMS",labels,delegate(int i){return Value.items[ids[i]];},columns,width,ref y);
-            DrawGroup(g,"SHIP PARTS · SHARED",parts,delegate(int i){return Shared!=null&&Shared[i];},columns,width,ref y);
-            int height=y-AutoScrollPosition.Y;
-            if(AutoScrollMinSize.Height!=height)AutoScrollMinSize=new Size(0,height);
+            if(Image==null){base.OnPaint(e);return;}
+            e.Graphics.Clear(BackColor);
+            using(var pen=new Pen(FlatAppearance.BorderColor,2))e.Graphics.DrawRectangle(pen,1,1,Width-3,Height-3);
+            float scale=Math.Min((Width-10f)/Image.Width,(Height-10f)/Image.Height);
+            int width=(int)(Image.Width*scale),height=(int)(Image.Height*scale);
+            e.Graphics.InterpolationMode=System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            e.Graphics.DrawImage(Image,new Rectangle((Width-width)/2,(Height-height)/2,width,height));
+            if(Focused)ControlPaint.DrawFocusRectangle(e.Graphics,new Rectangle(3,3,Width-6,Height-6),ToolColors.Text,BackColor);
         }
-        private void DrawGroup(Graphics g,string heading,string[] names,Func<int,bool> owned,int columns,int width,ref int y) {
-            TextRenderer.DrawText(g,heading,Font,new Point(12,y),Color.FromArgb(90,215,223));y+=28;
-            for(int i=0;i<names.Length;i++) {
-                int x=12+(i%columns)*width,top=y+(i/columns)*64;bool has=owned(i);
-                var rect=new Rectangle(x,top,width-8,56);
-                using(var brush=new SolidBrush(has?Color.FromArgb(29,91,104):Color.FromArgb(24,36,47)))g.FillRectangle(brush,rect);
-                using(var pen=new Pen(has?Color.FromArgb(96,224,203):Color.FromArgb(49,62,73)))g.DrawRectangle(pen,rect);
-                TextRenderer.DrawText(g,(has?"✓ ":"· ")+names[i],Font,new Rectangle(x+7,top+6,width-22,44),
-                    has?Color.White:Color.FromArgb(125,141,154),TextFormatFlags.WordBreak|TextFormatFlags.VerticalCenter);
+    }
+    internal sealed class InventoryTile:Button {
+        internal Bitmap Artwork;internal bool Owned,Known,Selected;
+        internal string ItemName;internal Color Accent;
+        internal InventoryTile(){SetStyle(ControlStyles.OptimizedDoubleBuffer|ControlStyles.AllPaintingInWmPaint|ControlStyles.UserPaint,true);BackColor=ToolColors.Background;ForeColor=ToolColors.Muted;FlatStyle=FlatStyle.Flat;UseVisualStyleBackColor=false;Size=new Size(54,54);Margin=new Padding(3);Font=new Font("Segoe UI",7.5f);}
+        protected override void OnPaint(PaintEventArgs e) {
+            e.Graphics.Clear(Known&&Owned?Color.FromArgb(29,43,61):ToolColors.Background);
+            using(var border=new Pen(Selected?ToolColors.Amber:Known&&Owned?Accent:ToolColors.Border,Selected?2:1))
+                e.Graphics.DrawRectangle(border,1,1,Width-3,Height-3);
+            if(Focused)ControlPaint.DrawFocusRectangle(e.Graphics,new Rectangle(4,4,Width-8,Height-8),ToolColors.Text,BackColor);
+            if(Artwork==null)TextRenderer.DrawText(e.Graphics,ItemName,Font,new Rectangle(3,3,Width-6,Height-6),Known&&Owned?ToolColors.Text:ToolColors.Muted,TextFormatFlags.NoPadding|TextFormatFlags.WordBreak|TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);
+            if(Artwork!=null) {
+                float scale=Math.Min((Width-14f)/Artwork.Width,(Height-14f)/Artwork.Height);
+                int w=(int)(Artwork.Width*scale),h=(int)(Artwork.Height*scale);
+                using(var attributes=new ImageAttributes()) {
+                    var matrix=new ColorMatrix();matrix.Matrix33=Known&&Owned?1f:.22f;attributes.SetColorMatrix(matrix);
+                    e.Graphics.InterpolationMode=Artwork.Width>64?System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic:System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+                    e.Graphics.PixelOffsetMode=System.Drawing.Drawing2D.PixelOffsetMode.Half;
+                    e.Graphics.DrawImage(Artwork,new Rectangle((Width-w)/2,(Height-h)/2,w,h),0,0,Artwork.Width,Artwork.Height,GraphicsUnit.Pixel,attributes);
+                }
             }
-            y+=((names.Length+columns-1)/columns)*64+14;
+            if(Known&&Owned)using(var brush=new SolidBrush(Accent))e.Graphics.FillRectangle(brush,Width-8,Height-8,3,3);
         }
+    }
+    internal sealed class InventoryCanvas:FlowLayoutPanel {
+        internal CharacterInventory Value;internal bool[] Shared;
+        internal static readonly string[] weapons={"Pistol","Homing missiles","Machine gun","Plasma shotgun","Shocker","Tri-rocket launcher","Flamethrower","Sniper rifle","Grenades","Shurikens","Fish Food","Timed mines","Remote mines","Flares","Cluster bombs"};
+        private static readonly string[] parts={"Power cell","Radar dish","Fin","Cargo bay key","Deflector shield","Fuse","Vela's hatch key","Juno's hatch key","Lupus's hatch key","Nitrogen tank","Oxygen tank","Stabilizer"};
+        private static readonly int[] itemIds={0,1,2,3,9,16,17,20,21,22,23,24,25,26,27};
+        private readonly List<InventoryTile[]> tiles=new List<InventoryTile[]>();
+        private readonly List<Label> headings=new List<Label>();private readonly ToolTip tips=new ToolTip();
+        private readonly string[] categories={"WEAPONS","KEYS & QUEST","SHIP PARTS  /  SHARED"};
+        private int selectedGroup,selectedItem;
+        internal event Action SelectionChanged;
+        internal string SelectionDescription {get {var tile=tiles[selectedGroup][selectedItem];return tile.ItemName+"\n"+categories[selectedGroup]+"   /   "+(!tile.Known?"WAITING FOR GAME":tile.Owned?"OWNED":"MISSING")+(tile.Artwork==null?"   /   Image unavailable":"");}}
+        internal InventoryCanvas() {
+            DoubleBuffered=true;AutoScroll=true;WrapContents=false;FlowDirection=FlowDirection.TopDown;Padding=new Padding(12,10,0,12);BackColor=ToolColors.Background;
+            Color[] accents={Color.FromArgb(117,172,245),Color.FromArgb(112,204,166),Color.FromArgb(255,200,114)};
+            for(int group=0;group<3;group++) {
+                int category=group;string[] names=group==0?weapons:group==1?Array.ConvertAll(itemIds,Item):parts;
+                var panel=new FlowLayoutPanel{FlowDirection=FlowDirection.LeftToRight,WrapContents=true,Padding=new Padding(5),Margin=new Padding(0,0,0,10),BackColor=group==0?Color.FromArgb(15,25,42):group==1?Color.FromArgb(13,29,27):Color.FromArgb(30,25,18)};
+                var heading=new Label{UseMnemonic=false,Height=28,ForeColor=accents[group],Padding=new Padding(3,5,0,0),Font=new Font(Font,FontStyle.Bold)};panel.Controls.Add(heading);headings.Add(heading);
+                var buttons=new InventoryTile[names.Length];
+                for(int i=0;i<names.Length;i++) {
+                    int item=i;var button=new InventoryTile{ItemName=names[i],Accent=accents[group],AccessibleName=names[i]};buttons[i]=button;panel.Controls.Add(button);
+                    button.Click+=delegate{selectedGroup=category;selectedItem=item;RefreshTiles();if(SelectionChanged!=null)SelectionChanged();};
+                }
+                tiles.Add(buttons);Controls.Add(panel);
+            }
+            SizeChanged+=delegate{LayoutGroups();};RefreshTiles();
+        }
+        private void LayoutGroups() {
+            int width=Math.Max(300,ClientSize.Width-Padding.Horizontal-SystemInformation.VerticalScrollBarWidth-3);
+            for(int g=0;g<3;g++) {var panel=Controls[g];panel.Width=width;headings[g].Width=width-16;int columns=Math.Max(1,(width-10)/60);panel.Height=38+((tiles[g].Length+columns-1)/columns)*60;}
+        }
+        internal void SetImages(Dictionary<int,Bitmap> images){
+            for(int g=0;g<tiles.Count;g++)for(int i=0;i<tiles[g].Length;i++){int key=g==0?i:g==1?100+itemIds[i]:200+i;Bitmap image;if(images.TryGetValue(key,out image))tiles[g][i].Artwork=image;}
+            Invalidate(true);if(SelectionChanged!=null)SelectionChanged();
+        }
+        internal void RefreshTiles() {
+            for(int group=0;group<3;group++) {
+                int owned=0;
+                for(int i=0;i<tiles[group].Length;i++) {
+                    var tile=tiles[group][i];tile.Known=Value!=null&&(group!=1||itemIds[i]<Value.items.Length)&&(group!=2||Shared!=null&&i<Shared.Length);
+                    tile.Owned=Value!=null&&(group==0?(Value.weapons&(1<<i))!=0:group==1?itemIds[i]<Value.items.Length&&Value.items[itemIds[i]]:Shared!=null&&i<Shared.Length&&Shared[i]);
+                    if(tile.Owned)owned++;tile.Selected=group==selectedGroup&&i==selectedItem;
+                    string description=tile.ItemName+" - "+(!tile.Known?"unknown":tile.Owned?"owned":"missing");
+                    tile.AccessibleDescription=description;tips.SetToolTip(tile,description);tile.Invalidate();
+                }
+                headings[group].Text=categories[group]+"    "+(Value==null?"--":owned.ToString())+" / "+tiles[group].Length;
+            }
+        }
+        internal static string Item(int id) {
+            switch(id){case 0:return "Yellow key";case 1:return "Red key";case 2:return "Magenta key";case 3:return "Green key";case 9:return "Blue key";case 10:return "Tri-rocket flag";case 16:return "Specialist magazine";case 17:return "Mine key";case 20:return "Pants";case 21:return "Crowbar";case 22:return "Night vision goggles";case 23:return "Gold bar 3";case 24:return "Gold bar 2";case 25:return "Gold bar 1";case 26:return "Ear plugs";case 27:return "Arcade chip";default:return "Unmapped bit "+id;}
+        }
+        protected override void Dispose(bool disposing){if(disposing)tips.Dispose();base.Dispose(disposing);}
     }
 }

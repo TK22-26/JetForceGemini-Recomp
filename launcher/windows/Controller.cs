@@ -118,7 +118,7 @@ namespace JfgLauncher
         }
     }
 
-    internal sealed class ControllerWindow : Form
+    internal sealed class ControllerWindow : ApplicationWindow
     {
         private readonly ComboBox device = new ComboBox(), stick = new ComboBox();
         private readonly ComboBox[] bindings = new ComboBox[14];

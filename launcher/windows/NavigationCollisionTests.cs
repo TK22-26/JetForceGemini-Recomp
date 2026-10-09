@@ -28,9 +28,7 @@ namespace JfgLauncher {
             using(FileStream file=File.Create(Path.Combine(directory,"mesh.json")))new DataContractJsonSerializer(typeof(MapGeometry)).WriteObject(file,map.Mesh);
             using(FileStream file=File.Create(Path.Combine(directory,"live.json")))new DataContractJsonSerializer(typeof(MapLive)).WriteObject(file,map.Live);
         }
-        private static Button Button(Control parent,string label) {
-            foreach(Control c in parent.Controls){if(c is Button && c.Text==label)return (Button)c;Button b=Button(c,label);if(b!=null)return b;}return null;
-        }
+
         private static MapGeometry Quad(float left,float right,float y,float width) {
             return new MapGeometry{schema=1,level=27,generation=1,vertices=new[]{new[]{left,y,-width},new[]{right,y,-width},new[]{left,y,width},new[]{right,y,width}},
                 triangles=new[]{new MapFace{v=new[]{0,2,1},normal=new float[]{0,1,0}},new MapFace{v=new[]{1,2,3},normal=new float[]{0,1,0}}}};
@@ -174,9 +172,8 @@ namespace JfgLauncher {
             Write(folder,map);
             using(NavigationMapWindow window=new NavigationMapWindow(folder)) {
                 window.ShowInTaskbar=false;window.StartPosition=FormStartPosition.Manual;window.Location=new Point(-32000,-32000);window.Show();Application.DoEvents();
-                foreach(Control panel in window.Controls)foreach(Control control in panel.Controls)
-                    if(control is CheckBox&&control.Text=="Advanced individual tests")((CheckBox)control).Checked=true;
-                Button(window,"Plan exit route").PerformClick();Button(window,"Start AI").PerformClick();
+                NavigationExplorerTests.FindCommand(window,"Advanced individual tests").Checked=true;
+                NavigationExplorerTests.FindCommand(window,"Plan exit route").PerformClick();NavigationExplorerTests.FindCommand(window,"Start planned route").PerformClick();
                 string[] words=NavigationExplorerTests.WaitCommand(window,folder,true);
                 Check(Int32.Parse(words[6])>0,"UI did not dispatch collision-checked route");
                 map.Live.navigation_ai=new MapAi {nonce=Int64.Parse(words[3]),active=true,state="following",waypoint=0};

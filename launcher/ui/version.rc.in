@@ -1,0 +1,28 @@
+1 VERSIONINFO
+FILEVERSION @JFG_UI_VERSION_QUAD@
+PRODUCTVERSION @JFG_UI_VERSION_QUAD@
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0x0L
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "TK22-26 and JFG Recomp contributors\0"
+            VALUE "FileDescription", "Jet Force Gemini Recomp Launcher\0"
+            VALUE "FileVersion", "@JFG_UI_VERSION@\0"
+            VALUE "InternalName", "JFG-Launcher\0"
+            VALUE "OriginalFilename", "JFG-Launcher.exe\0"
+            VALUE "ProductName", "Jet Force Gemini Recomp\0"
+            VALUE "ProductVersion", "@JFG_UI_VERSION@\0"
+            VALUE "LegalCopyright", "Copyright (c) 2026 TK22-26 and JFG Recomp contributors\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

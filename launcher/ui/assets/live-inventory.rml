@@ -1,0 +1,5 @@
+<rml><head><title>JFG Live Inventory</title><link type="text/rcss" href="theme.rcss"/><link type="text/rcss" href="live-tools.rcss"/></head>
+<body class="live-inventory"><div class="inventory-header"><span class="section-label">INVENTORY</span><div class="inventory-header-notes"><span id="inventory-state">NO GAME RUNNING</span><span id="art-status">Reading images from your ROM...</span></div></div>
+<div id="inventory-groups"/>
+<div class="character-rail"><button id="character-1" title="Juno">Juno</button><button id="character-0" title="Vela">Vela</button><button id="character-2" title="Lupus">Lupus</button><button id="follow-character" class="selected" title="Follow the active character"><span class="follow-symbol"><span/></span></button><span>FOLLOW</span></div>
+</body></rml>

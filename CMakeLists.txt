@@ -12,7 +12,7 @@ endif()
 
 project(
     jfg_recomp
-    VERSION 0.1.0
+    VERSION 1.0.0
     DESCRIPTION "ROM-free host scaffolding for a Jet Force Gemini native recompilation"
     LANGUAGES C CXX
 )
@@ -95,7 +95,11 @@ include(GeneratedCode)
 include(CTest)
 
 if(WIN32)
-    add_executable(jfg-frontend WIN32 src/app/frontend_win32.cpp)
+    enable_language(RC)
+    set(jfg_application_icon "${CMAKE_CURRENT_BINARY_DIR}/jfg-application-icon.rc")
+    file(WRITE "${jfg_application_icon}"
+        "1 ICON \"${CMAKE_CURRENT_SOURCE_DIR}/launcher/ui/assets/app.ico\"\n")
+    add_executable(jfg-frontend WIN32 src/app/frontend_win32.cpp "${jfg_application_icon}")
     target_compile_features(jfg-frontend PRIVATE cxx_std_20)
     target_link_libraries(jfg-frontend PRIVATE user32 gdi32 shell32 ole32 comdlg32)
     target_compile_definitions(jfg-frontend PRIVATE UNICODE _UNICODE)
@@ -591,6 +595,7 @@ if(JFG_ENABLE_GENERATED_CODE)
             endif()
         endif()
         if(WIN32)
+            target_sources(jfg-native-boot PRIVATE "${jfg_application_icon}")
             target_link_libraries(jfg-native-boot PRIVATE advapi32 psapi)
             add_dependencies(jfg-native-boot jfg-support-capture)
             # Recompiled MIPS calls are ordinary host calls; boot-time overlay
