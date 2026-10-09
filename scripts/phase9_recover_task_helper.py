@@ -220,9 +220,13 @@ def run(output, elf, elf_sha256, rom, helper='task'):
         entry, end, caller, name = 0x80097e7c, 0x80097f70, 0x80097d38, '_ObservedControllerReadPack'
     else:
         raise ValueError('unknown helper')
+    output_exists = output.exists() or output.is_symlink()
     output, elf, rom = output.resolve(), elf.resolve(strict=True), rom.resolve(strict=True)
-    if not output.is_relative_to(ROOT / "tools/private") or output.exists():
-        raise ValueError("use a new private output directory")
+    # Luke Deardoff (@lukedeardoff) reported the short-cache conflict and
+    # proposed permitting external output while protecting the checkout.
+    inside_checkout = output.is_relative_to(ROOT.resolve())
+    if output_exists or (inside_checkout and not output.is_relative_to(ROOT.resolve() / "tools/private")):
+        raise ValueError("use a new output directory outside the checkout or under tools/private")
     original, image = elf.read_bytes(), rom.read_bytes()
     if digest(original) != elf_sha256 or digest(image) != ROM_SHA256:
         raise ValueError("private input identity mismatch")
