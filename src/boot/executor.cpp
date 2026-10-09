@@ -37,7 +37,7 @@ void BatonExecutor::participant_main(const int id, Body body) {
     t_self = id;
     {
         std::unique_lock<std::mutex> lock(mutex_);
-        cv_.wait(lock, [&]() { return holder_ == id; });
+        participants_[static_cast<std::size_t>(id)].ready->wait(lock, [&]() { return holder_ == id; });
     }
     try {
         if (shutting_down_) {
@@ -52,7 +52,7 @@ void BatonExecutor::participant_main(const int id, Body body) {
         participants_[static_cast<std::size_t>(id)].finished = true;
         holder_ = kSchedulerParticipant;
     }
-    cv_.notify_all();
+    cv_.notify_one();
 }
 
 bool BatonExecutor::resume(const int id) {
@@ -72,16 +72,23 @@ void BatonExecutor::yield_to_scheduler() {
 }
 
 void BatonExecutor::hand_off(const int to) {
+    std::condition_variable *ready = nullptr;
     {
         std::unique_lock<std::mutex> lock(mutex_);
         holder_ = to;
+        ready = to == kSchedulerParticipant ? &cv_
+            : participants_[static_cast<std::size_t>(to)].ready.get();
     }
-    cv_.notify_all();
+    // Only the selected baton recipient can run. Waking the other parked
+    // guest threads just makes them contend for this mutex and sleep again.
+    ready->notify_one();
 }
 
 void BatonExecutor::wait_until_holder(const int self) {
     std::unique_lock<std::mutex> lock(mutex_);
-    cv_.wait(lock, [&]() { return holder_ == self; });
+    auto &ready = self == kSchedulerParticipant ? cv_
+        : *participants_[static_cast<std::size_t>(self)].ready;
+    ready.wait(lock, [&]() { return holder_ == self; });
 }
 
 void BatonExecutor::shutdown() {

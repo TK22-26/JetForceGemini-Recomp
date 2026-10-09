@@ -87,3 +87,13 @@ does not affect the underlying game copyright.
 
 Pinned dependency records and build-tool inventory are in the
 [dependency inventory](docs/legal/dependency-license-inventory.md).
+
+## Original device timing
+
+The instruction/cache timing model in `include/jfg/boot/original_timing_cache.h`
+and `include/jfg/boot/original_timing_fast.h`, and the cartridge DMA duration
+formula in `include/jfg/boot/original_timing_pi_dma.hpp`, are adapted from ares, as vendored in BizHawk revision
+`bdddf4a58aa1a022afb11dc73294a81a5aa7bbd5`,
+`waterbox/ares64/ares/ares/n64/cpu/` and `n64/pi/dma.cpp`. The copyright and ISC permission
+notice are retained in the source, and the complete upstream notice is in
+`patches/ares/LICENSE.upstream`.

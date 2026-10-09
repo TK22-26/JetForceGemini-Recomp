@@ -3,7 +3,7 @@
 For downloads and the first-run path, start with [getting started](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/getting-started.md).
 See [known setup issues](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/known-issues.md#windows-10-setup) before installation.
 
-This Windows x64 prototype starts with the supported US big-endian ROM and
+This Windows x64 release starts with the supported US big-endian ROM and
 creates a local native executable. The launcher can install missing developer
 tools and obtain its pinned source checkout automatically. Open the standalone
 EXE, choose your ROM, then click **Set up and build**. Administrator prompts and
@@ -26,8 +26,8 @@ python scripts/build_from_rom.py --rom 'D:\Games\my-copy.z64' --play
 ```
 
 Alternatively, run `launcher/windows/Build-And-Play.ps1` in PowerShell to choose
-the ROM using a file picker. The existing C# launcher can open the resulting
-`jfg-native-boot.exe` on subsequent runs. Compilation can take several minutes.
+the ROM using a file picker. The unified launcher opens the resulting native runtime beneath its in-game
+menu bar on subsequent runs. Compilation can take several minutes.
 The script validates the ROM before downloading dependencies. Other regions,
 modified ROMs, and byte-swapped dumps are rejected.
 
@@ -60,7 +60,7 @@ maintainer-generated ELF, overlay layout, CPU root, or audio source as input.
 WSL distribution. Existing dependency checkouts at another revision are rejected
 without changing them. Save files live in `%LOCALAPPDATA%\JFGRecomp\profiles\default`.
 
-## Prototype verification
+## Build verification
 
 On 2026-10-01, the default dependency-download path produced a fresh matching ELF,
 CPU corpus and audio program, then compiled the Windows x64 live runtime.
@@ -84,8 +84,12 @@ Neither CI nor compilation certifies a completed campaign. A pristine Windows
 installation with installer elevation and reboot remains an outstanding
 playtest of the setup flow.
 
-A successful build establishes compilation. Game parity and campaign completion
-remain open. Keep generated game code and binaries local.
+A successful build establishes compilation. The maintainer has completed the
+campaign with the testing scope described in the README; original-console
+parity and broader unassisted play remain under validation. The v1.0 runtime
+also passes the combined opening/Quarry validation recorded in
+[the timing findings](../planning/quarry-audio-sync-findings.md). Keep generated
+game code and binaries local.
 
 
 Windows build paths: use `python scripts/build_windows.py --test` for ROM-free

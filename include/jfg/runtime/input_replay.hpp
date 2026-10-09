@@ -50,11 +50,15 @@ enum class InputReplayError {
     invalid_order,
 };
 
+// Poll recordings may contain distinct samples taken during the same retrace.
+enum class InputReplayOrder { retrace, recorded_poll };
+
 class DeterministicInputReplay final {
 public:
     [[nodiscard]] static InputReplayError load(
         const std::filesystem::path& path,
-        DeterministicInputReplay& output);
+        DeterministicInputReplay& output,
+        InputReplayOrder order = InputReplayOrder::retrace);
 
     [[nodiscard]] ControllerReplaySample sample_at(
         std::uint64_t retrace) const noexcept;

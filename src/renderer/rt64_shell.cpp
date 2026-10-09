@@ -1,3 +1,4 @@
+#include "jfg/runtime/snapshot_copy.hpp"
 #include "jfg/renderer/rt64_shell.hpp"
 #include "jfg/renderer/vi_presentation.hpp"
 
@@ -6,6 +7,8 @@
 #include "hle/rt64_application.h"
 #include "hle/rt64_vi.h"
 #include "rhi/rt64_render_hooks.h"
+
+#include "xxHash/xxhash.h"
 
 #include <algorithm>
 #include <atomic>
@@ -361,9 +364,7 @@ Rt64ShellError copy_rt64_rdram_snapshot(
         return Rt64ShellError::invalid_memory;
     }
     if (layout == Rt64MemoryLayout::host_word_swapped) {
-        for (std::size_t index = 0U; index < source.size(); ++index) {
-            destination[index] = source[index];
-        }
+        copy_changed_snapshot_bytes(source, destination);
         return Rt64ShellError::none;
     }
     for (std::size_t index = 0U; index < source.size(); index += 4U) {
@@ -498,40 +499,40 @@ Rt64ShellError commit_rt64_rdram_ranges(
         live.size() > submitted.size() || live.size() % 4U != 0U ||
         (!previous_source.empty() && previous_source.size() != submitted.size()))
         return Rt64ShellError::invalid_memory;
-    // Validate every byte before writing any range, preserving atomic rejection.
+    const auto equal_range = [&](const Rt64RdramRange range) {
+        auto address=range.begin;
+        for (; address<range.end && (address&3U); ++address)
+            if(live[address^3U]!=submitted[address^3U]) return false;
+        const auto aligned_end=range.end & ~std::size_t{3U};
+        if(address<aligned_end) {
+            if(std::memcmp(live.data()+address,submitted.data()+address,aligned_end-address)!=0) return false;
+            address=aligned_end;
+        }
+        for(;address<range.end;++address)
+            if(live[address^3U]!=submitted[address^3U]) return false;
+        return true;
+    };
     for (const auto range : ranges) {
         if (range.begin >= range.end || range.end > live.size())
             return Rt64ShellError::invalid_memory;
-        auto address = range.begin;
-        for (; address < range.end && (address & 3U); ++address)
-            if (live[address ^ 3U] != submitted[address ^ 3U])
-                return Rt64ShellError::conflicting_cpu_write;
-        const auto aligned_end = range.end & ~std::size_t{3U};
-        if (address < aligned_end) {
-            if (std::memcmp(live.data() + address, submitted.data() + address, aligned_end - address) != 0)
-                return Rt64ShellError::conflicting_cpu_write;
-            address = aligned_end;
-        }
-        for (; address < range.end; ++address)
-            if (live[address ^ 3U] != submitted[address ^ 3U])
-                return Rt64ShellError::conflicting_cpu_write;
+        if(!equal_range(range)) return Rt64ShellError::conflicting_cpu_write;
     }
     for (const auto range : ranges) {
-        auto address = range.begin;
-        const auto copy_byte = [&](const std::size_t index) {
-            live[index ^ 3U] = rendered[index ^ 3U];
-            if (!previous_source.empty()) previous_source[index ^ 3U] = rendered[index ^ 3U];
+        auto address=range.begin;
+        const auto copy_byte=[&](const std::size_t i) {
+            live[i^3U]=rendered[i^3U];
+            if(!previous_source.empty())previous_source[i^3U]=rendered[i^3U];
         };
-        for (; address < range.end && (address & 3U); ++address) copy_byte(address);
-        const auto aligned_end = range.end & ~std::size_t{3U};
-        if (address < aligned_end) {
+        for(;address<range.end && (address&3U);++address)copy_byte(address);
+        const auto aligned_end=range.end & ~std::size_t{3U};
+        if(address<aligned_end) {
             if (live.data() != rendered.data())
-                std::memcpy(live.data() + address, rendered.data() + address, aligned_end - address);
+                std::memcpy(live.data()+address,rendered.data()+address,aligned_end-address);
             if (!previous_source.empty() && previous_source.data() != rendered.data())
-                std::memcpy(previous_source.data() + address, rendered.data() + address, aligned_end - address);
-            address = aligned_end;
+                std::memcpy(previous_source.data()+address,rendered.data()+address,aligned_end-address);
+            address=aligned_end;
         }
-        for (; address < range.end; ++address) copy_byte(address);
+        for(;address<range.end;++address)copy_byte(address);
     }
     return Rt64ShellError::none;
 }
@@ -635,6 +636,17 @@ Rt64ShellError Rt64Shell::replace_rdram_snapshot(
     }
     if (impl_->writeback_pending)
         return Rt64ShellError::conflicting_cpu_write;
+    // Full CPU writeback completes before another task is admitted. At this
+    // boundary guest RAM contains both CPU writes and committed GPU results.
+    // Import it directly; byte-delta merging and GPU-range ownership scans
+    // are needed only when private GPU results have not been written back.
+    if (impl_->cpu_writeback) {
+        const auto copied = copy_rt64_rdram_snapshot(rdram,
+            std::as_writable_bytes(std::span(impl_->rdram)), layout);
+        if (copied != Rt64ShellError::none) return copied;
+        // Full writeback imports every source byte at the next task boundary.
+        // The delta-import history is used only when full writeback is off.
+    } else {
     const Rt64ShellError merge_error = merge_rt64_rdram_snapshot(
         rdram,
         std::as_writable_bytes(std::span(impl_->rdram)),
@@ -662,6 +674,7 @@ Rt64ShellError Rt64Shell::replace_rdram_snapshot(
     const auto refresh_error = refresh_rt64_cpu_memory(rdram,
         std::as_writable_bytes(std::span(impl_->rdram)), gpu_ranges, layout);
     if (refresh_error != Rt64ShellError::none) return refresh_error;
+    }
     if (layout == Rt64MemoryLayout::host_word_swapped) {
         impl_->task_rdram = {
             reinterpret_cast<const std::uint8_t*>(rdram.data()),
@@ -825,9 +838,62 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
         if (impl_->task_rdram.size() != kRt64RequiredRdramBytes) {
             return Rt64ShellError::invalid_memory;
         }
+        // CPU post-processing of offscreen results must be visible to texture
+        // loads. GPU framebuffer reuse can otherwise bypass those RAM writes.
+        if (impl_->cpu_writeback)
+            impl_->application->emulatorConfig.framebuffer.copyWithGPU = false;
         impl_->f3ddkr->begin(impl_->task_rdram);
         impl_->f3ddkr->install();
         const auto rdram_check_start = std::chrono::steady_clock::now();
+        // Refresh CPU-owned intensity buffers when they are next drawn. Texture
+        // loads already use RAM; invalidate render contents for the next draw
+        // without allocating a GPU pixel-difference map for an unused target.
+        if (impl_->cpu_writeback && application.state->rdramCheckPending &&
+            !application.emulatorConfig.framebuffer.copyWithGPU) {
+            auto &manager = application.state->framebufferManager;
+            std::vector<RT64::Framebuffer *> changed;
+            manager.checkRAM(application.state->RDRAM, changed, false);
+            for (auto *fb : changed) {
+                if (fb->lastWriteType == RT64::Framebuffer::Type::Color &&
+                    fb->lastWriteFmt == G_IM_FMT_I && fb->siz == G_IM_SIZ_8b) {
+                    fb->RAMHash = XXH3_64bits(application.state->RDRAM + fb->addressStart, fb->RAMBytes);
+                    fb->rdramChanged = true;
+                    fb->readHeight = 0U;
+                }
+            }
+        }
+        // Full-clear elision: only this exact self-contained
+        // prefix establishes fill mode, I8 target and complete 64x64 clear.
+        // No prior target pixels can survive or be sampled before the clear.
+        const auto list = task.command_address & 0x00FFFFFFU;
+        if (impl_->cpu_writeback && !application.emulatorConfig.framebuffer.copyWithGPU &&
+            list <= impl_->task_rdram.size() &&
+            56U <= impl_->task_rdram.size() - list) {
+            std::uint32_t w[14]{};
+            std::memcpy(w, impl_->task_rdram.data() + list, sizeof(w));
+            if (w[0] == 0xBC000006U && w[1] == 0x80000000U &&
+                w[2] == 0xBC000406U && w[3] == w[7] &&
+                w[4] == 0xBA001402U && w[5] == 0x00300000U &&
+                w[6] == 0xFF88003FU && w[8] == 0xF7000000U &&
+                w[9] == 0U && w[10] == 0xED000000U &&
+                w[11] == 0x00100100U && w[12] == 0xF60FC0FCU &&
+                w[13] == 0U && w[7] < kRt64RequiredRdramBytes) {
+                auto &manager = application.state->framebufferManager;
+                const auto found = manager.framebuffers.find(w[7]);
+                if (found != manager.framebuffers.end()) {
+                    auto &fb = found->second;
+                    if (fb.lastWriteType == RT64::Framebuffer::Type::Color &&
+                        fb.lastWriteFmt == G_IM_FMT_I && fb.siz == G_IM_SIZ_8b &&
+                        fb.width == 64U && fb.height == 64U && fb.RAMBytes == 4096U &&
+                        fb.addressEnd == w[7] + 4096U && fb.addressEnd <= kRt64RequiredRdramBytes) {
+                        fb.RAMHash = XXH3_64bits(application.state->RDRAM + w[7], fb.RAMBytes);
+                        // This complete fill replaces every old target pixel.
+                        fb.rdramChanged = false;
+                        fb.readHeight = fb.height;
+                    }
+                }
+            }
+        }
         application.state->checkRDRAM();
         impl_->last_rdram_check_microseconds =
             static_cast<std::uint64_t>(
@@ -876,7 +942,8 @@ Rt64ShellError Rt64Shell::commit_cpu_writeback(
         return Rt64ShellError::not_initialized;
     const auto result = commit_rt64_rdram_ranges(submitted,
         std::as_bytes(std::span(impl_->rdram)), live, impl_->writeback_ranges,
-        std::as_writable_bytes(std::span(impl_->simulation_rdram)));
+        impl_->cpu_writeback ? std::span<std::byte>{}
+            : std::as_writable_bytes(std::span(impl_->simulation_rdram)));
     if (result == Rt64ShellError::none) {
         impl_->writeback_pending = false;
         impl_->writeback_ranges.clear();

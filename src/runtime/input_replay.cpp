@@ -89,7 +89,8 @@ template <typename Value>
 
 InputReplayError DeterministicInputReplay::load(
     const std::filesystem::path& path,
-    DeterministicInputReplay& output) {
+    DeterministicInputReplay& output,
+    const InputReplayOrder order) {
     std::error_code size_error;
     const std::uintmax_t size = std::filesystem::file_size(path, size_error);
     if (size_error) {
@@ -126,9 +127,13 @@ InputReplayError DeterministicInputReplay::load(
         if (!parse_record(line, has_connection, has_pc, event)) {
             return InputReplayError::invalid_record;
         }
-        if (!parsed.empty() &&
-            event.first_retrace < parsed.back().end_retrace) {
-            return InputReplayError::invalid_order;
+        if (!parsed.empty() && event.first_retrace < parsed.back().end_retrace) {
+            const auto& previous = parsed.back();
+            const bool repeated_poll = order == InputReplayOrder::recorded_poll &&
+                event.first_retrace == previous.first_retrace &&
+                event.end_retrace == previous.end_retrace &&
+                event.end_retrace - event.first_retrace == 1U;
+            if (!repeated_poll) return InputReplayError::invalid_order;
         }
         parsed.push_back(event);
     }

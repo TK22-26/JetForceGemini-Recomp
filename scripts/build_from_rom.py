@@ -89,7 +89,7 @@ def main() -> int:
             raise ValueError("Resume requires this checkout's build cache or its legacy tools/private/local-builds folder.")
         generation = json.loads((workspace / "generation.json").read_text())
         expected = {"normalized/sources.json", "libultra.json", "audio/production-audio-adapter.cpp",
-                    "audio/brokered-rsp.hpp", "audio/brokered-jfg-audio-probe.cpp", "audio/jfg-audio-probe.cpp"}
+                    "audio/brokered-rsp.hpp", "audio/brokered-jfg-audio-probe.cpp", "audio/jfg-audio-probe.cpp", "normalized/jfg_original_timing.h", "normalized/original-timing.json", "normalized/jfg_original_timing_fast.h", "normalized/funcs.h"}
         if generation.get("complete") is not True or generation.get("rom_sha1") != ROM_SHA1 or set(generation.get("files", {})) != expected:
             raise ValueError("ROM generation is incomplete; start a new build.")
         for name, digest in generation["files"].items():

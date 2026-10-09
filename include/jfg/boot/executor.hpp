@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <functional>
 #include <mutex>
+#include <memory>
 #include <thread>
 #include <vector>
 
@@ -66,6 +67,7 @@ public:
 private:
     struct Participant final {
         std::thread thread;
+        std::unique_ptr<std::condition_variable> ready = std::make_unique<std::condition_variable>();
         bool finished = false;
         bool started = false;
     };

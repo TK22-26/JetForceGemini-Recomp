@@ -210,3 +210,19 @@ on 2026-10-09.
 The aggregate evidence, exact hashes, thresholds and capture limitations are in
 [opening-cutscene-audio-continuity.json](../../evidence/opening-cutscene-audio-continuity.json).
 Audio recordings, spectrograms and ROM-derived images remain private.
+
+
+## Qualification with original guest timing (2026-10-09)
+
+The opening fixes now coexist with the publicly integrated Quarry timing work,
+current controls and unified frontend. Earlier results above describe the
+previous cooperative runtime. The combined runtime uses the original guest OS
+and hardware-clock model; it required removing a per-dispatch environment
+lookup during busy polling to retain uninterrupted audio.
+
+Two full opening replays and one Quarry cutscene/gameplay replay from a fresh
+ROM-to-build run passed with zero audio underruns/overruns and no detected
+Windows output gaps of at least 6 ms. Generated PCM is unchanged. All three
+renderer regressions still pass. See the [integration findings](quarry-audio-sync-findings.md#public-unified-runtime-integration---2026-10-09)
+and [aggregate evidence](../../evidence/unified-original-timing-validation.json)
+for exact hashes, timing results and measurement limits.

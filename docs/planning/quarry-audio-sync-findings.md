@@ -276,3 +276,59 @@ remains pending; the other agent's edits have been preserved.
 Evidence: predecoded-qualification.json, performance-package-verification.json,
 performance-visible-gameplay-qualification.json, performance-runtime-activation.json,
 and gameplay-performance-final-findings.json in that private evidence directory.
+
+## Public unified-runtime integration - 2026-10-09
+
+The accepted Quarry work is now integrated into the public ROM-to-build recipe
+and the unified launcher runtime. This supersedes the integration-pending notes
+above; those entries preserve the investigation history.
+
+Fresh generation instruments the original OS and game instructions with the
+qualified cache/device clock model. The original OS owns interrupt, queue and
+thread behavior. The AI and PI models, paired-FPR handling and starvation-aware
+host playback clock are included. The renderer retains the asteroid, depth
+occlusion, CPU framebuffer-edit and SIMD memory-copy corrections.
+
+Host window messages run on the window-owning thread with an input mailbox.
+Volume reads, diagnostic output and map snapshots no longer block the guest
+execution path. Cooperative executor wakeups target the next participant.
+All default unified-frontend exports and current controller features remain on.
+
+The first combined build still underran in the opening cinematic. Profiling
+found CPU saturation during original guest polling loops: the function
+dispatcher queried a test-only environment variable on every call. Reading
+that immutable option once at startup removed the reproduced audio gaps.
+Instruction fast paths and compile-time OS observer lookup preserve the same
+guest costs, interrupt boundaries and original routine bodies. Generated PCM
+remains byte-identical to the corresponding pre-optimization replay.
+
+Original OS execution also exposed two controller polls in a single retrace.
+Recorded-poll replay now preserves both samples; ordinary retrace replay still
+rejects ambiguous overlapping intervals. Backward and nonidentical overlapping
+records remain rejected atomically. Automated aim, movement, firing, camera,
+stock-mode and record/replay checks pass; physical multiplayer is not asserted.
+
+A fresh build from the owner's ROM, without prebuilt game objects, passed two
+full opening runs and one Quarry cutscene/gameplay run at a verified 1920x1080
+game viewport. No other native game overlapped these captures. The 81 ROM-free
+C++ tests, three renderer regressions, schema checks and Linux Python suite pass.
+The local Windows Python run retains three pre-existing Phase 4 harness failures:
+this PC's WSL binary differs from that historical audit's pinned hash. The
+unchanged base revision reproduces them; the pin was not weakened or replaced.
+The fresh generation exposed duplicate inclusion of the timing ABI header;
+the corrected include boundary was rebuilt through the public, manifest-checked
+native resume command. No generated game files were edited to make it compile.
+
+| Run | Audio underruns | Output gaps >=6 ms | Maximum host interval excess (ms) |
+| --- | ---: | ---: | ---: |
+| intro-final | 0 | 0 | 13.388 |
+| quarry-final | 0 | 0 | 9.725 |
+| intro-final-repeat | 0 | 0 | 15.475 |
+
+These are native-process WASAPI output comparisons and host presentation-call
+timestamps, not direct speaker/monitor measurements or whole-campaign parity.
+No measured interval excess exceeded one original video interval in these
+qualified runs. No scene waits, audio padding, audio drops or scene-specific
+clock changes were added. Actual recordings, spectrograms and ROM-derived
+inputs remain private. Exact executable identity and aggregate checks are in
+[unified-original-timing-validation.json](../../evidence/unified-original-timing-validation.json).

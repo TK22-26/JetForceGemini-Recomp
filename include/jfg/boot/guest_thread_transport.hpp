@@ -21,9 +21,12 @@ public:
     std::uint32_t from_thread, to_thread, target_pc;
   };
   using ObserveEret = std::function<void(const EretBoundary&, const Context&)>;
-  GuestThreadTransport(Enter enter, Repair repair, ObserveEret observe_eret = {})
+  using SchedulerWork = std::function<void()>;
+  GuestThreadTransport(Enter enter, Repair repair, ObserveEret observe_eret = {},
+                       SchedulerWork scheduler_work = {})
       : enter_(std::move(enter)), repair_(std::move(repair)),
-        observe_eret_(std::move(observe_eret)) {}
+        observe_eret_(std::move(observe_eret)),
+        scheduler_work_(std::move(scheduler_work)) {}
   GuestThreadTransport(const GuestThreadTransport&) = delete;
   GuestThreadTransport& operator=(const GuestThreadTransport&) = delete;
 
@@ -85,6 +88,9 @@ public:
       } else {
         require(it->second.continuation == entry_pc_, "unobserved guest resume PC");
       }
+      // Every participant is parked here; host work runs on the caller's
+      // thread without changing guest scheduling or exposing concurrent state.
+      if (scheduler_work_) scheduler_work_();
       current_ = selected_;
       running_ = true;
       const bool finished = executor_.resume(it->second.participant);
@@ -104,6 +110,7 @@ private:
   Enter enter_;
   Repair repair_;
   ObserveEret observe_eret_;
+  SchedulerWork scheduler_work_;
   std::map<std::uint32_t, Thread> threads_;
   Context transfer_{};
   std::uint32_t current_ = 0, selected_ = 0, entry_pc_ = 0;

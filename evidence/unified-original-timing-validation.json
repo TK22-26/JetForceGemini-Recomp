@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-09",
+  "scope": "Public original-OS timing integration with the unified frontend, renderer fixes and experimental single-player controls.",
+  "runtime_sha256": "fa6e0ec8068a18ae23eaa24eb1a5cb66bbbe4d3a0b6197adda45ff6109a1cd80",
+  "fresh_user_rom_build": true,
+  "rom_free_cpp_tests": 81,
+  "renderer_tests": 3,
+  "audio": {
+    "passed": true,
+    "checks": {
+      "intro-final": true,
+      "quarry-final": true,
+      "intro-final-repeat": true,
+      "same_fresh_runtime": true
+    },
+    "runs": [
+      {
+        "label": "intro-final",
+        "underruns": 0,
+        "overruns": 0,
+        "unsupported_accesses": 0,
+        "valid_audio_alignment": true,
+        "output_losses": [],
+        "maximum_presentation_excess_us": 13387.813333333332,
+        "p99_presentation_excess_us": 2408.906666666666,
+        "excess_over_one_vi": 0,
+        "competing_games": [],
+        "native_sha256": "fa6e0ec8068a18ae23eaa24eb1a5cb66bbbe4d3a0b6197adda45ff6109a1cd80",
+        "pcm_reference": "intro-targeted",
+        "pcm_compared_bytes": 17658112,
+        "pcm_common_prefix_identical": true,
+        "visible_1080p": true
+      },
+      {
+        "label": "quarry-final",
+        "underruns": 0,
+        "overruns": 0,
+        "unsupported_accesses": 0,
+        "valid_audio_alignment": true,
+        "output_losses": [],
+        "maximum_presentation_excess_us": 9724.626666666663,
+        "p99_presentation_excess_us": 1709.9066666666658,
+        "excess_over_one_vi": 0,
+        "competing_games": [],
+        "native_sha256": "fa6e0ec8068a18ae23eaa24eb1a5cb66bbbe4d3a0b6197adda45ff6109a1cd80",
+        "pcm_reference": "quarry-targeted",
+        "pcm_compared_bytes": 16203776,
+        "pcm_common_prefix_identical": true,
+        "visible_1080p": true
+      },
+      {
+        "label": "intro-final-repeat",
+        "underruns": 0,
+        "overruns": 0,
+        "unsupported_accesses": 0,
+        "valid_audio_alignment": true,
+        "output_losses": [],
+        "maximum_presentation_excess_us": 15474.813333333332,
+        "p99_presentation_excess_us": 2127.8133333333317,
+        "excess_over_one_vi": 0,
+        "competing_games": [],
+        "native_sha256": "fa6e0ec8068a18ae23eaa24eb1a5cb66bbbe4d3a0b6197adda45ff6109a1cd80",
+        "pcm_reference": "intro-final",
+        "pcm_compared_bytes": 17661056,
+        "pcm_common_prefix_identical": true,
+        "visible_1080p": true
+      }
+    ],
+    "limits": "Controlled full opening/Quarry replays on this PC; actual process-loopback gaps >=6 ms and host submission timing, not physical speaker/display scanout or whole-campaign parity."
+  },
+  "controller": {
+    "checks": {
+      "runs_passed": true,
+      "same_runtime": true,
+      "off_no_extension": true,
+      "off_matches_stock_actor": true,
+      "off_matches_stock_camera": true,
+      "record_replay_actor": true,
+      "record_replay_pc-aim": true,
+      "record_replay_pc-orbit": true,
+      "record_replay_pc-camera-clearance": true,
+      "record_replay_pc-camera-body": true,
+      "separate_mouse_and_stick": true,
+      "camera_mouse_and_stick": true,
+      "camera_neutral_stable": true,
+      "camera_original_solver_used": true,
+      "mouse_aim_rate": true,
+      "stick_aim_rate": true,
+      "mouse_aim_walk_strafe": true,
+      "stick_aim_walk_strafe": true,
+      "weapon_fire": true
+    },
+    "shots": 4,
+    "runtime_sha256": "fa6e0ec8068a18ae23eaa24eb1a5cb66bbbe4d3a0b6197adda45ff6109a1cd80",
+    "scope": "Automated single-player regression; physical multiplayer is not asserted."
+  },
+  "local_windows_python_limit": {
+    "same_unmodified_harness_and_tests": true,
+    "baseline_failures": 2,
+    "baseline_errors": 1,
+    "actual_wsl_sha256": "fcd08205b608b5c4831e0dcb1801dd274436cd2c8420815f18ae58a085891a18",
+    "expected_wsl_sha256": "27cc8dd52be326e138a89f8889241b1d8c51dd1978b22eb70be77036ccdee3c2",
+    "tool_pin_changed": false
+  },
+  "generation_metadata": {
+    "matched": true,
+    "unique_instruction_sites": 375433,
+    "hook_occurrences": 424827,
+    "semantic_metadata_sha256": "af5e1534a302fae48f7023a2e34fdde42f1b70999e62bb362f3079c8e3c38b9a",
+    "comparison": "Fresh public generation versus qualified combined replay corpus; only the host inline-selection bit is excluded."
+  },
+  "build_resume_reason": "Corrected duplicate generated/public timing header inclusion; original generation manifest verified by public resume command.",
+  "mechanism": "Original guest OS instruction/cache/device timing; host work moved off the execution path. The diagnostic travel-fixture environment flag is read once at startup, rather than on every generated function dispatch.",
+  "changes_not_made": [
+    "scene-specific waits",
+    "cutscene audio padding",
+    "audio sample removal",
+    "scene-specific clock changes"
+  ],
+  "privacy": "Recordings, game images, generated game code and saves remain private."
+}

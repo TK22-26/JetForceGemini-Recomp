@@ -149,6 +149,35 @@ void test_independent_look() {
     }
 }
 
+
+void test_repeated_poll_records() {
+    const TemporaryReplay fixture(
+        "jfg-phase8-input-v3\n"
+        "21,22,1,8000,0,0,3,12,0\n"
+        "21,22,1,0000,0,0,3,-7,0\n"
+        "22,23,1,0010,0,0,0,0,0\n");
+    jfg::DeterministicInputReplay replay;
+    check(jfg::DeterministicInputReplay::load(fixture.path(), replay) ==
+        jfg::InputReplayError::invalid_order, "retrace replay still rejects ambiguous repeated intervals");
+    check(jfg::DeterministicInputReplay::load(fixture.path(), replay,
+        jfg::InputReplayOrder::recorded_poll) == jfg::InputReplayError::none,
+        "original OS may poll twice in one retrace");
+    check(replay.events().size() == 3 && replay.sample_by_poll(0).buttons == 0x8000 &&
+        replay.sample_by_poll(0).look_x == 12 && replay.sample_by_poll(1).look_x == -7 &&
+        replay.sample_by_poll(2).buttons == 0x0010 && replay.sample_by_poll(3).neutral(),
+        "recorded poll order preserves independent transitions and EOF");
+    const auto before = replay.events();
+    for (const auto* rows : {
+        "21,23,1,0,0,0\n22,23,1,0,0,0\n",
+        "21,22,1,0,0,0\n20,21,1,0,0,0\n",
+        "21,23,1,0,0,0\n21,23,1,0,0,0\n"}) {
+        const TemporaryReplay invalid(std::string("jfg-phase8-input-v2\n")+rows);
+        check(jfg::DeterministicInputReplay::load(invalid.path(), replay,
+            jfg::InputReplayOrder::recorded_poll) == jfg::InputReplayError::invalid_order &&
+            replay.events() == before, "poll mode rejects reordered or overlapping intervals atomically");
+    }
+}
+
 void test_rejects_invalid_records() {
     for (const std::string_view contents : {
              "wrong-header\n1800,1810,1000,0,0\n",
@@ -175,6 +204,7 @@ int main() {
     test_long_manual_recording();
     test_connection_transitions();
     test_poll_replay_eof_is_neutral();
+    test_repeated_poll_records();
     test_rejects_invalid_records();
     return failures == 0 ? 0 : 1;
 }

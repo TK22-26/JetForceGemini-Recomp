@@ -55,6 +55,16 @@ This describes the launcher package, not a redistribution of the locally built
 game or every system/toolchain component. Existing toolchain review limitations
 below still apply.
 
+## Original runtime timing model
+
+The locally built game uses instruction/cache costs and cartridge DMA duration
+from the pinned ares model vendored by BizHawk revision
+`bdddf4a58aa1a022afb11dc73294a81a5aa7bbd5`. The public handwritten adapters
+retain the ISC copyright/permission notice, with the full upstream notice in
+[`patches/ares/LICENSE.upstream`](../../patches/ares/LICENSE.upstream).
+No emulator executable is included in the launcher ZIP. Timing hooks and game
+instructions are generated locally from the user's ROM.
+
 ## Build and validation tools
 
 These tools execute during ROM-free development or CI; they are not linked

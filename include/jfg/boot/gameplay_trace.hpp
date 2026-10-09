@@ -1,4 +1,5 @@
 #pragma once
+#include "jfg/runtime/async_diagnostic_file.hpp"
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -24,6 +25,8 @@ public:
     return true;
   }
   explicit operator bool() const { return stream_.is_open() && !stopped_; }
+  // finish() drains at shutdown; flush() only submits buffered diagnostics.
+  void finish() noexcept { stream_.finish(); }
   void flush() { if (stream_.is_open()) stream_.flush(); }
   void event(const char *kind, std::span<const std::uint64_t> values) {
     if (!*this) return;
@@ -55,7 +58,7 @@ private:
     stream_ << "limit\t" << reason << '\n';
     flush(); stopped_ = true;
   }
-  std::ofstream stream_;
+  jfg::AsyncDiagnosticFile stream_;
   std::chrono::steady_clock::time_point start_{}, flushed_{};
   std::uint64_t bytes_ = 0, limit_ = 0;
   bool stopped_ = false;

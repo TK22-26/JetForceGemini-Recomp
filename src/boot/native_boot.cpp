@@ -1,4 +1,14 @@
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include "jfg/runtime/snapshot_copy.hpp"
 #include "funcs.h"
+#if __has_include("jfg_original_timing.h")
+#include "jfg_original_timing.h"
+#else
+#define JFG_ORIGINAL_TIMING_GENERATION 0
+#include "jfg/boot/original_timing_fast.h"
+#endif
 #include "jfg/boot/hle.hpp"
 #include "jfg/boot/sync_print_sink.hpp"
 #include "jfg/boot/sound_queue_recovery.hpp"
@@ -6,8 +16,16 @@
 #include "jfg/boot/ipl_handoff.hpp"
 #include "jfg/boot/gameplay_trace.hpp"
 #include "jfg/mod/navigation_mod.hpp"
+#include "jfg/runtime/async_bounded_trace.hpp"
+#include "jfg/runtime/async_snapshots.hpp"
+#include "jfg/runtime/async_diagnostic_file.hpp"
+#include "jfg/runtime/async_volume_file.hpp"
 #include "jfg/audio/master_volume.hpp"
 #include "jfg/audio/playback_buffer.hpp"
+#include "jfg/audio/vi_playback_clock.hpp"
+#include "jfg/runtime/window_input_mailbox.hpp"
+#include <future>
+#include <atomic>
 #include "jfg/boot/runlink_module_table.hpp"
 #include "jfg/boot/thread_scheduler.hpp"
 #include "jfg/boot/guest_thread_transport.hpp"
@@ -18,12 +36,12 @@
 #include "jfg/boot/sp_status.hpp"
 #include "jfg/boot/reference_sp_dma.hpp"
 #include "jfg/boot/reference_pif_boot.hpp"
-#include "jfg/boot/reference_pi_dma.hpp"
+#include "jfg/boot/original_timing_pi_dma.hpp"
 #include "jfg/boot/reference_compare.hpp"
 #include "jfg/boot/reference_si_dma.hpp"
 #include "jfg/boot/reference_event_commit.hpp"
 #include "jfg/boot/reference_flash_bus.hpp"
-#include "jfg/boot/reference_ai_dma.hpp"
+#include "jfg/boot/original_timing_ai_dma.hpp"
 #include "jfg/boot/point_probe.hpp"
 #include "jfg/boot/device_event_probe.h"
 #include "jfg/boot/eret_transfer_probe.hpp"
@@ -98,7 +116,12 @@ extern "C" BOOLEAN WINAPI SystemFunction036(PVOID, ULONG);
 #error "JFG_PHASE6_SANITIZER_ID must bind the native runner instrumentation"
 #endif
 
+extern "C" { JfgOriginalTimingFast* jfg_original_timing_state = nullptr; }
+
 namespace jfg::boot::native {
+extern "C" {
+#include "jfg/boot/original_timing_cache.h"
+}
 namespace {
 constexpr std::size_t kRomSize = 32U * 1024U * 1024U;
 constexpr std::size_t kRdramSize = 4U * 1024U * 1024U;
@@ -135,6 +158,12 @@ constexpr Mapping kMappings[] = {
 #include JFG_PHASE6_DISPATCH_TABLE_INC
 };
 constexpr std::size_t kMappingCount = sizeof(kMappings) / sizeof(kMappings[0]);
+consteval std::uint32_t original_os_entry(std::string_view name) {
+  for (const auto& mapping : kMappings)
+    if (mapping.name == name) return mapping.vram;
+  throw "Unknown original OS observer";
+}
+
 constexpr bool mappings_are_strictly_sorted() noexcept {
   for (std::size_t index = 1U; index < kMappingCount; ++index) {
     if (kMappings[index - 1U].vram >= kMappings[index].vram)
@@ -227,15 +256,16 @@ struct MmioTrace final {
   bool guest_execution = false;
   std::uint64_t guest_count = 0U;
   std::uint64_t vi_next = 0U;
+  std::uint64_t execution_io_revision = 0U;
   std::uint32_t vi_period = 500000U;
   std::uint32_t vi_v_sync = 0U;
   std::uint32_t vi_h_sync = 0U;
   std::uint32_t mi_pending = 0U;
   std::uint64_t vi_acknowledgements = 0U;
   jfg::boot::ReferenceSiDma si_dma;
-  jfg::boot::ReferencePiDma pi_dma;
+  jfg::boot::OriginalTimingPiDma pi_dma;
   jfg::boot::ReferenceFlashBus flash_bus;
-  jfg::boot::ReferenceAiDma ai_dma;
+  jfg::boot::OriginalTimingAiDma ai_dma;
   std::uint64_t persisted_flash_mutations = 0;
   std::optional<std::uint64_t> sp_launch, sp_deadline, dp_deadline;
   std::span<std::uint8_t> device_rdram;
@@ -382,6 +412,7 @@ LONG CALLBACK mmio_exception_handler(EXCEPTION_POINTERS *exception) {
       std::memcpy(reinterpret_cast<void*>(g_mmio_trace->pending_address), &mask, 4U);
     }
     if (g_mmio_trace->guest_execution && g_mmio_trace->pending_write) {
+      ++g_mmio_trace->execution_io_revision;
       const auto offset = static_cast<std::uint32_t>(g_mmio_trace->pending_address -
           reinterpret_cast<std::uintptr_t>(g_mmio_trace->pending_page));
       std::uint32_t value = 0U;
@@ -537,7 +568,10 @@ LONG CALLBACK mmio_exception_handler(EXCEPTION_POINTERS *exception) {
       std::memcpy(reinterpret_cast<void*>(address), &g_mmio_trace->mi_pending, 4U);
     if (g_mmio_trace->guest_execution && !write && index == 3U && offset == 0x10U) {
       const auto origin = g_mmio_trace->vi_next - g_mmio_trace->vi_period;
-      const auto line = static_cast<std::uint32_t>((g_mmio_trace->guest_count - origin) / 1500U) & ~1U;
+      const auto line = g_mmio_trace->vi_period == 783520U ?
+          static_cast<std::uint32_t>(((g_mmio_trace->guest_count - origin) * 263U) /
+              g_mmio_trace->vi_period) * 2U :
+          static_cast<std::uint32_t>((g_mmio_trace->guest_count - origin) / 1500U) & ~1U;
       std::memcpy(reinterpret_cast<void*>(address), &line, 4U);
     }
     if (index == 9U && (!g_mmio_trace->guest_pif_boot || offset != 0x7fcU)) {
@@ -593,7 +627,8 @@ public:
   void frontend_pause(bool paused) noexcept {
     if (device_ != 0U && device_playing_) SDL_PauseAudioDevice(device_, paused ? 1 : 0);
   }
-
+  void set_vi_counter(const std::uint64_t *vi) noexcept { capture_vi_ = vi; }
+  void renderer_ready() noexcept { renderer_ready_ = true; update_playback_state(); }
 
   bool configure_capture(const std::string &path) {
     capture_pcm_.open(path, std::ios::binary | std::ios::trunc);
@@ -603,7 +638,7 @@ public:
       return false;
     capture_started_ = std::chrono::steady_clock::now();
     capture_events_ << "wall_us,event,queued_bytes,total_queued_bytes,"
-                       "consumed_bytes\n";
+                       "consumed_bytes,vi,steady_us\n";
     return true;
   }
 
@@ -632,10 +667,6 @@ public:
       converted_[offset] = static_cast<std::uint8_t>(sample);
       converted_[offset + 1U] = static_cast<std::uint8_t>(sample >> 8U);
     }
-    master_volume_.apply(converted_);
-    if (device_ != 0U &&
-        SDL_QueueAudio(device_, converted_.data(), length) != 0)
-      return false;
     if (capture_pcm_.is_open()) {
       capture_pcm_.write(
           reinterpret_cast<const char *>(converted_.data()),
@@ -643,6 +674,10 @@ public:
       if (!capture_pcm_)
         return false;
     }
+    master_volume_.apply(converted_);
+    if (device_ != 0U &&
+        SDL_QueueAudio(device_, converted_.data(), length) != 0)
+      return false;
     ++submitted_buffers_;
     queued_bytes_ += length;
     emulated_dma_lengths_.push_back(length);
@@ -650,6 +685,21 @@ public:
     capture_event("queue");
     update_playback_state();
     return true;
+  }
+
+  // Shader startup may accumulate more than the configured priming cushion.
+  // Establish the wall clock only after that excess has played, so startup
+  // work cannot permanently choose a larger audio/video phase offset.
+  void settle_startup_queue() {
+    if (!device_playing_ || device_ == 0U) return;
+    update_metrics();
+    capture_event("anchor-drain-begin");
+    while (device_playing_ && current_queued_bytes_ > prebuffer_bytes_) {
+      SDL_Delay(1U);
+      update_metrics();
+      update_playback_state();
+    }
+    capture_event("anchor-drain-end");
   }
 
   void service(const bool advance_emulated_clock, const bool throttle) {
@@ -672,6 +722,8 @@ public:
         capture_events_.flush();
     }
   }
+
+  void finish_capture() noexcept { capture_pcm_.finish(); capture_events_.finish(); }
 
   void close() noexcept {
     if (device_ != 0U) {
@@ -719,6 +771,7 @@ private:
       if (_wdupenv_s(&path, &length, L"JFG_MASTER_VOLUME_CONFIG") == 0 && path) {
         volume_path_ = std::filesystem::path(path);
         std::free(path);
+        volume_file_.start(volume_path_);
       }
     }
     if (volume_path_.empty()) return;
@@ -727,18 +780,9 @@ private:
     volume_next_read_ = now + std::chrono::milliseconds(100);
     // Runs on the existing producer thread, never an SDL audio callback.
     // Missing/partial replacements keep the last accepted preference.
-    const HANDLE file = CreateFileW(volume_path_.c_str(), GENERIC_READ,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
-        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE) return;
-    std::array<char, 129> buffer{};
-    DWORD count = 0;
-    const bool read = ReadFile(file, buffer.data(),
-        static_cast<DWORD>(buffer.size()), &count, nullptr) != 0;
-    CloseHandle(file);
-    if (!read || count > 128U) return;
-    if (const auto settings = jfg::audio::parse_volume(
-            std::string_view(buffer.data(), count))) {
+    const auto text = volume_file_.latest();
+    if (!text) return;
+    if (const auto settings = jfg::audio::parse_volume(*text)) {
       master_volume_.configure(*settings, frequency, !volume_received_);
       volume_received_ = true;
     }
@@ -751,7 +795,7 @@ private:
     desired.freq = static_cast<int>(frequency);
     desired.format = AUDIO_S16SYS;
     desired.channels = 2U;
-    desired.samples = 1024U;
+    desired.samples = 256U;
     SDL_AudioSpec obtained{};
     device_ = SDL_OpenAudioDevice(nullptr, 0, &desired, &obtained, 0);
     if (device_ == 0U || obtained.freq != desired.freq ||
@@ -771,8 +815,8 @@ private:
     frequency_ = frequency;
     // Give the first renderer/shader work a generous cushion, then keep normal
     // host latency bounded independently of the emulated AI DMA clock.
-    prebuffer_bytes_ = frequency_ * 4U / 4U;
-    resume_bytes_ = frequency_ * 4U * 3U / 20U;
+    prebuffer_bytes_ = frequency_ * 4U / 10U;
+    resume_bytes_ = frequency_ * 4U / 10U;
     pacing_bytes_ = frequency_ * 4U / 5U;
     overrun_bytes_ = frequency_ * 4U * 2U;
     initialized_ = true;
@@ -834,6 +878,7 @@ private:
         started_ = true;
       return;
     }
+    if (!started_ && !renderer_ready_) return;
     switch (jfg::audio::playback_buffer_action(started_, device_playing_,
                 current_queued_bytes_, prebuffer_bytes_, resume_bytes_)) {
     case jfg::audio::PlaybackBufferAction::start:
@@ -872,7 +917,8 @@ private:
         std::chrono::steady_clock::now() - capture_started_).count();
     capture_events_ << wall_us << ',' << event << ','
                     << current_queued_bytes_ << ',' << queued_bytes_ << ','
-                    << consumed_bytes_ << '\n';
+                    << consumed_bytes_ << ',' << (capture_vi_ ? *capture_vi_ : 0U) << ','
+                    << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() << '\n';
   }
 
   void advance_emulated_dma() noexcept {
@@ -895,14 +941,16 @@ private:
   }
 
   GameplayTrace *gameplay_trace_ = nullptr;
+  const std::uint64_t *capture_vi_ = nullptr;
   SDL_AudioDeviceID device_ = 0U;
   jfg::audio::MasterVolume master_volume_;
   std::filesystem::path volume_path_;
+  jfg::AsyncVolumeFile volume_file_;
   std::chrono::steady_clock::time_point volume_next_read_{};
   bool volume_path_checked_ = false, volume_received_ = false;
   std::vector<std::uint8_t> converted_;
-  std::ofstream capture_pcm_;
-  std::ofstream capture_events_;
+  jfg::AsyncDiagnosticFile capture_pcm_;
+  jfg::AsyncDiagnosticFile capture_events_;
   std::chrono::steady_clock::time_point capture_started_{};
   std::deque<std::uint32_t> emulated_dma_lengths_;
   std::uint64_t emulated_byte_accumulator_ = 0U;
@@ -912,6 +960,7 @@ private:
   std::uint32_t pacing_bytes_ = 0U;
   std::uint32_t overrun_bytes_ = 0U;
   std::uint32_t current_queued_bytes_ = 0U;
+  bool renderer_ready_ = false;
   std::uint64_t submitted_buffers_ = 0U;
   std::uint64_t queued_bytes_ = 0U;
   std::uint64_t consumed_bytes_ = 0U;
@@ -1320,11 +1369,11 @@ struct LiveViFieldRegisters final {
 };
 #endif
 
-struct State {
+struct State : JfgOriginalTimingFast {
+  State() : JfgOriginalTimingFast{} { execution_fast_revision = UINT64_MAX; }
   bool ledgered = false;
   bool os_initialized = false;
   jfg::GeneratedOverlayRuntime *runtime = nullptr;
-  std::uint8_t *rdram = nullptr;
   const std::uint8_t *rom = nullptr;
   std::size_t rom_size = 0U;
   std::unique_ptr<ThreadScheduler> scheduler;
@@ -1333,6 +1382,10 @@ struct State {
   std::vector<std::uint32_t> thread_entries;
   std::unordered_set<std::uint32_t> queues;
   std::unordered_set<std::uint32_t> active_overlay_sections;
+  // Linked section metadata is immutable for this generated root. Dynamic
+  // allocation/publication checks still run for every dispatched call.
+  std::unordered_map<std::uint32_t,
+      std::pair<std::uint32_t, JfgGeneratedSectionMetadata>> generated_section_cache;
   std::unordered_set<std::uint32_t> guest_overlay_loads_in_progress;
   jfg::ControllerMapping controller_mapping{};
   jfg::ControllerPorts controller_ports;
@@ -1368,7 +1421,6 @@ struct State {
   bool scheduler_running = false;
   std::uint32_t root_priority = 0U;
   std::uint32_t interrupt_mask = 0U;
-  std::uint64_t cpu_count = 0U;
   Timers timers;
   std::uint64_t os_time_base = 0U;
   std::uint64_t os_time_count_origin = 0U;
@@ -1380,21 +1432,23 @@ struct State {
   std::uint32_t pending_si_completions = 0U;
   SiDeadline si_deadline;
   // Private generator-hook observer. This does not feed Count or deadlines.
-  std::uint64_t observed_guest_instructions = 0U;
   bool si_count_probe = false;
   bool renderer_writeback_probe = false;
   bool guest_leaf_probe = false;
   bool guest_initializing = false;
   bool guest_os_probe = false;
+  bool timing_fixture = false;
+  bool original_os_host_pacing = false;
+  std::uint64_t original_window_pump_vi = UINT64_MAX;
+  bool original_os_host_anchor_ready = false;
+  jfg::audio::ViPlaybackClock original_os_host_clock;
+
   std::unique_ptr<GuestThreadTransport<recomp_context>> guest_transport;
   std::uint32_t guest_epc = 0U, guest_cause = 0U;
   jfg::boot::ReferenceCompare guest_timer;
   std::uint32_t guest_active_rsp_task = 0U, guest_active_rsp_type = 0U;
-  std::uint32_t guest_last_pc = 0U, guest_last_word = 0U;
-  bool guest_previous_branch = false, guest_previous_delay = false;
-  bool guest_eret_boundary = false;
   std::uint64_t guest_exceptions = 0U;
-  std::ofstream guest_clock_trace;
+  jfg::AsyncDiagnosticFile guest_clock_trace;
   std::unique_ptr<FILE, decltype(&std::fclose)> device_event_stream{nullptr, &std::fclose};
   jfg_device_event_probe device_event_probe{};
   std::ofstream eret_transfer_stream;
@@ -1434,6 +1488,9 @@ struct State {
   std::uint32_t phase9_player_actor = 0U;
   jfg::mod::NavigationMod navigation_mod;
   std::filesystem::path navigation_output;
+  jfg::AsyncBoundedTrace movement_trace, jump_trace;
+  jfg::AsyncSnapshots snapshot_writer;
+  std::shared_ptr<const std::string> navigation_mesh_export;
   std::uint64_t phase9_hints_control_calls = 0U;
   std::uint64_t phase9_hints_talk_calls = 0U;
   std::uint32_t phase9_hints_actor = 0U;
@@ -1492,7 +1549,6 @@ struct State {
   std::uint32_t active_bzero_length = 0U;
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
   jfg::FlashRamStore flashram;
-  bool play_mode = false;
   bool fast_replay = false;
   bool realtime_replay = false;
   bool exit_requested = false;
@@ -1510,7 +1566,9 @@ struct State {
   jfg::PcWheelPulses pc_wheel;
   jfg::PcMouseMotion pc_mouse;
   int pc_wheel_key = 0;
-  bool pc_mouse_captured = false, pc_input_blocked = true, pc_raw_available = false;
+  std::atomic<bool> pc_mouse_captured{false};
+  bool pc_input_blocked = true, pc_raw_available = false;
+  jfg::WindowInputMailbox window_input;
   std::array<bool, 256U> host_keys{};
   std::array<bool, 256U> host_key_presses{};
   std::uint16_t latched_controller_buttons = 0U;
@@ -1525,7 +1583,7 @@ struct State {
   std::string progress_path;
   std::string input_record_path;
   std::string retrace_hash_path;
-  std::ofstream input_record;
+  jfg::AsyncDiagnosticFile input_record;
   std::ofstream phase95_poll_trace;
   std::ofstream retrace_hash_trace;
   std::ofstream update_hash_trace;
@@ -1557,7 +1615,10 @@ struct State {
   std::vector<std::uint32_t> point_probe_words;
   std::ofstream point_probe_trace;
   std::uint32_t point_probe_hits = 0U;
-  std::ofstream timing_trace;
+  jfg::AsyncDiagnosticFile timing_trace;
+  jfg::AsyncBoundedTrace reticle_trace;
+  bool reticle_trace_started = false, reticle_trace_active = false, reticle_trace_enabled = false;
+  std::uint32_t reticle_actor = 0U, reticle_control = 0U;
   GameplayTrace gameplay_trace;
   std::uint64_t gameplay_trace_vi = UINT64_MAX;
   std::uint64_t gameplay_trace_updates = 0U;
@@ -1684,126 +1745,148 @@ State *g_active_child_state = nullptr;
 
 class LiveRt64Window final {
 public:
-  LiveRt64Window(State &state, const bool visible) {
-    instance_ = GetModuleHandleW(nullptr);
-    WNDCLASSW window_class{};
-    window_class.lpfnWndProc = window_proc;
-    window_class.hInstance = instance_;
-    window_class.hIcon = LoadIconW(instance_, MAKEINTRESOURCEW(1));
-    window_class.lpszClassName = kClassName;
-    atom_ = RegisterClassW(&window_class);
-    if (atom_ == 0U)
-      return;
-    wchar_t parent_text[32]{};
-    HWND parent=nullptr;
-    if(GetEnvironmentVariableW(L"JFG_FRONTEND_PARENT",parent_text,32)>0) {
-      wchar_t* end=nullptr;const auto value=wcstoull(parent_text,&end,10);
-      parent=reinterpret_cast<HWND>(static_cast<std::uintptr_t>(value));
-      if(!end || *end || !IsWindow(parent) || !GetPropW(GetAncestor(parent,GA_ROOT),L"JfgFrontend"))return;
-    }
-    const DWORD style=parent ? WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS : WS_OVERLAPPEDWINDOW;
-    RECT rectangle{0, 0, 640, 480};
-    if(parent)GetClientRect(parent,&rectangle);
-    if (!parent && AdjustWindowRectEx(&rectangle, style, FALSE, 0U) == FALSE)
-      return;
-    window_ = CreateWindowExW(
-        0U, kClassName, L"Jet Force Gemini Recomp", style, parent?0:CW_USEDEFAULT,
-        parent?0:CW_USEDEFAULT, rectangle.right - rectangle.left,
-        rectangle.bottom - rectangle.top, parent, nullptr, instance_, &state);
+  static constexpr UINT kAspectMessage = WM_APP + 22U;
+  LiveRt64Window(State &state, const bool visible) : input_(state.window_input), captured_(state.pc_mouse_captured) {
+    // No guest state is accessed by this thread. A window move/resize can enter
+    // Win32's modal loop for arbitrarily long without parking the guest CPU.
+    std::promise<void> ready;
+    auto initialized = ready.get_future();
+    owner_ = std::thread([this, visible, &ready] {
+      thread_id_ = GetCurrentThreadId();
+      instance_ = GetModuleHandleW(nullptr);
+      WNDCLASSW window_class{};
+      window_class.lpfnWndProc = window_proc;
+      window_class.hIcon = LoadIconW(instance_, MAKEINTRESOURCEW(1));
+      window_class.hInstance = instance_;
+      window_class.lpszClassName = kClassName;
+      atom_ = RegisterClassW(&window_class);
+      if (atom_ != 0U) {
+        wchar_t parent_text[32]{};
+        HWND parent=nullptr;
+        if(GetEnvironmentVariableW(L"JFG_FRONTEND_PARENT",parent_text,32)>0) {
+          wchar_t* end=nullptr;const auto value=wcstoull(parent_text,&end,10);
+          parent=reinterpret_cast<HWND>(static_cast<std::uintptr_t>(value));
+          if(!end || *end || !IsWindow(parent) || !GetPropW(GetAncestor(parent,GA_ROOT),L"JfgFrontend")) {
+            ready.set_value();UnregisterClassW(kClassName,instance_);return;
+          }
+        }
+        const DWORD style=parent ? WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS : WS_OVERLAPPEDWINDOW;
+        RECT rectangle{0,0,640,480};
+        if(parent)GetClientRect(parent,&rectangle);
+        if (parent || AdjustWindowRectEx(&rectangle,style,FALSE,0U)) {
+          window_ = CreateWindowExW(0U,kClassName,L"Jet Force Gemini Recomp",style,
+              parent?0:CW_USEDEFAULT,parent?0:CW_USEDEFAULT,rectangle.right-rectangle.left,
+              rectangle.bottom-rectangle.top,parent,nullptr,instance_,this);
+        }
+        if(window_) {
+          RAWINPUTDEVICE mouse{0x01,0x02,0,window_};
+          raw_available_=RegisterRawInputDevices(&mouse,1,sizeof(mouse))!=FALSE;
+          if(parent)PostMessageW(GetAncestor(parent,GA_ROOT),WM_APP+20,reinterpret_cast<WPARAM>(window_),0);
+          if(visible){ShowWindow(window_,SW_SHOW);UpdateWindow(window_);}
+        }
+      }
+      ready.set_value();
+      if (window_) {
+        MSG message{};
+        while (GetMessageW(&message,nullptr,0U,0U)>0) {
+          TranslateMessage(&message);
+          DispatchMessageW(&message);
+        }
+        ClipCursor(nullptr);
+        DestroyWindow(window_);
+      }
+      if (atom_) UnregisterClassW(kClassName,instance_);
+    });
+    initialized.get(); // Publishes the initialized HWND and owner thread ID.
     state.native_window = window_;
-    if(window_) {
-      RAWINPUTDEVICE mouse{0x01,0x02,0,window_};
-      state.pc_raw_available=RegisterRawInputDevices(&mouse,1,sizeof(mouse))!=FALSE;
-    }
-    if(parent && window_)PostMessageW(GetAncestor(parent,GA_ROOT),WM_APP+20,reinterpret_cast<WPARAM>(window_),0);
-    if (window_ != nullptr && visible) {
-      ShowWindow(window_, SW_SHOW);
-      UpdateWindow(window_);
-    }
+    state.pc_raw_available = raw_available_;
   }
-
   ~LiveRt64Window() {
-    ClipCursor(nullptr);
-    if (window_ != nullptr)
-      DestroyWindow(window_);
-    if (atom_ != 0U)
-      UnregisterClassW(kClassName, instance_);
+    if (window_) PostMessageW(window_,kStopMessage,0,0);
+    if (owner_.joinable()) owner_.join();
   }
-
-  LiveRt64Window(const LiveRt64Window &) = delete;
-  LiveRt64Window &operator=(const LiveRt64Window &) = delete;
-
+  LiveRt64Window(const LiveRt64Window&) = delete;
+  LiveRt64Window& operator=(const LiveRt64Window&) = delete;
   [[nodiscard]] HWND get() const noexcept { return window_; }
-
+  [[nodiscard]] DWORD thread_id() const noexcept { return thread_id_; }
 private:
-  static LRESULT CALLBACK window_proc(HWND window, UINT message,
-                                      WPARAM wparam, LPARAM lparam) {
+  static LRESULT CALLBACK window_proc(HWND window,UINT message,WPARAM wparam,LPARAM lparam) {
     if (message == WM_NCCREATE) {
-      const auto *create = reinterpret_cast<const CREATESTRUCTW *>(lparam);
-      SetWindowLongPtrW(window, GWLP_USERDATA,
-                        reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+      const auto *create = reinterpret_cast<const CREATESTRUCTW*>(lparam);
+      SetWindowLongPtrW(window,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(create->lpCreateParams));
     }
-    auto *const state = reinterpret_cast<State *>(
-        GetWindowLongPtrW(window, GWLP_USERDATA));
-    if(state && message==WM_INPUT) {
+    auto *self = reinterpret_cast<LiveRt64Window*>(GetWindowLongPtrW(window,GWLP_USERDATA));
+    if (!self) return DefWindowProcW(window,message,wparam,lparam);
+    if(message==WM_INPUT) {
       RAWINPUT raw{};UINT size=sizeof(raw);
       if(GetRawInputData(reinterpret_cast<HRAWINPUT>(lparam),RID_INPUT,&raw,&size,sizeof(RAWINPUTHEADER))!=UINT(-1) &&
-         raw.header.dwType==RIM_TYPEMOUSE && !(raw.data.mouse.usFlags&MOUSE_MOVE_ABSOLUTE) && state->pc_mouse_captured)
-        state->pc_mouse.add(raw.data.mouse.lLastX,raw.data.mouse.lLastY);
+         raw.header.dwType==RIM_TYPEMOUSE && !(raw.data.mouse.usFlags&MOUSE_MOVE_ABSOLUTE) && self->captured_.load())
+        self->input_.motion(raw.data.mouse.lLastX,raw.data.mouse.lLastY);
     }
-    if(state && message==WM_SETCURSOR && state->pc_mouse_captured) { SetCursor(nullptr);return TRUE; }
-    if(state && message>=WM_MOUSEFIRST && message<=WM_MOUSELAST) {
+    if(message==WM_SETCURSOR && self->captured_.load()){SetCursor(nullptr);return TRUE;}
+    if(message>=WM_MOUSEFIRST && message<=WM_MOUSELAST) {
       int key=0;bool down=false;
       switch(message) {
       case WM_LBUTTONDOWN:case WM_LBUTTONUP:key=VK_LBUTTON;down=message==WM_LBUTTONDOWN;break;
       case WM_RBUTTONDOWN:case WM_RBUTTONUP:key=VK_RBUTTON;down=message==WM_RBUTTONDOWN;break;
       case WM_MBUTTONDOWN:case WM_MBUTTONUP:key=VK_MBUTTON;down=message==WM_MBUTTONDOWN;break;
       case WM_XBUTTONDOWN:case WM_XBUTTONUP:key=HIWORD(wparam)==XBUTTON1?VK_XBUTTON1:VK_XBUTTON2;down=message==WM_XBUTTONDOWN;break;
-      case WM_MOUSEWHEEL:state->pc_wheel.add(static_cast<short>(HIWORD(wparam)));break;
+      case WM_MOUSEWHEEL:self->input_.wheel(static_cast<short>(HIWORD(wparam)));break;
       default:break;
       }
       if(key) {
         if(down){SetFocus(window);SetCapture(window);}
-        if(down && !state->host_keys[static_cast<std::size_t>(key)])state->host_key_presses[static_cast<std::size_t>(key)]=true;
-        state->host_keys[static_cast<std::size_t>(key)]=down;
-        if(!down && GetCapture()==window && !state->host_keys[VK_LBUTTON] && !state->host_keys[VK_RBUTTON] &&
-           !state->host_keys[VK_MBUTTON] && !state->host_keys[VK_XBUTTON1] && !state->host_keys[VK_XBUTTON2])ReleaseCapture();
+        self->buttons_[static_cast<std::size_t>(key)]=down;self->input_.key(static_cast<std::size_t>(key),down);
+        if(!down && GetCapture()==window && !self->buttons_[VK_LBUTTON] && !self->buttons_[VK_RBUTTON] &&
+            !self->buttons_[VK_MBUTTON] && !self->buttons_[VK_XBUTTON1] && !self->buttons_[VK_XBUTTON2])ReleaseCapture();
         return message==WM_XBUTTONDOWN || message==WM_XBUTTONUP?TRUE:0;
       }
     }
-    if (state != nullptr &&
-        (message == WM_KEYDOWN || message == WM_KEYUP) && wparam < 256U) {
+    if(message==WM_CAPTURECHANGED)for(auto key:{VK_LBUTTON,VK_RBUTTON,VK_MBUTTON,VK_XBUTTON1,VK_XBUTTON2}){
+      self->buttons_[static_cast<std::size_t>(key)]=false;self->input_.key(static_cast<std::size_t>(key),false);
+    }
+    if ((message == WM_KEYDOWN || message == WM_KEYUP) && wparam < 256U) {
       if(GetParent(window) && message==WM_KEYDOWN && (wparam==VK_F11 || wparam==VK_ESCAPE)) {
         PostMessageW(GetAncestor(window,GA_ROOT),WM_APP+21,wparam,0);return 0;
       }
-      const std::size_t key = static_cast<std::size_t>(wparam);
-      if (message == WM_KEYDOWN && !state->host_keys[key])
-        state->host_key_presses[key] = true;
-      state->host_keys[key] = message == WM_KEYDOWN;
+      self->input_.key(static_cast<std::size_t>(wparam),message == WM_KEYDOWN);
       return 0;
     }
-    if(state && message==WM_CAPTURECHANGED) {
-      for(auto key:{VK_LBUTTON,VK_RBUTTON,VK_MBUTTON,VK_XBUTTON1,VK_XBUTTON2})state->host_keys[static_cast<std::size_t>(key)]=false;
+    if (message == WM_KILLFOCUS) {
+      self->captured_.store(false);self->buttons_.fill(false);
+      if(GetCapture()==window)ReleaseCapture();ClipCursor(nullptr);
+      self->input_.lose_focus();return 0;
     }
-    if (message == WM_KILLFOCUS && state != nullptr) {
-      if(GetCapture()==window)ReleaseCapture();
-      state->pc_mouse_captured=false;state->pc_input_blocked=true;
-      state->pc_mouse.clear();state->pc_wheel.clear();ClipCursor(nullptr);
-      state->host_key_presses.fill(false);
-      state->host_keys.fill(false);
+    if (message == WM_CLOSE) { self->input_.close(); return 0; }
+    if (message == kStopMessage) { PostQuitMessage(0); return 0; }
+    if (message == kAspectMessage) {
+      RECT client{};
+      if (!GetParent(window) && wparam != 0U && lparam > 0 && !IsZoomed(window) && !IsIconic(window) &&
+          GetClientRect(window,&client) && client.bottom > client.top) {
+        const LONG height = client.bottom-client.top;
+        const LONG width = static_cast<LONG>((std::uint64_t(height)*wparam+
+            static_cast<std::uint64_t>(lparam)/2U)/static_cast<std::uint64_t>(lparam));
+        RECT outer{0,0,width,height};
+        if (AdjustWindowRectEx(&outer,static_cast<DWORD>(GetWindowLongPtrW(window,GWL_STYLE)),
+            FALSE,static_cast<DWORD>(GetWindowLongPtrW(window,GWL_EXSTYLE))))
+          SetWindowPos(window,nullptr,0,0,outer.right-outer.left,outer.bottom-outer.top,
+              SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+      }
       return 0;
     }
-    if (message == WM_CLOSE && state != nullptr) {
-      state->exit_requested = true;
-      return 0;
-    }
-    return DefWindowProcW(window, message, wparam, lparam);
+    return DefWindowProcW(window,message,wparam,lparam);
   }
-
+  static constexpr UINT kStopMessage = WM_APP+23U;
   static constexpr wchar_t kClassName[] = L"JfgPhase8LiveRt64Window";
+  jfg::WindowInputMailbox& input_;
+  std::atomic<bool>& captured_;
+  std::array<bool,256> buttons_{};
+  bool raw_available_ = false;
   HINSTANCE instance_ = nullptr;
   ATOM atom_ = 0U;
   HWND window_ = nullptr;
+  DWORD thread_id_ = 0;
+  std::thread owner_;
 };
 
 bool host_key_down(const State &state, const int virtual_key) noexcept {
@@ -1995,7 +2078,38 @@ jfg::mod::DialogueState navigation_dialogue(State &state) {
   return jfg::mod::read_dialogue(memory,base);
 }
 
+class SlowHostWork {
+ public:
+  SlowHostWork(State &state, const char *label, bool selected = true)
+      : state_(state), label_(label),
+        enabled_(selected && state.timing_trace.is_open()),
+        start_(enabled_ ? std::chrono::steady_clock::now()
+                        : std::chrono::steady_clock::time_point{}) {}
+  ~SlowHostWork() {
+    if (!enabled_) return;
+    const auto us = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now() - start_).count();
+    if (us >= 4000)
+      state_.timing_trace << label_ << '\t' << state_.vi_frames << '\t'
+                          << state_.vi_retraces << '\t' << us << '\n';
+  }
+ private:
+  State &state_;
+  const char *label_;
+  bool enabled_;
+  std::chrono::steady_clock::time_point start_;
+};
+
+
 void sample_live_controller(State &state) noexcept {
+  state.window_input.consume(state.host_keys,state.host_key_presses,state.exit_requested);
+  {
+    const auto input=state.window_input.take_motion();
+    if(input.focus_lost){state.pc_mouse.clear();state.pc_wheel.clear();state.pc_input_blocked=true;}
+    if(state.pc_mouse_captured.load())state.pc_mouse.add(input.x,input.y);
+    state.pc_wheel.add(input.wheel);
+  }
+  const SlowHostWork timing(state, "host-controller");
   constexpr std::uint16_t kButtonA = 0x8000U;
   std::uint16_t buttons = 0U;
   int stick_x = 0;
@@ -2189,7 +2303,8 @@ bool service_host_audio(State &state, const bool pace) {
   // explicitly uses the same VI clock as interactive playback.
   state.host_audio.service(
       pace, pace && !state.play_mode && !state.fast_replay &&
-                !state.realtime_replay);
+                !state.realtime_replay &&
+                !(state.original_os_host_pacing && state.original_os_host_anchor_ready));
   state.audio_device_initialized = state.host_audio.initialized();
   state.audio_device_started = state.host_audio.started();
   state.audio_device_frequency = state.host_audio.frequency();
@@ -2206,6 +2321,14 @@ bool service_host_audio(State &state, const bool pace) {
 }
 
 void service_live_window(State &state) {
+  state.window_input.consume(state.host_keys,state.host_key_presses,state.exit_requested);
+  {
+    const auto input=state.window_input.take_motion();
+    if(input.focus_lost){state.pc_mouse.clear();state.pc_wheel.clear();state.pc_input_blocked=true;}
+    if(state.pc_mouse_captured.load())state.pc_mouse.add(input.x,input.y);
+    state.pc_wheel.add(input.wheel);
+  }
+  const SlowHostWork window_service_timing(state,"host-window-service");
   const auto frame_start = std::chrono::steady_clock::now();
   if (state.host_frame_start_initialized) {
     const auto interval = static_cast<std::uint64_t>(
@@ -2232,29 +2355,8 @@ void service_live_window(State &state) {
       presentation.width * state.window_presentation.height !=
           state.window_presentation.width * presentation.height) {
     state.window_presentation = presentation;
-    const auto window = static_cast<HWND>(state.native_window);
-    // Keep maximized/minimized windows under the user's control. The renderer
-    // fits the same aspect into their current client area with black borders.
-    RECT client{};
-    if (!GetParent(window) && !IsZoomed(window) && !IsIconic(window) && GetClientRect(window, &client) &&
-        client.bottom > client.top) {
-      const LONG height = client.bottom - client.top;
-      const LONG width = static_cast<LONG>((std::uint64_t(height) *
-          presentation.width + presentation.height / 2U) / presentation.height);
-      RECT outer{0, 0, width, height};
-      if (height > 0 && AdjustWindowRectEx(&outer,
-          static_cast<DWORD>(GetWindowLongPtrW(window, GWL_STYLE)), FALSE,
-          static_cast<DWORD>(GetWindowLongPtrW(window, GWL_EXSTYLE))))
-        SetWindowPos(window, nullptr, 0, 0, outer.right - outer.left,
-                     outer.bottom - outer.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-    }
-  }
-  MSG message{};
-  while (PeekMessageW(&message, nullptr, 0U, 0U, PM_REMOVE) != FALSE) {
-    if (message.message == WM_QUIT)
-      state.exit_requested = true;
-    TranslateMessage(&message);
-    DispatchMessageW(&message);
+    PostMessageW(static_cast<HWND>(state.native_window),LiveRt64Window::kAspectMessage,
+        presentation.width,static_cast<LPARAM>(presentation.height));
   }
   const auto frontend = state.native_window ? GetAncestor(static_cast<HWND>(state.native_window), GA_ROOT) : nullptr;
   bool frontend_paused = false;
@@ -2265,19 +2367,23 @@ void service_live_window(State &state) {
       SetPropW(frontend,L"JfgFrontendPaused",reinterpret_cast<HANDLE>(1));
       frontend_paused = true;
     }
-    while (PeekMessageW(&message, nullptr, 0U, 0U, PM_REMOVE) != FALSE) {
-      if (message.message == WM_QUIT) state.exit_requested = true;
-      TranslateMessage(&message);
-      DispatchMessageW(&message);
-    }
-    MsgWaitForMultipleObjects(0, nullptr, FALSE, 20, QS_ALLINPUT);
+    state.window_input.consume(state.host_keys,state.host_key_presses,state.exit_requested);
+  {
+    const auto input=state.window_input.take_motion();
+    if(input.focus_lost){state.pc_mouse.clear();state.pc_wheel.clear();state.pc_input_blocked=true;}
+    if(state.pc_mouse_captured.load())state.pc_mouse.add(input.x,input.y);
+    state.pc_wheel.add(input.wheel);
+  }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
   if (frontend_paused) {
     RemovePropW(frontend,L"JfgFrontendPaused");
     state.host_audio.frontend_pause(false);
     state.host_frame_deadline_initialized = false;
     state.host_frame_start_initialized = false;
+    state.original_os_host_anchor_ready = false;
   }
+  if (state.original_os_host_pacing) return;
   if (!state.host_frame_deadline_initialized) {
     state.host_frame_deadline = std::chrono::steady_clock::now();
     state.host_frame_deadline_initialized = true;
@@ -2371,11 +2477,17 @@ bool write_private_rt64_snapshot(
 }
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-bool write_mod_export(const std::filesystem::path &path, const std::string &text) {
-  auto temporary=path;temporary += ".tmp";
-  { std::ofstream stream(temporary,std::ios::binary|std::ios::trunc);
-    stream << text;stream.flush();if(!stream)return false; }
-  return MoveFileExW(temporary.c_str(),path.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)!=0;
+bool write_mod_export(State &state, const std::filesystem::path &path, const std::string &text) {
+  const auto copy = std::make_shared<const std::string>(text);
+  if (path.filename() == L"mesh.json") {
+    state.navigation_mesh_export = copy;
+    return true;
+  }
+  jfg::AsyncSnapshots::Batch files;
+  if (state.navigation_mesh_export)
+    files.push_back({state.navigation_output/L"mesh.json",state.navigation_mesh_export});
+  files.push_back({path,copy});
+  return state.snapshot_writer.submit(1U,std::move(files));
 }
 
 void update_navigation_mod(State &state) {
@@ -2419,27 +2531,21 @@ void update_navigation_mod(State &state) {
       if(movement.known && (movement.state==6U||movement.state==12U) &&
          mod.pilot.active() && std::string_view(mod.pilot.state).starts_with("jump_"))
         mod.pilot.stop("jump_unexpected_grab_state");
-      // Small bounded trace also covers manually demonstrated movement.
+      // Diagnostic rows are immutable copies; the bounded worker never reads
+      // guest memory. Slow storage must not stall simulation or audio.
       if(jfg::mod::gameplay_active(memory,mod.player)) {
-        const auto path=state.navigation_output/L"movement-samples.csv";
-        std::error_code ec;const auto size=std::filesystem::file_size(path,ec);
-        if(ec||size<4U*1024U*1024U) {
-          std::ofstream trace(path,std::ios::app);
-          trace<<mod.updates<<','<<now<<','<<ai_level<<','<<p.x<<','<<p.y<<','<<p.z
-               <<','<<movement.known<<','<<movement.state<<','<<movement.animation
-               <<','<<movement.animation_frame<<','<<memory.u32(0x800F6DA0U)<<std::endl;
-        }
+        std::ostringstream trace;
+        trace<<mod.updates<<','<<now<<','<<ai_level<<','<<p.x<<','<<p.y<<','<<p.z
+             <<','<<movement.known<<','<<movement.state<<','<<movement.animation
+             <<','<<movement.animation_frame<<','<<memory.u32(0x800F6DA0U)<<'\n';
+        (void)state.movement_trace.append(trace.str());
       }
-      // Bounded, opt-in mod evidence at every movement update during jump trials.
       if(std::string_view(mod.pilot.state).starts_with("jump_") && mod.pilot.active()) {
-        const auto path=state.navigation_output/L"jump-samples.csv";
-        std::error_code ec;const auto size=std::filesystem::file_size(path,ec);
-        if(ec || size<4U*1024U*1024U) {
-          std::ofstream trace(path,std::ios::app);const auto input=mod.pilot.observed_input();
-          trace<<mod.updates<<','<<now<<','<<ai_level<<','<<p.x<<','<<p.y<<','<<p.z
-               <<','<<input.x<<','<<input.y<<','<<input.buttons<<','<<mod.pilot.state
-               <<','<<camera.yaw<<','<<memory.s16(mod.player)<<'\n';
-        }
+        std::ostringstream trace;const auto input=mod.pilot.observed_input();
+        trace<<mod.updates<<','<<now<<','<<ai_level<<','<<p.x<<','<<p.y<<','<<p.z
+             <<','<<input.x<<','<<input.y<<','<<input.buttons<<','<<mod.pilot.state
+             <<','<<camera.yaw<<','<<memory.s16(mod.player)<<'\n';
+        (void)state.jump_trace.append(trace.str());
       }
     } else mod.pilot.stop("player_unavailable");
     if(mod.updates%6U!=0U)return;
@@ -2449,12 +2555,12 @@ void update_navigation_mod(State &state) {
       try {
         const auto mesh=jfg::mod::decode_mesh(memory,track);
         std::ostringstream output;jfg::mod::write_mesh(output,mesh,level,mod.generation);
-        mesh_ready=write_mod_export(state.navigation_output/L"mesh.json",output.str());
+        mesh_ready=write_mod_export(state, state.navigation_output/L"mesh.json",output.str());
         if(mesh_ready){mod.last_track=track;mod.last_level=level;}
       }catch(const std::runtime_error &){++mod.invalid;}
     }
     std::ostringstream output;mod.write_state(output,memory,list,level,mesh_ready);
-    if(!write_mod_export(state.navigation_output/L"live.json",output.str()))++mod.invalid;
+    if(!write_mod_export(state, state.navigation_output/L"live.json",output.str()))++mod.invalid;
   }catch(const std::runtime_error &){++mod.invalid;}
 }
 #endif
@@ -2737,9 +2843,7 @@ void write_private_progress(State &state,
       state.last_progress_retrace == state.vi_retraces)
     return;
   state.last_progress_retrace = state.vi_retraces;
-  std::ofstream stream(state.progress_path, std::ios::binary | std::ios::trunc);
-  if (!stream)
-    return;
+  std::ostringstream stream;
   const unsigned front_mode = state.rdram[0x000A51B0U ^ 3U];
   const std::uint32_t last_dispatch =
       state.recent_dispatch_position == 0U
@@ -2970,6 +3074,8 @@ void write_private_progress(State &state,
                                       state.recent_dispatches.size()];
   }
   stream << std::dec << "\"}\n";
+  (void)state.snapshot_writer.submit(0U,{{state.progress_path,
+      std::make_shared<const std::string>(stream.str())}});
   // Keep the replay and timing streams recoverable even if the host console
   // or launcher disappears without giving the runtime a normal shutdown.
   // This runs on the existing half-second progress cadence, off the
@@ -3184,21 +3290,24 @@ bool ensure_guest_overlay_allocation(
     return false;
   if (table == 0U)
     return true; // The guest has not initialized its module inventory yet.
+  // Validate the complete word-aligned inventory once. Its native-word
+  // layout allows memcpy reads; inspect every identity on every call so
+  // unloads, changed identities, duplicate entries and malformed tables
+  // retain the checked path's behavior. No guest allocation is cached.
+  const std::uint64_t first_record = std::uint64_t{table} + kRunlinkModuleRecordSize;
+  const std::uint64_t inventory_end = std::uint64_t{table} +
+      kRunlinkOverlaySlotCount * kRunlinkModuleRecordSize + 20U;
+  if ((table & 3U) != 0U || first_record + 4U < kKseg0 ||
+      inventory_end > std::uint64_t{kKseg0} + kRdramSize)
+    return false;
   std::uint32_t matched_slot = 0U, matched_record = 0U;
   for (std::uint32_t slot = 1U; slot <= kRunlinkOverlaySlotCount; ++slot) {
-    const std::uint64_t record64 = std::uint64_t{table} +
-        std::uint64_t{slot} * kRunlinkModuleRecordSize;
-    if (record64 > UINT32_MAX - kRunlinkModuleRecordSize)
-      return false;
-    const auto record = static_cast<std::uint32_t>(record64);
-    std::uint32_t rom = 0U, text = 0U, data = 0U, bss = 0U;
-    if (!memory.read_u32(record + 4U, rom) ||
-        !memory.read_u32(record + 8U, text) ||
-        !memory.read_u32(record + 12U, data) ||
-        !memory.read_u32(record + 16U, bss))
-      return false;
-    if (rom != metadata.rom_start || text != metadata.text_size ||
-        data != metadata.data_size || bss != metadata.bss_size)
+    const auto record = table + slot * kRunlinkModuleRecordSize;
+    std::array<std::uint32_t, 4U> identity{};
+    std::memcpy(identity.data(), state.rdram + (record + 4U - kKseg0),
+                sizeof(identity));
+    if (identity[0] != metadata.rom_start || identity[1] != metadata.text_size ||
+        identity[2] != metadata.data_size || identity[3] != metadata.bss_size)
       continue;
     if (matched_slot != 0U)
       return false;
@@ -3454,6 +3563,12 @@ bool guest_task_blob(const State &state, const std::uint32_t address,
 
 std::uint32_t translate_live_graphics_address(
     const State &state, const std::uint32_t address) noexcept {
+  // The single-range translator always preserves real RDRAM aliases. Check
+  // that invariant once instead of rechecking it for every overlay range.
+  const auto segment = address & 0xE0000000U;
+  if ((segment == 0U || segment == 0x80000000U || segment == 0xA0000000U) &&
+      (address & 0x1FFFFFFFU) < kRdramSize)
+    return address;
   for (const LiveGraphicsOverlayShadow &shadow :
        state.graphics_overlay_shadows) {
     const std::uint32_t translated = jfg::translate_rt64_overlay_address(
@@ -3679,8 +3794,9 @@ bool materialize_live_graphics_overlays(
         opcode == 0xFDU || opcode == 0xFEU || opcode == 0xFFU;
     const std::uint32_t original_address = words[1];
     const std::uint32_t segment = original_address >> 24U;
-    const std::uint32_t translated_address =
-        translate_live_graphics_address(state, original_address);
+    const std::uint32_t translated_address = address_command
+        ? translate_live_graphics_address(state, original_address)
+        : original_address;
     // A matched synthetic overlay pointer is absolute, even when its high
     // byte happens to name a configured RSP segment. The options overlay
     // links above 32 MiB; treating that address as segment 2 skips its RDP
@@ -3847,7 +3963,7 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
     return false;
   }
   state.rt64_shell = jfg::Rt64Shell::create(
-      {window.get(), GetCurrentThreadId(),
+      {window.get(), window.thread_id(),
        std::span<const std::byte>(
            reinterpret_cast<const std::byte *>(state.rom),
            jfg::kRt64RequiredHeaderBytes),
@@ -3913,8 +4029,8 @@ bool execute_live_graphics_task(State &state, hle::GuestMemory &memory) {
   PendingLiveGraphicsTask pending{
       {ucode_address, ucode_data_address, command_address},
       state.last_graphics_descriptor, std::move(snapshot)};
-  std::copy_n(reinterpret_cast<const std::byte *>(state.rdram), kRdramSize,
-              pending.rdram.begin());
+  jfg::copy_changed_snapshot_bytes(std::span(reinterpret_cast<const std::byte *>(state.rdram), kRdramSize),
+      std::span(pending.rdram).first(kRdramSize));
   if (!materialize_live_graphics_overlays(
           state, pending.rdram, command_address, command_size)) {
     (void)write_private_rdram_capture(state);
@@ -4120,7 +4236,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
                mmio_trace.c_str(), state.journal.count, state_digest.c_str(),
                journal_digest.c_str());
   std::fflush(stdout);
-  std::_Exit(0);
+  state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); std::_Exit(0);
 }
 
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
@@ -4133,6 +4249,17 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
       fail_closed_dispatch(state, "guest-probe", "invalid-target", 0U);
     // Explicitly separate this diagnostic from legacy HLE scheduler evidence.
     // In particular, do not invent HLE thread snapshots for original OS threads.
+
+    if (!service_host_audio(state,false) || !write_private_rdram_capture(state))
+      fail_closed_dispatch(state,"guest-capture","final-state",0U);
+    if (state.presented_frames != 0U && !write_live_frame_capture(state))
+      fail_closed_dispatch(state,"guest-capture","final-image",0U);
+    if (state.timing_trace) state.timing_trace << "fast-hook\t"
+        << state.execution_fast_hits << '\t' << state.observed_guest_instructions << '\n';
+    if (state.timing_trace) state.timing_trace << "original-os-health\t" << state.vi_frames << '\t'
+        << state.vi_retraces << '\t' << state.presented_frames << '\t'
+        << state.audio_device_underruns << '\t' << state.audio_device_overruns << '\t'
+        << state.mmio_trace->unsupported_accesses << '\t' << state.observed_guest_instructions << '\n';
     state.retrace_hash_trace.flush(); state.update_hash_trace.flush();
     state.poll_hash_trace.flush(); state.guest_clock_trace.flush();
     state.timing_trace.flush();
@@ -4150,7 +4277,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
         static_cast<unsigned long long>(state.observed_guest_instructions),
         static_cast<unsigned long long>(state.graphics_tasks),
         static_cast<unsigned long long>(state.decoded_audio_tasks), state_hash(state).c_str());
-    std::fflush(stdout); std::_Exit(0);
+    std::fflush(stdout); state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); std::_Exit(0);
   }
   const auto &event_counts = state.journal.observed_counts;
   std::string overlay_sequence;
@@ -4704,7 +4831,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
       state.journal.count, state.journal.overflow ? "true" : "false",
       state_digest.c_str(), journal_digest.c_str());
   std::fflush(stdout);
-  std::_Exit(0);
+  state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); std::_Exit(0);
 }
 #endif
 
@@ -4776,7 +4903,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
       front_mode,
       state.journal.overflow ? "true" : "false");
   std::fflush(stdout);
-  std::_Exit(0);
+  state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); std::_Exit(0);
 }
 #endif
 
@@ -4849,6 +4976,9 @@ void complete_pending_live_graphics_tasks(
           std::as_writable_bytes(std::span(state.rdram, kRdramSize)));
     const jfg::Rt64GraphicsDiagnostics submission_graphics =
         state.rt64_shell->last_graphics_diagnostics();
+    if (state.last_rt64_error == jfg::Rt64ShellError::none)
+      state.host_audio.renderer_ready();
+
     const auto submit_us = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::steady_clock::now() - submit_start)
@@ -5197,6 +5327,10 @@ void present_completed_video(State &state, const std::uint32_t target) {
           state.gameplay_trace_updates, present_us, present_interval_us, selected_vi_framebuffer});
       state.present_time = present_end;
       state.present_time_initialized = true;
+      if (state.timing_trace) state.timing_trace << "present-qpc\t"
+          << state.vi_frames << '\t' << state.vi_retraces << '\t'
+          << std::chrono::duration_cast<std::chrono::microseconds>(
+                 present_end.time_since_epoch()).count() << '\n';
       if (state.timing_trace) {
         state.timing_trace << "present\t" << state.vi_frames << '\t'
                            << state.vi_retraces << '\t' << present_us
@@ -5312,12 +5446,15 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     const std::uint32_t watched = state.matrix_watch_addresses[watch];
     if (watched == 0U)
       continue;
-    hle::GuestMemory watch_memory(
-        {rdram, kRdramSize},
-        hle::GuestMemory::Layout::native_word_big_endian);
+    // These observations use the native-word layout. Validate the same
+    // aligned RDRAM range before loading directly, avoiding an out-of-line
+    // GuestMemory call for each of the eight words on every dispatch.
+    if ((watched & 3U) != 0U || watched < kKseg0 ||
+        watched - kKseg0 > kRdramSize - sizeof(std::uint32_t))
+      continue;
     std::uint32_t current = 0U;
-    if (!watch_memory.read_u32(watched, current) ||
-        current == state.matrix_watch_words[watch])
+    std::memcpy(&current, rdram + (watched - kKseg0), sizeof(current));
+    if (current == state.matrix_watch_words[watch])
       continue;
     const std::size_t slot = state.recent_matrix_watch_position %
         state.recent_matrix_watch_addresses.size();
@@ -5541,7 +5678,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       // Invalidate the old map before the game starts loading another room.
       std::ostringstream output;
       state.navigation_mod.write_state(output,memory,{},UINT32_MAX,false);
-      if(!write_mod_export(state.navigation_output/L"live.json",output.str()))
+      if(!write_mod_export(state, state.navigation_output/L"live.json",output.str()))
         ++state.navigation_mod.invalid;
     }
     if (target==0x80032A48U) {
@@ -5553,6 +5690,31 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   }
 #endif
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
+  // Private fixture travel request; let mainChangeLevel prepare all globals.
+  if (target == 0x8004665CU && state.timing_fixture) {
+    if (state.timing_trace)
+      state.timing_trace << "travel-request\t" << state.vi_frames << '\t'
+          << context->r4 << '\t' << context->r5 << '\t'
+          << context->r6 << '\t' << context->r7 << '\t' << context->r31 << '\n';
+    if (context->r4 == 127U || context->r4 == 214U) context->r5 = 2U;
+    if (context->r4 == 214U) {
+      char value[16]{};
+      const auto length = GetEnvironmentVariableA("QUARRY_FIXTURE_DESTINATION", value, 16U);
+      const auto destination = length > 0U && length < 16U ? std::stoul(value) : 294U;
+      if (destination != 294U && destination != 272U && destination != 283U && destination != 354U && destination != 411U && destination != 357U)
+        fail_closed_dispatch(state, "diagnostic", "fixture-destination", target);
+      context->r4 = destination;
+      char group[16]{};
+      const auto group_length = GetEnvironmentVariableA("QUARRY_FIXTURE_GROUP", group, 16U);
+      if (group_length > 0U && group_length < 16U) context->r7 = std::stoul(group);
+
+
+      if (state.timing_trace)
+        state.timing_trace << "travel-fixture\t" << state.vi_frames << '\t'
+            << destination << '\t' << context->r5 << '\t' << context->r6 << '\t'
+            << context->r7 << '\n';
+    }
+  }
   switch (target) {
   case 0x020002E8U: // overlay 32: mrhintsControl / KingBear
     note_hints_control_call(state, target, *context);
@@ -5683,19 +5845,27 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       const bool caller_is_overlay = state.executing_generated_overlay;
       std::uint32_t target_section = UINT32_MAX;
       JfgGeneratedSectionMetadata target_metadata{};
-      for (std::uint32_t section = 0U;
-           section < jfg_generated_section_count(); ++section) {
-        JfgGeneratedSectionMetadata metadata{};
-        if (jfg_generated_section_metadata(section, &metadata) == 0)
-          fail_closed_dispatch(state, "generated", "section-metadata",
-                               target);
-        const std::uint64_t text_begin = metadata.linked_vram;
-        const std::uint64_t text_end = text_begin + metadata.text_size;
-        if (target < text_begin || target >= text_end)
-          continue;
-        target_section = section;
-        target_metadata = metadata;
-        break;
+      const auto cached_section = state.generated_section_cache.find(target);
+      if (cached_section != state.generated_section_cache.end()) {
+        target_section = cached_section->second.first;
+        target_metadata = cached_section->second.second;
+      } else {
+        for (std::uint32_t section = 0U;
+             section < jfg_generated_section_count(); ++section) {
+          JfgGeneratedSectionMetadata metadata{};
+          if (jfg_generated_section_metadata(section, &metadata) == 0)
+            fail_closed_dispatch(state, "generated", "section-metadata",
+                                 target);
+          const std::uint64_t text_begin = metadata.linked_vram;
+          const std::uint64_t text_end = text_begin + metadata.text_size;
+          if (target < text_begin || target >= text_end)
+            continue;
+          target_section = section;
+          target_metadata = metadata;
+          break;
+        }
+        state.generated_section_cache.emplace(target,
+            std::make_pair(target_section, target_metadata));
       }
       if (target_metadata.is_overlay == 1U &&
           !ensure_guest_overlay_allocation(state, target_metadata, *context))
@@ -6236,64 +6406,67 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       fail_closed_dispatch(state, "guest-os", "original-body-unavailable", target);
     // Input is latched at the same SDK poll boundary as the recorded route.
     // Original code still builds/reads every PIF packet and delivers messages.
-    if (std::strcmp(name, "osContStartReadData") == 0) {
+    if (target == original_os_entry("osContStartReadData")) {
       ++state.controller_read_start_calls;
       sample_live_controller(state);
       state.mmio_trace->si_dma.sample(state.controller_ports.samples);
     }
-    if (std::strcmp(name, "osContGetReadData") == 0)
+    if (target == original_os_entry("osContGetReadData"))
       ++state.controller_get_data_calls;
-    if (std::strcmp(name, "osSpTaskLoad") == 0) {
+    if (target == original_os_entry("osSpTaskLoad")) {
       if (state.mmio_trace->sp_deadline || state.mmio_trace->sp_launch ||
           !memory.read_u32(a0, state.loaded_rsp_task_type))
         fail_closed_dispatch(state, "guest-rsp", "task-load-state", target);
       state.loaded_rsp_task = a0;
       ++state.sp_task_load_calls;
     }
-    if (std::strcmp(name, "osSpTaskStartGo") == 0) ++state.sp_task_start_calls;
-    if (std::strcmp(name, "osRecvMesg") == 0) ++state.queue_recv_calls;
-    if (std::strcmp(name, "osSendMesg") == 0) ++state.queue_send_calls;
+    if (target == original_os_entry("osSpTaskStartGo")) ++state.sp_task_start_calls;
+    if (target == original_os_entry("osRecvMesg")) ++state.queue_recv_calls;
+    if (target == original_os_entry("osSendMesg")) ++state.queue_send_calls;
     if (state.guest_clock_trace.is_open() && state.observed_guest_instructions < 1000000U)
       state.guest_clock_trace << "call\t" << std::hex << target << '\t' << a0 << '\t'
           << a1 << '\t' << a2 << std::dec << '\t' << state.cpu_count << '\n';
     generated(rdram, context);
     if (target == 0x80097520U) state.os_initialized = true;
-    if (std::strcmp(name, "osContInit") == 0)
+    if (target == original_os_entry("osContInit"))
       state.controller_initialized = static_cast<std::uint32_t>(context->r2) == 0U;
     // Read-only host observers. The original bodies above own all guest
     // register, queue and thread mutations, including interrupt delivery.
-    if (std::strcmp(name, "osCreateMesgQueue") == 0) {
+    if (target == original_os_entry("osCreateMesgQueue")) {
       state.queues.insert(a0);
       ++state.queue_create_calls;
     }
-    if (std::strcmp(name, "osSetEventMesg") == 0) state.events[a0] = {a1, a2};
-    if (std::strcmp(name, "osViSetEvent") == 0) {
+    if (target == original_os_entry("osSetEventMesg")) state.events[a0] = {a1, a2};
+    if (target == original_os_entry("osViSetEvent")) {
       state.vi_queue = a0; state.vi_message = a1; state.vi_retrace_interval = a2;
     }
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-    if (std::strcmp(name, "osViSetMode") == 0) {
+    if (target == original_os_entry("osViSetMode")) {
       if (!configure_live_vi_mode(state, memory, a0))
         fail_closed_dispatch(state, "guest-vi", "invalid-mode", target);
       state.vi_mode = a0;
     }
-    if (std::strcmp(name, "osViSetSpecialFeatures") == 0) {
+    if (target == original_os_entry("osViSetSpecialFeatures")) {
       state.vi_special_features = a0;
       state.rt64_vi.status = jfg::vi_apply_special_features(
           state.rt64_vi.status, state.vi_mode_control, a0);
     }
-    if (std::strcmp(name, "osViBlack") == 0) {
+    if (target == original_os_entry("osViBlack")) {
       state.vi_blacked = a0 != 0;
       state.rt64_vi.horizontal_start = state.vi_blacked ? 0 : state.vi_mode_horizontal_start;
     }
 #endif
-    if (std::strcmp(name, "osViSwapBuffer") == 0) {
+    if (target == original_os_entry("osViSwapBuffer")) {
       ++state.vi_swap_calls;
       state.vi_current_framebuffer = state.vi_next_framebuffer;
       state.vi_next_framebuffer = a0;
     }
-    if (std::strcmp(name, "osSendMesg") == 0 && context->r2 == 0 &&
-        a0 == state.vi_queue && a1 == state.vi_message) ++state.vi_messages_delivered;
-    if (std::strcmp(name, "osRecvMesg") == 0 && context->r2 == 0 && a0 == state.vi_queue && a1 != 0) {
+    if (target == original_os_entry("osSendMesg") && context->r2 == 0 &&
+        a0 == state.vi_queue && a1 == state.vi_message) {
+      ++state.vi_messages_delivered;
+      present_completed_video(state,target);
+    }
+    if (target == original_os_entry("osRecvMesg") && context->r2 == 0 && a0 == state.vi_queue && a1 != 0) {
       std::uint32_t message = 0;
       if (!memory.read_u32(a1, message)) fail_closed_dispatch(state, "guest-vi", "message-unreadable", target);
       if (message == state.vi_message) {
@@ -7796,6 +7969,7 @@ int native_cpu_operation(void* opaque, void* guest_context, std::uint32_t operat
       if (selector == 14U) { *value = extend(state.guest_epc); return 1; }
     }
     if (operation == JFG_CPU_WRITE_REGISTER) {
+      state.execution_fast_deadline = 0U;
       if (selector == 11U) {
         if (!state.guest_timer.write(state.cpu_count, static_cast<std::uint32_t>(*value)))
           fail_closed_dispatch(state, "guest-cpu", "unqualified-compare-write", state.guest_last_pc);
@@ -8128,7 +8302,98 @@ extern "C" void jfg_phase9_instruction_effect(unsigned section, unsigned pc,
 // entered instruction sites, including loop iterations and executed slots.
 // The default is observation-only. The separate guest-OS diagnostic executes
 // original OS bodies, with the bounded reference CPU/device profile below.
+extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(
+    unsigned section, unsigned pc, unsigned word, void* context);
+
+// Keep the common instruction path independent of the rare device/exception
+// path's large stack frame. The same predicate, cost and state updates run.
 extern "C" void jfg_phase9_execution_probe(unsigned section, unsigned pc,
+                                          unsigned word, void* context) {
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  if (g_active_child_state != nullptr && context != nullptr) {
+    auto& state = *g_active_child_state;
+    // Private optimization: ordinary instructions before the next event need
+    // only the same cost and pipeline bookkeeping. Hardware writes, interrupt
+    // eligibility, exception return and observers fall back to the full path.
+    if (state.execution_fast_profile_ready &&
+        !state.guest_eret_boundary && word != 0x1000FFFFU &&
+        pc != 0x8009AB80U && pc != 0x80098B74U &&
+        (state.play_mode || state.observed_guest_instructions < 24000000000ULL) &&
+        state.execution_fast_deadline > state.cpu_count &&
+        state.execution_fast_revision == state.mmio_trace->execution_io_revision) {
+      auto& cpu = *static_cast<recomp_context*>(context);
+      const unsigned primary = word >> 26U;
+      const bool fpu = primary == 0x11U || primary == 0x31U ||
+          primary == 0x35U || primary == 0x39U || primary == 0x3DU;
+      const bool eligible = (cpu.status_reg & 7U) == 1U &&
+          (state.execution_fast_pending & cpu.status_reg & 0xFF00U) != 0U;
+      const bool park = primary == 3U &&
+          (((pc + 4U) & 0xF0000000U) | ((word & 0x03FFFFFFU) << 2U)) == 0x80075698U;
+      if (!eligible && !(fpu && (cpu.status_reg & 0x20000000U) == 0U) && !park) {
+        ++state.observed_guest_instructions;
+        ++state.execution_fast_hits;
+        const bool delay = state.guest_previous_branch && pc == state.guest_last_pc + 4U;
+        const auto cycles = jfg_full_cache_cost(pc,word,&cpu,state.rdram)
+            + state.diagnostic_cpu_half_tick;
+        state.cpu_count += cycles / 2U;
+        state.diagnostic_cpu_half_tick = cycles % 2U;
+        state.mmio_trace->guest_count = state.cpu_count;
+        state.guest_last_pc = pc;
+        state.guest_last_word = word;
+        state.guest_previous_delay = delay;
+        state.guest_previous_branch = primary == 1U || (primary >= 2U && primary <= 7U) ||
+            (primary >= 20U && primary <= 23U) ||
+            (primary == 0U && ((word & 63U) == 8U || (word & 63U) == 9U)) ||
+            (primary == 0x11U && ((word >> 21U) & 31U) == 8U);
+        return;
+      }
+    }
+  }
+#endif
+  jfg_phase9_execution_probe_slow(section,pc,word,context);
+}
+
+extern "C" void jfg_phase9_execution_probe_predecoded(unsigned metadata, unsigned pc,
+                                          unsigned word, void* context) {
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  const unsigned section=metadata&255U;
+  if (g_active_child_state != nullptr && context != nullptr) {
+    auto& state = *g_active_child_state;
+    // Private optimization: ordinary instructions before the next event need
+    // only the same cost and pipeline bookkeeping. Hardware writes, interrupt
+    // eligibility, exception return and observers fall back to the full path.
+    if (state.execution_fast_profile_ready &&
+        !state.guest_eret_boundary && (metadata&0x800U)==0U &&
+        (state.play_mode || state.observed_guest_instructions < 24000000000ULL) &&
+        state.execution_fast_deadline > state.cpu_count &&
+        state.execution_fast_revision == state.mmio_trace->execution_io_revision) {
+      auto& cpu = *static_cast<recomp_context*>(context);
+      const bool fpu=(metadata&0x100U)!=0U;
+      const bool eligible = (cpu.status_reg & 7U) == 1U &&
+          (state.execution_fast_pending & cpu.status_reg & 0xFF00U) != 0U;
+      const bool park=(metadata&0x200U)!=0U;
+      if (!eligible && !(fpu && (cpu.status_reg & 0x20000000U) == 0U) && !park) {
+        ++state.observed_guest_instructions;
+        ++state.execution_fast_hits;
+        const bool delay = state.guest_previous_branch && pc == state.guest_last_pc + 4U;
+        const auto cycles = jfg_full_cache_cost_predecoded(pc,word,&cpu,state.rdram,metadata)
+            + state.diagnostic_cpu_half_tick;
+        state.cpu_count += cycles / 2U;
+        state.diagnostic_cpu_half_tick = cycles % 2U;
+        state.mmio_trace->guest_count = state.cpu_count;
+        state.guest_last_pc = pc;
+        state.guest_last_word = word;
+        state.guest_previous_delay = delay;
+        state.guest_previous_branch=(metadata&0x400U)!=0U;
+        return;
+      }
+    }
+  }
+#endif
+  jfg_phase9_execution_probe_slow(section,pc,word,context);
+}
+
+extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned section, unsigned pc,
                                           unsigned word, void *context) {
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   if (g_active_child_state != nullptr && context != nullptr) {
@@ -8147,6 +8412,33 @@ extern "C" void jfg_phase9_execution_probe(unsigned section, unsigned pc,
     if (state.guest_os_probe) {
       auto& cpu = *static_cast<recomp_context*>(context);
       auto& mmio = *state.mmio_trace;
+      // A cached BEQ zero,zero,self + NOP loop has no architectural effect
+      // between device events. Only skip after observing a complete warm
+      // iteration and with no interrupt currently eligible for delivery.
+      const auto pending_idle_interrupt =
+          ((mmio.mi_pending & mmio.mi_mask.read()) ? 0x400U : 0U) |
+          (state.guest_timer.interrupt() ? 0x8000U : 0U) | (state.guest_cause & 0x300U);
+      if (word == 0x1000FFFFU && state.guest_last_pc == pc + 4U &&
+          state.guest_last_word == 0U && state.guest_previous_delay &&
+          (cpu.status_reg & 7U) == 1U &&
+          (pending_idle_interrupt & cpu.status_reg & 0xFF00U) == 0U) {
+        auto deadline = mmio.vi_next;
+        const auto admit = [&](std::optional<std::uint64_t> next) {
+          if (next) deadline = (std::min)(deadline,*next);
+        };
+        admit(mmio.pi_dma.deadline()); admit(mmio.si_dma.deadline());
+        admit(state.guest_timer.deadline()); admit(mmio.sp_deadline);
+        admit(mmio.dp_deadline); admit(mmio.ai_dma.deadline());
+        if (deadline > state.cpu_count) {
+          const auto ticks=deadline-state.cpu_count;
+          if (jfg_full_cache_idle_skip(pc,ticks,state.rdram)) {
+            state.cpu_count=deadline;
+            state.observed_guest_instructions+=ticks*2U;
+            mmio.guest_count=state.cpu_count;
+          }
+        }
+      }
+
       if (state.guest_clock_trace && mmio.traced_si_sequence != mmio.device_si_sequence) {
         state.guest_clock_trace << "si\t" << state.cpu_count << '\t' << std::hex
             << mmio.device_si_offset << '\t' << mmio.device_si_value << '\t'
@@ -8193,7 +8485,7 @@ extern "C" void jfg_phase9_execution_probe(unsigned section, unsigned pc,
       }
       // No route-dependent budget or timing adjustment. Bound the diagnostic
       // until every reached device has an independently qualified owner.
-      if (state.observed_guest_instructions > 4000000000ULL)
+      if (!state.play_mode && state.observed_guest_instructions > 24000000000ULL)
         fail_closed_dispatch(state, "guest-os", "instruction-budget", pc);
       if (mmio.sp_launch) {
         hle::GuestMemory memory({state.rdram, kRdramSize}, hle::GuestMemory::Layout::native_word_big_endian);
@@ -8251,10 +8543,63 @@ extern "C" void jfg_phase9_execution_probe(unsigned section, unsigned pc,
         case ReferenceEvent::vi:
           mmio.mi_pending |= 8U;
           ++state.vi_frames;
+          // Host playback follows the original VI device clock. This does not
+          // advance Count, invent a guest event, or adjust a cinematic cue.
+          if (state.original_os_host_pacing && state.host_audio.started()) {
+            if (!state.original_os_host_anchor_ready) {
+              state.host_audio.settle_startup_queue();
+              state.original_os_host_clock.anchor(mmio.vi_next,
+                  std::chrono::steady_clock::now(), state.host_audio.underruns());
+              state.original_os_host_anchor_ready = true;
+            }
+            // Poll actual output continuity before pacing, including stalls in
+            // the window/renderer owner thread. Never catch up a stale clock
+            // after the audio device has run dry.
+            state.host_audio.service(false, false);
+            const auto target_time = state.original_os_host_clock.deadline(
+                mmio.vi_next, std::chrono::steady_clock::now(),
+                state.host_audio.underruns());
+            if (std::chrono::steady_clock::now() < target_time)
+              std::this_thread::sleep_until(target_time);
+            const auto now = std::chrono::steady_clock::now();
+            if (state.timing_trace) state.timing_trace << "os-host-vi\t"
+                << state.vi_frames << '\t' << mmio.vi_next << '\t'
+                << std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count()
+                << '\t' << std::chrono::duration_cast<std::chrono::microseconds>(now-target_time).count()
+                << '\n';
+          }
+          if (state.timing_trace) {
+            hle::GuestMemory observed({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
+            std::uint32_t loading=0;
+            if (observed.read_u32(0x800A3530U,loading) && loading!=0U) {
+              std::uint16_t level=0,next=0;
+              std::memcpy(&level,state.rdram+(0xA323CU^2U),sizeof(level));
+              std::memcpy(&next,state.rdram+(0xA3250U^2U),sizeof(next));
+              const auto original_address=[&](std::uint32_t value) {
+                if(value<0x00100000U || value>=0x10000000U)return value;
+                std::uint32_t table=0,base=0;
+                if (!observed.read_u32(0x800FEAA0U,table) ||
+                    !observed.read_u32(table+(value>>20U)*32U,base))return 0U;
+                return base+(value&0xFFFFFU);
+              };
+              state.timing_trace << "load-pc\t" << state.vi_frames << '\t'
+                  << loading << '\t' << level << '\t' << next << '\t'
+                  << std::hex << original_address(pc) << '\t'
+                  << original_address(static_cast<std::uint32_t>(cpu.r31)) << '\t'
+                  << static_cast<std::uint32_t>(cpu.r29) << '\t'
+                  << mmio.sp_status.read() << '\t' << mmio.pi_dma.read(0x10U).value_or(0U)
+                  << std::dec << '\n';
+            }
+          }
+
           jfg::support_breadcrumb(state.vi_frames, state.vi_retraces, state.controller_samples);
           if (mmio.vi_v_sync != 0U && mmio.vi_v_sync != 525U)
             fail_closed_dispatch(state, "guest-os", "unqualified-vi-mode", pc);
-          mmio.vi_period = mmio.vi_v_sync == 0U ? 500000U : (mmio.vi_v_sync + 1U) * 1500U;
+          if (mmio.vi_v_sync != 0U && mmio.vi_h_sync != 3093U)
+            fail_closed_dispatch(state, "guest-os", "unqualified-hardware-hsync", pc);
+          // Same independently derived fixed progressive profile as the paired
+          // Ares comparison; this does not implement arbitrary VI register modes.
+          mmio.vi_period = mmio.vi_v_sync == 0U ? 500000U : 783520U;
           mmio.vi_next += mmio.vi_period;
           if (!service_host_audio(state, true))
             fail_closed_dispatch(state, "audio", "host-device", pc);
@@ -8354,10 +8699,10 @@ extern "C" void jfg_phase9_execution_probe(unsigned section, unsigned pc,
       }
       // Mupen's annulled ordinary likely slots still advance Count. Other
       // likely families require their own profile coverage before use.
-      const auto previous_primary = state.guest_last_word >> 26U;
-      if (previous_primary >= 0x14U && previous_primary <= 0x17U && pc == state.guest_last_pc + 8U)
-        state.cpu_count += 2U;
-      if (word != 0x42000018U) state.cpu_count += 2U;
+      const auto cycles = jfg_full_cache_cost(pc,word,&cpu,state.rdram)
+          + state.diagnostic_cpu_half_tick;
+      state.cpu_count += cycles / 2U;
+      state.diagnostic_cpu_half_tick = cycles % 2U;
       mmio.guest_count = state.cpu_count;
       state.guest_last_pc = pc;
       state.guest_last_word = word;
@@ -8368,6 +8713,19 @@ extern "C" void jfg_phase9_execution_probe(unsigned section, unsigned pc,
           (primary == 0x11U && ((word >> 21U) & 31U) == 8U);
       if (primary == 3U && (((pc + 4U) & 0xf0000000U) | ((word & 0x03ffffffU) << 2U)) == 0x80075698U)
         state.guest_transport->park_at(pc + 8U);
+      state.execution_fast_deadline = mmio.vi_next;
+      const auto fast_admit = [&](std::optional<std::uint64_t> next) {
+        if (next) state.execution_fast_deadline =
+            (std::min)(state.execution_fast_deadline,*next);
+      };
+      fast_admit(mmio.pi_dma.deadline()); fast_admit(mmio.si_dma.deadline());
+      fast_admit(state.guest_timer.deadline()); fast_admit(mmio.sp_deadline);
+      fast_admit(mmio.dp_deadline); fast_admit(mmio.ai_dma.deadline());
+      state.execution_fast_revision = mmio.execution_io_revision;
+      state.execution_fast_pending =
+          ((mmio.mi_pending & mmio.mi_mask.read()) ? 0x400U : 0U) |
+          (state.guest_timer.interrupt() ? 0x8000U : 0U) | (state.guest_cause & 0x300U);
+
       // After exception resumption and Count accounting, before the current
       // guest instruction. No clock reads/changes or guest writes in this hook.
       // Raw Count is deliberately omitted: the oracle exposes lazy core Count.
@@ -8479,6 +8837,9 @@ int run_child(const char *path, const unsigned retrace_target,
     std::error_code error;std::filesystem::create_directories(state.navigation_output,error);
     if(error)return 2;
     state.navigation_mod.enabled=true;
+    // File open/flush stays on the diagnostic worker, never the guest thread.
+    (void)state.movement_trace.start(state.navigation_output/L"movement-samples.csv", 4U*1024U*1024U);
+    (void)state.jump_trace.start(state.navigation_output/L"jump-samples.csv", 4U*1024U*1024U);
     jfg::support_event("mod=navigation-enabled");
     char speed_flag[2]{};
     state.navigation_mod.juno_double_run =
@@ -8505,7 +8866,10 @@ int run_child(const char *path, const unsigned retrace_target,
     return 3;
   }
   state.host_audio.set_gameplay_trace(&state.gameplay_trace);
+  state.host_audio.set_vi_counter(&state.vi_retraces);
   g_active_child_state = &state;
+  jfg_original_timing_state = &state;
+  state.instruction_cache = ic; state.data_cache = dc; state.cache_counters = cache_stats;
   jfg::support_event("native=rom-ready");
   wchar_t mapping_path[32768]{};
   const DWORD mapping_length = GetEnvironmentVariableW(L"JFG_CONTROLLER_CONFIG", mapping_path, 32768U);
@@ -8525,17 +8889,33 @@ int run_child(const char *path, const unsigned retrace_target,
   }
   state.controller_ports.configure(0,state.controller_mapping);
   sample_controller_ports(state);
+  // One opt-in runtime mode owns CPU, OS, device clocks and host pacing.
+  // Diagnostic traces and the travel fixture are independent and optional.
+  char timing_fixture_flag[2]{};
+  state.timing_fixture = GetEnvironmentVariableA("JFG_TIMING_TEST_FIXTURE",timing_fixture_flag,2U)==1U &&
+      timing_fixture_flag[0]=='1';
+  char original_timing_flag[2]{};
+  const auto timing_override = GetEnvironmentVariableA("JFG_ORIGINAL_TIMING", original_timing_flag, 2U);
+  const bool original_timing_mode = timing_override == 1U ? original_timing_flag[0] == '1' :
+      JFG_ORIGINAL_TIMING_GENERATION == 1;
+  if (original_timing_mode && JFG_ORIGINAL_TIMING_GENERATION != 1 && timing_override != 1U)
+    return 3;
   char writeback_flag[2]{};
-  state.renderer_writeback_probe =
+  state.renderer_writeback_probe = original_timing_mode || (
       GetEnvironmentVariableA("JFG_PHASE9_RENDERER_WRITEBACK_PROBE", writeback_flag, 2U) == 1U &&
-      writeback_flag[0] == '1';
+      writeback_flag[0] == '1');
   char leaf_flag[2]{};
-  state.guest_leaf_probe =
+  state.guest_leaf_probe = original_timing_mode || (
       GetEnvironmentVariableA("JFG_PHASE9_GUEST_LEAF_PROBE", leaf_flag, 2U) == 1U &&
-      leaf_flag[0] == '1';
+      leaf_flag[0] == '1');
   char os_flag[2]{};
-  state.guest_os_probe =
-      GetEnvironmentVariableA("JFG_PHASE9_GUEST_OS_PROBE", os_flag, 2U) == 1U && os_flag[0] == '1';
+  state.guest_os_probe = original_timing_mode || (
+      GetEnvironmentVariableA("JFG_PHASE9_GUEST_OS_PROBE", os_flag, 2U) == 1U && os_flag[0] == '1');
+  char original_pacing_flag[2]{};
+  state.original_os_host_pacing = original_timing_mode || (
+      GetEnvironmentVariableA("JFG_DIAGNOSTIC_OS_VI_PACING", original_pacing_flag, 2U) == 1U &&
+      original_pacing_flag[0] == '1');
+  if (state.original_os_host_pacing && !state.guest_os_probe) return 3;
   if (state.guest_os_probe && !state.guest_leaf_probe) {
     std::fputs("native boot setup failed: guest OS probe requires the guest CPU root\n", stderr);
     return 3;
@@ -8682,6 +9062,22 @@ int run_child(const char *path, const unsigned retrace_target,
     state.retrace_hash_path = retrace_hash;
   }
   std::free(retrace_hash);
+  char *replay_by_poll = nullptr;
+  std::size_t replay_by_poll_size = 0U;
+  if (_dupenv_s(&replay_by_poll, &replay_by_poll_size,
+                "JFG_PHASE9_REPLAY_BY_POLL") != 0) {
+    std::fputs("native boot setup failed: replay poll environment\n", stderr);
+    return 3;
+  }
+  if (replay_by_poll != nullptr && *replay_by_poll != '\0') {
+    if (std::strcmp(replay_by_poll, "1") != 0) {
+      std::free(replay_by_poll);
+      std::fputs("native boot setup failed: replay poll value\n", stderr);
+      return 3;
+    }
+    state.input_replay_by_poll = true;
+  }
+  std::free(replay_by_poll);
   char *replay_path = nullptr;
   std::size_t replay_path_size = 0U;
   if (_dupenv_s(&replay_path, &replay_path_size,
@@ -8693,7 +9089,9 @@ int run_child(const char *path, const unsigned retrace_target,
   if (replay_path != nullptr && *replay_path != '\0') {
     if (replay_path_size > 32768U ||
         jfg::DeterministicInputReplay::load(replay_path,
-                                             state.input_replay) !=
+                                             state.input_replay, state.input_replay_by_poll
+                  ? jfg::InputReplayOrder::recorded_poll
+                  : jfg::InputReplayOrder::retrace) !=
             jfg::InputReplayError::none) {
       std::free(replay_path);
       std::fputs("native boot setup failed: input replay\n", stderr);
@@ -8703,23 +9101,10 @@ int run_child(const char *path, const unsigned retrace_target,
     state.input_replay_event_count = state.input_replay.events().size();
   }
   std::free(replay_path);
-  char *replay_by_poll = nullptr;
-  std::size_t replay_by_poll_size = 0U;
-  if (_dupenv_s(&replay_by_poll, &replay_by_poll_size,
-                "JFG_PHASE9_REPLAY_BY_POLL") != 0) {
-    std::fputs("native boot setup failed: replay poll environment\n", stderr);
+  if (state.input_replay_by_poll && !state.input_replay_loaded) {
+    std::fputs("native boot setup failed: replay poll requires input replay\n", stderr);
     return 3;
   }
-  if (replay_by_poll != nullptr && *replay_by_poll != '\0') {
-    if (std::strcmp(replay_by_poll, "1") != 0 ||
-        !state.input_replay_loaded) {
-      std::free(replay_by_poll);
-      std::fputs("native boot setup failed: replay poll value\n", stderr);
-      return 3;
-    }
-    state.input_replay_by_poll = true;
-  }
-  std::free(replay_by_poll);
   // A bounded, hidden replay can exercise the interactive VI/audio cadence
   // without opening another game window or consuming live controller input.
   char *realtime_replay = nullptr;
@@ -9461,7 +9846,11 @@ int run_child(const char *path, const unsigned retrace_target,
     }
   }
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-  LiveRt64Window live_window(state, play_mode);
+  char hidden_validation[2]{};
+  const bool diagnostic_hidden_window =
+      GetEnvironmentVariableA("JFG_DIAGNOSTIC_HIDDEN_WINDOW",hidden_validation,2U)==1U &&
+      hidden_validation[0]=='1';
+  LiveRt64Window live_window(state, play_mode && !diagnostic_hidden_window);
   if (!initialize_live_renderer(state, live_window)) {
     std::fputs("native boot setup failed: RT64 renderer\n", stderr);
     return 3;
@@ -9469,6 +9858,8 @@ int run_child(const char *path, const unsigned retrace_target,
 #endif
   jfg::support_event("native=renderer-ready");
   state.mmio_trace = &backing.mmio_trace();
+  state.io_revision = &state.mmio_trace->execution_io_revision;
+  state.io_guest_count = &state.mmio_trace->guest_count;
   if (state.guest_os_probe) {
     // Read-only, ROM-pinned corrected-Mupen IPL hardware observation. This
     // initializes platform registers only, not game actors, RNG or save RAM.
@@ -9479,22 +9870,45 @@ int run_child(const char *path, const unsigned retrace_target,
     state.mmio_trace->guest_execution = true;
     state.mmio_trace->device_rdram = {state.rdram, kRdramSize};
     state.mmio_trace->device_rom = {state.rom, state.rom_size};
+    // IPL3 programs cartridge-domain timing from the ROM header before boot.
+    // Recover that platform state because this private entry skips IPL3.
+    if (state.rom_size < 4U) return 3;
+    const auto cartridge_timing = (std::uint32_t(state.rom[0]) << 24U) |
+        (std::uint32_t(state.rom[1]) << 16U) |
+        (std::uint32_t(state.rom[2]) << 8U) | std::uint32_t(state.rom[3]);
+    const std::array<std::uint32_t, 4> pi_boot_timing{
+        cartridge_timing & 255U, (cartridge_timing >> 8U) & 255U,
+        (cartridge_timing >> 16U) & 15U, (cartridge_timing >> 20U) & 3U};
+    for (std::size_t index = 0U; index < pi_boot_timing.size(); ++index) {
+      if (!state.mmio_trace->pi_dma.write(0x14U + static_cast<std::uint32_t>(index) * 4U,
+              pi_boot_timing[index], state.cpu_count, state.mmio_trace->device_rdram,
+              state.mmio_trace->device_rom)) return 3;
+    }
+
     state.mmio_trace->flash_bus.bind(state.flashram);
     state.mmio_trace->guest_count = state.cpu_count;
     state.mmio_trace->mi_pending = 8U;
     state.mmio_trace->vi_next = 5000U + ((state.cpu_count - 5000U) / 500000U + 1U) * 500000U;
     char* guest_trace_path = nullptr;
     std::size_t guest_trace_path_size = 0U;
-    if (_dupenv_s(&guest_trace_path, &guest_trace_path_size, "JFG_PHASE9_GUEST_OS_CLOCK_TRACE") != 0 ||
-        guest_trace_path == nullptr || *guest_trace_path == '\0') {
-      std::free(guest_trace_path);
-      std::fputs("native boot setup failed: guest OS diagnostic trace required\n", stderr);
+    if (_dupenv_s(&guest_trace_path, &guest_trace_path_size, "JFG_PHASE9_GUEST_OS_CLOCK_TRACE") != 0)
       return 3;
+    if (guest_trace_path != nullptr && *guest_trace_path != '\0') {
+      state.guest_clock_trace.open(guest_trace_path, std::ios::binary | std::ios::trunc);
+      std::free(guest_trace_path);
+      if (!state.guest_clock_trace) return 3;
+      state.guest_clock_trace << "boot\t" << state.cpu_count << '\t' << handoff.instructions << '\n';
+      state.guest_clock_trace << "pi-boot\t" << cartridge_timing;
+      for (auto value : pi_boot_timing) state.guest_clock_trace << '\t' << value;
+      state.guest_clock_trace << '\n';
+    } else {
+      std::free(guest_trace_path);
+      if (!original_timing_mode) {
+        std::fputs("native boot setup failed: guest OS diagnostic trace required\n", stderr);
+        return 3;
+      }
     }
-    state.guest_clock_trace.open(guest_trace_path, std::ios::binary | std::ios::trunc);
-    std::free(guest_trace_path);
-    if (!state.guest_clock_trace) return 3;
-    state.guest_clock_trace << "boot\t" << state.cpu_count << '\t' << handoff.instructions << '\n';
+
   }
   if (state.guest_leaf_probe) {
     // Explicitly observed reference boot state, not a hardware-reset claim.
@@ -9539,6 +9953,11 @@ int run_child(const char *path, const unsigned retrace_target,
     std::fputs("native boot setup failed: generated runtime\n", stderr);
     return 3;
   }
+  // Diagnostic selection and CPU ownership are immutable after setup.
+  // Avoid inspecting stream/vector internals at every guest instruction.
+  state.execution_fast_profile_ready = state.guest_os_probe &&
+      state.mmio_trace != nullptr && state.point_probe_pcs.empty() &&
+      !state.device_event_stream && !state.eret_transfer_stream.is_open();
   jfg::support_event("native=running");
   DispatchBinding binding{state, true};
   if (state.guest_leaf_probe) {
@@ -9605,7 +10024,8 @@ int run_child(const char *path, const unsigned retrace_target,
               fail_closed_dispatch(state, "eret-transfer-probe", "output-or-boundary", state.guest_last_pc);
           });
       try {
-        state.guest_transport->run(handoff.transfer_target, context, 1000000U);
+        state.guest_transport->run(handoff.transfer_target, context,
+            state.play_mode ? UINT64_MAX : 1000000U);
       } catch (const std::exception& error) {
         std::fprintf(stderr, "guest OS transport failure: %s\n", error.what());
         fail_closed_dispatch(state, "guest-os", "transport-contract", state.guest_last_pc);
@@ -9705,7 +10125,11 @@ bool extract_original_os_probe(const std::string& output, unsigned target, std::
   const bool opted_in = _dupenv_s(&enabled, &size, "JFG_PHASE9_GUEST_OS_PROBE") == 0 &&
       enabled && std::strcmp(enabled, "1") == 0;
   std::free(enabled);
-  if (!opted_in) return false;
+  char original_timing[2]{};
+  const auto timing_override = GetEnvironmentVariableA("JFG_ORIGINAL_TIMING",original_timing,2U);
+  const bool runtime_opted_in = timing_override == 1U ? original_timing[0]=='1' :
+      JFG_ORIGINAL_TIMING_GENERATION == 1;
+  if (!opted_in && !runtime_opted_in) return false;
   static const std::regex pattern(
       R"jfg(\{"kind":"jfg-phase9-original-os-probe","acceptance":false,"status":"retrace-target","retrace_target":([1-9][0-9]*),"vi_retraces":([1-9][0-9]*),"controller_samples":[0-9]+,"completed_updates":[0-9]+,"cpu_count":[1-9][0-9]*,"instructions":[1-9][0-9]*,"graphics_tasks":[0-9]+,"decoded_audio_tasks":[0-9]+,"unsupported_accesses":0,"runtime_snapshot_complete":false,"state_hash":"[0-9a-f]{64}"\}\r?\n)jfg");
   std::smatch match;
