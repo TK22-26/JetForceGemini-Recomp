@@ -7,9 +7,9 @@
   "visual_review": {
     "proceed": true,
     "planet_occlusion": "Confirmed visually: native candidate hides the false flare while the planet obstructs it and restores the flare as the light clears the edge. EmuHawk/Ares64 shows the same blue-to-yellow reveal behavior.",
-    "ship_screenshot": "See ship_followup for the later dense capture and its limitations.",
-    "scope": "Install and commit the independently demonstrated depth-bounds correction; see ship_followup for the exact ship report. Owner acceptance remains pending.",
-    "documentation": "Across 181 consecutive native presents (1210-1390), 50 frames changed (1217-1266). The candidate suppresses the false flare while the planet blocks the light and restores it at the planet edge. A separate 246-frame EmuHawk/Ares64 reference shows the same reveal behavior; this is an appearance comparison, not pixel-aligned parity. The close ship flyby in the owner's screenshot occurs later than this dense capture window and remains unverified frame by frame. That specific report stays open."
+    "ship_screenshot": "Owner clarified this is the same Gemini ship later in the cinematic; later native and EmuHawk/Ares64 captures show the flare blocked by the ship.",
+    "scope": "Planet and later Gemini-ship occlusion accepted by the owner; appearance comparison, not pixel-exact parity.",
+    "documentation": "The original 181-frame planet comparison remains valid. The later Gemini-ship report was subsequently located and accepted; see later_ship_followup."
   },
   "emulator_captures": 246,
   "clean_runtime_sha256": "ebeb37a84b10a379d6580ca55ce2336f79d485a20cba74eff7d995ad4157da7e",
@@ -35,7 +35,7 @@
   ],
   "clean_runtime_replay_vi": 3090,
   "scope": "Opening cinematic depth visibility; appearance reference only, not pixel-aligned emulator parity or a performance benchmark.",
-  "owner_acceptance": "pending",
+  "owner_acceptance": "Owner confirmed the fix works, then reported opening audio/performance interruptions; those are addressed separately in opening-cutscene-audio-continuity.json.",
   "captures_published": false,
   "ship_followup": {
     "native_present_range": [
@@ -52,9 +52,30 @@
     "visual_review": {
       "proceed": true,
       "first_ship_comparison": "Forty-one consecutive native frames of the first, rounded blue Gemini ship are byte-identical before and after the correction. Seventy-one EmuHawk/Ares64 reference frames show the same flare reveal below the ship; representative native 1500-1507 and emulator 2674-2686 agree in appearance.",
-      "reported_ship_screenshot": "The supplied screenshot appears to depict a different, larger flat ship. Its exact moment is not established by this first-ship comparison. Keep that report open; clarification was requested from the owner.",
-      "scope": "Commit and hand off the confirmed planet-occlusion/depth-tracking correction. Do not claim the owner's exact ship screenshot is fixed.",
-      "documentation": "A follow-up captured 41 consecutive frames of the first, rounded blue Gemini\nship (native presents 1490-1530) and 71 EmuHawk/Ares64 reference frames. Those\nnative frames are byte-identical before and after this correction; the\nreference shows the same flare reveal below that ship. The owner's supplied\nscreenshot appears to show a different, larger ship, so its exact moment\nremains unverified. That specific report stays open; the first-ship comparison\nmust not be treated as proof that the supplied screenshot is fixed."
+      "reported_ship_screenshot": "The initial interpretation of a different, larger ship was incorrect. The owner clarified it is the Gemini ship later in the cutscene; see later_ship_followup.",
+      "scope": "The first 41-frame comparison does not cover the later screenshot; it is retained as an earlier comparison.",
+      "documentation": "The first 41 native frames remain unchanged by the depth fix. A subsequent later-shot comparison and owner confirmation resolve the supplied screenshot report."
     }
+  },
+  "later_ship_followup": {
+    "captures": {
+      "native": 155,
+      "emulator": 173
+    },
+    "native_presents": [
+      1530,
+      3230,
+      10
+    ],
+    "emulator_capture_range": [
+      2760,
+      6200,
+      20
+    ],
+    "representative_native_present": 1630,
+    "representative_emulator_frame": 3060,
+    "appearance_review": "Later Gemini ship blocks the flare in both references; visual comparison only.",
+    "summary_sha256": "c8cf025f146a2c2f1411edbfa7ff8e2159046a3e2793f8f10ec1fbb07a8589a8",
+    "owner_confirmed": true
   }
 }

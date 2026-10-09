@@ -15,6 +15,9 @@
 #include <cstdint>
 #include <cmath>
 #include <cstring>
+#if defined(_M_X64) || defined(__SSE2__)
+#include <emmintrin.h>
+#endif
 #include <filesystem>
 #include <memory>
 #include <mutex>
@@ -391,6 +394,27 @@ Rt64ShellError merge_rt64_rdram_snapshot(
                             kComparisonBlockBytes) == 0) {
                 continue;
             }
+#if defined(_M_X64) || defined(__SSE2__)
+            // Equal CPU bytes preserve private GPU results. Select each byte
+            // independently, including mixed CPU/GPU ownership in one vector.
+            for (std::size_t index = base;
+                 index < base + kComparisonBlockBytes; index += 16U) {
+                const auto incoming = _mm_loadu_si128(
+                    reinterpret_cast<const __m128i*>(source.data() + index));
+                const auto previous = _mm_loadu_si128(
+                    reinterpret_cast<const __m128i*>(previous_source.data() + index));
+                const auto current = _mm_loadu_si128(
+                    reinterpret_cast<const __m128i*>(destination.data() + index));
+                const auto unchanged = _mm_cmpeq_epi8(incoming, previous);
+                const auto merged = _mm_or_si128(
+                    _mm_and_si128(unchanged, current),
+                    _mm_andnot_si128(unchanged, incoming));
+                _mm_storeu_si128(
+                    reinterpret_cast<__m128i*>(destination.data() + index), merged);
+                _mm_storeu_si128(
+                    reinterpret_cast<__m128i*>(previous_source.data() + index), incoming);
+            }
+#else
             for (std::size_t index = base;
                  index < base + kComparisonBlockBytes; ++index) {
                 const std::byte incoming = source[index];
@@ -399,6 +423,7 @@ Rt64ShellError merge_rt64_rdram_snapshot(
                     previous_source[index] = incoming;
                 }
             }
+#endif
         }
         return Rt64ShellError::none;
     }
@@ -436,7 +461,18 @@ Rt64ShellError refresh_rt64_cpu_memory(
             destination[begin ^ 3U] = source[begin ^ 3U];
         const std::size_t aligned_end = end & ~std::size_t{3U};
         if (aligned_end > begin) {
-            std::memcpy(destination.data() + begin, source.data() + begin, aligned_end - begin);
+            // Compare against actual renderer RAM, never a previous CPU-only
+            // snapshot: framebuffer reuse can leave changed GPU bytes here.
+            constexpr std::size_t block = 4096U;
+            while (aligned_end - begin >= block) {
+                if (std::memcmp(destination.data() + begin, source.data() + begin, block) != 0)
+                    std::memcpy(destination.data() + begin, source.data() + begin, block);
+                begin += block;
+            }
+            if (aligned_end > begin &&
+                std::memcmp(destination.data() + begin, source.data() + begin,
+                            aligned_end - begin) != 0)
+                std::memcpy(destination.data() + begin, source.data() + begin, aligned_end - begin);
             begin = aligned_end;
         }
         for (; begin < end; ++begin)
@@ -462,20 +498,41 @@ Rt64ShellError commit_rt64_rdram_ranges(
         live.size() > submitted.size() || live.size() % 4U != 0U ||
         (!previous_source.empty() && previous_source.size() != submitted.size()))
         return Rt64ShellError::invalid_memory;
+    // Validate every byte before writing any range, preserving atomic rejection.
     for (const auto range : ranges) {
         if (range.begin >= range.end || range.end > live.size())
             return Rt64ShellError::invalid_memory;
-        for (std::size_t address = range.begin; address < range.end; ++address) {
+        auto address = range.begin;
+        for (; address < range.end && (address & 3U); ++address)
             if (live[address ^ 3U] != submitted[address ^ 3U])
                 return Rt64ShellError::conflicting_cpu_write;
+        const auto aligned_end = range.end & ~std::size_t{3U};
+        if (address < aligned_end) {
+            if (std::memcmp(live.data() + address, submitted.data() + address, aligned_end - address) != 0)
+                return Rt64ShellError::conflicting_cpu_write;
+            address = aligned_end;
         }
+        for (; address < range.end; ++address)
+            if (live[address ^ 3U] != submitted[address ^ 3U])
+                return Rt64ShellError::conflicting_cpu_write;
     }
-    for (const auto range : ranges)
-        for (std::size_t address = range.begin; address < range.end; ++address) {
-            live[address ^ 3U] = rendered[address ^ 3U];
-            if (!previous_source.empty())
-                previous_source[address ^ 3U] = rendered[address ^ 3U];
+    for (const auto range : ranges) {
+        auto address = range.begin;
+        const auto copy_byte = [&](const std::size_t index) {
+            live[index ^ 3U] = rendered[index ^ 3U];
+            if (!previous_source.empty()) previous_source[index ^ 3U] = rendered[index ^ 3U];
+        };
+        for (; address < range.end && (address & 3U); ++address) copy_byte(address);
+        const auto aligned_end = range.end & ~std::size_t{3U};
+        if (address < aligned_end) {
+            if (live.data() != rendered.data())
+                std::memcpy(live.data() + address, rendered.data() + address, aligned_end - address);
+            if (!previous_source.empty() && previous_source.data() != rendered.data())
+                std::memcpy(previous_source.data() + address, rendered.data() + address, aligned_end - address);
+            address = aligned_end;
         }
+        for (; address < range.end; ++address) copy_byte(address);
+    }
     return Rt64ShellError::none;
 }
 

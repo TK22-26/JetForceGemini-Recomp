@@ -140,15 +140,72 @@ comparison, not pixel-aligned parity.
 
 A follow-up captured 41 consecutive frames of the first, rounded blue Gemini
 ship (native presents 1490-1530) and 71 EmuHawk/Ares64 reference frames. Those
-native frames are byte-identical before and after this correction; the
-reference shows the same flare reveal below that ship. The owner's supplied
-screenshot appears to show a different, larger ship, so its exact moment
-remains unverified. That specific report stays open; the first-ship comparison
-must not be treated as proof that the supplied screenshot is fixed.
+native frames are unchanged by the correction. The owner clarified that the
+supplied screenshot shows the same Gemini ship later in the cinematic. A later
+capture locates that shot (representative native present 1630 and emulator
+frame 3060); both show the ship blocking the flare. The owner subsequently
+confirmed that the fix works, then reported audio interruptions during later
+scenes. The earlier interpretation that this was a different ship is withdrawn.
 
-The clean runtime also completes the same replay through VI 3090. The
-opening-cutscene test launcher points to that runtime and uses a separate
-save. Owner visual acceptance of this lens-flare build is pending. These
-checks do not establish full-campaign or pixel-exact renderer equivalence.
-ROM-derived captures remain private; aggregate evidence is in
+These checks establish appearance and owner acceptance for the reported
+occlusions, not full-campaign or pixel-exact renderer equivalence. ROM-derived
+captures remain private; aggregate evidence is in
 [opening-lens-flare-depth-bounds.json](../../evidence/opening-lens-flare-depth-bounds.json).
+
+## Opening cutscene audio interruptions (2026-10-09)
+
+The owner heard repeated interruptions while drones attack tribals and a brief
+interruption during Juno's ship escape. A normal-launcher replay reproduced two
+audio underruns and an approximately 130 ms gap near 157 seconds in actual
+Windows output. Generated audio continued across the gap: waveform and
+spectrogram comparisons distinguish the playback dropout from intended silence.
+
+Sustained host CPU work was exhausting the pacing margin. When the VI loop gets
+more than about 66.7 ms late, it resets its deadline to the current time. The
+audio device continues playing during that lost time, so repeated resets drain
+the queued samples until playback pauses to refill. A profiled reproduction
+discarded 270.077 ms across four resets. Normal-launcher live exports exposed
+the overhead that a simpler hidden replay missed. Disabling exports removed
+the symptom in a diagnostic run; the implemented fix keeps them enabled.
+
+The renderer now merges changed snapshot bytes in SIMD batches on supported
+targets, skips CPU refresh blocks already identical to actual renderer memory,
+and validates/copies completed writeback ranges in bulk. Comparing with actual
+renderer memory preserves CPU writes when framebuffer storage is reused.
+Conflict checks still complete before any write, including unaligned byte
+boundaries. The portable scalar path remains available. Full depth and color
+writeback, the lens-flare correction, guest audio, buffer thresholds and timing
+policy remain unchanged. No scene-specific waits were added.
+
+Across 3,212 graphics tasks in the two busy ranges, mean snapshot-import time
+fell from 1,088 to 908 microseconds and its 99th percentile from 2,749 to 1,513.
+Mean CPU writeback fell from 52.9 to 6.3 microseconds; its 99th percentile fell
+from 471 to 61. The profiled candidate had no deadline resets. Renderer GPU
+submission time did not improve; these savings are in host memory handling.
+
+Three clean full-intro replays through VI 12000 passed with live exports on and
+other game replays stopped: two at a 1280x845 game viewport and one verified at
+1920x1080. All recorded zero audio underruns/overruns and no output-loss
+candidates lasting at least 6 ms. Each generated PCM prefix is byte-identical
+to the original across 17,615,424 bytes, approximately 200 seconds. Actual
+native-process WASAPI recordings were aligned to generated PCM; waveforms,
+spectrograms and a known-gap positive control validate the comparison.
+
+At actual 1080p, continuous-frame presentation excess above the guest's VI
+cadence peaked at 9.211 ms (99th percentile 3.448 ms). Room changes are retained
+separately: at VI 6328 the guest supplies no new picture for 128 VIs, with
+17.713 ms additional host delay in that run and 21.116 ms in one normal-size
+repeat. These results do not establish perfect display scanout, zero shorter
+audio disturbances, or equivalent performance on every machine.
+
+All three renderer regressions pass, including depth-bounds and asteroid
+texture tests. Private randomized comparisons cover 192 full-size memory cases
+against the previous implementation, plus 192 scalar-fallback checks. Public
+regressions cover mixed CPU/GPU bytes, vector/block boundaries, reused storage
+and atomic rejection of a late conflict. The clean tested runtime is prepared
+for the current normal launcher and `Test Opening Cutscene.cmd`, which uses a
+separate fresh save. Owner acceptance of this performance update is pending.
+
+The aggregate evidence, exact hashes, thresholds and capture limitations are in
+[opening-cutscene-audio-continuity.json](../../evidence/opening-cutscene-audio-continuity.json).
+Audio recordings, spectrograms and ROM-derived images remain private.
