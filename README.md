@@ -33,6 +33,10 @@ HD cosmetic variants stay in independently maintained community branches.
 - Optional live map and live inventory tracking in a custom companion interface.
 - Native rendering and audio.
 - Keyboard controls and configurable Xbox/XInput controllers.
+- **Experimental PC controls (single-player):** mouse-and-keyboard look/aim and
+  dual-stick controller support, including movement and strafing while aiming.
+  Enable experimental controls for your selected device in the launcher's
+  Controller Mapping window. See [PC controls status and remaining work](docs/planning/pc-controls-status.md).
 - Verified saving and loading, with a launcher for setup and subsequent launches.
 
 Original-console accuracy remains under validation.

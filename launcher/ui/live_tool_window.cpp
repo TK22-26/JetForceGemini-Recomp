@@ -43,7 +43,7 @@ void notifyModal() {
 LRESULT CALLBACK liveProcedure(HWND w, UINT m, WPARAM p, LPARAM l) {
   if (live.ready && ((m >= WM_MOUSEFIRST && m <= WM_MOUSELAST) ||
                      m == WM_KEYDOWN || m == WM_KEYUP || m == WM_SYSKEYDOWN ||
-                     m == WM_SYSKEYUP || m == WM_CHAR || m == WM_ACTIVATEAPP))
+                     m == WM_SYSKEYUP || m == WM_CHAR || m == WM_ACTIVATEAPP || m == WM_KILLFOCUS))
     FrontendUiMessage(m, p, l);
   // F10 and our Alt mnemonics belong to RmlUi, not DefWindowProc's menu loop.
   if (live.ready &&
@@ -56,7 +56,7 @@ LRESULT CALLBACK liveProcedure(HWND w, UINT m, WPARAM p, LPARAM l) {
   case WM_GETMINMAXINFO: {
     auto *info = reinterpret_cast<MINMAXINFO *>(l);
     int dpi = static_cast<int>(GetDpiForWindow(w));
-    info->ptMinTrackSize = {MulDiv(live.kind == "map" ? 720 : 440, dpi, 96),
+    info->ptMinTrackSize = {MulDiv(live.kind == "map" || live.kind == "controllers" ? 720 : 440, dpi, 96),
                             MulDiv(live.kind == "map" ? 500 : 540, dpi, 96)};
     return 0;
   }
@@ -112,6 +112,7 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
       auto name = std::wstring(argv[++i]);
       live.kind = name == L"map"         ? "map"
                   : name == L"inventory" ? "inventory"
+                  : name == L"controllers" ? "controllers"
                                          : "";
       found = true;
     } else if (std::wstring(argv[i]) == L"--profile" && i + 1 < argc)
@@ -142,14 +143,14 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
   cls.hbrBackground = CreateSolidBrush(RGB(11, 15, 23));
   RegisterClassW(&cls);
   int density = static_cast<int>(GetDpiForSystem());
-  RECT size{0, 0, MulDiv(live.kind == "map" ? 1200 : 486, density, 96),
-            MulDiv(live.kind == "map" ? 740 : 716, density, 96)};
+  RECT size{0, 0, MulDiv(live.kind == "map" ? 1200 : live.kind == "controllers" ? 960 : 486, density, 96),
+            MulDiv(live.kind == "map" ? 740 : live.kind == "controllers" ? 760 : 716, density, 96)};
   AdjustWindowRectExForDpi(&size, WS_OVERLAPPEDWINDOW, FALSE, 0, density);
   live.window = CreateWindowExW(
       0, cls.lpszClassName,
-      live.kind == "map" ? L"JFG Live Map" : L"JFG Live Inventory",
+      live.kind == "map" ? L"JFG Live Map" : live.kind == "controllers" ? L"JFG Controller Mapping" : L"JFG Live Inventory",
       WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, size.right - size.left,
-      size.bottom - size.top, nullptr, nullptr, instance, nullptr);
+      size.bottom - size.top, live.kind=="controllers"?live.owner:nullptr, nullptr, instance, nullptr);
   if (!live.window)
     return 3;
   SetPropW(live.window, L"JfgLiveOwner", live.owner);
@@ -186,6 +187,7 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
     DestroyWindow(live.window);
     return 3;
   }
+  if(live.kind!="controllers") {
   std::wstring command =
       quoteLive(live.helper.wstring()) + L" --frontend-worker " +
       (live.kind == "map" ? std::wstring(L"map-data")
@@ -224,6 +226,8 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
   live.worker = child.hProcess;
   ResumeThread(child.hThread);
   CloseHandle(child.hThread);
+  }
+  if(live.kind=="controllers"){SetPropW(live.window,L"JfgLiveModal",reinterpret_cast<HANDLE>(1));notifyModal();}
   FrontendUiFrame({});
   ShowWindow(live.window, show);
   UpdateWindow(live.window);
@@ -233,6 +237,7 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
     TranslateMessage(&message);
     DispatchMessageW(&message);
   }
+  if(live.worker) {
   // The service sees its HWND disappear and stops any route before shutdown.
   if (WaitForSingleObject(live.worker, 1500) == WAIT_TIMEOUT)
     TerminateProcess(live.worker, 0);
@@ -255,6 +260,7 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
         fs::remove(it->path(), cleanupError);
     }
     fs::remove(transfer, cleanupError);
+  }
   }
   DeleteObject(cls.hbrBackground);
   return static_cast<int>(message.wParam);

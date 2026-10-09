@@ -16,6 +16,8 @@ struct PcInputConfig {
   int modern = 0;
   int mouse_aim = 0, mouse_sensitivity = 100, mouse_invert_y = 0;
   int dual_stick = 0, aim_sensitivity = 100, aim_deadzone = 7849, aim_invert_y = 0;
+  int mouse_aim_sensitivity = 100, camera_sensitivity = 100, aim_curve = 0;
+  int mouse_vertical_sensitivity = 100, stick_vertical_sensitivity = 100;
   // A, B, Z, Start, D-pad, L, R, C-buttons, movement, fast movement, alternate A.
   std::array<int,20> keys{32,'X','C',13,38,40,37,39,'Q','E','I','K','J','L',
                            'W','S','A','D',16,'Z'};
@@ -29,14 +31,20 @@ inline std::string serialize_pc_experiments(bool enabled) {
   return enabled ? "version=1\nexperimental=1\n" : "version=1\nexperimental=0\n";
 }
 inline PcInputConfig effective_pc_input(bool enabled,const PcInputConfig &saved) {
-  return enabled ? saved : PcInputConfig{};
+  auto active=saved;
+  if(!enabled)active.modern=active.mouse_aim=active.dual_stick=0;
+  return active;
 }
-inline constexpr std::array<std::string_view,9> kPcSettings{
+inline constexpr std::array<std::string_view,14> kPcSettings{
   "version","mouse_aim","mouse_sensitivity","mouse_invert_y","dual_stick",
-  "aim_sensitivity","aim_deadzone","aim_invert_y","modern"};
+  "aim_sensitivity","aim_deadzone","aim_invert_y","modern",
+  "mouse_aim_sensitivity","camera_sensitivity","aim_curve",
+  "mouse_vertical_sensitivity","stick_vertical_sensitivity"};
 inline std::string serialize_pc_input(const PcInputConfig &c) {
-  const std::array<int,9> values{2,c.mouse_aim,c.mouse_sensitivity,c.mouse_invert_y,
-    c.dual_stick,c.aim_sensitivity,c.aim_deadzone,c.aim_invert_y,c.modern};
+  const std::array<int,14> values{3,c.mouse_aim,c.mouse_sensitivity,c.mouse_invert_y,
+    c.dual_stick,c.aim_sensitivity,c.aim_deadzone,c.aim_invert_y,c.modern,
+    c.mouse_aim_sensitivity,c.camera_sensitivity,c.aim_curve,
+    c.mouse_vertical_sensitivity,c.stick_vertical_sensitivity};
   std::ostringstream out;
   for (std::size_t i=0;i<values.size();++i) out<<kPcSettings[i]<<'='<<values[i]<<'\n';
   for (std::size_t i=0;i<c.keys.size();++i) out<<"key"<<i<<'='<<c.keys[i]<<'\n';
@@ -45,8 +53,8 @@ inline std::string serialize_pc_input(const PcInputConfig &c) {
 inline bool parse_pc_input(std::string_view text,PcInputConfig &result) {
   if(text.empty() || text.size()>4096) return false;
   PcInputConfig c;
-  std::array<int,29> values{};
-  std::array<bool,29> seen{};
+  std::array<int,34> values{};
+  std::array<bool,34> seen{};
   while(!text.empty()) {
     const auto n=text.find('\n');auto line=text.substr(0,n);
     text=n==text.npos?std::string_view{}:text.substr(n+1);
@@ -55,25 +63,33 @@ inline bool parse_pc_input(std::string_view text,PcInputConfig &result) {
     const auto key=line.substr(0,eq),value=line.substr(eq+1);
     std::size_t slot=seen.size();
     for(std::size_t i=0;i<kPcSettings.size();++i)if(key==kPcSettings[i])slot=i;
-    for(std::size_t i=0;i<c.keys.size();++i)if(key=="key"+std::to_string(i))slot=i+9;
+    for(std::size_t i=0;i<c.keys.size();++i)if(key=="key"+std::to_string(i))slot=i+kPcSettings.size();
     if(slot==seen.size() || seen[slot] || value.empty())return false;
     int number=0;const auto parsed=std::from_chars(value.data(),value.data()+value.size(),number);
     if(parsed.ec!=std::errc{} || parsed.ptr!=value.data()+value.size() || value!=std::to_string(number))return false;
     seen[slot]=true;values[slot]=number;
   }
-  if(values[0]!=1 && values[0]!=2)return false;
+  if(values[0]<1 || values[0]>3)return false;
+  if(values[0]<3) {
+    for(std::size_t i=9;i<kPcSettings.size();++i){if(seen[i])return false;seen[i]=true;}
+    values[9]=values[2];values[10]=values[5];values[11]=0;values[12]=values[13]=100;
+  }
   if(values[0]==1 && seen[8])return false;
   if(values[0]==1)seen[8]=true;
   for(bool found:seen)if(!found)return false;
   for(auto i:{1,3,4,7,8})if(values[static_cast<std::size_t>(i)]<0 || values[static_cast<std::size_t>(i)]>1)return false;
   if(values[2]<10 || values[2]>500 || values[5]<10 || values[5]>300 || values[6]<0 || values[6]>30000)return false;
+  if(values[9]<10 || values[9]>500 || values[10]<10 || values[10]>300 || values[11]<0 || values[11]>2 ||
+     values[12]<10 || values[12]>300 || values[13]<10 || values[13]>300)return false;
   for(std::size_t i=0;i<c.keys.size();++i) {
-    if(values[i+9]<0 || values[i+9]>kPcWheelDown)return false;
-    c.keys[i]=values[i+9];
+    if(values[i+kPcSettings.size()]<0 || values[i+kPcSettings.size()]>kPcWheelDown)return false;
+    c.keys[i]=values[i+kPcSettings.size()];
   }
   c.mouse_aim=values[1];c.mouse_sensitivity=values[2];c.mouse_invert_y=values[3];
   c.dual_stick=values[4];c.aim_sensitivity=values[5];c.aim_deadzone=values[6];c.aim_invert_y=values[7];
-  c.modern=values[8];result=c;return true;
+  c.modern=values[8];c.mouse_aim_sensitivity=values[9];c.camera_sensitivity=values[10];c.aim_curve=values[11];
+  c.mouse_vertical_sensitivity=values[12];c.stick_vertical_sensitivity=values[13];
+  result=c;return true;
 }
 inline PcInputConfig pc_keyboard_preset(bool expert=false) {
   PcInputConfig c;c.modern=1;c.mouse_aim=1;c.keys[2]=1;c.keys[9]=2;
@@ -101,11 +117,26 @@ template<class Down> ControllerPortSample map_pc_menu(ControllerPortSample sampl
   if(y)sample.y=static_cast<std::int8_t>(y*80);
   return sample;
 }
-inline N64StickSample pc_aim_stick(const PcInputConfig &c,const StandardControllerSample &pad,int movement_stick) {
+// Keep normal mapped buttons in menus, scripted scenes and unsupported modes.
+// The unused stick becomes look input only while a qualified look path owns it.
+inline MappedControllerSample map_pc_controller(const ControllerMapping &mapping,
+    StandardControllerSample pad,const PcInputConfig &config,bool look_active) {
+  auto mapped=map_controller(mapping,pad);
+  if(look_active && config.dual_stick && (config.modern || (mapped.buttons&0x10)!=0)) {
+    const std::size_t axis=mapping.stick==0?2U:0U;
+    pad.axes[axis]=pad.axes[axis+1U]=0;
+    mapped=map_controller(mapping,pad);
+  }
+  return mapped;
+}
+inline N64StickSample pc_aim_stick(const PcInputConfig &c,const StandardControllerSample &pad,int movement_stick,bool aiming=true) {
   const std::size_t axis=movement_stick==0?2U:0U;
   auto aim=scale_xinput_left_stick(pad.axes[axis],-pad.axes[axis+1],c.aim_deadzone);
-  aim.x=static_cast<std::int8_t>(std::clamp(int(aim.x)*c.aim_sensitivity/100,-127,127));
-  aim.y=static_cast<std::int8_t>(std::clamp(int(aim.y)*c.aim_sensitivity*(c.aim_invert_y?-1:1)/100,-127,127));
+  const float magnitude=std::min(1.0F,std::hypot(float(aim.x),float(aim.y))/80.0F);
+  const float response=c.aim_curve==1?magnitude:c.aim_curve==2?magnitude*magnitude:1.0F;
+  const int sensitivity=aiming?c.aim_sensitivity:c.camera_sensitivity;
+  aim.x=static_cast<std::int8_t>(std::clamp(int(float(aim.x)*response*float(sensitivity)/100.0F),-127,127));
+  aim.y=static_cast<std::int8_t>(std::clamp(int(float(aim.y)*response*float(sensitivity)*float(c.stick_vertical_sensitivity)*(c.aim_invert_y?-1.0F:1.0F)/10000.0F),-127,127));
   return aim;
 }
 class PcWheelPulses {
@@ -175,20 +206,20 @@ class PcMouseMotion {
 public:
   void add(int x,int y){x_=std::clamp(x_+double(x),-4096.0,4096.0);y_=std::clamp(y_+double(y),-4096.0,4096.0);}
   N64StickSample take(const PcInputConfig &c) {
-    const double scale=double(c.mouse_sensitivity)/100.0;
+    const double scale=double(c.mouse_aim_sensitivity)/100.0;
     const int x=std::clamp(static_cast<int>(std::trunc(x_*scale)),-127,127);
-    const int y=std::clamp(static_cast<int>(std::trunc(y_*scale*(c.mouse_invert_y?1:-1))),-127,127);
+    const double y_scale=scale*double(c.mouse_vertical_sensitivity)/100.0*(c.mouse_invert_y?1.0:-1.0);
+    const int y=std::clamp(static_cast<int>(std::trunc(y_*y_scale)),-127,127);
     // Preserve subpixel displacement at low sensitivity, but discard clipped
     // excess so a fast flick cannot keep turning after the mouse stops.
     x_=std::abs(x_*scale)>127.0?0.0:x_-double(x)/scale;
-    const double y_scale=scale*(c.mouse_invert_y?1.0:-1.0);
     y_=std::abs(y_*y_scale)>127.0?0.0:y_-double(y)/y_scale;
     return {static_cast<std::int8_t>(x),static_cast<std::int8_t>(y)};
   }
-  PcLookDelta take_angles(const PcInputConfig &c) {
+  PcLookDelta take_angles(const PcInputConfig &c,bool aiming=false) {
     // One pixel at 100% is approximately 0.1 degrees, independent of update rate.
-    const double sx=18.0*double(c.mouse_sensitivity)/100.0;
-    const double sy=sx*(c.mouse_invert_y?1.0:-1.0);
+    const double sx=18.0*double(aiming?c.mouse_aim_sensitivity:c.mouse_sensitivity)/100.0;
+    const double sy=sx*double(c.mouse_vertical_sensitivity)/100.0*(c.mouse_invert_y?1.0:-1.0);
     const int x=std::clamp(static_cast<int>(std::trunc(x_*sx)),-16384,16384);
     const int y=std::clamp(static_cast<int>(std::trunc(y_*sy)),-16384,16384);
     x_=std::abs(x_*sx)>16384.0?0.0:x_-double(x)/sx;

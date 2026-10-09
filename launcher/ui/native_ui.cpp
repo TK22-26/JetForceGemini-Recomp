@@ -76,7 +76,7 @@ struct LogSystem : Rml::SystemInterface {
   }
 };
 struct Ui : Rml::EventListener {
-  bool building = false;
+  bool building = false, controllerWindow = false;
   HWND window = nullptr;
   std::function<void(const std::string &)> action;
   FrontendUiState state;
@@ -84,10 +84,16 @@ struct Ui : Rml::EventListener {
   std::array<jfg::ControllerMapping, 4> mappings{};
   std::array<jfg::PcInputConfig,4> pcInput{};
   std::array<int, 4> devices{-2, -2, -2, -2};
-  int learning = -1;
+  int learning = -1, keyLearning = -1;
+  bool keyReleased = false, devicePicker = false, controllerSettings = false;
+  int pickerType = 0, pickerDevice = -2;
+  double keyDeadline = 0;
+  // The UI and its integration checks share the same discovery path.
+  std::function<DWORD(DWORD, XINPUT_STATE *)> controllerState = XInputGetState;
   bool learnReleased = false;
   double learnDeadline = 0;
   void close() {
+    if(controllerWindow){PostMessageW(window,WM_CLOSE,0,0);return;}
     current.clear();
     doc->SetClass("panel-open", false);
     doc->SetClass("menu-open", false);
@@ -119,12 +125,13 @@ struct Ui : Rml::EventListener {
   bool pcExperimental() {
     return jfg::pc_experiments_enabled(read("experimental-controls.ini"));
   }
+  bool pcKeyboard() const { return mappings[player].device==-3 || (mappings[player].device==-1 && devices[player]==-3); }
   std::string pcExperimentalHtml() {
-    const bool enabled=pcExperimental();
-    return "<div class=\"row\"><div class=\"grow\">Experimental PC controls"
-      "<div class=\"muted\">Keyboard/mouse presets and separate-stick aim. Gameplay support is incomplete.</div></div>" +
-      button("pc-experimental",enabled?"On":"Off") + "</div>" +
-      button("pc-input","Configure experimental controls...",!enabled);
+    const bool keyboard=pcKeyboard();
+    return "<div class=\"row\"><div class=\"grow\">"+
+      std::string(keyboard?"Experimental mouse look and movement":"Experimental dual-stick controls")+
+      "<div class=\"muted\">Opt in to modern controls. This switch applies to the whole profile.</div></div>"+
+      button("pc-experimental",pcExperimental()?"On":"Off")+"</div>";
   }
   std::string pcFile() const { return player ? "pc-input-"+std::to_string(player+1)+".ini" : "pc-input.ini"; }
   void loadPcInput() {
@@ -148,30 +155,39 @@ struct Ui : Rml::EventListener {
     return "Key "+std::to_string(key);
   }
   std::string pcInputHtml() {
-    auto &c=pcInput[static_cast<std::size_t>(player)];std::string html="<div class=\"tabs\">";
-    for(int i=0;i<4;++i)html+=button("pc-player"+std::to_string(i),"Player "+std::to_string(i+1));
-    html+="</div><p>Settings for Player "+std::to_string(player+1)+". Assign Keyboard or a controller in Controller mapping.</p>";
-    html+="<div class=\"row\">"+button("pc-normal","Keyboard preset: Normal")+button("pc-expert","Keyboard preset: Expert")+button("pc-reset","Reset keyboard and aim")+"</div>";
-    html+="<div class=\"row\">"+button("pc-pad-normal","Controller preset: Normal")+button("pc-pad-expert","Controller preset: Expert")+"</div>";
-    html+="<div class=\"row\">"+button("pc-mouse",c.mouse_aim?"Mouse aim: on":"Mouse aim: off")+
-      button("pc-modern",c.modern?"Modern camera + movement: on":"Modern camera + movement: off")+button("pc-dual",c.dual_stick?"Separate stick aim: on":"Separate stick aim: off")+"</div>";
-    html+="<p class=\"muted\">Experimental: modern mode adds mouse / right-stick camera control and movement while aiming. Mouse aim uses direct motion; stick aim turns at a steady rate. Hold right-click or LT to aim; left-click or RT fires. Menus, cutscenes and special movement states retain game controls.</p>";
-    const char* labels[]={"Mouse sensitivity","Aim stick sensitivity","Aim stick deadzone"};
-    const int values[]={c.mouse_sensitivity,c.aim_sensitivity,c.aim_deadzone};
-    const int maxima[]={500,300,30000};
-    for(int i=0;i<3;++i)html+="<div class=\"row\"><span>"+std::string(labels[i])+"</span><input class=\"volume\" type=\"range\" min=\""+std::to_string(i==2?0:10)+"\" max=\""+std::to_string(maxima[i])+"\" value=\""+std::to_string(values[i])+"\" data-action=\"pc-tune"+std::to_string(i)+"\"/><span id=\"pc-value"+std::to_string(i)+"\">"+std::to_string(values[i])+"</span></div>";
-    html+="<div class=\"row\">"+button("pc-invert-mouse",c.mouse_invert_y?"Mouse Y: inverted":"Mouse Y: normal")+button("pc-invert-stick",c.aim_invert_y?"Aim stick Y: inverted":"Aim stick Y: normal")+"</div>";
-    const char* names[]={"A / confirm","B / weapon","Z / fire","Start","D-pad up","D-pad down","D-pad left","D-pad right","L","R / aim","C up / Normal jump","C down","C left","C right","Move forward","Move back","Move left","Move right","Full movement","Alternate A"};
-    for(std::size_t i=0;i<c.keys.size();++i) {
-      html+="<div class=\"device-row\"><span>"+std::string(names[i])+"</span><select data-action=\"pc-key"+std::to_string(i)+"\">";
-      for(int key=0;key<=257;++key) {
-        const bool common=key<=6 || key==8 || key==9 || key==13 || key==16 || key==17 || key==18 || (key>=32 && key<=40) || (key>=48 && key<=90) || (key>=96 && key<=123) || key>=256;
-        if(!common && key!=c.keys[i])continue;
-        // Escape and F11 remain available for the frontend.
-        if(key==27 || key==122)continue;
-        html+="<option value=\""+std::to_string(key)+"\""+(key==c.keys[i]?" selected=\"selected\"":"")+">"+escape(pcKeyName(key))+"</option>";
+    auto &c=pcInput[static_cast<std::size_t>(player)];
+    const bool keyboard=pcKeyboard(), enabled=pcExperimental();
+    std::string html=pcExperimentalHtml();
+    if(!keyboard && !enabled)return html;
+    html+="<div class=\"row\">"+
+      button(keyboard?"pc-normal":"pc-pad-normal","Normal preset",!keyboard && !enabled)+
+      button(keyboard?"pc-expert":"pc-pad-expert","Expert preset",!keyboard && !enabled)+
+      button("pc-reset",keyboard?"Reset keyboard and mouse":"Reset aim settings",!keyboard && !enabled)+
+      (keyboard?button("controller-settings",controllerSettings?"Hide settings":"Settings",!enabled):std::string{})+"</div>";
+    if(enabled && controllerSettings) {
+      html+="<div class=\"row\">"+
+        button(keyboard?"pc-mouse":"pc-dual",keyboard?(c.mouse_aim?"Mouse look: on":"Mouse look: off"):(c.dual_stick?"Dual-stick aim: on":"Dual-stick aim: off"))+
+        button("pc-modern",c.modern?"Modern camera + movement: on":"Modern camera + movement: off")+"</div>";
+      html+="<p class=\"muted\">Match the preset to the game's Normal or Expert control scheme. Modern camera and aim movement currently support single-player.</p>";
+      const char* labels[]={"Mouse camera sensitivity","Aim stick sensitivity","Aim stick deadzone","Mouse aim sensitivity","Camera stick sensitivity","Mouse vertical scale","Stick vertical scale"};
+      const int values[]={c.mouse_sensitivity,c.aim_sensitivity,c.aim_deadzone,c.mouse_aim_sensitivity,c.camera_sensitivity,c.mouse_vertical_sensitivity,c.stick_vertical_sensitivity};
+      const int maxima[]={500,300,30000,500,300,300,300};
+      for(int i=0;i<7;++i) {
+        if(keyboard!=(i==0 || i==3 || i==5))continue;
+        html+="<div class=\"row\"><span>"+std::string(labels[i])+"</span><input class=\"volume\" type=\"range\" min=\""+std::to_string(i==2?0:10)+"\" max=\""+std::to_string(maxima[i])+"\" value=\""+std::to_string(values[i])+"\" data-action=\"pc-tune"+std::to_string(i)+"\"/><span id=\"pc-value"+std::to_string(i)+"\">"+std::to_string(values[i])+"</span></div>";
       }
-      html+="</select></div>";
+      if(!keyboard)html+="<div class=\"row\"><span>Stick response</span>"+button("pc-curve",c.aim_curve==0?"Linear":c.aim_curve==1?"Precise":"Extra precise")+"<span class=\"muted\">Precise response slows small movements near the center.</span></div>";
+      html+="<div class=\"row\">"+button(keyboard?"pc-invert-mouse":"pc-invert-stick",keyboard?(c.mouse_invert_y?"Mouse Y: inverted":"Mouse Y: normal"):(c.aim_invert_y?"Aim stick Y: inverted":"Aim stick Y: normal"))+"</div>";
+    }
+    if(!keyboard)return html;
+    html+="<div class=\"label\">KEYBOARD AND MOUSE BINDINGS</div>";
+    if(!enabled)html+="<p class=\"muted\">Bindings are always active. Experimental controls add mouse look and modern movement.</p>";
+    const auto &shown=c;
+    const char* names[]={"A / confirm","B / weapon","Z / fire","Start","D-pad up","D-pad down","D-pad left","D-pad right","L","R / aim","C up / Normal jump","C down","C left","C right","Move forward","Move back","Move left","Move right","Full movement","Alternate A"};
+    for(std::size_t i=0;i<shown.keys.size();++i) {
+      html+="<div class=\"key-binding-row\"><span>"+std::string(names[i])+"</span>"+
+        button("pc-bind"+std::to_string(i),pcKeyName(shown.keys[i]))+
+        button("pc-unbind"+std::to_string(i),"Clear")+"</div>";
     }
     return html;
   }
@@ -185,8 +201,9 @@ struct Ui : Rml::EventListener {
                                     mappings[p]);
       assignments.configure(p, mappings[p]);
     }
+    devices=assignments.devices(connected);
   }
-  void saveController() {
+  bool saveController() {
     auto &m = mappings[player];
     std::ostringstream s;
     s << "version=1\ndevice=" << m.device << "\nstick=" << m.stick
@@ -198,7 +215,86 @@ struct Ui : Rml::EventListener {
     if (writeFile(controllerFile(player), s.str())) {
       assignments.configure(player, m);
       label("dialog-note", "Saved. Applied to the game immediately.");
+      return true;
     }
+    return false;
+  }
+  bool deviceAvailable(int d) const {
+    return jfg::controller_device_available(static_cast<std::size_t>(player),d,mappings,devices,connected);
+  }
+  void discoverDevices() {
+    for(DWORD d=0;d<4;++d){XINPUT_STATE sample{};connected[d]=controllerState(d,&sample)==ERROR_SUCCESS;}
+    devices=assignments.devices(connected);
+  }
+  void normalizePicker() {
+    if(pickerType==-3 || pickerType==-1){pickerDevice=pickerType;return;}
+    if(pickerDevice>=0 && deviceAvailable(pickerDevice))return;
+    pickerDevice=-2;
+    for(int d=0;d<4;++d)if(deviceAvailable(d)){pickerDevice=d;break;}
+  }
+  bool assignDevice(int d) {
+    discoverDevices(); // Revalidate immediately before saving a selection.
+    if(!deviceAvailable(d)) {
+      normalizePicker();modal("controllers");
+      label("dialog-note","That device is disconnected or belongs to another player. Choose an available device.");
+      return false;
+    }
+    const int previous=mappings[player].device;
+    mappings[player].device=d;
+    if(!saveController()){mappings[player].device=previous;label("dialog-note","Could not save the device assignment.");return false;}
+    devices=assignments.devices(connected);learning=keyLearning=-1;
+    devicePicker=false;controllerSettings=false;
+    modal("controllers");el("dialog-body")->SetScrollTop(0);return true;
+  }
+  std::string deviceSetupHtml() {
+    const int configured=mappings[player].device,d=devices[player];
+    const bool online=d==-3 || (d>=0 && connected[d]);
+    const std::string name=d==-3?"Mouse and keyboard":d>=0?"Controller "+std::to_string(d+1):"No device";
+    std::string html="<div class=\"input-device-card\"><div class=\"device-summary\"><div class=\"grow\"><div class=\"label\">INPUT DEVICE</div><div class=\"device-name\">"+name+
+      "</div><div id=\"assignment\" class=\"muted\"></div></div><span class=\"connection-state "+std::string(online?"online":"offline")+"\">"+(online?"Connected":"Disconnected")+"</span>"+
+      button("device-open",configured==-2?"+ Add device":"Change device")+
+      button("device-remove","Remove",configured==-2)+"</div></div>";
+    if(!devicePicker)return html;
+    normalizePicker();
+    html+="<div id=\"device-picker\" class=\"device-picker\"><div class=\"label\">CHOOSE INPUT DEVICE</div><div class=\"device-row\"><span>Input type</span><select id=\"input-type\" data-action=\"input-type\">";
+    for(int type:{0,-3,-1})html+="<option value=\""+std::to_string(type)+"\""+(type==pickerType?" selected=\"selected\"":"")+">"+(type==0?"Gamepad":type==-3?"Mouse and keyboard":"Automatic")+"</option>";
+    html+="</select></div>";
+    bool available=pickerType!=0?deviceAvailable(pickerDevice):pickerDevice>=0;
+    if(pickerType==0){
+      html+="<div class=\"device-row\"><span>Controller</span><select id=\"available-device\" data-action=\"device\""+std::string(available?"":" disabled=\"disabled\"")+">";
+      if(!available)html+="<option value=\"-2\">No available controllers</option>";
+      for(int slot=0;slot<4;++slot)if(deviceAvailable(slot))html+="<option value=\""+std::to_string(slot)+"\""+(slot==pickerDevice?" selected=\"selected\"":"")+">Controller "+std::to_string(slot+1)+"</option>";
+      html+="</select>"+button("device-refresh","Refresh")+"</div><p class=\"muted\">Only connected controllers available to this player are listed. Remove a device from another player to move it here.</p>";
+    } else if(pickerType==-3)html+="<p class=\"muted\">"+std::string(available?"Use keyboard keys, mouse buttons and mouse look.":"Mouse and keyboard belong to another player. Remove them there first.")+"</p>";
+    else html+="<p class=\"muted\">Use the next free controller. Player 1 falls back to keyboard when no controller has been assigned.</p>";
+    html+="<div class=\"picker-actions\">"+button("device-apply",configured==-2?"Add":"Use device",!available)+button("device-cancel","Cancel")+"</div></div>";
+    return html;
+  }
+  bool bindingMessage(UINT message,WPARAM key) {
+    if(keyLearning<0)return false;
+    if(message==WM_KILLFOCUS || (message==WM_ACTIVATEAPP && !key)) {
+      keyLearning=-1;modal("controllers");return false;
+    }
+    if((message==WM_KEYDOWN || message==WM_SYSKEYDOWN) && key==VK_ESCAPE) {
+      keyLearning=-1;modal("controllers");label("dialog-note","Binding cancelled.");return true;
+    }
+    int binding=-1;
+    if(message==WM_KEYDOWN || message==WM_SYSKEYDOWN)binding=static_cast<int>(key);
+    else if(message==WM_LBUTTONDOWN)binding=VK_LBUTTON;
+    else if(message==WM_RBUTTONDOWN)binding=VK_RBUTTON;
+    else if(message==WM_MBUTTONDOWN)binding=VK_MBUTTON;
+    else if(message==WM_XBUTTONDOWN)binding=GET_XBUTTON_WPARAM(key)==XBUTTON1?VK_XBUTTON1:VK_XBUTTON2;
+    else if(message==WM_MOUSEWHEEL)binding=GET_WHEEL_DELTA_WPARAM(key)>0?256:257;
+    if(binding>=0){
+      if(keyReleased && binding!=VK_F11 && pcKeyboard()) {
+        pcInput[static_cast<std::size_t>(player)].keys[static_cast<std::size_t>(keyLearning)]=binding;
+        keyLearning=-1;savePcInput();modal("controllers");
+      }
+      return true;
+    }
+    // Keep release events away from RmlUi so the capture click cannot activate another field.
+    return message==WM_KEYUP || message==WM_SYSKEYUP || message==WM_CHAR ||
+      message==WM_LBUTTONUP || message==WM_RBUTTONUP || message==WM_MBUTTONUP || message==WM_XBUTTONUP;
   }
   static std::string bindingName(int b) {
     static const char *names[] = {
@@ -273,11 +369,12 @@ struct Ui : Rml::EventListener {
       return;
     const int d = devices[player];
     std::string description =
-        d == -3 ? "Keyboard: WASD move; Z or Space = A, X = B, C = fire, Enter "
-                  "= Start."
+        pcKeyboard() ? "Mouse and keyboard assigned to this player."
         : d < 0 ? "No physical controller is assigned."
                 : "Controller " + std::to_string(d + 1) +
                       (connected[d] ? " connected." : " offline.");
+    if(mappings[player].device==-1)description="Automatic: "+description;
+    if(d>=0 && !connected[d])description+=" Saved bindings will return when it reconnects.";
     label("assignment", description);
     for (int p = 0; p < 4; p++) {
       const int assigned = devices[p];
@@ -298,6 +395,8 @@ struct Ui : Rml::EventListener {
       }
   }
   void ports() {
+    const bool wasKeyboard=pcKeyboard();
+    const auto wasConnected=connected;const auto wasDevices=devices;
     for (DWORD i = 0; i < 4; i++) {
       const bool previouslyConnected = connected[i];
       std::string assignedPlayer;
@@ -305,7 +404,7 @@ struct Ui : Rml::EventListener {
         if (devices[p] == int(i))
           assignedPlayer = " - Player " + std::to_string(p + 1);
       XINPUT_STATE s{};
-      bool on = XInputGetState(i, &s) == ERROR_SUCCESS;
+      bool on = controllerState(i, &s) == ERROR_SUCCESS;
       const WORD pressed =
           on ? static_cast<WORD>(s.Gamepad.wButtons & ~buttons[i]) : 0;
       if (on != connected[i]) {
@@ -359,6 +458,15 @@ struct Ui : Rml::EventListener {
     }
 
     devices = assignments.devices(connected);
+    if(current=="controllers" && (wasConnected!=connected || wasDevices!=devices || wasKeyboard!=pcKeyboard())) {
+      learning=keyLearning=-1;normalizePicker();modal("controllers");
+      if(wasKeyboard!=pcKeyboard())el("dialog-body")->SetScrollTop(0);
+    }
+    if(keyLearning>=0) {
+      bool released=true;for(int k=1;k<256;++k)if(GetAsyncKeyState(k)&0x8000){released=false;break;}
+      if(released && !keyReleased){keyReleased=true;label("dialog-note","Press a key, mouse button or scroll the wheel. Esc cancels. F11 is reserved.");}
+      if(Rml::GetSystemInterface()->GetElapsedTime()>keyDeadline){keyLearning=-1;modal("controllers");label("dialog-note","Binding timed out. No binding was changed.");}
+    }
     refreshController();
     for (int p = 0; p < 4; p++) {
       bool on = devices[p] == -3 || (devices[p] >= 0 && connected[devices[p]]);
@@ -462,6 +570,7 @@ struct Ui : Rml::EventListener {
   }
   bool popup() const { return current.rfind("menu-", 0) == 0; }
   void modal(const std::string &page) {
+    if(page=="pc-input"){modal("controllers");return;}
     struct Building {
       bool &b;
       Building(bool &v) : b(v) { b = true; }
@@ -493,7 +602,7 @@ struct Ui : Rml::EventListener {
       el("game-popup")->SetProperty("left", std::to_string(anchor->GetAbsoluteOffset(Rml::BoxArea::Border).x) + "px");
       std::string menu;
       if (menuName == "controllers") {
-        menu = button("controllers", "Controller mapping...") + button("pc-input", "Experimental PC controls...",!pcExperimental());
+        menu = button("controllers", "Controller mapping...");
       } else if (menuName == "video") {
         menu = button("video", "Video settings...") + button("fullscreen", state.fullscreen ? "Leave fullscreen" : "Fullscreen", false, "F11");
       } else if (menuName == "audio") {
@@ -505,9 +614,11 @@ struct Ui : Rml::EventListener {
         menu = button("map", "Live map") +
                button("inventory", "Live inventory");
       } else {
-        if (state.playing)
-          menu = button("close", "Resume game") +
+        if (state.playing) {
+          const bool paused = GetPropW(window, L"JfgFrontendPaused") != nullptr;
+          menu = button(paused ? "resume" : "pause", paused ? "Resume game" : "Pause game") +
                  button("stop", "Stop / return home");
+        }
         menu += button("setup", "Set up and build...", state.playing) +
                 button("rom", "Change ROM...", state.busy);
         menu += button("shortcut", "Save direct-launch shortcut...", state.busy || state.rom.empty() || state.runtime.empty());
@@ -542,7 +653,7 @@ struct Ui : Rml::EventListener {
                                                               : "460dp");
     el("dialog-extra")
         ->SetInnerRML(
-            page == "controllers" ? button("reset", "Restore defaults") : "");
+            page == "controllers" && !pcKeyboard() && mappings[player].device>=-1 ? button("reset", "Restore controller defaults") : "");
     if (page == "pc-input") {
       html=pcExperimental()?pcInputHtml():"<p>Enable Experimental PC controls in Controller mapping first.</p>";
       el("dialog")->SetProperty("width","880dp");el("dialog")->SetProperty("height","640dp");
@@ -583,7 +694,8 @@ struct Ui : Rml::EventListener {
       note = "Changes apply immediately. Settings dialogs always pause the game.";
     } else if (page == "controllers") {
       auto &m = mappings[player];
-      html = pcExperimentalHtml()+"<div class=\"tabs\">";
+      loadPcInput();
+      html = "<div class=\"tabs\">";
       for (int i = 0; i < 4; i++) {
         const int d = devices[i];
         std::string device = d == -3 ? "Keyboard"
@@ -596,23 +708,17 @@ struct Ui : Rml::EventListener {
                 "</span><span class=\"tab-device\" id=\"tab-device" +
                 std::to_string(i) + "\">" + device + "</span></button>";
       }
-      html += "</div><div class=\"device-row\"><span>Device</span><select "
-              "data-action=\"device\">";
-      for (int d = -3; d < 4; d++) {
-        std::string name =
-            d == -3   ? "Keyboard"
-            : d == -2 ? "Disconnected"
-            : d == -1 ? "Automatic"
-                      : "Controller " + std::to_string(d + 1) +
-                            (connected[d] ? " (connected)" : " (offline)");
-        html += "<option value=\"" + std::to_string(d) + "\"" +
-                (d == m.device ? " selected=\"selected\"" : "") + ">" + name +
-                "</option>";
-      }
-      html +=
-          "</select><span>Movement</span>" +
-          button("stick", m.stick ? "Right stick" : "Left stick") +
-          "</div><p id=\"assignment\" class=\"muted\">Changes apply live.</p>";
+      html += "</div>"+deviceSetupHtml();
+      if(pcKeyboard()) {
+        html+="<div id=\"mapping-content\" class=\"keyboard-mapping\">"+pcInputHtml()+"</div>";
+        note="Keyboard and mouse settings save automatically for this player.";
+      } else if(m.device==-2) {
+        html+="<div id=\"mapping-content\" class=\"muted\">Choose mouse and keyboard or a controller to configure bindings.</div>";
+        note="This player port is disconnected.";
+      } else {
+      html+="<div id=\"mapping-content\" class=\"gamepad-mapping\"><div class=\"row\"><span>Movement</span>"+
+        button("stick",m.stick?"Right stick":"Left stick")+button("controller-settings",controllerSettings?"Hide settings":"Settings")+"</div>";
+      html+=pcInputHtml();
       const char *names[] = {"A / jump", "B",      "Z / fire", "Start",  "Up",
                              "Down",     "Left",   "Right",    "L",      "R",
                              "C up",     "C down", "C left",   "C right"};
@@ -628,15 +734,16 @@ struct Ui : Rml::EventListener {
             continue;
           html += "<div class=\"binding-row\" id=\"binding-" +
                   std::to_string(i) + "\"><span class=\"binding-label\">" +
-                  names[i] + "</span><span class=\"binding-value\">" +
-                  escape(bindingName(m.bindings[i])) + "</span>" +
-                  button("learn" + std::to_string(i), "Learn",
+                  names[i] + "</span>" +
+                  button("learn" + std::to_string(i), bindingName(m.bindings[i]),
                          devices[player] < 0) +
                   button("clear" + std::to_string(i), "x") + "</div>";
         }
         html += "</div>";
       }
-      html += "</div><div class=\"tuning\">";
+      html += "</div>";
+      if(controllerSettings){
+      html += "<div id=\"controller-settings\"><div class=\"tuning\">";
       const char *tuneNames[] = {"Dead zone", "Stick threshold",
                                  "Trigger threshold"};
       int n = 0;
@@ -657,8 +764,11 @@ struct Ui : Rml::EventListener {
               button("invertx", m.invert_x ? "Invert X: on" : "Invert X: off") +
               button("inverty", m.invert_y ? "Invert Y: on" : "Invert Y: off") +
               "</div>";
-      note = "Learn waits for release, then records the next input. Changes "
-             "save automatically.";
+      html+="</div>";
+      }
+      html+="</div>";
+      note = "Click a binding, release controls, then press a button or move a stick. Esc cancels.";
+      }
     } else if (page == "setup") {
       html = "<div class=\"steps\"><span>1 &nbsp; ROM</span><span>2 &nbsp; "
              "Verify</span><span>3 &nbsp; Build</span><span>4 &nbsp; "
@@ -720,6 +830,9 @@ struct Ui : Rml::EventListener {
       html = aboutHtml();
       el("dialog-title")->SetInnerRML("JFG RECOMP<span class=\"about-title-divider\">/</span><span class=\"about-title-section\">About</span>");
     }
+    if(controllerWindow) {
+      el("dialog")->SetProperty("width","100%");el("dialog")->SetProperty("height","100%");
+    }
     el("dialog-body")->SetInnerRML(html);
     el("dialog-body")->SetScrollTop(scroll);
     label("dialog-note", note);
@@ -730,8 +843,8 @@ struct Ui : Rml::EventListener {
       el(state.fullscreen ? "action-borderless" : "action-windowed")
           ->SetClass("selected", true);
     if (page == "controllers") {
-      el("action-invertx")->SetClass("selected", mappings[player].invert_x);
-      el("action-inverty")->SetClass("selected", mappings[player].invert_y);
+      if(auto *e=el("action-invertx"))e->SetClass("selected", mappings[player].invert_x);
+      if(auto *e=el("action-inverty"))e->SetClass("selected", mappings[player].invert_y);
       refreshController();
     }
   }
@@ -773,7 +886,10 @@ struct Ui : Rml::EventListener {
     }
     if (t->HasAttribute("disabled")) return;
     auto a = t->GetAttribute<Rml::String>("data-action", "");
-    if(a.rfind("pc-",0)==0 && a!="pc-experimental" && !pcExperimental())return;
+    const bool keyboardBinding=pcKeyboard() && (a.rfind("pc-bind",0)==0 ||
+      a.rfind("pc-unbind",0)==0 || a.rfind("pc-key",0)==0 ||
+      a=="pc-normal" || a=="pc-expert" || a=="pc-reset");
+    if(a.rfind("pc-",0)==0 && a!="pc-experimental" && !keyboardBinding && !pcExperimental())return;
     if (event.GetType() == "change") {
       if(a.rfind("pc-key",0)==0) {
         const auto i=static_cast<std::size_t>(std::stoi(a.substr(6)));
@@ -782,8 +898,10 @@ struct Ui : Rml::EventListener {
       }
       if(a.rfind("pc-tune",0)==0) {
         const int i=std::stoi(a.substr(7));auto &c=pcInput[static_cast<std::size_t>(player)];
-        int* value=i==0?&c.mouse_sensitivity:i==1?&c.aim_sensitivity:&c.aim_deadzone;
-        *value=std::clamp(event.GetParameter<int>("value",*value),i==2?0:10,i==2?30000:i==1?300:500);
+        if(i<0 || i>6)return;
+        int* values[]={&c.mouse_sensitivity,&c.aim_sensitivity,&c.aim_deadzone,&c.mouse_aim_sensitivity,&c.camera_sensitivity,&c.mouse_vertical_sensitivity,&c.stick_vertical_sensitivity};
+        int* value=values[i];
+        *value=std::clamp(event.GetParameter<int>("value",*value),i==2?0:10,i==2?30000:(i==0 || i==3)?500:300);
         savePcInput();label(("pc-value"+std::to_string(i)).c_str(),std::to_string(*value));return;
       }
       if (a.rfind("tune-", 0) == 0) {
@@ -810,31 +928,48 @@ struct Ui : Rml::EventListener {
         selectedSession = event.GetParameter<Rml::String>("value", "");
         return;
       }
-      if (a == "device") {
-        int d = event.GetParameter<int>("value", -1);
-        for (int p = 0; p < 4; p++)
-          if (p != player && (d >= 0 || d == -3) && mappings[p].device == d) {
-            modal("controllers");
-            label("dialog-note", "That device is assigned to another player. "
-                                 "Disconnect it there first.");
-            return;
-          }
-        mappings[player].device = d;
-        saveController();
-        devices = assignments.devices(connected);
-        learning = -1;
-        refreshController();
+      if(a=="input-type") {
+        const int type=event.GetParameter<int>("value",0);
+        if(type==0 || type==-3 || type==-1){pickerType=type;normalizePicker();modal("controllers");}
+        return;
+      }
+      if(a=="device") {
+        const int d=event.GetParameter<int>("value",-2);
+        if(d>=0 && deviceAvailable(d))pickerDevice=d;
+        return;
       }
       return;
+    }
+    if(a=="device-open") {
+      learning=keyLearning=-1;discoverDevices();devicePicker=true;
+      pickerType=pcKeyboard()?-3:0;pickerDevice=devices[player];normalizePicker();
+      modal("controllers");el("dialog-body")->SetScrollTop(0);return;
+    }
+    if(a=="device-refresh"){discoverDevices();normalizePicker();modal("controllers");return;}
+    if(a=="device-cancel"){devicePicker=false;modal("controllers");return;}
+    if(a=="device-apply"){if(devicePicker && (pickerType!=0 || pickerDevice>=0))assignDevice(pickerDevice);return;}
+    if(a=="device-remove"){assignDevice(-2);return;}
+    if(a=="controller-settings"){controllerSettings=!controllerSettings;modal("controllers");return;}
+    if(a.rfind("pc-bind",0)==0 && pcKeyboard()) {
+      const int index=std::stoi(a.substr(7));if(index<0 || index>=20)return;
+      learning=-1;keyLearning=index;keyReleased=false;
+      keyDeadline=Rml::GetSystemInterface()->GetElapsedTime()+12;
+      modal("controllers");label(("action-pc-bind"+std::to_string(index)).c_str(),"Press an input...");
+      label("dialog-note","Release keys and mouse buttons first. Esc cancels.");return;
+    }
+    if(a.rfind("pc-unbind",0)==0 && pcKeyboard()) {
+      const int index=std::stoi(a.substr(9));if(index<0 || index>=20)return;
+      keyLearning=-1;pcInput[static_cast<std::size_t>(player)].keys[static_cast<std::size_t>(index)]=0;
+      savePcInput();modal("controllers");return;
     }
     if(a=="pc-experimental") {
       if(writeFile("experimental-controls.ini",jfg::serialize_pc_experiments(!pcExperimental())))
         modal("controllers");
       return;
     }
-    if(a.rfind("pc-",0)==0 && !pcExperimental())return;
+    if(a.rfind("pc-",0)==0 && !keyboardBinding && !pcExperimental())return;
     if(a.rfind("pc-key",0)==0 || a.rfind("pc-tune",0)==0)return;
-    if(a=="pc-input") {loadPcInput();modal(a);return;}
+    if(a=="pc-input") {if(controllerWindow)modal("controllers");else {close();action("controllers");}return;}
     if(a.rfind("pc-player",0)==0) {player=std::clamp(a.back()-'0',0,3);loadPcInput();modal("pc-input");return;}
     if(a.rfind("pc-",0)==0) {
       auto &c=pcInput[static_cast<std::size_t>(player)];
@@ -844,17 +979,23 @@ struct Ui : Rml::EventListener {
         m.bindings[2]=25;m.bindings[9]=23;m.bindings[11]=7;m.bindings[12]=-1;m.bindings[13]=-1;
         c.modern=1;c.dual_stick=1;saveController();
       }
-      else if(a=="pc-normal" || a=="pc-expert")c=jfg::pc_keyboard_preset(a=="pc-expert");
-      else if(a=="pc-reset")c={};
+      else if(a=="pc-normal" || a=="pc-expert" || (a=="pc-reset" && pcKeyboard())) {
+        auto next=a=="pc-reset"?jfg::PcInputConfig{}:jfg::pc_keyboard_preset(a=="pc-expert");
+        next.dual_stick=c.dual_stick;next.aim_sensitivity=c.aim_sensitivity;
+        next.aim_deadzone=c.aim_deadzone;next.aim_invert_y=c.aim_invert_y;
+        next.camera_sensitivity=c.camera_sensitivity;next.aim_curve=c.aim_curve;next.stick_vertical_sensitivity=c.stick_vertical_sensitivity;c=next;
+      }
+      else if(a=="pc-reset"){c.dual_stick=0;c.aim_sensitivity=100;c.camera_sensitivity=100;c.aim_curve=0;c.stick_vertical_sensitivity=100;c.aim_deadzone=7849;c.aim_invert_y=0;c.modern=0;}
+      else if(a=="pc-curve")c.aim_curve=(c.aim_curve+1)%3;
       else if(a=="pc-modern")c.modern=!c.modern;
       else if(a=="pc-mouse")c.mouse_aim=!c.mouse_aim;
       else if(a=="pc-dual")c.dual_stick=!c.dual_stick;
       else if(a=="pc-invert-mouse")c.mouse_invert_y=!c.mouse_invert_y;
       else if(a=="pc-invert-stick")c.aim_invert_y=!c.aim_invert_y;
       else return;
-      savePcInput();modal("pc-input");return;
+      savePcInput();modal("controllers");return;
     }
-    if (a == "device" || a == "session" || a == "volume" ||
+    if (a == "device" || a == "input-type" || a == "session" || a == "volume" ||
         a.rfind("tune-", 0) == 0)
       return;
     if (a.rfind("report-", 0) == 0) {
@@ -903,7 +1044,9 @@ struct Ui : Rml::EventListener {
     if (a.rfind("player", 0) == 0) {
       learning = -1;
       player = std::clamp(a.back() - '0', 0, 3);
+      keyLearning=-1;devicePicker=false;controllerSettings=false;
       modal("controllers");
+      el("dialog-body")->SetScrollTop(0);
       return;
     }
     if (a.rfind("learn", 0) == 0) {
@@ -965,8 +1108,8 @@ struct Ui : Rml::EventListener {
       loadAudio();
       modal(a);
     } else if (a == "controllers") {
-      loadControllers();
-      modal(a);
+      if(controllerWindow){loadControllers();modal(a);}
+      else {close();action("controllers");}
     } else if (a == "support") {
       action("sessions");
       modal(a);
@@ -974,7 +1117,7 @@ struct Ui : Rml::EventListener {
                a == "help")
       modal(a);
     else {
-      if (a == "play" || a == "stop" || a == "map" || a == "inventory" || a == "saves" || a == "quit" || a == "guide" || a == "rom" || a == "fullscreen" || a == "shortcut")
+      if (a == "pause" || a == "resume" || a == "play" || a == "stop" || a == "map" || a == "inventory" || a == "saves" || a == "quit" || a == "guide" || a == "rom" || a == "fullscreen" || a == "shortcut")
         close();
       action(a);
     }
@@ -1152,10 +1295,11 @@ bool FrontendUiInit(HWND w, const fs::path &profile,
     s.ui.window = w;
     s.ui.profile = profile;
     s.ui.action = std::move(action);
-    s.ui.doc = s.context->LoadDocument(tool.empty()?"main.rml":tool=="map"?"live-map.rml":"live-inventory.rml");
+    s.ui.controllerWindow=tool=="controllers";
+    s.ui.doc = s.context->LoadDocument(tool.empty() || s.ui.controllerWindow?"main.rml":tool=="map"?"live-map.rml":"live-inventory.rml");
     if (!s.ui.doc)
       throw std::runtime_error("Cannot load UI document");
-    if(!tool.empty()) {
+    if(!tool.empty() && !s.ui.controllerWindow) {
       s.files.liveAssets=profile/("live-tool-"+std::to_string(reinterpret_cast<std::uintptr_t>(w))+"-"+std::to_string(reinterpret_cast<std::uintptr_t>(GetPropW(w,L"JfgLiveToken"))));
       std::error_code error;fs::create_directories(s.files.liveAssets,error);
       s.live=std::make_unique<jfg_live::ToolUi>();s.live->init(w,s.ui.doc,s.files.liveAssets,tool,s.ui.action);
@@ -1167,6 +1311,8 @@ bool FrontendUiInit(HWND w, const fs::path &profile,
     s.ui.doc->Show();
     s.ui.loadAudio();
     s.ui.loadControllers();
+    s.ui.doc->SetClass("controller-window",s.ui.controllerWindow);
+    if(s.ui.controllerWindow)s.ui.modal("controllers");
     BOOL animations = TRUE;
     SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &animations, 0);
     s.ui.reducedMotion = !animations;
@@ -1210,7 +1356,10 @@ void FrontendUiFrame(const FrontendUiState &state) {
   if (s.live) {
     s.live->tick();s.context->Update();const float clear[]={0,0,0,0};s.gpu->ClearRenderTargetView(s.target.Get(),clear);s.renderer->BeginFrame();s.context->Render();s.renderer->EndFrame(s.target.Get());s.swap->Present(1,0);return;
   }
+  const bool paused = state.playing && GetPropW(s.window, L"JfgFrontendPaused") != nullptr;
+  const bool pauseChanged = ui.doc->IsClassSet("paused") != paused;
   const bool refreshPanel =
+      (pauseChanged && ui.current == "menu-game") ||
       (state.mods != ui.state.mods || state.busy != ui.state.busy ||
        state.playing != ui.state.playing) &&
           (ui.current == "menu-game" || ui.current == "setup") ||
@@ -1246,9 +1395,7 @@ void FrontendUiFrame(const FrontendUiState &state) {
     if (auto *e = ui.el("setup-status"))
       e->SetInnerRML("<span>" + escape(u8(state.status)) + "</span>");
   }
-  ui.doc->SetClass("paused",
-                   state.playing &&
-                       GetPropW(s.window, L"JfgFrontendPaused") != nullptr);
+  ui.doc->SetClass("paused", paused);
   ui.state = state;
   if (refreshPanel)
     ui.modal(ui.current);
@@ -1292,6 +1439,19 @@ void FrontendUiMessage(UINT m, WPARAM w, LPARAM l) {
   }
   if (surface && surface->context) {
     auto &ui = surface->ui;
+    if((m==WM_KILLFOCUS || (m==WM_ACTIVATEAPP && !w)) && ui.learning>=0) {
+      ui.learning=-1;ui.modal("controllers");
+    }
+    if(ui.bindingMessage(m,w))return;
+    if(ui.controllerWindow) {
+      if(m==WM_KEYDOWN && w==VK_ESCAPE){
+        if(ui.learning>=0){ui.learning=-1;ui.modal("controllers");}
+        else if(ui.devicePicker){ui.devicePicker=false;ui.modal("controllers");}
+        else ui.close();
+        return;
+      }
+      if(m==WM_SYSKEYDOWN || m==WM_SYSKEYUP || (m==WM_KEYDOWN && w==VK_F10))return;
+    }
     const bool popup = ui.popup();
     if (m == WM_ACTIVATEAPP && !w && popup) ui.close();
     if ((m == WM_KEYDOWN || m == WM_SYSKEYDOWN) &&

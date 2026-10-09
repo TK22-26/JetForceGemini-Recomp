@@ -1937,8 +1937,8 @@ jfg::ControllerPortSample sample_keyboard_port(const State &state,std::size_t po
   };
   auto sample=jfg::map_pc_keyboard(jfg::effective_pc_input(state.pc_experimental,state.pc_input[port]),down);
   jfg::mod::Memory memory({state.rdram,kRdramSize});
-  if(state.pc_experimental && (!jfg::mod::gameplay_active(memory,state.phase9_player_actor) ||
-     memory.u8(0x800FD7BDU)!=0))
+  if(state.pc_experimental && (memory.u8(0x800FD7BDU)!=0 ||
+     (memory.u8(0x800A4FC4U)==0 && !jfg::mod::gameplay_active(memory,state.phase9_player_actor))))
     sample=jfg::map_pc_menu(sample,down);
   return sample;
 }
@@ -1952,6 +1952,10 @@ void sample_controller_ports(State &state) {
     available[p] = read_xinput_device(static_cast<int>(p), hardware[p]);
   const auto devices = state.controller_ports.devices(available);
   state.pc_devices=devices;
+  jfg::mod::Memory pc_memory({state.rdram,kRdramSize});
+  const bool look_active=state.pc_experimental &&
+    jfg::mod::gameplay_active(pc_memory,state.phase9_player_actor) && pc_memory.u8(0x800FD7BDU)==0 &&
+    !jfg::mod::scripted_camera_active(pc_memory,state.phase9_player_actor);
   for (std::size_t p = 0; p < 4; ++p) {
     auto &sample = state.controller_ports.samples[p];
     sample = {};
@@ -1962,17 +1966,13 @@ void sample_controller_ports(State &state) {
     }
     if (device < 0 || !available[static_cast<std::size_t>(device)])
       continue;
-    if(state.pc_experimental && state.pc_input[p].dual_stick)
-      state.pc_aim[p]=jfg::pc_aim_stick(state.pc_input[p],hardware[static_cast<std::size_t>(device)],state.controller_ports.mappings[p].stick);
-    auto movement=hardware[static_cast<std::size_t>(device)];
-    if(state.pc_experimental && state.pc_input[p].dual_stick) {
-      const std::size_t aim_axis=state.controller_ports.mappings[p].stick==0?2U:0U;
-      movement.axes[aim_axis]=movement.axes[aim_axis+1U]=0;
-    }
-    const auto mapped =
-        jfg::map_controller(state.controller_ports.mappings[p],movement);
+    const auto mapped=jfg::map_pc_controller(state.controller_ports.mappings[p],
+        hardware[static_cast<std::size_t>(device)],state.pc_input[p],look_active);
     sample = {mapped.buttons, static_cast<std::int8_t>(mapped.stick.x),
               static_cast<std::int8_t>(mapped.stick.y), true};
+    if(state.pc_experimental && state.pc_input[p].dual_stick)
+      state.pc_aim[p]=jfg::pc_aim_stick(state.pc_input[p],hardware[static_cast<std::size_t>(device)],
+        state.controller_ports.mappings[p].stick,!state.pc_input[p].modern || (mapped.buttons&0x10)!=0);
   }
   state.controller_mapping = state.controller_ports.mappings[0];
   state.controller_mapping.device = devices[0];
@@ -2052,7 +2052,7 @@ void sample_live_controller(State &state) noexcept {
       if(state.pc_devices[p]==-3 && config.mouse_aim && state.pc_mouse_captured) {
         frame.pc_mode=config.modern?3:1;
         jfg::PcLookDelta motion;
-        if(config.modern)motion=state.pc_mouse.take_angles(config);
+        if(config.modern)motion=state.pc_mouse.take_angles(config,(state.controller_ports.samples[p].buttons&0x10)!=0);
         else {const auto raw=state.pc_mouse.take(config);motion={raw.x,raw.y};}
         frame.look_x=static_cast<std::int16_t>(motion.x);frame.look_y=static_cast<std::int16_t>(motion.y);
       } else if(state.pc_devices[p]>=0 && config.dual_stick) {

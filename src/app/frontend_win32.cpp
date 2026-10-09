@@ -70,7 +70,7 @@ struct App {
   std::vector<std::unique_ptr<Process>> tools;
   std::vector<HWND> liveModals;
   bool playing = false, setting = false, fullscreen = false, closing = false,
-       mods = false, pauseInactive = false;
+       mods = false, pauseInactive = false, manualPause = false;
   bool stopRequested = false, initializing = true;
   ULONGLONG startedAt = 0;
   UINT dpi = 96;
@@ -166,7 +166,7 @@ bool launch(Process &process, const wchar_t *action, HWND owner) {
   }
   fs::path executable=app.helper;
 #ifdef JFG_RML_UI
-  if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory") {
+  if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory" || std::wstring(action)==L"controllers") {
     wchar_t module[32768]{};GetModuleFileNameW(nullptr,module,32768);executable=module;
     command=quote(executable.wstring())+L" --live-tool "+action+L" --profile "+quote(app.profile.wstring())+L" --helper "+quote(app.helper.wstring())+L" --owner "+std::to_wstring(reinterpret_cast<std::uintptr_t>(owner));
   }
@@ -398,6 +398,7 @@ void persist() {
                                     (app.fullscreen ? L"1" : L"0"));
 }
 void stop() {
+  app.manualPause = false;
   RemovePropW(app.window, L"JfgFrontendPause");
 #ifdef JFG_RML_UI
   FrontendUiPanel("");
@@ -450,6 +451,10 @@ void menus() {
 #ifdef JFG_RML_UI
 void uiAction(const std::string &a) {
   UINT command = 0;
+  if (a == "pause" || a == "resume") {
+    if (app.render && IsWindow(app.render)) app.manualPause = a == "pause";
+    return;
+  }
   if (a == "pause-inactive") {
     if (write(L"frontend-pause-inactive.txt", app.pauseInactive ? L"0" : L"1"))
       app.pauseInactive = !app.pauseInactive;
@@ -478,6 +483,8 @@ void uiAction(const std::string &a) {
     command = Rom;
   else if (a == "fullscreen")
     command = Fullscreen;
+  else if (a == "controllers")
+    command = Controllers;
   else if (a == "map")
     command = Map;
   else if (a == "inventory")
@@ -534,11 +541,11 @@ void syncUiCapture() {
       SetFocus(app.shield);
     }
   }
-  // Focus pause and modal capture are independent reasons. Regaining focus
+  // Manual pause, focus pause and modal capture are independent reasons. Regaining focus
   // must not resume a game while a settings dialog is still open.
   const bool inactive = GetForegroundWindow() != app.window || IsIconic(app.window);
   app.liveModals.erase(std::remove_if(app.liveModals.begin(),app.liveModals.end(),[](HWND w){return !IsWindow(w)||!GetPropW(w,L"JfgLiveModal");}),app.liveModals.end());
-  if (FrontendUiModalOpen() || app.dialog.running() || !app.liveModals.empty() || (app.pauseInactive && inactive))
+  if (app.manualPause || FrontendUiModalOpen() || app.dialog.running() || !app.liveModals.empty() || (app.pauseInactive && inactive))
     SetPropW(app.window, L"JfgFrontendPause", reinterpret_cast<HANDLE>(1));
   else
     RemovePropW(app.window, L"JfgFrontendPause");
@@ -746,6 +753,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       app.session.release();
       app.render = nullptr;
       app.playing = false;
+      app.manualPause = false;
       app.stopRequested = false;
       app.initializing = false;
       showHome(true);
@@ -784,6 +792,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
         break;
       persist();
       app.playing = LOWORD(wparam) == Play;
+      app.manualPause = false;
       app.stopRequested = false;
       app.startedAt = GetTickCount64();
       if (launch(app.session, app.playing ? L"play" : L"setup",

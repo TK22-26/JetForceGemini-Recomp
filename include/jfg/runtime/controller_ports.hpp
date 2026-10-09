@@ -5,6 +5,24 @@
 namespace jfg {
 // -1 automatic (sticky device), -2 disconnected, -3 keyboard; 0..3 physical
 // slots.
+// Availability for an explicit UI selection. Resolved automatic assignments
+// reserve their device too; refreshing discovery never changes saved mappings.
+inline bool controller_device_available(
+    std::size_t player, int device,
+    const std::array<ControllerMapping, 4> &mappings,
+    const std::array<int, 4> &assigned,
+    const std::array<bool, 4> &connected) {
+  if (player >= mappings.size() || device < -3 || device >= 4)
+    return false;
+  if (device == -1 || device == -2)
+    return true;
+  if (device >= 0 && !connected[static_cast<std::size_t>(device)])
+    return false;
+  for (std::size_t p = 0; p < mappings.size(); ++p)
+    if (p != player && (mappings[p].device == device || assigned[p] == device))
+      return false;
+  return true;
+}
 struct ControllerPortSample {
   std::uint16_t buttons = 0;
   std::int8_t x = 0, y = 0;

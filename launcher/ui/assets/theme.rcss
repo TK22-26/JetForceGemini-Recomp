@@ -246,3 +246,40 @@ selectarrow { width:6dp; height:6dp; margin-right:7dp; margin-top:5dp; border-ri
 .close-cross { position:absolute; left:50%; top:50%; width:10dp; height:10dp; transform:translate(-50%,-50%); pointer-events:none; }
 .close-cross span { position:absolute; left:0; top:4dp; width:10dp; height:2dp; border-radius:1dp; background:#a7b0c2; transform:rotate(45deg); }
 .close-cross span:last-child { transform:rotate(-45deg); }
+
+/* A dedicated HWND owns controller mapping; fill its client area. */
+.controller-window .home-art, .controller-window .menu, .controller-window .content, .controller-window .footer, .controller-window #toast { display:none; }
+.controller-window .modal-shade { top:0; background:#121826; }
+.controller-window #dialog { left:0; top:0; transform:none; max-width:100%; max-height:100%; border:0; border-radius:0; }
+.controller-window .dialog-body { padding:20dp 24dp; }
+.keyboard-mapping .device-row span { min-width:180dp; }
+.keyboard-mapping .device-row select { flex:1; }
+
+/* Device setup and binding fields remain native RmlUi controls. */
+.input-device-card, .device-picker { border:1dp #2e3a57; border-radius:6dp; padding:14dp; margin-bottom:14dp; background:#161d2e; }
+.device-summary { display:flex; align-items:center; gap:10dp; }
+.device-summary .grow { min-width:120dp; }
+.device-name { font-size:20dp; margin:4dp 0; }
+.device-summary button, .picker-actions button { font-size:14dp; padding:8dp 12dp; }
+.connection-state { font-size:12dp; padding:4dp 8dp; border-radius:4dp; }
+.connection-state.online { color:#8bdab4; background:#15382e; }
+.connection-state.offline { color:#a7b0c2; background:#242d40; }
+.device-picker { border-color:#617394; background:#111827; }
+.picker-actions { display:flex; gap:8dp; justify-content:flex-end; margin-top:12dp; }
+#action-device-apply { background:#ffb23e; color:#1a1206; border-color:#ffb23e; }
+#action-device-apply.disabled { background:#242d40; color:#647089; border-color:#2e3a57; }
+.key-binding-row { display:flex; align-items:center; gap:8dp; margin-bottom:6dp; }
+.key-binding-row span { flex:1; min-width:180dp; }
+.key-binding-row button { font-size:14dp; padding:7dp 10dp; }
+.key-binding-row button:nth-child(2) { width:220dp; text-align:left; }
+.binding-row button { font-size:12dp; padding:4dp 6dp; }
+.binding-row button:nth-child(2) { flex:1; text-align:left; min-width:92dp; }
+.experiment-section { margin-top:20dp; border-top:1dp #2e3a57; padding-top:16dp; }
+@media (max-width:800dp) { .device-summary { flex-wrap:wrap; } .device-summary .grow { min-width:50%; } .connection-state { margin-left:auto; } }
+
+.controller-window .tabs button { min-width:0; height:44dp; }
+.controller-window .tabs { margin-bottom:12dp; }
+.input-device-card { padding:10dp 14dp; }
+.device-name { font-size:18dp; }
+.input-device-card .label { font-size:11dp; }
+@media (max-width:700dp) { .controller-window .tabs button { min-width:40%; } }

@@ -270,12 +270,43 @@ must be rebuilt to provide enemy markers. Telemetry does not alter game memory.
 
 ## Keyboard, mouse and separate-stick aim
 
-Open **Controllers > Controller mapping…** and turn **Experimental PC controls**
-on. It is off by default, including when old PC input profiles already exist.
-Choose **Configure experimental controls…**, select the player, then select
-a keyboard or controller preset matching JFG's in-game **Normal** or **Expert**
-scheme. Assign **Keyboard** to that player's controller port to use keyboard
-and mouse. Presets do not change the guest game's control-scheme setting.
+Open **Controllers > Controller mapping…** to open the separate, resizable
+RmlUi mapping window. Select a player, then **Add device** or **Change device**.
+Choose **Gamepad**, **Mouse and keyboard**, or **Automatic**, and confirm with
+**Add** / **Use device**. Cancel leaves the saved assignment unchanged. **Remove**
+disconnects this player while preserving their bindings.
+
+The controller list shows only connected devices available to the selected
+player, including their own connected controller. Devices assigned to other
+players are excluded, including automatic assignments. Unplug/reconnect refreshes
+the list; adding a device checks availability again before saving. A disconnected
+saved controller remains identified above the bindings, without appearing as an
+available device. Its configuration is retained for reconnection.
+
+The setup follows Cemu's player pages, add/remove device workflow, connection
+status, settings and clickable binding fields ([input settings source](https://github.com/cemu-project/Cemu/blob/main/src/gui/wxgui/input/InputSettings2.cpp),
+[device discovery source](https://github.com/cemu-project/Cemu/blob/main/src/gui/wxgui/input/InputAPIAddWindow.cpp)).
+Dolphin's mapping window also informs refreshing discovery without changing
+saved selections ([source](https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/DolphinQt/Config/Mapping/MappingWindow.cpp)).
+These are independently implemented interaction patterns in RmlUi. JFG currently
+uses one input device per player and discovers gamepads through XInput.
+
+**Mouse and keyboard** shows key and mouse-button bindings with experimental
+mouse options. A gamepad shows controller bindings and experimental dual-stick
+options. **Settings** reveals mouse sensitivity and look options for keyboard,
+or gamepad deadzone, thresholds, inversion and dual-stick options for gamepads.
+Click a binding, release the controls, then press a key, mouse button, controller
+button, move a stick or scroll the wheel as appropriate to that device.
+Escape cancels binding capture; keyboard capture also cancels on focus loss.
+Automatic follows its assigned device, with a Player 1 keyboard fallback before
+a physical controller has been assigned. A removed player shows only device setup.
+
+The experimental toggle is integrated into the selected device's binding page
+and remains off by default. It applies to the whole profile. Keyboard bindings
+remain editable and active while experiments are disabled.
+Choose a Normal or Expert preset matching JFG's in-game scheme. Device changes
+retain saved bindings. Presets do not change the guest game's control scheme.
+Closing the mapping window releases the settings pause and input capture.
 
 Keyboard presets use WASD for the original analog movement, left mouse to fire,
 right mouse to aim, Space to jump and Tab for Start. Wheel up/down issue the
@@ -285,16 +316,17 @@ both wheel directions. Menus also accept Enter to confirm, Backspace to go
 back and arrow keys to navigate. Escape and F11 retain their host shortcuts.
 
 Controller presets use RT to fire, LT to aim, A to jump and the other stick
-for aiming and camera control. The existing controller mapping page remains available.
-Mouse sensitivity, aim-stick sensitivity/deadzone and vertical inversion are
+for aiming and camera control. Ordinary gamepad bindings remain editable with experiments disabled.
+Separate camera and aim sensitivities, vertical scaling, stick response curves,
+aim-stick deadzone and vertical inversion are
 saved separately for each player in `pc-input.ini` and `pc-input-2.ini`
 through `pc-input-4.ini` beside the controller profiles. Settings reload live.
 Malformed profiles are rejected without partially applying values.
 
 The profile-wide switch is stored in `experimental-controls.ini`; missing or
 malformed switch files disable the new input paths. Turning it off restores the
-original keyboard layout and disables mouse capture and separate-stick aiming,
-while retaining the saved experimental settings. Ordinary controller remapping
+ordinary movement behavior and disables mouse capture and separate-stick aiming,
+while retaining saved bindings and experimental settings. Ordinary controller remapping
 remains available. Changes made to those normal mappings by a controller preset
 remain saved; the switch does not erase controller bindings.
 
@@ -304,32 +336,38 @@ Hold aim for direct mouse aiming or steady-rate stick aiming; WASD / the
 movement stick can move forward, backward and sideways in ground aim states.
 Diagonal aim movement is normalized. JFG still applies movement collision and
 camera scenery constraints, with a small clearance from resolved wall hits.
-Special character actions retain their guest
-movement logic. The two sensitivity sliders apply to both camera and aim.
+Special character actions retain their guest movement logic. Camera and aim
+sensitivity can be adjusted independently for each device type.
 
 Mouse input retains fractional movement at low sensitivity and does not queue
 delayed turns after a fast flick. Capture releases on focus loss, opening
 settings, pause and scripted cameras. Returning from settings requires neutral
-input, including the aim stick. The separate aim stick no longer also triggers
-its original C-button mappings. Turning **Modern camera + movement** off keeps
+input, including the aim stick. The separate aim stick suppresses its original
+button mappings only while the experimental look path is active; menus, scripted
+scenes and unsupported modes retain ordinary mappings. Turning **Modern camera + movement** off keeps
 the earlier separate-input aiming behavior and the original camera.
 
-PC profiles now use version 2. Existing version-1 profiles retain their saved
-bindings and earlier aiming behavior until modern mode is selected.
+PC profiles now use version 3. Existing version-1 and version-2 profiles retain
+their saved bindings and behavior, with their previous sensitivity applied to
+both camera and aim, linear stick response and 100% vertical scaling.
 Recordings started with the experimental switch enabled use input format v3,
 which records the first player's movement, look mode and look axes separately.
 V1/v2 recordings continue to use the original controls; v3 extensions also
 require the experimental switch when replayed. A recording started with the
 switch off stays v2 and suppresses extensions for that recording.
 
-The implementation targets the supported US build and checks the guest
+The implementation targets single-player in the supported US build and checks the guest
 routines, camera stack and active actor before applying changes. Native replay
 checks cover direct aiming, ground movement and third-person orbit in the
 retained Juno scene. The experimental-off replay matches the stock player and
 camera state. Tests also cover pause/resume, firing, and a v3 recording that
-reproduces the actor, aim and camera event timelines exactly. All 67 input
-checks, replay checks and actual RmlUi persistence checks pass.
+reproduces the actor, aim and camera event timelines exactly. Those replay results
+come from earlier builds. The current controller changes passed 89 input checks,
+564 launcher checks, 12 setup checks and actual RmlUi persistence checks, and the
+launcher/runtime builds completed. The final native replay sweep remains incomplete.
 These checks do not establish gameplay feel across all characters, weapons,
 rooms, scripted transitions or split-screen modes; those still need playtesting.
 A steep-angle camera test near a tree also exposed scenery occlusion; complete
 camera placement and feel are not yet qualified.
+
+See [PC controls status and remaining work](../planning/pc-controls-status.md).
