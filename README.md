@@ -2,8 +2,8 @@
 
 [![Build status](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml)
 
-A native PC recompilation of Jet Force Gemini, currently available as a
-Windows x64 development preview. Supply your own supported North American
+A native PC recompilation of Jet Force Gemini, now available as the
+**v1.0 release for Windows x64**. Supply your own supported North American
 ROM and build the game locally using the launcher or command-line tools.
 
 **Campaign status: fully playable from start to finish**
@@ -14,13 +14,15 @@ through maintainer playtesting.
 [Report a problem](docs/playtesting.md) ·
 [Contribute](CONTRIBUTING.md)
 
-## Current preview
+## Current release: v1.0
 
-Preview 0.4.0-preview.4 includes graphics/audio timing fixes,
-a correction for opaque particle textures, and longer input recordings.
+**v1.0 is live.** Get started with the
+[released launcher](https://github.com/TK22-26/JetForceGemini-Recomp/releases).
 
-Live volume/mute controls, player-shadow correction, sound-player recovery,
-and optional live map/inventory tools are available in preview.3.
+This release includes graphics/audio timing fixes, corrected particle textures,
+longer input recordings, live volume/mute controls, player-shadow correction,
+sound-player recovery, and optional live map and inventory tools.
+
 The Navigation mod combines supported walking, jumps and NPC interactions;
 it remains experimental and does not establish autonomous campaign completion.
 HD cosmetic variants stay in independently maintained community branches.
@@ -34,7 +36,7 @@ HD cosmetic variants stay in independently maintained community branches.
 - Verified saving and loading, with a launcher for setup and subsequent launches.
 
 Original-console accuracy remains under validation.
-This preview needs playtesting across more PCs, controllers, and gameplay.
+Playtesting continues across more PCs, controllers, and gameplay.
 See [recent gameplay fixes](docs/development/boot-gameplay-fix.md) and
 [development progress](docs/dashboard.md) for details.
 
@@ -60,8 +62,7 @@ and tracking your progress:
 
 ![Custom live map showing the player, room geometry, exits, pickups, and an interaction inspector](docs/images/live-map.png)
 
-*Live map in the current development frontend. Released launcher versions may
-have a different appearance.*
+*Live map in the custom companion interface.*
 
 The inventory's game icons are extracted locally from each player's own ROM;
 those artwork files are not bundled with the project or launcher. The interface
