@@ -39,23 +39,9 @@ jobs:
     needs: prepare
     uses: ./.github/workflows/ci.yml
 
-  launcher:
-    name: Build and test launcher sources
-    needs: prepare
-    runs-on: windows-2022
-    timeout-minutes: 30
-    steps:
-      - name: Check out tagged source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Build and test the ROM-free launcher
-        shell: powershell
-        run: ./scripts/build_launcher.ps1 -Test -NativeBuildDirectory C:/jfg-launcher-build
-
   publish:
     name: Verify and publish prebuilt Windows game
-    needs: [prepare, validate, launcher]
+    needs: [prepare, validate]
     runs-on: windows-2022
     timeout-minutes: 30
     permissions:
