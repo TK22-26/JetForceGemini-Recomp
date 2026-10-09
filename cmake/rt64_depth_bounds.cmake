@@ -2,11 +2,14 @@
 # Track depth bounds with the effective mode used by the actual draw call,
 # otherwise depth writes may never be copied back for game visibility checks.
 set(jfg_depth_bounds_source "${jfg_rt64_root}/src/hle/rt64_rsp.cpp")
-file(SHA256 "${jfg_depth_bounds_source}" jfg_depth_bounds_hash)
+# Git may check this pinned dependency out with CRLF on Windows. Validate the
+# canonical text so line-ending conversion cannot reject an identical source.
+file(READ "${jfg_depth_bounds_source}" jfg_depth_bounds_contents)
+string(REPLACE "\r\n" "\n" jfg_depth_bounds_contents "${jfg_depth_bounds_contents}")
+string(SHA256 jfg_depth_bounds_hash "${jfg_depth_bounds_contents}")
 if(NOT jfg_depth_bounds_hash STREQUAL "7dfdf40254d44d92c247d9c876bb8ca55995927ad534981bd48868bb44f1f695")
     message(FATAL_ERROR "Pinned RT64 RSP differs from the audited depth-bounds input")
 endif()
-file(READ "${jfg_depth_bounds_source}" jfg_depth_bounds_contents)
 set(jfg_depth_bounds_old "if (otherModeStack[otherModeStackSize - 1].zUpd()) {")
 set(jfg_depth_bounds_new "if (state->rdp->otherMode.zUpd()) {")
 string(FIND "${jfg_depth_bounds_contents}" "${jfg_depth_bounds_old}" jfg_depth_bounds_first)
