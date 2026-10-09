@@ -64,6 +64,8 @@ struct App {
   HFONT font = nullptr, titleFont = nullptr;
   HBRUSH background = CreateSolidBrush(RGB(18, 27, 40));
   fs::path profile, helper;
+  std::wstring inputReplay, progressOutput;
+  bool quickPlay = false;
   Process session, dialog;
   std::vector<std::unique_ptr<Process>> tools;
   std::vector<HWND> liveModals;
@@ -156,6 +158,12 @@ bool launch(Process &process, const wchar_t *action, HWND owner) {
       quote(app.helper.wstring()) + L" --frontend-worker " + action + L" " +
       quote(app.profile.wstring()) + L" " +
       std::to_wstring(reinterpret_cast<std::uintptr_t>(owner));
+  if (std::wstring(action) == L"play") {
+    if (!app.inputReplay.empty())
+      command += L" --input-replay " + quote(app.inputReplay);
+    if (!app.progressOutput.empty())
+      command += L" --progress-output " + quote(app.progressOutput);
+  }
   fs::path executable=app.helper;
 #ifdef JFG_RML_UI
   if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory") {
@@ -731,6 +739,10 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       write(L"frontend-status.txt", L"Game startup cancelled. You can retry.");
     }
     if (app.session.handle && !app.session.running()) {
+      DWORD exitCode = 1;
+      GetExitCodeProcess(app.session.handle, &exitCode);
+      const bool startAfterInit = app.initializing && app.quickPlay && exitCode == 0;
+      app.quickPlay = false;
       app.session.release();
       app.render = nullptr;
       app.playing = false;
@@ -741,6 +753,8 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       SetWindowTextW(app.runtime, read(L"frontend-runtime.txt").c_str());
       if (app.closing)
         DestroyWindow(window);
+      else if (startAfterInit)
+        PostMessageW(window, WM_COMMAND, Play, 0);
     }
     if (app.dialog.handle && !app.dialog.running()) {
       app.dialog.release();
@@ -899,10 +913,28 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
   CoTaskMemFree(local);
   int argc = 0;
   LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-  for (int i = 1; i < argc; ++i)
-    if (std::wstring(argv[i]) == L"--profile" && i + 1 < argc)
-      app.profile = fs::path(argv[++i]);
+  bool validArguments = argv != nullptr;
+  for (int i = 1; i < argc && validArguments; ++i) {
+    const std::wstring option = argv[i];
+    if (option == L"--play" && !app.quickPlay)
+      app.quickPlay = true;
+    else if (option == L"--profile" && i + 1 < argc)
+      app.profile = fs::absolute(fs::path(argv[++i]));
+    else if (option == L"--input-replay" && i + 1 < argc && app.inputReplay.empty())
+      app.inputReplay = fs::absolute(fs::path(argv[++i])).wstring();
+    else if (option == L"--progress-output" && i + 1 < argc && app.progressOutput.empty())
+      app.progressOutput = fs::absolute(fs::path(argv[++i])).wstring();
+    else
+      validArguments = false;
+  }
   LocalFree(argv);
+  if (!validArguments || (!app.quickPlay && (!app.inputReplay.empty() || !app.progressOutput.empty()))) {
+    MessageBoxW(nullptr,
+                L"Use JFG-Launcher.exe [--play] [--profile <folder>]. "
+                L"Diagnostic --input-replay <file> and --progress-output <file> require --play.",
+                L"Jet Force Gemini", MB_OK | MB_ICONERROR);
+    return 2;
+  }
   HRSRC resource = FindResourceW(instance, MAKEINTRESOURCEW(101), RT_RCDATA);
   if (resource) {
     HGLOBAL loaded = LoadResource(instance, resource);

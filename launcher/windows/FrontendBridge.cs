@@ -108,6 +108,9 @@ internal static class FrontendBridge
     {
         if (!String.Equals(Path.GetExtension(path), ".lnk", StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Choose a Windows shortcut (.lnk) filename.");
+        if (String.IsNullOrWhiteSpace(launcher) || !File.Exists(launcher))
+            throw new InvalidDataException("Open JFG-Launcher.exe to save a quick-launch shortcut.");
+        launcher = LocalSetup.FullPath(launcher);
         object shell = null, shortcut = null;
         try
         {
@@ -115,15 +118,14 @@ internal static class FrontendBridge
             shell = Activator.CreateInstance(type);
             shortcut = type.InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, shell, new object[] { path });
             var shortcutType = shortcut.GetType();
-            string helper = System.Reflection.Assembly.GetExecutingAssembly().Location;
             Action<string, object> set = delegate(string key, object value) {
                 shortcutType.InvokeMember(key, System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { value });
             };
-            set("TargetPath", helper);
-            set("Arguments", "--frontend-worker direct-play " + LocalSetup.Quote(LocalSetup.FullPath(profile)) + " 0");
-            set("WorkingDirectory", Path.GetDirectoryName(helper));
-            set("IconLocation", (String.IsNullOrEmpty(launcher) ? helper : launcher) + ",0");
-            set("Description", "Launch Jet Force Gemini directly using your game profile.");
+            set("TargetPath", launcher);
+            set("Arguments", "--play --profile " + LocalSetup.Quote(LocalSetup.FullPath(profile)));
+            set("WorkingDirectory", Path.GetDirectoryName(launcher));
+            set("IconLocation", launcher + ",0");
+            set("Description", "Play Jet Force Gemini with its game menu using your profile.");
             set("WindowStyle", 1);
             shortcutType.InvokeMember("Save", System.Reflection.BindingFlags.InvokeMethod, null, shortcut, new object[0]);
         }
@@ -155,7 +157,30 @@ internal static class FrontendBridge
         }
     }
 
-    private static async Task<int> Execute(string action, IntPtr owner)
+    // Explicit diagnostic arguments are forwarded after ordinary launch environment
+    // sanitization. An inherited JFG_* variable must never activate a replay.
+    internal static void ApplyReplayOptions(ProcessStartInfo start, string[] args)
+    {
+        for (int i = 4; i < args.Length; i += 2)
+        {
+            if (args[1] != "play" || i + 1 >= args.Length)
+                throw new InvalidDataException("Replay options require a play action and a file path.");
+            string variable;
+            if (args[i] == "--input-replay") variable = "JFG_PHASE8_INPUT_REPLAY";
+            else if (args[i] == "--progress-output") variable = "JFG_PHASE8_PROGRESS";
+            else throw new InvalidDataException("Unknown replay option.");
+            if (start.EnvironmentVariables.ContainsKey(variable))
+                throw new InvalidDataException("Duplicate replay option.");
+            string path = LocalSetup.FullPath(args[i + 1]);
+            if (args[i] == "--input-replay" && !File.Exists(path))
+                throw new InvalidDataException("The input recording was not found.");
+            if (args[i] == "--progress-output" && !Directory.Exists(Path.GetDirectoryName(path)))
+                throw new InvalidDataException("The progress output folder was not found.");
+            start.EnvironmentVariables[variable] = path;
+        }
+    }
+
+    private static async Task<int> Execute(string action, IntPtr owner, string[] args)
     {
         if (action == "shortcut") { SaveShortcutDialog(owner); return 0; }
         if ((action == "play" || action == "direct-play") && InventorySession.IsActive(root))
@@ -269,6 +294,7 @@ internal static class FrontendBridge
                     bool mods = Read("frontend-mods.txt") == "1";
                     process.StartInfo = mods ? LocalSetup.NavigationStartInfo(game, rom, root)
                                              : LocalSetup.LiveToolsStartInfo(game, rom, root);
+                    ApplyReplayOptions(process.StartInfo, args);
                     process.StartInfo.EnvironmentVariables["JFG_CONTROLLER_CONFIG"] =
                         ControllerProfile.FileName(root);
                     process.StartInfo.EnvironmentVariables["JFG_MASTER_VOLUME_CONFIG"] =
@@ -333,11 +359,13 @@ internal static class FrontendBridge
     }
     internal static bool TryRun(string[] args)
     {
-        if (args.Length != 4 || args[0] != "--frontend-worker")
+        if (args.Length < 4 || args[0] != "--frontend-worker")
             return false;
         System.Threading.Mutex launchLock = null;
         try
         {
+            if (args.Length > 4 && args[1] != "play")
+                throw new InvalidDataException("Replay options require a play action.");
             root = LocalSetup.FullPath(args[2]);
             Directory.CreateDirectory(root);
             long handle;
@@ -359,7 +387,7 @@ internal static class FrontendBridge
             }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Environment.ExitCode = Execute(args[1], new IntPtr(handle)).GetAwaiter().GetResult();
+            Environment.ExitCode = Execute(args[1], new IntPtr(handle), args).GetAwaiter().GetResult();
         }
         catch (Exception error)
         {

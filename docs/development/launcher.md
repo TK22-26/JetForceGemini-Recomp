@@ -117,6 +117,20 @@ Saves and remembered file selections live under
 Existing saves are preserved. Closing the frontend stops the game and waits for saves to flush.
 Only one launcher instance runs in a Windows session.
 
+### Quick-launch shortcuts
+
+The Game menu's saved shortcut starts `JFG-Launcher.exe --play --profile "<folder>"`.
+It starts the game after profile initialization and keeps the same in-game menu,
+settings, live tools, and save handling as clicking Play. Starting the launcher
+without `--play` still opens Home. Recreate older shortcuts that target the setup
+helper directly. Close an existing launcher before opening a different profile.
+
+For a local cutscene test, use a separate profile folder. Explicit diagnostic
+arguments `--input-replay "<file>"` and `--progress-output "<file>"` require
+`--play`; they forward the recording and progress destination to the hosted
+game. Ordinary play continues to discard inherited diagnostic environment
+variables. A blank test profile leaves the normal campaign save untouched.
+
 | Keys | Action |
 | --- | --- |
 | W, A, S, D | Analog movement |

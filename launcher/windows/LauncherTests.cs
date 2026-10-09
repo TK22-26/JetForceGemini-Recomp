@@ -416,6 +416,39 @@ namespace JfgLauncher
                     "version=1\nvolume=50\nmuted=0\nextra", new string('x',129) })
                     Reject(delegate { AudioPreferences.Parse(invalidAudio); }, "invalid audio settings accepted");
 
+                // A saved shortcut must enter the window-owning launcher, retaining menus.
+                string shortcutPath = Path.Combine(directory, "Quick play.lnk");
+                string frontendExe = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                Reject(delegate { FrontendBridge.SaveDirectShortcut(shortcutPath, directory, null); }, "shortcut fell back to a headless helper");
+                FrontendBridge.SaveDirectShortcut(shortcutPath, directory, frontendExe);
+                object shortcutShell = null, savedShortcut = null;
+                try {
+                    var shellType = Type.GetTypeFromProgID("WScript.Shell", true);
+                    shortcutShell = Activator.CreateInstance(shellType);
+                    savedShortcut = shellType.InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, shortcutShell, new object[] { shortcutPath });
+                    var shortcutType = savedShortcut.GetType();
+                    Func<string, string> property = delegate(string key) { return (string)shortcutType.InvokeMember(key, System.Reflection.BindingFlags.GetProperty, null, savedShortcut, null); };
+                    Check(String.Equals(property("TargetPath"), frontendExe, StringComparison.OrdinalIgnoreCase), "shortcut bypasses frontend");
+                    Check(property("Arguments") == "--play --profile " + LocalSetup.Quote(LocalSetup.FullPath(directory)), "shortcut lost quick-play or profile arguments");
+                    Check(String.Equals(property("WorkingDirectory"), Path.GetDirectoryName(frontendExe), StringComparison.OrdinalIgnoreCase), "shortcut has incorrect working directory");
+                } finally {
+                    if(savedShortcut != null) System.Runtime.InteropServices.Marshal.FinalReleaseComObject(savedShortcut);
+                    if(shortcutShell != null) System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcutShell);
+                }
+                string replayPath = Path.Combine(directory, "cutscene input.txt");
+                string progressPath = Path.Combine(directory, "cutscene progress.json");
+                File.WriteAllText(replayPath, "jfg-phase8-input-v2\n");
+                Environment.SetEnvironmentVariable("JFG_PHASE8_INPUT_REPLAY", "must-not-inherit");
+                var replayStart = LocalSetup.StartInfo(game, wrongRom, directory);
+                Check(!replayStart.EnvironmentVariables.ContainsKey("JFG_PHASE8_INPUT_REPLAY"), "inherited replay activated ordinary play");
+                Environment.SetEnvironmentVariable("JFG_PHASE8_INPUT_REPLAY", null);
+                FrontendBridge.ApplyReplayOptions(replayStart, new[] {"--frontend-worker", "play", directory, "0", "--input-replay", replayPath, "--progress-output", progressPath});
+                Check(replayStart.EnvironmentVariables["JFG_PHASE8_INPUT_REPLAY"] == replayPath && replayStart.EnvironmentVariables["JFG_PHASE8_PROGRESS"] == progressPath, "explicit replay options lost");
+                Reject(delegate { FrontendBridge.ApplyReplayOptions(replayStart, new[] {"--frontend-worker", "play", directory, "0", "--input-replay", replayPath}); }, "duplicate replay accepted");
+                Reject(delegate { FrontendBridge.ApplyReplayOptions(LocalSetup.StartInfo(game, wrongRom, directory), new[] {"--frontend-worker", "play", directory, "0", "--input-replay", replayPath + ".missing"}); }, "missing input replay accepted");
+                Reject(delegate { FrontendBridge.ApplyReplayOptions(LocalSetup.StartInfo(game, wrongRom, directory), new[] {"--frontend-worker", "play", directory, "0", "--input-replay"}); }, "missing replay argument accepted");
+                Reject(delegate { FrontendBridge.ApplyReplayOptions(LocalSetup.StartInfo(game, wrongRom, directory), new[] {"--frontend-worker", "setup", directory, "0", "--input-replay", replayPath}); }, "setup received replay options");
+
                 Check(start.WorkingDirectory == directory && start.Arguments.EndsWith(" --play"), "incorrect game launch plan");
                 Check(start.Arguments.Contains(LocalSetup.Quote(flash)), "save path not isolated");
                 Check(!LocalSetup.FriendlyError(new IOException("PRIVATE-PATH-CANARY")).Contains("PRIVATE-PATH-CANARY"), "exception discloses path");
