@@ -28,9 +28,10 @@ program and runtime libraries. Textures, models, audio, and other game data are
 read locally from your supplied ROM. Your ROM is required to play and is not
 uploaded. Original game content remains the property of its respective owners.
 
-For the local `1.0.1-beta.1` review package, extract the entire ZIP, open
+For the local `1.0.1-beta.2` review package, extract the entire ZIP, open
 `JFG-Launcher.exe`, choose the supported US `.z64` ROM, and click **Play**.
 Players do not need Git, Python, Visual Studio, WSL, or a first-run build.
+Required Microsoft runtime DLLs are included in the application folder.
 The bundled `START HERE.txt` explains the beta. See [beta build notes](docs/prebuilt-beta.txt).
 This beta has not been published; the existing public v1.0 launcher still uses
 the local build process described below.

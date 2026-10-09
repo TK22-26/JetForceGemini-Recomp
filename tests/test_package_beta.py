@@ -33,3 +33,16 @@ class BetaPackageTests(unittest.TestCase):
         self.output.mkdir();(self.output/'sentinel').write_text('keep')
         with self.assertRaisesRegex(ValueError,'Preserve'):self.package()
         self.assertEqual((self.output/'sentinel').read_text(),'keep')
+    def test_each_missing_crt_library_is_rejected(self):
+        for name in beta.VC_RUNTIME_FILES:
+            with self.subTest(name=name):
+                path=self.runtime/name;data=path.read_bytes();path.unlink()
+                with self.assertRaisesRegex(ValueError,'Incomplete'):self.package()
+                path.write_bytes(data)
+    def test_explicit_crt_directory_is_used(self):
+        crt=self.root/'redist';crt.mkdir()
+        for name in beta.VC_RUNTIME_FILES:
+            (self.runtime/name).unlink();(crt/name).write_bytes(b'MZredistributable')
+        archive=beta.package(self.launcher,self.runtime,self.output,'1.0.1-beta.2',crt)
+        with zipfile.ZipFile(archive) as z:
+            for name in beta.VC_RUNTIME_FILES:self.assertEqual(z.read(name),b'MZredistributable')

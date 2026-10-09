@@ -5,16 +5,21 @@ import argparse, hashlib, json, re, shutil, subprocess, zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_FILES = ('jfg-native-boot.exe', 'SDL2.dll', 'dxcompiler.dll', 'dxil.dll')
+GAME_FILES = ('jfg-native-boot.exe', 'SDL2.dll', 'dxcompiler.dll', 'dxil.dll')
+VC_RUNTIME_FILES = ('concrt140.dll', 'msvcp140.dll', 'msvcp140_1.dll', 'msvcp140_2.dll', 'msvcp140_atomic_wait.dll', 'msvcp140_codecvt_ids.dll', 'vccorlib140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll', 'vcruntime140_threads.dll')
+RUNTIME_FILES = GAME_FILES + VC_RUNTIME_FILES
+
+def runtime_inputs(runtime: Path, vc_runtime: Path | None = None) -> dict[str, Path]:
+    crt = vc_runtime if vc_runtime is not None else runtime
+    return {name: (crt if name in VC_RUNTIME_FILES else runtime)/name for name in RUNTIME_FILES}
 
 def digest(path: Path) -> str:
     with path.open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
-def runtime_manifest(runtime: Path, version: str) -> dict:
+def runtime_manifest(runtime: Path, version: str, vc_runtime: Path | None = None) -> dict:
     entries=[]
-    for name in RUNTIME_FILES:
-        path=runtime/name
+    for name,path in runtime_inputs(runtime,vc_runtime).items():
         if not path.is_file() or path.is_symlink() or path.stat().st_size <= 0:
             raise ValueError('Incomplete runtime: '+name)
         with path.open('rb') as stream:
@@ -22,11 +27,11 @@ def runtime_manifest(runtime: Path, version: str) -> dict:
         entries.append({'name':name,'size':path.stat().st_size,'sha256':digest(path)})
     return {'schema':1,'version':version,'files':entries}
 
-def package(launcher: Path, runtime: Path, output: Path, version: str) -> Path:
+def package(launcher: Path, runtime: Path, output: Path, version: str, vc_runtime: Path | None = None) -> Path:
     if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+',version):
         raise ValueError('Use an explicit beta version')
     if output.exists(): raise ValueError('Preserve existing package output; select a new destination')
-    manifest=runtime_manifest(runtime,version)
+    manifest=runtime_manifest(runtime,version,vc_runtime)
     receipt=runtime/'jfg-native-boot.exe.support'
     if not receipt.is_file(): raise ValueError('Runtime build identity is required')
     identity=dict(line.split('=',1) for line in receipt.read_text().splitlines() if '=' in line)
@@ -34,7 +39,7 @@ def package(launcher: Path, runtime: Path, output: Path, version: str) -> Path:
         raise ValueError('Runtime differs from its build identity')
     if identity.get('build_dirty') != '0': raise ValueError('Use a reviewed clean runtime build')
     output.mkdir(parents=True)
-    files={name:runtime/name for name in RUNTIME_FILES}
+    files=runtime_inputs(runtime,vc_runtime)
     files.update({'JFG-Launcher.exe':launcher,'jfg-native-boot.exe.support':receipt,
                   'LICENSE':ROOT/'LICENSE','RUNTIME-NOTICES.md':ROOT/'THIRD_PARTY_NOTICES.md',
                   'THIRD-PARTY.txt':ROOT/'launcher/ui/THIRD-PARTY.txt',
@@ -59,6 +64,7 @@ def package(launcher: Path, runtime: Path, output: Path, version: str) -> Path:
         '2. Open JFG-Launcher.exe.\n'
         '3. Choose your supported North American .z64 ROM, then click Play.\n\n'
         'No Git, Python, Visual Studio or WSL installation is required.\n'
+        'Required Microsoft runtime libraries are included beside the game.\n'
         'Your ROM remains on your PC and is required when playing. No ROM or\n'
         'game asset files are supplied. Game > Verify game files checks this package.\n'
         'Installation idea: credit to the Zelda64Recomp team and its plug-and-play\n'
@@ -91,6 +97,7 @@ if __name__=='__main__':
     parser.add_argument('--launcher',required=True,type=Path)
     parser.add_argument('--runtime',required=True,type=Path)
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--version',default='1.0.1-beta.1')
+    parser.add_argument('--vc-runtime',required=True,type=Path,help='x64 Microsoft.VC143.CRT from the maintainer Visual Studio redist directory')
+    parser.add_argument('--version',default='1.0.1-beta.2')
     args=parser.parse_args()
-    print(package(args.launcher.resolve(),args.runtime.resolve(),args.output.resolve(),args.version))
+    print(package(args.launcher.resolve(),args.runtime.resolve(),args.output.resolve(),args.version,args.vc_runtime.resolve()))

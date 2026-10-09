@@ -388,6 +388,8 @@ namespace JfgLauncher
                 File.WriteAllBytes(packageLauncher, Pe());
                 string packagePath = Path.Combine(directory, "jfg-package.json");
                 Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "missing package manifest accepted");
+                foreach (string member in PortablePackage.RuntimeFiles)
+                    if (!File.Exists(Path.Combine(directory, member))) File.WriteAllBytes(Path.Combine(directory, member), Pe());
                 var packageEntries = new System.Collections.Generic.List<string>();
                 foreach (string member in PortablePackage.RuntimeFiles)
                 {
@@ -397,6 +399,12 @@ namespace JfgLauncher
                 string packageJson = "{\"schema\":1,\"version\":\"1.0.1-beta.1\",\"files\":[" + String.Join(",", packageEntries.ToArray()) + "]}";
                 File.WriteAllText(packagePath, packageJson);
                 Check(PortablePackage.Resolve(packageLauncher) == game, "complete bundled package rejected");
+                foreach (string crt in new string[] { "concrt140.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "msvcp140_atomic_wait.dll", "msvcp140_codecvt_ids.dll", "vccorlib140.dll", "vcruntime140.dll", "vcruntime140_1.dll", "vcruntime140_threads.dll" }) {
+                    string member = Path.Combine(directory, crt);
+                    File.Delete(member);
+                    Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "missing bundled CRT accepted: " + crt);
+                    File.WriteAllBytes(member, Pe());
+                }
                 File.AppendAllText(Path.Combine(directory, "SDL2.dll"), "changed");
                 Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "modified bundled library accepted");
                 File.WriteAllBytes(Path.Combine(directory, "SDL2.dll"), Pe());
