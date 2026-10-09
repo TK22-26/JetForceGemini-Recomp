@@ -33,3 +33,19 @@ copyright clearance opinion. Existing third-party license obligations remain.
 Beta 1 failed to start on clean Windows with 0xC0000135: Microsoft C++
 runtime DLLs were absent. Beta 2 packages the unmodified x64 VC143 runtime
 libraries app-locally, without installing development tools or changing Windows.
+
+Beta 3 checks for hardware graphics before Play, including direct shortcuts.
+The clean Hyper-V VM exposes Microsoft Basic Render Driver (1414:008c) twice,
+including an entry without DXGI's software flag. Beta 2 therefore entered WARP
+pipeline compilation, stopped at the first frame, and exceeded 10 GB resident
+RAM. The exact game binary reached 180 retraces with 69 graphics tasks and
+rendered an image on the host RTX 5090. This is startup coverage, not a campaign
+playthrough. Beta 3 identifies that software adapter by its stable device ID as
+well as DXGI flags and explains the hardware requirement before starting a game.
+Zero dedicated VRAM does not reject integrated GPUs. A hardware presence check
+does not prove every driver or game feature is compatible.
+
+The clean VM remains useful for extraction, ROM selection and file verification.
+Gameplay requires a compatible GPU accessible to the guest, or testing on the
+host. Microsoft does not support Hyper-V GPU-P/DDA on Windows 11 Pro desktop
+hosts: https://learn.microsoft.com/en-us/troubleshoot/windows-server/virtualization/troubleshoot-hyper-v-gpu-assignment-partitioning-passthrough-issues

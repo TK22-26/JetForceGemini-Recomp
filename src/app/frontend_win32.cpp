@@ -13,6 +13,7 @@
 #include <shlobj.h>
 #include <string>
 #include <vector>
+#include "../../launcher/native/graphics_check.hpp"
 #ifdef JFG_RML_UI
 #include "native_ui.hpp"
 #endif
@@ -782,6 +783,15 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     case Setup:
       if (app.session.running() || app.dialog.running())
         break;
+      if (LOWORD(wparam) == Play) {
+        const auto graphics = jfg::frontend::graphics_availability();
+        if (graphics != jfg::frontend::GraphicsAvailability::hardware) {
+          status(L"Cannot start: a compatible hardware graphics device is required.");
+          MessageBoxW(window, jfg::frontend::graphics_message(graphics),
+                      L"Graphics device required", MB_OK | MB_ICONINFORMATION);
+          break;
+        }
+      }
       persist();
       app.playing = LOWORD(wparam) == Play;
       app.manualPause = false;
@@ -887,6 +897,17 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
 }
 } // namespace
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
+  // ROM-free qualification uses the exact preflight used by Play and shortcuts.
+  int checkArgc = 0;
+  LPWSTR *checkArgv = CommandLineToArgvW(GetCommandLineW(), &checkArgc);
+  const bool checkGraphics = checkArgv && checkArgc == 2 &&
+                            std::wstring(checkArgv[1]) == L"--check-graphics";
+  LocalFree(checkArgv);
+  if (checkGraphics) {
+    const auto graphics = jfg::frontend::graphics_availability();
+    return graphics == jfg::frontend::GraphicsAvailability::hardware ? 0 :
+           graphics == jfg::frontend::GraphicsAvailability::software_only ? 3 : 4;
+  }
 #ifdef JFG_RML_UI
   int liveResult=FrontendLiveToolEntry(instance,show);if(liveResult>=0)return liveResult;
 #endif

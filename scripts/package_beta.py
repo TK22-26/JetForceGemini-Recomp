@@ -70,6 +70,8 @@ def package(launcher: Path, runtime: Path, output: Path, version: str, vc_runtim
         'Installation idea: credit to the Zelda64Recomp team and its plug-and-play\n'
         'model: https://github.com/Zelda64Recomp/Zelda64Recomp#plug-and-play\n'
         'This is an independent implementation. We do not ship game assets or ROMs.\n\n'
+        'Playing requires a compatible hardware graphics device. Software-only\n'
+        'virtual machines can verify installation, but cannot run the game.\n'
         'Keep all files together when moving or updating this beta.\n'
         'Saves remain in your existing JFG profile.\n\n'
         'This is an owner review beta, not a published release. It includes the\n'
@@ -98,6 +100,6 @@ if __name__=='__main__':
     parser.add_argument('--runtime',required=True,type=Path)
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--vc-runtime',required=True,type=Path,help='x64 Microsoft.VC143.CRT from the maintainer Visual Studio redist directory')
-    parser.add_argument('--version',default='1.0.1-beta.2')
+    parser.add_argument('--version',default='1.0.1-beta.3')
     args=parser.parse_args()
     print(package(args.launcher.resolve(),args.runtime.resolve(),args.output.resolve(),args.version,args.vc_runtime.resolve()))

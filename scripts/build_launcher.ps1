@@ -47,10 +47,16 @@ $frontendBuild = if ($NativeBuildDirectory) { [IO.Path]::GetFullPath($NativeBuil
 if ($LASTEXITCODE -ne 0) { throw 'Native frontend configuration failed.' }
 & $frontendCmake --build $frontendBuild --config Release --target JFG-Launcher --parallel 4
 if ($LASTEXITCODE -ne 0) { throw 'Native frontend compilation failed.' }
+if ($Test) {
+    & $frontendCmake --build $frontendBuild --config Release --target jfg-graphics-policy-tests --parallel 2
+    if ($LASTEXITCODE -ne 0) { throw 'Graphics preflight test compilation failed.' }
+    & (Join-Path $frontendBuild 'Release/jfg-graphics-policy-tests.exe')
+    if ($LASTEXITCODE -ne 0) { throw 'Graphics preflight tests failed.' }
+}
 Copy-Item -LiteralPath (Join-Path $frontendBuild 'Release/JFG-Launcher.exe') -Destination $launcherExe -Force
 
 $launcherInputs = [ordered]@{}
-foreach ($relative in @('launcher/windows/Launcher.cs', 'launcher/windows/PortablePackage.cs', 'launcher/windows/FrontendBridge.cs', 'src/app/frontend_win32.cpp', 'launcher/native/CMakeLists.txt', 'launcher/windows/FirstRun.cs',
+foreach ($relative in @('launcher/windows/Launcher.cs', 'launcher/windows/PortablePackage.cs', 'launcher/windows/FrontendBridge.cs', 'src/app/frontend_win32.cpp', 'launcher/native/CMakeLists.txt', 'launcher/native/graphics_check.hpp', 'launcher/windows/FirstRun.cs',
         'launcher/windows/Setup.ps1', 'launcher/windows/Support.cs', 'launcher/windows/Diagnostics.cs', 'launcher/windows/Controller.cs', 'launcher/windows/NavigationMap.cs', 'launcher/windows/Audio.cs', 'launcher/windows/MapLayers.cs', 'launcher/windows/NavigationRoute.cs', 'launcher/windows/NavigationExplorer.cs', 'launcher/windows/NavigationCollision.cs', 'launcher/windows/BoxJump.cs', 'launcher/windows/ChestRoute.cs', 'launcher/windows/NavigationRunner.cs', 'launcher/windows/AutonomousExplorer.cs', 'launcher/windows/InventoryWindow.cs', 'launcher/windows/InventoryImages.cs', 'launcher/windows/InventoryModel.cs', 'launcher/windows/NativeLiveTools.cs', 'scripts/build_launcher.ps1')) {
     $launcherInputs[$relative] = (Get-FileHash -LiteralPath (Join-Path $launcherRepoRoot $relative) -Algorithm SHA256).Hash.ToLowerInvariant()
 }
