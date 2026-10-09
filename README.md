@@ -6,7 +6,7 @@ A native PC recompilation of Jet Force Gemini, currently available as a
 Windows x64 development preview. Supply your own supported North American
 ROM and build the game locally using the launcher or command-line tools.
 
-**Campaign status: officially verified 100% completable from start to finish**
+**Campaign status: fully playable from start to finish**
 through maintainer playtesting.
 
 [Get started](docs/getting-started.md) ·
@@ -28,6 +28,7 @@ HD cosmetic variants stay in independently maintained community branches.
 ## What works
 
 - Full campaign completion, verified through maintainer playtesting.
+- Optional live map and live inventory tracking in a custom companion interface.
 - Native rendering and audio.
 - Keyboard controls and configurable Xbox/XInput controllers.
 - Verified saving and loading, with a launcher for setup and subsequent launches.
@@ -39,12 +40,35 @@ See [recent gameplay fixes](docs/development/boot-gameplay-fix.md) and
 
 ## Campaign playtest progress
 
-**Campaign status: officially verified 100% completable from start to finish**
+**Campaign status: fully playable from start to finish**
 through maintainer playtesting.
 
 The verification run used optional infinite-health and enemy auto-kill testing
 mods, plus a testing save with all Tribals unlocked. Saving and loading are
 also verified.
+
+## Live map and inventory
+
+Optional companion tools provide a custom interface for exploring the game
+and tracking your progress:
+
+- **Live map:** see your position, room exits, items, NPCs, enemies, Tribals,
+  and doors. Select an object to inspect its requirements and rewards; zoom,
+  pan, or fit the map to the current room.
+- **Live inventory:** track weapons, keys, quest items, and shared ship parts.
+  View Juno, Vela, or Lupus, or follow the active character automatically.
+
+![Custom live map showing the player, room geometry, exits, pickups, and an interaction inspector](docs/images/live-map.png)
+
+*Live map in the current development frontend. Released launcher versions may
+have a different appearance.*
+
+The inventory's game icons are extracted locally from each player's own ROM;
+those artwork files are not bundled with the project or launcher. The interface
+is custom project code. Game content remains the property of its respective
+owners.
+
+See the [launcher and live tools guide](docs/development/launcher.md) for details.
 
 ## Getting started
 
