@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "scope": "Launcher Win32/DX11 dependencies. Full upstream notices or exact license comments/sections; no game assets or implementation source.",
+  "dependencies": {
+    "rmlui": {
+      "repository": "https://github.com/mikke89/RmlUi",
+      "commit": "ba95ffe8bfb6370efb2cdcca927eaad4710c5413"
+    },
+    "freetype": {
+      "repository": "https://github.com/freetype/freetype",
+      "commit": "526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b"
+    }
+  },
+  "sources": {
+    "rmlui/Include/RmlUi/Core/Containers/LICENSE.txt": {
+      "url": "https://github.com/mikke89/RmlUi/blob/ba95ffe8bfb6370efb2cdcca927eaad4710c5413/Include/RmlUi/Core/Containers/LICENSE.txt",
+      "sha256": "f8314901f32a5e132372f2568c77d5482d226582bbc92456d9d4d486029835a6"
+    },
+    "rmlui/Source/Debugger/LICENSE.txt": {
+      "url": "https://github.com/mikke89/RmlUi/blob/ba95ffe8bfb6370efb2cdcca927eaad4710c5413/Source/Debugger/LICENSE.txt",
+      "sha256": "8d5167099532ac2f0cf25a95e9d70572837d6fd22f47718206ca147915945f49"
+    },
+    "freetype/src/bdf/README": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/bdf/README",
+      "sha256": "7984455e7e5a9faba3797c8bf095fbe10cc846316b7320aff8c58402e22b82fe"
+    },
+    "freetype/src/pcf/README": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/pcf/README",
+      "sha256": "18d9782898d9eac04476e2f744678137b2a889689ed3e923e052fc396a86f86b"
+    },
+    "freetype/include/freetype/internal/fthash.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/include/freetype/internal/fthash.h",
+      "sha256": "023d88d49d29ecf3833db7717a3f7ae223c17ec2012bdb5bf33bb67abaf616c4"
+    },
+    "freetype/src/autofit/ft-hb-decls.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/autofit/ft-hb-decls.h",
+      "sha256": "ed05eec3b5657f98a0c106fa4aa2e5a4bc7f0864e5d34bd5989eee6d8b718bcf"
+    },
+    "freetype/src/autofit/ft-hb-ft.c": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/autofit/ft-hb-ft.c",
+      "sha256": "3f71299213b221766adb59b31c5991ba4e9782cddbe3f16a3d63d2f4e0f47951"
+    },
+    "freetype/src/autofit/ft-hb-types.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/autofit/ft-hb-types.h",
+      "sha256": "f106bf7cc41f52cd70907266a74a293c57bc5f71285b01c36bf198ad8b1c6234"
+    },
+    "freetype/src/autofit/hb-script-list.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/autofit/hb-script-list.h",
+      "sha256": "0627d9f6a59a8b09e562e8aeaf414300899308725350beeb50b62b8657399576"
+    },
+    "freetype/src/base/fthash.c": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/base/fthash.c",
+      "sha256": "693e5a54b3ce30140975a94a3369dbe706eb1f280c69e80da426d39cc45b94ef"
+    },
+    "freetype/src/bdf/bdf.c": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/bdf/bdf.c",
+      "sha256": "053783d11562d291cd477a5f6d2e01008bb9546a994c12fd857874b637be6544"
+    },
+    "freetype/src/bdf/bdf.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/bdf/bdf.h",
+      "sha256": "96f636a13c881892c338459feb8d8baf5410c9d885ac36e8deb97505488ee78c"
+    },
+    "freetype/src/bdf/bdfdrivr.c": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/bdf/bdfdrivr.c",
+      "sha256": "00da655264ff07a0952cb16af21d42cabd48bb502f3b6e268406d44a63ffc22f"
+    },
+    "freetype/src/bdf/bdfdrivr.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/bdf/bdfdrivr.h",
+      "sha256": "04b2f2b47cb2f8e4bb9fdcd0d0e40ae48db2ad3444ec353ebec8d6bc62c0b579"
+    },
+    "freetype/src/bdf/bdferror.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/bdf/bdferror.h",
+      "sha256": "3a94e79259ae348289e8f747beb5d2363dff5242c2c7496b0658b2e7bf168c9e"
+    },
+    "freetype/src/bdf/bdflib.c": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/bdf/bdflib.c",
+      "sha256": "d6d3b5e198f0be8dc3d83abded5ea3be35cf0192e9f84e6ab290e379a04b9946"
+    },
+    "freetype/src/gzip/zlib.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/gzip/zlib.h",
+      "sha256": "c86a25c27f74cb97b8fa07b175f479f063d5064ace9995b4684063643c81cf1b"
+    },
+    "freetype/src/pcf/pcf.c": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/pcf/pcf.c",
+      "sha256": "4700f30d4da8b290c09cc3e9c8c2623710c758536966d384d538d62f3d25a423"
+    },
+    "freetype/src/pcf/pcf.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/pcf/pcf.h",
+      "sha256": "1b5b0a15e5057000a9e5be4a4b6230d314a603b1e289510b3436541c7a6ad214"
+    },
+    "freetype/src/pcf/pcfdrivr.c": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/pcf/pcfdrivr.c",
+      "sha256": "33ff0e7f34f7b687f4acbc6e09c892b6125bd0a845c4720d02195c6c0e1da307"
+    },
+    "freetype/src/pcf/pcfdrivr.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/pcf/pcfdrivr.h",
+      "sha256": "b82b46a913b45dbb82fe7997d26d9c60c6d2f8bad295df20528ff39c6352ea82"
+    },
+    "freetype/src/pcf/pcferror.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/pcf/pcferror.h",
+      "sha256": "bf32517706a73cdb39b5fcf8e29a244672a8b8bb7865520234ee340e3aa03eda"
+    },
+    "freetype/src/pcf/pcfread.c": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/pcf/pcfread.c",
+      "sha256": "ec64a484f6cf1b810cb68e7e65e0d160dcf1bea7a3c0e636288e9f0b219f8827"
+    },
+    "freetype/src/pcf/pcfread.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/pcf/pcfread.h",
+      "sha256": "cd36704be8cbf71b7025d6d0269d78fc2245d2f2d4b29035bf861e562afdea30"
+    },
+    "freetype/src/pcf/pcfutil.c": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/pcf/pcfutil.c",
+      "sha256": "85f96e9fd54d9ef69eb39e9dc1d085b6e071921cc012da0f503c75d4b8bf336b"
+    },
+    "freetype/src/pcf/pcfutil.h": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/src/pcf/pcfutil.h",
+      "sha256": "b51ad3b562a4063474f5de11292e7446e0832bf9380c3e39e9fc66e0cae87b5e"
+    },
+    "rmlui/LICENSE.txt": {
+      "url": "https://github.com/mikke89/RmlUi/blob/ba95ffe8bfb6370efb2cdcca927eaad4710c5413/LICENSE.txt",
+      "sha256": "64c049f65ec810b805457dc1f24745002203f919ea5a16b6fcd7ca5f45ea298e"
+    },
+    "freetype/docs/FTL.TXT": {
+      "url": "https://github.com/freetype/freetype/blob/526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b/docs/FTL.TXT",
+      "sha256": "5a5ee54c5001bbad1cdc1a57cc3dd4c42199b2da09d39c7ee41fab002d02967f"
+    }
+  },
+  "notice_sha256": {
+    "FreeType-FTL.txt": "5a5ee54c5001bbad1cdc1a57cc3dd4c42199b2da09d39c7ee41fab002d02967f",
+    "FreeType-ThirdParty.txt": "a66e314677c8f00988eb0b3b8e5363ae37e568cb8f44be30c4203a3def0285b1",
+    "RmlUi-Containers-MIT.txt": "f8314901f32a5e132372f2568c77d5482d226582bbc92456d9d4d486029835a6",
+    "RmlUi-Debugger-OFL.txt": "8d5167099532ac2f0cf25a95e9d70572837d6fd22f47718206ca147915945f49",
+    "RmlUi-MIT.txt": "64c049f65ec810b805457dc1f24745002203f919ea5a16b6fcd7ca5f45ea298e"
+  },
+  "hash_convention": "SHA-256 of UTF-8 notice text with LF newlines; source hashes are exact Git blob bytes.",
+  "optional_coverage": "RmlUi Debugger font notice retained because the aggregate target links Debugger; linker dead stripping may omit these assets. FreeType HarfBuzz-source notices retained although external HarfBuzz is disabled."
+}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 from pathlib import Path
 import zipfile
@@ -13,20 +14,32 @@ OUTPUT = ROOT / 'build' / 'launcher'
 NAME = 'JFG-Launcher-1.0.0-windows-x64.zip'
 
 
-def main() -> int:
+def package_members(root: Path, output: Path) -> dict[str, Path]:
     members = {
-        'JFG-Launcher.exe': OUTPUT / 'JFG-Launcher.exe',
-        'README.md': ROOT / 'docs/development/launcher.md',
-        'BUILD-SETUP.md': ROOT / 'docs/development/rom-bootstrap.md',
-        'LICENSE': ROOT / 'LICENSE',
+        'JFG-Launcher.exe': output / 'JFG-Launcher.exe',
+        'README.md': root / 'docs/development/launcher.md',
+        'BUILD-SETUP.md': root / 'docs/development/rom-bootstrap.md',
+        'LICENSE': root / 'LICENSE',
     }
     for folder in ('licenses', 'fonts'):
-        for path in (ROOT / 'launcher/ui' / folder).glob('*.txt'):
+        for path in (root / 'launcher/ui' / folder).glob('*.txt'):
             members['licenses/' + path.name] = path
-    members['THIRD-PARTY.txt'] = ROOT / 'launcher/ui/THIRD-PARTY.txt'
+    members['THIRD-PARTY.txt'] = root / 'launcher/ui/THIRD-PARTY.txt'
+    members['licenses/font-manifest.json'] = root / 'launcher/ui/fonts/manifest.json'
+    members['licenses/provenance.json'] = root / 'launcher/ui/licenses/provenance.json'
     for name, path in members.items():
         if not path.is_file() or path.is_symlink():
             raise SystemExit('Missing or linked package input: ' + name)
+    notices = members['THIRD-PARTY.txt'].read_text(encoding='utf-8')
+    references = set(re.findall(r'\blicenses/[A-Za-z0-9_.-]+\.(?:txt|json)\b', notices))
+    missing = references - members.keys()
+    if missing:
+        raise SystemExit('Referenced license missing from package: ' + ', '.join(sorted(missing)))
+    return members
+
+
+def main() -> int:
+    members = package_members(ROOT, OUTPUT)
     binary = members['JFG-Launcher.exe'].read_bytes()
     if not binary.startswith(b'MZ') or len(binary) > 33_554_432:
         raise SystemExit('Unexpected launcher executable')
