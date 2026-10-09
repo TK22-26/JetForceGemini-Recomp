@@ -1,6 +1,7 @@
 name: ROM-free CI
 
 on:
+  workflow_call:
   pull_request:
   push:
     branches:
@@ -143,7 +144,7 @@ jobs:
           ctest --test-dir build/asan -E "^jfg\.g2_trap_probe_runtime$" --output-on-failure
 
   launcher:
-    name: Windows launcher preview
+    name: Windows launcher
     runs-on: windows-2022
     timeout-minutes: 15
     steps:

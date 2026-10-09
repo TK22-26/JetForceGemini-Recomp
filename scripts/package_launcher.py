@@ -11,7 +11,23 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'build' / 'launcher'
-NAME = 'JFG-Launcher-1.0.0-windows-x64.zip'
+VERSION = re.compile(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?')
+
+
+def launcher_version(root: Path) -> str:
+    source = (root / 'launcher/windows/Launcher.cs').read_text(encoding='utf-8')
+    versions = re.findall(r'AssemblyInformationalVersion\("([^"\n]*)"\)', source)
+    if len(versions) != 1 or not VERSION.fullmatch(versions[0]):
+        raise ValueError('Launcher informational version must be a semantic version')
+    version = versions[0]
+    suffix = VERSION.fullmatch(version)[4]
+    if suffix and any(part.isdigit() and len(part) > 1 and part.startswith('0') for part in suffix.split('.')):
+        raise ValueError('Numeric prerelease identifiers must not have leading zeros')
+    return version
+
+
+def package_name(version: str) -> str:
+    return 'JFG-Launcher-' + version + '-windows-x64.zip'
 
 
 def package_members(root: Path, output: Path) -> dict[str, Path]:
@@ -38,7 +54,35 @@ def package_members(root: Path, output: Path) -> dict[str, Path]:
     return members
 
 
+def write_package(output: Path, archive_name: str, payloads: dict[str, bytes], revision: str) -> None:
+    archive = output / archive_name
+    if archive.exists():
+        raise SystemExit('Package already exists; preserve it and use a new reviewed version')
+    with zipfile.ZipFile(archive, 'x', compression=zipfile.ZIP_DEFLATED) as package:
+        for name, payload in payloads.items():
+            info = zipfile.ZipInfo(name, date_time=(2026, 10, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            package.writestr(info, payload)
+    with zipfile.ZipFile(archive) as package:
+        if set(package.namelist()) != set(payloads) or package.testzip() is not None:
+            raise SystemExit('Archive verification failed')
+        for name, payload in payloads.items():
+            if package.read(name) != payload:
+                raise SystemExit('Archive member changed')
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    (output / 'SHA256SUMS.txt').write_text(digest + '  ' + archive_name + '\n' + hashlib.sha256(payloads['JFG-Launcher.exe']).hexdigest() + '  JFG-Launcher.exe\n', encoding='ascii')
+    (output / 'package-inventory.json').write_text(json.dumps({
+        'package': archive_name,
+        'source_commit': revision,
+        'sha256': digest,
+        'members': {name: hashlib.sha256(payload).hexdigest() for name, payload in payloads.items()},
+        'scope': 'Launcher only; no game runtime or ROM-derived inputs',
+    }, indent=2) + '\n', encoding='utf-8')
+    print('Verified launcher-only archive: ' + archive_name)
+
+
 def main() -> int:
+    name = package_name(launcher_version(ROOT))
     members = package_members(ROOT, OUTPUT)
     binary = members['JFG-Launcher.exe'].read_bytes()
     if not binary.startswith(b'MZ') or len(binary) > 33_554_432:
@@ -59,31 +103,7 @@ def main() -> int:
     for data in (binary.lower(), binary.decode('utf-16le', errors='ignore').lower().encode('utf-8')):
         if b':\\users\\' in data or b'/home/' in data or b'.pdb' in data:
             raise SystemExit('Executable contains a debug or personal path')
-    archive = OUTPUT / NAME
-    if archive.exists():
-        raise SystemExit('Package already exists; preserve it and use a new reviewed version')
-    payloads = {name: path.read_bytes() for name, path in members.items()}
-    with zipfile.ZipFile(archive, 'x', compression=zipfile.ZIP_DEFLATED) as package:
-        for name, payload in payloads.items():
-            info = zipfile.ZipInfo(name, date_time=(2026, 10, 1, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_DEFLATED
-            package.writestr(info, payload)
-    with zipfile.ZipFile(archive) as package:
-        if set(package.namelist()) != set(members) or package.testzip() is not None:
-            raise SystemExit('Archive verification failed')
-        for name, payload in payloads.items():
-            if package.read(name) != payload:
-                raise SystemExit('Archive member changed')
-    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-    (OUTPUT / 'SHA256SUMS.txt').write_text(digest + '  ' + NAME + '\n' + hashlib.sha256(binary).hexdigest() + '  JFG-Launcher.exe\n', encoding='ascii')
-    (OUTPUT / 'package-inventory.json').write_text(json.dumps({
-        'package': NAME,
-        'source_commit': revision,
-        'sha256': digest,
-        'members': {name: hashlib.sha256(payload).hexdigest() for name, payload in payloads.items()},
-        'scope': 'Launcher only; no game runtime or ROM-derived inputs',
-    }, indent=2) + '\n', encoding='utf-8')
-    print('Verified launcher-only archive: ' + NAME)
+    write_package(OUTPUT, name, {name: path.read_bytes() for name, path in members.items()}, revision)
     return 0
 
 

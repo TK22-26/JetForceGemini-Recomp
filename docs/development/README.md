@@ -8,6 +8,7 @@ For reporting a problem, use [playtesting](../playtesting.md).
 - [ROM build setup](rom-bootstrap.md) produces the playable Windows runtime.
 - [Development setup](setup.md) builds and tests source without a ROM.
 - [Launcher guide](launcher.md) covers setup, controls, saves, and support reports.
+- [Release workflow](releasing.md) builds and publishes versioned launcher releases.
 - [Contributing](../../CONTRIBUTING.md) describes focused pull requests and validation.
 - [Test quarantine](../tests/quarantine.md) records the Linux runner exception.
 
