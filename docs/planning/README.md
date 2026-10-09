@@ -2,6 +2,7 @@
 
 ## Current work
 
+- [Quarry audio timing and performance findings](quarry-audio-sync-findings.md): confirmed causes, candidate fixes, replay evidence, and remaining limits.
 - [Project roadmap](JFG_RECOMP_MASTER_PLAN.md): compatibility, campaign, enhancements, and release gates.
 - [Campaign slice](phase9-acceptance.md): remaining route and regression coverage.
 - [Automated gameplay exploration](phase9-5-autonomous-exploration.md): scenario and recovery requirements.
