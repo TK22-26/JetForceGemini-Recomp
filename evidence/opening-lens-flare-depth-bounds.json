@@ -1,0 +1,60 @@
+{
+  "complete": true,
+  "cause": "RT64 triangle readback bounds used cached RSP depth-write state, while raw RDP mode commands changed the state used for rasterization.",
+  "correction": "Track triangle depth bounds using active RDP depth-write state.",
+  "matched_frame_count": 181,
+  "changed_frames": 50,
+  "visual_review": {
+    "proceed": true,
+    "planet_occlusion": "Confirmed visually: native candidate hides the false flare while the planet obstructs it and restores the flare as the light clears the edge. EmuHawk/Ares64 shows the same blue-to-yellow reveal behavior.",
+    "ship_screenshot": "See ship_followup for the later dense capture and its limitations.",
+    "scope": "Install and commit the independently demonstrated depth-bounds correction; see ship_followup for the exact ship report. Owner acceptance remains pending.",
+    "documentation": "Across 181 consecutive native presents (1210-1390), 50 frames changed (1217-1266). The candidate suppresses the false flare while the planet blocks the light and restores it at the planet edge. A separate 246-frame EmuHawk/Ares64 reference shows the same reveal behavior; this is an appearance comparison, not pixel-aligned parity. The close ship flyby in the owner's screenshot occurs later than this dense capture window and remains unverified frame by frame. That specific report stays open."
+  },
+  "emulator_captures": 246,
+  "clean_runtime_sha256": "ebeb37a84b10a379d6580ca55ce2336f79d485a20cba74eff7d995ad4157da7e",
+  "private_trace_credit": "Luke Deardoff community branch depth-check diagnostic adapted privately; original depth-tracking correction implemented independently.",
+  "date": "2026-10-09",
+  "upstream_source_sha256": "7dfdf40254d44d92c247d9c876bb8ca55995927ad534981bd48868bb44f1f695",
+  "generated_source_sha256": "7c78d44a7c9cab65c96894a59841498b99fc753f06da8d5b217c51d9152fd4ec",
+  "rom_sha256": "159dde164c475976a3e527fbb20978431d4765f2c63019b3530c3aa8772595aa",
+  "native_present_range": [
+    1210,
+    1390
+  ],
+  "emulator_frame_range": [
+    2200,
+    2445
+  ],
+  "regression_unpatched_failed": true,
+  "regression_patched_passed": true,
+  "renderer_tests_passed": [
+    "jfg.rt64_depth_bounds",
+    "jfg.rt64_f3ddkr_texture",
+    "jfg.rt64_shell"
+  ],
+  "clean_runtime_replay_vi": 3090,
+  "scope": "Opening cinematic depth visibility; appearance reference only, not pixel-aligned emulator parity or a performance benchmark.",
+  "owner_acceptance": "pending",
+  "captures_published": false,
+  "ship_followup": {
+    "native_present_range": [
+      1490,
+      1530
+    ],
+    "matched_frame_count": 41,
+    "changed_frames": 0,
+    "emulator_frame_range": [
+      2640,
+      2710
+    ],
+    "emulator_captures": 71,
+    "visual_review": {
+      "proceed": true,
+      "first_ship_comparison": "Forty-one consecutive native frames of the first, rounded blue Gemini ship are byte-identical before and after the correction. Seventy-one EmuHawk/Ares64 reference frames show the same flare reveal below the ship; representative native 1500-1507 and emulator 2674-2686 agree in appearance.",
+      "reported_ship_screenshot": "The supplied screenshot appears to depict a different, larger flat ship. Its exact moment is not established by this first-ship comparison. Keep that report open; clarification was requested from the owner.",
+      "scope": "Commit and hand off the confirmed planet-occlusion/depth-tracking correction. Do not claim the owner's exact ship screenshot is fixed.",
+      "documentation": "A follow-up captured 41 consecutive frames of the first, rounded blue Gemini\nship (native presents 1490-1530) and 71 EmuHawk/Ares64 reference frames. Those\nnative frames are byte-identical before and after this correction; the\nreference shows the same flare reveal below that ship. The owner's supplied\nscreenshot appears to show a different, larger ship, so its exact moment\nremains unverified. That specific report stays open; the first-ship comparison\nmust not be treated as proof that the supplied screenshot is fixed."
+    }
+  }
+}

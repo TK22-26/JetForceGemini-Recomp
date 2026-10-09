@@ -15,3 +15,7 @@ Dependency attribution remains in [third-party notices](THIRD_PARTY_NOTICES.md).
   [community branch](https://github.com/lukedeardoff/JetForceGemini-Recomp/tree/c8253db8b70c7e2fd166bc9efcd7d101f2d3c819).
   The recovery helper incorporates that output-policy correction with regression
   coverage for external caches, existing files, and checkout boundaries.
+- Shared a lens-flare depth-check diagnostic in his community branch. An
+  adaptation helped identify missing CPU-visible depth data in the opening
+  cinematic; the effective-RDP-state correction was implemented independently.
+  See [depth findings](docs/planning/phase7-renderer-integration.md#opening-lens-flare-occlusion-2026-10-09).

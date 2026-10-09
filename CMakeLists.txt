@@ -269,6 +269,7 @@ if(JFG_ENABLE_RT64)
         "${jfg_rt64_root}/src/render")
 
     include(cmake/rt64_vi_presentation.cmake)
+    include(cmake/rt64_depth_bounds.cmake)
 
     # The pinned Plume D3D12 backend assumes every CopyTextureRegion
     # destination is a texture when configuring programmable sample

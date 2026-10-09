@@ -105,3 +105,50 @@ sequence and reset behavior, not full-campaign renderer equivalence.
 The owner replayed the corrected opening cinematic on 2026-10-08 and confirmed
 that the asteroids look good. This is additional visual acceptance of this
 sequence, not a full-campaign or pixel-exact parity claim.
+
+## Opening lens-flare occlusion (2026-10-09)
+
+The owner compared the opening ship flight with original N64 hardware and
+reported that our flare remained visible through the planet and ship. Full
+CPU framebuffer writeback was already enabled. A depth-buffer trace adapted
+privately from Luke Deardoff's community diagnostic showed that the game was
+mostly receiving cleared far-depth values instead of rendered geometry.
+
+F3DDKR counted display lists can submit raw RDP `EF` mode commands. These
+update the effective RDP mode without updating RT64's cached RSP mode stack.
+`RSP::drawIndexedTri` used that stale stack to decide whether to extend the
+framebuffer's depth-write bounds. Geometry could therefore write depth on the
+GPU while its depth buffer was omitted from the CPU readback. The game's
+original visibility test then treated an obstructed light as unobstructed.
+
+The correction uses the effective RDP depth-write bit, matching the actual
+draw call. A hash-pinned CMake patch generates the corrected translation unit
+without modifying the pinned dependency checkout. It leaves the game's
+visibility routine and framebuffer writeback enabled. No scene-specific
+timing, forced flare suppression, or shadow-softening change is involved.
+
+A real CPU command/triangle regression covers all four combinations of RSP
+and RDP depth-update state. It fails against unmodified RT64 and passes with
+the correction; the F3DDKR texture and renderer-shell regressions also pass.
+Matched native captures and an EmuHawk/Ares64 run check the opening flight.
+
+Across 181 consecutive native presents (1210-1390), 50 frames changed
+(1217-1266). The candidate suppresses the false flare while the planet blocks
+the light and restores it at the planet edge. A separate 246-frame
+EmuHawk/Ares64 reference shows the same reveal behavior; this is an appearance
+comparison, not pixel-aligned parity.
+
+A follow-up captured 41 consecutive frames of the first, rounded blue Gemini
+ship (native presents 1490-1530) and 71 EmuHawk/Ares64 reference frames. Those
+native frames are byte-identical before and after this correction; the
+reference shows the same flare reveal below that ship. The owner's supplied
+screenshot appears to show a different, larger ship, so its exact moment
+remains unverified. That specific report stays open; the first-ship comparison
+must not be treated as proof that the supplied screenshot is fixed.
+
+The clean runtime also completes the same replay through VI 3090. The
+opening-cutscene test launcher points to that runtime and uses a separate
+save. Owner visual acceptance of this lens-flare build is pending. These
+checks do not establish full-campaign or pixel-exact renderer equivalence.
+ROM-derived captures remain private; aggregate evidence is in
+[opening-lens-flare-depth-bounds.json](../../evidence/opening-lens-flare-depth-bounds.json).
