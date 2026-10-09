@@ -25,3 +25,6 @@ target_compile_definitions(JFG-Launcher PRIVATE JFG_RML_UI)
 add_executable(jfg-graphics-policy-tests EXCLUDE_FROM_ALL graphics_policy_tests.cpp)
 target_compile_features(jfg-graphics-policy-tests PRIVATE cxx_std_17)
 target_link_libraries(jfg-graphics-policy-tests PRIVATE dxgi)
+
+add_executable(jfg-game-viewport-tests EXCLUDE_FROM_ALL game_viewport_tests.cpp)
+target_compile_features(jfg-game-viewport-tests PRIVATE cxx_std_17)

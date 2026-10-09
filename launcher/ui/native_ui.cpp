@@ -556,7 +556,7 @@ struct Ui : Rml::EventListener {
     fill("@VERSION@", jfg::frontend::version);
     fill("@BUILD@", jfg::frontend::revision);
     fill("@DATE@", jfg::frontend::built);
-    fill("@ROM@", state.rom.empty() ? "Not selected" : state.playing ? "US \xC2\xB7 verified" : "Selected \xC2\xB7 check on play");
+    fill("@ROM@", state.rom.empty() ? "Not imported" : state.playing ? "US \xC2\xB7 verified" : "Imported on this PC");
     return html;
   }
   void toggleMute() {
@@ -620,7 +620,7 @@ struct Ui : Rml::EventListener {
                  button("stop", "Stop / return home");
         }
         menu += button("setup", "Verify game files...", state.playing) +
-                button("rom", "Change ROM...", state.busy);
+                button("rom", "Select ROM...", state.busy);
         menu += button("shortcut", "Save direct-launch shortcut...", state.busy || state.rom.empty() || state.runtime.empty());
         menu += button("saves", "Open save folder");
         menu += "<div class=\"separator\"/>";
@@ -687,8 +687,8 @@ struct Ui : Rml::EventListener {
           "class=\"about\"><div class=\"label\">ABOUT</div><div "
           "class=\"name\">Display</div><p>Fullscreen fills your display "
           "without changing the game's graphics.</p><p class=\"muted\">F11 "
-          "switches modes. Choose widescreen in the original game's "
-          "options.</p></div></div>";
+          "switches modes. The game stays in a centered 4:3 area; the original "
+          "game controls its own cinematic bars.</p></div></div>";
       html += "<div class=\"row\"><div class=\"grow\">Pause when inactive<div class=\"muted\">Pause when you switch to another app. Resume when you return.</div></div>" +
               button("pause-inactive", state.pauseInactive ? "On" : "Off") + "</div>";
       note = "Changes apply immediately. Settings dialogs always pause the game.";
@@ -770,9 +770,9 @@ struct Ui : Rml::EventListener {
       note = "Click a binding, release controls, then press a button or move a stick. Esc cancels.";
       }
     } else if (page == "setup") {
-      html = "<div class=\"steps\"><span>1 &nbsp; Choose ROM</span><span>2 &nbsp; Verify</span><span>3 &nbsp; Play</span></div>"
+      html = "<div class=\"steps\"><span>1 &nbsp; Import ROM</span><span>2 &nbsp; Verify</span><span>3 &nbsp; Play</span></div>"
              "<div class=\"name\">Ready to play</div>"
-             "<p class=\"muted\">The game is already built. Choose your supported ROM and click Play. Your ROM stays on this PC.</p>";
+             "<p class=\"muted\">The game is already built. Import your supported ROM once, then click Play. The original file is no longer needed after import.</p>";
       html += "<div class=\"setup-log\" id=\"setup-status\"><span>" + escape(u8(state.status)) + "</span></div>";
       html += "<div class=\"panel-actions\">" + button("setup-start", "Verify files", state.busy || state.rom.empty()) + "</div>";
       note = "No development tools or additional downloads are needed.";
@@ -1365,14 +1365,15 @@ void FrontendUiFrame(const FrontendUiState &state) {
   }
   if (state.fullscreen != ui.state.fullscreen)
     ui.doc->SetClass("fullscreen", state.fullscreen);
+  ui.doc->SetClass("rom-imported", !state.rom.empty());
   if (state.rom != ui.state.rom) {
     ui.action("assets");
     fs::path p(state.rom);
-    ui.label("rom-name", state.rom.empty() ? "Choose your game ROM"
+    ui.label("rom-name", state.rom.empty() ? "Import your game ROM"
                                            : u8(p.filename().wstring()));
-    ui.label("rom-folder", state.rom.empty() ? "Required to set up and play."
+    ui.label("rom-folder", state.rom.empty() ? "Import once. Your copy stays on this PC."
                                              : u8(p.parent_path().wstring()));
-    ui.label("rom-badge", state.rom.empty() ? "" : "SELECTED");
+    ui.label("rom-badge", state.rom.empty() ? "" : "IMPORTED");
   }
   if (state.status != ui.state.status) {
     ui.status(u8(state.status));

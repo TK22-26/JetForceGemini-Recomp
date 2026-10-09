@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include "../../launcher/native/graphics_check.hpp"
+#include "../../launcher/native/game_viewport.hpp"
 #ifdef JFG_RML_UI
 #include "native_ui.hpp"
 #endif
@@ -236,9 +237,10 @@ void layout() {
   const int top = app.fullscreen ? 0 : scaled(24);
   MoveWindow(app.viewport, 0, top, std::max<LONG>(1, area.right),
              std::max<LONG>(1, area.bottom - top), TRUE);
-  if (app.render && IsWindow(app.render))
-    MoveWindow(app.render, 0, 0, std::max<LONG>(1, area.right),
-               std::max<LONG>(1, area.bottom - top), TRUE);
+  if (app.render && IsWindow(app.render)) {
+    const auto game = jfg::frontend::game_viewport(area.right, area.bottom - top);
+    MoveWindow(app.render, game.x, game.y, game.width, game.height, TRUE);
+  }
   if (app.shield)
     MoveWindow(app.shield, 0, top, std::max<LONG>(1, area.right),
                std::max<LONG>(1, area.bottom - top), FALSE);
@@ -254,9 +256,10 @@ void layout() {
              std::max<LONG>(1, area.right - scaled(40)), scaled(28), TRUE);
   MoveWindow(app.viewport, 0, 0, std::max<LONG>(1, area.right),
              std::max<LONG>(1, area.bottom - scaled(footer)), TRUE);
-  if (app.render && IsWindow(app.render))
-    MoveWindow(app.render, 0, 0, std::max<LONG>(1, area.right),
-               std::max<LONG>(1, area.bottom - scaled(footer)), TRUE);
+  if (app.render && IsWindow(app.render)) {
+    const auto game = jfg::frontend::game_viewport(area.right, area.bottom - scaled(footer));
+    MoveWindow(app.render, game.x, game.y, game.width, game.height, TRUE);
+  }
   if (app.home.size() >= 10) {
     const int left = 40, width = std::max(250, w - 80);
     auto move = [](HWND control, int x, int y, int width, int height) {
@@ -343,8 +346,15 @@ void pick(bool rom) {
                            : L"Native game build\0jfg-native-boot.exe\0";
   dialog.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
   if (GetOpenFileNameW(&dialog)) {
-    SetWindowTextW(rom ? app.rom : app.runtime, path.data());
-    write(rom ? L"frontend-rom.txt" : L"frontend-runtime.txt", path.data());
+    if (rom) {
+      if (app.session.running()) return;
+      if (write(L"frontend-rom-source.txt", path.data()) &&
+          launch(app.session, L"import-rom", app.window))
+        status(L"Importing your ROM. This only needs to be done once...");
+    } else {
+      SetWindowTextW(app.runtime, path.data());
+      write(L"frontend-runtime.txt", path.data());
+    }
   }
 }
 void capture(bool enabled) {
@@ -386,7 +396,7 @@ void popup() {
     PostMessageW(app.window, WM_COMMAND, command, 0);
 }
 void persist() {
-  write(L"frontend-rom.txt", text(app.rom));
+  // The helper owns the imported ROM path; never overwrite its atomic update.
   write(L"frontend-runtime.txt", text(app.runtime));
   write(L"frontend-mods.txt", app.mods ? L"1" : L"0");
   if (!app.fullscreen)
@@ -666,6 +676,8 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     return 0;
   }
   case WM_CTLCOLORSTATIC: {
+    if (reinterpret_cast<HWND>(lparam) == app.viewport)
+      return reinterpret_cast<LRESULT>(GetStockObject(BLACK_BRUSH));
     HDC dc = reinterpret_cast<HDC>(wparam);
     SetTextColor(dc, RGB(225, 234, 245));
     SetBkColor(dc, RGB(18, 27, 40));
@@ -736,6 +748,8 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     }
 #endif
     std::erase_if(app.tools, [](const auto &tool) { return !tool->running(); });
+    const auto importedRom = read(L"frontend-rom.txt");
+    if (importedRom != text(app.rom)) SetWindowTextW(app.rom, importedRom.c_str());
     const auto messageText = read(L"frontend-status.txt");
     if (!messageText.empty() && messageText != app.lastStatus)
       status(messageText);

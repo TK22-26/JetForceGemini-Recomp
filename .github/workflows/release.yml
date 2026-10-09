@@ -1,4 +1,4 @@
-name: Publish launcher release
+name: Publish playable Windows release
 
 on:
   push:
@@ -39,9 +39,23 @@ jobs:
     needs: prepare
     uses: ./.github/workflows/ci.yml
 
+  launcher:
+    name: Build and test launcher sources
+    needs: prepare
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and test the ROM-free launcher
+        shell: powershell
+        run: ./scripts/build_launcher.ps1 -Test -NativeBuildDirectory C:/jfg-launcher-build
+
   publish:
-    name: Build and publish Windows launcher
-    needs: [prepare, validate]
+    name: Verify and publish prebuilt Windows game
+    needs: [prepare, validate, launcher]
     runs-on: windows-2022
     timeout-minutes: 30
     permissions:
@@ -56,14 +70,13 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.11'
-      - name: Build and test the release launcher
-        shell: powershell
-        run: ./scripts/build_launcher.ps1 -Test
-      - name: Package the launcher with licenses
-        run: python scripts/package_launcher.py
-      - name: Publish the verified assets as a GitHub Release
+      - name: Download the maintainer-built draft bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --dir build/release
+      - name: Verify and publish the playable Windows bundle
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_REF_TYPE: ${{ github.ref_type }}
-        run: python scripts/release_launcher.py publish
+        run: python scripts/release_prebuilt.py publish --output build/release

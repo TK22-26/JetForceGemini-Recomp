@@ -82,12 +82,12 @@ internal static class FrontendBridge
                 {
                 }
                 throw new InvalidDataException(
-                    "The bundled game did not answer the launcher. Extract a fresh copy of the beta ZIP.");
+                    "The bundled game did not answer the launcher. Extract a fresh copy of the release ZIP.");
             }
             if (!Task.WaitAll(new Task[] { stdout, stderr }, timeout) || check.ExitCode != 0 ||
                 stdout.Result.Trim() != "jfg-frontend-1")
                 throw new InvalidDataException(
-                    "The bundled game is incompatible with this launcher. Extract the complete beta ZIP.");
+                    "The bundled game is incompatible with this launcher. Extract the complete release ZIP.");
         }
     }
     internal static string MapDirectory(string profile) {
@@ -226,20 +226,44 @@ internal static class FrontendBridge
             using(var tool=NativeLiveTools.OpenWindow(action,root,owner))await Task.Run(delegate{tool.WaitForExit();});
             return 0;
         }
+        if (action == "import-rom")
+        {
+            State("Importing your ROM. This only needs to be done once...");
+            string imported = await Task.Run(delegate { return ImportedRom.Import(root, Read("frontend-rom-source.txt")); });
+            Write("frontend-rom.txt", imported);
+            var saved = LocalSetup.LoadSettings(root);
+            saved.RomPath = imported;
+            LocalSetup.SaveSettings(root, saved);
+            await Task.Run((Action)PrepareBackground);
+            File.Delete(Path.Combine(root, "frontend-rom-source.txt"));
+            State("ROM imported. Click Play. The original file is no longer needed.");
+            return 0;
+        }
         if (action == "init")
         {
             var settings = LocalSetup.LoadSettings(root);
             if (!File.Exists(Path.Combine(root, "frontend-rom.txt")))
                 Write("frontend-rom.txt", settings.RomPath ?? "");
+            string stored = ImportedRom.FileName(root);
+            string selected = Read("frontend-rom.txt");
+            if (File.Exists(stored) || File.Exists(selected)) {
+                State("Checking your local ROM...");
+                string imported = await Task.Run(delegate { return ImportedRom.Import(root, File.Exists(stored) ? stored : selected); });
+                Write("frontend-rom.txt", imported);
+                settings.RomPath = imported;
+                LocalSetup.SaveSettings(root, settings);
+            }
+            else if (!File.Exists(selected)) Write("frontend-rom.txt", "");
             // Always resolve against this package, including after moving or updating it.
             Write("frontend-runtime.txt", PortablePackage.FromLauncher());
             if (!File.Exists(ControllerProfile.FileName(root)))
                 new ControllerProfile().Save(root);
             await Task.Run((Action)PrepareBackground);
-            State("Ready. Select your ROM and click Play. No build tools are required.");
+            State(File.Exists(Read("frontend-rom.txt")) ? "Ready. Your ROM is imported. Click Play." : "Import your ROM once, then click Play. No build tools are required.");
             return 0;
         }
-        string rom = LocalSetup.FullPath(Read("frontend-rom.txt"));
+        string rom = await Task.Run(delegate { return ImportedRom.Import(root, Read("frontend-rom.txt")); });
+        Write("frontend-rom.txt", rom);
         State("Verifying your ROM...");
         using (var verified = await Task.Run(delegate { return LocalSetup.OpenVerifiedRom(rom); }))
         {
@@ -342,10 +366,10 @@ internal static class FrontendBridge
             if (!Int64.TryParse(args[3], out handle))
                 throw new InvalidDataException("Invalid frontend owner.");
             if (Array.IndexOf(
-                    new[] { "init", "assets", "setup", "play", "direct-play", "shortcut", "controllers", "audio", "support", "map", "inventory", "map-data", "inventory-data", "sessions", "export" },
+                    new[] { "init", "import-rom", "assets", "setup", "play", "direct-play", "shortcut", "controllers", "audio", "support", "map", "inventory", "map-data", "inventory-data", "sessions", "export" },
                     args[1]) < 0)
                 throw new InvalidDataException("Unknown frontend action.");
-            if (args[1] == "play" || args[1] == "direct-play") {
+            if (args[1] == "play" || args[1] == "direct-play" || args[1] == "import-rom" || args[1] == "init") {
                 string key;
                 using (var hash = System.Security.Cryptography.SHA256.Create())
                     key = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(root.ToUpperInvariant()))).Replace("-", "");

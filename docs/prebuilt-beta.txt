@@ -1,3 +1,8 @@
+HISTORICAL BETA NOTES
+
+Superseded by v1.1.0. See CHANGELOG.md, docs/getting-started.md, and
+docs/development/releases.md for the current import and release flow.
+
 JFG PREBUILT INSTALLER BETA
 
 The owner requested the Zelda64Recomp-style flow on 2026-10-09: ship a compiled

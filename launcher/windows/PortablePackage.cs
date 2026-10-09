@@ -31,7 +31,7 @@ namespace JfgLauncher
         }
         private static InvalidDataException Incomplete()
         {
-            return new InvalidDataException("Game files are missing or changed. Extract the complete beta ZIP into a new folder, then open its launcher.");
+            return new InvalidDataException("Game files are missing or changed. Extract the complete release ZIP into a new folder, then open its launcher.");
         }
         internal static string FromLauncher()
         {

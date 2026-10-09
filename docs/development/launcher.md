@@ -1,6 +1,6 @@
 # Windows ROM-to-play launcher
 
-## Unified frontend (v1.0.0)
+## Unified frontend (v1.1.0)
 
 The RmlUi/C++ launcher owns one window for setup, home, and gameplay. Its fonts and UI resources are embedded in the EXE. Stop returns
 to home and flushes the game session; closing a running session waits for it to
@@ -22,7 +22,7 @@ across a complete reconnect/restart; verify assignments in the input display.
 Mappings apply while playing; release held inputs when returning from settings.
 Native HID/DirectInput devices still require an XInput-compatible adapter.
 
-Tools opens Live Map, Live Inventory, saved profiles, and support reports.
+Tools opens Live Map and Live Inventory. Game opens the save folder; Help opens support reports.
 Both live-tool windows use the same RmlUi/Direct3D renderer, embedded fonts,
 and per-monitor DPI handling as the launcher. Live Map has a collapsible
 inspector, cursor-centered wheel zoom, and bottom-right zoom/Fit controls.
@@ -38,24 +38,20 @@ from the selected verified ROM. No game artwork is included in the launcher.
 Autopilot requires a navigation-enabled session; ordinary play exports only
 read-only telemetry.
 
-The new frontend requires a game build with the frontend protocol. An older
-build receives a rebuild message. Setup remains pinned to the launcher source
-revision; local uncommitted development binaries are for testing, not a public
-release. See [the implementation plan](../planning/unified-frontend.md) and
-[RmlUi design handoff](../planning/rmlui-frontend.md). The home screen asks only for the required ROM; Setup
-manages the game build and shows its installation path.
+The released bundle contains the matching native runtime and libraries. The
+launcher verifies its package before playing. Select your ROM once; it is
+verified and imported into `roms/jfg-us.z64` under your game profile. The
+original selection is no longer needed. The home ROM card disappears after
+import, and **Game > Select ROM…** remains available.
 
+The embedded game always receives a centered 4:3 display area. Wide launcher
+windows add black side bars. Cutscene VI changes stay inside that area, so
+their top and bottom bars are preserved instead of filling the host window.
 
+Start with [getting started](../getting-started.md). Developers and maintainers
+can still build from source; see [release packaging](releases.md).
 
-Start with [getting started](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/getting-started.md)
-for downloads, requirements, and known setup issues.
-
-Download and extract the complete Windows x64 release ZIP, then open
-`JFG-Launcher.exe` and select
-your supported North American ROM. The launcher sets up the tools, builds the
-game locally, and remembers the resulting executable for later play.
-
-## Release 1.0.0
+## Historical release 1.0.0
 
 This stable release includes the unified launcher and in-game menus, live map
 and inventory, configurable controller ports, and opt-in experimental mouse
@@ -270,7 +266,7 @@ must be rebuilt to provide enemy markers. Telemetry does not alter game memory.
 
 ## Keyboard, mouse and separate-stick aim
 
-Open **Controllers > Controller mapping…** to open the separate, resizable
+Open **Controllers > Controller mappingâ€¦** to open the separate, resizable
 RmlUi mapping window. Select a player, then **Add device** or **Change device**.
 Choose **Gamepad**, **Mouse and keyboard**, or **Automatic**, and confirm with
 **Add** / **Use device**. Cancel leaves the saved assignment unchanged. **Remove**

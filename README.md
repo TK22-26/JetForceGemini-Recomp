@@ -2,52 +2,39 @@
 
 [![Build status](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml)
 
-A native PC recompilation of Jet Force Gemini, now available as the
-**v1.0 release for Windows x64**. This branch also contains a local review beta
-of a simpler installation flow: extract the prebuilt package, choose your own
-supported North American ROM, and click Play.
+A native PC recompilation of Jet Force Gemini for Windows x64.
+**v1.1.0** includes a prebuilt game: extract the ZIP, import your supported
+North American ROM once, and click **Play**. No developer tools or compilation
+are required.
 
-**Campaign status: fully playable from start to finish**
-through maintainer playtesting.
+**Campaign status: fully playable from start to finish** through maintainer
+playtesting. See the playtesting notes below for the conditions of that run.
 
-[Get started](docs/getting-started.md) Â·
-[Known issues](docs/known-issues.md) Â·
-[Report a problem](docs/playtesting.md) Â·
+[Get started](docs/getting-started.md) · [Changelog](CHANGELOG.md) ·
+[Known issues](docs/known-issues.md) · [Report a problem](docs/playtesting.md) ·
 [Contribute](CONTRIBUTING.md)
 
-## Simplified installation beta
+## Installation
+
+Download **JFG-1.1.0-windows-x64.zip** from the
+[v1.1.0 release](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.1.0),
+extract the entire ZIP, and open `JFG-Launcher.exe`. Use **Select ROM…** to import
+your supported US `.z64` ROM. Once import finishes, the original file can be
+moved or deleted; the launcher uses its private local copy. Existing saves
+stay in your game profile. **Game > Select ROM…** remains available afterward.
 
 The installation approach is inspired by the **Zelda64Recomp team** and
-[Zelda64Recomp's plug-and-play distribution model](https://github.com/Zelda64Recomp/Zelda64Recomp#plug-and-play):
-provide a prebuilt application and read game assets from the player's own ROM.
-Credit to that project for demonstrating this setup experience; this is an
-independent implementation, with no endorsement or affiliation implied.
+[Zelda64Recomp's plug-and-play distribution model](https://github.com/Zelda64Recomp/Zelda64Recomp#plug-and-play).
+Credit to that project for this setup experience; this is an independent
+implementation, with no endorsement or affiliation implied.
 
-**We do not ship game assets or ROMs.** The beta includes the compiled game
+**We do not ship game assets or ROMs.** The release includes the compiled game
 program and runtime libraries. Textures, models, audio, and other game data are
-read locally from your supplied ROM. Your ROM is required to play and is not
-uploaded. Original game content remains the property of its respective owners.
+read from your locally imported ROM, which is never uploaded. Original game
+content remains the property of its respective owners.
 
-For the local `1.0.1-beta.3` review package, extract the entire ZIP, open
-`JFG-Launcher.exe`, choose the supported US `.z64` ROM, and click **Play**.
-Players do not need Git, Python, Visual Studio, WSL, or a first-run build.
-Required Microsoft runtime DLLs are included in the application folder.
-The bundled `START HERE.txt` explains the beta. See [beta build notes](docs/prebuilt-beta.txt).
-This beta has not been published; the existing public v1.0 launcher still uses
-the local build process described below.
-
-## Current release: v1.0
-
-**v1.0 is live.** Get started with the
-[released launcher](https://github.com/TK22-26/JetForceGemini-Recomp/releases).
-
-This release includes graphics/audio timing fixes, corrected particle textures,
-longer input recordings, live volume/mute controls, player-shadow correction,
-sound-player recovery, and optional live map and inventory tools.
-
-The Navigation mod combines supported walking, jumps and NPC interactions;
-it remains experimental and does not establish autonomous campaign completion.
-HD cosmetic variants stay in independently maintained community branches.
+Version 1.1.0 also restores a centered 4:3 game area so cutscene bars remain
+correct inside a wide launcher window. See the [changelog](CHANGELOG.md).
 
 ## What works
 
@@ -103,10 +90,10 @@ Start with the [getting started guide](docs/getting-started.md) for requirements
 downloads, and setup. You need a supported US big-endian `.z64` ROM;
 the project does not provide ROMs or game assets.
 
-The [released launcher](https://github.com/TK22-26/JetForceGemini-Recomp/releases)
-builds its own pinned source revision. The `main` branch can contain newer
-fixes; the guide explains both installation paths. Windows 10 setup has
-[reported issues](docs/known-issues.md#windows-10-setup) that are still open.
+The [released bundle](https://github.com/TK22-26/JetForceGemini-Recomp/releases)
+is ready to play after ROM import. Developers can still build from source;
+the guide explains both paths. Older v1.0 setup issues are documented in
+[known issues](docs/known-issues.md#windows-10-setup).
 
 ## Help by playtesting
 

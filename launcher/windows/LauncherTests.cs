@@ -364,6 +364,20 @@ namespace JfgLauncher
                 Reject(delegate { LocalSetup.ValidateRom(new MemoryStream(fixture), fixture.Length, new string('0', 40)); }, "wrong hash accepted");
                 fixture[0] = 0x37;
                 Reject(delegate { LocalSetup.ValidateRom(new MemoryStream(fixture), fixture.Length, hash); }, "wrong byte order accepted");
+                string importProfile = Path.Combine(directory, "import-profile");
+                string importSource = Path.Combine(directory, "import-source.z64");
+                File.WriteAllBytes(importSource, Fixture());
+                string imported = ImportedRom.ImportVerified(importProfile, importSource, Fixture().Length, hash);
+                File.Delete(importSource);
+                Check(File.Exists(imported), "import still depended on the original file");
+                Check(ImportedRom.ImportVerified(importProfile, imported, Fixture().Length, hash) == imported, "relaunch lost imported ROM");
+                File.WriteAllBytes(importSource, new byte[12]);
+                Reject(delegate { ImportedRom.ImportVerified(importProfile, importSource, Fixture().Length, hash); }, "invalid import accepted");
+                using (var importedCheck = File.OpenRead(imported))
+                    Check(LocalSetup.Digest(importedCheck) == hash, "failed import damaged existing ROM");
+                Check(Directory.GetFiles(Path.GetDirectoryName(imported), "*.tmp").Length == 0, "failed import left temporary data");
+                File.WriteAllBytes(importSource, Fixture());
+                Reject(delegate { ImportedRom.Import(importProfile, importSource); }, "production import accepted a synthetic ROM");
                 string wrongRom = Path.Combine(directory, "synthetic.z64");
                 File.WriteAllBytes(wrongRom, Fixture());
                 Reject(delegate { using (LocalSetup.OpenVerifiedRom(wrongRom)) { } }, "production validation accepted synthetic ROM");

@@ -28,9 +28,18 @@ def runtime_manifest(runtime: Path, version: str, vc_runtime: Path | None = None
     return {'schema':1,'version':version,'files':entries}
 
 def package(launcher: Path, runtime: Path, output: Path, version: str, vc_runtime: Path | None = None) -> Path:
-    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+',version):
-        raise ValueError('Use an explicit beta version')
+    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-beta\.[0-9]+)?',version):
+        raise ValueError('Use an explicit release or beta version')
     if output.exists(): raise ValueError('Preserve existing package output; select a new destination')
+    if '-beta.' not in version:
+        build=json.loads((launcher.parent/'launcher-build.json').read_text(encoding='utf-8-sig'))
+        source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+        if build['source_commit'] != source or build['executable_sha256'] != digest(launcher):
+            raise ValueError('Launcher build identity differs from the release source')
+        if subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True).strip():
+            raise ValueError('Stable releases require a clean source checkout')
+        if any(digest(ROOT/name) != value for name,value in build['inputs'].items()):
+            raise ValueError('Launcher source inputs changed after building')
     manifest=runtime_manifest(runtime,version,vc_runtime)
     receipt=runtime/'jfg-native-boot.exe.support'
     if not receipt.is_file(): raise ValueError('Runtime build identity is required')
@@ -43,7 +52,7 @@ def package(launcher: Path, runtime: Path, output: Path, version: str, vc_runtim
     files.update({'JFG-Launcher.exe':launcher,'jfg-native-boot.exe.support':receipt,
                   'LICENSE':ROOT/'LICENSE','RUNTIME-NOTICES.md':ROOT/'THIRD_PARTY_NOTICES.md',
                   'THIRD-PARTY.txt':ROOT/'launcher/ui/THIRD-PARTY.txt',
-                  'dependencies.lock.json':ROOT/'dependencies.lock.json'})
+                  'dependencies.lock.json':ROOT/'dependencies.lock.json', 'CHANGELOG.md':ROOT/'CHANGELOG.md'})
     for folder in ('licenses','fonts'):
         for item in (ROOT/'launcher/ui'/folder).glob('*.txt'):files['licenses/'+item.name]=item
     for relative in ('fonts/manifest.json','licenses/provenance.json'):
@@ -59,22 +68,23 @@ def package(launcher: Path, runtime: Path, output: Path, version: str, vc_runtim
         shutil.copyfile(path,destination)
     (output/'jfg-package.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     (output/'START HERE.txt').write_text(
-        'JFG '+version+' - prebuilt Windows beta\n\n'
+        'JFG '+version+' - Windows x64\n\n'
         '1. Extract the complete ZIP to a writable folder.\n'
         '2. Open JFG-Launcher.exe.\n'
-        '3. Choose your supported North American .z64 ROM, then click Play.\n\n'
+        '3. Use Select ROM to import your supported North American .z64 ROM once.\n'
+        '4. Click Play. The original ROM file can be moved or deleted after import.\n\n'
         'No Git, Python, Visual Studio or WSL installation is required.\n'
         'Required Microsoft runtime libraries are included beside the game.\n'
-        'Your ROM remains on your PC and is required when playing. No ROM or\n'
+        'Your imported ROM stays in your local profile and supplies game data. No ROM or\n'
         'game asset files are supplied. Game > Verify game files checks this package.\n'
         'Installation idea: credit to the Zelda64Recomp team and its plug-and-play\n'
         'model: https://github.com/Zelda64Recomp/Zelda64Recomp#plug-and-play\n'
         'This is an independent implementation. We do not ship game assets or ROMs.\n\n'
         'Playing requires a compatible hardware graphics device. Software-only\n'
         'virtual machines can verify installation, but cannot run the game.\n'
-        'Keep all files together when moving or updating this beta.\n'
+        'Keep all files together when moving or updating the application.\n'
         'Saves remain in your existing JFG profile.\n\n'
-        'This is an owner review beta, not a published release. It includes the\n'
+        'This package includes the\n'
         'compiled game program. Original project and third-party license scopes\n'
         'remain separate; see LICENSE and RUNTIME-NOTICES.md.\n',encoding='utf-8')
     members=sorted(p for p in output.rglob('*') if p.is_file())
@@ -86,10 +96,10 @@ def package(launcher: Path, runtime: Path, output: Path, version: str, vc_runtim
         assert z.testzip() is None
         assert set(z.namelist())=={p.relative_to(output).as_posix() for p in members}
         assert not any(Path(name).suffix.lower() in ('.z64','.n64','.v64','.pdb','.flash','.pak') for name in z.namelist())
-    evidence={'version':version,'archive':str(archive),'sha256':digest(archive),'bytes':archive.stat().st_size,
+    evidence={'version':version,'archive':archive.name,'sha256':digest(archive),'bytes':archive.stat().st_size,
               'launcher_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
               'runtime_source':identity.get('build_source'),'members':{p.relative_to(output).as_posix():digest(p) for p in members},
-              'scope':'Prebuilt game and host components; no ROM or asset files; local owner review'}
+              'scope':'Prebuilt game and host components; no ROM, extracted assets, saves, or debug symbols'}
     archive.with_suffix('.inventory.json').write_text(json.dumps(evidence,indent=2)+'\n')
     archive.with_suffix('.sha256').write_text(evidence['sha256']+'  '+archive.name+'\n')
     return archive
@@ -100,6 +110,6 @@ if __name__=='__main__':
     parser.add_argument('--runtime',required=True,type=Path)
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--vc-runtime',required=True,type=Path,help='x64 Microsoft.VC143.CRT from the maintainer Visual Studio redist directory')
-    parser.add_argument('--version',default='1.0.1-beta.3')
+    parser.add_argument('--version',default='1.1.0')
     args=parser.parse_args()
     print(package(args.launcher.resolve(),args.runtime.resolve(),args.output.resolve(),args.version,args.vc_runtime.resolve()))
