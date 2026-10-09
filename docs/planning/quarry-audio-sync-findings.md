@@ -10,7 +10,7 @@ integration into the unified frontend source remain open.
 
 ## Current checkout and replay
 
-The current checkout is `C:/Users/tjkos/Desktop/JetForceGemini-Recomp`.
+Use the current `JetForceGemini-Recomp` checkout.
 Run `Play Quarry Cutscene.cmd` in its root. It automatically advances through
 the menus into the Quarry entry cutscene, using fresh copies of a separate seed
 save. It never opens the owner's normal campaign profile. Controls are replayed,

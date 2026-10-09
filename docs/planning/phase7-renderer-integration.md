@@ -204,7 +204,8 @@ against the previous implementation, plus 192 scalar-fallback checks. Public
 regressions cover mixed CPU/GPU bytes, vector/block boundaries, reused storage
 and atomic rejection of a late conflict. The clean tested runtime is prepared
 for the current normal launcher and `Test Opening Cutscene.cmd`, which uses a
-separate fresh save. Owner acceptance of this performance update is pending.
+separate fresh save. The owner replayed it and confirmed that it looks good
+on 2026-10-09.
 
 The aggregate evidence, exact hashes, thresholds and capture limitations are in
 [opening-cutscene-audio-continuity.json](../../evidence/opening-cutscene-audio-continuity.json).

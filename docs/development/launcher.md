@@ -1,6 +1,6 @@
 # Windows ROM-to-play launcher
 
-## Unified frontend (next release)
+## Unified frontend (v1.0.0)
 
 The RmlUi/C++ launcher owns one window for setup, home, and gameplay. Its fonts and UI resources are embedded in the EXE. Stop returns
 to home and flushes the game session; closing a running session waits for it to
@@ -42,8 +42,7 @@ The new frontend requires a game build with the frontend protocol. An older
 build receives a rebuild message. Setup remains pinned to the launcher source
 revision; local uncommitted development binaries are for testing, not a public
 release. See [the implementation plan](../planning/unified-frontend.md) and
-[RmlUi design handoff](../planning/rmlui-frontend.md). PR #10 stays draft for
-maintainer UI approval. The home screen asks only for the required ROM; Setup
+[RmlUi design handoff](../planning/rmlui-frontend.md). The home screen asks only for the required ROM; Setup
 manages the game build and shows its installation path.
 
 
@@ -51,25 +50,26 @@ manages the game build and shows its installation path.
 Start with [getting started](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/getting-started.md)
 for downloads, requirements, and known setup issues.
 
-Download `JFG-Launcher.exe` from the public release on Windows x64 and select
+Download and extract the complete Windows x64 release ZIP, then open
+`JFG-Launcher.exe` and select
 your supported North American ROM. The launcher sets up the tools, builds the
 game locally, and remembers the resulting executable for later play.
 
-## Preview 0.4.0-preview.4
+## Release 1.0.0
 
-This preview fixes graphics completion timing during the Vela unlock scene
-and avoids pausing audio while valid samples remain queued. It also refreshes
-CPU texture memory after framebuffer reuse, fixing the recorded rectangular
-water splash. Input recordings now support longer playtests.
+This stable release includes the unified launcher and in-game menus, live map
+and inventory, configurable controller ports, and opt-in experimental mouse
+look and dual-stick controls. Native fixes cover opening asteroid textures,
+lens-flare occlusion, cutscene audio continuity, particle textures and saving.
 
-Rebuild an existing game with **Set up and build** to use native fixes from
-this source revision; keep your existing save profile. See the [release notes](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/releases/0.4.0-preview.4.md)
-for validation and remaining limits.
+Rebuild an existing game with **Set up and build** to receive native fixes from
+this launcher's pinned revision; keep your existing save profile. See the
+[v1.0.0 release notes](../releases/1.0.0.md) for verification and remaining limits.
 
-The optional **Navigation mod** enables the live map and character inventory,
-with one movement executor for supported walking, jump chains, chests, NPC
-rewards and exits. Leave it disabled for normal play. Automation remains
-experimental; see [its validation and limits](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/development/navigation-mod.md).
+Map and inventory tracking are available during ordinary play. The optional
+Navigation mod adds supported walking, jump chains, chests, NPC rewards and
+exit actions. Automation remains experimental; see
+[its validation and limits](navigation-mod.md).
 
 ## First setup
 

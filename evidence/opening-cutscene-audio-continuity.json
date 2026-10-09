@@ -1,7 +1,7 @@
 {
   "date": "2026-10-09",
   "complete": true,
-  "scope": "Opening cutscene audio continuity and host presentation pacing on the tested Windows machine; owner recheck pending.",
+  "scope": "Opening cutscene audio continuity and host presentation pacing on the tested Windows machine; owner replay accepted on 2026-10-09.",
   "cause": "Sustained host CPU work caused VI pacing to discard accumulated lateness while the Windows audio device continued consuming samples, draining the queue into underrun/refill.",
   "trigger": "Normal launcher live exports exposed the overhead; disabled-export diagnostic passed but live exports remain enabled in all clean candidate qualification runs.",
   "correction": [
@@ -278,5 +278,6 @@
     "real1080/qualification.json": "3ec2017f246c350f5a5d9e9f7a11b68441da86053f6218d5657bd312806edf92",
     "real1080/analysis.json": "b3e560543d6dd885898988f97b36fcfd82f1f7b908aaa803f265ee0b178b5a54"
   },
-  "rom_derived_captures_published": false
+  "rom_derived_captures_published": false,
+  "owner_acceptance": "Owner replayed the opening and reported: looks good to me."
 }

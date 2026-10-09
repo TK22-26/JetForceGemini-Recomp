@@ -113,8 +113,9 @@ jobs:
           -DJFG_RT64_ROOT=tools/upstream/rt64
       - name: Build and run the renderer shell tests
         run: |
-          cmake --build --preset windows-msvc --target jfg_rt64_shell_tests
-          ctest --preset windows-msvc -R "^jfg\.rt64_shell$" --output-on-failure
+          cmake --build --preset windows-msvc --target jfg_rt64_shell_tests jfg_rt64_f3ddkr_texture_tests jfg_rt64_depth_bounds_tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --preset windows-msvc -R "^jfg\.rt64_(shell|f3ddkr_texture|depth_bounds)$" --output-on-failure
 
   sanitize:
     name: Sanitizers (Linux)

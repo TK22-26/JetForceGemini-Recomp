@@ -38,15 +38,23 @@ when reporting. See [getting started](getting-started.md) for both paths and
 
 ## Controller coverage
 
-The preview supports keyboard input and Xbox/XInput controllers. Other
+The v1.0.0 release supports keyboard input and configurable Xbox/XInput controllers. Other
 controller types need an XInput-compatible driver or adapter. Native
 DirectInput/HID mapping and rumble configuration are not implemented.
+
+Experimental mouse look and dual-stick controls are opt-in and currently
+limited to single-player gameplay. Camera obstruction, pointer-driven guest
+menus, other device backends and broader gameplay coverage remain follow-up
+work. See [PC controls status](planning/pc-controls-status.md).
 
 ## Gameplay coverage
 
 Maintainer-reported progress is tracked in the [README](../README.md#campaign-playtest-progress).
-Full campaign completion and original-console accuracy remain unverified. Report a specific
-failure with the location and reproduction steps using the
+The maintainer has completed the campaign using optional infinite-health and
+enemy auto-kill testing mods and a save with all Tribals unlocked. Saving and
+loading are also verified. This establishes campaign progression coverage;
+original-console accuracy and broader unassisted play coverage remain under
+validation. Report a specific failure with its location and reproduction steps using the
 [playtesting guide](playtesting.md).
 
 ## Player shadow darkness
