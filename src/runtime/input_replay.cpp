@@ -30,8 +30,9 @@ template <typename Value>
 [[nodiscard]] bool parse_record(
     const std::string_view line,
     const bool has_connection,
+    const bool has_pc,
     InputReplayEvent& output) noexcept {
-    std::array<std::string_view, 6U> fields{};
+    std::array<std::string_view, 9U> fields{};
     std::size_t field = 0U;
     std::size_t start = 0U;
     for (std::size_t index = 0U; index <= line.size(); ++index) {
@@ -44,7 +45,7 @@ template <typename Value>
         fields[field++] = line.substr(start, index - start);
         start = index + 1U;
     }
-    const std::size_t expected_fields = has_connection ? 6U : 5U;
+    const std::size_t expected_fields = has_pc ? 9U : has_connection ? 6U : 5U;
     if (field != expected_fields) {
         return false;
     }
@@ -67,6 +68,16 @@ template <typename Value>
         (connected == 0U && (buttons != 0U || stick_x != 0 || stick_y != 0))) {
         return false;
     }
+    unsigned mode=0;int look_x=0,look_y=0;
+    if(has_pc && (!parse_integer(fields[6],mode) || mode>4 ||
+       !parse_integer(fields[7],look_x) || !parse_integer(fields[8],look_y) ||
+       look_x < -32768 || look_x>32767 || look_y < -32768 || look_y>32767 ||
+       ((mode==0 || !connected) && (look_x || look_y || mode)) ||
+       (mode!=3 && (look_x < -127 || look_x>127 || look_y < -127 || look_y>127))))
+      return false;
+    output.sample.pc_mode=static_cast<std::uint8_t>(mode);
+    output.sample.look_x=static_cast<std::int16_t>(look_x);
+    output.sample.look_y=static_cast<std::int16_t>(look_y);
     output.sample.connected = connected != 0U;
     output.sample.buttons = static_cast<std::uint16_t>(buttons);
     output.sample.stick_x = static_cast<std::int8_t>(stick_x);
@@ -78,7 +89,8 @@ template <typename Value>
 
 InputReplayError DeterministicInputReplay::load(
     const std::filesystem::path& path,
-    DeterministicInputReplay& output) {
+    DeterministicInputReplay& output,
+    const InputReplayOrder order) {
     std::error_code size_error;
     const std::uintmax_t size = std::filesystem::file_size(path, size_error);
     if (size_error) {
@@ -98,7 +110,8 @@ InputReplayError DeterministicInputReplay::load(
     if (!line.empty() && line.back() == '\r') {
         line.pop_back();
     }
-    const bool has_connection = line == kInputReplayHeader;
+    const bool has_pc = line == kInputReplayHeaderV3;
+    const bool has_connection = has_pc || line == kInputReplayHeader;
     if (!has_connection && line != kInputReplayHeaderV1) {
         return InputReplayError::invalid_header;
     }
@@ -111,12 +124,16 @@ InputReplayError DeterministicInputReplay::load(
             return InputReplayError::invalid_record;
         }
         InputReplayEvent event;
-        if (!parse_record(line, has_connection, event)) {
+        if (!parse_record(line, has_connection, has_pc, event)) {
             return InputReplayError::invalid_record;
         }
-        if (!parsed.empty() &&
-            event.first_retrace < parsed.back().end_retrace) {
-            return InputReplayError::invalid_order;
+        if (!parsed.empty() && event.first_retrace < parsed.back().end_retrace) {
+            const auto& previous = parsed.back();
+            const bool repeated_poll = order == InputReplayOrder::recorded_poll &&
+                event.first_retrace == previous.first_retrace &&
+                event.end_retrace == previous.end_retrace &&
+                event.end_retrace - event.first_retrace == 1U;
+            if (!repeated_poll) return InputReplayError::invalid_order;
         }
         parsed.push_back(event);
     }

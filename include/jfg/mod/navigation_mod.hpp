@@ -128,6 +128,30 @@ struct Actor {
   std::uint16_t behavior{};
   Vec3 position{};
 };
+// Read-only classification of normal squad members. Scenery, unsupported
+// behaviors and incomplete objects remain unknown; tribals are never hostile.
+struct EnemyState {
+  bool known = false, hostile = false;
+  std::int16_t health = 0;
+};
+inline EnemyState enemy_state(const Memory &m, const Actor &actor) noexcept {
+  try {
+    if (actor.behavior != 24U || !m.valid(actor.address, 0x6CU)) return {};
+    const auto control = m.u32(actor.address + 0x68U);
+    const auto properties = m.u32(actor.address + 0x4CU);
+    if (!m.valid(control, 0x28U) || !m.valid(properties, 8U)) return {};
+    const auto squad = m.u32(control + 0x24U);
+    if (!m.valid(squad, 0x6CU) || m.u16(squad + 0x48U) != 23U) return {};
+    const auto data = m.u32(squad + 0x68U);
+    if (!m.valid(data, 0x2EU)) return {};
+    return {true, !tribal(m.u16(data + 0x2CU)), m.s16(properties + 6U)};
+  } catch (const std::runtime_error &) { return {}; }
+}
+inline void write_enemy_state(std::ostream &out, const EnemyState &state) {
+  out << ",\"hostile_known\":" << (state.known ? "true" : "false")
+      << ",\"hostile\":" << (state.hostile ? "true" : "false")
+      << ",\"health\":" << state.health;
+}
 struct Exit {
   std::uint32_t address{};
   Vec3 position{}, normal{};
@@ -480,6 +504,15 @@ inline const char *weapon_name(unsigned index) {
   constexpr std::array<const char *, 15> names = {"Pistol", "Homing missiles", "Machine gun", "Plasma shotgun", "Shocker", "Tri-rocket launcher", "Flamethrower", "Sniper rifle", "Grenades", "Shurikens", "Fish Food", "Timed mines", "Remote mines", "Flares", "Cluster bombs"};
   return index < names.size() ? names[index] : "Unknown weapon";
 }
+// Chest reward codes differ from the saved-inventory item bit indices.
+// Confirmed by the original pickup messages during the owner's live playtest.
+inline int chest_inventory_item(int content_code) noexcept {
+  switch (content_code) {
+  case 7: return 16; // Specialist magazine.
+  case 18: return 9; // Blue key.
+  default: return -1;
+  }
+}
 inline std::vector<ItemMarker> item_markers(const Memory &m,
                                             const std::vector<Actor> &list) {
   std::vector<ItemMarker> result;
@@ -495,7 +528,7 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
         item.opened = m.u8(control + 4U) == 5U;
         // Chest reward switch, including duplicate entries, verified against
         // the supported ROM's jump table. -1 denotes a special collectable
-        // whose player-facing name has not yet been verified.
+        // decoded separately from weapon reward indices.
         constexpr std::array<int, 21> weapons = {3,  1,  2,  2,  9,  8,  -1,
                                                  -1, 14, 13, 14, 12, 11, 10,
                                                  7,  6,  4,  -1, -1, -1, 5};
@@ -505,10 +538,14 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
                 : -1;
         item.kind = item.opened ? "opened" : weapon >= 0 ? "weapon" : "chest";
         item.label = "Chest: ";
-        item.label += weapon >= 0
-                          ? weapon_name(static_cast<unsigned>(weapon))
-                          : "item " + std::to_string(item.content_code) +
-                                " (unidentified)";
+        const int inventory_item = chest_inventory_item(item.content_code);
+        if (weapon >= 0)
+          item.label += weapon_name(static_cast<unsigned>(weapon));
+        else if (inventory_item >= 0)
+          item.label += npc_item_name(inventory_item);
+        else
+          item.label += "item " + std::to_string(item.content_code) +
+                        " (unidentified)";
         if (item.opened)
           item.label += " (opened)";
       } else if (a.behavior == 109U) {
@@ -848,8 +885,12 @@ interactions(const Memory &m, const std::vector<Actor> &list,
       node.status = item.opened ? "opened" : "unopened";
       if (node.reward_weapon >= 0)
         node.reward = weapon_name(static_cast<unsigned>(node.reward_weapon));
-      else
-        node.reward = "Unknown special collectable";
+      else {
+        node.reward_item = chest_inventory_item(item.content_code);
+        node.reward = node.reward_item >= 0
+                          ? npc_item_name(node.reward_item)
+                          : "Unknown special collectable";
+      }
     } else if (item.kind == "weapon") {
       node.reward_weapon = item.content_code;
       node.status = "present";
@@ -1206,6 +1247,71 @@ public:
   DialogueInput dialogue_input;
   DialogueState dialogue;
   bool enabled = false;
+  bool telemetry_enabled = false;
+  bool observing() const noexcept { return enabled || telemetry_enabled; }
+  // Called only at the known player-update boundary. Never writes guest memory.
+  bool observe_player(const Memory &m, std::uint32_t actor) noexcept {
+    if (!observing()) return false;
+    try {
+      if (!gameplay_active(m, actor) || !m.valid(actor, 0xA4U)) return false;
+      const auto control = m.u32(actor + 0x68U), properties = m.u32(actor + 0x4CU);
+      if (!m.valid(control, 0x5CAU) || !m.valid(properties, 8U) ||
+          (m.u8(control + 1U) & 3U) > 2U) return false;
+      player = actor;
+      return true;
+    } catch (const std::runtime_error &) { return false; }
+  }
+  // Explicit map settings override the legacy all-in-one debug defaults.
+  bool mods_configured = false, warp_exits = false, infinite_health = false,
+       instant_kill = false;
+  std::uint64_t warp_nonce = 0;
+  bool health_enabled() const noexcept { return mods_configured ? infinite_health : enabled; }
+  bool kill_enabled() const noexcept { return mods_configured ? instant_kill : enabled; }
+  bool configure_mods(std::istream &in) {
+    std::string magic, extra; int warp{}, health{}, kill{};
+    if (!(in >> magic >> warp >> health >> kill) || magic != "JFGMODS1" ||
+        (warp != 0 && warp != 1) || (health != 0 && health != 1) ||
+        (kill != 0 && kill != 1) || (in >> extra)) return false;
+    warp_exits = warp != 0; infinite_health = health != 0; instant_kill = kill != 0;
+    mods_configured = true;
+    return true;
+  }
+  bool warp_to_exit(std::istream &in, Memory &m, const std::vector<Actor> &list,
+                    std::int64_t now) {
+    std::string magic, extra;
+    std::uint32_t level{}, address{}; std::uint64_t gen{}, nonce{};
+    std::int64_t stamp{};
+    if (!(in >> magic >> level >> gen >> nonce >> stamp >> address) ||
+        magic != "JFGWARP1" || (in >> extra) || nonce <= warp_nonce) return false;
+    // Consume even rejected requests: an old double-click must never fire later.
+    warp_nonce = nonce;
+    if (!observing() || !warp_exits || stamp < 0 || stamp > now || now-stamp > 5000 ||
+        gen != generation || player == 0U) return false;
+    try {
+      if (level != m.u32(0x800FB114U) || !gameplay_active(m, player) ||
+          scripted_camera_active(m, player)) return false;
+      bool present = false;
+      for (const auto &actor : list) if (actor.address == player) present = true;
+      if (!present) return false;
+      for (const auto &exit : exits(m, list)) {
+        if (exit.address != address) continue;
+        const auto p = exit.position;
+        if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z) ||
+            std::abs(p.x)>1000000 || std::abs(p.y)>1000000 || std::abs(p.z)>1000000)
+          return false;
+        m.require(player, 0x18U);
+        pilot.stop("exit_warp");
+        const std::array<float,3> xyz{p.x,p.y,p.z};
+        for (unsigned i=0; i<3; ++i) {
+          const auto bits=std::bit_cast<std::uint32_t>(xyz[i]);
+          m.put16(player+12U+i*4U, static_cast<std::uint16_t>(bits>>16U));
+          m.put16(player+14U+i*4U, static_cast<std::uint16_t>(bits));
+        }
+        return true;
+      }
+    } catch (const std::runtime_error &) { ++invalid; }
+    return false;
+  }
   bool juno_double_run = false;
   std::uint64_t juno_run_boosts = 0;
   std::uint32_t player = 0, last_track = 0, last_level = UINT32_MAX;
@@ -1244,7 +1350,7 @@ public:
     }
   }
   bool full_health(Memory &m, std::uint32_t actor) noexcept {
-    if (!enabled)
+    if (!observing() || !health_enabled())
       return false;
     try {
       if (!gameplay_active(m, actor) || !m.valid(actor, 0xA4U))
@@ -1276,7 +1382,7 @@ public:
     }
   }
   bool clear_enemy(Memory &m, std::uint32_t actor) noexcept {
-    if (!enabled || player == 0U || actor == player)
+    if (!observing() || !kill_enabled() || player == 0U || actor == player)
       return false;
     try {
       if (!gameplay_active(m, player) || !m.valid(actor, 0xA4U))
@@ -1325,8 +1431,14 @@ public:
         << ",\"transition_confirm\":" << (transition_confirmation(m) ? "true" : "false")
         << ",\"mesh_ready\":" << (mesh_ready ? "true" : "false")
         << ",\"scripted_camera\":" << (scripted_camera_active(m,player) ? "true" : "false")
+        << ",\"mods_available\":true"
+        << ",\"mod_warp_exits\":" << (warp_exits ? "true" : "false")
+        << ",\"mod_infinite_health\":" << (health_enabled() ? "true" : "false")
+        << ",\"mod_instant_kill\":" << (kill_enabled() ? "true" : "false")
+        << ",\"navigation_enabled\":" << (enabled ? "true" : "false")
+        << ",\"gameplay_active\":" << (player != 0U && gameplay_active(m, player) ? "true" : "false")
         << ",\"clearing_active\":"
-        << (player != 0U && gameplay_active(m, player) ? "true" : "false")
+        << (enabled && player != 0U && gameplay_active(m, player) ? "true" : "false")
         << ",\"first_clear_level\":" << first_clear_level
         << ",\"first_clear_update\":" << first_clear_update
         << ",\"enemies_cleared\":" << cleared
@@ -1402,8 +1514,9 @@ public:
         out << ',';
       first = false;
       out << "{\"address\":" << a.address << ",\"name\":\"" << actor_name(m, a.address)
-          << "\",\"behavior\":" << a.behavior
-          << ",\"position\":";
+          << "\",\"behavior\":" << a.behavior;
+      write_enemy_state(out, enemy_state(m, a));
+      out << ",\"position\":";
       json_vec(out, a.position);
       out << '}';
     }

@@ -783,6 +783,11 @@ void dma_offsets(RT64::State* state, RT64::DisplayList** dl) {
     ++context->commands;
     context->matrix_offset = (*dl)->w0 & 0x00FF'FFFFU;
     context->vertex_offset = (*dl)->w1 & 0x00FF'FFFFU;
+    // The original BF handler clears the texture-offset enable byte (DMEM
+    // 0x1E7). A new model's DMA bases must not retain the prior texture table.
+    context->texture_offset = 0U;
+    context->texture_shift = 0U;
+    context->texture_count = 0U;
 }
 
 void run_display_list(RT64::State* state, RT64::DisplayList** dl) {

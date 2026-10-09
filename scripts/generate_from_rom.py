@@ -104,7 +104,7 @@ def generate_audio(workspace: Path, decomp: Path, rsp: Path, run, rom: bytes, ca
     (audio / "brokered-jfg-audio-probe.cpp").write_text(
         '#include "brokered-rsp.hpp"\n#include "jfg-audio-probe.cpp"\n')
     manifest_files = ("normalized/sources.json", "libultra.json", "audio/production-audio-adapter.cpp",
-                      "audio/brokered-rsp.hpp", "audio/brokered-jfg-audio-probe.cpp", "audio/jfg-audio-probe.cpp")
+                      "audio/brokered-rsp.hpp", "audio/brokered-jfg-audio-probe.cpp", "audio/jfg-audio-probe.cpp", "normalized/jfg_original_timing.h", "normalized/original-timing.json", "normalized/jfg_original_timing_fast.h", "normalized/funcs.h")
     (workspace / "generation.json").write_text(json.dumps({"complete": True,
         "rom_sha1": hashlib.sha1(rom).hexdigest(),
         "files": {name: hashlib.sha256((workspace / name).read_bytes()).hexdigest() for name in manifest_files},
@@ -197,11 +197,15 @@ def main() -> int:
         "--rom", str(args.rom), "--elf", str(elf), "--readelf", shutil.which("readelf"),
         "--layout", str(workspace / "layout.json"), "--context", str(context / "dump.toml"),
         "--data-context", str(context / "data_dump.toml"), "--output-dir", str(transform)])
+    import original_timing_generation as original_timing
+    timing_sites = original_timing.configure(transform)
     run("generate-cpu", [str(cpu), "recompile-private.toml"], transform)
+    paired_transfers = original_timing.prepare_raw(transform / "generated")
     run("normalize", [sys.executable, str(ROOT / "scripts/build_private_generated_root.py"),
         "--raw-generated", str(transform / "generated"), "--symbols", str(transform / "symbols-private.toml"),
         "--original-context", str(context / "dump.toml"), "--runtime-manifest", str(transform / "runtime-link-private.json"),
         "--recomp-header", str(recomp / "include/recomp.h"), "--output", str(workspace / "normalized")])
+    original_timing.finish(workspace / "normalized", timing_sites, paired_transfers)
     run("identify-sdk", [sys.executable, str(ROOT / "scripts/identify_libultra.py"),
         "--decomp-symbols", str(decomp / "ver/symbols/symbol_addrs.us.txt"),
         "--generated-symbols", str(transform / "symbols-private.toml"), "--private-out", str(workspace / "libultra.json")])

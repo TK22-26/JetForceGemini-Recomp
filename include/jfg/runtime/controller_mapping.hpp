@@ -58,7 +58,7 @@ inline bool parse_controller_mapping(std::string_view text, ControllerMapping& r
         }
     }
     for (const bool found : seen) if (!found) return false;
-    if (candidate.device < -1 || candidate.device > 3 || candidate.stick < 0 || candidate.stick > 1 || candidate.deadzone < 0 || candidate.deadzone > 30000 ||
+    if (candidate.device < -3 || candidate.device > 3 || candidate.stick < 0 || candidate.stick > 1 || candidate.deadzone < 0 || candidate.deadzone > 30000 ||
         candidate.threshold < 1000 || candidate.threshold > 32000 || candidate.trigger < 1000 || candidate.trigger > 32000 ||
         candidate.invert_x < 0 || candidate.invert_x > 1 || candidate.invert_y < 0 || candidate.invert_y > 1) return false;
     for (const int binding : candidate.bindings) if (binding < -1 || binding > 26) return false;

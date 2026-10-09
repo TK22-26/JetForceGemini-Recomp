@@ -13,6 +13,32 @@ from pathlib import Path, PurePosixPath
 
 MAX_TRACKED_BYTES = 1_048_576
 MAX_HISTORY_SCAN_BYTES = 2_097_152
+# Exact reviewed OFL font bodies only. No suffix-based binary exemption.
+# Provenance and license texts: launcher/ui/fonts/manifest.json and *-OFL.txt.
+APPROVED_UI_FONT_SHA256 = frozenset({
+    "95aa02c7c43096e0dd44d787ba6216864a67157e402adab59b35572e0c1577ea",
+    "86577cb32f8abe3673db53ca0f4221e6856751a4f6730c867e00f720f8bb1fc5",
+    "65fbf76d95651697275e19db4d717c0e95a789ddd3476478b05292104db278a0",
+})
+# Exact reviewed custom map screenshot and project icon; never all PNG/ICO files.
+# The owner approved publishing the custom map screenshot. Inventory art is
+# extracted locally and is not part of this allowlist.
+APPROVED_UI_IMAGE_SHA256 = frozenset({
+    "c1396dc5a1db5756fdf5ae956f836b40496e4881f1e4507752cfa55c4bbaec9d",
+    "e984be1b6a23919e2d73f2d5b0c38f3b52f9999521da824717f094e9389f8163",
+})
+# These are documented inventory bit identifiers, not embedded image bytes.
+INVENTORY_IDS_DECLARATION = re.compile(
+    r"\b(?:int ids\[\]|int\[\] itemIds)\s*=\s*\{"
+    + r"\s*,\s*".join(map(str, (0, 1, 2, 3, 9, 16, 17, *range(20, 28))))
+    + r"\s*\};"
+)
+# Preserve the exact historical Quarry findings body after removing its local
+# checkout path from the current document. Only historical path reporting is
+# exempted; credential, generated-data and other checks still apply.
+HISTORICAL_CHECKOUT_PATH_SHA256 = frozenset({
+    "e9941c31172d9a99e1b56419186b47698939d89e5372f5808610a400a1c9a455",
+})
 ALLOWED_GIT_IDENTITY_NAME = "TK22-26"
 ALLOWED_GIT_IDENTITY_EMAIL = "254768757+TK22-26@users.noreply.github.com"
 # Keep the original public snapshot valid without rewriting its history.
@@ -20,6 +46,19 @@ ALLOWED_GIT_IDENTITIES = frozenset({
     (ALLOWED_GIT_IDENTITY_NAME, ALLOWED_GIT_IDENTITY_EMAIL),
     ("JFG Recomp Maintainer", "jfg-recomp-local@users.noreply.github.com"),
 })
+# Contributors retain their own chosen identities. Reserve the maintainer
+# pairs above so this does not relax the owner's personal-email policy.
+CONTRIBUTOR_EMAIL_PATTERN = re.compile(r"[^@\s<>]+@[^@\s<>]+")
+
+
+def approved_git_identity(name: str, email: str) -> bool:
+    if (name, email) in ALLOWED_GIT_IDENTITIES:
+        return True
+    if any(name.casefold() == known_name.casefold() or email.casefold() == known_email.casefold()
+           for known_name, known_email in ALLOWED_GIT_IDENTITIES):
+        return False
+    return CONTRIBUTOR_EMAIL_PATTERN.fullmatch(email) is not None
+
 
 FORBIDDEN_PREFIXES = (
     "roms/",
@@ -282,6 +321,9 @@ def scan_blob(data: bytes, label: str, *, enforce_size: bool = True) -> list[str
     if any(marker in data for marker in PRIVATE_CORPUS_MARKERS):
         errors.append(f"{label}: contains a private-corpus body marker")
 
+    if hashlib.sha256(data).hexdigest() in APPROVED_UI_FONT_SHA256 | APPROVED_UI_IMAGE_SHA256:
+        return errors
+
     if b"\0" in data:
         errors.append(f"{label}: binary content is not allowlisted")
         return errors
@@ -294,7 +336,10 @@ def scan_blob(data: bytes, label: str, *, enforce_size: bool = True) -> list[str
     for marker in SAFE_LOCAL_PATH_MARKERS:
         local_path_text = local_path_text.replace(marker.decode("ascii"), "")
     for pattern in LOCAL_PATH_PATTERNS:
-        if pattern.search(local_path_text):
+        if pattern.search(local_path_text) and not (
+            label.startswith("git-blob:")
+            and hashlib.sha256(data).hexdigest() in HISTORICAL_CHECKOUT_PATH_SHA256
+        ):
             errors.append(f"{label}: contains a user-specific local path")
     for pattern in GENERATED_TEXT_PATTERNS:
         if pattern.search(text):
@@ -307,7 +352,7 @@ def scan_blob(data: bytes, label: str, *, enforce_size: bool = True) -> list[str
         errors.append(f"{label}: contains repeated opaque payload chunks")
     if REPEATED_IDENTICAL_OPAQUE_TOKEN_PATTERN.search(text):
         errors.append(f"{label}: contains repeated identical opaque payload chunks")
-    if SPACED_HEX_PAYLOAD_PATTERN.search(text):
+    if SPACED_HEX_PAYLOAD_PATTERN.search(INVENTORY_IDS_DECLARATION.sub("", text)):
         errors.append(f"{label}: contains a spaced hexadecimal payload")
     try:
         json_value = json.loads(text)
@@ -376,7 +421,7 @@ def scan_path(root: Path, path: Path) -> list[str]:
 
 
 def scan_git_metadata(data: bytes, label: str, *, object_type: str) -> list[str]:
-    """Scan reachable commit/tag content and require an approved no-reply identity and UTC."""
+    """Preserve contributor identities; enforce maintainer privacy and UTC policy."""
     errors = scan_blob(data, label, enforce_size=False)
     text = data.decode("utf-8", errors="replace")
     expected_roles = {"author", "committer"} if object_type == "commit" else {"tagger"}
@@ -392,7 +437,7 @@ def scan_git_metadata(data: bytes, label: str, *, object_type: str) -> list[str]
         and sum(1 for line in header.splitlines() if line.startswith("parent ")) >= 2
     )
 
-    for line in text.splitlines():
+    for line in header.splitlines():
         if not line.startswith(("author ", "committer ", "tagger ")):
             continue
         match = GIT_IDENTITY_PATTERN.fullmatch(line)
@@ -403,11 +448,11 @@ def scan_git_metadata(data: bytes, label: str, *, object_type: str) -> list[str]
         observed_roles.add(role)
         if is_merge_commit:
             continue
-        if (name, email) not in ALLOWED_GIT_IDENTITIES:
+        if not approved_git_identity(name, email):
             errors.append(
-                f"{label}: {role} must use an approved repository no-reply identity"
+                f"{label}: {role} must use a valid contributor identity or an approved maintainer no-reply identity"
             )
-        if offset != "+0000":
+        if (name, email) in ALLOWED_GIT_IDENTITIES and offset != "+0000":
             errors.append(f"{label}: {role} timestamp must use UTC (+0000)")
 
     missing_roles = expected_roles - observed_roles

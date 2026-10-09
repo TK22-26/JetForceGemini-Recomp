@@ -44,6 +44,21 @@ correctness fix today.
 Preserve existing user files and saves. Do not change golden baselines to hide
 a failure or mix generated game output with handwritten source.
 
+## Authorship and credit
+
+Use your own name and chosen email when committing; do not use the maintainer's
+identity. A GitHub noreply address is recommended if you want to keep your email
+private. Both `username@users.noreply.github.com` and GitHub's
+`numeric-id+username@users.noreply.github.com` format are accepted.
+Contributors may keep their original commit timezones. The maintainer's exact
+noreply identity and UTC timestamps remain required by [AGENTS.md](AGENTS.md).
+Existing host-generated merge history retains its documented exception.
+
+Preserve original authorship when carrying contributor commits forward, and
+credit reports and investigations even when the final implementation differs.
+See [community credits](CREDITS.md). Credit does not require rewriting history
+or attributing independently written code to someone who did not write it.
+
 ## Keep submissions focused
 
 Submit original contributions under the [MIT License](LICENSE) and preserve

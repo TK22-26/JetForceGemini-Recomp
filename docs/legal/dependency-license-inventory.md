@@ -1,7 +1,10 @@
 # Dependency inventory
 
-Exact repositories, revisions, recursive submodule pins, and tool records are
-in [dependencies.lock.json](../../dependencies.lock.json). Python validation
+Core repositories, revisions, recursive submodule pins, and tool records are
+in [dependencies.lock.json](../../dependencies.lock.json). Launcher UI dependency
+pins are in [its CMake file](../../launcher/ui/CMakeLists.txt); their notice
+sources and hashes are in [notice provenance](../../launcher/ui/licenses/provenance.json).
+Python validation
 packages are pinned in [requirements-dev.lock.txt](../../requirements-dev.lock.txt).
 The inspected license facts below apply to those pins; this is not a complete
 transitive package bill of materials.
@@ -21,6 +24,46 @@ Other research-only entries remain recorded in the lockfile and
 [reference catalog](../upstream/reference-catalog.json). They are not a list
 of bundled runtime components. Preserve existing copyright, permission, and
 disclaimer text in source and notice files.
+
+## Launcher release dependencies
+
+The standalone Windows launcher statically links RmlUi 6.3 at
+`ba95ffe8bfb6370efb2cdcca927eaad4710c5413` and FreeType 2.14.1 at
+`526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b`. Its Win32/DX11 build uses RmlUi's
+default robin_hood/itlib containers. The aggregate RmlUi target also links the
+Debugger library; its font notice is retained even if unused assets are removed.
+
+| Component | Scope and retained notice |
+|---|---|
+| RmlUi | [MIT](../../launcher/ui/licenses/RmlUi-MIT.txt) |
+| robin_hood and itlib | RmlUi Core containers; [MIT notices](../../launcher/ui/licenses/RmlUi-Containers-MIT.txt) |
+| Courier Prime Code and Italic | RmlUi Debugger assets; [OFL notice](../../launcher/ui/licenses/RmlUi-Debugger-OFL.txt) |
+| FreeType | [FTL](../../launcher/ui/licenses/FreeType-FTL.txt), selected instead of the alternate GPL license |
+| FreeType components | BDF/PCF, The Open Group, hashing, internal zlib and HarfBuzz-derived source; [exact notices](../../launcher/ui/licenses/FreeType-ThirdParty.txt) |
+| Barlow and Chakra Petch | Embedded font files; [source/hash manifest](../../launcher/ui/fonts/manifest.json), [Barlow OFL](../../launcher/ui/fonts/Barlow-OFL.txt), [Chakra Petch OFL](../../launcher/ui/fonts/ChakraPetch-OFL.txt) |
+
+External Zlib, BZip2, PNG, HarfBuzz and Brotli integrations are disabled in the
+launcher's FreeType configuration. Disabling external Zlib does not remove
+FreeType's internal gzip implementation. HarfBuzz-derived source notices are
+retained although external HarfBuzz integration is disabled. Optional RmlUi
+Lua, SVG, Lottie and other renderer backends are not enabled.
+
+[THIRD-PARTY.txt](../../launcher/ui/THIRD-PARTY.txt) indexes the release's
+`licenses/` directory. Packaging includes all retained notice texts, the font
+manifest and notice provenance; it rejects absent referenced notice paths.
+This describes the launcher package, not a redistribution of the locally built
+game or every system/toolchain component. Existing toolchain review limitations
+below still apply.
+
+## Original runtime timing model
+
+The locally built game uses instruction/cache costs and cartridge DMA duration
+from the pinned ares model vendored by BizHawk revision
+`bdddf4a58aa1a022afb11dc73294a81a5aa7bbd5`. The public handwritten adapters
+retain the ISC copyright/permission notice, with the full upstream notice in
+[`patches/ares/LICENSE.upstream`](../../patches/ares/LICENSE.upstream).
+No emulator executable is included in the launcher ZIP. Timing hooks and game
+instructions are generated locally from the user's ROM.
 
 ## Build and validation tools
 

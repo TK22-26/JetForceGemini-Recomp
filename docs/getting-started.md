@@ -1,6 +1,6 @@
 # Getting started
 
-Build and play the Windows x64 preview using your own supported North American
+Build and play the Windows x64 v1.0.0 release using your own supported North American
 Jet Force Gemini ROM. Start with the launcher for graphical setup, or use the
 source build instructions when you want the latest changes on `main`.
 
@@ -19,13 +19,14 @@ before starting.
 
 ## Use the launcher
 
-1. Download `JFG-Launcher.exe` from [v0.4.0-preview.4](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v0.4.0-preview.4),
-   the preview described by this guide.
-2. Open it and select your ROM.
+1. Download `JFG-Launcher-1.0.0-windows-x64.zip` from
+   [v1.0.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.0.0)
+   and extract the complete ZIP, including its license files.
+2. Open the extracted `JFG-Launcher.exe` and select your ROM.
 3. Click **Set up and build**. Review the setup information and approve the
    required Windows installers. If Windows requires a restart, reopen the
    launcher afterward and continue setup.
-4. Once the build completes, click **Launch game**. Future launches reuse it.
+4. Once the build completes, click **Play**. Future launches reuse it.
 
 The launcher downloads a specific source revision recorded in its release.
 Installing an older launcher does not include later `main` fixes. See the

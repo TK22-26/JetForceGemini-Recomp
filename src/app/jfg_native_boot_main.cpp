@@ -267,6 +267,7 @@ bool utf8_from_wide(const wchar_t *input, std::string &output) {
 }
 
 int wmain(int argc, wchar_t **argv) {
+  if(argc==2 && std::wcscmp(argv[1],L"--frontend-version")==0){std::puts("jfg-frontend-1");return 0;}
   const wchar_t *rom = nullptr;
   const wchar_t *config = nullptr;
   const wchar_t *save = nullptr;

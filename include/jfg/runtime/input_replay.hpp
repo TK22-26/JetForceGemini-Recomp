@@ -7,6 +7,7 @@
 
 namespace jfg {
 
+inline constexpr char kInputReplayHeaderV3[] = "jfg-phase8-input-v3";
 inline constexpr char kInputReplayHeaderV1[] = "jfg-phase8-input-v1";
 inline constexpr char kInputReplayHeader[] = "jfg-phase8-input-v2";
 // Manual play recordings sample input throughout long routes. The byte-size
@@ -21,10 +22,14 @@ struct ControllerReplaySample {
     std::int8_t stick_x = 0;
     std::int8_t stick_y = 0;
 
+    // 0: stock, 1/2: legacy mouse/stick aim, 3/4: modern mouse/stick look.
+    std::uint8_t pc_mode = 0;
+    std::int16_t look_x = 0, look_y = 0;
+
     bool operator==(const ControllerReplaySample&) const = default;
 
     [[nodiscard]] bool neutral() const noexcept {
-        return connected && buttons == 0U && stick_x == 0 && stick_y == 0;
+        return connected && buttons == 0U && stick_x == 0 && stick_y == 0 && pc_mode == 0 && look_x == 0 && look_y == 0;
     }
 };
 
@@ -45,11 +50,15 @@ enum class InputReplayError {
     invalid_order,
 };
 
+// Poll recordings may contain distinct samples taken during the same retrace.
+enum class InputReplayOrder { retrace, recorded_poll };
+
 class DeterministicInputReplay final {
 public:
     [[nodiscard]] static InputReplayError load(
         const std::filesystem::path& path,
-        DeterministicInputReplay& output);
+        DeterministicInputReplay& output,
+        InputReplayOrder order = InputReplayOrder::retrace);
 
     [[nodiscard]] ControllerReplaySample sample_at(
         std::uint64_t retrace) const noexcept;

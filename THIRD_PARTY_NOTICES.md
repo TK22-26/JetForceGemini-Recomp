@@ -6,9 +6,16 @@ game content, generated ROM-derived output, or third-party code. Distribution of
 a combined work must also satisfy every applicable dependency license, including
 GPL requirements where GPL-covered components are used.
 
-No third-party source tree or binary is vendored in this repository. External
-repositories are cloned locally under the ignored `tools/` directory at commits
-recorded in `dependencies.lock.json`.
+Third-party font files are vendored under `launcher/ui/fonts`, with their
+SIL Open Font License notices and source/hash manifest. The launcher statically
+links RmlUi and FreeType, fetched at the revisions in `launcher/ui/CMakeLists.txt`.
+Their retained notices are indexed in [launcher notices](launcher/ui/THIRD-PARTY.txt)
+and [notice provenance](launcher/ui/licenses/provenance.json).
+
+Other external repositories are cloned locally under the ignored `tools/`
+directory at commits recorded in `dependencies.lock.json`. These local build
+and research dependencies are distinct from the components bundled in the
+launcher release archive.
 
 The tracked N64Recomp patch series necessarily contains limited context from
 the MIT-licensed upstream source. Its required copyright and permission notice
@@ -38,11 +45,29 @@ to the upstream algorithm; the project license does not override upstream rights
 | N64Recomp | MIT; local build tool; tracked patch context carries `patches/n64recomp/LICENSE.upstream` |
 | LLVM/Clang | Apache-2.0 WITH LLVM-exception; ignored local compiler toolchain |
 | OpenSSH `ssh-keygen` | BSD-style/component-specific notices; OS-provided signature tool only |
-| N64ModernRuntime | GPL-3.0; runtime candidate |
+| N64ModernRuntime | GPL-3.0-only; evaluated runtime reference, not the project's native bridge |
 | RT64 | MIT; renderer |
 | Plume | MIT; embedded compatibility patch context carries `patches/plume/LICENSE.upstream` |
 | CIC-NUS-6105 algorithm | X-Scale (2011), permissive two-condition notice retained in source and `patches/cic/LICENSE.upstream` |
 | Jet Force Gemini decompilation | No root license found; consulted facts-only for libultra identification (see attribution below) |
+
+## Launcher dependencies
+
+| Component | Retained notice |
+|---|---|
+| RmlUi 6.3 | [MIT](launcher/ui/licenses/RmlUi-MIT.txt) |
+| RmlUi's robin_hood and itlib containers | [MIT notices](launcher/ui/licenses/RmlUi-Containers-MIT.txt) |
+| RmlUi Debugger's Courier Prime Code fonts | [OFL notice](launcher/ui/licenses/RmlUi-Debugger-OFL.txt); retained for the aggregate target, including assets that the linker may omit |
+| FreeType 2.14.1 | [FreeType License](launcher/ui/licenses/FreeType-FTL.txt) and [component notices](launcher/ui/licenses/FreeType-ThirdParty.txt), including BDF/PCF, The Open Group, hashing, zlib and HarfBuzz-derived source |
+| Barlow | [SIL OFL 1.1](launcher/ui/fonts/Barlow-OFL.txt) |
+| Chakra Petch | [SIL OFL 1.1](launcher/ui/fonts/ChakraPetch-OFL.txt) |
+
+The launcher package includes these complete notices under `licenses/`, along
+with font and notice provenance manifests. The package builder checks that
+every license path referenced by `THIRD-PARTY.txt` exists in the archive inputs.
+The launcher uses Win32/DX11; optional RmlUi backends and external FreeType
+compression/shaping libraries are not enabled by this build configuration.
+FreeType's internal zlib and HarfBuzz-derived source notices are still retained.
 
 ## Attribution: Jet Force Gemini decompilation (facts-only consultation)
 
@@ -62,3 +87,13 @@ does not affect the underlying game copyright.
 
 Pinned dependency records and build-tool inventory are in the
 [dependency inventory](docs/legal/dependency-license-inventory.md).
+
+## Original device timing
+
+The instruction/cache timing model in `include/jfg/boot/original_timing_cache.h`
+and `include/jfg/boot/original_timing_fast.h`, and the cartridge DMA duration
+formula in `include/jfg/boot/original_timing_pi_dma.hpp`, are adapted from ares, as vendored in BizHawk revision
+`bdddf4a58aa1a022afb11dc73294a81a5aa7bbd5`,
+`waterbox/ares64/ares/ares/n64/cpu/` and `n64/pi/dma.cpp`. The copyright and ISC permission
+notice are retained in the source, and the complete upstream notice is in
+`patches/ares/LICENSE.upstream`.

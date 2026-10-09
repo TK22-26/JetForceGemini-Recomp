@@ -338,7 +338,7 @@ class RepositoryHygieneTests(unittest.TestCase):
             any("git-history:vendor/dependency" in e for e in historical_errors)
         )
 
-    def test_unapproved_commit_identity_is_rejected(self) -> None:
+    def test_maintainer_private_email_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             subprocess.run(["git", "init", "--quiet"], cwd=root, check=True)
@@ -347,12 +347,12 @@ class RepositoryHygieneTests(unittest.TestCase):
             commit_fixture(
                 root,
                 "synthetic identity fixture",
-                GIT_AUTHOR_NAME="Synthetic Contributor",
-                GIT_AUTHOR_EMAIL="contributor@example.invalid",
+                GIT_AUTHOR_NAME=hygiene.ALLOWED_GIT_IDENTITY_NAME,
+                GIT_AUTHOR_EMAIL="private@example.invalid",
             )
             errors = check_repository(root, history=True)
 
-        self.assertTrue(any("approved repository no-reply identity" in e for e in errors))
+        self.assertTrue(any("maintainer no-reply identity" in e for e in errors))
 
     def test_owner_and_legacy_metadata_preserve_exact_identity_pairs(self) -> None:
         identities = (
@@ -370,6 +370,58 @@ class RepositoryHygieneTests(unittest.TestCase):
                     ) + "\n\nSynthetic metadata\n").encode()
                     errors = hygiene.scan_git_metadata(data, "fixture", object_type=kind)
                     self.assertEqual(not errors, accepted, errors)
+
+    def test_contributor_noreply_names_and_timezones_are_preserved(self) -> None:
+        for name, email in (("Luke Deardoff", "lukedeardoff@users.noreply.github.com"),
+                            ("lukedeardoff", "12345+lukedeardoff@users.noreply.github.com"),
+                            ("Other Contributor", "another-user@users.noreply.github.com"),
+                            ("Other Contributor", "contributor@example.invalid")):
+            for kind, roles in (("commit", ("author", "committer")), ("tag", ("tagger",))):
+                with self.subTest(name=name, email=email, kind=kind):
+                    data = ("\n".join(f"{role} {name} <{email}> 1704067200 -0500" for role in roles)
+                            + "\n\nContributor fixture\n").encode()
+                    self.assertEqual(hygiene.scan_git_metadata(data, "fixture", object_type=kind), [])
+
+    def test_contributor_history_passes_without_reauthoring(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "--quiet"], cwd=root, check=True)
+            (root / "README.md").write_text("synthetic\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
+            commit_fixture(root, "Contributor's own work", GIT_AUTHOR_NAME="Luke Deardoff",
+                GIT_AUTHOR_EMAIL="lukedeardoff@users.noreply.github.com",
+                GIT_COMMITTER_NAME="Luke Deardoff", GIT_COMMITTER_EMAIL="lukedeardoff@users.noreply.github.com",
+                GIT_AUTHOR_DATE="1704067200 -0500", GIT_COMMITTER_DATE="1704067200 -0500")
+            self.assertEqual(check_repository(root, history=True), [])
+            identity = hygiene.run_git(root, ["log", "-1", "--format=%an <%ae>"])
+            self.assertEqual(identity.strip(), "Luke Deardoff <lukedeardoff@users.noreply.github.com>")
+
+    def test_contributor_identity_does_not_relax_owner_or_email_policy(self) -> None:
+        for name, email in (("TK22-26", "other@users.noreply.github.com"),
+                            ("tk22-26", "private@example.invalid"),
+                            ("Someone Else", hygiene.ALLOWED_GIT_IDENTITY_EMAIL),
+                            ("Someone Else", "user@@example.invalid"),
+                            ("Someone Else", "user name@example.invalid")):
+            with self.subTest(name=name, email=email):
+                data = (f"author {name} <{email}> 1704067200 +0000\n"
+                        f"committer {name} <{email}> 1704067200 +0000\n\nFixture\n").encode()
+                errors = hygiene.scan_git_metadata(data, "fixture", object_type="commit")
+                self.assertTrue(any("no-reply identity" in error for error in errors), errors)
+
+    def test_contributor_author_does_not_relax_maintainer_committer_utc(self) -> None:
+        data = ("author Luke Deardoff <lukedeardoff@users.noreply.github.com> 1704067200 -0500\n"
+                f"committer {hygiene.ALLOWED_GIT_IDENTITY_NAME} <{hygiene.ALLOWED_GIT_IDENTITY_EMAIL}> 1704067200 -0500\n\nFixture\n").encode()
+        self.assertEqual(hygiene.scan_git_metadata(data, "fixture", object_type="commit"),
+                         ["fixture: committer timestamp must use UTC (+0000)"])
+
+    def test_identity_looking_message_text_is_not_metadata(self) -> None:
+        header = (f"author {hygiene.ALLOWED_GIT_IDENTITY_NAME} <{hygiene.ALLOWED_GIT_IDENTITY_EMAIL}> 1704067200 +0000\n"
+                  f"committer {hygiene.ALLOWED_GIT_IDENTITY_NAME} <{hygiene.ALLOWED_GIT_IDENTITY_EMAIL}> 1704067200 +0000\n")
+        data = (header + "\nExplain an example:\nauthor example text\n").encode()
+        self.assertEqual(hygiene.scan_git_metadata(data, "fixture", object_type="commit"), [])
+        errors = hygiene.scan_git_metadata(("\n\n" + header).encode(), "fixture", object_type="commit")
+        self.assertTrue(any("missing author" in error for error in errors), errors)
+        self.assertTrue(any("missing committer" in error for error in errors), errors)
 
     def test_commit_message_with_local_profile_path_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

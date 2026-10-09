@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "kind": "jfg-opening-asteroid-texture-reset",
+  "date": "2026-10-08",
+  "fix_commit": "500b2a2f788960ab275275b0fae16ac32fb7ea71",
+  "renderer_source_sha256": "c50387672da5478d0a78b057550f3b770e28f785ac3a37f1588793516a53d0f4",
+  "cause": "BF DMA base changes did not disable the previous model texture-offset table.",
+  "correction": "Clear texture_offset, texture_shift, and texture_count in the BF handler, matching the original RSP microcode enable-byte reset.",
+  "matched_replay": {
+    "vi_retraces": 3150,
+    "graphics_tasks_each": 1569,
+    "baseline_image_requests_past_previous_table": 781,
+    "baseline_nonzero_image_shifts_past_previous_table": 115,
+    "baseline_load_blocks_retaining_nonzero_stale_shifts": 48,
+    "corrected_image_requests_past_previous_table": 0,
+    "note": "Some bad image shifts are subsequently undone by the existing LoadBlock heuristic; image-shift counts are not counts of visibly corrupted frames."
+  },
+  "consecutive_frame_comparison": {
+    "width": 640,
+    "height": 480,
+    "frame_count": 129,
+    "changed_frames": 28,
+    "maximum_changed_pixels": 402,
+    "representative_present": 1481,
+    "representative_changed_bounds": [
+      209,
+      237,
+      239,
+      255
+    ],
+    "visual_observation": "Small passing asteroid changes from colored texture noise to a gray rock surface. Other pixels in the representative pair are identical."
+  },
+  "original_game_reference": {
+    "emulator": "BizHawk 2.11.1 / Ares64",
+    "emulator_sha256": "f8cdb93551a544f680bf3876d9d8d72643859e7a44a23b04e1a25b92e48f80cd",
+    "sampled_frames": 53,
+    "visual_observation": "Original game shows rock-textured asteroids in the corresponding opening sequence.",
+    "comparison_limit": "Appearance check, not pixel-aligned full-scene parity."
+  },
+  "regression": {
+    "tests": [
+      "jfg.rt64_shell",
+      "jfg.rt64_f3ddkr_texture"
+    ],
+    "passed": 2,
+    "behavior": "Real installed command handlers clear used and unused tables at BF and allow later explicit table rearming."
+  },
+  "scope_limits": [
+    "New-game opening cinematic and command-level reset semantics; not full-campaign renderer equivalence.",
+    "Early VI 2430 and selected VI 2940 stills were identical despite the intermittent corruption; the later consecutive frame capture was necessary.",
+    "The first sequence harness expected 131 frames but the retrace limit yielded 129. The failed expectation is retained; the successful comparison uses the identical 129 frame indices in both variants."
+  ],
+  "private_evidence_directory": "tools/private/contributor-pr9-texture-review-20261008",
+  "private_evidence_sha256": {
+    "semantics/evidence.json": "d0fefc30815330d9f47b023e31a748d31fa9bb576ed8e66cabce50e245e19617",
+    "asteroidtrace/summary.json": "d6cc01b14101a0d60f62d49770552027b6e65ae4c8664665ab5f92816f2145c9",
+    "asteroidpair/summary.json": "6758eb34647f5ccb5a00af377ce7339aad34c416f6b77fe19897832da3228347",
+    "asteroidframesfix/summary.json": "c35a85848d96dd4425c7797cec04e810b0e9e195d588884776e79322731d83fd",
+    "asteroidemu/summary.json": "5f2bb49d52bca3ba7233547ab01450c0f3477046d68f02ee123fadf6349a6296",
+    "cmakecheck/test.stdout": "61641b042ddc08304df2d9abaca39cc5610bbbbb97b40e096a3af1e361a30c04"
+  },
+  "contains_game_assets": false,
+  "contribution_credit": {
+    "name": "Luke Deardoff",
+    "github": "lukedeardoff",
+    "reference": "https://github.com/TK22-26/JetForceGemini-Recomp/pull/9",
+    "contribution": "Reported corruption and traced stale texture-offset addresses; final microcode-based reset implemented independently."
+  },
+  "owner_visual_review": {
+    "date": "2026-10-08",
+    "result": "Owner replayed the corrected opening cinematic and confirmed that the asteroids look good.",
+    "scope": "Opening asteroid appearance; not full-campaign or pixel-exact parity."
+  }
+}

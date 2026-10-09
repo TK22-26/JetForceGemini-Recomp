@@ -123,6 +123,61 @@ int main() {
     require(previous[4U] == std::byte{0x77});
     require(converted[5U] == std::byte{0xA5});
     require(previous[5U] == std::byte{0x00});
+    // Exercise every vector lane and both sides of 4 KiB comparison blocks.
+    // Unchanged CPU bytes must preserve independent GPU results, even beside
+    // changed bytes in the same vector. The scalar fallback has the same contract.
+    {
+        const std::size_t bytes = jfg::kRt64RequiredRdramBytes;
+        std::vector<std::byte> cpu(bytes, std::byte{0x22});
+        std::vector<std::byte> old_cpu = cpu;
+        std::vector<std::byte> gpu(bytes, std::byte{0x91});
+        const std::array<std::size_t, 9> starts = {
+            0U, 1U, 15U, 16U, 17U, 4095U, 4096U, 4097U, bytes - 64U};
+        for (const auto base : starts)
+            for (std::size_t lane = 0; lane < 64U; ++lane)
+                if (lane % 3U != 0U) cpu[base + lane] = std::byte{0xFE};
+        require(jfg::merge_rt64_rdram_snapshot(cpu, gpu, old_cpu,
+            jfg::Rt64MemoryLayout::host_word_swapped) == jfg::Rt64ShellError::none);
+        require(old_cpu == cpu);
+        for (std::size_t i = 0; i < bytes; ++i)
+            require(gpu[i] == (cpu[i] == std::byte{0x22} ? std::byte{0x91} : cpu[i]));
+
+        // Reused framebuffer storage is refreshed from the CPU even when the
+        // CPU image equals its previous snapshot. Check unaligned ownership
+        // edges, whole unchanged blocks, and changed blocks in the same import.
+        const std::array<jfg::Rt64RdramRange, 2> owned = {
+            {{17U, 8193U}, {0x10003U, 0x18009U}}};
+        const auto gpu_before = gpu;
+        require(jfg::refresh_rt64_cpu_memory(cpu, gpu, owned,
+            jfg::Rt64MemoryLayout::host_word_swapped) == jfg::Rt64ShellError::none);
+        for (std::size_t i = 0; i < bytes; ++i) {
+            const bool device_owned = (i >= 17U && i < 8193U) ||
+                (i >= 0x10003U && i < 0x18009U);
+            require(gpu[i ^ 3U] == (device_owned ? gpu_before[i ^ 3U] : cpu[i ^ 3U]));
+        }
+        const auto refreshed = gpu;
+        require(jfg::refresh_rt64_cpu_memory(cpu, gpu, owned,
+            jfg::Rt64MemoryLayout::host_word_swapped) == jfg::Rt64ShellError::none);
+        require(gpu == refreshed);
+
+        // A conflict in the final range must leave every destination byte unchanged.
+        auto live_cpu = cpu;
+        auto prior_cpu = cpu;
+        live_cpu[(owned.back().end - 1U) ^ 3U] ^= std::byte{1};
+        const auto conflicting = live_cpu;
+        require(jfg::commit_rt64_rdram_ranges(cpu, gpu_before, live_cpu,
+            owned, prior_cpu) == jfg::Rt64ShellError::conflicting_cpu_write);
+        require(live_cpu == conflicting && prior_cpu == cpu);
+        live_cpu = cpu;
+        require(jfg::commit_rt64_rdram_ranges(cpu, gpu_before, live_cpu,
+            owned, prior_cpu) == jfg::Rt64ShellError::none);
+        for (std::size_t i = 0; i < bytes; ++i) {
+            const bool device_owned = (i >= 17U && i < 8193U) ||
+                (i >= 0x10003U && i < 0x18009U);
+            const auto expected = device_owned ? gpu_before[i ^ 3U] : cpu[i ^ 3U];
+            require(live_cpu[i ^ 3U] == expected && prior_cpu[i ^ 3U] == expected);
+        }
+    }
     // Completed GPU ownership includes same-value writes; a CPU change in
     // any owned byte rejects the entire commit, never a partial snapshot.
     std::vector<std::byte> submitted(jfg::kRt64RequiredRdramBytes);

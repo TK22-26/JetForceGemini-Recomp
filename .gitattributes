@@ -6,3 +6,7 @@
 *.vcxproj.filters text eol=crlf
 *.png binary
 *.ico binary
+
+*.ttf binary
+# Preserve the upstream OFL license bytes, including original whitespace.
+launcher/ui/fonts/*-OFL.txt -whitespace

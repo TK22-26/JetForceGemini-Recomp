@@ -2,46 +2,78 @@
 
 [![Build status](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml)
 
-A native PC recompilation of Jet Force Gemini, currently available as a
-Windows x64 development preview. Supply your own supported North American
+A native PC recompilation of Jet Force Gemini, now available as the
+**v1.0 release for Windows x64**. Supply your own supported North American
 ROM and build the game locally using the launcher or command-line tools.
+
+**Campaign status: fully playable from start to finish**
+through maintainer playtesting.
 
 [Get started](docs/getting-started.md) ·
 [Known issues](docs/known-issues.md) ·
 [Report a problem](docs/playtesting.md) ·
 [Contribute](CONTRIBUTING.md)
 
-## Current preview
+## Current release: v1.0
 
-Preview 0.4.0-preview.4 includes graphics/audio timing fixes,
-a correction for opaque particle textures, and longer input recordings.
+**v1.0 is live.** Get started with the
+[released launcher](https://github.com/TK22-26/JetForceGemini-Recomp/releases).
 
-Live volume/mute controls, player-shadow correction, sound-player recovery,
-and optional live map/inventory tools are available in preview.3.
+This release includes graphics/audio timing fixes, corrected particle textures,
+longer input recordings, live volume/mute controls, player-shadow correction,
+sound-player recovery, and optional live map and inventory tools.
+
 The Navigation mod combines supported walking, jumps and NPC interactions;
 it remains experimental and does not establish autonomous campaign completion.
 HD cosmetic variants stay in independently maintained community branches.
 
 ## What works
 
+- Full campaign completion, verified through maintainer playtesting.
+- Optional live map and live inventory tracking in a custom companion interface.
 - Native rendering and audio.
 - Keyboard controls and configurable Xbox/XInput controllers.
+- **Experimental PC controls (single-player):** mouse-and-keyboard look/aim and
+  dual-stick controller support, including movement and strafing while aiming.
+  Enable experimental controls for your selected device in the launcher's
+  Controller Mapping window. See [PC controls status and remaining work](docs/planning/pc-controls-status.md).
 - Verified saving and loading, with a launcher for setup and subsequent launches.
 
-Full campaign completion and original-console accuracy remain unverified.
-This preview needs playtesting across more PCs, controllers, and gameplay.
+Original-console accuracy remains under validation.
+Playtesting continues across more PCs, controllers, and gameplay.
 See [recent gameplay fixes](docs/development/boot-gameplay-fix.md) and
 [development progress](docs/dashboard.md) for details.
 
 ## Campaign playtest progress
 
-Current maintainer-reported progress for the three playable characters:
+**Campaign status: fully playable from start to finish**
+through maintainer playtesting.
 
-| Character | Campaign progress |
-| --- | --- |
-| Juno | Reached Mizar's Palace after Tawfret. |
-| Vela | Tested up to Cerulean. |
-| Lupus | Progress not yet reported. |
+The verification run used optional infinite-health and enemy auto-kill testing
+mods, plus a testing save with all Tribals unlocked. Saving and loading are
+also verified.
+
+## Live map and inventory
+
+Optional companion tools provide a custom interface for exploring the game
+and tracking your progress:
+
+- **Live map:** see your position, room exits, items, NPCs, enemies, Tribals,
+  and doors. Select an object to inspect its requirements and rewards; zoom,
+  pan, or fit the map to the current room.
+- **Live inventory:** track weapons, keys, quest items, and shared ship parts.
+  View Juno, Vela, or Lupus, or follow the active character automatically.
+
+![Custom live map showing the player, room geometry, exits, pickups, and an interaction inspector](docs/images/live-map.png)
+
+*Live map in the custom companion interface.*
+
+The inventory's game icons are extracted locally from each player's own ROM;
+those artwork files are not bundled with the project or launcher. The interface
+is custom project code. Game content remains the property of its respective
+owners.
+
+See the [launcher and live tools guide](docs/development/launcher.md) for details.
 
 ## Getting started
 
@@ -69,9 +101,6 @@ code, [CONTRIBUTING.md](CONTRIBUTING.md) explains the pull request workflow.
 The goal is a complete, faithful PC version of Jet Force Gemini with optional
 modern enhancements. Planned work and remaining validation include:
 
-- **A complete campaign (unverified):** the campaign may already be complete,
-  including all playable characters and required progression. Saving and loading
-  are verified; full campaign playthroughs remain untested.
 - **Original local multiplayer and optional content:** broader coverage of the
   modes and activities beyond the main campaign.
 - **Ultrawide support:** wider aspect ratios with correct gameplay presentation,

@@ -1,0 +1,283 @@
+{
+  "date": "2026-10-09",
+  "complete": true,
+  "scope": "Opening cutscene audio continuity and host presentation pacing on the tested Windows machine; owner replay accepted on 2026-10-09.",
+  "cause": "Sustained host CPU work caused VI pacing to discard accumulated lateness while the Windows audio device continued consuming samples, draining the queue into underrun/refill.",
+  "trigger": "Normal launcher live exports exposed the overhead; disabled-export diagnostic passed but live exports remain enabled in all clean candidate qualification runs.",
+  "correction": [
+    "SSE2 per-byte snapshot merge on supported targets, retaining scalar fallback.",
+    "Skip unchanged CPU-owned refresh blocks by comparing against actual renderer RAM, preserving framebuffer reuse and same-value CPU writes.",
+    "Validate all writeback ranges before copying aligned spans in bulk, preserving unaligned XOR-3 byte boundaries and atomic conflict rejection."
+  ],
+  "unchanged": [
+    "Full color/depth CPU writeback and lens-flare occlusion fix",
+    "Live map and inventory exports",
+    "Guest audio content, buffering thresholds and pacing policy"
+  ],
+  "clean_runtime_sha256": "afec79fae785231edb93d9fdaafb3443acb5ae54d62ad9c3245ba5742191703d",
+  "launcher_sha256": "991e34ad2ff8a66d0779237699f9bf4051c7458cc3079d8d58625e8334c8cdce",
+  "renderer_source_sha256": "4a4b4854136c147436dcfb7218ab01aa34a5a4a60ae483590bb84b91f3da9758",
+  "input_sha256": "6a7d52c17ea049ef35c69d78bd507282e66d5801c70ec15522c29962597a80bd",
+  "rom_sha256": "159dde164c475976a3e527fbb20978431d4765f2c63019b3530c3aa8772595aa",
+  "baseline": {
+    "underruns_in_valid_loopback_run": 2,
+    "observed_output_loss_ms": 130,
+    "output_loss_approx_seconds": 157,
+    "positive_control_detects_known_loss": true,
+    "profiled_clock_resets": [
+      {
+        "vi": 6670,
+        "lost_us": 66917
+      },
+      {
+        "vi": 9186,
+        "lost_us": 67051
+      },
+      {
+        "vi": 9246,
+        "lost_us": 66680
+      },
+      {
+        "vi": 9420,
+        "lost_us": 69429
+      }
+    ],
+    "profiled_busy_phases": {
+      "gameplay-trace": {
+        "count": 18880,
+        "sum_ms": 75.439,
+        "mean_us": 3.9957097457627118,
+        "p99_us": 132,
+        "max_us": 377
+      },
+      "snapshot-import": {
+        "count": 3212,
+        "sum_ms": 3495.387,
+        "mean_us": 1088.2275840597758,
+        "p99_us": 2749,
+        "max_us": 3655
+      },
+      "renderer-submit": {
+        "count": 3212,
+        "sum_ms": 4404.604,
+        "mean_us": 1371.296388542964,
+        "p99_us": 6849,
+        "max_us": 8989
+      },
+      "cpu-writeback": {
+        "count": 3212,
+        "sum_ms": 170.071,
+        "mean_us": 52.9486301369863,
+        "p99_us": 471,
+        "max_us": 512
+      },
+      "window-pump": {
+        "count": 772,
+        "sum_ms": 20.846,
+        "mean_us": 27.002590673575128,
+        "p99_us": 108,
+        "max_us": 346
+      },
+      "live-export": {
+        "count": 385,
+        "sum_ms": 114.363,
+        "mean_us": 297.04675324675327,
+        "p99_us": 2857,
+        "max_us": 5157
+      },
+      "clock-reset": {
+        "count": 4,
+        "sum_ms": 270.077,
+        "mean_us": 67519.25,
+        "p99_us": 69429,
+        "max_us": 69429
+      }
+    },
+    "profiling_harness_failure": "Free-form audio-driver diagnostic polluted JSON-only broker report; game reached VI 12007 and traces remain useful for profiling."
+  },
+  "profiled_candidate": {
+    "clock_resets": [],
+    "busy_phases": {
+      "gameplay-trace": {
+        "count": 18880,
+        "sum_ms": 75.486,
+        "mean_us": 3.998199152542373,
+        "p99_us": 128,
+        "max_us": 367
+      },
+      "snapshot-import": {
+        "count": 3212,
+        "sum_ms": 2917.267,
+        "mean_us": 908.2400373599004,
+        "p99_us": 1513,
+        "max_us": 2690
+      },
+      "renderer-submit": {
+        "count": 3212,
+        "sum_ms": 4478.781,
+        "mean_us": 1394.390099626401,
+        "p99_us": 7074,
+        "max_us": 8421
+      },
+      "cpu-writeback": {
+        "count": 3212,
+        "sum_ms": 20.258,
+        "mean_us": 6.306973848069738,
+        "p99_us": 61,
+        "max_us": 141
+      },
+      "window-pump": {
+        "count": 772,
+        "sum_ms": 20.424,
+        "mean_us": 26.4559585492228,
+        "p99_us": 87,
+        "max_us": 118
+      },
+      "live-export": {
+        "count": 385,
+        "sum_ms": 106.543,
+        "mean_us": 276.73506493506494,
+        "p99_us": 2977,
+        "max_us": 4673
+      }
+    }
+  },
+  "qualification_runs": [
+    {
+      "name": "normal",
+      "game_viewport_physical_pixels": [
+        1280,
+        845
+      ],
+      "reached_vi": 12005,
+      "audio_underruns": 0,
+      "audio_overruns": 0,
+      "output_loss_candidates_at_least_6ms": [],
+      "loopback_analysis_end_seconds": 200.27291599999998,
+      "loopback_median_correlation": 0.9754840659997213,
+      "generated_audio": {
+        "common_bytes": 17615424,
+        "identical_to_original": true
+      },
+      "continuous_frame_pacing": {
+        "count": 4317,
+        "max_excess_us": 10701,
+        "p99_excess_us": 3340,
+        "over_one_vi": 0
+      },
+      "room_transition_excess_over_one_vi": [],
+      "other_guest_frame_gap_excess_over_one_vi": []
+    },
+    {
+      "name": "enlarged-parent-normal-game-viewport",
+      "game_viewport_physical_pixels": [
+        1280,
+        845
+      ],
+      "reached_vi": 12009,
+      "audio_underruns": 0,
+      "audio_overruns": 0,
+      "output_loss_candidates_at_least_6ms": [],
+      "loopback_analysis_end_seconds": 200.075502,
+      "loopback_median_correlation": 0.994025341814524,
+      "generated_audio": {
+        "common_bytes": 17615424,
+        "identical_to_original": true
+      },
+      "continuous_frame_pacing": {
+        "count": 4319,
+        "max_excess_us": 8367,
+        "p99_excess_us": 3121,
+        "over_one_vi": 0
+      },
+      "room_transition_excess_over_one_vi": [
+        {
+          "vi": 6328,
+          "prior_vi": 6200,
+          "vi_gap": 128,
+          "host_interval_us": 2154492,
+          "excess_us": 21116,
+          "prior_level": 323,
+          "level": 325
+        }
+      ],
+      "other_guest_frame_gap_excess_over_one_vi": []
+    },
+    {
+      "name": "verified-1080p",
+      "game_viewport_physical_pixels": [
+        1920,
+        1080
+      ],
+      "reached_vi": 12003,
+      "audio_underruns": 0,
+      "audio_overruns": 0,
+      "output_loss_candidates_at_least_6ms": [],
+      "loopback_analysis_end_seconds": 200.298484,
+      "loopback_median_correlation": 0.9754826548067043,
+      "generated_audio": {
+        "common_bytes": 17615424,
+        "identical_to_original": true
+      },
+      "continuous_frame_pacing": {
+        "count": 4316,
+        "max_excess_us": 9211,
+        "p99_excess_us": 3448,
+        "over_one_vi": 0
+      },
+      "room_transition_excess_over_one_vi": [
+        {
+          "vi": 6328,
+          "prior_vi": 6200,
+          "vi_gap": 128,
+          "host_interval_us": 2151089,
+          "excess_us": 17713,
+          "prior_level": 323,
+          "level": 325
+        }
+      ],
+      "other_guest_frame_gap_excess_over_one_vi": []
+    }
+  ],
+  "validation": {
+    "renderer_tests_passed": [
+      "jfg.rt64_shell",
+      "jfg.rt64_f3ddkr_texture",
+      "jfg.rt64_depth_bounds"
+    ],
+    "randomized_full_size_equivalence_checks": 192,
+    "additional_scalar_equivalence_checks": 192
+  },
+  "method": {
+    "capture": "Process-specific WASAPI loopback of actual native game PID, compared with generated PCM using waveform and spectrogram analysis.",
+    "loss_detector": "2 ms RMS windows; at least three adjacent windows below 15% of aligned expected amplitude after mixer-gain estimation, with expected amplitude above 0.002.",
+    "analysis_window": "After 8 seconds, ending before the logged shutdown request minus 20 ms or generated source end minus 200 ms.",
+    "pacing": "Host present interval minus guest VI delta times 16667 us; continuous-frame summary uses guest deltas <=2 from VI 2400 onward; longer guest gaps and room changes retained separately.",
+    "launcher": "Normal visible launcher with diagnostic forwarding relay; exact clean game executable, live exports enabled, other game replays absent."
+  },
+  "limitations": [
+    "WASAPI measures Windows mixer output, not physical speakers or display scanout.",
+    "No detected dropout of at least 6 ms is not a proof of zero shorter disturbances or arbitrary hardware performance.",
+    "Room change at VI 6328 supplies no new picture for 128 VIs; host excess reached 21.116 ms in one normal-size run and 17.713 ms at actual 1080p. This is retained, not classified as a moving-scene audio interruption.",
+    "Initial enlarged-parent replay did not resize the game child; it remains a normal-size repeat. The later replay verified the actual 1920x1080 child.",
+    "Earlier muted generated PCM and wrong-process near-silent loopback captures are invalid for audio continuity; only their independent timing/queue data was usable.",
+    "A private profiling run completed but failed broker JSON validation due to diagnostic text; its failed guard outcome remains recorded. Clean qualification uses an uninstrumented runtime.",
+    "File alignment offsets include different capture start times and must not be interpreted as audiovisual latency.",
+    "No full-campaign or hardware N64 timing parity claim."
+  ],
+  "private_evidence_sha256": {
+    "integrateaudio/summary.json": "4436f9dfd426249afd3ec3a9883c856dbf1680c972f1f4d7638c47a7e87deedb",
+    "integrateaudio/tests.log": "7dc05dcb2795ddbc675b3965b8d7de0f250feff641d47c879b008a7fc3dd0906",
+    "integrateaudio/fallback-test.log": "5b65c32770c54d3becc6b82956dfdc7c9fa3f47eab4223fff7b75552afaf8335",
+    "memory/equivalence.log": "66a6a43865108df40cb997e14cbb6754064f9e491147ea8d4759affb954110bd",
+    "memory/summary.json": "13efb5cd6ec2540ac0e810db8f1b946f0cc88e83b210f2898a944f68db5ef9d7",
+    "exportcompare/summary.json": "7d7b9ab355ce39ce73ba2683b250ec3667610c01e23e343fbc4b2e42517f0030",
+    "qualifyaudio/summary.json": "0505da0362b80702684249c87af76f029a13740a04a61105c1c97ffd87f398b4",
+    "audioreview/summary.json": "a02bff327a480f483f94285237b26c3f3e84b166ba18db90a16377241948dba0",
+    "audioreview/positive-control/control.json": "8b63ee534a5a3b36bada13eb3435fad0e4be86f22a4ba13ac202f96596f38111",
+    "real1080/qualification.json": "3ec2017f246c350f5a5d9e9f7a11b68441da86053f6218d5657bd312806edf92",
+    "real1080/analysis.json": "b3e560543d6dd885898988f97b36fcfd82f1f7b908aaa803f265ee0b178b5a54"
+  },
+  "rom_derived_captures_published": false,
+  "owner_acceptance": "Owner replayed the opening and reported: looks good to me."
+}

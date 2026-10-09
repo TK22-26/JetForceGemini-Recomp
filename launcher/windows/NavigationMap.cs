@@ -217,6 +217,9 @@ namespace JfgLauncher
         [DataMember] public long update = 0;
         [DataMember] public bool mesh_ready = false;
         [DataMember] public bool clearing_active = false;
+        [DataMember] public bool mods_available = false, mod_warp_exits = false,
+            mod_infinite_health = false, mod_instant_kill = false;
+        [DataMember] public bool gameplay_active = false, navigation_enabled = false;
         [DataMember] public bool scripted_camera = false;
         [DataMember] public bool transition_confirm = false;
         [DataMember] public MapPlayer player = null;
@@ -230,6 +233,83 @@ namespace JfgLauncher
         [DataMember] public MapActor[] actors = null;
         [DataMember] public MapCollision collision = null;
         [DataMember] public MapJump box_jump = null;
+    }
+    internal sealed class MapMods {
+        internal bool Warp, Health, Kill;
+        internal const string WarpHelp = "Double-click an exit marker on the map or an exit in the inspector to warp to it. Normal exit requirements still apply.";
+        internal const string HealthHelp = "Keep your current character at full health and prevent damage during gameplay.";
+        internal const string KillHelp = "Automatically defeat loaded ordinary enemies during gameplay. Tribals and friendly NPCs are spared; defeated enemies stay defeated when switched off.";
+        internal static MapMods Load(string directory, MapLive live) {
+            var value = new MapMods { Warp=live!=null&&live.mod_warp_exits, Health=live!=null&&live.mod_infinite_health, Kill=live!=null&&live.mod_instant_kill };
+            string path=Path.Combine(directory,"mods.txt");
+            if(!File.Exists(path))return value;
+            if(new FileInfo(path).Length>128)throw new InvalidDataException("Invalid Mods settings.");
+            string[] parts=File.ReadAllText(path).Split((char[])null,StringSplitOptions.RemoveEmptyEntries);
+            if(parts.Length!=4||parts[0]!="JFGMODS1")throw new InvalidDataException("Invalid Mods settings.");
+            for(int i=1;i<4;i++)if(parts[i]!="0"&&parts[i]!="1")throw new InvalidDataException("Invalid Mods setting.");
+            value.Warp=parts[1]=="1";value.Health=parts[2]=="1";value.Kill=parts[3]=="1";return value;
+        }
+        private static void Write(string directory,string name,string text) {
+            string path=Path.Combine(directory,name),temp=path+"."+Guid.NewGuid().ToString("N")+".tmp";
+            File.WriteAllText(temp,text+"\n",new System.Text.UTF8Encoding(false));
+            if(File.Exists(path))File.Replace(temp,path,null);else File.Move(temp,path);
+        }
+        internal void Save(string directory) { Write(directory,"mods.txt","JFGMODS1 "+(Warp?"1":"0")+" "+(Health?"1":"0")+" "+(Kill?"1":"0")); }
+        internal void WarpTo(string directory,MapSnapshot map,uint address,long nonce,bool paused) {
+            if(!Warp||map==null||(!map.IsLive&&!paused)||!map.Live.mods_available||
+                !map.Live.gameplay_active||map.Live.scripted_camera||map.Live.exits==null||
+                !Array.Exists(map.Live.exits,delegate(MapMarker exit){return exit.address==address;}))
+                throw new InvalidDataException("Warp requires a loaded exit in active gameplay and the Warp to exits mod.");
+            Write(directory,"warp-exit.txt",String.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "JFGWARP1 {0} {1} {2} {3} {4}",map.Live.level,map.Live.generation,nonce,NavigationExplorer.Clock,address));
+        }
+    }
+    // Profile preferences are available before a game connects. Only a concrete
+    // read/write error, unsupported live response or failed acknowledgement locks
+    // the controls for that connection; a new session can retry normally.
+    internal sealed class MapModPreferences {
+        private readonly string settingsDirectory;
+        private string session="";
+        private bool saved, applied, awaiting;
+        private long sentUpdate;
+        internal MapMods Values=new MapMods();
+        internal bool Failed {get;private set;}
+        internal int ErrorVersion {get;private set;}
+        internal MapModPreferences(string profile) {settingsDirectory=Path.Combine(profile,"map-settings");Load();}
+        private static bool Expected(Exception e) {return e is IOException||e is UnauthorizedAccessException||e is InvalidDataException;}
+        private void Load() {
+            try {saved=File.Exists(Path.Combine(settingsDirectory,"mods.txt"));Values=MapMods.Load(settingsDirectory,null);}
+            catch(Exception e){if(!Expected(e))throw;Fail();}
+        }
+        private void Fail() {if(!Failed)++ErrorVersion;Failed=true;awaiting=false;}
+        internal void Choose(MapMods value) {
+            try {
+                Directory.CreateDirectory(settingsDirectory);value.Save(settingsDirectory);
+                Values=value;saved=true;applied=false;awaiting=false;Failed=false;
+            }catch(Exception e){if(!Expected(e))throw;Fail();}
+        }
+        internal void Sync(string directory,MapLive live,bool active) {
+            string next=active ? directory??"" : "";
+            if(next!=session){session=next;Failed=false;applied=awaiting=false;Load();}
+            if(Failed||String.IsNullOrEmpty(session)||live==null)return;
+            try {
+                if(!live.mods_available){Fail();return;}
+                if(!applied) {
+                    if(saved)Values.Save(session);else Values=MapMods.Load(session,live);
+                    applied=true;awaiting=saved;sentUpdate=live.update;
+                }
+                bool matches=Values.Warp==live.mod_warp_exits&&Values.Health==live.mod_infinite_health&&Values.Kill==live.mod_instant_kill;
+                if(matches)awaiting=false;
+                // Pauses/loading do not advance updates, so they cannot time out.
+                if(awaiting&&live.update-sentUpdate>=18)Fail();
+            }catch(Exception e){if(!Expected(e))throw;Fail();}
+        }
+        internal static void PrepareSession(string profile,string directory) {
+            string settings=Path.Combine(profile,"map-settings");
+            if(!File.Exists(Path.Combine(settings,"mods.txt")))return;
+            try {var value=MapMods.Load(settings,null);Directory.CreateDirectory(directory);value.Save(directory);}
+            catch(Exception e){if(!Expected(e))throw;} // The map reports the failure when it connects.
+        }
     }
     internal sealed class MapSnapshot
     {
@@ -338,6 +418,10 @@ namespace JfgLauncher
         internal float ManualHeight, SliceWidth=64;
         internal bool OtherLevels=true, ShowCollision=true, ShowEntityOrigins=false, RouteBlocked=false;
         internal event Action<uint> EntitySelected;
+        internal event Action<uint> ExitActivated;
+        internal event Action ZoomChanged;
+        internal float ZoomLevel {get{return zoom;}}
+        private void ChangedZoom(){Invalidate();if(ZoomChanged!=null)ZoomChanged();}
         private Point mouseStart;
         private void PickEntity(Point point) {
             if(snapshot==null || !ShowCollision)return;
@@ -370,7 +454,16 @@ namespace JfgLauncher
             }
         }
         internal MapCanvas() {DoubleBuffered=true;ResizeRedraw=true;BackColor=Color.FromArgb(16,24,34);Dock=DockStyle.Fill;}
-        internal void Fit() {zoom=1;pan=new PointF();Invalidate();}
+        internal void Fit() {zoom=1;pan=new PointF();ChangedZoom();}
+        internal void Zoom(float amount){ZoomAt(amount,new PointF(ClientSize.Width/2f,ClientSize.Height/2f));}
+        internal void ZoomAt(float amount,PointF anchor) {
+            float next=Math.Max(.25f,Math.Min(16,zoom*amount)),ratio=next/zoom;
+            float originX=(Width-30)/2f,originY=(Height-25)/2f;
+            pan=new PointF(anchor.X-originX-(anchor.X-originX-pan.X)*ratio,
+                           anchor.Y-originY-(anchor.Y-originY-pan.Y)*ratio);
+            zoom=next;ChangedZoom();
+        }
+        internal void CenterOn(float[] position){PointF projected=Project(new HeightPoint(position));pan.X+=ClientSize.Width/2f-projected.X;pan.Y+=ClientSize.Height/2f-projected.Y;Invalidate();}
         internal void UpdateMap(MapSnapshot value) {
             if(value!=null&&(snapshot==null||!Object.ReferenceEquals(snapshot.Mesh,value.Mesh))) {
                 float lx=Single.MaxValue,lz=Single.MaxValue,hx=Single.MinValue,hz=Single.MinValue;
@@ -522,18 +615,176 @@ namespace JfgLauncher
             Label(g,"Height Y",new PointF(x-14,y+134),Color.White);
             Label(g,LayerStatus,new PointF(8,Height-24),Color.LightGray);
         }
-        protected override void OnMouseWheel(MouseEventArgs e){base.OnMouseWheel(e);zoom=Math.Max(.25f,Math.Min(16,zoom*(e.Delta>0?1.2f:1/1.2f)));Invalidate();}
+        protected override void OnMouseDoubleClick(MouseEventArgs e) {
+            base.OnMouseDoubleClick(e);
+            if(e.Button!=MouseButtons.Left||snapshot==null||ExitActivated==null)return;
+            uint chosen=0;float best=14;
+            foreach(var exit in snapshot.Live.exits) {
+                if(Mode!=2&&!OtherLevels&&Math.Abs(exit.position[1]-CenterHeight)>SliceWidth/2)continue;
+                PointF p=Project(new HeightPoint(exit.position));float dx=p.X-e.X,dy=p.Y-e.Y;
+                float distance=(float)Math.Sqrt(dx*dx+dy*dy);if(distance<best){best=distance;chosen=exit.address;}
+            }
+            if(chosen!=0)ExitActivated(chosen);
+        }
+        protected override void OnMouseWheel(MouseEventArgs e){base.OnMouseWheel(e);if(e.Delta!=0)ZoomAt((float)Math.Pow(1.2,e.Delta/120.0),e.Location);}
         protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);Focus();dragging=e.Button==MouseButtons.Left;mouse=e.Location;mouseStart=e.Location;Capture=dragging;}
         protected override void OnMouseMove(MouseEventArgs e){base.OnMouseMove(e);if(dragging){pan.X+=e.X-mouse.X;pan.Y+=e.Y-mouse.Y;mouse=e.Location;Invalidate();}}
         protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);dragging=false;Capture=false;if(e.Button==MouseButtons.Left && Math.Abs(e.X-mouseStart.X)+Math.Abs(e.Y-mouseStart.Y)<5)PickEntity(e.Location);}
     }
 
 
-    internal sealed class NavigationMapWindow : Form
+    internal sealed class MapMenuRenderer:ToolStripProfessionalRenderer {
+        // Match the main frontend's 13dp Barlow menu type and flat colors.
+        private static readonly System.Drawing.Text.PrivateFontCollection fonts=new System.Drawing.Text.PrivateFontCollection();
+        private static IntPtr fontBytes;
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")] private static extern IntPtr AddFontMemResourceEx(IntPtr data,uint size,IntPtr reserved,ref uint count);
+        internal static readonly Font MenuFont=LoadFont();
+        private static Font LoadFont() {
+            using(var stream=System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("JfgLauncher.Barlow.Regular")) {
+                if(stream==null)return new Font("Segoe UI",9.75f);
+                byte[] bytes=new byte[stream.Length];int read=0,n;
+                while(read<bytes.Length&&(n=stream.Read(bytes,read,bytes.Length-read))>0)read+=n;
+                if(read!=bytes.Length)throw new InvalidDataException("Incomplete menu font.");
+                fontBytes=System.Runtime.InteropServices.Marshal.AllocHGlobal(bytes.Length);
+                System.Runtime.InteropServices.Marshal.Copy(bytes,0,fontBytes,bytes.Length);
+                uint count=0;AddFontMemResourceEx(fontBytes,(uint)bytes.Length,IntPtr.Zero,ref count);
+                fonts.AddMemoryFont(fontBytes,bytes.Length);
+                return new Font(fonts.Families[0],9.75f,FontStyle.Regular,GraphicsUnit.Point);
+            }
+        }
+        internal MapMenuRenderer():base(new MapMenuColors()){RoundedEdges=false;}
+        protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e){e.Graphics.Clear(ToolColors.Panel);}
+        protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e){
+            using(var brush=new SolidBrush(e.Item.Selected||e.Item.Pressed?Color.FromArgb(38,49,73):ToolColors.Panel))
+                e.Graphics.FillRectangle(brush,new Rectangle(Point.Empty,e.Item.Size));
+        }
+        protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e){
+            using(var pen=new Pen(e.ToolStrip is MenuStrip?Color.FromArgb(34,43,64):ToolColors.Border)) {
+                if(e.ToolStrip is MenuStrip)e.Graphics.DrawLine(pen,0,e.ToolStrip.Height-1,e.ToolStrip.Width,e.ToolStrip.Height-1);
+                else e.Graphics.DrawRectangle(pen,0,0,e.ToolStrip.Width-1,e.ToolStrip.Height-1);
+            }
+        }
+        protected override void OnRenderImageMargin(ToolStripRenderEventArgs e){}
+        protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e){e.ArrowColor=e.Item.Enabled?ToolColors.Text:ToolColors.Muted;base.OnRenderArrow(e);}
+        protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e){e.TextColor=!e.Item.Enabled?ToolColors.Muted:e.Item.Selected||e.Item.Pressed?Color.FromArgb(242,244,248):ToolColors.Text;base.OnRenderItemText(e);}
+        internal static void Style(MenuStrip menu) {
+            menu.Font=MenuFont;
+            foreach(ToolStripMenuItem top in menu.Items) {
+                top.Padding=new Padding(10,0,10,0);top.Margin=Padding.Empty;
+                top.DropDown.Font=MenuFont;top.DropDown.Padding=new Padding(3);
+                top.DropDown.BackColor=ToolColors.Panel;top.DropDown.ForeColor=ToolColors.Text;
+                top.DropDown.Renderer=menu.Renderer;
+                foreach(ToolStripItem item in top.DropDownItems) {
+                    var command=item as ToolStripMenuItem;
+                    if(command!=null){command.AutoSize=false;command.Size=new Size(252,26);command.Padding=new Padding(12,4,12,4);command.Margin=Padding.Empty;}
+                }
+            }
+        }
+    }
+    internal sealed class MapMenuColors:ProfessionalColorTable {
+        public override Color ToolStripDropDownBackground{get{return ToolColors.Panel;}}
+        public override Color ImageMarginGradientBegin{get{return ToolColors.Panel;}}
+        public override Color ImageMarginGradientMiddle{get{return ToolColors.Panel;}}
+        public override Color ImageMarginGradientEnd{get{return ToolColors.Panel;}}
+        public override Color MenuItemSelected{get{return Color.FromArgb(38,49,73);}}
+        public override Color MenuItemSelectedGradientBegin{get{return MenuItemSelected;}}
+        public override Color MenuItemSelectedGradientEnd{get{return MenuItemSelected;}}
+        public override Color MenuItemPressedGradientBegin{get{return MenuItemSelected;}}
+        public override Color MenuItemPressedGradientEnd{get{return MenuItemSelected;}}
+        public override Color MenuBorder{get{return ToolColors.Border;}}
+    }
+    internal sealed class MapSettingsDialog: ApplicationWindow {
+        internal MapSettingsDialog(params ToolStripMenuItem[] sections) {
+            Text="Live map settings";ClientSize=new Size(710,540);MinimumSize=new Size(640,480);
+            StartPosition=FormStartPosition.CenterParent;ShowInTaskbar=false;MinimizeBox=false;MaximizeBox=false;
+            AutoScaleMode=AutoScaleMode.Dpi;Font=new Font(MapMenuRenderer.MenuFont.FontFamily,10.5f);
+            BackColor=ToolColors.Background;ForeColor=ToolColors.Text;
+            var content=new Panel{Dock=DockStyle.Fill,Padding=new Padding(24,18,24,18)};
+            var sidebar=new FlowLayoutPanel{Dock=DockStyle.Left,Width=160,FlowDirection=FlowDirection.TopDown,WrapContents=false,Padding=new Padding(12,18,12,12),BackColor=ToolColors.Panel};
+            var footer=new Panel{Dock=DockStyle.Bottom,Height=52,Padding=new Padding(10),BackColor=ToolColors.Panel};
+            var done=ToolColors.Button("Done");done.Width=90;done.Dock=DockStyle.Right;done.DialogResult=DialogResult.OK;footer.Controls.Add(done);AcceptButton=done;CancelButton=done;
+            Controls.Add(content);Controls.Add(sidebar);Controls.Add(footer);
+            var pages=new List<Control>();var buttons=new List<Button>();string[] titles={"Display","AI","Mods","Tools"};
+            for(int index=0;index<sections.Length;index++) {
+                var page=new FlowLayoutPanel{Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,WrapContents=false,AutoScroll=true,Visible=false};pages.Add(page);content.Controls.Add(page);
+                page.Controls.Add(new Label{Text=titles[index].ToUpperInvariant(),AutoSize=false,Size=new Size(430,34),ForeColor=ToolColors.Muted});
+                foreach(ToolStripItem item in sections[index].DropDownItems) AddSetting(page,item);
+                int selected=index;var tab=ToolColors.Button(titles[index]);tab.Size=new Size(136,40);tab.TextAlign=ContentAlignment.MiddleLeft;tab.Padding=new Padding(12,0,0,0);tab.Margin=new Padding(0,0,0,6);buttons.Add(tab);sidebar.Controls.Add(tab);
+                tab.Click+=delegate{for(int i=0;i<pages.Count;i++){pages[i].Visible=i==selected;buttons[i].BackColor=i==selected?Color.FromArgb(38,49,73):ToolColors.Panel;buttons[i].ForeColor=i==selected?ToolColors.Amber:ToolColors.Text;}};
+            }
+            pages[0].Visible=true;buttons[0].BackColor=Color.FromArgb(38,49,73);buttons[0].ForeColor=ToolColors.Amber;
+        }
+        private void AddSetting(FlowLayoutPanel page,ToolStripItem item) {
+            if(item is ToolStripSeparator){page.Controls.Add(new Panel{Size=new Size(420,1),BackColor=ToolColors.Border,Margin=new Padding(0,10,0,10)});return;}
+            var command=item as ToolStripMenuItem;
+            if(command!=null) {
+                Control control;
+                if(command.CheckOnClick) {
+                    var toggle=new CheckBox{Text=command.Text,Checked=command.Checked,Size=new Size(420,32),ForeColor=ToolColors.Text};
+                    toggle.CheckedChanged+=delegate{if(toggle.Checked!=command.Checked)command.PerformClick();};
+                    EventHandler changed=delegate{toggle.Checked=command.Checked;};command.CheckedChanged+=changed;Disposed+=delegate{command.CheckedChanged-=changed;};control=toggle;
+                }else {var button=ToolColors.Button(command.Text);button.Size=new Size(420,34);button.TextAlign=ContentAlignment.MiddleLeft;button.Padding=new Padding(10,0,0,0);button.Click+=delegate{command.PerformClick();};control=button;}
+                control.Margin=new Padding(0,0,0,8);control.Visible=command.Available;control.Enabled=command.Enabled;
+                EventHandler available=delegate{control.Visible=command.Available;control.Enabled=command.Enabled;};command.AvailableChanged+=available;command.EnabledChanged+=available;
+                Disposed+=delegate{command.AvailableChanged-=available;command.EnabledChanged-=available;};page.Controls.Add(control);
+                if(!String.IsNullOrEmpty(command.ToolTipText))page.Controls.Add(new Label{Text=command.ToolTipText,AutoSize=true,MaximumSize=new Size(420,0),ForeColor=ToolColors.Muted,Margin=new Padding(0,0,0,18)});
+                return;
+            }
+            var host=item as ToolStripControlHost;
+            if(host!=null) {
+                var combo=host.Control as ComboBox;
+                if(combo!=null) {
+                    var next=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Width=420,BackColor=ToolColors.Panel,ForeColor=ToolColors.Text,FlatStyle=FlatStyle.Flat,Margin=new Padding(0,0,0,12)};
+                    foreach(var choice in combo.Items)next.Items.Add(choice);next.SelectedIndex=combo.SelectedIndex;
+                    next.SelectedIndexChanged+=delegate{combo.SelectedIndex=next.SelectedIndex;};page.Controls.Add(next);return;
+                }
+                var numeric=host.Control as NumericUpDown;
+                if(numeric!=null) {
+                    var next=new NumericUpDown{Minimum=numeric.Minimum,Maximum=numeric.Maximum,Increment=numeric.Increment,Value=numeric.Value,Enabled=numeric.Enabled,Width=420,BackColor=ToolColors.Panel,ForeColor=ToolColors.Text,Margin=new Padding(0,0,0,12)};
+                    next.ValueChanged+=delegate{numeric.Value=next.Value;};EventHandler sync=delegate{next.Enabled=numeric.Enabled;next.Value=numeric.Value;};numeric.EnabledChanged+=sync;numeric.ValueChanged+=sync;
+                    Disposed+=delegate{numeric.EnabledChanged-=sync;numeric.ValueChanged-=sync;};page.Controls.Add(next);return;
+                }
+                var label=host.Control as Label;
+                if(label!=null) {
+                    var next=new Label{Text=label.Text,Size=new Size(420,80),ForeColor=ToolColors.Blue};EventHandler sync=delegate{next.Text=label.Text;};label.TextChanged+=sync;Disposed+=delegate{label.TextChanged-=sync;};page.Controls.Add(next);return;
+                }
+            }
+            page.Controls.Add(new Label{Text=item.Text,Size=new Size(420,24),ForeColor=ToolColors.Muted});
+        }
+    }
+    internal sealed class NavigationMapWindow : ApplicationWindow
     {
+        internal ToolStripMenuItem[] SettingsSections;
+        private ToolStripMenuItem warpMod, healthMod, killMod;
+        private bool syncingMods;
+        private readonly MapModPreferences modPreferences=new MapModPreferences(LocalSetup.ProfileRoot);
+        private void SyncMods(MapSnapshot value) {
+            syncingMods=true;
+            try {
+                modPreferences.Sync(directory,value==null?null:value.Live,value!=null&&value.IsLive);
+                var mods=modPreferences.Values;
+                warpMod.Checked=mods.Warp;healthMod.Checked=mods.Health;killMod.Checked=mods.Kill;
+                warpMod.Enabled=healthMod.Enabled=killMod.Enabled=!modPreferences.Failed;
+                if(modPreferences.Failed)status.Text="Error loading mods";
+            } finally {syncingMods=false;}
+        }
+        private void SaveMods() {
+            if(syncingMods)return;
+            modPreferences.Choose(new MapMods{Warp=warpMod.Checked,Health=healthMod.Checked,Kill=killMod.Checked});
+            SyncMods(aiSnapshot);
+        }
+        private void WarpToExit(uint address) {
+            if(!warpMod.Checked)return;
+            try {StopAi();MapMods.Load(directory,aiSnapshot==null?null:aiSnapshot.Live).WarpTo(directory,aiSnapshot,address,++aiNonce,false);status.Text="Exit warp requested.";}
+            catch(InvalidDataException error){status.Text=error.Message;}
+            catch(IOException error){status.Text=error.Message;}
+            catch(UnauthorizedAccessException error){status.Text=error.Message;}
+        }
         private readonly Label inventoryStatus = new Label { Dock = DockStyle.Top, Height = 68, Padding = new Padding(8) };
-        private readonly ListBox interactionList = new ListBox { Dock = DockStyle.Top, Height = 170, HorizontalScrollbar = true };
+        private readonly ListBox interactionList = new ListBox { Dock = DockStyle.Top, Height = 230, HorizontalScrollbar = true };
         private readonly TextBox interactionDetails = new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BorderStyle = BorderStyle.None, BackColor = SystemColors.Control };
+        private readonly ComboBox interactionFilter=new ComboBox{FlatStyle=FlatStyle.Flat,Dock=DockStyle.Top,DropDownStyle=ComboBoxStyle.DropDownList};
+        private static bool InGroup(MapInteraction node,int group){return group==0||group==1&&node.action=="open_chest"||group==2&&(node.kind=="key"||node.kind=="weapon"||node.kind=="item"||node.kind=="pickup"||node.kind=="health"||node.kind=="ammo"||node.kind=="token")||group==3&&node.kind=="exit"||group==4&&(node.kind=="npc"||node.kind=="tribal");}
         private AutonomousExplorer explorer = new AutonomousExplorer(null,new NavigationExplorer());
         private string explorerError;
         private uint selectedEntity;
@@ -571,7 +822,7 @@ namespace JfgLauncher
             MapInteraction topNode = top >= 0 && top < interactionList.Items.Count ? interactionList.Items[top] as MapInteraction : null;
             interactionGeneration = value == null ? -1 : value.Live.generation;
             interactionLevel = value == null ? 0 : value.Live.level;
-            MapInteraction[] nodes = progress == null ? new MapInteraction[0] : progress.nodes;
+            MapInteraction[] nodes = progress == null ? new MapInteraction[0] : Array.FindAll(progress.nodes,delegate(MapInteraction node){return InGroup(node,interactionFilter.SelectedIndex);});
             updatingInteractions = true;
             interactionList.BeginUpdate();
             try {
@@ -608,15 +859,32 @@ namespace JfgLauncher
         private readonly Timer timer = new Timer();
         private MapGeometry cached;
         private string directory;
-        internal NavigationMapWindow(string path)
+        internal NavigationMapWindow(string path):this(path,LocalSetup.LoadSettings(LocalSetup.ProfileRoot).RomPath){}
+        internal NavigationMapWindow(string path,string romPath)
         {
             Text = "JFG Live Map";
             ClientSize = new Size(1240, 760);
             MinimumSize = new Size(1040, 600);
-            Font = new Font("Segoe UI", 9);
+            Font = new Font("Segoe UI", 9);AutoScaleMode=AutoScaleMode.Dpi;
+            BackColor=ToolColors.Background;ForeColor=ToolColors.Text;
+            interactionDetails.BackColor=ToolColors.Panel;interactionDetails.ForeColor=ToolColors.Text;
+            interactionList.BackColor=ToolColors.Background;interactionList.ForeColor=ToolColors.Text;interactionList.BorderStyle=BorderStyle.None;
+            interactionList.DrawMode=DrawMode.OwnerDrawFixed;interactionList.ItemHeight=34;
+            interactionList.DrawItem+=delegate(object sender,DrawItemEventArgs e){
+                if(e.Index<0)return;bool selected=(e.State&DrawItemState.Selected)!=0;
+                using(var background=new SolidBrush(selected?Color.FromArgb(48,39,26):ToolColors.Background))e.Graphics.FillRectangle(background,e.Bounds);
+                var node=interactionList.Items[e.Index] as MapInteraction;
+                TextRenderer.DrawText(e.Graphics,node==null?"":node.ToString(),Font,new Rectangle(e.Bounds.X+8,e.Bounds.Y+7,e.Bounds.Width-16,e.Bounds.Height-7),selected?ToolColors.Amber:ToolColors.Text,TextFormatFlags.EndEllipsis|TextFormatFlags.SingleLine);
+                e.DrawFocusRectangle();
+            };
             Controls.Add(canvas);
-            Panel progressionPanel = new Panel { Dock = DockStyle.Right, Width = 300, Padding = new Padding(8) };
+            Panel progressionPanel = new Panel { Dock = DockStyle.Right, Width = 300, Padding = new Padding(12), BackColor=ToolColors.Panel };
             progressionPanel.Controls.Add(interactionDetails); progressionPanel.Controls.Add(interactionList); progressionPanel.Controls.Add(inventoryStatus);
+            interactionFilter.Items.AddRange(new object[]{"All interactions","Chests","Pickups","Exits","Characters"});interactionFilter.SelectedIndex=0;
+            interactionFilter.BackColor=ToolColors.Panel;interactionFilter.ForeColor=ToolColors.Text;
+            progressionPanel.Controls.Add(interactionFilter);
+            progressionPanel.Controls.Add(new Label{Text="INSPECTOR",Dock=DockStyle.Top,Height=32,ForeColor=ToolColors.Muted,Font=new Font(Font,FontStyle.Bold),Padding=new Padding(0,6,0,0)});
+            interactionFilter.SelectedIndexChanged+=delegate{selectedEntity=0;UpdateInteractions(aiSnapshot);canvas.Invalidate();};
             Controls.Add(progressionPanel);
             canvas.EntitySelected+=delegate(uint address) {selectedEntity=address;EntityDetails(aiSnapshot);canvas.Invalidate();};
             interactionList.MouseDown+=delegate {selectedEntity=0;};
@@ -626,80 +894,81 @@ namespace JfgLauncher
                 interactionDetails.Text = node == null ? "" : node.Details;
                 canvas.SelectedAddress = node == null ? 0 : node.address; canvas.Invalidate();
             };
-            FlowLayoutPanel bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 116 };
-            Button fit = new Button { Text = "Fit room", AutoSize = true };
-            fit.Click += delegate { canvas.Fit(); };
-            Button files = new Button { Text = "Open exports", AutoSize = true };
-            files.Click += delegate {
-                if (Directory.Exists(directory))
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", LocalSetup.Quote(directory)) { UseShellExecute = false });
+            var menus=new MenuStrip{Dock=DockStyle.Top,Height=24,AutoSize=false,BackColor=ToolColors.Panel,ForeColor=ToolColors.Text,Padding=new Padding(4,0,4,0),Renderer=new MapMenuRenderer()};
+            var view=new ToolStripMenuItem("View");var layersMenu=new ToolStripMenuItem("Layers");var aiMenu=new ToolStripMenuItem("AI");var toolsMenu=new ToolStripMenuItem("Tools");
+            menus.Items.AddRange(new ToolStripItem[]{view,layersMenu,aiMenu,toolsMenu});
+            var fit=new ToolStripMenuItem("Fit room");fit.ShortcutKeys=Keys.Control|Keys.D0;fit.Click+=delegate{canvas.Fit();};view.DropDownItems.Add(fit);
+            var inspector=new ToolStripMenuItem("Inspector"){CheckOnClick=true,Checked=true};inspector.CheckedChanged+=delegate{progressionPanel.Visible=inspector.Checked;};view.DropDownItems.Add(inspector);
+            var legend=new ToolStripMenuItem("Legend"){CheckOnClick=true,Checked=true};view.DropDownItems.Add(legend);
+            var files=new ToolStripMenuItem("Open exports");files.Click+=delegate{OpenExports();};toolsMenu.DropDownItems.Add(files);
+            var mode=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Width=210};mode.Items.AddRange(new object[]{"Player floor","Height slice","All heights"});mode.SelectedIndex=0;
+            var height=new NumericUpDown{Minimum=-1000000,Maximum=1000000,Increment=16,Width=210,Enabled=false};layerHeight=height;
+            var thickness=new NumericUpDown{Minimum=4,Maximum=4096,Value=64,Increment=16,Width=210};
+            var context=new ToolStripMenuItem("Show other heights"){CheckOnClick=true,Checked=true};
+            layersMenu.DropDownItems.Add(new ToolStripControlHost(mode));layersMenu.DropDownItems.Add(new ToolStripLabel("Height Y"));layersMenu.DropDownItems.Add(new ToolStripControlHost(height));
+            layersMenu.DropDownItems.Add(new ToolStripLabel("Slice width"));layersMenu.DropDownItems.Add(new ToolStripControlHost(thickness));layersMenu.DropDownItems.Add(context);
+            mode.SelectedIndexChanged+=delegate{
+                if(mode.SelectedIndex==1)height.Value=Math.Max(height.Minimum,Math.Min(height.Maximum,(decimal)canvas.CenterHeight));
+                canvas.Mode=mode.SelectedIndex;canvas.ManualHeight=(float)height.Value;height.Enabled=canvas.Mode==1;thickness.Enabled=context.Enabled=canvas.Mode!=2;canvas.Invalidate();
             };
-            bar.Controls.Add(fit); bar.Controls.Add(files);
-            bar.Controls.Add(new Label { Text = "Wheel: zoom   Drag: pan   Cyan: player   Yellow: exits   Squares: items", AutoSize = true, Padding = new Padding(6, 8, 0, 0) });
-            bar.SetFlowBreak(bar.Controls[bar.Controls.Count - 1], true);
-            bar.Controls.Add(new Label { Text = "Diamonds: blue NPCs, white Tribals   Orange-red: targets   Violet: doors", AutoSize = true, Padding = new Padding(6, 0, 0, 0) });
-            ComboBox mode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 130 };
-            mode.Items.AddRange(new object[] { "Player floor", "Height slice", "All heights" });
-            mode.SelectedIndex = 0;
-            NumericUpDown height = new NumericUpDown { Minimum = -1000000, Maximum = 1000000, Increment = 16, Width = 90, Enabled = false };
-            layerHeight = height;
-            NumericUpDown thickness = new NumericUpDown { Minimum = 4, Maximum = 4096, Value = 64, Increment = 16, Width = 70 };
-            CheckBox context = new CheckBox { Text = "Other levels", Checked = true, AutoSize = true, Padding = new Padding(4, 3, 0, 0) };
-            mode.SelectedIndexChanged += delegate {
-                if (mode.SelectedIndex == 1) height.Value = Math.Max(height.Minimum, Math.Min(height.Maximum, (decimal)canvas.CenterHeight));
-                canvas.Mode = mode.SelectedIndex; canvas.ManualHeight = (float)height.Value;
-                height.Enabled = canvas.Mode == 1; thickness.Enabled = canvas.Mode != 2; context.Enabled = canvas.Mode != 2;
-                canvas.Invalidate();
+            height.ValueChanged+=delegate{canvas.ManualHeight=(float)height.Value;canvas.Invalidate();};thickness.ValueChanged+=delegate{canvas.SliceWidth=(float)thickness.Value;canvas.Invalidate();};
+            context.CheckedChanged+=delegate{canvas.OtherLevels=context.Checked;canvas.Invalidate();};
+            var collisionToggle=new ToolStripMenuItem("Entity collision boxes"){CheckOnClick=true,Checked=true};
+            var originsToggle=new ToolStripMenuItem("Unknown entity origins"){CheckOnClick=true};
+            collisionToggle.CheckedChanged+=delegate{canvas.ShowCollision=collisionToggle.Checked;canvas.Invalidate();};originsToggle.CheckedChanged+=delegate{canvas.ShowEntityOrigins=originsToggle.Checked;canvas.Invalidate();};
+            layersMenu.DropDownItems.Add(new ToolStripSeparator());layersMenu.DropDownItems.Add(collisionToggle);layersMenu.DropDownItems.Add(originsToggle);
+            var planAi=new ToolStripMenuItem("Plan exit route");var startAi=new ToolStripMenuItem("Start planned route");var stopAi=new ToolStripMenuItem("Stop AI"){ShortcutKeyDisplayString="Esc"};
+            var explore=new ToolStripMenuItem("Explore automatically");var retry=new ToolStripMenuItem("Retry room exits");
+            var aiControls=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Width=210};aiControls.Items.AddRange(new object[]{"Normal (C-Up jump)","Expert (A jump)"});aiControls.SelectedIndex=0;
+            aiMenu.DropDownItems.AddRange(new ToolStripItem[]{explore,stopAi,new ToolStripSeparator(),new ToolStripControlHost(aiControls)});
+            var advanced=new ToolStripMenuItem("Advanced individual tests"){CheckOnClick=true};aiMenu.DropDownItems.Add(advanced);
+            aiMenu.DropDownItems.AddRange(new ToolStripItem[]{planAi,startAi,retry});planAi.Visible=startAi.Visible=retry.Visible=false;
+            advanced.CheckedChanged+=delegate{planAi.Visible=startAi.Visible=retry.Visible=advanced.Checked;};
+            var inventory=new ToolStripMenuItem("Live inventory");toolsMenu.DropDownItems.Add(inventory);
+            inventory.Click+=delegate{try{using(var tool=NativeLiveTools.OpenWindow("inventory",LocalSetup.ProfileRoot,IntPtr.Zero)) {}}catch(IOException error){status.Text=error.Message;}};
+            // AI feedback belongs with its commands, not in a permanent footer.
+            aiStatus.AutoSize=false;aiStatus.Size=new Size(244,64);aiStatus.Padding=new Padding(8);
+            aiStatus.BackColor=ToolColors.Panel;aiStatus.ForeColor=ToolColors.Blue;aiStatus.Font=MapMenuRenderer.MenuFont;
+            aiMenu.DropDownItems.Add(new ToolStripSeparator());
+            aiMenu.DropDownItems.Add(new ToolStripControlHost(aiStatus){AutoSize=false,Size=aiStatus.Size,Margin=Padding.Empty,Padding=Padding.Empty});
+            var settingsMenu=new ToolStripMenuItem("Settings");
+            var settingsItem=new ToolStripMenuItem("Map settings...");settingsMenu.DropDownItems.Add(settingsItem);
+            menus.Items.Remove(layersMenu);menus.Items.Remove(aiMenu);menus.Items.Remove(toolsMenu);menus.Items.Add(settingsMenu);
+            var modsMenu=new ToolStripMenuItem("Mods");
+            warpMod=new ToolStripMenuItem("Warp to exits"){CheckOnClick=true,ToolTipText=MapMods.WarpHelp};
+            healthMod=new ToolStripMenuItem("Infinite health"){CheckOnClick=true,ToolTipText=MapMods.HealthHelp};
+            killMod=new ToolStripMenuItem("Instant kill enemies"){CheckOnClick=true,ToolTipText=MapMods.KillHelp};
+            modsMenu.DropDownItems.AddRange(new ToolStripItem[]{warpMod,healthMod,killMod});
+            foreach(var mod in new[]{warpMod,healthMod,killMod})mod.CheckedChanged+=delegate{SaveMods();};
+            canvas.ExitActivated+=WarpToExit;
+            interactionList.MouseDoubleClick+=delegate(object sender,MouseEventArgs e){
+                int index=interactionList.IndexFromPoint(e.Location);
+                var node=index<0?null:interactionList.Items[index] as MapInteraction;
+                if(e.Button==MouseButtons.Left&&node!=null&&node.kind=="exit")WarpToExit(node.address);
             };
-            height.ValueChanged += delegate { canvas.ManualHeight = (float)height.Value; canvas.Invalidate(); };
-            thickness.ValueChanged += delegate { canvas.SliceWidth = (float)thickness.Value; canvas.Invalidate(); };
-            context.CheckedChanged += delegate { canvas.OtherLevels = context.Checked; canvas.Invalidate(); };
-            bar.SetFlowBreak(bar.Controls[bar.Controls.Count - 1], true);
-            bar.Controls.Add(mode);
-            bar.Controls.Add(new Label { Text = "Height Y", AutoSize = true, Padding = new Padding(0, 5, 0, 0) });
-            bar.Controls.Add(height);
-            bar.Controls.Add(new Label { Text = "Slice width", AutoSize = true, Padding = new Padding(0, 5, 0, 0) });
-            bar.Controls.Add(thickness); bar.Controls.Add(context);
-            bar.SetFlowBreak(context, true);
-            bar.Controls.Add(new Label { Text = "Bright: current height slice   Gray: other heights (including rising ramps)   Hollow markers: above/below", AutoSize = true, Padding = new Padding(6, 0, 0, 0) });
-
-            Controls.Add(bar);
-            status.Dock = DockStyle.Bottom; status.Height = 38; status.Padding = new Padding(8);
-            Controls.Add(status);
-            bar.Height = 255;
-            bar.SetFlowBreak(bar.Controls[bar.Controls.Count-1],true);
-            CheckBox collisionToggle=new CheckBox {Text="Entity collision boxes",Checked=true,AutoSize=true};
-            CheckBox originsToggle=new CheckBox {Text="Unknown entity origins",Checked=false,AutoSize=true};
-            collisionToggle.CheckedChanged+=delegate {canvas.ShowCollision=collisionToggle.Checked;canvas.Invalidate();};
-            originsToggle.CheckedChanged+=delegate {canvas.ShowEntityOrigins=originsToggle.Checked;canvas.Invalidate();};
-            bar.Controls.Add(collisionToggle);bar.Controls.Add(originsToggle);
-            bar.Controls.Add(new Label {Text="Click box: height details | Fill: top; stripe: base | Player floor uses body height; other levels dashed",AutoSize=true,Padding=new Padding(4,3,0,0)});
-            bar.SetFlowBreak(bar.Controls[bar.Controls.Count-1],true);
-            Button planAi = new Button { Text = "Plan exit route", AutoSize = true };
-            Button startAi = new Button { Text = "Start AI", AutoSize = true };
-            Button stopAi = new Button { Text = "Stop AI", AutoSize = true };
-            Button explore = new Button { Text = "Explore automatically", AutoSize = true };
-            var aiControls=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Width=170};
-            aiControls.Items.AddRange(new object[]{"Normal (C-Up jump)","Expert (A jump)"});aiControls.SelectedIndex=0;
-            Button retry = new Button {Text="Retry room exits",AutoSize=true};
-            bar.SetFlowBreak(context, true);
-            bar.SetFlowBreak(bar.Controls[bar.Controls.Count-1],true);
-            aiStatus.MaximumSize=new Size(980,0);
-            bar.Controls.Add(planAi);bar.Controls.Add(startAi);bar.Controls.Add(stopAi);bar.Controls.Add(explore);bar.Controls.Add(aiControls);bar.Controls.Add(retry);
-            bar.SetFlowBreak(retry,true);bar.Controls.Add(aiStatus);
-            var inventory=new Button{Text="Live inventory",AutoSize=true};
-            InventoryWindow inventoryWindow=null;bar.Controls.Add(inventory);
-            inventory.Click+=delegate {
-                if(inventoryWindow==null||inventoryWindow.IsDisposed)inventoryWindow=new InventoryWindow(directory);
-                else inventoryWindow.BindDirectory(directory);
-                inventoryWindow.Show();inventoryWindow.BringToFront();
-            };
-            var advanced=new CheckBox{Text="Advanced individual tests",AutoSize=true};
-            bar.Controls.Add(advanced);
-            planAi.Visible=startAi.Visible=retry.Visible=false;
-            advanced.CheckedChanged+=delegate {
-                planAi.Visible=startAi.Visible=retry.Visible=advanced.Checked;
-            };
+            SettingsSections=new[]{layersMenu,aiMenu,modsMenu,toolsMenu};
+            settingsItem.Click+=delegate{using(var settings=new MapSettingsDialog(SettingsSections))settings.ShowDialog(this);};
+            FormClosed+=delegate{layersMenu.Dispose();aiMenu.Dispose();modsMenu.Dispose();toolsMenu.Dispose();};
+            MapMenuRenderer.Style(menus);MainMenuStrip=menus;Controls.Add(menus);
+            status.Dock=DockStyle.Bottom;status.Height=30;status.Padding=new Padding(12,6,0,0);status.BackColor=ToolColors.Panel;status.ForeColor=ToolColors.Muted;Controls.Add(status);
+            var legendLabel=new Label{AutoSize=false,Size=new Size(355,68),BackColor=ToolColors.Panel,ForeColor=ToolColors.Muted,Padding=new Padding(10),Text="Cyan  Player     Yellow  Exits     Squares  Items\nBlue  NPCs     White  Tribals     Violet  Doors\nWheel to zoom  /  Drag to pan"};canvas.Controls.Add(legendLabel);
+            Action placeLegend=delegate{legendLabel.Location=new Point(14,Math.Max(5,canvas.Height-legendLabel.Height-38));};canvas.Resize+=delegate{placeLegend();};placeLegend();
+            legend.CheckedChanged+=delegate{legendLabel.Visible=legend.Checked;};
+            var zoomBar=new FlowLayoutPanel{Name="map-zoom-controls",Size=new Size(176,32),WrapContents=false,Padding=new Padding(2),BackColor=ToolColors.Panel};
+            var less=ToolColors.Button("\u2212");less.Name="zoom-out";less.AccessibleName="Zoom out";less.Size=new Size(30,28);less.Margin=Padding.Empty;
+            var percent=new Label{Name="zoom-level",Text="100%",Size=new Size(62,28),TextAlign=ContentAlignment.MiddleCenter,ForeColor=ToolColors.Text,Margin=Padding.Empty};
+            var more=ToolColors.Button("+");more.Name="zoom-in";more.AccessibleName="Zoom in";more.Size=new Size(30,28);more.Margin=Padding.Empty;
+            var fitCorner=ToolColors.Button("Fit");fitCorner.Name="zoom-fit";fitCorner.AccessibleName="Fit room";fitCorner.Size=new Size(48,28);fitCorner.Margin=Padding.Empty;
+            zoomBar.Controls.AddRange(new Control[]{less,percent,more,fitCorner});canvas.Controls.Add(zoomBar);
+            Action placeZoom=delegate{zoomBar.Location=new Point(Math.Max(4,canvas.Width-zoomBar.Width-14),Math.Max(4,canvas.Height-zoomBar.Height-14));};canvas.Resize+=delegate{placeZoom();};placeZoom();
+            less.Click+=delegate{canvas.Zoom(1/1.2f);};more.Click+=delegate{canvas.Zoom(1.2f);};fitCorner.Click+=delegate{canvas.Fit();};
+            canvas.ZoomChanged+=delegate{percent.Text=(canvas.ZoomLevel*100).ToString("0")+"%";less.Enabled=canvas.ZoomLevel>.25f;more.Enabled=canvas.ZoomLevel<16;};
+            var center=ToolColors.Button("Center selected");center.Dock=DockStyle.Bottom;center.Height=34;center.Click+=delegate{
+                var actor=aiSnapshot==null||selectedEntity==0?null:NavigationCollision.Actor(aiSnapshot.Live,selectedEntity);
+                if(actor!=null)canvas.CenterOn(actor.position);
+                else {var selected=interactionList.SelectedItem as MapInteraction;if(selected!=null)canvas.CenterOn(selected.position);}
+            };progressionPanel.Controls.Add(center);center.SendToBack();
+            foreach(ToolStripMenuItem menu in menus.Items){menu.DropDown.BackColor=ToolColors.Panel;menu.DropDown.ForeColor=ToolColors.Text;}
 
             planAi.Click += delegate {
                 StopAi();
@@ -742,6 +1011,16 @@ namespace JfgLauncher
             BindDirectory(path); timer.Start();
             FormClosed += delegate { timer.Stop(); timer.Dispose(); };
         }
+        private void OpenExports() {
+            if(String.IsNullOrEmpty(directory)||!Directory.Exists(directory)) {
+                MessageBox.Show(this,"No export folder is available yet. Start a game and load a room first.","Live map exports",MessageBoxButtons.OK,MessageBoxIcon.Information);return;
+            }
+            try {System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo{FileName=directory,UseShellExecute=true,Verb="open"});}
+            catch(Exception error) {
+                if(!(error is System.ComponentModel.Win32Exception)&&!(error is IOException)&&!(error is UnauthorizedAccessException))throw;
+                MessageBox.Show(this,"Cannot open the export folder.\n\n"+directory+"\n\n"+error.Message,"Live map exports",MessageBoxButtons.OK,MessageBoxIcon.Error);
+            }
+        }
         internal void BindDirectory(string path) {
             StopAi();aiRoute=null;canvas.Route=null;selectedEntity=0;directory=LocalSetup.FullPath(path);cached=null;explorerError=null;
             try { explorer=AutonomousExplorer.Load(directory); }
@@ -757,13 +1036,14 @@ namespace JfgLauncher
                 if(command.Stop)StopPilot();aiStatus.Text=explorer.Status;
             }else StopPilot();
             aiSnapshot=null;cached=null;canvas.UpdateMap(null);UpdateInteractions(null);
+            SyncMods(null);
         }
         internal void RefreshMap()
         {
             try {
                 MapSnapshot value = MapSnapshot.Load(directory, cached);
                 if(aiSnapshot!=null && (aiSnapshot.Live.level!=value.Live.level || aiSnapshot.Live.generation!=value.Live.generation))selectedEntity=0;
-                aiSnapshot=value;
+                aiSnapshot=value;SyncMods(value);
                 if(explorer.Running) {
                     ExploreCommand command=explorer.Tick(value,NavigationExplorer.Clock);
                     if(command.Stop){StopPilot();aiRoute=null;canvas.Route=null;}
@@ -780,7 +1060,7 @@ namespace JfgLauncher
                 int tribalCount = 0;
                 foreach (MapMarker npc in value.Live.npcs)
                     if (npc.kind == "tribal") tribalCount++;
-                status.Text = (value.IsLive ? (value.Live.clearing_active ? "LIVE" : "LIVE - scripted scene / controls suspended") : "Saved map - game closed, paused, or no longer exporting")
+                status.Text = (value.IsLive ? ((value.Live.gameplay_active || value.Live.clearing_active) ? "LIVE" : "LIVE - scripted scene / controls suspended") : "Saved map - game closed, paused, or no longer exporting")
                     + "  |  " + value.Live.exits.Length + " exits  |  " + value.Live.markers.Length + " items  |  "
                     + (value.Live.npcs.Length - tribalCount) + " NPCs  |  " + tribalCount + " Tribals"
                     + " | Collision: " + (value.Live.collision==null || !value.Live.collision.known?"unknown":value.Live.collision.models.Length+" models");

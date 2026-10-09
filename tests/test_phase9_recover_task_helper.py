@@ -72,5 +72,99 @@ class HelperBoundaryTests(unittest.TestCase):
                 validate_cfg(words, entry, {self.callee})
 
 
+class HelperOutputDirectoryTests(unittest.TestCase):
+    """Exercise run's output policy before external tools or ROM bytes are needed."""
+
+    def setUp(self):
+        from pathlib import Path
+        import tempfile
+        from unittest.mock import patch
+        from scripts import phase9_recover_task_helper as helper
+        self.helper = helper
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.base = Path(temporary.name)
+        self.checkout = self.base / "checkout"
+        self.private = self.checkout / "tools/private"
+        self.private.mkdir(parents=True)
+        self.elf, self.rom = self.base / "input.elf", self.base / "input.z64"
+        self.elf.write_bytes(b"synthetic ELF fixture")
+        self.rom.write_bytes(b"synthetic ROM fixture")
+        self.enterContext(patch.object(helper, "ROOT", self.checkout))
+        self.enterContext(patch.object(helper, "ROM_SHA256", helper.digest(self.rom.read_bytes())))
+        self.inspect = self.enterContext(patch.object(helper, "inspect", side_effect=RuntimeError("ELF validation reached")))
+
+    def invoke(self, output):
+        return self.helper.run(output, self.elf, self.helper.digest(self.elf.read_bytes()), self.rom)
+
+    def assert_admitted(self, output):
+        with self.assertRaisesRegex(RuntimeError, "ELF validation reached"):
+            self.invoke(output)
+        self.inspect.assert_called_once()
+        self.inspect.reset_mock()
+        self.assertFalse(output.exists())
+
+    def assert_rejected(self, output):
+        with self.assertRaisesRegex(ValueError, "output directory"):
+            self.invoke(output)
+        self.inspect.assert_not_called()
+
+    def test_external_and_legacy_private_outputs_are_admitted(self):
+        for output in (self.base / "cache/helper-task", self.private / "helper-task"):
+            with self.subTest(output=output):
+                self.assert_admitted(output)
+
+    def test_default_and_custom_windows_cache_outputs_are_admitted(self):
+        from unittest.mock import patch
+        from scripts.build_paths import windows_cache
+        from pathlib import Path
+        # Use a short synthetic base without creating it, including on Windows.
+        short = Path(self.base.anchor) / "jfg-cache-fixture"
+        with patch.dict("os.environ", {"LOCALAPPDATA": str(short)}):
+            for cache in (windows_cache(self.checkout), windows_cache(self.checkout, short / "custom")):
+                with self.subTest(cache=cache):
+                    self.assert_admitted(cache / "w/0123456789ab/helper-task")
+
+    def test_existing_external_and_private_directories_are_preserved(self):
+        for output in (self.base / "cache", self.private / "helper-task"):
+            output.mkdir()
+            marker = output / "keep.txt"
+            marker.write_text("keep")
+            with self.subTest(output=output):
+                self.assert_rejected(output)
+                self.assertEqual(marker.read_text(), "keep")
+
+    def test_existing_output_file_is_preserved(self):
+        output = self.base / "already-used"
+        output.write_text("keep")
+        self.assert_rejected(output)
+        self.assertEqual(output.read_text(), "keep")
+
+    def test_checkout_destinations_outside_private_are_rejected(self):
+        for output in (self.checkout / "src/generated", self.checkout / "build/helper-task",
+                       self.checkout / "tools/private-lookalike/helper-task",
+                       self.private / "../../src/generated"):
+            with self.subTest(output=output):
+                self.assert_rejected(output)
+                self.assertFalse(output.exists())
+
+    def symlink(self, link, target):
+        try:
+            link.symlink_to(target, target_is_directory=True)
+        except (OSError, NotImplementedError) as error:
+            self.skipTest(f"directory symlinks unavailable: {error}")
+
+    def test_external_alias_into_checkout_is_rejected(self):
+        alias = self.base / "checkout-alias"
+        self.symlink(alias, self.checkout)
+        self.assert_rejected(alias / "src/generated")
+
+    def test_dangling_output_link_is_preserved(self):
+        output = self.base / "dangling-output"
+        self.symlink(output, self.base / "missing-target")
+        self.assert_rejected(output)
+        self.assertTrue(output.is_symlink())
+
+
 if __name__ == "__main__":
     unittest.main()

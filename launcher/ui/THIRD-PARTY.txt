@@ -1,0 +1,39 @@
+Jet Force Gemini Recomp launcher - third-party notices
+=====================================================
+
+Paths below are relative to the launcher release archive. In the source
+checkout, font notices and the font manifest live under launcher/ui/fonts;
+the remaining notice files live under launcher/ui/licenses.
+
+RmlUi 6.3
+  Commit: ba95ffe8bfb6370efb2cdcca927eaad4710c5413
+  MIT: licenses/RmlUi-MIT.txt
+  Integrated robin_hood and itlib containers (MIT):
+    licenses/RmlUi-Containers-MIT.txt
+  Debugger Courier Prime Code fonts (SIL Open Font License 1.1):
+    licenses/RmlUi-Debugger-OFL.txt
+  The debugger notice is retained for the linked aggregate RmlUi target;
+  unused debugger assets may be removed by the linker.
+
+FreeType 2.14.1
+  Commit: 526ec5c47b9ebccc4754c85ac0c0cdf7c85a5e9b
+  Used under the FreeType License: licenses/FreeType-FTL.txt
+  Portions of this software are copyright (c) 2025 The FreeType Project
+  (www.freetype.org). All rights reserved.
+  Additional BDF, PCF, The Open Group, hashing, internal zlib and
+  HarfBuzz-derived source notices: licenses/FreeType-ThirdParty.txt
+  External HarfBuzz integration is disabled; its source notices are retained.
+
+Barlow and Chakra Petch fonts
+  SIL Open Font License 1.1:
+    licenses/Barlow-OFL.txt
+    licenses/ChakraPetch-OFL.txt
+  Font source and hashes: licenses/font-manifest.json
+  Font bytes are embedded in the launcher, not supplied as loose font files.
+
+Pinned upstream source paths and notice hashes: licenses/provenance.json
+
+This archive contains the launcher, not the locally built game runtime.
+Game-runtime and build-tool attribution is documented separately in the
+source repository's THIRD_PARTY_NOTICES.md and dependency inventory.
+Jet Force Gemini content and trademarks belong to their respective owners.

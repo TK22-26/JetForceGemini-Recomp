@@ -2,11 +2,16 @@
 
 ## Current work
 
+- [Quarry audio timing and performance findings](quarry-audio-sync-findings.md): confirmed causes, candidate fixes, replay evidence, and remaining limits.
 - [Project roadmap](JFG_RECOMP_MASTER_PLAN.md): compatibility, campaign, enhancements, and release gates.
 - [Campaign slice](phase9-acceptance.md): remaining route and regression coverage.
 - [Automated gameplay exploration](phase9-5-autonomous-exploration.md): scenario and recovery requirements.
 - [Automation delivery plan](autonomous-full-scope-execution.md): remaining engineering-loop work.
 - [Tester onboarding](tester-onboarding.md): documentation and reporting delivery checkpoint.
+
+## PC enhancements
+
+- [PC controls and Perfect Dark references](../upstream/perfect-dark-pc-reference.md): implemented keyboard/mouse bindings and experimental separate-stick manual aim; full movement/strafing and camera integration remain open. Pinned host sources are retained locally.
 
 ## Operational requirements
 

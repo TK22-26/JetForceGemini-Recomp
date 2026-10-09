@@ -8,6 +8,7 @@ For reporting a problem, use [playtesting](../playtesting.md).
 - [ROM build setup](rom-bootstrap.md) produces the playable Windows runtime.
 - [Development setup](setup.md) builds and tests source without a ROM.
 - [Launcher guide](launcher.md) covers setup, controls, saves, and support reports.
+- [Release workflow](releasing.md) builds and publishes versioned launcher releases.
 - [Contributing](../../CONTRIBUTING.md) describes focused pull requests and validation.
 - [Test quarantine](../tests/quarantine.md) records the Linux runner exception.
 
@@ -33,6 +34,7 @@ scripts may still be part of the public build.
 
 - [Recent gameplay fixes](boot-gameplay-fix.md).
 - [Runtime research summary](runtime-research.md).
+- [Perfect Dark PC references](../upstream/perfect-dark-pc-reference.md): retained input sources, implemented PC bindings, experimental manual aim, and remaining modern-control work.
 - [Automation operation and boundaries](automation.md).
 - [Execution profiles](../adr/0002-execution-profiles.md).
 - [Dependency architecture](../adr/0003-phase4-dependency-architecture.md).

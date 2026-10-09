@@ -12,13 +12,26 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-[assembly: AssemblyTitle("JFG Launcher Preview")]
-[assembly: AssemblyDescription("Local ROM build and launch prototype for JFG")]
-[assembly: AssemblyVersion("0.4.0.0")]
-[assembly: AssemblyInformationalVersion("0.4.0-preview.4")]
+[assembly: AssemblyTitle("JFG Launcher")]
+[assembly: AssemblyDescription("Local ROM build and launcher for JFG")]
+[assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyInformationalVersion("1.0.0")]
 
 namespace JfgLauncher
 {
+    // One embedded brand asset is shared by setup, support and legacy tool windows.
+    internal class ApplicationWindow : Form
+    {
+        private static readonly Icon AppIcon = LoadApplicationIcon();
+        private static Icon LoadApplicationIcon()
+        {
+            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("JfgLauncher.AppIcon"))
+            using (var icon = new Icon(stream))
+                return (Icon)icon.Clone();
+        }
+        protected ApplicationWindow() { Icon = AppIcon; }
+    }
+
     [DataContract]
     internal sealed class Settings
     {
@@ -89,6 +102,14 @@ namespace JfgLauncher
             string exports = Path.Combine(target, "maps", DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N"));
             info.EnvironmentVariables["JFG_NAVIGATION_MOD"] = "1";
             info.EnvironmentVariables["JFG_MOD_OUTPUT"] = exports;
+            MapModPreferences.PrepareSession(profile,exports);
+            return info;
+        }
+
+        internal static ProcessStartInfo LiveToolsStartInfo(string runtime,string rom,string profile) {
+            var info=StartInfo(runtime,rom,profile);
+            info.EnvironmentVariables["JFG_LIVE_OUTPUT"]=Path.Combine(profile,"maps",DateTime.UtcNow.ToString("yyyyMMdd-HHmmss")+"-"+Guid.NewGuid().ToString("N"));
+            MapModPreferences.PrepareSession(profile,info.EnvironmentVariables["JFG_LIVE_OUTPUT"]);
             return info;
         }
 
@@ -272,7 +293,7 @@ namespace JfgLauncher
         }
     }
 
-    internal sealed class LauncherWindow : Form
+    internal sealed class LauncherWindow : ApplicationWindow
     {
         private readonly TextBox runtime = new TextBox();
         private readonly TextBox rom = new TextBox();
@@ -285,7 +306,6 @@ namespace JfgLauncher
         private readonly ProgressBar progress = new ProgressBar();
         private readonly List<Control> inputs = new List<Control>();
         private bool busy;
-        private NavigationMapWindow mapWindow;
         private Process activeGame;
         private SupportSession activeSupport;
         private readonly Button freeze = new Button { Text = "Capture freeze", Size = new Size(145, 34), Enabled = false };
@@ -391,30 +411,14 @@ namespace JfgLauncher
             actions.Controls.Add(report);
             Button maps = new Button { Text = "Live map", Size = new Size(120, 34) };
             maps.Click += delegate {
-                try {
-                    string directory = Path.Combine(LocalSetup.NavigationProfile(LocalSetup.ProfileRoot), "maps");
-                    if (!Directory.Exists(directory) || Directory.GetDirectories(directory).Length == 0) {
-                        status.Text = "Launch with Navigation mod enabled to start exporting a live map.";
-                        return;
-                    }
-                    string[] sessions = Directory.GetDirectories(directory);
-                    Array.Sort(sessions, StringComparer.Ordinal);
-                    ShowNavigationMap(sessions[sessions.Length - 1]);
-                } catch (Exception error) { status.Text = LocalSetup.FriendlyError(error); }
+                try {using(var tool=NativeLiveTools.OpenWindow("map",LocalSetup.ProfileRoot,Handle)) {}}
+                catch(Exception error){status.Text=LocalSetup.FriendlyError(error);}
             };
             actions.Controls.Add(maps);
             var inventoryButton=new Button{Text="Live inventory",Size=new Size(130,34)};
-            InventoryWindow inventoryWindow=null;
             inventoryButton.Click+=delegate {
-                try {
-                    string root=Path.Combine(LocalSetup.NavigationProfile(LocalSetup.ProfileRoot),"maps");
-                    string[] sessions=Directory.Exists(root)?Directory.GetDirectories(root):new string[0];
-                    if(sessions.Length==0){status.Text="Launch with Navigation mod enabled to export live inventory.";return;}
-                    Array.Sort(sessions,StringComparer.Ordinal);
-                    if(inventoryWindow==null||inventoryWindow.IsDisposed)inventoryWindow=new InventoryWindow(sessions[sessions.Length-1]);
-                    else inventoryWindow.BindDirectory(sessions[sessions.Length-1]);
-                    inventoryWindow.Show();inventoryWindow.BringToFront();
-                }catch(Exception error){status.Text=LocalSetup.FriendlyError(error);}
+                try {using(var tool=NativeLiveTools.OpenWindow("inventory",LocalSetup.ProfileRoot,Handle)) {}}
+                catch(Exception error){status.Text=LocalSetup.FriendlyError(error);}
             };
             actions.Controls.Add(inventoryButton);
             layout.Controls.Add(actions, 0, 10);
@@ -585,12 +589,13 @@ namespace JfgLauncher
             }
         }
 
+        protected override void WndProc(ref Message message) {
+            if(message.Msg==0x8017) {try{using(var tool=NativeLiveTools.OpenWindow("inventory",LocalSetup.ProfileRoot,Handle)) {}}catch(IOException error){status.Text=error.Message;}return;}
+            base.WndProc(ref message);
+        }
         private void ShowNavigationMap(string path)
         {
-            if (mapWindow == null || mapWindow.IsDisposed) mapWindow = new NavigationMapWindow(path);
-            else mapWindow.BindDirectory(path);
-            mapWindow.Show();
-            mapWindow.BringToFront();
+            using(var tool=NativeLiveTools.OpenWindow("map",LocalSetup.ProfileRoot,Handle)) {}
         }
 
         private async Task Launch()
@@ -616,11 +621,15 @@ namespace JfgLauncher
                 {
                     process.StartInfo = navigation.Checked
                         ? LocalSetup.NavigationStartInfo(game, selectedRom, LocalSetup.ProfileRoot)
-                        : LocalSetup.StartInfo(game, selectedRom, LocalSetup.ProfileRoot);
+                        : LocalSetup.LiveToolsStartInfo(game, selectedRom, LocalSetup.ProfileRoot);
                     support.Write(navigation.Checked ? "mod=navigation-enabled" : "mod=disabled");
                     process.StartInfo.EnvironmentVariables["JFG_SUPPORT_LOG"] = support.NativePath;
                     new AudioPreferences { Volume = volume.Value, Muted = mute.Checked }.Save(LocalSetup.ProfileRoot);
                     if (!process.Start()) throw new IOException();
+                    InventorySession.Record(navigation.Checked?process.StartInfo.EnvironmentVariables["JFG_MOD_OUTPUT"]:process.StartInfo.EnvironmentVariables["JFG_LIVE_OUTPUT"],process);
+                    InventorySession.Record(LocalSetup.ProfileRoot,process);
+                    File.WriteAllText(Path.Combine(LocalSetup.ProfileRoot,"frontend-map-session.txt"),navigation.Checked?process.StartInfo.EnvironmentVariables["JFG_MOD_OUTPUT"]:process.StartInfo.EnvironmentVariables["JFG_LIVE_OUTPUT"]);
+                    File.WriteAllText(Path.Combine(LocalSetup.ProfileRoot,"frontend-rom.txt"),selectedRom);
                     if (navigation.Checked) ShowNavigationMap(process.StartInfo.EnvironmentVariables["JFG_MOD_OUTPUT"]);
                     support.Write("stage=started");
                     activeGame = process; freeze.Enabled = captureAvailable;
@@ -655,10 +664,11 @@ namespace JfgLauncher
         [STAThread]
         private static void Main(string[] args)
         {
+            if (FrontendBridge.TryRun(args)) return;
             if (args.Length == 2 && args[0] == "--map-view") {
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new NavigationMapWindow(args[1]));
+                using(var tool=NativeLiveTools.OpenWindow("map",LocalSetup.FullPath(args[1]),IntPtr.Zero))tool.WaitForExit();
                 return;
             }
             bool owner;

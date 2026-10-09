@@ -265,6 +265,56 @@ if(TARGET jfg_rt64_renderer)
             VERBATIM)
     endif()
     add_test(NAME jfg.rt64_shell COMMAND jfg_rt64_shell_tests)
+
+    # Exercise the installed command handlers against RT64's CPU state.
+    # These tests do not create a graphics device or require a game ROM.
+    add_executable(jfg_rt64_f3ddkr_texture_tests rt64_f3ddkr_texture_tests.cpp)
+    target_link_libraries(jfg_rt64_f3ddkr_texture_tests PRIVATE jfg_rt64_renderer)
+    target_include_directories(jfg_rt64_f3ddkr_texture_tests PRIVATE
+        "${PROJECT_SOURCE_DIR}/src/renderer"
+        $<TARGET_PROPERTY:jfg_rt64_renderer,INCLUDE_DIRECTORIES>)
+    target_compile_definitions(jfg_rt64_f3ddkr_texture_tests PRIVATE
+        $<TARGET_PROPERTY:jfg_rt64_renderer,COMPILE_DEFINITIONS>)
+    target_compile_features(jfg_rt64_f3ddkr_texture_tests PRIVATE cxx_std_20)
+    jfg_set_project_warnings(jfg_rt64_f3ddkr_texture_tests)
+    if(MSVC)
+        target_compile_options(jfg_rt64_f3ddkr_texture_tests PRIVATE
+            /wd4201 /wd4244 /wd4324)
+    endif()
+    if(WIN32)
+        add_custom_command(TARGET jfg_rt64_f3ddkr_texture_tests POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${jfg_rt64_root}/src/contrib/mupen64plus-win32-deps/SDL2-2.26.3/lib/x64/SDL2.dll"
+                "${jfg_rt64_root}/src/contrib/dxc/bin/x64/dxcompiler.dll"
+                "${jfg_rt64_root}/src/contrib/dxc/bin/x64/dxil.dll"
+                "$<TARGET_FILE_DIR:jfg_rt64_f3ddkr_texture_tests>"
+            VERBATIM)
+    endif()
+    add_test(NAME jfg.rt64_f3ddkr_texture COMMAND jfg_rt64_f3ddkr_texture_tests)
+
+    add_executable(jfg_rt64_depth_bounds_tests rt64_depth_bounds_tests.cpp)
+    target_link_libraries(jfg_rt64_depth_bounds_tests PRIVATE jfg_rt64_renderer)
+    target_include_directories(jfg_rt64_depth_bounds_tests PRIVATE
+        "${PROJECT_SOURCE_DIR}/src/renderer"
+        $<TARGET_PROPERTY:jfg_rt64_renderer,INCLUDE_DIRECTORIES>)
+    target_compile_definitions(jfg_rt64_depth_bounds_tests PRIVATE
+        $<TARGET_PROPERTY:jfg_rt64_renderer,COMPILE_DEFINITIONS>)
+    target_compile_features(jfg_rt64_depth_bounds_tests PRIVATE cxx_std_20)
+    jfg_set_project_warnings(jfg_rt64_depth_bounds_tests)
+    if(MSVC)
+        target_compile_options(jfg_rt64_depth_bounds_tests PRIVATE
+            /wd4201 /wd4244 /wd4324)
+    endif()
+    if(WIN32)
+        add_custom_command(TARGET jfg_rt64_depth_bounds_tests POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${jfg_rt64_root}/src/contrib/mupen64plus-win32-deps/SDL2-2.26.3/lib/x64/SDL2.dll"
+                "${jfg_rt64_root}/src/contrib/dxc/bin/x64/dxcompiler.dll"
+                "${jfg_rt64_root}/src/contrib/dxc/bin/x64/dxil.dll"
+                "$<TARGET_FILE_DIR:jfg_rt64_depth_bounds_tests>"
+            VERBATIM)
+    endif()
+    add_test(NAME jfg.rt64_depth_bounds COMMAND jfg_rt64_depth_bounds_tests)
 endif()
 
 add_executable(jfg_bounded_custom_graphics_tests
@@ -531,3 +581,38 @@ target_include_directories(jfg_playback_buffer_tests PRIVATE "${PROJECT_SOURCE_D
 target_compile_features(jfg_playback_buffer_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_playback_buffer_tests)
 add_test(NAME jfg.playback_buffer COMMAND jfg_playback_buffer_tests)
+
+add_executable(jfg_controller_ports_tests controller_ports_tests.cpp)
+target_link_libraries(jfg_controller_ports_tests PRIVATE jfg_runtime)
+target_include_directories(jfg_controller_ports_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_controller_ports_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_controller_ports_tests)
+add_test(NAME jfg.controller_ports COMMAND jfg_controller_ports_tests)
+
+add_executable(jfg_pc_input_tests pc_input_tests.cpp)
+target_link_libraries(jfg_pc_input_tests PRIVATE jfg_runtime)
+target_compile_features(jfg_pc_input_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_pc_input_tests)
+add_test(NAME jfg.pc_input COMMAND jfg_pc_input_tests)
+
+add_executable(jfg_original_timing_runtime_tests original_timing_runtime_tests.cpp)
+target_include_directories(jfg_original_timing_runtime_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_original_timing_runtime_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_original_timing_runtime_tests)
+add_test(NAME jfg.original_timing_runtime COMMAND jfg_original_timing_runtime_tests)
+
+foreach(async_test async_diagnostic_file async_snapshots)
+  add_executable(jfg_${async_test}_tests ${async_test}_tests.cpp)
+  target_include_directories(jfg_${async_test}_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+  target_compile_features(jfg_${async_test}_tests PRIVATE cxx_std_20)
+  target_compile_definitions(jfg_${async_test}_tests PRIVATE NOMINMAX)
+  jfg_set_project_warnings(jfg_${async_test}_tests)
+  add_test(NAME jfg.${async_test} COMMAND jfg_${async_test}_tests "${CMAKE_CURRENT_BINARY_DIR}/${async_test}.txt")
+endforeach()
+
+add_executable(jfg_original_timing_fast_tests original_timing_fast_tests.cpp)
+target_include_directories(jfg_original_timing_fast_tests PRIVATE
+    "${PROJECT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/original-timing-context")
+target_compile_features(jfg_original_timing_fast_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_original_timing_fast_tests)
+add_test(NAME jfg.original_timing_fast COMMAND jfg_original_timing_fast_tests)
