@@ -364,6 +364,20 @@ namespace JfgLauncher
                 Reject(delegate { LocalSetup.ValidateRom(new MemoryStream(fixture), fixture.Length, new string('0', 40)); }, "wrong hash accepted");
                 fixture[0] = 0x37;
                 Reject(delegate { LocalSetup.ValidateRom(new MemoryStream(fixture), fixture.Length, hash); }, "wrong byte order accepted");
+                string importProfile = Path.Combine(directory, "import-profile");
+                string importSource = Path.Combine(directory, "import-source.z64");
+                File.WriteAllBytes(importSource, Fixture());
+                string imported = ImportedRom.ImportVerified(importProfile, importSource, Fixture().Length, hash);
+                File.Delete(importSource);
+                Check(File.Exists(imported), "import still depended on the original file");
+                Check(ImportedRom.ImportVerified(importProfile, imported, Fixture().Length, hash) == imported, "relaunch lost imported ROM");
+                File.WriteAllBytes(importSource, new byte[12]);
+                Reject(delegate { ImportedRom.ImportVerified(importProfile, importSource, Fixture().Length, hash); }, "invalid import accepted");
+                using (var importedCheck = File.OpenRead(imported))
+                    Check(LocalSetup.Digest(importedCheck) == hash, "failed import damaged existing ROM");
+                Check(Directory.GetFiles(Path.GetDirectoryName(imported), "*.tmp").Length == 0, "failed import left temporary data");
+                File.WriteAllBytes(importSource, Fixture());
+                Reject(delegate { ImportedRom.Import(importProfile, importSource); }, "production import accepted a synthetic ROM");
                 string wrongRom = Path.Combine(directory, "synthetic.z64");
                 File.WriteAllBytes(wrongRom, Fixture());
                 Reject(delegate { using (LocalSetup.OpenVerifiedRom(wrongRom)) { } }, "production validation accepted synthetic ROM");
@@ -384,6 +398,39 @@ namespace JfgLauncher
                 File.WriteAllBytes(game, Pe());
                 File.WriteAllBytes(Path.Combine(directory, "SDL2.dll"), Pe());
                 Check(LocalSetup.PreferredRuntime(directory, "saved runtime") == game, "paired native build not selected");
+                string packageLauncher = Path.Combine(directory, "JFG-Launcher.exe");
+                File.WriteAllBytes(packageLauncher, Pe());
+                string packagePath = Path.Combine(directory, "jfg-package.json");
+                Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "missing package manifest accepted");
+                foreach (string member in PortablePackage.RuntimeFiles)
+                    if (!File.Exists(Path.Combine(directory, member))) File.WriteAllBytes(Path.Combine(directory, member), Pe());
+                var packageEntries = new System.Collections.Generic.List<string>();
+                foreach (string member in PortablePackage.RuntimeFiles)
+                {
+                    string memberPath = Path.Combine(directory, member);
+                    packageEntries.Add("{\"name\":\"" + member + "\",\"size\":" + new FileInfo(memberPath).Length + ",\"sha256\":\"" + SupportSession.Hash(memberPath) + "\"}");
+                }
+                string packageJson = "{\"schema\":1,\"version\":\"1.0.1-beta.1\",\"files\":[" + String.Join(",", packageEntries.ToArray()) + "]}";
+                File.WriteAllText(packagePath, packageJson);
+                Check(PortablePackage.Resolve(packageLauncher) == game, "complete bundled package rejected");
+                foreach (string crt in new string[] { "concrt140.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "msvcp140_atomic_wait.dll", "msvcp140_codecvt_ids.dll", "vccorlib140.dll", "vcruntime140.dll", "vcruntime140_1.dll", "vcruntime140_threads.dll" }) {
+                    string member = Path.Combine(directory, crt);
+                    File.Delete(member);
+                    Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "missing bundled CRT accepted: " + crt);
+                    File.WriteAllBytes(member, Pe());
+                }
+                File.AppendAllText(Path.Combine(directory, "SDL2.dll"), "changed");
+                Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "modified bundled library accepted");
+                File.WriteAllBytes(Path.Combine(directory, "SDL2.dll"), Pe());
+                File.WriteAllText(packagePath, packageJson.Replace("SDL2.dll", "../SDL2.dll"));
+                Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "package path traversal accepted");
+                File.WriteAllText(packagePath, packageJson.Replace("SDL2.dll", "dxil.dll"));
+                Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "duplicate package member accepted");
+                File.WriteAllText(packagePath, packageJson.Replace("\"schema\":1", "\"schema\":2"));
+                Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "unknown package schema accepted");
+                File.WriteAllText(packagePath, packageJson);
+                Check(PortablePackage.Resolve(packageLauncher) == game, "restored package did not recover");
+
                 Settings settings = new Settings { RuntimePath = "Synthetic build & Unicode \u00e9", RomPath = "Selected synthetic ROM" };
                 LocalSetup.SaveSettings(directory, settings);
                 Settings loaded = LocalSetup.LoadSettings(directory);

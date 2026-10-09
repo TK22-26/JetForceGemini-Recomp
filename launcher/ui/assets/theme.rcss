@@ -283,3 +283,6 @@ selectarrow { width:6dp; height:6dp; margin-right:7dp; margin-top:5dp; border-ri
 .device-name { font-size:18dp; }
 .input-device-card .label { font-size:11dp; }
 @media (max-width:700dp) { .controller-window .tabs button { min-width:40%; } }
+
+/* One-time import leaves the home screen focused on Play. */
+.rom-imported #rom-card { display: none; }

@@ -556,7 +556,7 @@ struct Ui : Rml::EventListener {
     fill("@VERSION@", jfg::frontend::version);
     fill("@BUILD@", jfg::frontend::revision);
     fill("@DATE@", jfg::frontend::built);
-    fill("@ROM@", state.rom.empty() ? "Not selected" : state.playing ? "US \xC2\xB7 verified" : "Selected \xC2\xB7 check on play");
+    fill("@ROM@", state.rom.empty() ? "Not imported" : state.playing ? "US \xC2\xB7 verified" : "Imported on this PC");
     return html;
   }
   void toggleMute() {
@@ -619,8 +619,8 @@ struct Ui : Rml::EventListener {
           menu = button(paused ? "resume" : "pause", paused ? "Resume game" : "Pause game") +
                  button("stop", "Stop / return home");
         }
-        menu += button("setup", "Set up and build...", state.playing) +
-                button("rom", "Change ROM...", state.busy);
+        menu += button("setup", "Verify game files...", state.playing) +
+                button("rom", "Select ROM...", state.busy);
         menu += button("shortcut", "Save direct-launch shortcut...", state.busy || state.rom.empty() || state.runtime.empty());
         menu += button("saves", "Open save folder");
         menu += "<div class=\"separator\"/>";
@@ -634,7 +634,7 @@ struct Ui : Rml::EventListener {
     std::string html, note = "Settings are saved to your game profile.";
     label("dialog-title", page == "pc-input" ? "KEYBOARD, MOUSE AND AIM"
                           : page == "controllers" ? "CONTROLLER MAPPING"
-                          : page == "setup"     ? "SET UP AND BUILD"
+                          : page == "setup"     ? "VERIFY GAME FILES"
                           : page == "support"   ? "SUPPORT REPORT"
                           : page == "video"     ? "VIDEO"
                           : page == "audio"     ? "AUDIO"
@@ -687,8 +687,8 @@ struct Ui : Rml::EventListener {
           "class=\"about\"><div class=\"label\">ABOUT</div><div "
           "class=\"name\">Display</div><p>Fullscreen fills your display "
           "without changing the game's graphics.</p><p class=\"muted\">F11 "
-          "switches modes. Choose widescreen in the original game's "
-          "options.</p></div></div>";
+          "switches modes. The game stays in a centered 4:3 area; the original "
+          "game controls its own cinematic bars.</p></div></div>";
       html += "<div class=\"row\"><div class=\"grow\">Pause when inactive<div class=\"muted\">Pause when you switch to another app. Resume when you return.</div></div>" +
               button("pause-inactive", state.pauseInactive ? "On" : "Off") + "</div>";
       note = "Changes apply immediately. Settings dialogs always pause the game.";
@@ -770,28 +770,12 @@ struct Ui : Rml::EventListener {
       note = "Click a binding, release controls, then press a button or move a stick. Esc cancels.";
       }
     } else if (page == "setup") {
-      html = "<div class=\"steps\"><span>1 &nbsp; ROM</span><span>2 &nbsp; "
-             "Verify</span><span>3 &nbsp; Build</span><span>4 &nbsp; "
-             "Play</span></div><div class=\"name\">" +
-             std::string(state.busy              ? "Setting up your game"
-                         : state.runtime.empty() ? "Set up your game"
-                                                 : "Your game build") +
-             "</div><p class=\"muted\">Verify your ROM and prepare the game on "
-             "this PC. Setup downloads any missing build tools.</p>";
-      html += "<div class=\"setup-log\" id=\"setup-status\"><span>" +
-              escape(u8(state.status)) + "</span></div>";
-      if (!state.runtime.empty())
-        html += "<p class=\"muted install-path\">Installed build: " +
-                escape(u8(state.runtime)) + "</p>";
-      html +=
-          "<div class=\"panel-actions\">" +
-          button("setup-start",
-                 state.runtime.empty() ? "Set up game" : "Rebuild",
-                 state.busy) +
-          button("cancel-setup", "Cancel setup", !state.busy || state.playing) +
-          "</div>";
-      note = "You can close this panel. Setup keeps running; completed "
-             "downloads are retained.";
+      html = "<div class=\"steps\"><span>1 &nbsp; Import ROM</span><span>2 &nbsp; Verify</span><span>3 &nbsp; Play</span></div>"
+             "<div class=\"name\">Ready to play</div>"
+             "<p class=\"muted\">The game is already built. Import your supported ROM once, then click Play. The original file is no longer needed after import.</p>";
+      html += "<div class=\"setup-log\" id=\"setup-status\"><span>" + escape(u8(state.status)) + "</span></div>";
+      html += "<div class=\"panel-actions\">" + button("setup-start", "Verify files", state.busy || state.rom.empty()) + "</div>";
+      note = "No development tools or additional downloads are needed.";
     } else if (page == "support") {
       html = "<div class=\"split\"><div class=\"grow\"><p>Which session had "
              "the problem?</p><div class=\"session-list\">";
@@ -862,7 +846,7 @@ struct Ui : Rml::EventListener {
       label("rom-name", u8(p.filename().wstring()));
       label("rom-folder", u8(p.parent_path().wstring()));
       label("rom-badge", "SELECTED");
-      status("ROM selected. Verification is performed by setup.");
+      status("ROM selected. Click Play to verify and start the game.");
     }
   }
 
@@ -1381,14 +1365,15 @@ void FrontendUiFrame(const FrontendUiState &state) {
   }
   if (state.fullscreen != ui.state.fullscreen)
     ui.doc->SetClass("fullscreen", state.fullscreen);
+  ui.doc->SetClass("rom-imported", !state.rom.empty());
   if (state.rom != ui.state.rom) {
     ui.action("assets");
     fs::path p(state.rom);
-    ui.label("rom-name", state.rom.empty() ? "Choose your game ROM"
+    ui.label("rom-name", state.rom.empty() ? "Import your game ROM"
                                            : u8(p.filename().wstring()));
-    ui.label("rom-folder", state.rom.empty() ? "Required to set up and play."
+    ui.label("rom-folder", state.rom.empty() ? "Import once. Your copy stays on this PC."
                                              : u8(p.parent_path().wstring()));
-    ui.label("rom-badge", state.rom.empty() ? "" : "SELECTED");
+    ui.label("rom-badge", state.rom.empty() ? "" : "IMPORTED");
   }
   if (state.status != ui.state.status) {
     ui.status(u8(state.status));

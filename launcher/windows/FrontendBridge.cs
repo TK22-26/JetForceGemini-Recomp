@@ -82,12 +82,12 @@ internal static class FrontendBridge
                 {
                 }
                 throw new InvalidDataException(
-                    "The game build did not answer the launcher. Run setup to rebuild it.");
+                    "The bundled game did not answer the launcher. Extract a fresh copy of the release ZIP.");
             }
             if (!Task.WaitAll(new Task[] { stdout, stderr }, timeout) || check.ExitCode != 0 ||
                 stdout.Result.Trim() != "jfg-frontend-1")
                 throw new InvalidDataException(
-                    "This game build predates the unified frontend. Run setup to rebuild it.");
+                    "The bundled game is incompatible with this launcher. Extract the complete release ZIP.");
         }
     }
     internal static string MapDirectory(string profile) {
@@ -140,7 +140,7 @@ internal static class FrontendBridge
     {
         LocalSetup.ValidateRuntime(Read("frontend-runtime.txt"));
         if (!File.Exists(Read("frontend-rom.txt")))
-            throw new InvalidDataException("Choose your ROM and finish setup before saving a direct-launch shortcut.");
+            throw new InvalidDataException("Choose your ROM before saving a direct-launch shortcut.");
         using (var dialog = new SaveFileDialog())
         {
             dialog.Title = "Save direct-launch shortcut";
@@ -226,22 +226,44 @@ internal static class FrontendBridge
             using(var tool=NativeLiveTools.OpenWindow(action,root,owner))await Task.Run(delegate{tool.WaitForExit();});
             return 0;
         }
+        if (action == "import-rom")
+        {
+            State("Importing your ROM. This only needs to be done once...");
+            string imported = await Task.Run(delegate { return ImportedRom.Import(root, Read("frontend-rom-source.txt")); });
+            Write("frontend-rom.txt", imported);
+            var saved = LocalSetup.LoadSettings(root);
+            saved.RomPath = imported;
+            LocalSetup.SaveSettings(root, saved);
+            await Task.Run((Action)PrepareBackground);
+            File.Delete(Path.Combine(root, "frontend-rom-source.txt"));
+            State("ROM imported. Click Play. The original file is no longer needed.");
+            return 0;
+        }
         if (action == "init")
         {
             var settings = LocalSetup.LoadSettings(root);
             if (!File.Exists(Path.Combine(root, "frontend-rom.txt")))
                 Write("frontend-rom.txt", settings.RomPath ?? "");
-            if (!File.Exists(Path.Combine(root, "frontend-runtime.txt")))
-                Write(
-                    "frontend-runtime.txt",
-                    LocalSetup.PreferredRuntime(AppDomain.CurrentDomain.BaseDirectory, settings.RuntimePath));
+            string stored = ImportedRom.FileName(root);
+            string selected = Read("frontend-rom.txt");
+            if (File.Exists(stored) || File.Exists(selected)) {
+                State("Checking your local ROM...");
+                string imported = await Task.Run(delegate { return ImportedRom.Import(root, File.Exists(stored) ? stored : selected); });
+                Write("frontend-rom.txt", imported);
+                settings.RomPath = imported;
+                LocalSetup.SaveSettings(root, settings);
+            }
+            else if (!File.Exists(selected)) Write("frontend-rom.txt", "");
+            // Always resolve against this package, including after moving or updating it.
+            Write("frontend-runtime.txt", PortablePackage.FromLauncher());
             if (!File.Exists(ControllerProfile.FileName(root)))
                 new ControllerProfile().Save(root);
             await Task.Run((Action)PrepareBackground);
-            State("Ready. Select your ROM and play, or run setup to build the game.");
+            State(File.Exists(Read("frontend-rom.txt")) ? "Ready. Your ROM is imported. Click Play." : "Import your ROM once, then click Play. No build tools are required.");
             return 0;
         }
-        string rom = LocalSetup.FullPath(Read("frontend-rom.txt"));
+        string rom = await Task.Run(delegate { return ImportedRom.Import(root, Read("frontend-rom.txt")); });
+        Write("frontend-rom.txt", rom);
         State("Verifying your ROM...");
         using (var verified = await Task.Run(delegate { return LocalSetup.OpenVerifiedRom(rom); }))
         {
@@ -249,44 +271,16 @@ internal static class FrontendBridge
             {
                 if (action == "setup")
                 {
-                    string built = null;
-                    using (var process = new Process())
-                    {
-                        process.StartInfo = FirstRun.StartInfo(
-                            rom, Path.Combine(FirstRun.Root, "setup", BuildInfo.SourceCommit));
-                        process.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e)
-                        {
-                            if (e.Data == null)
-                                return;
-                            support.Session.SetupLine(e.Data);
-                            if (e.Data.StartsWith("Built: ", StringComparison.Ordinal))
-                                built = e.Data.Substring(7);
-                            State(e.Data);
-                        };
-                        process.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs e)
-                        {
-                            support.Session.SetupLine(e.Data);
-                        };
-                        process.Start();
-                        process.BeginOutputReadLine();
-                        process.BeginErrorReadLine();
-                        await Task.Run(delegate { process.WaitForExit(); });
-                        support.Session.Exit(process.ExitCode);
-                        if (process.ExitCode == 3010)
-                        {
-                            State("Restart Windows, then run setup again. Progress is preserved.");
-                            return 3010;
-                        }
-                        if (process.ExitCode != 0 || built == null)
-                            throw new IOException("Setup stopped. Open the support report for details.");
-                    }
-                    string runtime = LocalSetup.ValidateRuntime(built);
-                    Write("frontend-runtime.txt", runtime);
-                    LocalSetup.SaveSettings(root, new Settings { RomPath = rom, RuntimePath = runtime });
-                    State("Build ready. Click Play.");
+                    State("Checking game files...");
+                    string bundled = await Task.Run((Func<string>)PortablePackage.FromLauncher);
+                    await Task.Run(delegate { CheckRuntimeProtocol(bundled, 10000); });
+                    Write("frontend-runtime.txt", bundled);
+                    LocalSetup.SaveSettings(root, new Settings { RomPath = rom, RuntimePath = bundled });
+                    State("ROM and game files verified. Click Play.");
                     return 0;
                 }
-                string game = LocalSetup.ValidateRuntime(Read("frontend-runtime.txt"));
+                string game = await Task.Run((Func<string>)PortablePackage.FromLauncher);
+                Write("frontend-runtime.txt", game);
                 CheckRuntimeProtocol(game, 10000);
                 LocalSetup.SaveSettings(root, new Settings { RomPath = rom, RuntimePath = game });
                 using (var process = new Process())
@@ -339,7 +333,7 @@ internal static class FrontendBridge
                     await Task.WhenAll(stdout, stderr);
                     support.Session.Exit(process.ExitCode);
                     State(process.ExitCode == 0 ? "Game stopped. Your saves are ready for next time."
-                                                : "Game exited unexpectedly. Open Tools > Support report.");
+                                                : "Game exited unexpectedly. Open Help > Support report.");
                     return process.ExitCode;
                 }
             }
@@ -372,10 +366,10 @@ internal static class FrontendBridge
             if (!Int64.TryParse(args[3], out handle))
                 throw new InvalidDataException("Invalid frontend owner.");
             if (Array.IndexOf(
-                    new[] { "init", "assets", "setup", "play", "direct-play", "shortcut", "controllers", "audio", "support", "map", "inventory", "map-data", "inventory-data", "sessions", "export" },
+                    new[] { "init", "import-rom", "assets", "setup", "play", "direct-play", "shortcut", "controllers", "audio", "support", "map", "inventory", "map-data", "inventory-data", "sessions", "export" },
                     args[1]) < 0)
                 throw new InvalidDataException("Unknown frontend action.");
-            if (args[1] == "play" || args[1] == "direct-play") {
+            if (args[1] == "play" || args[1] == "direct-play" || args[1] == "import-rom" || args[1] == "init") {
                 string key;
                 using (var hash = System.Security.Cryptography.SHA256.Create())
                     key = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(root.ToUpperInvariant()))).Replace("-", "");

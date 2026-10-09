@@ -97,3 +97,11 @@ formula in `include/jfg/boot/original_timing_pi_dma.hpp`, are adapted from ares,
 `waterbox/ares64/ares/ares/n64/cpu/` and `n64/pi/dma.cpp`. The copyright and ISC permission
 notice are retained in the source, and the complete upstream notice is in
 `patches/ares/LICENSE.upstream`.
+
+## Prebuilt beta Microsoft runtime
+
+The local prebuilt beta includes the unmodified x64 Microsoft.VC143.CRT
+runtime libraries from the maintainer Visual Studio redistributable folder.
+They retain Microsoft licensing; the project MIT license does not apply to
+them. See [runtime notice and build input hashes](launcher/runtime-licenses/Microsoft-Visual-Cpp.txt).
+The application loads these DLLs locally, without a development-tool installer.

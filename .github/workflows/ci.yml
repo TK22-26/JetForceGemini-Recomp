@@ -163,6 +163,10 @@ jobs:
       - name: Validate bootstrap derivation with ROM-free fixtures
         shell: powershell
         run: python -m unittest discover -s tests -p test_rom_bootstrap.py
-      - name: Verify the launcher-only package
+      - name: Verify prebuilt packaging with ROM-free fixtures
         shell: powershell
-        run: python scripts/package_launcher.py
+        run: |
+          python -m unittest discover -s tests -p test_package_beta.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_release_prebuilt.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
