@@ -64,3 +64,34 @@ and fully presented RT64 modes. Each scene's three hashes matched exactly, and
 the enabled paths verified that their source snapshots remained unchanged.
 All Phase 7 gates are closed; `evidence/phase7-completion.json` contains the
 public-safe aggregate.
+
+## Opening asteroid texture corruption (2026-10-08)
+
+The new-game opening cinematic could apply a previous model's texture-offset
+table to a later asteroid. The F3DDKR `BF` DMA-base command changes model state;
+the original RSP handler also clears the texture-offset enable byte. Our handler
+updated the DMA bases but omitted that reset. Reading the next table entry could
+then shift the asteroid's texture address into unrelated memory, producing
+intermittent colored noise.
+
+Commit `500b2a2` clears `texture_offset`, `texture_shift`, and `texture_count` at
+that command boundary. The reset applies regardless of how many textures the
+previous model used. The observed 40-entry boundary explains why a fixed cap
+can mask this scene's symptom, but the command's reset semantics are the
+appropriate rule.
+
+Controlled replays through VI 3150 found 115 nonzero stale image-address shifts
+before the correction and none afterward. Some were subsequently undone by
+the existing texture-load heuristic, so that count is not a corrupted-frame
+count. A separate comparison of 129 consecutive presented frames found 28
+affected frames; the corrected frames replace colored noise on a small passing
+asteroid with its rock texture. The largest changed area contains 402 pixels
+at 640x480. EmuHawk using Ares64 also shows normal rock textures in this sequence;
+that reference is an appearance check rather than a pixel-aligned parity claim.
+
+The real command-handler regression covers resetting used and unused tables,
+repeated resets, and explicit rearming by a later model. Both
+`jfg.rt64_f3ddkr_texture` and `jfg.rt64_shell` pass. The aggregate evidence is
+[opening-asteroid-texture-reset.json](../../evidence/opening-asteroid-texture-reset.json).
+ROM-derived captures remain private. This verification covers the opening
+sequence and reset behavior, not full-campaign renderer equivalence.
