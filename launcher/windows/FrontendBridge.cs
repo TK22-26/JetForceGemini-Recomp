@@ -82,12 +82,12 @@ internal static class FrontendBridge
                 {
                 }
                 throw new InvalidDataException(
-                    "The game build did not answer the launcher. Run setup to rebuild it.");
+                    "The bundled game did not answer the launcher. Extract a fresh copy of the beta ZIP.");
             }
             if (!Task.WaitAll(new Task[] { stdout, stderr }, timeout) || check.ExitCode != 0 ||
                 stdout.Result.Trim() != "jfg-frontend-1")
                 throw new InvalidDataException(
-                    "This game build predates the unified frontend. Run setup to rebuild it.");
+                    "The bundled game is incompatible with this launcher. Extract the complete beta ZIP.");
         }
     }
     internal static string MapDirectory(string profile) {
@@ -140,7 +140,7 @@ internal static class FrontendBridge
     {
         LocalSetup.ValidateRuntime(Read("frontend-runtime.txt"));
         if (!File.Exists(Read("frontend-rom.txt")))
-            throw new InvalidDataException("Choose your ROM and finish setup before saving a direct-launch shortcut.");
+            throw new InvalidDataException("Choose your ROM before saving a direct-launch shortcut.");
         using (var dialog = new SaveFileDialog())
         {
             dialog.Title = "Save direct-launch shortcut";
@@ -231,14 +231,12 @@ internal static class FrontendBridge
             var settings = LocalSetup.LoadSettings(root);
             if (!File.Exists(Path.Combine(root, "frontend-rom.txt")))
                 Write("frontend-rom.txt", settings.RomPath ?? "");
-            if (!File.Exists(Path.Combine(root, "frontend-runtime.txt")))
-                Write(
-                    "frontend-runtime.txt",
-                    LocalSetup.PreferredRuntime(AppDomain.CurrentDomain.BaseDirectory, settings.RuntimePath));
+            // Always resolve against this package, including after moving or updating it.
+            Write("frontend-runtime.txt", PortablePackage.FromLauncher());
             if (!File.Exists(ControllerProfile.FileName(root)))
                 new ControllerProfile().Save(root);
             await Task.Run((Action)PrepareBackground);
-            State("Ready. Select your ROM and play, or run setup to build the game.");
+            State("Ready. Select your ROM and click Play. No build tools are required.");
             return 0;
         }
         string rom = LocalSetup.FullPath(Read("frontend-rom.txt"));
@@ -249,44 +247,16 @@ internal static class FrontendBridge
             {
                 if (action == "setup")
                 {
-                    string built = null;
-                    using (var process = new Process())
-                    {
-                        process.StartInfo = FirstRun.StartInfo(
-                            rom, Path.Combine(FirstRun.Root, "setup", BuildInfo.SourceCommit));
-                        process.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e)
-                        {
-                            if (e.Data == null)
-                                return;
-                            support.Session.SetupLine(e.Data);
-                            if (e.Data.StartsWith("Built: ", StringComparison.Ordinal))
-                                built = e.Data.Substring(7);
-                            State(e.Data);
-                        };
-                        process.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs e)
-                        {
-                            support.Session.SetupLine(e.Data);
-                        };
-                        process.Start();
-                        process.BeginOutputReadLine();
-                        process.BeginErrorReadLine();
-                        await Task.Run(delegate { process.WaitForExit(); });
-                        support.Session.Exit(process.ExitCode);
-                        if (process.ExitCode == 3010)
-                        {
-                            State("Restart Windows, then run setup again. Progress is preserved.");
-                            return 3010;
-                        }
-                        if (process.ExitCode != 0 || built == null)
-                            throw new IOException("Setup stopped. Open the support report for details.");
-                    }
-                    string runtime = LocalSetup.ValidateRuntime(built);
-                    Write("frontend-runtime.txt", runtime);
-                    LocalSetup.SaveSettings(root, new Settings { RomPath = rom, RuntimePath = runtime });
-                    State("Build ready. Click Play.");
+                    State("Checking game files...");
+                    string bundled = await Task.Run((Func<string>)PortablePackage.FromLauncher);
+                    await Task.Run(delegate { CheckRuntimeProtocol(bundled, 10000); });
+                    Write("frontend-runtime.txt", bundled);
+                    LocalSetup.SaveSettings(root, new Settings { RomPath = rom, RuntimePath = bundled });
+                    State("ROM and game files verified. Click Play.");
                     return 0;
                 }
-                string game = LocalSetup.ValidateRuntime(Read("frontend-runtime.txt"));
+                string game = await Task.Run((Func<string>)PortablePackage.FromLauncher);
+                Write("frontend-runtime.txt", game);
                 CheckRuntimeProtocol(game, 10000);
                 LocalSetup.SaveSettings(root, new Settings { RomPath = rom, RuntimePath = game });
                 using (var process = new Process())
@@ -339,7 +309,7 @@ internal static class FrontendBridge
                     await Task.WhenAll(stdout, stderr);
                     support.Session.Exit(process.ExitCode);
                     State(process.ExitCode == 0 ? "Game stopped. Your saves are ready for next time."
-                                                : "Game exited unexpectedly. Open Tools > Support report.");
+                                                : "Game exited unexpectedly. Open Help > Support report.");
                     return process.ExitCode;
                 }
             }

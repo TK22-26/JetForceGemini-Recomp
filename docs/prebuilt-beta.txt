@@ -1,0 +1,30 @@
+JFG PREBUILT INSTALLER BETA
+
+The owner requested the Zelda64Recomp-style flow on 2026-10-09: ship a compiled
+program, require the player's own ROM, and load assets from that ROM locally.
+This branch implements that distribution model for local owner review. It does
+not publish a release or supply a ROM, extracted assets, saves, or debug symbols.
+
+Player flow: extract the complete beta ZIP, open JFG-Launcher.exe, choose the
+supported US .z64 ROM, and click Play. No Git, Python, VS, WSL or compilation.
+The Game menu can verify the package. Missing or modified files stop startup;
+there is no automatic fallback into installing developer tools.
+
+The embedded helper resolves files beside the actual launcher, not beside its
+extraction cache. The file manifest verifies the native executable and all three
+runtime DLLs. ROM validation still checks size, format and full SHA-1 locally.
+No online account or ROM upload is used. Moving the folder refreshes the runtime
+path on the next launch. Existing profiles and saves remain in place.
+
+Build the frontend with scripts/build_launcher.ps1 -Test. Prepare a reviewed
+clean game runtime using the maintainer build, then run scripts/package_beta.py
+with explicit --launcher, --runtime and a new --output directory. The beta packager
+uses a fixed file allowlist and verifies runtime build identity. Legacy public
+launcher packaging is separate. Generated game binaries stay out of Git.
+
+The runtime in the first beta is the verified v1.0.0 build from d3b9d62. This
+change modifies installation and packaging, not game behavior. Full gameplay in
+the VM remains the owner's manual test; Hyper-V graphics support is separate.
+
+This owner-reviewed change to the project's distribution boundary is not a
+copyright clearance opinion. Existing third-party license obligations remain.

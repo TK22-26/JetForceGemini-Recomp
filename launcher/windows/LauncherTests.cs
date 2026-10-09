@@ -384,6 +384,31 @@ namespace JfgLauncher
                 File.WriteAllBytes(game, Pe());
                 File.WriteAllBytes(Path.Combine(directory, "SDL2.dll"), Pe());
                 Check(LocalSetup.PreferredRuntime(directory, "saved runtime") == game, "paired native build not selected");
+                string packageLauncher = Path.Combine(directory, "JFG-Launcher.exe");
+                File.WriteAllBytes(packageLauncher, Pe());
+                string packagePath = Path.Combine(directory, "jfg-package.json");
+                Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "missing package manifest accepted");
+                var packageEntries = new System.Collections.Generic.List<string>();
+                foreach (string member in PortablePackage.RuntimeFiles)
+                {
+                    string memberPath = Path.Combine(directory, member);
+                    packageEntries.Add("{\"name\":\"" + member + "\",\"size\":" + new FileInfo(memberPath).Length + ",\"sha256\":\"" + SupportSession.Hash(memberPath) + "\"}");
+                }
+                string packageJson = "{\"schema\":1,\"version\":\"1.0.1-beta.1\",\"files\":[" + String.Join(",", packageEntries.ToArray()) + "]}";
+                File.WriteAllText(packagePath, packageJson);
+                Check(PortablePackage.Resolve(packageLauncher) == game, "complete bundled package rejected");
+                File.AppendAllText(Path.Combine(directory, "SDL2.dll"), "changed");
+                Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "modified bundled library accepted");
+                File.WriteAllBytes(Path.Combine(directory, "SDL2.dll"), Pe());
+                File.WriteAllText(packagePath, packageJson.Replace("SDL2.dll", "../SDL2.dll"));
+                Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "package path traversal accepted");
+                File.WriteAllText(packagePath, packageJson.Replace("SDL2.dll", "dxil.dll"));
+                Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "duplicate package member accepted");
+                File.WriteAllText(packagePath, packageJson.Replace("\"schema\":1", "\"schema\":2"));
+                Reject(delegate { PortablePackage.Resolve(packageLauncher); }, "unknown package schema accepted");
+                File.WriteAllText(packagePath, packageJson);
+                Check(PortablePackage.Resolve(packageLauncher) == game, "restored package did not recover");
+
                 Settings settings = new Settings { RuntimePath = "Synthetic build & Unicode \u00e9", RomPath = "Selected synthetic ROM" };
                 LocalSetup.SaveSettings(directory, settings);
                 Settings loaded = LocalSetup.LoadSettings(directory);

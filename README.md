@@ -3,8 +3,9 @@
 [![Build status](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml)
 
 A native PC recompilation of Jet Force Gemini, now available as the
-**v1.0 release for Windows x64**. Supply your own supported North American
-ROM and build the game locally using the launcher or command-line tools.
+**v1.0 release for Windows x64**. This branch also contains a local review beta
+of a simpler installation flow: extract the prebuilt package, choose your own
+supported North American ROM, and click Play.
 
 **Campaign status: fully playable from start to finish**
 through maintainer playtesting.
@@ -13,6 +14,26 @@ through maintainer playtesting.
 [Known issues](docs/known-issues.md) ·
 [Report a problem](docs/playtesting.md) ·
 [Contribute](CONTRIBUTING.md)
+
+## Simplified installation beta
+
+The installation approach is inspired by the **Zelda64Recomp team** and
+[Zelda64Recomp's plug-and-play distribution model](https://github.com/Zelda64Recomp/Zelda64Recomp#plug-and-play):
+provide a prebuilt application and read game assets from the player's own ROM.
+Credit to that project for demonstrating this setup experience; this is an
+independent implementation, with no endorsement or affiliation implied.
+
+**We do not ship game assets or ROMs.** The beta includes the compiled game
+program and runtime libraries. Textures, models, audio, and other game data are
+read locally from your supplied ROM. Your ROM is required to play and is not
+uploaded. Original game content remains the property of its respective owners.
+
+For the local `1.0.1-beta.1` review package, extract the entire ZIP, open
+`JFG-Launcher.exe`, choose the supported US `.z64` ROM, and click **Play**.
+Players do not need Git, Python, Visual Studio, WSL, or a first-run build.
+The bundled `START HERE.txt` explains the beta. See [beta build notes](docs/prebuilt-beta.txt).
+This beta has not been published; the existing public v1.0 launcher still uses
+the local build process described below.
 
 ## Current release: v1.0
 

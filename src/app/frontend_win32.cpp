@@ -431,7 +431,7 @@ void menus() {
       };
   add(L"&Game", {{Play, L"&Play"},
                  {Stop, L"&Stop / return home"},
-                 {Setup, L"Set up and &build"},
+                 {Setup, L"&Verify game files"},
                  {Cancel, L"Cancel setup"},
                  {0, nullptr},
                  {Quit, L"&Quit"}});
@@ -617,7 +617,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
         control(L"BUTTON", L"Browse...", BS_PUSHBUTTON | WS_TABSTOP, Runtime));
     app.home.push_back(
         control(L"BUTTON", L"Play", BS_DEFPUSHBUTTON | WS_TABSTOP, Play));
-    app.home.push_back(control(L"BUTTON", L"Set up and build",
+    app.home.push_back(control(L"BUTTON", L"Verify game files",
                                BS_PUSHBUTTON | WS_TABSTOP, Setup));
     app.status = control(L"STATIC", L"Preparing your profile...", SS_LEFT, 0);
     app.mods = read(L"frontend-mods.txt") == L"1";
@@ -782,14 +782,6 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     case Setup:
       if (app.session.running() || app.dialog.running())
         break;
-      if (LOWORD(wparam) == Setup &&
-          MessageBoxW(
-              window,
-              L"Setup downloads source and missing build tools. The first "
-              L"setup may download several GB and require administrator "
-              L"approval or a restart. Your ROM stays on this PC. Continue?",
-              L"Set up game", MB_OKCANCEL | MB_ICONINFORMATION) != IDOK)
-        break;
       persist();
       app.playing = LOWORD(wparam) == Play;
       app.manualPause = false;
@@ -797,7 +789,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       app.startedAt = GetTickCount64();
       if (launch(app.session, app.playing ? L"play" : L"setup",
                  app.playing ? app.viewport : window))
-        status(app.playing ? L"Starting game..." : L"Starting setup...");
+        status(app.playing ? L"Starting game..." : L"Checking game files...");
       else
         app.playing = false;
       showHome(true);
@@ -809,7 +801,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       if (app.session.running() && !app.playing &&
           MessageBoxW(
               window,
-              L"Cancel setup? Completed downloads are retained for retry.",
+              L"Cancel game-file verification?",
               L"Cancel setup", MB_OKCANCEL) == IDOK) {
         TerminateJobObject(app.session.job, 1);
         status(L"Setup cancelled.");
@@ -839,12 +831,13 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       ShellExecuteW(window, L"open", app.profile.c_str(), nullptr, nullptr,
                     SW_SHOWNORMAL);
       break;
-    case Guide:
-      ShellExecuteW(window, L"open",
-                    L"https://github.com/TK22-26/JetForceGemini-Recomp/blob/"
-                    L"main/docs/getting-started.md",
-                    nullptr, nullptr, SW_SHOWNORMAL);
+    case Guide: {
+      wchar_t module[32768]{};
+      GetModuleFileNameW(nullptr, module, 32768);
+      const auto guide = fs::path(module).parent_path() / L"START HERE.txt";
+      ShellExecuteW(window, L"open", guide.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
       break;
+    }
     case Mods:
       if (!app.session.running()) {
         app.mods = !app.mods;
@@ -869,7 +862,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
         app.closing = true;
         stop();
       } else
-        MessageBoxW(window, L"Finish or cancel setup before closing.",
+        MessageBoxW(window, L"Finish or cancel verification before closing.",
                     L"Jet Force Gemini", MB_OK);
     } else
       DestroyWindow(window);
