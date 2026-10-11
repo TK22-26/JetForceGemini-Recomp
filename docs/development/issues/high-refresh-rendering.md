@@ -630,3 +630,20 @@ densities. Evidence: `video-border-ui/result.json`, `dpi100.png`, `dpi125.png`,
 must not be cited as proof that these side edges were already correct. Owner
 confirmation is pending. Compatibility: only these small FPS buttons switch to
 whole-image rendering; larger controller nine-patch controls keep their layout.
+
+
+Delivered border preview: implementation `0f83a2afd458122bdc6fa149c29ebe6da828fe32`; launcher
+SHA-256 `d5cdf5aaf28343ef2b2f34e05f102f87f0caa6a7b7c20c8dda24ee71fa9426fb`. Final rebuilt package passes the existing real
+launcher integration with zero failures (`video-border-final.log`). The desktop
+**JFG - High Refresh Preview** shortcut opens this package with the same isolated
+profile. Previous preview and shortcut are retained. Source/binary/evidence map:
+`video-border-qualification.json`. Owner visual confirmation remains pending;
+no runtime, game timing, dependency or save/profile changes and no push/release.
+
+This guarded job is the twelfth normal attempt of the same investigation, with
+eleven supporting activities already charged at admission. Limits remain twelve
+attempts and twelve activities; completion grading therefore reaches that limit.
+Read the operational ledger and `videoborders-progress.json` before any further
+autonomous work. Do not reset counters, reopen a shelved investigation, rename
+the work for a fresh allowance or execute directly after denial. The production
+guard stays enabled and all evidence is preserved.
