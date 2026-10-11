@@ -592,3 +592,14 @@ compact line-height. Evidence: `video-align-ui/result.json`, `dpi100.png`,
 toolbar's alignment remedy without changing selection values or settings format.
 Owner visual confirmation remains pending. Lesson: RmlUi selectvalue is its own
 line box and must be aligned explicitly, not positioned only with parent padding.
+
+
+Delivered alignment preview: implementation `be8af3c5bc70c715f374d0e2526314feebbd2199`; launcher
+SHA-256 `b8050a0018b49ac6514bc7fde6e21ca7fc20ca478b0ce2991e110a82cfc4462b`. The rebuilt package passes the existing real
+launcher integration, including settings persistence, Apply/Cancel, nine
+placement checks and process recovery (`video-align-final.log`). The desktop
+**JFG - High Refresh Preview** shortcut now opens this package with the same
+isolated profile. Previous package and shortcut retained; no save/profile writes.
+`video-align-qualification.json` records source, binaries and evidence. Owner
+confirmation remains pending. No renderer, game timing or dependency changes.
+No push/release; production guard enabled with all investigation charges retained.

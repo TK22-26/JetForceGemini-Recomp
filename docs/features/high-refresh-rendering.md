@@ -43,7 +43,7 @@ malformed or unreadable configuration is reported. Navigation-mod launches share
 the main profile's video choices.
 
 The machine-local complete preview is
-`C:\JFG-builds\high-refresh-video-clean-preview-20261011`. Its
+`C:\JFG-builds\high-refresh-video-aligned-preview-20261011`. Its
 `Play-Video-Settings.cmd` and desktop **JFG - High Refresh Preview** shortcut reuse
 the earlier isolated high-refresh preview profile, preserving its saves and video
 preferences (initially Custom 60 / VSync on). Close the currently running launcher first: the production launcher
