@@ -487,3 +487,15 @@ pause-preference and child-crash recovery checks still pass. Evidence:
 the previous launcher with only placement errors, establishing the regression.
 No physical input or owner windows were used. Multi-monitor mixed-DPI hardware
 and owner visual confirmation remain pending; this is a local preview candidate.
+
+
+Delivered for owner retest: implementation `68e3a63f190b9416de1bdc3841be89913633bdc0`;
+launcher SHA-256 `23ac4ffbf597162230754dea96f3095449edba8f7ff82f848c28c619ddfb81d2`. The final rebuilt package repeats
+all six initial-placement checks and existing dialog integration with zero
+failures (`video-center-final.log`). Desktop **JFG - High Refresh Preview** now
+opens the centered-window preview, retaining the previous isolated save/profile.
+The previous package and shortcut backup are preserved. Source/binary/shortcut
+correspondence is recorded in private `video-center-qualification.json`.
+No game renderer, simulation or save data changed. Owner visual confirmation is
+pending; no release or installed update was made. The production guard remains
+enabled and all investigation charges are retained.
