@@ -566,3 +566,29 @@ step 06 corrected only that wrapper string and completed the same build and fina
 checks. The product source was unchanged by this packaging correction. No user
 windows or save files were modified; no push or release. The original production
 guard remains enabled with every prior charge preserved.
+
+
+## Window-size dropdown text alignment (2026-10-11)
+
+Owner screenshot: "Keep current size" sits above the vertical center of its
+dropdown in the simplified preview (fc9099c). Severity: minor visual defect.
+Reproduction: open Video Settings with Windowed selected and default window
+size. The video select uses 7dp vertical padding but its internal selectvalue
+uses the default font line box. The controller toolbar has an existing remedy:
+zero vertical padding and explicit matching control/value line-height. Reuse
+that sizing treatment for the 38dp video select, preserving horizontal text
+alignment and aligning the arrow to the same control height. Candidate pending
+scaled screenshots and existing dropdown keyboard/pointer checks. Guard remains
+enabled; same investigation, authorization and all accumulated charges retained.
+
+
+Candidate verified with the existing 120 UI checks (including dropdown pointer,
+keyboard selection and Escape handling) and inspected screenshots of the exact
+"Keep current size" label at 100%, 125% and 150%. Selected-value line-height and
+height now match the dropdown's 36dp inner height; vertical padding is zero,
+and arrow placement follows that inner height. Popup options retain a separate
+compact line-height. Evidence: `video-align-ui/result.json`, `dpi100.png`,
+`dpi125.png`, `dpi150.png`; RmlUi parse log clean. This reuses the controller
+toolbar's alignment remedy without changing selection values or settings format.
+Owner visual confirmation remains pending. Lesson: RmlUi selectvalue is its own
+line box and must be aligned explicitly, not positioned only with parent padding.

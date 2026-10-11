@@ -265,6 +265,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
       demand(surface->video->keyboard(WM_KEYDOWN, VK_TAB),
              "Tab handled inside settings");
     surface->video->error.clear();
+    surface->video->draft.window_size = 0; // Capture the reported default label.
     surface->video->refresh();
     for (float scale : {1.0f, 1.25f, 1.5f}) {
       RECT scaled{0, 0, int(720 * scale), int(600 * scale)};

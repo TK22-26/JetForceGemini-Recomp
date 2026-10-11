@@ -13,6 +13,7 @@ window rendered with RmlUi, using the supplied dark-panel design, keyboard
 navigation and Apply / Cancel. It shares the launcher's embedded fonts and
 rendering backend. It opens centered over the launcher at the owner's DPI,
 with its position limited to the monitor work area so it stays on screen.
+The window-size dropdown centers its selected text vertically at desktop scaling.
 
 ![RmlUi Video Settings](../images/video-settings-rmlui.png)
 
