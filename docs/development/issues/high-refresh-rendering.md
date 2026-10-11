@@ -603,3 +603,30 @@ isolated profile. Previous package and shortcut retained; no save/profile writes
 `video-align-qualification.json` records source, binaries and evidence. Owner
 confirmation remains pending. No renderer, game timing or dependency changes.
 No push/release; production guard enabled with all investigation charges retained.
+
+
+## FPS preset frame side notches (2026-10-11)
+
+Owner screenshot shows inward notches on both sides of the FPS preset buttons
+in the aligned preview (be8af3c), especially highlighted 60 and 120. Severity:
+minor visual regression in the antialiased frame change. The earlier full-window
+captures and functional checks did not qualify these edges closely enough.
+Candidate cause: seams in the nine-patch frame on these short buttons; the pinned
+decorator rounds its inner patch positions. Retain the supersampled frame atlas
+but render each small preset as one image quad, eliminating internal patch seams.
+The controller UI's larger nine-patch controls remain unchanged. Candidate pending
+visual comparison at fractional DPI and existing pointer/keyboard checks. Same
+production guard/investigation, no counter or authorization reset.
+
+
+Verified candidate: rendering the same supersampled atlas frame as one image
+removes the side indentations in inspected 100%, 125% and 150% captures. This
+isolates the visual regression to the split nine-patch rendering on these short
+buttons; the atlas, renderer, text and hit targets are unchanged. The exact GPU
+sampling contribution to those seams is not independently established. Existing
+120 UI checks pass, including decorated preset pointer input at all three
+densities. Evidence: `video-border-ui/result.json`, `dpi100.png`, `dpi125.png`,
+`dpi150.png`; parse log clean. Prior captures remain as historical evidence and
+must not be cited as proof that these side edges were already correct. Owner
+confirmation is pending. Compatibility: only these small FPS buttons switch to
+whole-image rendering; larger controller nine-patch controls keep their layout.

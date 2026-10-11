@@ -37,7 +37,7 @@ Detailed per-issue records are added as those issues receive further work.
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
 | LAUNCHER-001 | No launcher update discovery; stale release description | Verified in tests and live API; awaiting release | [Cause, implementation and checks](launcher-update-discovery.md) |
-| RENDER-001 | Smooth 60-360+ FPS presentation | Window-size text alignment corrected and tested; owner visual confirmation pending | [Evidence and plan](high-refresh-rendering.md) |
+| RENDER-001 | Smooth 60-360+ FPS presentation | FPS preset side notches corrected and tested; owner visual confirmation pending | [Evidence and plan](high-refresh-rendering.md) |
 | PERF-001 | Goldwood drone-combat update slowdown | **Critical, open; partial candidate improvement** | [Evidence and attempts](goldwood-combat-slowdown.md) |
 | CAMERA-001 | Small repeated forward camera steps | Verified in isolated replay; delivered preview, live verification pending | [Fixed modern camera boom](../../features/pc-controls.md#2026-10-11-goldwood-capture-camera-stepping-and-native-pause-save) |
 | CAMERA-002 | Large scenery-driven camera pull-ins | Open; distinct from small boom-distance steps | [Capture findings](../../features/pc-controls.md#2026-10-11-goldwood-capture-camera-stepping-and-native-pause-save) |

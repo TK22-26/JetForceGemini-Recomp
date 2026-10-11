@@ -14,6 +14,7 @@ navigation and Apply / Cancel. It shares the launcher's embedded fonts and
 rendering backend. It opens centered over the launcher at the owner's DPI,
 with its position limited to the monitor work area so it stays on screen.
 The window-size dropdown centers its selected text vertically at desktop scaling.
+Small FPS presets use continuous antialiased image borders to avoid patch seams.
 
 ![RmlUi Video Settings](../images/video-settings-rmlui.png)
 

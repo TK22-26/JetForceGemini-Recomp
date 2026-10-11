@@ -60,15 +60,13 @@ scrollbarvertical { width: 8dp; }
 scrollbarvertical sliderbar { background: #2e3a57; border-radius: 4dp; }
 
 #video-error { display: none; margin-bottom: 12dp; padding: 10dp 12dp; border: 1dp #8f4d43; border-radius: 6dp; background: #291b20; color: #f5a396; }
-/* Reuse the controller UI's supersampled frame treatment at fractional DPI.
-   The native text and button hit targets remain independent of the artwork. */
+/* Draw each small preset frame as one supersampled image, avoiding seams
+   where rounded nine-patch cuts met its short vertical sides. */
 @spritesheet video-preset-frames {
  src: controls-art/ui-details.tga;
  resolution: 4x;
  video-frame-on: 0px 0px 128px 128px;
- video-frame-on-inner: 40px 40px 48px 48px;
  video-frame-muted: 128px 0px 128px 128px;
- video-frame-muted-inner: 168px 40px 48px 48px;
 }
-.quick-row button { border-color: transparent; background: transparent; decorator: ninepatch(video-frame-muted, video-frame-muted-inner) border-box; }
-.quick-row button:hover, .quick-row button:focus, .quick-row button.selected { border-color: transparent; background: transparent; color: #ffc872; decorator: ninepatch(video-frame-on, video-frame-on-inner) border-box; }
+.quick-row button { border-color: transparent; background: transparent; decorator: image(video-frame-muted) border-box; }
+.quick-row button:hover, .quick-row button:focus, .quick-row button.selected { border-color: transparent; background: transparent; color: #ffc872; decorator: image(video-frame-on) border-box; }
