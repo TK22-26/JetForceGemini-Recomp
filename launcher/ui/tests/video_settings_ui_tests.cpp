@@ -104,7 +104,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     cls.lpszClassName = L"JfgRmlVideoTests";
     RegisterClassW(&cls);
     window = CreateWindowExW(0, cls.lpszClassName, L"Video Settings",
-                             WS_OVERLAPPEDWINDOW, 40, 40, 720, 700, nullptr,
+                             WS_OVERLAPPEDWINDOW, 40, 40, 720, 600, nullptr,
                              nullptr, instance, nullptr);
     const auto profile = home / "profile";
     fs::create_directories(profile);
@@ -122,7 +122,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
       };
     };
     init();
-    RECT frame{0, 0, 720, 700};
+    RECT frame{0, 0, 720, 600};
     AdjustWindowRectExForDpi(&frame, WS_OVERLAPPEDWINDOW, FALSE, 0,
                              GetDpiForWindow(window));
     SetWindowPos(window, nullptr, 40, 40, frame.right - frame.left,
@@ -146,13 +146,21 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
     demand(!element("video-restart")->IsVisible(true),
            "no restart chip when no game is running");
-    demand(element("video-apply")->HasAttribute("disabled"),
-           "Apply disabled for unchanged values");
+    MSG close{};
+    auto accepted = [&] {
+      demand(PeekMessageW(&close, window, WM_CLOSE, WM_CLOSE, PM_REMOVE) != 0,
+             "Apply accepts and closes");
+    };
+    demand(!element("video-apply")->HasAttribute("disabled"),
+           "Apply can accept unchanged values");
+    pointer("video-apply");
+    accepted();
     pointer("video-preset-360");
     demand(ui.draft.rendering.fps == 360, "360 preset");
     pointer("video-vsync");
     demand(!ui.draft.rendering.vsync, "VSync switch");
     pointer("video-apply");
+    accepted();
     auto saved = jfg::load_video_settings(profile / "video.ini");
     demand(saved && saved->fps == 360 && !saved->vsync,
            "Apply persists rendering");
@@ -197,13 +205,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     demand(!element("video-custom-controls")->IsVisible(true),
            "Unlimited hides cap controls");
     pointer("video-apply");
+    accepted();
     demand(ui.pendingRestart, "saved rendering needs next game session");
     capture("unlimited.tga");
     pointer("video-original");
     demand(ui.draft.rendering.mode == jfg::FrameRateMode::original,
            "Original selectable");
     pointer("video-cancel");
-    MSG close{};
     demand(PeekMessageW(&close, window, WM_CLOSE, WM_CLOSE, PM_REMOVE) != 0,
            "Cancel closes");
     saved = jfg::load_video_settings(profile / "video.ini");
@@ -245,6 +253,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     pointer("video-apply");
     demand(!surface->video->error.empty() && surface->video->dirty(),
            "save failure preserves draft");
+    demand(element("video-error")->IsVisible(true) &&
+               !PeekMessageW(&close, window, WM_CLOSE, WM_CLOSE, PM_REMOVE),
+           "failed Apply stays open with visible error");
     surface->video->save = [&](const auto &value) {
       std::ofstream(profile / "video.ini")
           << jfg::serialize_video_settings(value.rendering);
@@ -253,16 +264,28 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     for (unsigned i = 0; i < 20; ++i)
       demand(surface->video->keyboard(WM_KEYDOWN, VK_TAB),
              "Tab handled inside settings");
-    surface->context->SetDensityIndependentPixelRatio(1.5f);
-    SetWindowPos(window, nullptr, 0, 0, 1100, 1120,
-                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-    FrontendUiResize();
-    surface->context->SetDensityIndependentPixelRatio(1.5f);
-    settle();
-    capture("dpi150.tga");
-    pointer("video-ok");
-    demand(PeekMessageW(&close, window, WM_CLOSE, WM_CLOSE, PM_REMOVE) != 0,
-           "OK saves and closes");
+    surface->video->error.clear();
+    surface->video->refresh();
+    for (float scale : {1.0f, 1.25f, 1.5f}) {
+      RECT scaled{0, 0, int(720 * scale), int(600 * scale)};
+      AdjustWindowRectExForDpi(&scaled, WS_OVERLAPPEDWINDOW, FALSE, 0,
+                               GetDpiForWindow(window));
+      SetWindowPos(window, nullptr, 0, 0, scaled.right - scaled.left,
+                   scaled.bottom - scaled.top,
+                   SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+      FrontendUiResize();
+      surface->context->SetDensityIndependentPixelRatio(scale);
+      settle();
+      pointer("video-preset-240");
+      demand(surface->video->draft.rendering.fps == 240,
+             "decorated preset stays clickable at each DPI");
+      // Move the hover away so the screenshot shows the saved selection alone.
+      surface->context->ProcessMouseMove(0, 0, 0);
+      element("video-apply")->Focus(true);
+      capture(scale == 1.0f ? "dpi100.tga" : scale == 1.25f ? "dpi125.tga" : "dpi150.tga");
+    }
+    pointer("video-apply");
+    accepted();
     std::ofstream(home / "result.json")
         << "{\"passed\":true,\"checks\":" << checks
         << ",\"physical_desktop_input\":false}";

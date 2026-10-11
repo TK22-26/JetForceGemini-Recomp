@@ -51,7 +51,7 @@ the game at a frame boundary and resume it when closed; menu dropdowns do not
 pause. **Video > Video settings...** opens a separate RmlUi window with window
 mode/size, **Pause when inactive**, VSync and Original/Custom/Unlimited rendering.
 Custom offers a 60-1000 FPS slider and exact number; Unlimited removes the cap
-with VSync off. Apply / OK save, while Cancel discards edits since the last Apply.
+with VSync off. Apply saves and closes, while Cancel discards edits.
 Rendering changes apply on the next game launch; stop and start the game to
 apply FPS/VSync changes. No launcher or Windows restart is needed. The restart
 chip is hidden when no game is running. Display changes apply when saved.

@@ -10,7 +10,7 @@ coverage and owner playtesting are pending.
 
 Open **Video > Video settings...** in the launcher. This is an owned Windows
 window rendered with RmlUi, using the supplied dark-panel design, keyboard
-navigation and Apply / OK / Cancel. It shares the launcher's embedded fonts and
+navigation and Apply / Cancel. It shares the launcher's embedded fonts and
 rendering backend. It opens centered over the launcher at the owner's DPI,
 with its position limited to the monitor work area so it stays on screen.
 
@@ -25,8 +25,8 @@ with its position limited to the monitor work area so it stays on screen.
 | Window mode / size | Windowed or borderless fullscreen; current size, 1280 x 720, 1600 x 900, 1920 x 1080 or 2560 x 1440 |
 | Pause when inactive | Pause when the launcher loses focus |
 
-Apply saves without closing; OK saves and closes; Cancel discards edits since
-the last Apply. **Rendering changes apply on the next game launch.** Window and
+Apply saves and closes; Cancel discards edits. The native Windows title bar
+is the only title bar. Load/save errors appear in the content only when needed. **Rendering changes apply on the next game launch.** Window and
 pause preferences apply immediately when saved. This means stopping and starting
 the game, not restarting Windows or the launcher. The restart chip is hidden when
 no game is running. The original game controls aspect ratio; Borderless fullscreen

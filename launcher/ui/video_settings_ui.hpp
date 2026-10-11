@@ -14,7 +14,7 @@ struct Ui final : Rml::EventListener {
   HWND window = nullptr, owner = nullptr;
   Rml::ElementDocument *doc = nullptr;
   Settings saved{}, draft{};
-  bool updating = false, failedLoad = false, running = false, applied = false,
+  bool updating = false, failedLoad = false, running = false,
        pendingRestart = false;
   std::string fpsText = "60", error;
   std::function<bool(const Settings &)> save;
@@ -137,30 +137,12 @@ struct Ui final : Rml::EventListener {
     text("video-restart", renderDirty || pendingRestart
                               ? "Restart game to apply"
                               : "Applies next game launch");
-    auto *status = el("video-status")->GetParentNode();
-    status->SetClass("changed", dirty());
-    status->SetClass("error", !error.empty() || bad);
-    status->SetClass("saved", applied && !dirty());
-    text("video-status",
-         !error.empty() ? error
-         : bad          ? "Enter a whole-number FPS from 60 to 1000."
-         : renderDirty
-             ? (running ? "Rendering changes need a new game session."
-                        : "Rendering changes apply when you start the game.")
-         : dirty() ? "Unapplied changes."
-         : applied
-             ? (pendingRestart
-                    ? "Saved. Restart the game to apply rendering changes."
-                    : "Saved.")
-             : "No unsaved changes.");
-    if (!dirty() || bad || failedLoad)
+    text("video-error", error);
+    el("video-error")->SetProperty("display", error.empty() ? "none" : "block");
+    if (bad || failedLoad)
       el("video-apply")->SetAttribute("disabled", true);
     else
       el("video-apply")->RemoveAttribute("disabled");
-    if (bad || failedLoad)
-      el("video-ok")->SetAttribute("disabled", true);
-    else
-      el("video-ok")->RemoveAttribute("disabled");
     updating = false;
   }
   bool apply() {
@@ -180,7 +162,6 @@ struct Ui final : Rml::EventListener {
     pendingRestart |= running && renderingChanged;
     saved = draft;
     fpsText = std::to_string(draft.rendering.fps);
-    applied = true;
     error.clear();
     refresh(true);
     return true;
@@ -215,21 +196,16 @@ struct Ui final : Rml::EventListener {
       } else
         return;
       error.clear();
-      applied = false;
       refresh(id != "video-fps");
       return;
     }
     if (event.GetType() != "click" || target->HasAttribute("disabled"))
       return;
-    if (id == "video-close" || id == "video-cancel") {
+    if (id == "video-cancel") {
       PostMessageW(window, WM_CLOSE, 0, 0);
       return;
     }
     if (id == "video-apply") {
-      apply();
-      return;
-    }
-    if (id == "video-ok") {
       if (apply())
         PostMessageW(window, WM_CLOSE, 0, 0);
       return;
@@ -257,7 +233,6 @@ struct Ui final : Rml::EventListener {
     } else
       return;
     error.clear();
-    applied = false;
     refresh(true);
   }
   bool keyboard(UINT m, WPARAM key) {

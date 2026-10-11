@@ -144,8 +144,8 @@ cutscenes. Hardware results must be reported separately from automated checks.
 **Video > Video settings...** opens a separate native window rendered with RmlUi,
 following the owner's refreshed 2026-10-11 Video design. It contains VSync,
 Original/Custom/Unlimited modes, a 60-1000 FPS slider and exact numeric field,
-window mode/size and Pause when inactive. Apply / OK save to the profile; Cancel
-discards edits since the last Apply. Rendering changes take effect next game
+window mode/size and Pause when inactive. Apply saves to the profile and closes; Cancel
+discards edits. Rendering changes take effect next game
 launch; the restart chip is absent when no game is running. Live probes verified
 that FPS/VSync need a new game session, while display changes apply immediately.
 

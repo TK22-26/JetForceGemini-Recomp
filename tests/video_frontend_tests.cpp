@@ -169,7 +169,7 @@ int wmain(int argc, wchar_t **argv) {
       GetClientRect(dialog, &before);
       std::cout << "Initial video client " << before.right << " x "
                 << before.bottom << " dpi=" << dpi << std::endl;
-      RECT frame{0, 0, MulDiv(720, dpi, 96), MulDiv(700, dpi, 96)};
+      RECT frame{0, 0, MulDiv(720, dpi, 96), MulDiv(600, dpi, 96)};
       AdjustWindowRectExForDpi(&frame, WS_OVERLAPPEDWINDOW, FALSE, 0, dpi);
       SetWindowPos(dialog, nullptr, 20, 20, frame.right - frame.left,
                    frame.bottom - frame.top, SWP_NOZORDER | SWP_NOACTIVATE);
@@ -177,19 +177,22 @@ int wmain(int argc, wchar_t **argv) {
       RECT after{};
       GetClientRect(dialog, &after);
       check(after.right == MulDiv(720, dpi, 96) &&
-                after.bottom == MulDiv(700, dpi, 96),
+                after.bottom == MulDiv(600, dpi, 96),
             "fixture client matches measured RmlUi coordinates");
     };
     prepareDialog();
     auto waitClosed = [&] {
+      // This fixture desktop stays inactive. Accepting Pause when inactive
+      // therefore preserves that pause reason after the modal window closes.
+      const bool expectPause = read(profile / L"frontend-pause-inactive.txt") == "1";
       for (unsigned i = 0;
            i < 250 && (IsWindow(dialog) || !IsWindowEnabled(frontend) ||
-                       GetPropW(frontend, L"JfgFrontendPause"));
+                       (GetPropW(frontend, L"JfgFrontendPause") != nullptr) != expectPause);
            ++i)
         Sleep(20);
       check(!IsWindow(dialog) && IsWindowEnabled(frontend) &&
-                !GetPropW(frontend, L"JfgFrontendPause"),
-            "closing restores owner and releases pause");
+                (GetPropW(frontend, L"JfgFrontendPause") != nullptr) == expectPause,
+            "closing restores owner and honors pause-inactive preference");
     };
     if (dialog) {
       Sleep(300);
@@ -224,29 +227,41 @@ int wmain(int argc, wchar_t **argv) {
         SendMessageW(dialog, WM_LBUTTONUP, 0, position);
         Sleep(100);
       };
+      auto reopen = [&] {
+        PostMessageW(frontend, WM_COMMAND, 116, 0);
+        dialog = wait_window(desktop, 0, L"Video Settings", L"JfgRmlLiveTool");
+        check(dialog != nullptr, "settings reopens after accepting Apply");
+        prepareDialog();
+      };
       click("video-custom");
       click("video-preset-360");
       click("video-vsync");
       click("video-apply");
+      waitClosed();
       auto saved = jfg::load_video_settings(profile / L"video.ini");
       check(saved && saved->mode == jfg::FrameRateMode::custom &&
                 saved->fps == 360 && !saved->vsync,
             "actual RmlUi Apply persists custom FPS and VSync");
       if (saved)
         std::cout << "After Apply: " << jfg::serialize_video_settings(*saved);
+      reopen();
       click("video-fullscreen");
       click("video-pause");
       click("video-apply");
+      waitClosed();
       check((GetWindowLongPtrW(frontend, GWL_STYLE) & WS_POPUP) != 0,
             "fullscreen applies to live owner immediately");
       check(read(profile / L"frontend-pause-inactive.txt") == "1",
             "pause preference persists immediately");
+      reopen();
       click("video-windowed");
       click("video-pause");
       click("video-apply");
+      waitClosed();
       check((GetWindowLongPtrW(frontend, GWL_STYLE) & WS_OVERLAPPEDWINDOW) ==
                 WS_OVERLAPPEDWINDOW,
             "windowed applies without game restart");
+      reopen();
       const auto before = read(profile / L"video.ini");
       click("video-unlimited");
       click("video-cancel");
@@ -270,13 +285,13 @@ int wmain(int argc, wchar_t **argv) {
       if (dialog) {
         prepareDialog();
         click("video-unlimited");
-        click("video-ok");
+        click("video-apply");
         waitClosed();
       }
       saved = jfg::load_video_settings(profile / L"video.ini");
       check(saved && saved->mode == jfg::FrameRateMode::unlimited &&
                 saved->fps == 360 && !saved->vsync,
-            "OK persists Unlimited with remembered custom cap");
+            "Apply persists Unlimited with remembered custom cap");
       // Verify recovery if only the supervised settings process fails.
       PostMessageW(frontend, WM_COMMAND, 116, 0);
       dialog = wait_window(desktop, 0, L"Video Settings", L"JfgRmlLiveTool");

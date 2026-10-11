@@ -7,10 +7,6 @@ button:hover { background: #263047; }
 button:focus, input:focus, select:focus { border-color: #ffb23e; }
 button:disabled, select:disabled { color: #6f7a91; opacity: 0.55; cursor: normal; }
 #video-shell { width: 100%; height: 100%; display: flex; flex-direction: column; }
-.titlebar { flex-shrink: 0; height: 44dp; display: flex; align-items: center; padding-left: 20dp; background: #0e1320; border-bottom: 1dp #222b40; }
-.title-marker { width: 9dp; height: 9dp; background: #ffb23e; border-radius: 2dp; margin-right: 12dp; }
-.title { font-family: Chakra Petch; font-weight: bold; font-size: 14dp; letter-spacing: 2dp; }
-.close { margin-left: auto; width: 44dp; height: 43dp; font-size: 25dp; padding: 0; border-width: 0; background: transparent; color: #a7b0c2; }
 #video-content { flex: 1; min-height: 0; overflow-y: auto; padding: 18dp 22dp; }
 .section { border: 1dp #1c2438; border-radius: 10dp; background: #0e1320; padding: 6dp 16dp 8dp; }
 .rendering { margin-top: 14dp; }
@@ -37,8 +33,6 @@ select option:hover, select option:checked { background: #2a2214; color: #ffc872
 .switch .knob { position: absolute; width: 18dp; height: 18dp; top: 2dp; left: 2dp; background: #8691a8; border-radius: 9dp; }
 .switch.selected { background: #ffb23e; border-color: #ffb23e; }
 .switch.selected .knob { left: 22dp; background: #1a1206; }
-.aspect { display: flex; align-items: center; padding: 9dp 0 4dp; border-top: 1dp #1a2133; font-size: 12dp; color: #8691a8; }
-.info { border: 1dp #6fd3ee; color: #6fd3ee; border-radius: 8dp; width: 15dp; height: 15dp; text-align: center; margin-right: 8dp; }
 .rate-row { border-top: 1dp #1a2133; padding-top: 3dp; padding-bottom: 8dp; }
 .rate-row .row { border-width: 0; min-height: 44dp; }
 .rate-hint { margin-left: 166dp; color: #8691a8; font-size: 12dp; line-height: 17dp; }
@@ -54,20 +48,26 @@ select option:hover, select option:checked { background: #2a2214; color: #ffc872
 .fps-unit { margin-left: 6dp; color: #8691a8; font-size: 12dp; }
 .quick-row { display: flex; margin-left: 166dp; }
 .quick-row button { height: 26dp; padding: 0 9dp; margin-right: 6dp; font-size: 11dp; border-radius: 13dp; background: transparent; color: #a7b0c2; }
-.quick-row button.selected { background: #2a2214; color: #ffc872; border-color: #ffb23e; }
+
 .range-hint { color: #6f7a91; font-size: 11dp; margin: 8dp 0 1dp 166dp; }
 .range-hint.invalid { color: #f5a396; }
-.footer { flex-shrink: 0; min-height: 64dp; display: flex; align-items: center; padding: 10dp 16dp 10dp 22dp; border-top: 1dp #222b40; background: #0e1320; }
+.footer { flex-shrink: 0; min-height: 64dp; display: flex; align-items: center; justify-content: flex-end; padding: 10dp 16dp 10dp 22dp; border-top: 1dp #222b40; background: #0e1320; }
 .footer button { flex-shrink: 0; margin-left: 8dp; height: 38dp; }
 .footer .primary { padding: 0 24dp; background: #ffb23e; border-color: #ffb23e; color: #1a1206; font-weight: bold; }
-#video-apply { color: #ffc872; border-color: #ffb23e; background: transparent; }
 #video-apply:disabled { border-color: #2e3a57; color: #4a556e; }
-.status-wrap { display: flex; align-items: center; flex: 1; padding-right: 8dp; font-size: 12dp; line-height: 17dp; color: #8691a8; }
-#video-status-dot { flex-shrink: 0; width: 6dp; height: 6dp; border-radius: 3dp; background: #4a556e; margin-right: 8dp; }
-.status-wrap.changed { color: #ffc872; }
-.status-wrap.changed #video-status-dot { background: #ffb23e; }
-.status-wrap.error { color: #f5a396; }
-.status-wrap.error #video-status-dot { background: #f07a6b; }
-.status-wrap.saved #video-status-dot { background: #5fd08a; }
 scrollbarvertical { width: 8dp; }
 scrollbarvertical sliderbar { background: #2e3a57; border-radius: 4dp; }
+
+#video-error { display: none; margin-bottom: 12dp; padding: 10dp 12dp; border: 1dp #8f4d43; border-radius: 6dp; background: #291b20; color: #f5a396; }
+/* Reuse the controller UI's supersampled frame treatment at fractional DPI.
+   The native text and button hit targets remain independent of the artwork. */
+@spritesheet video-preset-frames {
+ src: controls-art/ui-details.tga;
+ resolution: 4x;
+ video-frame-on: 0px 0px 128px 128px;
+ video-frame-on-inner: 40px 40px 48px 48px;
+ video-frame-muted: 128px 0px 128px 128px;
+ video-frame-muted-inner: 168px 40px 48px 48px;
+}
+.quick-row button { border-color: transparent; background: transparent; decorator: ninepatch(video-frame-muted, video-frame-muted-inner) border-box; }
+.quick-row button:hover, .quick-row button:focus, .quick-row button.selected { border-color: transparent; background: transparent; color: #ffc872; decorator: ninepatch(video-frame-on, video-frame-on-inner) border-box; }

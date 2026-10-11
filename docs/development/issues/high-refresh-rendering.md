@@ -499,3 +499,54 @@ correspondence is recorded in private `video-center-qualification.json`.
 No game renderer, simulation or save data changed. Owner visual confirmation is
 pending; no release or installed update was made. The production guard remains
 enabled and all investigation charges are retained.
+
+
+## Video Settings chrome and preset outlines (2026-10-11)
+
+Owner annotated the centered preview: remove the duplicate in-content titlebar,
+OK button, idle/unsaved status at bottom left and boxed aspect-ratio note; Apply
+should be the accepting action. The FPS preset pill outlines show broken thin
+pixels. Severity: minor visual defect; accepting-action change is owner requested.
+Affected implementation 68e3a63. Evidence: owner screenshot and existing 1dp native
+rounded borders. The modern-controls UI already solved the same fractional-DPI
+artifact with supersampled nine-patch frame artwork (`modern-controls-ui.md`,
+Assets and qualification). Reuse that embedded artwork rather than alter the shared
+renderer or introduce a dependency. Candidate work pending visual and interaction
+checks. Preserve load/save errors in a dedicated, normally hidden content notice.
+This continues the same enabled guard and authorization, retaining all charges.
+
+
+The first changed-action integration run passed persistence, closing, all other
+controls and centering, but failed its blanket expectation that closing always
+clears pause. Source review confirms `refreshPause` retains the independently
+enabled Pause when inactive reason; the fixture runs on an inactive desktop.
+Previously Apply kept the dialog open until the fixture disabled that preference.
+The corrected assertion requires the closed dialog, enabled owner and exact
+pause state implied by the saved preference. No runtime pause behavior is changed
+or test waived. The original failed log is `video-polish-frontend.log`.
+
+The existing UI checks pass (120) and captures at 100%, 125% and 150% show the
+removed chrome and continuous preset frames. With that chrome removed, the
+initial client height is reduced from 700 to 600 logical pixels to avoid excess
+empty space; resizing/scrolling and centering behavior remain supported.
+
+
+Verified candidate: 120 UI checks pass, including unchanged Apply accepting,
+changed Apply persisting and closing, save failure retaining the draft and
+showing an error without closing, validation, keyboard navigation and real
+preset pointer hits at 100%, 125% and 150% density. All three final captures were
+inspected; RmlUi logs contain no parse warnings/errors. The new compact window
+keeps the native OS title bar, removes the duplicated in-content header and
+aspect-ratio note, and has only Cancel and Apply in its footer, with no idle or
+unsaved status. Selected/hover/focus presets reuse the controller UI's existing
+embedded supersampled frame atlas; labels and hit targets remain native.
+
+The real launcher integration passes persistence, closing/reopening between
+Apply operations, immediate fullscreen/windowed and pause preference changes,
+Cancel, child-crash recovery and nine initial-placement checks (including
+fullscreen owner and screen edges). Evidence: `video-polish-ui-final/result.json`,
+its `dpi100.png`, `dpi125.png`, `dpi150.png`, and `video-polish-frontend-final.log`.
+Owner visual confirmation remains pending. No new game replay is needed for
+these launcher-only changes; the renderer/restart qualifications remain those
+of the unchanged runtime. Lesson: accepting a dialog must preserve independent
+pause reasons; UI artwork qualification includes fractional scaling and hits.

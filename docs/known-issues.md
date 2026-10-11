@@ -25,7 +25,7 @@ exceeds 360 presentations/s while preserving guest state. Unlimited pacing remai
 uneven, and its full replay took about 2% longer than Original. Sustained performance,
 semantic object identity, animation/effects, CPU overlays, transitions, audio-device
 behavior and physical 360+ Hz display qualification are incomplete. Original remains
-the default. Video Settings centering is corrected and tested; owner confirmation remains pending. See [RENDER-001](development/issues/high-refresh-rendering.md).
+the default. Video Settings centering, simplified chrome and antialiased FPS presets are tested; owner confirmation remains pending. See [RENDER-001](development/issues/high-refresh-rendering.md).
 
 ## Windows 10 setup
 

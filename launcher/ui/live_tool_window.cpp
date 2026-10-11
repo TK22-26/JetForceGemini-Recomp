@@ -149,7 +149,7 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
     density = static_cast<int>(GetDpiForWindow(live.owner));
   int initialX = CW_USEDEFAULT, initialY = CW_USEDEFAULT;
   RECT size{0, 0, MulDiv(live.kind == "video" ? 720 : live.kind == "map" ? 1200 : live.kind == "controllers" ? 1280 : 486, density, 96),
-            MulDiv(live.kind == "video" ? 700 : live.kind == "map" ? 740 : live.kind == "controllers" ? 920 : 716, density, 96)};
+            MulDiv(live.kind == "video" ? 600 : live.kind == "map" ? 740 : live.kind == "controllers" ? 920 : 716, density, 96)};
   AdjustWindowRectExForDpi(&size, WS_OVERLAPPEDWINDOW, FALSE, 0, density);
   if(live.kind=="controllers" || live.kind=="video") {
     MONITORINFO monitor{sizeof(MONITORINFO)};
