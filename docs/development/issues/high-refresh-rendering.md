@@ -1,9 +1,10 @@
 # RENDER-001: Experimental high-refresh presentation
 
 - Severity: enhancement / significant rendering limitation.
-- Status: prototype implemented; release build, five focused tests, 60/240 FPS
-  gameplay replays and consecutive-image capture verified for one fixture.
-  Broader visual qualification and owner playtesting remain pending.
+- Status: native Windows controls and capped/uncapped rendering implemented;
+  seven focused tests, launcher checks, live dialog pause/resume, guest-state
+  equivalence and distinct swapchain images verified in bounded fixtures.
+  Unlimited pacing and broader owner playtesting remain open; not released.
 - Reported and last updated: 2026-10-11 UTC.
 - Baseline: `d649cf586b13d2bff7ab7258db9991ad554ae017`, combining the owner's
   `66e14d6` workspace checkpoint with latest fetched main `acccc55`.
@@ -312,3 +313,24 @@ semantic object identity; CPU overlays, resizing, multi-monitor DPI/refresh,
 loading/cutscene transitions and multiplayer. VSync-off output can tear. These
 changes do not fix the separate Goldwood simulation-cadence issue. Preserve the
 production guard, original roots/counters and this evidence for any continuation.
+
+
+### Committed handoff
+
+Implementation and native controls: `b39533a5b3661544d5322bd70cd64ae9843f5254`
+on `research/high-refresh-20261011`. The rebuilt production launcher SHA-256 is
+`5af0a7b104a8b574a8cb4ce441bca443fac95597b6ab5ca98580ec4e7f6f4722`;
+its embedded helper and build receipt identify that implementation commit.
+The final package's real menu/persistence fixture passes after rebuilding. The
+test-only launcher executable was removed from the playable preview.
+
+The complete machine-local preview is
+`C:\JFG-builds\high-refresh-video-preview-20261011`, opened with
+`Play-Video-Settings.cmd`. It has a separate copied save/profile and starts at
+Custom 60 / VSync on. Close another running launcher first. This is a local
+candidate, with no push, release or replacement of the installed game.
+
+`video-qualification.json` maps tested sources, runtime, launcher and evidence;
+`video-manifest.json` preserves successful and failed guarded steps. The original
+production ledger remains authoritative for guard state and charges. Finalizing
+this job neither resets its counters nor authorizes further investigation.

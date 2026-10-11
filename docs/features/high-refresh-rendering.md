@@ -80,6 +80,9 @@ unchanged. Original mode remains available.
 
 ## Native controls candidate verification (2026-10-11)
 
+Implementation commit: `b39533a5b3661544d5322bd70cd64ae9843f5254` on
+`research/high-refresh-20261011`.
+
 Hardware: RTX 5090, Ryzen 7 5800X, detected 240 Hz display, 640 by 480 output.
 Measurements cover only the approximately 1.6-1.74-second moving-camera window
 at VI 4000-4098 in isolated 4,100-VI replays. Capture readback runs are separate.
