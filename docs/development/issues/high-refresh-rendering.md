@@ -550,3 +550,19 @@ Owner visual confirmation remains pending. No new game replay is needed for
 these launcher-only changes; the renderer/restart qualifications remain those
 of the unchanged runtime. Lesson: accepting a dialog must preserve independent
 pause reasons; UI artwork qualification includes fractional scaling and hits.
+
+
+Delivered preview: implementation `fc9099c2d754b0b953e9b602de581ddc0aa34200`; launcher SHA-256
+`236f345406692882a0e57422894601df96a386d4efe32df8a8691f82df7509f0`. Final rebuilt package passes all launcher integration
+checks, including accepting Apply and nine placement observations, with zero
+failures (`video-polish-final.log`). Desktop **JFG - High Refresh Preview** points
+to this package and retains the same isolated profile. The previous package and
+shortcut are preserved for rollback. Evidence/source/binary correspondence is
+recorded in `video-polish-qualification.json`. Owner confirmation remains pending.
+
+The first packaging wrapper stopped before executing on an unterminated Python
+string for README text. Its immutable failed receipt is retained as step 05;
+step 06 corrected only that wrapper string and completed the same build and final
+checks. The product source was unchanged by this packaging correction. No user
+windows or save files were modified; no push or release. The original production
+guard remains enabled with every prior charge preserved.
