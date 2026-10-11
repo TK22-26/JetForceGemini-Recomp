@@ -15,6 +15,7 @@ inline constexpr std::size_t kRt64RequiredHeaderBytes = 0x40U;
 enum class Rt64ShellError {
     none,
     invalid_window,
+    invalid_refresh_rate,
     invalid_memory,
     setup_dynamic_libraries_missing,
     setup_invalid_graphics_api,
@@ -68,6 +69,7 @@ struct Rt64ShellConfiguration {
     bool cpu_writeback = false;
     // Return intensity masks to the guest for its CPU postprocessing.
     bool cpu_mask_writeback = false;
+    unsigned experimental_refresh_rate = 0U;
 };
 
 struct Rt64RdramRange {
@@ -89,6 +91,8 @@ struct Rt64GraphicsTask {
     std::uint32_t ucode_address = 0U;
     std::uint32_t ucode_data_address = 0U;
     std::uint32_t command_address = 0U;
+    // Immutable guest submission time, independent of renderer output rate.
+    std::uint64_t vi_tick = 0U;
 };
 
 struct Rt64FramebufferInfo {

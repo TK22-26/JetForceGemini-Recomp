@@ -1,4 +1,6 @@
 #include "rt64_f3ddkr.hpp"
+#include "jfg/renderer/interpolation_bridge.hpp"
+#include <bit>
 #include "jfg/renderer/rt64_f3ddkr_address.hpp"
 
 #include "gbi/rt64_gbi_f3d.h"
@@ -66,6 +68,9 @@ struct Context {
     Rt64F3ddkrStats stats{};
     std::bitset<kVertexCount> loaded_vertices{};
     std::span<const std::uint8_t> simulation_rdram{};
+    bool interpolate = false;
+    std::uint64_t vi_tick = 0U;
+    PresentationHistory presentation_history;
     bool billboard = false;
     bool failed = false;
 };
@@ -840,9 +845,64 @@ void run_display_list(RT64::State* state, RT64::DisplayList** dl) {
         address) - 1;
 }
 
+void prepare_interpolation(Context& context, RT64::State& state) {
+    if (!context.interpolate) return;
+    state.flush();
+    auto& workload = state.ext.workloadQueue->workloads[state.ext.workloadQueue->writeCursor];
+    auto& data = workload.drawData;
+    bool scene = false;
+    for (std::uint32_t f = 0; f < workload.fbPairCount; ++f) {
+        const auto& pair = workload.fbPairs[f];
+        scene = scene || (pair.colorImage.width >= 320U &&
+            pair.colorImage.siz == G_IM_SIZ_16b && !pair.drawColorRect.isEmpty());
+    }
+    std::vector<PresentationMesh> meshes(data.worldTransforms.size());
+    std::vector<std::uint32_t> local_indices(data.worldIndices.size());
+    for (std::size_t i = 0; i < meshes.size(); ++i) {
+        for (std::size_t r = 0; r < 4; ++r)
+            for (std::size_t c = 0; c < 4; ++c)
+                meshes[i].matrix[r*4+c] = data.worldTransforms[i].m[r][c];
+        meshes[i].eligible = data.modifyPosUints.empty();
+    }
+    for (std::size_t v = 0; v < data.worldIndices.size(); ++v) {
+        const auto m = data.worldIndices[v];
+        if (m >= meshes.size() || v*3+2 >= data.posFloats.size()) continue;
+        auto& mesh = meshes[m];
+        local_indices[v] = static_cast<std::uint32_t>(mesh.positions.size());
+        std::array<float, 3> point{};
+        for (std::size_t c = 0; c < 3; ++c) {
+            point[c] = data.posFloats[v*3+c];
+            mesh.key.push_back(std::bit_cast<std::uint32_t>(point[c]));
+        }
+        mesh.positions.push_back(point);
+    }
+    for (auto& mesh : meshes) {
+        mesh.key.push_back(0xFFFFFFFFU);
+        mesh.key.push_back(static_cast<std::uint32_t>(mesh.positions.size()));
+    }
+    for (std::size_t t = 0; t + 2 < data.faceIndices.size(); t += 3) {
+        const auto a = data.faceIndices[t], b = data.faceIndices[t+1], c = data.faceIndices[t+2];
+        if (a >= data.worldIndices.size() || b >= data.worldIndices.size() ||
+            c >= data.worldIndices.size()) continue;
+        const auto ma = data.worldIndices[a], mb = data.worldIndices[b], mc = data.worldIndices[c];
+        if (ma >= meshes.size() || mb >= meshes.size() || mc >= meshes.size()) continue;
+        if (ma != mb || ma != mc) {
+            meshes[ma].eligible = meshes[mb].eligible = meshes[mc].eligible = false;
+            continue;
+        }
+        meshes[ma].key.insert(meshes[ma].key.end(),
+            {local_indices[a], local_indices[b], local_indices[c]});
+    }
+    auto frame = std::make_shared<PresentationHistoryFrame>(
+        context.presentation_history.record(meshes, context.vi_tick, scene));
+    state.setRefreshRate(static_cast<std::uint16_t>(frame->source_rate));
+    publish_presentation_snapshot(&workload, std::move(frame));
+}
+
 void full_sync(RT64::State* state, RT64::DisplayList** dl) {
     Context* context = find_context(state);
     const auto start = std::chrono::steady_clock::now();
+    if (context != nullptr) prepare_interpolation(*context, *state);
     RT64::GBI_RDP::fullSync(state, dl);
     if (context != nullptr) {
         context->stats.full_sync_microseconds +=
@@ -948,8 +1008,9 @@ struct Rt64F3ddkr::Impl {
     Context context;
 };
 
-Rt64F3ddkr::Rt64F3ddkr(RT64::Application& application)
+Rt64F3ddkr::Rt64F3ddkr(RT64::Application& application, const bool interpolate)
     : impl_(std::make_unique<Impl>(application)) {
+    impl_->context.interpolate = interpolate;
     const std::scoped_lock lock(contexts_mutex);
     contexts.emplace(application.state.get(), &impl_->context);
 }
@@ -959,11 +1020,15 @@ Rt64F3ddkr::~Rt64F3ddkr() {
         impl_->context.application->state != nullptr) {
         const std::scoped_lock lock(contexts_mutex);
         contexts.erase(impl_->context.application->state.get());
+        if (impl_->context.application->workloadQueue != nullptr)
+            for (auto& workload : impl_->context.application->workloadQueue->workloads)
+                publish_presentation_snapshot(&workload, nullptr);
     }
 }
 
 void Rt64F3ddkr::begin(
-    const std::span<const std::uint8_t> simulation_rdram) noexcept {
+    const std::span<const std::uint8_t> simulation_rdram, const std::uint64_t vi_tick) noexcept {
+    impl_->context.vi_tick = vi_tick;
     impl_->context.simulation_rdram = simulation_rdram;
     impl_->context.commands = 0U;
     impl_->context.stats = {};

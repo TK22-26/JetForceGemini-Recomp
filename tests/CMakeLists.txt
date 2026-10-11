@@ -301,6 +301,29 @@ if(TARGET jfg_rt64_renderer)
             VERBATIM)
     endif()
     add_test(NAME jfg.rt64_f3ddkr_texture COMMAND jfg_rt64_f3ddkr_texture_tests)
+    add_executable(jfg_rt64_interpolation_tests rt64_interpolation_tests.cpp)
+    target_link_libraries(jfg_rt64_interpolation_tests PRIVATE jfg_rt64_renderer)
+    target_include_directories(jfg_rt64_interpolation_tests PRIVATE
+        "${PROJECT_SOURCE_DIR}/src/renderer"
+        $<TARGET_PROPERTY:jfg_rt64_renderer,INCLUDE_DIRECTORIES>)
+    target_compile_definitions(jfg_rt64_interpolation_tests PRIVATE
+        $<TARGET_PROPERTY:jfg_rt64_renderer,COMPILE_DEFINITIONS>)
+    target_compile_features(jfg_rt64_interpolation_tests PRIVATE cxx_std_20)
+    jfg_set_project_warnings(jfg_rt64_interpolation_tests)
+    if(MSVC)
+        target_compile_options(jfg_rt64_interpolation_tests PRIVATE
+            /wd4201 /wd4244 /wd4324)
+    endif()
+    if(WIN32)
+        add_custom_command(TARGET jfg_rt64_interpolation_tests POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${jfg_rt64_root}/src/contrib/mupen64plus-win32-deps/SDL2-2.26.3/lib/x64/SDL2.dll"
+                "${jfg_rt64_root}/src/contrib/dxc/bin/x64/dxcompiler.dll"
+                "${jfg_rt64_root}/src/contrib/dxc/bin/x64/dxil.dll"
+                "$<TARGET_FILE_DIR:jfg_rt64_interpolation_tests>"
+            VERBATIM)
+    endif()
+    add_test(NAME jfg.rt64_interpolation COMMAND jfg_rt64_interpolation_tests)
 
     add_executable(jfg_rt64_depth_bounds_tests rt64_depth_bounds_tests.cpp)
     target_link_libraries(jfg_rt64_depth_bounds_tests PRIVATE jfg_rt64_renderer)
@@ -675,3 +698,9 @@ if(WIN32)
   jfg_set_project_warnings(jfg_host_deadline_wait_tests)
   add_test(NAME jfg.host_deadline_wait COMMAND jfg_host_deadline_wait_tests)
 endif()
+
+add_executable(jfg_interpolation_history_tests interpolation_history_tests.cpp)
+target_include_directories(jfg_interpolation_history_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_interpolation_history_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_interpolation_history_tests)
+add_test(NAME jfg.interpolation_history COMMAND jfg_interpolation_history_tests)

@@ -345,6 +345,11 @@ struct Rt64Shell::Impl {
 
 Rt64ShellError validate_rt64_shell_configuration(
     const Rt64ShellConfiguration& configuration) noexcept {
+    if (configuration.experimental_refresh_rate != 0U &&
+        (configuration.experimental_refresh_rate < 60U ||
+         configuration.experimental_refresh_rate > 1000U)) {
+        return Rt64ShellError::invalid_refresh_rate;
+    }
     if (configuration.native_window == nullptr) {
         return Rt64ShellError::invalid_window;
     }
@@ -792,6 +797,16 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
         // Skipping to a newer rendered buffer can display it before those edits.
         impl->application->enhancementConfig.presentation.mode =
             RT64::EnhancementConfiguration::Presentation::Mode::Console;
+        if (configuration.experimental_refresh_rate >= 60U &&
+            configuration.experimental_refresh_rate <= 1000U) {
+            impl->application->userConfig.refreshRate =
+                RT64::UserConfiguration::RefreshRate::Manual;
+            impl->application->userConfig.refreshRateTarget =
+                static_cast<int>(configuration.experimental_refresh_rate);
+            // Prototype: CPU-composited overlays need separate qualification.
+            impl->application->enhancementConfig.presentation.mode =
+                RT64::EnhancementConfiguration::Presentation::Mode::SkipBuffering;
+        }
         impl->setup_started = true;
         const Rt64ShellError result = setup_error(
             impl->application->setup(configuration.window_thread_id));
@@ -807,7 +822,7 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
             return nullptr;
         }
         impl->initialized = true;
-        impl->f3ddkr = std::make_unique<Rt64F3ddkr>(*impl->application);
+        impl->f3ddkr = std::make_unique<Rt64F3ddkr>(*impl->application, configuration.experimental_refresh_rate != 0U);
         error = Rt64ShellError::none;
         return std::unique_ptr<Rt64Shell>(
             new Rt64Shell(std::move(impl)));
@@ -843,7 +858,7 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
         // loads. GPU framebuffer reuse can otherwise bypass those RAM writes.
         if (impl_->cpu_writeback)
             impl_->application->emulatorConfig.framebuffer.copyWithGPU = false;
-        impl_->f3ddkr->begin(impl_->task_rdram);
+        impl_->f3ddkr->begin(impl_->task_rdram, task.vi_tick);
         impl_->f3ddkr->install();
         const auto rdram_check_start = std::chrono::steady_clock::now();
         // Refresh CPU-owned intensity buffers when they are next drawn. Texture
@@ -1102,6 +1117,8 @@ const char* rt64_shell_error_message(const Rt64ShellError error) noexcept {
     switch (error) {
     case Rt64ShellError::none:
         return "no error";
+    case Rt64ShellError::invalid_refresh_rate:
+        return "Experimental render rate must be 0 or 60-1000";
     case Rt64ShellError::invalid_window:
         return "RT64 requires a native window";
     case Rt64ShellError::invalid_memory:

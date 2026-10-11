@@ -74,6 +74,7 @@
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
 #include "jfg/evidence/g2_private_task_adapter.hpp"
 #include "jfg/renderer/rt64_shell.hpp"
+#include "jfg/renderer/interpolation_history.hpp"
 #include "jfg/renderer/vi_presentation.hpp"
 #include "jfg/runtime/audio_task_bridge.hpp"
 #include "jfg/runtime/input_replay.hpp"
@@ -4659,6 +4660,18 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
       _close(null_stdout);
     return false;
   }
+  char* fps_text = nullptr;
+  std::size_t fps_size = 0;
+  (void)_dupenv_s(&fps_text, &fps_size, "JFG_EXPERIMENTAL_RENDER_FPS");
+  const auto render_fps = jfg::parse_render_fps(fps_text == nullptr ? "" : fps_text);
+  std::free(fps_text);
+  if (!render_fps) {
+    (void)_dup2(saved_stdout, _fileno(stdout));
+    _close(null_stdout);
+    _close(saved_stdout);
+    std::fprintf(stderr, "JFG_EXPERIMENTAL_RENDER_FPS must be 0 or 60-1000\n");
+    return false;
+  }
   state.rt64_shell = jfg::Rt64Shell::create(
       {window.get(), window.thread_id(),
        std::span<const std::byte>(
@@ -4667,7 +4680,7 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
        state.rt64_rdram, &state.rt64_vi, false,
        // Software overlays read and modify completed color pixels.
        // RT64 already completes its RAM readback before DP completion.
-       jfg::Rt64MemoryLayout::host_word_swapped, true, true},
+       jfg::Rt64MemoryLayout::host_word_swapped, true, true, *render_fps},
       error);
   std::fflush(stdout);
   (void)_dup2(saved_stdout, _fileno(stdout));
@@ -4724,7 +4737,7 @@ bool execute_live_graphics_task(State &state, hle::GuestMemory &memory) {
   }
   snapshot.resize(jfg::kRt64RequiredRdramBytes);
   PendingLiveGraphicsTask pending{
-      {ucode_address, ucode_data_address, command_address},
+      {ucode_address, ucode_data_address, command_address, state.vi_retraces},
       state.last_graphics_descriptor, std::move(snapshot)};
   jfg::copy_changed_snapshot_bytes(std::span(reinterpret_cast<const std::byte *>(state.rdram), kRdramSize),
       std::span(pending.rdram).first(kRdramSize));

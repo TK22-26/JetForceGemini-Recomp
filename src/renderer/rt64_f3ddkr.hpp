@@ -50,12 +50,12 @@ inline constexpr std::uint32_t kF3ddkrRejectMoveMemRange = 10U;
 
 class Rt64F3ddkr final {
 public:
-    explicit Rt64F3ddkr(RT64::Application& application);
+    explicit Rt64F3ddkr(RT64::Application& application, bool interpolate = false);
     ~Rt64F3ddkr();
     Rt64F3ddkr(const Rt64F3ddkr&) = delete;
     Rt64F3ddkr& operator=(const Rt64F3ddkr&) = delete;
 
-    void begin(std::span<const std::uint8_t> simulation_rdram) noexcept;
+    void begin(std::span<const std::uint8_t> simulation_rdram, std::uint64_t vi_tick = 0U) noexcept;
     void install() noexcept;
     [[nodiscard]] bool complete() const noexcept;
     [[nodiscard]] std::size_t command_count() const noexcept;
