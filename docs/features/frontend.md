@@ -138,9 +138,10 @@ Still to qualify by hand: two- and four-controller physical multiplayer,
 fresh-PC first-run setup with UAC and reboot, and long sessions through
 cutscenes. Hardware results must be reported separately from automated checks.
 
-## High-refresh rendering research
+## Experimental high-refresh rendering
 
-The [60-360+ FPS investigation](../planning/high-refresh-rendering.md) targets
-smoother presentation with unchanged game timing. It identifies the missing
-transform metadata and framebuffer ownership work; no new player-facing FPS
-setting or high-refresh mode is enabled by this research.
+The [experimental high-refresh mode](high-refresh-rendering.md) now provides
+opt-in transform interpolation. A moving-camera replay measures about 60/240 FPS
+with matching guest RAM, input, save and probe state. It uses an environment
+setting or the isolated preview helper; the launcher has no FPS control yet.
+General visual acceptance and 360+ FPS qualification remain open.

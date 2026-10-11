@@ -1,7 +1,9 @@
 # Smooth high-refresh rendering: investigation and implementation path
 
-Updated 2026-10-11 UTC. Status: source research and working-build reference
-qualification, **not an implemented high-refresh mode**. Track continuing work in
+Updated 2026-10-11 UTC. Status: **opt-in prototype implemented and replay-qualified
+at 60/240 FPS in one moving-camera fixture**. See the
+[feature and preview instructions](../features/high-refresh-rendering.md).
+Broader visual acceptance and 360+ FPS qualification remain in
 [RENDER-001](../development/issues/high-refresh-rendering.md).
 
 ## Decision and scope
@@ -15,9 +17,9 @@ to execute game logic six or twelve times faster.
 This is technically plausible with our existing renderer: the pinned RT64 already
 contains frame matching, transform/vertex interpolation and a separate presentation
 queue. Successful ports supply the identities and discontinuity rules those
-mechanisms need. JFG's integration presently opts out of them. The main work is
-supplying correct render history and frame ownership, then measuring performance.
-A settings-only change is insufficient.
+mechanisms need. JFG's default mode opts out; the new experimental path supplies
+copied transform history and scene ownership. Semantic identity and broader
+visual/performance qualification remain necessary.
 
 The worktree baseline is `d649cf586b13d2bff7ab7258db9991ad554ae017`: merge the
 owner's source checkpoint `66e14d60e7809eae12a65a5002240b10fe9707ae` with fetched
@@ -25,7 +27,7 @@ main `acccc55`. All newer runtime work continuing in the original checkout has
 its own lineage. This investigation does not replace the active
 [Goldwood timing work](../development/issues/goldwood-combat-slowdown.md).
 
-## What the current implementation establishes
+## Baseline contracts established by the initial review
 
 | Boundary | Observed source behavior | Implication |
 |---|---|---|
@@ -171,10 +173,13 @@ responsiveness and endpoint freshness even if presentation is smooth.
 
 ## Progress and continuation
 
-The initial research establishes a concrete RT64 integration path and identifies
-the missing JFG contracts. No high-refresh runtime, installed preview or release
-is claimed. Do not advertise 60/360 FPS from a settings value, a successful build,
-this plan or another port's results.
+The guarded implementation now builds and runs. Original, 60 and 360 requested
+modes retain identical guest RAM, renderer snapshots, input, save and probe state
+at VI 4100. The moving-camera fixture measures 59.98 and 239.81 presentations/s;
+the 360 request is capped by a 240 Hz display. Actual consecutive presented-image
+capture also verifies changing pixels. See the feature page for measurement scope,
+preview launchers and remaining acceptance limits. No release or 360+ delivered
+FPS is claimed.
 
 Continue under investigation `high-refresh-rendering-20261011` in the original
 production ledger. The owner approved 43,200 seconds; the guard remains enabled

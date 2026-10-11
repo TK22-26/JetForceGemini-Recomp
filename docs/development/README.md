@@ -16,7 +16,7 @@ problem, use [playtesting](../playtesting.md). Code changes follow
 
 ## Engineering reference
 
-- [High-refresh rendering investigation](../planning/high-refresh-rendering.md): source comparison, memory baseline and implementation gates.
+- [Experimental high-refresh rendering](../features/high-refresh-rendering.md): implementation, preview launchers, 60/240 FPS replay evidence and remaining limits.
 - [Runtime architecture](architecture.md): build pipeline, overlays, timing, graphics, audio and saves.
 - [Issue investigations and resolutions](issues/README.md): ongoing reports, attempted remedies and verified outcomes.
 - [Runtime fix log](boot-gameplay-fix.md): confirmed defects with cause, fix and validation.

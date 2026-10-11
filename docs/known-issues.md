@@ -19,9 +19,11 @@ for measurements, experiments and the remaining acceptance work.
 
 ## High-refresh rendering
 
-Smooth 60-360+ FPS presentation is under investigation. Current source explicitly
-disables JFG transform interpolation; a higher monitor refresh rate alone does not
-remove that limitation. See [RENDER-001](development/issues/high-refresh-rendering.md).
+An [opt-in high-refresh prototype](features/high-refresh-rendering.md) now measures
+60/240 FPS presentation in one moving-camera replay with matching guest state.
+It remains experimental: semantic object identity, animation/effects, CPU overlays,
+transitions and 360+ FPS hardware qualification are incomplete. Default rendering
+remains original mode. See [RENDER-001](development/issues/high-refresh-rendering.md).
 
 ## Windows 10 setup
 

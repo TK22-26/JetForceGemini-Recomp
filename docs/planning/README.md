@@ -56,4 +56,6 @@ describe the current project: original work uses [MIT](../../LICENSE). See the
 
 [60-360+ FPS rendering investigation](high-refresh-rendering.md) preserves guest
 timing and records the RT64 integration path, working-build evidence and acceptance
-gates. High-refresh output is not yet implemented.
+gates. The [opt-in prototype](../features/high-refresh-rendering.md) now measures
+60/240 FPS in one moving-camera fixture with matching guest state; broader
+visual acceptance and 360+ FPS qualification remain open.
