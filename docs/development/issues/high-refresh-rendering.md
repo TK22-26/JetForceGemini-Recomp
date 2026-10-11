@@ -424,3 +424,27 @@ existing video.ini format and original renderer binary; no simulation, input,
 audio, dependency pin or game save format changes. Exclusive fullscreen remains
 unimplemented, so only Windowed and Borderless fullscreen are shown. Broad game
 rendering acceptance and the previously recorded pacing limitations remain open.
+
+
+### RmlUi desktop preview handoff
+
+Implementation: `5527611ea10b247dbb2df46ca1870a8d93d365f4` on
+`research/high-refresh-20261011`. Rebuilt launcher SHA-256:
+`99a1d6360da2ace30d3d1eff57c526d2fc65bd8aaa5d6ffc3b545546d7b0ecc2`.
+The complete package at
+`C:\JFG-builds\high-refresh-rml-video-preview-20261011` passes the final real
+menu/persistence/display/crash-recovery fixture after embedding that source
+revision. Package runtime/DLL hashes match the retained verified manifest. The
+test-only launcher is absent from the delivered directory.
+
+Desktop **JFG - High Refresh Preview** now targets this package and reuses the
+previous isolated preview profile. Packaging changed none of that profile's
+files. The prior shortcut is retained privately for rollback. Close an existing
+launcher before testing, then open Video > Video settings. No installed/default
+save, normal launcher process or dependency checkout was replaced. No push or
+release occurred. Rendering acceptance remains bounded as recorded above.
+
+All coding, builds and replay work used the same production-guarded investigation
+and retained all original charges. The renewed window does not reset counters;
+read the original operational ledger and `rmlvideo-progress.json` before further
+autonomous investigation. Source/binary receipts and failed attempts are preserved.

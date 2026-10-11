@@ -86,7 +86,9 @@ unchanged. Original mode remains available.
 
 ## RmlUi window and restart verification (2026-10-11)
 
-The owner's `Child · Video settings-html.zip` design was translated into RML,
+Implementation commit: `5527611ea10b247dbb2df46ca1870a8d93d365f4`.
+
+The owner's `Child Â· Video settings-html.zip` design was translated into RML,
 RCSS and native C++ events in the existing pinned RmlUi backend. No dependency
 upgrade, browser, React runtime or remote font loading is needed. The previous
 standard-controls dialog remains a fallback for builds without RmlUi.
