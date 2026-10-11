@@ -130,5 +130,70 @@
     "Performance is a short bridge-walk sample, not a sustained benchmark"
   ],
   "muted_tests": true,
-  "released": false
+  "released": false,
+  "delivery": {
+    "runtime_source_commit": "dbc4c91f487a5a1b064ed55a49d60fa40dc536e7",
+    "package": "high-refresh-coherent-preview-20261011",
+    "desktop_shortcut": "JFG - High Refresh Preview",
+    "same_preview_profile_arguments": true,
+    "manifest_verified_files": 14,
+    "isolated_frontend_resolution_verified": true,
+    "launcher_binary_unchanged": true,
+    "owner_visual_confirmation_pending": true
+  },
+  "lighting_followup": {
+    "owner_clarification": "Returning toward the starting area, Juno stays dark after the bridge, then eventually lightens later than expected and inconsistently.",
+    "outward_replay": {
+      "vi": 10000,
+      "modes": [
+        "Original/VSync",
+        "Custom 360/VSync"
+      ],
+      "native_final_guest_renderer_save_identical": true,
+      "visual_result": "Juno returns to brighter lighting during and after the Magnus dialogue."
+    },
+    "return_replay": {
+      "vi": 6000,
+      "modes": [
+        "Original/VSync",
+        "Custom 360/VSync"
+      ],
+      "inputs": {
+        "forward_vi": [
+          4000,
+          4180
+        ],
+        "backward_vi": [
+          4240,
+          4500
+        ],
+        "idle_until_vi": 6000
+      },
+      "native_final_guest_renderer_save_identical": true,
+      "visual_result": "Dark at the bridge lip, bright on the starting-side approach and during the subsequent idle period in both modes.",
+      "reviewed_native_capture_ids": [
+        3090,
+        3120,
+        3150,
+        3180
+      ],
+      "reviewed_reference_frames": [
+        4320,
+        4350,
+        4380,
+        4410
+      ]
+    },
+    "original_game_reference": "Muted Ares64 shows the same visible dark-bridge/bright-approach pattern on the scripted return route. This is a spatial/appearance comparison, not frame-aligned timing or pixel parity.",
+    "status": "No additional inconsistent delay reproduced; owner report remains open, not fixed or dismissed.",
+    "lighting_code_changed": false,
+    "all_tests_muted": true,
+    "temporary_instrumentation_removed": true,
+    "private_evidence": [
+      "lighting-exit",
+      "lighting-exit-emulator",
+      "lighting-return",
+      "lighting-return-emulator"
+    ]
+  }
 }

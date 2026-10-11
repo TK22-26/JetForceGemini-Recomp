@@ -22,7 +22,9 @@ for measurements, experiments and the remaining acceptance work.
 The local high-refresh candidate corrects reproduced terrain cracks caused by
 inconsistent interpolation of batches sharing a transform. Owner confirmation
 and broader character coverage are pending. The Original-mode joint and incorrect
-dark-lighting reports remain open. See
+delayed lighting recovery reports remain open. A controlled return across the
+bridge matches the reference's visible lighting pattern, but the intermittent
+extra delay has not been isolated. See
 [RENDER-002](development/issues/character-seams-lighting.md).
 
 ## High-refresh rendering

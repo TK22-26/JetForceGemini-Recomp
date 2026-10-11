@@ -96,7 +96,7 @@ unchanged. Original mode remains available.
 
 Implementation commit: `5527611ea10b247dbb2df46ca1870a8d93d365f4`.
 
-The owner's `Child Ã‚Â· Video settings-html.zip` design was translated into RML,
+The owner's `Child Ãƒâ€šÃ‚Â· Video settings-html.zip` design was translated into RML,
 RCSS and native C++ events in the existing pinned RmlUi backend. No dependency
 upgrade, browser, React runtime or remote font loading is needed. The previous
 standard-controls dialog remains a fallback for builds without RmlUi.
@@ -232,3 +232,16 @@ as PPM files. GPU readback disturbs pacing; do not benchmark a capture run.
 
 Keep the production guard enabled and retain the existing
 `high-refresh-rendering-20261011` ledger lineage for autonomous continuation.
+
+## Shared-transform preview delivery (2026-10-11)
+
+Runtime implementation `dbc4c91f487a5a1b064ed55a49d60fa40dc536e7` corrects the reproduced
+Goldwood high-refresh terrain cracks. The desktop preview uses the complete
+`high-refresh-coherent-preview-20261011` package and retains the same profile.
+Five focused renderer tests and four clean muted replay modes pass; the short
+walking sample measured about 60 FPS at the 60 cap, 355 FPS at the 360 cap, and
+1247 FPS uncapped. These are bounded replay observations, not sustained gameplay
+guarantees. The longer outward/return lighting checks preserve native game state
+between Original and Custom. Lighting code is unchanged; the intermittent
+return-direction delay and Original-mode joint report remain open in
+[RENDER-002](../development/issues/character-seams-lighting.md).

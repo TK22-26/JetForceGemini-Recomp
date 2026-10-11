@@ -9,8 +9,9 @@ Severity: major visual fidelity problem; gameplay impact unconfirmed.
 Juno shows visible gaps at his joints at every tested FPS with VSync enabled.
 The owner confirms this also occurs in Original after stopping/restarting the
 game. A supplied bridge-scene screenshot also shows pale gaps along terrain and
-the bridge entrance. The owner separately reports incorrect lighting: Juno stays
-too dark, as if he has remained in shadow. Do not assume these share one cause
+the bridge entrance. The owner separately reports delayed, inconsistent lighting recovery when
+walking back toward the starting area: Juno stays too dark after the bridge,
+then eventually brightens. The detailed clarification and comparisons are below. Do not assume these share one cause
 or that higher presentation FPS alone causes them.
 
 Affected local high-refresh preview runtime SHA-256:
@@ -95,9 +96,9 @@ FlashRAM and a scripted walk also darkens Juno on this bridge, then shows him
 lit during the far-bank conversation. This is an appearance reference, not
 frame-aligned pixel parity. The captured native geometry uses prelit colors
 (zero RSP light counts); changing RT64 normal-lighting parameters is unsupported
-by this evidence. The owner was asked whether the darkness persists after
-leaving the bridge or looks wrong on the bridge itself. Further location/pose
-evidence is needed to resolve the remaining lighting and Original-joint reports.
+by this evidence. The owner subsequently clarified the return direction and eventual recovery;
+see the controlled follow-up below. The remaining intermittent lighting and
+Original-joint reports are not resolved by this first comparison.
 
 Compatibility lesson: a vertex-batch identity is not an independent animation
 identity. Culling and topology changes must not split a single matrix's motion.
@@ -116,3 +117,70 @@ and [vertex pipeline](https://github.com/gonetz/GLideN64/blob/master/src/gSP.cpp
 snapshot hashes d80701e1c3a046b45540fc52757b13fb84646357126a2ec8dc74f38c6bb65f74
 and 30327540e7e975e4c7eb856a1b8f29c5a5c75a0ff023129d3a28f64ed75af538.
 No upstream implementation was copied or dependency upgraded.
+
+## Owner clarification and local delivery
+
+The owner clarified that Juno darkens when he steps onto the bridge and **stays
+dark after he walks off it**. The shadow on the bridge alone is not the reported
+failure. Extend the controlled route past the Magnus conversation and compare
+the transition in the reference and native runtime before changing lighting.
+
+The shared-transform correction is committed as `dbc4c91f487a5a1b064ed55a49d60fa40dc536e7` and packaged at
+`C:/JFG-builds/high-refresh-coherent-preview-20261011`. The existing desktop
+preview shortcut now resolves to that package with the same profile arguments.
+All 14 package entries pass size/hash validation; the managed frontend resolves
+the new runtime through an isolated muted profile. Launcher binary unchanged.
+Old package/shortcut retained for rollback. Owner visual confirmation remains
+pending; lighting and Original-mode joint reports are still open.
+
+The owner further narrows the lighting report to walking **back toward the
+starting area**. Juno eventually brightens again, but the recovery appears late
+and inconsistent. Treat this as a delayed transition, not a permanently stuck
+light value. The first extended native route shows lighting restored after the
+Magnus dialogue, but is the opposite crossing direction; a dedicated on-bridge,
+turn-back, off-bridge-and-idle replay is now queued in Original, Custom/VSync,
+and the muted Ares64 reference. No lighting remedy is claimed from the outward
+route or from the shared-transform seam correction.
+
+## Completed lighting follow-up and handoff
+
+The clarified return route walks forward during VI 4000-4180, reverses during
+4240-4500, then stands still through VI 6000. Original/VSync and Custom 360/VSync
+both complete muted and finish with identical guest RDRAM, renderer snapshot
+and save. Native captures 3090/3120 show Juno dark on the bridge/at its lip;
+3150/3180 show brighter lighting on the starting-side approach. Brighter lighting
+persists through the following idle captures. The separate muted Ares64 run
+shows the same spatial appearance pattern at frames 4320/4350 and 4380/4410.
+These sequences are not frame-aligned pixel or precise timing parity: camera
+positions, animation phase, resolution/coverage and interpolated presentation
+differ. Do not claim the owner's inconsistent extra delay has been disproved.
+
+The longer outward route also completes 10,000 VI in both native modes with
+identical final guest/renderer/save data. Juno brightens during and after the
+Magnus conversation; the emulator shows this too. That outward route is useful
+supporting evidence, but does not substitute for the clarified return direction.
+Close-up captures also show some model-joint gaps in the reference; they are not
+a matched-pose diagnosis of the owner's Original-mode joint report.
+
+No lighting behavior was changed: an additional intermittent recovery delay has
+not been isolated in these routes. The remaining useful reproduction is the
+specific path/position where Juno stays dark beyond the starting-side orange
+approach, including whether he is moving or standing. A short owner recording
+of that case can define the next replay. The Original-mode joint report likewise
+needs the affected pose in the delivered build. Both remain **open**; the tested
+shared-transform seam correction remains **awaiting owner visual confirmation**.
+
+All temporary capture instrumentation was removed and the clean target rebuilt.
+The delivered package remains the exact four-mode-qualified executable SHA-256
+`59d828e38c409ce87c2b082d29786d63a72dc901c4b2f298abae9f5a3e07619f`, rather than either diagnostic executable.
+Its fourteen manifest entries were revalidated after the follow-up. Muted tests
+use disposable profile/save copies; the desktop shortcut preserves the existing
+preview profile arguments. No release, main-checkout edit or dependency update
+was made. Machine-local delivery only.
+
+Private evidence: `lighting-exit/native-result.json`, `lighting-exit-emulator`,
+`lighting-return/comparison.json`, `lighting-return-emulator`,
+`lighting-return/restore-result.json` and `seams-package-qualification.json`.
+Aggregate public results remain in the linked transform-coherence evidence.
+Lesson: distinguish an authored spatial lighting boundary from delayed recovery,
+and compare the reported crossing direction before changing brightness or timing.
