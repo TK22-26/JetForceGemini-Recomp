@@ -11,6 +11,7 @@ ROM-derived captures, saves, traces and executables remain private.
   [options menu and widescreen](#options-menu-brightness-and-stock-widescreen),
   [planet icons](#planet-icons-in-stage-select-and-tribal-statistics),
   [player shadow](#player-shadow-darkness),
+  [GPU shadow softening](#gpu-shadow-softening),
   [particle textures](#particle-rectangles-after-framebuffer-reuse),
   [opening asteroids](#opening-asteroid-textures),
   [opening lens flare](#opening-lens-flare-occlusion)
@@ -135,6 +136,46 @@ the snapshot baseline so later CPU edits, including writes back to zero, apply.
 **Validation.** Juno's tutorial room produced processed mask values 0-8,
 matching an Angrylion/LLE boot (previously 0 and 142). Other characters remain
 unverified.
+
+### GPU shadow softening
+
+Reported and implemented by Luke Deardoff (@lukedeardoff, AI-assisted) after
+the comparison in [issue #4](https://github.com/TK22-26/JetForceGemini-Recomp/issues/4).
+
+**Cause.** The CPU path above blurs and fades the 64x64 mask at native
+resolution. RT64 then stretches that small result over the ground at its
+internal resolution, so the shadow edge shows blocks and pixel steps that a
+320x240 N64 image does not have.
+
+**Fix.** GPU mode (the default) keeps these masks on the GPU at the internal
+resolution:
+
+- Framebuffers narrower than 128 pixels are not written back, and RT64's
+  framebuffer copies stay enabled (`copyWithGPU`) for every task. Guest bytes
+  in a mask range are still imported whenever the game changes them (the game
+  frees mask memory and reuses it for textures); only unchanged bytes keep
+  RT64's copy. This applies to both the full and the delta snapshot import.
+- `cmake/rt64_shadow_soften.cmake` generates hash-checked copies of
+  `rt64_framebuffer_manager.cpp` and `rt64_shader_library.cpp`, and
+  `cmake/rt64_shadow_soften_shader.cmake` compiles
+  `src/renderer/shaders/FbShadowSoftenCS.hlsl` with RT64's own DXC rules. The
+  pinned checkout stays pristine. When an 8-bit tile of at most 64 native
+  texels is reinterpreted as IA8, the shader box-averages each native texel,
+  reconstructs it with a Gaussian (`JFG_SHADOW_BLUR`, default 1.5 native
+  texels, maximum 2) and applies the game's opacity (`JFG_SHADOW_OPACITY`,
+  default 8/14).
+- The opacity is the game's own conversion. The shadow draw (combiner
+  `fc121603 fffffff8`) outputs black with alpha = mask alpha x primitive
+  alpha, and the CPU pass turns raw IA `0x8E` (alpha 14/15) into `0x08`
+  (alpha 8/15). The height fade through primitive alpha is unchanged.
+
+`JFG_SHADOW_MODE=cpu` restores the CPU-mask path described above. If the
+softening pipeline fails to build on a driver, shadows fall back to RT64's
+standard reinterpret pass. In GPU mode the CPU-only shadow workload shortcut
+in `cmake/rt64_gpu_timing.cmake` does not apply, because it requires
+`copyWithGPU` to be off.
+
+**Validation.** See the pull request for the builds and scenes tested.
 
 ### Particle rectangles after framebuffer reuse
 
