@@ -11,7 +11,8 @@ coverage and owner playtesting are pending.
 Open **Video > Video settings...** in the launcher. This is an owned Windows
 window rendered with RmlUi, using the supplied dark-panel design, keyboard
 navigation and Apply / OK / Cancel. It shares the launcher's embedded fonts and
-rendering backend.
+rendering backend. It opens centered over the launcher at the owner's DPI,
+with its position limited to the monitor work area so it stays on screen.
 
 ![RmlUi Video Settings](../images/video-settings-rmlui.png)
 

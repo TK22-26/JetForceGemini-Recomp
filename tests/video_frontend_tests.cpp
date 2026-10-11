@@ -2,6 +2,7 @@
 #define NOMINMAX
 #include "../launcher/native/video_settings_protocol.hpp"
 #include "jfg/renderer/video_settings.hpp"
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -126,7 +127,41 @@ int wmain(int argc, wchar_t **argv) {
     PostMessageW(frontend, WM_KEYUP, VK_RETURN, 0);
     HWND dialog = wait_window(desktop, 0, L"Video Settings", L"JfgRmlLiveTool");
     check(dialog != nullptr, "Video menu opens separate RmlUi window");
+    auto checkPlacement = [&] {
+      if (!dialog)
+        return;
+      RECT owner{}, actual{};
+      MONITORINFO monitor{sizeof(MONITORINFO)};
+      const bool measured = GetWindowRect(frontend, &owner) &&
+                            GetWindowRect(dialog, &actual) &&
+                            GetMonitorInfoW(MonitorFromWindow(
+                                frontend, MONITOR_DEFAULTTONEAREST), &monitor);
+      check(measured, "initial window rectangles available");
+      if (!measured)
+        return;
+      const auto &work = monitor.rcWork;
+      const LONG width = actual.right - actual.left;
+      const LONG height = actual.bottom - actual.top;
+      const LONG centerX = owner.left + (owner.right - owner.left - width) / 2;
+      const LONG centerY = owner.top + (owner.bottom - owner.top - height) / 2;
+      const LONG expectedX = std::max(work.left, std::min(centerX, work.right - width));
+      const LONG expectedY = std::max(work.top, std::min(centerY, work.bottom - height));
+      std::cout << "Initial placement: owner=" << owner.left << ',' << owner.top
+                << ',' << owner.right << ',' << owner.bottom << " dialog="
+                << actual.left << ',' << actual.top << ',' << actual.right << ','
+                << actual.bottom << " expected=" << expectedX << ',' << expectedY
+                << " dpi=" << GetDpiForWindow(dialog) << std::endl;
+      check(std::abs(actual.left - expectedX) <= 1 &&
+                std::abs(actual.top - expectedY) <= 1,
+            "settings initially centered over owner and clamped to work area");
+      check(actual.left >= work.left && actual.top >= work.top &&
+                actual.right <= work.right && actual.bottom <= work.bottom,
+            "initial settings window fits owner monitor work area");
+      check(GetDpiForWindow(dialog) == GetDpiForWindow(frontend),
+            "settings starts at owner monitor DPI");
+    };
     auto prepareDialog = [&] {
+      checkPlacement();
       if (!dialog)
         return;
       const auto dpi = GetDpiForWindow(dialog);
@@ -261,6 +296,35 @@ int wmain(int argc, wchar_t **argv) {
       }
     }
 
+    if (!live) {
+      MONITORINFO monitor{sizeof(MONITORINFO)};
+      check(GetMonitorInfoW(MonitorFromWindow(frontend, MONITOR_DEFAULTTONEAREST),
+                            &monitor) != FALSE,
+            "placement fixture monitor available");
+      const auto &work = monitor.rcWork;
+      for (int position = 0; position < 3; ++position) {
+        RECT owner{};
+        GetWindowRect(frontend, &owner);
+        const LONG width = owner.right - owner.left;
+        const LONG height = owner.bottom - owner.top;
+        const LONG x = position == 0 ? work.left - width / 3
+                       : position == 1 ? work.right - 2 * width / 3
+                                       : work.left + (work.right - work.left - width) / 2;
+        const LONG y = position == 0 ? work.top - height / 3
+                       : position == 1 ? work.bottom - 2 * height / 3
+                                       : work.top + (work.bottom - work.top - height) / 2;
+        SetWindowPos(frontend, nullptr, x, y, 0, 0,
+                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        PostMessageW(frontend, WM_COMMAND, 116, 0);
+        dialog = wait_window(desktop, 0, L"Video Settings", L"JfgRmlLiveTool");
+        check(dialog != nullptr, "settings opens after moving launcher");
+        if (dialog) {
+          checkPlacement();
+          PostMessageW(dialog, WM_CLOSE, 0, 0);
+          waitClosed();
+        }
+      }
+    }
     PostMessageW(frontend, WM_CLOSE, 0, 0);
   }
   const DWORD ended = WaitForSingleObject(child.hProcess, 10000);

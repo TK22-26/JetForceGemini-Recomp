@@ -448,3 +448,42 @@ All coding, builds and replay work used the same production-guarded investigatio
 and retained all original charges. The renewed window does not reset counters;
 read the original operational ledger and `rmlvideo-progress.json` before further
 autonomous investigation. Source/binary receipts and failed attempts are preserved.
+
+
+## Video Settings initial placement (2026-10-11)
+
+Owner report: Video Settings does not open centered over the launcher. Affected
+local RmlUi preview: implementation 5527611, launcher SHA-256 99a1d6360da2ace30d3d1eff57c526d2fc65bd8aaa5d6ffc3b545546d7b0ecc2.
+Severity: minor UI placement defect; settings remain usable. Reproduction: move
+the launcher, then open Video > Video settings. Initial source review finds
+CW_USEDEFAULT for both coordinates in FrontendLiveToolEntry; the owner HWND is
+supplied but no explicit centering occurs. This is a candidate cause, pending
+an actual-window reproduction. The existing integration fixture moves the dialog
+for pointer tests and therefore did not check its initial position.
+
+Investigating under the same enabled production guard and unexpired owner
+authorization; all previous investigation counters and evidence retained.
+
+
+Reproduced on actual RmlUi windows at 125% DPI on an inactive test desktop:
+all six initial-position checks failed, while the existing settings controls,
+persistence and process-recovery checks still passed. Windows cascaded the
+dialog at (32,32), (64,64), and later offsets regardless of its owner. Evidence:
+private `video-center-before.log` and `video-center-before.json`.
+
+Candidate remedy: initialize Video Settings using its owner's DPI, explicitly
+center the outer window rectangle over the launcher, and clamp placement to the
+owner monitor's work area. When the owner is unavailable or minimized, center
+within that work area. Other live-tool placement stays unchanged. Checking the
+position before the pointer fixture resizes it prevents this coverage gap.
+
+
+Verified in tests: all six actual initial-placement checks pass at 125% DPI,
+including normal opening, reopen, recovery reopening, launcher partially beyond
+the upper-left and lower-right screen edges, and centered launcher. The complete
+settings window stays in the work area. Existing Apply/OK/Cancel, fullscreen,
+pause-preference and child-crash recovery checks still pass. Evidence:
+`video-center-after.log` and `video-center-after.json`. The same checks fail on
+the previous launcher with only placement errors, establishing the regression.
+No physical input or owner windows were used. Multi-monitor mixed-DPI hardware
+and owner visual confirmation remain pending; this is a local preview candidate.
