@@ -19,8 +19,8 @@ for measurements, experiments and the remaining acceptance work.
 
 ## High-refresh rendering
 
-The [high-refresh candidate](features/high-refresh-rendering.md) has native Windows
-Video Settings with VSync, a Custom FPS target and Unlimited. A short replay
+The [high-refresh candidate](features/high-refresh-rendering.md) has RmlUi
+Video Settings in a separate Windows window with VSync, a Custom FPS target and Unlimited. A short replay
 exceeds 360 presentations/s while preserving guest state. Unlimited pacing remains
 uneven, and its full replay took about 2% longer than Original. Sustained performance,
 semantic object identity, animation/effects, CPU overlays, transitions, audio-device

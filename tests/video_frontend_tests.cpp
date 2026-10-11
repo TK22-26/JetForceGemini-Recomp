@@ -1,10 +1,13 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
-#include "../launcher/native/video_settings_resource.h"
+#include "../launcher/native/video_settings_protocol.hpp"
 #include "jfg/renderer/video_settings.hpp"
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <sstream>
 #include <string>
 #include <windows.h>
 namespace fs = std::filesystem;
@@ -21,7 +24,7 @@ BOOL CALLBACK find_window(HWND window, LPARAM value) {
   wchar_t caption[128]{}, cls[128]{};
   GetWindowTextW(window, caption, 128);
   GetClassNameW(window, cls, 128);
-  if (IsWindowVisible(window) && pid == search.pid &&
+  if (IsWindowVisible(window) && (search.pid == 0 || pid == search.pid) &&
       (!search.caption || std::wstring(caption) == search.caption) &&
       (!search.cls || std::wstring(cls) == search.cls))
     search.window = window;
@@ -43,10 +46,21 @@ std::string read(const fs::path &path) {
   return {std::istreambuf_iterator<char>(file), {}};
 }
 int wmain(int argc, wchar_t **argv) {
-  if (argc != 3 && argc != 4)
+  SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+  if (argc != 4 && argc != 5)
     return 2;
-  const bool live = argc == 4;
+  const bool live = argc == 5;
   const fs::path launcher = argv[1], profile = argv[2];
+  std::map<std::string, std::pair<double, double>> coordinates;
+  {
+    std::ifstream file(argv[3]);
+    std::string id;
+    double x = 0, y = 0;
+    while (file >> id >> x >> y)
+      coordinates[id] = {x, y};
+  }
+  if (coordinates.empty())
+    return 2;
   fs::create_directories(profile);
   const std::wstring desktopName =
       L"JfgVideoFrontend-" + std::to_wstring(GetCurrentProcessId());
@@ -57,7 +71,7 @@ int wmain(int argc, wchar_t **argv) {
   std::wstring command = L"\"" + launcher.wstring() + L"\" --profile \"" +
                          profile.wstring() + L"\"";
   if (live)
-    command += L" --play --input-replay \"" + std::wstring(argv[3]) +
+    command += L" --play --input-replay \"" + std::wstring(argv[4]) +
                L"\" --progress-output \"" +
                (profile / L"progress.json").wstring() + L"\"";
   auto retraces = [&]() {
@@ -110,73 +124,100 @@ int wmain(int argc, wchar_t **argv) {
     PostMessageW(frontend, WM_KEYUP, VK_HOME, 0);
     PostMessageW(frontend, WM_KEYDOWN, VK_RETURN, 0);
     PostMessageW(frontend, WM_KEYUP, VK_RETURN, 0);
-    HWND dialog =
-        wait_window(desktop, child.dwProcessId, L"Video Settings", L"#32770");
-    check(dialog != nullptr, "Video menu opens native dialog");
+    HWND dialog = wait_window(desktop, 0, L"Video Settings", L"JfgRmlLiveTool");
+    check(dialog != nullptr, "Video menu opens separate RmlUi window");
+    auto prepareDialog = [&] {
+      if (!dialog)
+        return;
+      const auto dpi = GetDpiForWindow(dialog);
+      RECT before{};
+      GetClientRect(dialog, &before);
+      std::cout << "Initial video client " << before.right << " x "
+                << before.bottom << " dpi=" << dpi << std::endl;
+      RECT frame{0, 0, MulDiv(720, dpi, 96), MulDiv(700, dpi, 96)};
+      AdjustWindowRectExForDpi(&frame, WS_OVERLAPPEDWINDOW, FALSE, 0, dpi);
+      SetWindowPos(dialog, nullptr, 20, 20, frame.right - frame.left,
+                   frame.bottom - frame.top, SWP_NOZORDER | SWP_NOACTIVATE);
+      Sleep(250);
+      RECT after{};
+      GetClientRect(dialog, &after);
+      check(after.right == MulDiv(720, dpi, 96) &&
+                after.bottom == MulDiv(700, dpi, 96),
+            "fixture client matches measured RmlUi coordinates");
+    };
+    prepareDialog();
+    auto waitClosed = [&] {
+      for (unsigned i = 0;
+           i < 250 && (IsWindow(dialog) || !IsWindowEnabled(frontend) ||
+                       GetPropW(frontend, L"JfgFrontendPause"));
+           ++i)
+        Sleep(20);
+      check(!IsWindow(dialog) && IsWindowEnabled(frontend) &&
+                !GetPropW(frontend, L"JfgFrontendPause"),
+            "closing restores owner and releases pause");
+    };
     if (dialog) {
+      Sleep(300);
       check(GetWindow(dialog, GW_OWNER) == frontend &&
                 !IsWindowEnabled(frontend),
-            "owned modal disables launcher");
+            "owned RmlUi window disables launcher");
       check(GetPropW(frontend, L"JfgFrontendPause") != nullptr,
-            "settings request cooperative pause");
+            "video settings request pause");
       if (live) {
         for (unsigned i = 0;
              i < 100 && !GetPropW(frontend, L"JfgFrontendPaused"); ++i)
           Sleep(20);
         check(GetPropW(frontend, L"JfgFrontendPaused") != nullptr,
-              "runtime acknowledges the video dialog pause");
+              "runtime acknowledges RmlUi settings pause");
         Sleep(200);
         const auto paused = retraces();
         Sleep(300);
-        check(paused > 0 && retraces() == paused,
-              "guest VI clock stops while native dialog is open");
+        check(paused > 0 && paused == retraces(),
+              "VI clock is stopped during settings");
       }
-      auto choose = [&](int id, int value) {
-        SendDlgItemMessageW(dialog, id, CB_SETCURSEL,
-                            static_cast<WPARAM>(value), 0);
-        SendMessageW(dialog, WM_COMMAND, MAKEWPARAM(id, CBN_SELCHANGE),
-                     reinterpret_cast<LPARAM>(GetDlgItem(dialog, id)));
+      auto click = [&](const char *id) {
+        const auto found = coordinates.find(id);
+        check(found != coordinates.end(), id);
+        if (found == coordinates.end())
+          return;
+        const double dpi = GetDpiForWindow(dialog) / 96.0;
+        const LPARAM position =
+            MAKELPARAM(int(std::lround(found->second.first * dpi)),
+                       int(std::lround(found->second.second * dpi)));
+        SendMessageW(dialog, WM_MOUSEMOVE, 0, position);
+        SendMessageW(dialog, WM_LBUTTONDOWN, MK_LBUTTON, position);
+        SendMessageW(dialog, WM_LBUTTONUP, 0, position);
+        Sleep(100);
       };
-      choose(IDC_VIDEO_FRAME_MODE, 1);
-      const auto textResult =
-          SendMessageW(GetDlgItem(dialog, IDC_VIDEO_FPS_EDIT), WM_SETTEXT, 0,
-                       reinterpret_cast<LPARAM>(L"360"));
-      wchar_t entry[32]{};
-      SendMessageW(GetDlgItem(dialog, IDC_VIDEO_FPS_EDIT), WM_GETTEXT, 32,
-                   reinterpret_cast<LPARAM>(entry));
-      std::wcout << L"Before Apply: mode="
-                 << SendDlgItemMessageW(dialog, IDC_VIDEO_FRAME_MODE,
-                                        CB_GETCURSEL, 0, 0)
-                 << L" edit=" << entry << L" textResult=" << textResult
-                 << L'\n';
-      SendDlgItemMessageW(dialog, IDC_VIDEO_VSYNC, BM_CLICK, 0, 0);
-      SendMessageW(dialog, WM_COMMAND, IDC_VIDEO_APPLY, 0);
+      click("video-custom");
+      click("video-preset-360");
+      click("video-vsync");
+      click("video-apply");
       auto saved = jfg::load_video_settings(profile / L"video.ini");
       check(saved && saved->mode == jfg::FrameRateMode::custom &&
                 saved->fps == 360 && !saved->vsync,
-            "Apply persists video configuration used by runtime");
+            "actual RmlUi Apply persists custom FPS and VSync");
+      if (saved)
+        std::cout << "After Apply: " << jfg::serialize_video_settings(*saved);
+      click("video-fullscreen");
+      click("video-pause");
+      click("video-apply");
+      check((GetWindowLongPtrW(frontend, GWL_STYLE) & WS_POPUP) != 0,
+            "fullscreen applies to live owner immediately");
+      check(read(profile / L"frontend-pause-inactive.txt") == "1",
+            "pause preference persists immediately");
+      click("video-windowed");
+      click("video-pause");
+      click("video-apply");
+      check((GetWindowLongPtrW(frontend, GWL_STYLE) & WS_OVERLAPPEDWINDOW) ==
+                WS_OVERLAPPEDWINDOW,
+            "windowed applies without game restart");
       const auto before = read(profile / L"video.ini");
-      if (!saved || saved->fps != 360 ||
-          saved->mode != jfg::FrameRateMode::custom)
-        std::cerr << "Saved: " << before;
-      SendMessageW(GetDlgItem(dialog, IDC_VIDEO_FPS_EDIT), WM_SETTEXT, 0,
-                   reinterpret_cast<LPARAM>(L"59"));
-      wchar_t invalid[32]{};
-      SendMessageW(GetDlgItem(dialog, IDC_VIDEO_FPS_EDIT), WM_GETTEXT, 32,
-                   reinterpret_cast<LPARAM>(invalid));
-      check(std::wstring(invalid) == L"59",
-            "invalid-value fixture reached the edit control");
-      SendMessageW(dialog, WM_COMMAND, IDC_VIDEO_APPLY, 0);
+      click("video-unlimited");
+      click("video-cancel");
+      waitClosed();
       check(read(profile / L"video.ini") == before,
-            "invalid input preserves saved configuration");
-      choose(IDC_VIDEO_FRAME_MODE, 2);
-      SendMessageW(dialog, WM_COMMAND, IDCANCEL, 0);
-      check(read(profile / L"video.ini") == before,
-            "Cancel preserves last Apply");
-      Sleep(100);
-      check(IsWindowEnabled(frontend) &&
-                !GetPropW(frontend, L"JfgFrontendPause"),
-            "closing releases modal pause");
+            "Cancel discards unsaved mode");
       if (live) {
         for (unsigned i = 0;
              i < 100 && GetPropW(frontend, L"JfgFrontendPaused"); ++i)
@@ -186,25 +227,40 @@ int wmain(int argc, wchar_t **argv) {
         const auto resumed = retraces();
         for (unsigned i = 0; i < 200 && retraces() <= resumed; ++i)
           Sleep(20);
-        check(retraces() > resumed,
-              "guest VI clock resumes after closing the dialog");
+        check(retraces() > resumed, "VI clock resumes");
       }
-      // Native command ID is stable after the existing commands (100-115).
       PostMessageW(frontend, WM_COMMAND, 116, 0);
-      dialog =
-          wait_window(desktop, child.dwProcessId, L"Video Settings", L"#32770");
-      check(dialog && SendDlgItemMessageW(dialog, IDC_VIDEO_FRAME_MODE,
-                                          CB_GETCURSEL, 0, 0) == 1,
-            "reopened dialog reads persisted mode");
+      dialog = wait_window(desktop, 0, L"Video Settings", L"JfgRmlLiveTool");
+      check(dialog != nullptr, "RmlUi settings reopen");
       if (dialog) {
-        SendDlgItemMessageW(dialog, IDC_VIDEO_FRAME_MODE, CB_SETCURSEL, 2, 0);
-        SendMessageW(dialog, WM_COMMAND, IDOK, 0);
+        prepareDialog();
+        click("video-unlimited");
+        click("video-ok");
+        waitClosed();
       }
       saved = jfg::load_video_settings(profile / L"video.ini");
       check(saved && saved->mode == jfg::FrameRateMode::unlimited &&
-                !saved->vsync,
-            "OK saves Unlimited and closes");
+                saved->fps == 360 && !saved->vsync,
+            "OK persists Unlimited with remembered custom cap");
+      // Verify recovery if only the supervised settings process fails.
+      PostMessageW(frontend, WM_COMMAND, 116, 0);
+      dialog = wait_window(desktop, 0, L"Video Settings", L"JfgRmlLiveTool");
+      if (dialog) {
+        prepareDialog();
+        DWORD pid = 0;
+        GetWindowThreadProcessId(dialog, &pid);
+        HANDLE process =
+            OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, pid);
+        check(process != nullptr, "fixture owns settings process");
+        if (process) {
+          TerminateProcess(process, 7);
+          WaitForSingleObject(process, 3000);
+          CloseHandle(process);
+        }
+        waitClosed();
+      }
     }
+
     PostMessageW(frontend, WM_CLOSE, 0, 0);
   }
   const DWORD ended = WaitForSingleObject(child.hProcess, 10000);
@@ -213,7 +269,7 @@ int wmain(int argc, wchar_t **argv) {
     TerminateProcess(child.hProcess, 9);
   CloseHandle(child.hThread);
   CloseHandle(child.hProcess);
-  std::cout << "Production launcher video integration: " << failures
+  std::cout << "RmlUi launcher video integration: " << failures
             << " failures\n";
   return failures ? 1 : 0;
 }

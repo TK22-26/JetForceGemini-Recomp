@@ -7,6 +7,7 @@
 #include "frontend_build_info.hpp"
 #include "home_scene.hpp"
 #include "live_tools.hpp"
+#include "video_settings_ui.hpp"
 #include <iomanip>
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Elements/ElementFormControlInput.h>
@@ -1153,7 +1154,7 @@ struct Resources : Rml::FileInterface {
                                  {"theme.rcss", 202},
                                  {"Barlow-Regular.ttf", 203},
                                  {"Barlow-SemiBold.ttf", 204},
-                                 {"ChakraPetch-Bold.ttf", 205}, {"live-map.rml", 206}, {"live-inventory.rml", 207}, {"live-tools.rcss", 208}, {"about.rml", 209}, {"about.rcss", 210}, {"modern-controls.rcss",211}, {"xbox.tga",212}, {"dualsense.tga",213}, {"mouse.tga",214}, {"generic.tga",215}, {"chips.tga",216}, {"highlights.tga",217},{"toolbar-pad.tga",218},{"ui-details.tga",219}};
+                                 {"ChakraPetch-Bold.ttf", 205}, {"live-map.rml", 206}, {"live-inventory.rml", 207}, {"live-tools.rcss", 208}, {"about.rml", 209}, {"about.rcss", 210}, {"modern-controls.rcss",211}, {"xbox.tga",212}, {"dualsense.tga",213}, {"mouse.tga",214}, {"generic.tga",215}, {"chips.tga",216}, {"highlights.tga",217},{"toolbar-pad.tga",218},{"ui-details.tga",219},{"video-settings.rml",220},{"video-settings.rcss",221}};
     for (auto &e : entries)
       if (fs::path(path).filename() == e.name) {
         auto r = FindResourceW(nullptr, MAKEINTRESOURCEW(e.id), RT_RCDATA);
@@ -1218,6 +1219,7 @@ struct Surface {
   Rml::ElementInstancerGeneric<HomeScene> homeInstancer;
   Rml::ElementInstancerGeneric<jfg_live::MapScene> mapInstancer;
   std::unique_ptr<jfg_live::ToolUi> live;
+  std::unique_ptr<jfg_video::Ui> video;
   std::unique_ptr<LogSystem> log;
   std::unique_ptr<RenderInterface_DX11> renderer;
   Rml::Context *context = nullptr;
@@ -1307,9 +1309,13 @@ bool FrontendUiInit(HWND w, const fs::path &profile,
     s.ui.profile = profile;
     s.ui.action = std::move(action);
     s.ui.controllerWindow=tool=="controllers";
-    s.ui.doc = s.context->LoadDocument(tool.empty() || s.ui.controllerWindow?"main.rml":tool=="map"?"live-map.rml":"live-inventory.rml");
+    s.ui.doc = s.context->LoadDocument(tool=="video"?"video-settings.rml":tool.empty() || s.ui.controllerWindow?"main.rml":tool=="map"?"live-map.rml":"live-inventory.rml");
     if (!s.ui.doc)
       throw std::runtime_error("Cannot load UI document");
+    if(tool=="video") {
+      s.video=std::make_unique<jfg_video::Ui>();s.video->init(w,s.ui.doc,profile);
+      s.ui.doc->Show();FrontendUiResize();return true;
+    }
     if(!tool.empty() && !s.ui.controllerWindow) {
       s.files.liveAssets=profile/("live-tool-"+std::to_string(reinterpret_cast<std::uintptr_t>(w))+"-"+std::to_string(reinterpret_cast<std::uintptr_t>(GetPropW(w,L"JfgLiveToken"))));
       std::error_code error;fs::create_directories(s.files.liveAssets,error);
@@ -1366,8 +1372,8 @@ void FrontendUiFrame(const FrontendUiState &state) {
   auto &s = *surface;
   auto &ui = s.ui;
   if(ui.modernDeferredRefresh){ui.modernDeferredRefresh=false;if(ui.current=="controllers")ui.modal("controllers");}
-  if (s.live) {
-    s.live->tick();s.context->Update();const float clear[]={0,0,0,0};s.gpu->ClearRenderTargetView(s.target.Get(),clear);s.renderer->BeginFrame();s.context->Render();s.renderer->EndFrame(s.target.Get());s.swap->Present(1,0);return;
+  if (s.live || s.video) {
+    if(s.live)s.live->tick();s.context->Update();const float clear[]={0,0,0,0};s.gpu->ClearRenderTargetView(s.target.Get(),clear);s.renderer->BeginFrame();s.context->Render();s.renderer->EndFrame(s.target.Get());s.swap->Present(1,0);return;
   }
   ui.pollUpdateCheck();
   const bool paused = state.playing && GetPropW(s.window, L"JfgFrontendPaused") != nullptr;
@@ -1448,6 +1454,10 @@ void FrontendUiFrame(const FrontendUiState &state) {
   s.swap->Present(1, 0);
 }
 void FrontendUiMessage(UINT m, WPARAM w, LPARAM l) {
+  if(surface && surface->video) {
+    if(surface->video->keyboard(m,w))return;
+    RmlWin32::WindowProcedure(surface->context,surface->ime,surface->window,m,w,l);return;
+  }
   if(surface && surface->live) {
     if(surface->live->keyboard(m,w))return;
     RmlWin32::WindowProcedure(surface->context,surface->ime,surface->window,m,w,l);return;

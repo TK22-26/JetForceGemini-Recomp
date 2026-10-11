@@ -1,6 +1,6 @@
 # Experimental high-refresh rendering
 
-The research branch provides a native Windows Video Settings dialog and opt-in
+The research branch provides an RmlUi Video Settings window and opt-in
 presentation interpolation while preserving the original guest clock. Custom
 targets and uncapped rendering exceed 360 presentations/s in a short replay
 fixture. This remains an unreleased candidate; sustained performance, broad scene
@@ -9,22 +9,27 @@ coverage and owner playtesting are pending.
 ## Try it
 
 Open **Video > Video settings...** in the launcher. This is an owned Windows
-dialog using standard controls, keyboard navigation and Apply / OK / Cancel.
+window rendered with RmlUi, using the supplied dark-panel design, keyboard
+navigation and Apply / OK / Cancel. It shares the launcher's embedded fonts and
+rendering backend.
 
-![Native Windows Video Settings](../images/video-settings-native.png)
+![RmlUi Video Settings](../images/video-settings-rmlui.png)
 
 | Setting | Behavior |
 |---|---|
 | Original | Original presentation; default for profiles without video settings |
-| Custom | Set 60-1000 FPS with the slider or exact whole-number field |
+| Custom | Set 60-1000 FPS with the slider or exact whole-number field; presets 60, 120, 144, 165, 240 and 360 |
 | Unlimited | Removes the FPS cap when VSync is off; no hidden numeric target |
 | VSync | On synchronizes to the display; Custom is limited to detected refresh, and Unlimited follows refresh |
-| Window mode / size | Windowed or borderless fullscreen; current size, 1280 x 720 or 1920 x 1080 |
+| Window mode / size | Windowed or borderless fullscreen; current size, 1280 x 720, 1600 x 900, 1920 x 1080 or 2560 x 1440 |
 | Pause when inactive | Pause when the launcher loses focus |
 
 Apply saves without closing; OK saves and closes; Cancel discards edits since
 the last Apply. **Rendering changes apply on the next game launch.** Window and
-pause preferences apply immediately. The original game controls aspect ratio.
+pause preferences apply immediately when saved. This means stopping and starting
+the game, not restarting Windows or the launcher. The restart chip is hidden when
+no game is running. The original game controls aspect ratio; Borderless fullscreen
+is the supported fullscreen mode.
 Opening this dialog during gameplay requests the existing cooperative pause;
 closing it releases that request. VSync off permits tearing. A Custom FPS value
 is a target/cap, not a guarantee that every scene can reach it.
@@ -36,9 +41,10 @@ malformed or unreadable configuration is reported. Navigation-mod launches share
 the main profile's video choices.
 
 The machine-local complete preview is
-`C:\JFG-builds\high-refresh-video-preview-20261011`. Its
-`Play-Video-Settings.cmd` opens a separate copied profile preset to Custom 60 /
-VSync on. Close the currently running launcher first: the production launcher
+`C:\JFG-builds\high-refresh-rml-video-preview-20261011`. Its
+`Play-Video-Settings.cmd` and desktop **JFG - High Refresh Preview** shortcut reuse
+the earlier isolated high-refresh preview profile, preserving its saves and video
+preferences (initially Custom 60 / VSync on). Close the currently running launcher first: the production launcher
 allows one instance per Windows session. Progress in the copied preview profile
 stays there. This preview is not an installed update or a published release.
 
@@ -78,7 +84,35 @@ informed the design. No upstream game patches were imported. Dependency patches
 apply only to exact hash-checked RT64 build-tree copies; the pinned source stays
 unchanged. Original mode remains available.
 
-## Native controls candidate verification (2026-10-11)
+## RmlUi window and restart verification (2026-10-11)
+
+The owner's `Child · Video settings-html.zip` design was translated into RML,
+RCSS and native C++ events in the existing pinned RmlUi backend. No dependency
+upgrade, browser, React runtime or remote font loading is needed. The previous
+standard-controls dialog remains a fallback for builds without RmlUi.
+
+The new window passes 101 checks, including real pointer/slider/text input,
+presets, invalid values, Apply/Cancel/reopen, failed saves, window-size keyboard
+selection, Escape closing the dropdown before the dialog and Tab navigation.
+Screenshots were inspected at 100% and 150% layout scaling. The real launcher
+fixture at 125% DPI verifies the menu route, owned modal, file persistence,
+immediate fullscreen/windowed changes, pause preference and recovery after a
+settings-process failure. Live gameplay verifies pause acknowledgment and a
+stopped/resumed VI clock. Existing modern-controls (546) and controller-mapping
+(207) checks pass. No physical desktop input or owner-window manipulation is used.
+
+Restart behavior was tested against the unchanged renderer binary in three
+900-VI runs. Saving VSync off during a 360-target session left its effective target
+at the display's 240 Hz; the next game session used 360. Saving 144 during that
+session left its target at 360; the next session used 144. Consequently, FPS and
+VSync require a new game session. Display settings are applied directly by the
+launcher and were verified without restarting the game.
+
+Private evidence and failed attempts are indexed in
+[RENDER-001](../development/issues/high-refresh-rendering.md). These tests qualify
+the settings window and restart behavior; the rendering limits below still apply.
+
+## Earlier native-controls candidate verification (2026-10-11)
 
 Implementation commit: `b39533a5b3661544d5322bd70cd64ae9843f5254` on
 `research/high-refresh-20261011`.

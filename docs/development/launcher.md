@@ -48,11 +48,14 @@ F11 toggles fullscreen. The embedded game remains in a centered 4:3 area;
 the original game controls its cinematic bars. Esc opens or closes the Game menu; in
 fullscreen the menu bar stays hidden until Esc or F10. Settings dialogs pause
 the game at a frame boundary and resume it when closed; menu dropdowns do not
-pause. **Video > Video settings...** opens a native Windows dialog with window
+pause. **Video > Video settings...** opens a separate RmlUi window with window
 mode/size, **Pause when inactive**, VSync and Original/Custom/Unlimited rendering.
 Custom offers a 60-1000 FPS slider and exact number; Unlimited removes the cap
 with VSync off. Apply / OK save, while Cancel discards edits since the last Apply.
-Rendering changes apply on the next game launch. High-refresh modes are
+Rendering changes apply on the next game launch; stop and start the game to
+apply FPS/VSync changes. No launcher or Windows restart is needed. The restart
+chip is hidden when no game is running. Display changes apply when saved.
+High-refresh modes are
 [experimental](../features/high-refresh-rendering.md); Original is the default.
 **Stop** returns to the home screen after saving.
 
@@ -184,7 +187,7 @@ preview is not a published release.
 
 The launcher checks public GitHub release metadata in a separate background helper
 at startup. A newer stable version produces a persistent home-screen notice.
-**Help > Check for updatesÃ¢â‚¬Â¦** checks manually and shows installed/latest versions,
+**Help > Check for updatesÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦** checks manually and shows installed/latest versions,
 an error with retry when offline, and **View release / download**. This opens the
 project release page; the launcher does not install files or alter saves. Extract
 the full new ZIP into a new folder and run its launcher to retain the same profile.

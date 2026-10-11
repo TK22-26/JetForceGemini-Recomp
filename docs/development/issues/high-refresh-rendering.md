@@ -1,7 +1,7 @@
 # RENDER-001: Experimental high-refresh presentation
 
 - Severity: enhancement / significant rendering limitation.
-- Status: native Windows controls and capped/uncapped rendering implemented;
+- Status: separate RmlUi Video window and capped/uncapped rendering implemented;
   seven focused tests, launcher checks, live dialog pause/resume, guest-state
   equivalence and distinct swapchain images verified in bounded fixtures.
   Unlimited pacing and broader owner playtesting remain open; not released.
@@ -334,3 +334,93 @@ candidate, with no push, release or replacement of the installed game.
 `video-manifest.json` preserves successful and failed guarded steps. The original
 production ledger remains authoritative for guard state and charges. Finalizing
 this job neither resets its counters nor authorizes further investigation.
+
+
+## RmlUi design continuation (2026-10-11)
+
+Owner supplied `Child Â· Video settings-html.zip` and requested the newer RmlUi
+appearance in the separate settings window, plus verification of the restart
+chip. The native-controls implementation remains preserved at b39533a/3faa8c9.
+The original investigation resumes under another explicit three-hour window;
+guard enabled, original roots and all seven attempts/activities and 9019.38 s
+retained. No counters or limits reset. The SDCCC shortcut was first corrected as
+separately requested, including its launch script's explicit Workspace argument.
+
+Source review: video.ini is read in initialize_live_renderer, with presentation
+policy configured only when creating RT64. Apply persists preferences but does
+not replace a running renderer. FPS/VSync currently require a new game session;
+display mode/size and pause preferences apply when saved. Live confirmation is
+pending. The design is being translated into embedded RML/RCSS and native C++
+events, with no browser, React or remote fonts. Supported window modes remain
+Windowed and Borderless fullscreen; a separate exclusive-fullscreen mode is not
+implemented and will not be represented as a working third choice.
+
+The first RmlUi build wrapper stopped before execution on a Python slice delimiter typo. The immutable failed receipt is preserved; the corrected wrapper runs the same build and UI checks without changing verification requirements.
+
+The first real RmlUi pointer test caught an incorrect preset-ID substring length introduced in the wrapper: clicking 360 left the cap unchanged. The handler now derives the prefix length from its literal. The renderer log also rejected an unavailable triangle decorator; the dropdown arrow now uses supported RCSS borders/rotation. No UI test was waived.
+
+The 85 functional UI checks passed, but screenshot inspection found fragmented section backgrounds: standalone RML does not supply the browser block-layout defaults used by the HTML mockup. Explicit block containers and centered button contents restore the intended cards. Visual inspection is required in addition to passing control tests.
+
+Centering buttons with flex exposed another RmlUi/browser difference: raw text directly inside flex buttons did not render. Explicit text spans preserve button labels and their intrinsic widths. The second visual inspection caught this before delivery; control checks alone remained insufficient.
+
+The three runtime restart probes passed: with a 360 target, VSync on remained at
+240 after editing the file to VSync off; the next session used 360. Editing that
+session to 144 remained at 360; the next used 144. Source and runtime evidence
+agree that rendering requires a new game session. The RmlUi chip is absent when
+no game is running; window/display controls do not claim a restart requirement.
+
+The first full-launcher pointer fixture missed Apply/display/Cancel despite the
+85 in-process UI checks passing. Window DPI and the live-window work-area clamp
+are a hypothesis: the fixture used fixed 720x700 layout coordinates without
+enforcing that client area. It now declares per-monitor DPI awareness, records
+actual dimensions and sets its own test window to the measured client size.
+No owner window or physical desktop input is touched. This remains pending.
+
+The corrected full-launcher fixture passed all Apply, Cancel, OK, fullscreen,
+pause-preference and child-crash recovery checks. The actual child client was
+900x875 at 120 DPI (125%) both before and after the explicit fixture size, so
+work-area clamping was not the cause in this run. Declaring the test process
+per-monitor DPI aware resolved the cross-process pointer-coordinate mismatch.
+No product persistence behavior was changed for this harness correction.
+Live pause/resume is now rerun with the same corrected pointer path; real RmlUi
+slider and text-widget input are checked in addition to direct change events.
+
+
+### RmlUi candidate qualification and restart result
+
+Final UI checks: 101 passed, including actual slider pointer input, text-widget
+typing, validation, presets, Apply/Cancel/OK, reopen, save-failure draft retention,
+dropdown keyboard selection and Escape priority. Inspected 100%/150% screenshots
+show the supplied card layout, centered labels and local-font rendering without
+RmlUi parse errors. The launcher fixture at 125% DPI passes the actual Video menu
+route, supervised owned window, rendering persistence, immediate fullscreen and
+pause settings, cancellation and owner recovery after settings-process failure.
+The corrected live fixture passes pause acknowledgment, stopped/resumed VI clock
+and unchanged source save. Modern-controls 546 and mapping 207 checks also pass.
+
+Three 900-VI renderer probes establish the restart boundary. At VI 420, changing
+VSync from on to off leaves the current 360-requested session at 240 effective;
+the next uses 360. Changing that session's saved cap to 144 leaves it at 360;
+the following session uses 144. Runtime SHA-256 remains
+`b34887ed7da310b11d52d33a1382f83b4c6e521985386d3061226fe6c43d408e`.
+The actual cause is startup-only configuration loading and renderer-policy
+initialization; the UI save path never reconfigures the live RT64 queues.
+Retain the game-session restart notice for rendering changes and hide it when no
+game is running. Display/window and pause settings apply on Save without restart.
+
+Evidence under the same private investigation directory: `rml-video-design.json`
+(input ZIP/HTML digests), `rml-video-ui-final/result.json` and screenshots,
+`rml-video-live-results-v2.json`, `rml-video-live-v2.log`,
+`rml-video-restart-v1/result.json`, `rml-video-modern-regression/result.json`,
+`rml-video-mapping-regression/mapping-window-ui-result.json` and
+`rml-video-mapping-regression/check-count.txt`. Hashed `rml-video-steps` receipts
+preserve the syntax, preset, layout and DPI-automation failures and their remedies.
+The source/binary handoff map is `rml-video-qualification.json`.
+
+Compatibility and lessons: RmlUi needs explicit block containers and text spans
+inside flex buttons for this standalone HTML-derived design. Cross-process pointer
+tests must use the target window's DPI coordinate space. The preview reuses the
+existing video.ini format and original renderer binary; no simulation, input,
+audio, dependency pin or game save format changes. Exclusive fullscreen remains
+unimplemented, so only Windowed and Borderless fullscreen are shown. Broad game
+rendering acceptance and the previously recorded pacing limitations remain open.

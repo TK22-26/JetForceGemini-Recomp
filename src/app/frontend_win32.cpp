@@ -16,6 +16,7 @@
 #include "../../launcher/native/graphics_check.hpp"
 #include "../../launcher/native/game_viewport.hpp"
 #include "../../launcher/native/video_settings_dialog.hpp"
+#include "../../launcher/native/video_settings_protocol.hpp"
 #ifdef JFG_RML_UI
 #include "native_ui.hpp"
 #endif
@@ -172,7 +173,7 @@ bool launch(Process &process, const wchar_t *action, HWND owner) {
   }
   fs::path executable=app.helper;
 #ifdef JFG_RML_UI
-  if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory" || std::wstring(action)==L"controllers") {
+  if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory" || std::wstring(action)==L"controllers" || std::wstring(action)==L"video") {
     wchar_t module[32768]{};GetModuleFileNameW(nullptr,module,32768);executable=module;
     command=quote(executable.wstring())+L" --live-tool "+action+L" --profile "+quote(app.profile.wstring())+L" --helper "+quote(app.helper.wstring())+L" --owner "+std::to_wstring(reinterpret_cast<std::uintptr_t>(owner));
   }
@@ -412,6 +413,30 @@ void persist() {
                                     std::to_wstring(r.bottom - r.top) + L" " +
                                     (app.fullscreen ? L"1" : L"0"));
 }
+bool applyVideo(const jfg::frontend::VideoDialogSettings &settings,
+                std::wstring &error) {
+  if (!write(L"video.ini",
+             wide(jfg::serialize_video_settings(settings.rendering))) ||
+      !write(L"frontend-pause-inactive.txt",
+             settings.pause_inactive ? L"1" : L"0")) {
+    error = L"Could not save video settings. Check access to your save folder.";
+    return false;
+  }
+  app.pauseInactive = settings.pause_inactive;
+  if (app.fullscreen != settings.fullscreen)
+    fullscreen();
+  if (!settings.fullscreen && settings.window_size) {
+    const auto size = jfg::frontend::video_sizes[settings.window_size];
+    RECT rect{0, 0, size[0], size[1] + 24};
+    AdjustWindowRectExForDpi(&rect, WS_OVERLAPPEDWINDOW, FALSE, 0, app.dpi);
+    SetWindowPos(app.window, nullptr, 0, 0, rect.right - rect.left,
+                 rect.bottom - rect.top,
+                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+  }
+  persist();
+  return true;
+}
+
 void stop() {
   app.manualPause = false;
   RemovePropW(app.window, L"JfgFrontendPause");
@@ -599,6 +624,21 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
                            LPARAM lparam) {
   if(message==WM_APP+22) {HWND tool=reinterpret_cast<HWND>(wparam);if(IsWindow(tool)&&GetPropW(tool,L"JfgLiveModal")&&std::find(app.liveModals.begin(),app.liveModals.end(),tool)==app.liveModals.end())app.liveModals.push_back(tool);return 0;}
   if(message==WM_APP+23) {PostMessageW(window,WM_COMMAND,Inventory,0);return 0;}
+  if(message==jfg::frontend::kVideoState)
+    return (app.fullscreen?1:0)|(app.pauseInactive?2:0)|((app.render&&IsWindow(app.render))?4:0);
+  if(message==WM_COPYDATA) {
+    const auto* packet=reinterpret_cast<const COPYDATASTRUCT*>(lparam);
+    HWND sender=reinterpret_cast<HWND>(wparam);DWORD pid=0;GetWindowThreadProcessId(sender,&pid);
+    if(!app.videoDialogOpen || !app.dialog.running() || pid!=GetProcessId(app.dialog.handle) ||
+       GetWindow(sender,GW_OWNER)!=window || !packet || packet->dwData!=jfg::frontend::kVideoApply ||
+       packet->cbData!=sizeof(jfg::frontend::VideoRequest) || !packet->lpData)return 0;
+    const auto request=*static_cast<const jfg::frontend::VideoRequest*>(packet->lpData);
+    if(!jfg::frontend::valid_video_request(request))return 0;
+    jfg::frontend::VideoDialogSettings settings;
+    settings.rendering={static_cast<jfg::FrameRateMode>(request.mode),request.fps,request.vsync!=0};
+    settings.fullscreen=request.fullscreen!=0;settings.window_size=request.window_size;settings.pause_inactive=request.pause_inactive!=0;
+    std::wstring error;return applyVideo(settings,error)?1:0;
+  }
 #ifdef JFG_RML_UI
   if (app.uiReady &&
       ((message >= WM_MOUSEFIRST && message <= WM_MOUSELAST) ||
@@ -797,6 +837,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
         PostMessageW(window, WM_COMMAND, Play, 0);
     }
     if (app.dialog.handle && !app.dialog.running()) {
+      if(app.videoDialogOpen){app.videoDialogOpen=false;EnableWindow(window,TRUE);}
       app.dialog.release();
       capture(false);
     }
@@ -850,6 +891,13 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       }
       break;
     case Video: {
+#ifdef JFG_RML_UI
+      if(!app.dialog.running()) {
+        app.videoDialogOpen=true;settings(L"video");
+        if(!app.dialog.running())app.videoDialogOpen=false;
+      }
+      break;
+#else
       if (app.videoDialogOpen || app.dialog.running()) break;
       auto saved = jfg::load_video_settings(app.profile / L"video.ini");
       if (!saved) {
@@ -858,22 +906,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       }
       jfg::frontend::VideoDialogModel model;
       model.settings = {*saved,app.fullscreen,app.pauseInactive,0};
-      model.apply = [](const jfg::frontend::VideoDialogSettings& settings,std::wstring& error) {
-        if (!write(L"video.ini",wide(jfg::serialize_video_settings(settings.rendering))) ||
-            !write(L"frontend-pause-inactive.txt",settings.pause_inactive?L"1":L"0")) {
-          error=L"Could not save video settings. Check access to your save folder.";
-          return false;
-        }
-        app.pauseInactive=settings.pause_inactive;
-        if (app.fullscreen!=settings.fullscreen) fullscreen();
-        if (!settings.fullscreen && settings.window_size) {
-          RECT rect{0,0,settings.window_size==1?1280:1920,settings.window_size==1?744:1104};
-          AdjustWindowRectExForDpi(&rect,WS_OVERLAPPEDWINDOW,FALSE,0,app.dpi);
-          SetWindowPos(app.window,nullptr,0,0,rect.right-rect.left,rect.bottom-rect.top,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
-        }
-        persist();
-        return true;
-      };
+      model.apply = applyVideo;
       app.videoDialogOpen=true;
       capture(true);
       SetPropW(window,L"JfgFrontendPause",reinterpret_cast<HANDLE>(1));
@@ -890,6 +923,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
 #endif
       if (result==-1) status(L"Could not open Video Settings.");
       break;
+#endif
     }
     case Fullscreen:
       fullscreen();
