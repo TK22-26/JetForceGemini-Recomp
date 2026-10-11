@@ -1,5 +1,6 @@
 #include "jfg/runtime/snapshot_copy.hpp"
 #include "jfg/renderer/rt64_shell.hpp"
+#include "jfg/renderer/presentation_policy.hpp"
 #include "jfg/renderer/vi_presentation.hpp"
 
 #include "rt64_f3ddkr.hpp"
@@ -797,12 +798,13 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
         // Skipping to a newer rendered buffer can display it before those edits.
         impl->application->enhancementConfig.presentation.mode =
             RT64::EnhancementConfiguration::Presentation::Mode::Console;
-        if (configuration.experimental_refresh_rate >= 60U &&
-            configuration.experimental_refresh_rate <= 1000U) {
+        jfg::configure_presentation_policy(configuration.vsync, configuration.unlimited_presentation);
+        if (configuration.unlimited_presentation || (configuration.experimental_refresh_rate >= 60U &&
+            configuration.experimental_refresh_rate <= 1000U)) {
             impl->application->userConfig.refreshRate =
                 RT64::UserConfiguration::RefreshRate::Manual;
             impl->application->userConfig.refreshRateTarget =
-                static_cast<int>(configuration.experimental_refresh_rate);
+                static_cast<int>(configuration.unlimited_presentation ? 60U : configuration.experimental_refresh_rate);
             // Prototype: CPU-composited overlays need separate qualification.
             impl->application->enhancementConfig.presentation.mode =
                 RT64::EnhancementConfiguration::Presentation::Mode::SkipBuffering;
@@ -822,7 +824,7 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
             return nullptr;
         }
         impl->initialized = true;
-        impl->f3ddkr = std::make_unique<Rt64F3ddkr>(*impl->application, configuration.experimental_refresh_rate != 0U);
+        impl->f3ddkr = std::make_unique<Rt64F3ddkr>(*impl->application, configuration.experimental_refresh_rate != 0U || configuration.unlimited_presentation);
         error = Rt64ShellError::none;
         return std::unique_ptr<Rt64Shell>(
             new Rt64Shell(std::move(impl)));

@@ -7,7 +7,9 @@ param(
     [string]$ProfileDirectory,
     [string]$RunDirectory,
     [ValidateScript({ $_ -eq 0 -or ($_ -ge 60 -and $_ -le 1000) })]
-    [int]$Fps = 60
+    [int]$Fps = 60,
+    [switch]$Unlimited,
+    [ValidateSet('On','Off')][string]$VSync = 'On'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -25,7 +27,7 @@ $RunDirectory = [System.IO.Directory]::CreateDirectory($RunDirectory).FullName
 if ($Save) { Copy-Item -LiteralPath $Save -Destination (Join-Path $RunDirectory 'jfg.flash') }
 if ($ControllerPak) { Copy-Item -LiteralPath $ControllerPak -Destination (Join-Path $RunDirectory 'controller.pak') }
 if ($ProfileDirectory) {
-    foreach ($name in @('controller.ini','modern-controls.ini','experimental-controls.ini','pc-input.ini','audio.ini')) {
+    foreach ($name in @('controller.ini','modern-controls.ini','experimental-controls.ini','pc-input.ini','audio.ini','video.ini')) {
         $source = Join-Path $ProfileDirectory $name
         if (Test-Path -LiteralPath $source -PathType Leaf) {
             Copy-Item -LiteralPath $source -Destination (Join-Path $RunDirectory $name)
@@ -40,10 +42,12 @@ Get-ChildItem Env:JFG_* | ForEach-Object {
 }
 $exitCode = 1
 try {
-    $env:JFG_EXPERIMENTAL_RENDER_FPS = [string]$Fps
+    $env:JFG_EXPERIMENTAL_RENDER_FPS = if ($Unlimited) { 'unlimited' } else { [string]$Fps }
+    $env:JFG_RENDER_VSYNC = if ($VSync -eq 'On') { '1' } else { '0' }
+    $env:JFG_VIDEO_CONFIG = Join-Path $RunDirectory 'video.ini'
     $env:JFG_CONTROLLER_CONFIG = Join-Path $RunDirectory 'controller.ini'
     $env:JFG_MASTER_VOLUME_CONFIG = Join-Path $RunDirectory 'audio.ini'
-    Write-Host "Experimental rendering target: $Fps FPS (limited by display refresh)."
+    Write-Host "Rendering target: $env:JFG_EXPERIMENTAL_RENDER_FPS; VSync: $VSync."
     Write-Host "Preview save and settings: $RunDirectory"
     Push-Location -LiteralPath $RunDirectory
     try {

@@ -33,8 +33,9 @@ the live map and navigation are in [their own page](navigation-mod.md).
   session.
 - **Display.** Borderless fullscreen (F11) restores prior placement. Window mode
   is independent of the game's own widescreen option; aspect follows the game.
-  Enhancement controls from the mockups (interpolation, expanded aspect, AA
-  overrides) stay hidden until implemented and approved.
+  Video Settings is an owned native Windows dialog with window controls,
+  VSync and experimental Original/Custom/Unlimited rendering. Rendering changes
+  apply on the next game launch. Expanded aspect and AA overrides remain absent.
 - **Live tools.** Map and inventory open separate native RmlUi windows with the
   launcher's renderer, fonts and per-monitor DPI handling. `NativeLiveTools.cs`
   adapts the existing validated map/inventory models and navigation planner;
@@ -140,8 +141,13 @@ cutscenes. Hardware results must be reported separately from automated checks.
 
 ## Experimental high-refresh rendering
 
-The [experimental high-refresh mode](high-refresh-rendering.md) now provides
-opt-in transform interpolation. A moving-camera replay measures about 60/240 FPS
-with matching guest RAM, input, save and probe state. It uses an environment
-setting or the isolated preview helper; the launcher has no FPS control yet.
-General visual acceptance and 360+ FPS qualification remain open.
+**Video > Video settings...** opens a standard Windows dialog containing VSync,
+Original/Custom/Unlimited modes, a 60-1000 FPS slider and exact numeric field,
+window mode/size and Pause when inactive. Apply / OK save to the profile; Cancel
+discards edits since the last Apply. Rendering changes take effect next launch.
+
+The [experimental high-refresh mode](high-refresh-rendering.md) exceeds 360
+presentations/s in a short replay with matching guest RAM, input, save and probe
+state. Real-menu persistence and live pause/resume have automated coverage.
+Unlimited pacing, broad visual acceptance and sustained high-rate performance
+remain open; Original remains the default.

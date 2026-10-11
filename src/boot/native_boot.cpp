@@ -74,6 +74,7 @@
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
 #include "jfg/evidence/g2_private_task_adapter.hpp"
 #include "jfg/renderer/rt64_shell.hpp"
+#include "jfg/renderer/video_settings.hpp"
 #include "jfg/renderer/interpolation_history.hpp"
 #include "jfg/renderer/vi_presentation.hpp"
 #include "jfg/runtime/audio_task_bridge.hpp"
@@ -4660,16 +4661,41 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
       _close(null_stdout);
     return false;
   }
-  char* fps_text = nullptr;
-  std::size_t fps_size = 0;
-  (void)_dupenv_s(&fps_text, &fps_size, "JFG_EXPERIMENTAL_RENDER_FPS");
-  const auto render_fps = jfg::parse_render_fps(fps_text == nullptr ? "" : fps_text);
-  std::free(fps_text);
-  if (!render_fps) {
+  const auto video_settings = []() -> std::optional<jfg::VideoSettings> {
+    wchar_t* config_path = nullptr;
+    std::size_t size = 0;
+    (void)_wdupenv_s(&config_path, &size, L"JFG_VIDEO_CONFIG");
+    auto settings = jfg::load_video_settings(config_path == nullptr ? std::filesystem::path{} : std::filesystem::path(config_path));
+    std::free(config_path);
+    if (!settings) return std::nullopt;
+    char* text = nullptr;
+    (void)_dupenv_s(&text, &size, "JFG_EXPERIMENTAL_RENDER_FPS");
+    if (text != nullptr) {
+      const std::string value(text);
+      std::free(text);
+      if (value == "unlimited") settings->mode = jfg::FrameRateMode::unlimited;
+      else {
+        const auto fps = jfg::parse_render_fps(value);
+        if (!fps) return std::nullopt;
+        settings->mode = *fps == 0 ? jfg::FrameRateMode::original : jfg::FrameRateMode::custom;
+        if (*fps) settings->fps = *fps;
+      }
+    }
+    text = nullptr;
+    (void)_dupenv_s(&text, &size, "JFG_RENDER_VSYNC");
+    if (text != nullptr) {
+      const std::string value(text);
+      std::free(text);
+      if (value != "0" && value != "1") return std::nullopt;
+      settings->vsync = value == "1";
+    }
+    return settings;
+  }();
+  if (!video_settings) {
     (void)_dup2(saved_stdout, _fileno(stdout));
     _close(null_stdout);
     _close(saved_stdout);
-    std::fprintf(stderr, "JFG_EXPERIMENTAL_RENDER_FPS must be 0 or 60-1000\n");
+    std::fprintf(stderr, "Invalid video settings: FPS must be 0, 60-1000 or unlimited; VSync must be 0 or 1. Check JFG_VIDEO_CONFIG.\n");
     return false;
   }
   state.rt64_shell = jfg::Rt64Shell::create(
@@ -4680,7 +4706,9 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
        state.rt64_rdram, &state.rt64_vi, false,
        // Software overlays read and modify completed color pixels.
        // RT64 already completes its RAM readback before DP completion.
-       jfg::Rt64MemoryLayout::host_word_swapped, true, true, *render_fps},
+       jfg::Rt64MemoryLayout::host_word_swapped, true, true,
+       video_settings->mode == jfg::FrameRateMode::custom ? video_settings->fps : 0U,
+       video_settings->mode == jfg::FrameRateMode::unlimited, video_settings->vsync},
       error);
   std::fflush(stdout);
   (void)_dup2(saved_stdout, _fileno(stdout));

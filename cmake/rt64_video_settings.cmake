@@ -1,0 +1,131 @@
+# Applied only to already hash-checked RT64 build-tree copies.
+function(jfg_video_replace needle replacement)
+    string(FIND "${contents}" "${needle}" offset)
+    if(offset EQUAL -1)
+        message(FATAL_ERROR "Missing pinned RT64 video-settings patch site: ${needle}")
+    endif()
+    string(REPLACE "${needle}" "${replacement}" contents "${contents}")
+    set(contents "${contents}" PARENT_SCOPE)
+endfunction()
+
+function(jfg_video_patch_workload)
+    jfg_video_replace([=[                            skipWorkloadNow = ((frame + 1) < displayFrames) && (writeCursor != threadCursor);]=] [=[                            bool nextScene = (writeCursor != threadCursor);
+                            if (jfgUnlimited && nextScene) {
+                                // Small shadow-only passes between VIs must not end
+                                // a scene's time-based interpolation halfway through.
+                                // A queued scene or unknown workload still takes priority.
+                                nextScene = false;
+                                uint32_t next = threadCursor;
+                                while (next != writeCursor) {
+                                    const auto snapshot = jfg::presentation_snapshot(&workloads[next]);
+                                    if (!snapshot || snapshot->scene) { nextScene = true; break; }
+                                    next = (next + 1U) % uint32_t(workloads.size());
+                                }
+                            }
+                            skipWorkloadNow = ((frame + 1) < displayFrames) && nextScene;]=])
+    jfg_video_replace([=[            // Limit the target rate to the rate detected by the swap chain.
+            if ((ext.sharedResources->swapChainRate > 0) && (workloadConfig.targetRate > ext.sharedResources->swapChainRate)) {
+                workloadConfig.targetRate = ext.sharedResources->swapChainRate;
+            }]=] [=[            workloadConfig.targetRate = jfg::presentation_target(workloadConfig.targetRate,
+                ext.sharedResources->swapChainRate);]=])
+    jfg_video_replace([=[                // Estimate amount of frames to render based on how many display frames it'd take to reach the next logical frame.]=] [=[                const bool jfgUnlimited = jfg::presentation_unlimited() && generateInterpolatedFrames && !jfgOffscreen;
+                float jfgPreviousAlpha = 0.0f;
+                // Estimate amount of frames to render based on how many display frames it'd take to reach the next logical frame.]=])
+    jfg_video_replace([=[                if (generateInterpolatedFrames) {
+                    logicalTicks += workloadConfig.targetRate;]=] [=[                if (jfgUnlimited) {
+                    displayFrames = jfg::kUnlimitedPresentation;
+                    frameReduction = false;
+                }
+                else if (generateInterpolatedFrames) {
+                    logicalTicks += workloadConfig.targetRate;]=])
+    jfg_video_replace([=[                uint32_t requiredFrames = (usingMSAA && generateInterpolatedFrames) ? displayFrames : (displayFrames - 1);]=] [=[                uint32_t requiredFrames = jfgUnlimited ? jfg::kPresentationRingSize :
+                    ((usingMSAA && generateInterpolatedFrames) ? displayFrames : (displayFrames - 1));]=])
+    jfg_video_replace([=[                bool skippedFrames = false;]=] [=[                // Unlimited has no predetermined frame count. Always mark the stream
+                // complete on leaving its source-frame time window, waking the consumer.
+                bool skippedFrames = jfgUnlimited;]=])
+    jfg_video_replace([=[                for (uint32_t frame = 0; (frame < displayFrames) && !skipWorkloadNow; frame++) {
+                    // Evaluate]=] [=[                for (uint32_t frame = 0; (frame < displayFrames) && !skipWorkloadNow; frame++) {
+                    if (jfgUnlimited && frame > 0 &&
+                        (!threadsRunning || workloadTimer.elapsedMicroseconds() >= originalTimeMicro)) break;
+                    // Evaluate]=])
+    jfg_video_replace([=[                    if ((frame > 0) && (originalTimeMicro > 0)) {]=] [=[                    if (!jfgUnlimited && (frame > 0) && (originalTimeMicro > 0)) {]=])
+    jfg_video_replace([=[                        prevFrameWeight = std::clamp((workloadConfig.targetRate + displayTicks - logicalTicks) / float(workloadConfig.targetRate), 0.0f, 1.0f);
+                        displayTicks += workload.viOriginalRate;
+                        curFrameWeight = std::clamp((workloadConfig.targetRate + displayTicks - logicalTicks) / float(workloadConfig.targetRate), 0.0f, 1.0f);]=] [=[                        if (!jfgUnlimited) {
+                            prevFrameWeight = std::clamp((workloadConfig.targetRate + displayTicks - logicalTicks) / float(workloadConfig.targetRate), 0.0f, 1.0f);
+                            displayTicks += workload.viOriginalRate;
+                            curFrameWeight = std::clamp((workloadConfig.targetRate + displayTicks - logicalTicks) / float(workloadConfig.targetRate), 0.0f, 1.0f);
+                        }]=])
+    jfg_video_replace([=[                            overrideTarget = interpolatedTargets[targetIndex].get();
+                            overrideModifier = (targetIndex + 1);
+
+                            if (useDifferentCounters && (prevFrameCounters.available > 0) && (targetIndex < prevFrameCounters.available)) {]=] [=[                            const uint32_t storageIndex = jfgUnlimited ? (targetIndex % jfg::kPresentationRingSize) : targetIndex;
+                            overrideTarget = interpolatedTargets[storageIndex].get();
+                            overrideModifier = (storageIndex + 1);
+
+                            if (jfgUnlimited) {
+                                std::unique_lock<std::mutex> lock(ext.sharedResources->interpolatedMutex);
+                                ext.sharedResources->interpolatedCondition.wait(lock, [&]() {
+                                    const bool previousDone = !useDifferentCounters || prevFrameCounters.presented >= prevFrameCounters.available;
+                                    const bool slotFree = targetIndex < jfg::kPresentationRingSize ||
+                                        curFrameCounters.presented > (targetIndex - jfg::kPresentationRingSize);
+                                    return !threadsRunning || (previousDone && slotFree);
+                                });
+                                if (!threadsRunning || curFrameCounters.presented >= curFrameCounters.count ||
+                                    workloadTimer.elapsedMicroseconds() >= originalTimeMicro) break;
+                            }
+                            else if (useDifferentCounters && (prevFrameCounters.available > 0) && (targetIndex < prevFrameCounters.available)) {]=])
+    jfg_video_replace([=[                    const bool uploadExtras = (frame == 0) && workloadConfig.raytracingEnabled;]=] [=[                    if (jfgUnlimited) {
+                        prevFrameWeight = jfgPreviousAlpha;
+                        curFrameWeight = std::clamp(float(workloadTimer.elapsedMicroseconds()) / float(originalTimeMicro), 0.0f, 1.0f);
+                        deltaTimeMs = (curFrameWeight - prevFrameWeight) / float(workload.viOriginalRate);
+                        jfgPreviousAlpha = curFrameWeight;
+                    }
+                    const bool uploadExtras = (frame == 0) && workloadConfig.raytracingEnabled;]=])
+    jfg_video_replace([=[                        if (skipWorkloadNow) {
+                            displayTicks += workload.viOriginalRate * (displayFrames - (frame + 1));]=] [=[                        if (skipWorkloadNow && !jfgUnlimited) {
+                            displayTicks += workload.viOriginalRate * (displayFrames - (frame + 1));]=])
+    set(contents "${contents}" PARENT_SCOPE)
+endfunction()
+
+function(jfg_video_patch_present)
+    jfg_video_replace([=[        int32_t framesToPresent = 1;]=] [=[        int32_t framesToPresent = 1;
+        bool jfgRepeatUnlimited = false;
+        bool jfgRepeatHasTarget = false;
+        uint32_t jfgRepeatTarget = 0;]=])
+    jfg_video_replace([=[                if (presentFb->interpolationEnabled) {
+                    framesToPresent = frameCounters.count;
+                }]=] [=[                if (presentFb->interpolationEnabled) {
+                    std::scoped_lock<std::mutex> lock(ext.sharedResources->interpolatedMutex);
+                    jfgRepeatUnlimited = frameCounters.count == jfg::kUnlimitedPresentation &&
+                        frameCounters.presented >= frameCounters.count;
+                    if (jfgRepeatUnlimited) {
+                        // A later VI can refer to this completed source frame. Its
+                        // ring contains only the last two images, not its full history.
+                        // Repeat the latest image once; never replay overwritten slots.
+                        jfgRepeatHasTarget = frameCounters.available > 0;
+                        jfgRepeatTarget = jfgRepeatHasTarget ?
+                            ((frameCounters.available - 1) % jfg::kPresentationRingSize) : 0;
+                    }
+                    else framesToPresent = frameCounters.count;
+                }]=])
+    jfg_video_replace([=[                RenderTargetKey colorTargetKey(presentFb->addressStart, presentFb->width, presentFb->siz, Framebuffer::Type::Color);]=] [=[                if (jfgRepeatUnlimited) {
+                    lockedWorkloadMutex = true;
+                    ext.sharedResources->workloadMutex.lock();
+                }
+                RenderTargetKey colorTargetKey(presentFb->addressStart, presentFb->width, presentFb->siz, Framebuffer::Type::Color);]=])
+    jfg_video_replace([=[                if (!present.paused && (viHistory.top().vi != present.screenVI)) {
+                    viHistory.pushVI(present.screenVI, viFb->width);]=] [=[                if (jfgRepeatHasTarget) {
+                    colorTarget = ext.sharedResources->interpolatedColorTargets[jfgRepeatTarget].get();
+                }
+                if (!present.paused && (viHistory.top().vi != present.screenVI)) {
+                    viHistory.pushVI(present.screenVI, viFb->width);]=])
+    jfg_video_replace([=[        // Since the swap chain might not need a resize right away, detect present wait.]=] [=[        ext.swapChain->setVsyncEnabled(jfg::presentation_vsync());
+        // Since the swap chain might not need a resize right away, detect present wait.]=])
+    jfg_video_replace([=[                if ((presentTimestamp != Timestamp()) && (targetRate > 0) && (targetRate > viOriginalRate)) {]=] [=[                if (!jfg::presentation_unlimited() && (presentTimestamp != Timestamp()) && (targetRate > 0) && (targetRate > viOriginalRate)) {]=])
+    jfg_video_replace([=[                if (presentWaitEnabled) {]=] [=[                if (presentWaitEnabled && jfg::presentation_vsync()) {]=])
+    jfg_video_replace([=[                    colorTarget = ext.sharedResources->interpolatedColorTargets[targetIndex].get();]=] [=[                    const bool jfgUnlimited = frameCounters.count == jfg::kUnlimitedPresentation;
+                    const uint32_t storageIndex = jfgUnlimited ? (targetIndex % jfg::kPresentationRingSize) : targetIndex;
+                    colorTarget = ext.sharedResources->interpolatedColorTargets[storageIndex].get();]=])
+    set(contents "${contents}" PARENT_SCOPE)
+endfunction()

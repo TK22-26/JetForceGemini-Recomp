@@ -165,3 +165,150 @@ execution is below twelve hours. Read the production ledger and the retained
 implementation-progress.json before any continuation. A completed preview does
 not authorize another job or reopen the investigation after shelving. Keep
 RENDER-001 open for the remaining acceptance work.
+
+## Native Windows video controls continuation (2026-10-11)
+
+Owner requested replacing the embedded Video panel with a native Windows dialog
+and adding VSync, Original/Custom/Unlimited modes and a custom FPS slider/number.
+The existing candidate exposes only an environment-controlled fixed target,
+always uses the renderer's default VSync and clamps to display refresh. This is
+an open usability and presentation limitation (RENDER-001), not a released fix.
+
+The owner approved a three-hour override after the six-activity guard stop.
+The same production investigation and roots are retained, guard enabled, with
+all six attempts/activities and 5204.53 elapsed seconds preserved. The activity
+ceiling is twelve; the original 43,200-second cumulative budget remains and this
+continuation also has a three-hour wall deadline. No other investigation reopens.
+
+Candidate work and verification will be recorded here as it proceeds. Validation
+must cover actual native controls, persistence/cancel/invalid input, capped and
+uncapped presentation, and guest timing/state equivalence. No result is assumed.
+
+The first continuation build caught signed/unsigned optional comparisons in the new parser tests under /WX. The test constants were corrected; no compiler warning policy was relaxed. No runtime replay had run at this point.
+
+Runtime and native-dialog builds pass with seven focused tests. Managed launcher tests initially stopped because their fixture discovery requires the executable below the checkout; an external C:/JFG-builds output made FindSourceRoot return null. Re-running the existing suite in the worktree build/launcher directory addresses the harness layout without changing production behavior. The failed receipt is retained.
+
+### Unlimited completed-stream correction
+
+The first seven-mode replay series preserved game state, but source review of
+the new ring found that a later VI could revisit a completed interpolation batch
+and replay its indices even though the two storage slots had been overwritten.
+The first unlimited result (646.24 presents/s in the short camera window) must
+not be treated as a verified distinct-frame throughput result. This is a candidate
+presentation defect, introduced and caught before commit/release.
+
+The corrected presenter recognizes a completed unlimited counter, holds the
+workload lock while copying its latest image once, and never replays that ring's
+old history. The same original/capped/unlimited memory fixture and bounded image
+capture will qualify the change. The ring remains bounded to two extra targets;
+the original guest, audio and input clocks are untouched.
+
+The real-launcher integration fixture initially hit the application's existing
+session-wide singleton because another launcher was already open. No owner
+window was closed or controlled. A non-shipped target now builds the same
+frontend, helper and resources with only a test-specific singleton name, and
+runs on an inactive desktop. Production singleton behavior remains unchanged.
+
+The first isolated frontend keyboard test sent Alt+V/Enter while initialization
+could still close transient menus. The harness now waits for profile initialization
+and its timer acknowledgment, then selects the first menu item with Home before
+Enter. This changes only the test; the native dialog unit checks already passed.
+
+The corrected stream measured 315.28 presents/s with gaps around 16-17 ms.
+Inspection of VI 4000-4010 showed interpolation stopping near alpha 0.4-0.5:
+queued shadow-only passes cancelled the scene before its 30 Hz time window ended.
+The next candidate cancels an unlimited scene for queued scenes/unknown work,
+while bounded shadow-only work waits at most the remainder of that source-frame
+window. Replay validation must check both exact guest state and elapsed runtime,
+since rendering must not slow the original simulation. This is pending evidence.
+
+The frontend fixture also observed a just-created dialog before WM_INITDIALOG
+had initialized its controls, so its initial Custom selection was overwritten by
+the default Original selection. It now waits for a visible dialog (shown after
+initialization), matching the state in which a person can interact. Native control
+tests and actual file values isolated this test-harness race; no owner input was used.
+
+Waiting for dialog visibility did not resolve the integration fixture's FPS
+assertion. Initialization ordering was a hypothesis, not an established cause.
+The next fixture records the actual combo/edit values and saved bytes, and uses
+explicit cross-process WM_SETTEXT/WM_GETTEXT messages to isolate automation from
+product persistence. This preserves the failed receipts instead of accepting a
+partial dialog test as complete.
+
+The frontend integration failure was in cross-process text automation, not the
+dialog's configuration model. Explicit WM_SETTEXT/WM_GETTEXT recorded Custom / 360
+and the expected saved bytes; the full menu/modal/pause/persistence/cancel/reopen
+flow then passed. Invalid-input injection now uses the same explicit messages and
+asserts that 59 actually reached the control before testing rejection. Earlier
+initialization hypotheses are not the accepted cause.
+
+The shadow-aware unlimited candidate preserved every compared byte/counter and
+measured 1137.31 presents/s in the approximately 1.74-second camera window. Its
+complete replay took 71.515 seconds versus Original's 70.109: guest clock/state
+equivalence does not establish identical wall-time throughput. High-rate frame
+pacing, broader scenes and audio-device behavior remain open. The 1000 FPS target
+measured 644.78 presents/s in that run; the requested value is not a throughput
+guarantee. A separate image-capture run follows and is excluded from benchmarking.
+
+The final capture wrapper initially selected a quoted source fragment instead of
+the complete Python function and stopped with SyntaxError before launching a
+capture. The wrapper now extracts the function through Python's AST. All seven
+focused checks and the corrected invalid-input/frontend flow had already passed;
+the capture failure is retained separately. Live pause/resume is also being
+checked with a replay-driven game on the fixture's inactive desktop and isolated
+save, including the runtime acknowledgment and a stopped/resumed VI clock.
+
+
+### Native controls and final candidate verification
+
+The native Win32 dialog, persisted Original/Custom/Unlimited modes, VSync and
+60-1000 FPS slider/number are implemented. Display and pause preferences remain
+available. Rendering preferences apply on next launch; window/pause preferences
+apply immediately. Missing configuration preserves Original mode. The managed
+launch environment forwards the selected profile, including navigation mode.
+
+The final bounded live fixture passed: the actual frontend Video menu opens an
+owned native dialog, Apply saves Custom 360 / VSync off, invalid 59 is rejected,
+Cancel preserves the last Apply, reopening restores values and OK saves Unlimited.
+A replay-driven game acknowledges pause, its VI clock stays stopped during the
+dialog and resumes on close. Its source save remains unchanged. The launcher runs
+on a separate inactive desktop with a test-only singleton; no physical input or
+owner-window manipulation was used. Production retains its ordinary singleton.
+
+Final capture groups 2789 and 2791 each contain four different swapchain images
+at indices 0-3, crossing the two-target ring. Guest and renderer memory, input,
+save and entire probe output match v3 Original. Visual inspection of the sampled
+scene retains HUD, character and reflection; it is not general scene acceptance.
+The final runtime SHA-256 is
+`b34887ed7da310b11d52d33a1382f83b4c6e521985386d3061226fe6c43d408e`.
+
+Seven focused C++ tests pass; the managed launcher reports 637 checks, setup 15,
+graphics six and viewport checks pass. Native control tests include owned modal,
+enablement, numeric limits, slider synchronization, Apply/Cancel/reopen, Unicode
+configuration paths and save failure. Persistent issue status remains **candidate
+verified in bounded fixtures; broader owner playtesting pending; not released**.
+
+Private evidence remains under `tools/private/high-refresh-20261011` in the main
+checkout: `video-replays-v1/result.json` (exclude invalid initial Unlimited rate),
+`video-replays-v2/result.json`, `video-replays-v3/result.json`,
+`video-frame-sequence-analysis-v3.json`, `video-live-final-results.json`,
+`video-live-integration.log`, `video-dialog-final/`, and hashed `video-steps/`
+payload/result/log receipts. The final source/binary map is `video-qualification.json`.
+No ROM, generated guest code, game screenshots or private saves are committed.
+
+Root causes and lessons: a fixed target was originally display-clamped because
+VSync was unconditional and no launcher configuration reached RT64. Explicit
+policy now controls synchronization, target clamping and pacing. A truly uncapped
+stream needs bounded synchronized storage and time-based interpolation; completed
+ring history cannot be replayed. Shadow tasks are not scene endpoints and must
+not prematurely cut off interpolation. Distinct-frame captures plus guest-state
+comparison are required alongside throughput: present-call counts alone misled
+the first candidate. Correct cross-process UI messages and actual control-value
+assertions distinguish automation defects from settings defects.
+
+Remaining limits: high-rate pacing and the measured ~2% whole-replay wall slowdown;
+sustained busy combat/effects and audio-device behavior; camera cuts/rotation and
+semantic object identity; CPU overlays, resizing, multi-monitor DPI/refresh,
+loading/cutscene transitions and multiplayer. VSync-off output can tear. These
+changes do not fix the separate Goldwood simulation-cadence issue. Preserve the
+production guard, original roots/counters and this evidence for any continuation.

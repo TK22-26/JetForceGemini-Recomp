@@ -15,6 +15,7 @@
 #include <vector>
 #include "../../launcher/native/graphics_check.hpp"
 #include "../../launcher/native/game_viewport.hpp"
+#include "../../launcher/native/video_settings_dialog.hpp"
 #ifdef JFG_RML_UI
 #include "native_ui.hpp"
 #endif
@@ -40,7 +41,8 @@ enum : UINT {
   Saves,
   Guide,
   Quit,
-  Mods
+  Mods,
+  Video
 };
 struct Process {
   HANDLE handle = nullptr, job = nullptr;
@@ -73,7 +75,7 @@ struct App {
   std::vector<HWND> liveModals;
   bool playing = false, setting = false, fullscreen = false, closing = false,
        mods = false, pauseInactive = false, manualPause = false;
-  bool stopRequested = false, initializing = true;
+  bool stopRequested = false, initializing = true, videoDialogOpen = false;
   ULONGLONG startedAt = 0;
   UINT dpi = 96;
   WINDOWPLACEMENT placement{sizeof(WINDOWPLACEMENT)};
@@ -450,7 +452,7 @@ void menus() {
                  {Quit, L"&Quit"}});
   add(L"&Controllers",
       {{Controllers, L"Player 1-4 assignments and mappings"}});
-  add(L"&Video", {{Fullscreen, L"&Fullscreen\tF11"}});
+  add(L"&Video", {{Video, L"Video &settings..."}, {Fullscreen, L"&Fullscreen\tF11"}});
   add(L"&Audio", {{Audio, L"&Volume and mute"}});
   add(L"&Tools", {{Map, L"Live map"},
                   {Inventory, L"Live inventory"},
@@ -507,6 +509,8 @@ void uiAction(const std::string &a) {
     command = Rom;
   else if (a == "fullscreen")
     command = Fullscreen;
+  else if (a == "video")
+    command = Video;
   else if (a == "controllers")
     command = Controllers;
   else if (a == "map")
@@ -555,7 +559,7 @@ void syncUiCapture() {
     if (shortcutFocus && !app.muteShortcutRegistered)
       status(L"Ctrl+M is already in use. Mute is available in the Audio menu.");
   }
-  bool enabled = FrontendUiCapturing() || app.dialog.running();
+  bool enabled = FrontendUiCapturing() || app.dialog.running() || app.videoDialogOpen;
   if (enabled != app.setting) {
     capture(enabled);
     ShowWindow(app.shield, enabled ? SW_SHOW : SW_HIDE);
@@ -569,7 +573,7 @@ void syncUiCapture() {
   // must not resume a game while a settings dialog is still open.
   const bool inactive = GetForegroundWindow() != app.window || IsIconic(app.window);
   app.liveModals.erase(std::remove_if(app.liveModals.begin(),app.liveModals.end(),[](HWND w){return !IsWindow(w)||!GetPropW(w,L"JfgLiveModal");}),app.liveModals.end());
-  if (app.manualPause || FrontendUiModalOpen() || app.dialog.running() || !app.liveModals.empty() || (app.pauseInactive && inactive))
+  if (app.manualPause || FrontendUiModalOpen() || app.dialog.running() || app.videoDialogOpen || !app.liveModals.empty() || (app.pauseInactive && inactive))
     SetPropW(app.window, L"JfgFrontendPause", reinterpret_cast<HANDLE>(1));
   else
     RemovePropW(app.window, L"JfgFrontendPause");
@@ -845,6 +849,48 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
         write(L"frontend-status.txt", L"Setup cancelled. You can retry.");
       }
       break;
+    case Video: {
+      if (app.videoDialogOpen || app.dialog.running()) break;
+      auto saved = jfg::load_video_settings(app.profile / L"video.ini");
+      if (!saved) {
+        MessageBoxW(window,L"The saved video settings could not be read. Check video.ini in your save folder.",L"Video Settings",MB_OK|MB_ICONERROR);
+        break;
+      }
+      jfg::frontend::VideoDialogModel model;
+      model.settings = {*saved,app.fullscreen,app.pauseInactive,0};
+      model.apply = [](const jfg::frontend::VideoDialogSettings& settings,std::wstring& error) {
+        if (!write(L"video.ini",wide(jfg::serialize_video_settings(settings.rendering))) ||
+            !write(L"frontend-pause-inactive.txt",settings.pause_inactive?L"1":L"0")) {
+          error=L"Could not save video settings. Check access to your save folder.";
+          return false;
+        }
+        app.pauseInactive=settings.pause_inactive;
+        if (app.fullscreen!=settings.fullscreen) fullscreen();
+        if (!settings.fullscreen && settings.window_size) {
+          RECT rect{0,0,settings.window_size==1?1280:1920,settings.window_size==1?744:1104};
+          AdjustWindowRectExForDpi(&rect,WS_OVERLAPPEDWINDOW,FALSE,0,app.dpi);
+          SetWindowPos(app.window,nullptr,0,0,rect.right-rect.left,rect.bottom-rect.top,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+        }
+        persist();
+        return true;
+      };
+      app.videoDialogOpen=true;
+      capture(true);
+      SetPropW(window,L"JfgFrontendPause",reinterpret_cast<HANDLE>(1));
+#ifdef JFG_RML_UI
+      syncUiCapture();
+#endif
+      const auto result=jfg::frontend::show_video_settings(window,model);
+      app.videoDialogOpen=false;
+      capture(false);
+#ifdef JFG_RML_UI
+      syncUiCapture();
+#else
+      RemovePropW(window,L"JfgFrontendPause");
+#endif
+      if (result==-1) status(L"Could not open Video Settings.");
+      break;
+    }
     case Fullscreen:
       fullscreen();
       break;
@@ -938,7 +984,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
 #ifdef JFG_RML_UI
   int liveResult=FrontendLiveToolEntry(instance,show);if(liveResult>=0)return liveResult;
 #endif
+#ifdef JFG_VIDEO_DIALOG_TEST
+  // Integration fixtures must coexist with the owner's normal launcher.
+  const std::wstring instanceName=L"Local\\JFGVideoDialogTest-"+std::to_wstring(GetCurrentProcessId());
+  HANDLE singleton = CreateMutexW(nullptr, TRUE, instanceName.c_str());
+#else
   HANDLE singleton = CreateMutexW(nullptr, TRUE, L"Local\\JFGUnifiedFrontend");
+#endif
   if (!singleton || GetLastError() == ERROR_ALREADY_EXISTS) {
     if (singleton)
       CloseHandle(singleton);

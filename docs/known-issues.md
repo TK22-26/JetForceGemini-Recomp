@@ -19,11 +19,13 @@ for measurements, experiments and the remaining acceptance work.
 
 ## High-refresh rendering
 
-An [opt-in high-refresh prototype](features/high-refresh-rendering.md) now measures
-60/240 FPS presentation in one moving-camera replay with matching guest state.
-It remains experimental: semantic object identity, animation/effects, CPU overlays,
-transitions and 360+ FPS hardware qualification are incomplete. Default rendering
-remains original mode. See [RENDER-001](development/issues/high-refresh-rendering.md).
+The [high-refresh candidate](features/high-refresh-rendering.md) has native Windows
+Video Settings with VSync, a Custom FPS target and Unlimited. A short replay
+exceeds 360 presentations/s while preserving guest state. Unlimited pacing remains
+uneven, and its full replay took about 2% longer than Original. Sustained performance,
+semantic object identity, animation/effects, CPU overlays, transitions, audio-device
+behavior and physical 360+ Hz display qualification are incomplete. Original remains
+the default. See [RENDER-001](development/issues/high-refresh-rendering.md).
 
 ## Windows 10 setup
 

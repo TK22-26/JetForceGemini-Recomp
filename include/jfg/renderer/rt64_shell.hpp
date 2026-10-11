@@ -70,6 +70,8 @@ struct Rt64ShellConfiguration {
     // Return intensity masks to the guest for its CPU postprocessing.
     bool cpu_mask_writeback = false;
     unsigned experimental_refresh_rate = 0U;
+    bool unlimited_presentation = false;
+    bool vsync = true;
 };
 
 struct Rt64RdramRange {

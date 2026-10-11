@@ -1,4 +1,5 @@
 # Experimental interpolation adapters; pinned dependency sources stay pristine.
+include("${CMAKE_CURRENT_LIST_DIR}/rt64_video_settings.cmake")
 function(jfg_interpolation_replace_source basename generated)
     get_target_property(sources rt64 SOURCES)
     set(patched)
@@ -96,6 +97,7 @@ if(offset EQUAL -1)
  message(FATAL_ERROR "Missing RT64 interpolation patch site")
 endif()
 string(REPLACE "${before}" "${after}" contents "${contents}")
+jfg_video_patch_workload()
 set(generated "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64/rt64_workload_queue.cpp")
 file(WRITE "${generated}" [=[#include "rt64_interpolation_adapter.hpp"
 ]=] "${contents}")
@@ -137,6 +139,7 @@ if(offset EQUAL -1)
  message(FATAL_ERROR "Missing RT64 frame capture completion site")
 endif()
 string(REPLACE "${before}" "${after}" contents "${contents}")
+jfg_video_patch_present()
 set(generated "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64/rt64_present_queue.cpp")
 file(WRITE "${generated}" [=[#include "rt64_interpolation_capture.hpp"
 ]=] "${contents}")

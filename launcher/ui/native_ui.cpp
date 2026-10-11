@@ -750,27 +750,6 @@ struct Ui : Rml::EventListener {
               std::to_string(volume) + "\" data-action=\"volume\"/>" +
               button("up", "+") + "</div>";
       note = "Applied immediately. Volume is remembered when muted.";
-    } else if (page == "video") {
-      html =
-          "<div class=\"split\"><div class=\"grow\"><div class=\"row\"><span "
-          "class=\"grow\">Window mode</span><div class=\"segments\">" +
-          button("windowed", "Windowed") + button("borderless", "Fullscreen") +
-          "</div></div>";
-      html += "<div class=\"row\"><span class=\"grow\">Window size</span><div "
-              "class=\"segments\">" +
-              button("size720", "1280 x 720") +
-              button("size1080", "1920 x 1080") + "</div></div>";
-      html +=
-          "<div class=\"row\"><span class=\"grow\">Aspect ratio</span><span "
-          "class=\"muted\">Original game setting</span></div></div><div "
-          "class=\"about\"><div class=\"label\">ABOUT</div><div "
-          "class=\"name\">Display</div><p>Fullscreen fills your display "
-          "without changing the game's graphics.</p><p class=\"muted\">F11 "
-          "switches modes. The game stays in a centered 4:3 area; the original "
-          "game controls its own cinematic bars.</p></div></div>";
-      html += "<div class=\"row\"><div class=\"grow\">Pause when inactive<div class=\"muted\">Pause when you switch to another app. Resume when you return.</div></div>" +
-              button("pause-inactive", state.pauseInactive ? "On" : "Off") + "</div>";
-      note = "Changes apply immediately. Settings dialogs always pause the game.";
     } else if (page == "controllers") {
       loadPcInput();
       html=modernHeaderHtml()+modernStyleHtml();
@@ -1142,7 +1121,10 @@ struct Ui : Rml::EventListener {
     } else if (a == "support") {
       action("sessions");
       modal(a);
-    } else if (a == "video" || a == "setup" || a == "game" || a == "tools" ||
+    } else if (a == "video") {
+      close();
+      action("video");
+    } else if (a == "setup" || a == "game" || a == "tools" ||
                a == "help")
       modal(a);
     else {
@@ -1553,6 +1535,9 @@ void FrontendUiPanel(const std::string &name) {
         surface->ui.modal("controllers");
       } else
         surface->ui.close();
+    } else if (name == "video") {
+      surface->ui.close();
+      surface->ui.action("video");
     } else
       surface->ui.modal(name == "game" ? "menu-game" : name);
   }

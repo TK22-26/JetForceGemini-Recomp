@@ -1,6 +1,7 @@
 #pragma once
 // Build-tree RT64 adapters share immutable host metadata with the decoder.
 #include "jfg/renderer/interpolation_history.hpp"
+#include "jfg/renderer/presentation_policy.hpp"
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
@@ -50,6 +51,8 @@ inline void trace_interpolation(const char* event, std::uint64_t id,
     const auto now = std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::steady_clock::now().time_since_epoch()).count();
     const std::scoped_lock lock(mutex);
+    if (target == kUnlimitedPresentation) target = 0;
+    if (count == kUnlimitedPresentation) count = 0;
     output << event << '\t' << now << '\t' << id << '\t' << source << '\t'
         << target << '\t' << frame << '\t' << count << '\t' << alpha << '\t'
         << matched << '\t' << moving << '\n';
