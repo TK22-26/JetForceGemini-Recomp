@@ -17,6 +17,12 @@ explain it. A native clock replacement is under qualification and is not install
 in the delivered preview. See the [timing investigation](features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation)
 for measurements, experiments and the remaining acceptance work.
 
+## High-refresh rendering
+
+Smooth 60-360+ FPS presentation is under investigation. Current source explicitly
+disables JFG transform interpolation; a higher monitor refresh rate alone does not
+remove that limitation. See [RENDER-001](development/issues/high-refresh-rendering.md).
+
 ## Windows 10 setup
 
 **v1.1.0 uses a prebuilt game and one-time ROM import.** The WSL/developer-tool

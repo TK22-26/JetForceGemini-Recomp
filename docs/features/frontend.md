@@ -137,3 +137,10 @@ build from the public checkout passed with these lifecycle tests.
 Still to qualify by hand: two- and four-controller physical multiplayer,
 fresh-PC first-run setup with UAC and reboot, and long sessions through
 cutscenes. Hardware results must be reported separately from automated checks.
+
+## High-refresh rendering research
+
+The [60-360+ FPS investigation](../planning/high-refresh-rendering.md) targets
+smoother presentation with unchanged game timing. It identifies the missing
+transform metadata and framebuffer ownership work; no new player-facing FPS
+setting or high-refresh mode is enabled by this research.

@@ -51,3 +51,9 @@ requires an explicit version and evidence decision; documentation cleanup must
 not rewrite them. Their historical license and publication wording does not
 describe the current project: original work uses [MIT](../../LICENSE). See the
 [evidence guide](../../evidence/README.md).
+
+## High-refresh rendering
+
+[60-360+ FPS rendering investigation](high-refresh-rendering.md) preserves guest
+timing and records the RT64 integration path, working-build evidence and acceptance
+gates. High-refresh output is not yet implemented.
