@@ -17,6 +17,14 @@ explain it. A native clock replacement is under qualification and is not install
 in the delivered preview. See the [timing investigation](features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation)
 for measurements, experiments and the remaining acceptance work.
 
+## Character seams and lighting
+
+The local high-refresh candidate corrects reproduced terrain cracks caused by
+inconsistent interpolation of batches sharing a transform. Owner confirmation
+and broader character coverage are pending. The Original-mode joint and incorrect
+dark-lighting reports remain open. See
+[RENDER-002](development/issues/character-seams-lighting.md).
+
 ## High-refresh rendering
 
 The [high-refresh candidate](features/high-refresh-rendering.md) has RmlUi

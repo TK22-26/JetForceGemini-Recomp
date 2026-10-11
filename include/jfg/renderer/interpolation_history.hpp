@@ -63,7 +63,8 @@ inline bool continuous_presentation_motion(const PresentationMesh& old,
     return visible;
 }
 // One previous scene; no references into guest or RT64 ring-buffer storage.
-// Duplicate shapes, changed geometry, invalid cadence and jumps use endpoints.
+// Unique shapes anchor shared transforms. Ambiguous groups, invalid cadence
+// and jumps use endpoints.
 // This conservative prototype does not replace semantic actor identities.
 class PresentationHistory {
 public:
@@ -91,6 +92,39 @@ public:
                 continuous_presentation_motion(old->second, mesh))
                 result.transforms[i] = {old->second.matrix, true};
             next.emplace(mesh.key, mesh);
+        }
+        // A single F3DDKR matrix can feed many vertex batches. Matching or
+        // rejecting those batches independently tears their shared edges.
+        // One unambiguous shape anchors the whole current matrix; conflicting
+        // history or an unsafe batch holds every member at the endpoint.
+        struct Cohort {
+            PresentationMatrix previous{};
+            bool anchored = false;
+            bool blocked = false;
+        };
+        std::map<PresentationMatrix, Cohort> cohorts;
+        const auto finite_matrix = [](const PresentationMatrix& matrix) {
+            for (float value : matrix) if (!std::isfinite(value)) return false;
+            return true;
+        };
+        for (std::size_t i = 0; i < meshes.size(); ++i) {
+            const auto& mesh = meshes[i];
+            if (mesh.positions.empty() || !finite_matrix(mesh.matrix)) continue;
+            auto& cohort = cohorts[mesh.matrix];
+            cohort.blocked = cohort.blocked || !mesh.eligible;
+            if (result.transforms[i].matched) {
+                const auto& previous = result.transforms[i].previous;
+                if (cohort.anchored && cohort.previous != previous)
+                    cohort.blocked = true;
+                cohort.previous = previous;
+                cohort.anchored = true;
+            }
+        }
+        for (std::size_t i = 0; i < meshes.size(); ++i) {
+            const auto& mesh = meshes[i];
+            if (mesh.positions.empty() || !finite_matrix(mesh.matrix)) continue;
+            const auto& cohort = cohorts.at(mesh.matrix);
+            result.transforms[i] = {cohort.previous, cohort.anchored && !cohort.blocked};
         }
         previous_ = std::move(next);
         previous_delta_ = previous_tick_ == 0U ? 0U : delta;

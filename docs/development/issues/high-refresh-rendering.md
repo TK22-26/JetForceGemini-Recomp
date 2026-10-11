@@ -338,7 +338,7 @@ this job neither resets its counters nor authorizes further investigation.
 
 ## RmlUi design continuation (2026-10-11)
 
-Owner supplied `Child Â· Video settings-html.zip` and requested the newer RmlUi
+Owner supplied `Child Ã‚Â· Video settings-html.zip` and requested the newer RmlUi
 appearance in the separate settings window, plus verification of the restart
 chip. The native-controls implementation remains preserved at b39533a/3faa8c9.
 The original investigation resumes under another explicit three-hour window;
@@ -647,3 +647,10 @@ Read the operational ledger and `videoborders-progress.json` before any further
 autonomous work. Do not reset counters, reopen a shelved investigation, rename
 the work for a fresh allowance or execute directly after denial. The production
 guard stays enabled and all evidence is preserved.
+
+## Shared-transform tearing correction
+
+The Goldwood bridge exposed cracks when adjacent batches sharing a matrix used
+different interpolation decisions. The tested candidate makes their motion
+consistent; see [RENDER-002](character-seams-lighting.md) for cause, regression,
+muted replays, reference captures and the remaining lighting/Original reports.

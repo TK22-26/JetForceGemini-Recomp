@@ -4,7 +4,10 @@ The research branch provides an RmlUi Video Settings window and opt-in
 presentation interpolation while preserving the original guest clock. Custom
 targets and uncapped rendering exceed 360 presentations/s in a short replay
 fixture. This remains an unreleased candidate; sustained performance, broad scene
-coverage and owner playtesting are pending.
+coverage and owner playtesting are pending. Reproduced high-refresh terrain
+tearing is corrected in the tested local candidate. The owner's Original-mode
+joint and lighting reports remain open; see
+[RENDER-002](../development/issues/character-seams-lighting.md).
 
 ## Try it
 
@@ -44,7 +47,7 @@ malformed or unreadable configuration is reported. Navigation-mod launches share
 the main profile's video choices.
 
 The machine-local complete preview is
-`C:\JFG-builds\high-refresh-video-border-preview-20261011`. Its
+`C:\JFG-builds\high-refresh-coherent-preview-20261011`. Its
 `Play-Video-Settings.cmd` and desktop **JFG - High Refresh Preview** shortcut reuse
 the earlier isolated high-refresh preview profile, preserving its saves and video
 preferences (initially Custom 60 / VSync on). Close the currently running launcher first: the production launcher
@@ -69,7 +72,9 @@ Normal launcher sessions sanitize inherited diagnostics and forward the profile.
 ## What was implemented
 
 - Graphics tasks carry immutable guest VI timestamps and previous transform
-  snapshots. Unique, unchanged mesh geometry identifies conservative matches.
+  snapshots. Unique, unchanged mesh geometry anchors conservative matches. All
+  batches sharing one current matrix use the same interpolation or endpoint
+  fallback, avoiding cracks when culling changes individual batches.
 - Presentation interpolates combined matrices; authored matrices and RT64's
   native-resolution feedback remain unchanged. Count, VI, audio and input
   simulation clocks are not accelerated.
@@ -91,7 +96,7 @@ unchanged. Original mode remains available.
 
 Implementation commit: `5527611ea10b247dbb2df46ca1870a8d93d365f4`.
 
-The owner's `Child Â· Video settings-html.zip` design was translated into RML,
+The owner's `Child Ã‚Â· Video settings-html.zip` design was translated into RML,
 RCSS and native C++ events in the existing pinned RmlUi backend. No dependency
 upgrade, browser, React runtime or remote font loading is needed. The previous
 standard-controls dialog remains a fallback for builds without RmlUi.
