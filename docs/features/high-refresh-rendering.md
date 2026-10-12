@@ -245,3 +245,15 @@ guarantees. The longer outward/return lighting checks preserve native game state
 between Original and Custom. Lighting code is unchanged; the intermittent
 return-direction delay and Original-mode joint report remain open in
 [RENDER-002](../development/issues/character-seams-lighting.md).
+
+
+### 2026-10-12 character follow-up
+
+The reported thin thigh gaps remain open. Original and Custom 360/VSync preserve
+the same final game state in the modern-control replay. Dense geometry checks
+show the connected body held at the original animation pose in 215 observed
+frames, without separating shared vertices. Thus the current high output rate
+does not imply fully interpolated skin animation. This bounded result does not
+establish raster coverage parity or resolve the owner's exact pose. No new
+character fix or package was delivered; see the [issue's dense follow-up](../development/issues/character-seams-lighting.md#dense-thigh-follow-up-2026-10-12)
+and [aggregate evidence](../../evidence/high-refresh-character-seams-investigation.json).

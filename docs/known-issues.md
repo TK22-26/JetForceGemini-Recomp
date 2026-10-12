@@ -24,7 +24,10 @@ inconsistent interpolation of batches sharing a transform. Owner confirmation
 and broader character coverage are pending. The Original-mode joint and incorrect
 delayed lighting recovery reports remain open. A controlled return across the
 bridge matches the reference's visible lighting pattern, but the intermittent
-extra delay has not been isolated. See
+extra delay has not been isolated. Dense modern-route checks found no separating
+shared thigh vertices in 215 observed body frames; the specific see-through
+line still needs a marked current-build reproduction. This does not rule out
+raster coverage or other poses. See
 [RENDER-002](development/issues/character-seams-lighting.md).
 
 ## High-refresh rendering

@@ -1,7 +1,7 @@
 # RENDER-002: Character/terrain seams and incorrect character lighting
 
 Status: **high-refresh tearing corrected in a tested local candidate; Original-mode
-joint and lighting reports open; owner confirmation pending** (2026-10-11).
+thigh-joint and lighting reports open; owner confirmation pending** (2026-10-12).
 Severity: major visual fidelity problem; gameplay impact unconfirmed.
 
 ## Report and reproduction
@@ -184,3 +184,112 @@ Private evidence: `lighting-exit/native-result.json`, `lighting-exit-emulator`,
 Aggregate public results remain in the linked transform-coherence evidence.
 Lesson: distinguish an authored spatial lighting boundary from delayed recovery,
 and compare the reported crossing direction before changing brightness or timing.
+
+## Continued character-joint investigation
+
+The owner renewed a three-hour investigation window and clarified that the
+noticeable gaps are around Juno's **thighs**. Focus the next comparisons on the
+thigh/hip joins through a running cycle in Original and high-refresh modes,
+with the original-game reference. The earlier terrain correction is retained.
+Distinguish authored mesh separation, raster coverage/precision and interpolation
+of independently moving body pieces. No cause or new fix is established yet.
+
+The production guard remains enabled on the same investigation and root, with
+thirteen prior attempts/activities and 14832.39721751213 seconds retained.
+Existing limits are unchanged (18 attempts/activities, 43200 seconds); the owner
+approval bounds this continuation to three hours. All tests start muted, use
+copied saves/profiles, and run through the guarded supervisor. Receipt:
+`owner-character-seams-3hours.json`.
+
+
+The owner further clarified the thigh symptom as "a see thru thin line between
+parts". Dense muted runs now retain 116 native captures per mode, plus 176 Ares64
+reference frames. Original and Custom preserve identical final guest/render/save
+data at 640x480 and 1280x960. The initial topology view shows connected thigh
+surfaces; exact-coincident vertex checks found no newly separating shared points
+in the sampled intermediate poses. This does not cover near-coincident edges,
+overlapping separate body pieces, every phase, or GPU raster coverage.
+
+The temporary MSAA4 experiment completed but changed guest and renderer memory
+hashes, failing the full-memory comparison assertion; it is not a qualified fix.
+The diagnostic history-dump build initially failed from escaped newline syntax;
+the corrected v2 run passed. An initial analysis of the failed run had no input
+snapshots and is invalid evidence; v2 explicitly requires all 17 snapshots.
+All failed receipts are retained. The delivered preview remains unchanged.
+
+
+Additional bounded checks do not establish a thigh remedy. In the inspected
+high-refresh samples, pelvis and leg matrices are held at the current pose;
+only gun/hand groups interpolate. Disabling back-face culling did not expose a
+missing thigh strip in inspected comparisons. Corrected draw-call indexing
+shows opaque sampled thigh materials and alpha 255; the earlier uninitialized
+call-offset dump is invalid for material conclusions. Its replacement's first
+assertion wrongly required visible actor materials even in off-screen samples;
+the corrected qualification records observed and empty frames separately.
+
+The earlier routes used the legacy controller path. A further 4,500-VI pair
+exercises modern keyboard/shoulder handling (replay mode 3, modern flag 0x80),
+confirmed by pc-shoulder and modern-actions trace events. It includes forward
+movement, stopping, reverse input and idle. This is better camera coverage,
+not proof of the owner's exact route. The owner is unsure whether the thin
+thigh lines persist when standing still. All runs remain muted and isolated.
+
+Private evidence: character-body-motion, character-no-cull,
+character-owner-window-v2, character-modern-camera, character-modern-geometry.
+Two instrumentation scripts failed on Python quoting/slicing before replay;
+corrected v2 receipts are preserved alongside failures. No new remedy shipped.
+
+
+## Dense thigh follow-up, 2026-10-12
+
+No new character-thigh fix has been established. The modern Original/VSync and
+Custom 360/VSync replays each retain 200 captures and end with identical guest
+RDRAM, renderer snapshot and save. A denser modern run records 430 workload
+snapshots: 215 contain the connected body geometry and 215 do not. In all 215
+observed body frames, the connected skin transforms are held at the original
+pose. No separating shared vertices are found at the midpoint of presentation
+interpolation. Near-coincident boundary pairs in eight frames are around the
+head/neck, not demonstrated thigh holes, and do not open during interpolation.
+
+The sampled hip/thigh/knee surface topology is connected. This is a CPU geometry
+check, not proof of GPU raster coverage, reference pixel parity or absence of the
+owner's reported line. Captured running, stopping, turning and idle views have
+not isolated that specific see-through thigh line. A marked close-up or short
+recording from the current preview is the next useful reproduction evidence.
+Check both the hip and knee joins; the owner could not confirm whether standing
+still retains the line. Do not adjust bone size, stitch nearby unrelated vertices
+or change global culling/brightness without identifying the affected pixels.
+
+The last recorded owner-profile runtime still names the older border-UI preview
+at 2026-10-11 21:22:08 UTC. The desktop shortcut was updated to the coherence
+package at 21:57:32 UTC. This does not prove which build the owner has observed,
+but it supplies no confirmation of a fresh run of the corrected package. The
+managed launcher resolves its own package on both initialization and Play,
+so a fully closed/reopened **JFG - High Refresh Preview** selects the corrected
+runtime. No personal profile entry was edited during this investigation.
+
+All temporary capture/history/material/AA instrumentation is now removed;
+renderer and native-boot source match the existing commit. The clean executable
+was rebuilt and completed a muted 4,500-VI modern Custom 360/VSync replay with
+the same final guest/renderer/save hashes as the diagnostic pair. All fourteen
+delivered package entries were hash/size verified. The desktop package remains
+the previously qualified executable; no experimental culling or AA change was
+delivered. A leftover diagnostic AA hook caused by nested script variable reuse
+was found and removed before that clean rebuild. It was never packaged.
+
+The aggregate [character investigation evidence](../../../evidence/high-refresh-character-seams-investigation.json)
+records coverage, failed/invalid diagnostics and clean-build qualification.
+Detailed private receipts are in `character-dense-skin`, `character-dense-analysis`
+and `character-clean-qualification`. Earlier files remain preserved, including
+the invalid empty analyses; only corrected, nonempty observations support the
+conclusions above. The production guard stayed enabled on the same investigation
+and root with all prior charges retained.
+
+Transferable lessons: a modern-enabled profile alone does not activate modern
+handling in a legacy replay; verify replay mode, modern flags and runtime trace.
+Separate guest geometry from presented pixels, require actual observed frames in
+analysis, and distinguish the last launched runtime from an updated shortcut.
+The conservative high-refresh matcher currently holds connected skin at the
+original animation rate in this route. Higher output FPS is not a claim that
+all actor animation has been interpolated. Lighting recovery remains open and
+was not changed by these thigh checks.
