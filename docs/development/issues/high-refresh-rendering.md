@@ -338,7 +338,7 @@ this job neither resets its counters nor authorizes further investigation.
 
 ## RmlUi design continuation (2026-10-11)
 
-Owner supplied `Child Ã‚Â· Video settings-html.zip` and requested the newer RmlUi
+Owner supplied `Child Ãƒâ€šÃ‚Â· Video settings-html.zip` and requested the newer RmlUi
 appearance in the separate settings window, plus verification of the restart
 chip. The native-controls implementation remains preserved at b39533a/3faa8c9.
 The original investigation resumes under another explicit three-hour window;
@@ -654,3 +654,14 @@ The Goldwood bridge exposed cracks when adjacent batches sharing a matrix used
 different interpolation decisions. The tested candidate makes their motion
 consistent; see [RENDER-002](character-seams-lighting.md) for cause, regression,
 muted replays, reference captures and the remaining lighting/Original reports.
+
+
+## Presentation pacing and diagnostics follow-up
+
+[PERF-002](frame-diagnostics.md) records the owner's F8-off stutter result,
+misleading GAME label, baseline 20-Hz source cadence, normal 30/20 transition
+interpolation and verified correction for replaying completed image sequences.
+The final candidate retains a paced repeat window and uses alternating GPU
+intermediate-target banks. Its 120/360 output timing and original scene progression
+pass the muted fixture; Unlimited saturation and owner live confirmation remain
+limits. The former UI-only status is not broad high-refresh acceptance.

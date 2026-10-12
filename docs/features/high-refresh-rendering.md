@@ -47,7 +47,7 @@ malformed or unreadable configuration is reported. Navigation-mod launches share
 the main profile's video choices.
 
 The machine-local complete preview is
-`C:\JFG-builds\high-refresh-coherent-preview-20261011`. Its
+`C:\JFG-builds\high-refresh-diagnostics-v2-preview-20261012`. Its
 `Play-Video-Settings.cmd` and desktop **JFG - High Refresh Preview** shortcut reuse
 the earlier isolated high-refresh preview profile, preserving its saves and video
 preferences (initially Custom 60 / VSync on). Close the currently running launcher first: the production launcher
@@ -78,8 +78,12 @@ Normal launcher sessions sanitize inherited diagnostics and forward the profile.
 - Presentation interpolates combined matrices; authored matrices and RT64's
   native-resolution feedback remain unchanged. Count, VI, audio and input
   simulation clocks are not accelerated.
-- Shadow-only submissions retain scene history. Ambiguous geometry, irregular
-  cadence, camera-plane crossings and large projected motion use endpoints.
+- Shadow-only submissions and ordinary 30/20 Hz cadence changes retain scene
+  history. Ambiguous geometry, other irregular cadence, camera-plane crossings
+  and large projected motion use endpoints.
+- Completed finite sequences repeat their latest image through the paced output
+  window. Alternating GPU target banks prevent the next sequence overwriting
+  those images, at roughly twice the intermediate-target storage.
 - Custom uses a paced target. Unlimited with VSync off samples monotonic time
   within each source-frame window and reuses two synchronized render targets.
   A later VI repeats the latest completed image once, never overwritten history.
@@ -96,7 +100,7 @@ unchanged. Original mode remains available.
 
 Implementation commit: `5527611ea10b247dbb2df46ca1870a8d93d365f4`.
 
-The owner's `Child Ãƒâ€šÃ‚Â· Video settings-html.zip` design was translated into RML,
+The owner's `Child ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Video settings-html.zip` design was translated into RML,
 RCSS and native C++ events in the existing pinned RmlUi backend. No dependency
 upgrade, browser, React runtime or remote font loading is needed. The previous
 standard-controls dialog remains a fallback for builds without RmlUi.
@@ -261,15 +265,26 @@ and [aggregate evidence](../../evidence/high-refresh-character-seams-investigati
 
 ### FPS counter and slowdown logs
 
-The current local preview shows **FPS**, average **MS**, **GAME** scene rate,
-and worst **MAX** interval in the upper right. **F8** toggles both the counter
-and recording while the game has focus. Diagnostics start enabled in the preview;
-this shortcut does not change audio, saves or video rate preferences.
+The upper-right counter shows **OUTPUT** (including generated/repeated images),
+**SCENES** (new screen-scene submissions), mean **MS** and worst **MAX** interval.
+High-refresh output explicitly says **INTERPOLATED / REPEATED**. Neither rate
+measures physical monitor scanout or simulation ticks. Source scenes also drop
+to 20 Hz in the pre-logging build; 120 outputs do not mean 120 unique game poses.
 
-Reproduce the slowdown, stop the game, and open **JFG - Performance Logs** on
-the desktop. Share the CSV files with the newest common session prefix. Raw
-frame intervals, scene counts/age and VI ticks distinguish output stalls from
-slower scene updates; FPS is rendered output, not monitor scanout. Logging uses
-a bounded queue and background writer, with four rotating 16 MiB files per
-session. Existing sessions are retained. See [PERF-002](../development/issues/frame-diagnostics.md)
-for limitations and validation. No slowdown remedy is claimed.
+**F8** toggles the counter and CSV recording while the game has focus. Diagnostics
+start enabled in this preview. For logging without drawing, add `overlay=0` to
+`performance.ini` beside `video.ini` and restart the game. Removing it restores
+the counter. Stop the game after reproducing a slowdown, then open the desktop
+**JFG - Performance Logs** shortcut and share the newest session's CSV files.
+The bounded background writer retains four rotating 16 MiB segments per session;
+previous sessions stay until removed by the owner.
+
+The revised counter draws one cached texture. The renderer also corrects
+completed-sequence rewinds and interpolation dropouts at normal 30/20 Hz changes.
+Muted 120/360 capped tests improve frame pacing while retaining original game
+progression. Original, VSync, Unlimited, log-only and maximum-cap checks are
+recorded in [PERF-002](../development/issues/frame-diagnostics.md). Unlimited can
+still reduce source-scene throughput slightly under saturation; high output FPS
+alone does not qualify it. Current desktop VSync is tested at detected 60 Hz.
+Owner confirmation of the reported stutter is pending, as are broader scenes,
+complete actor interpolation and the separate joints/lighting reports.

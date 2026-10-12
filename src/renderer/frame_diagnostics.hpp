@@ -1,10 +1,15 @@
 #pragma once
 #include "jfg/renderer/frame_diagnostics_state.hpp"
 #include "common/rt64_plume.h"
+#include "render/rt64_descriptor_sets.h"
+#include "render/rt64_shader_library.h"
+#include "shared/rt64_video_interface.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstdio>
+#include <cstring>
+#include <memory>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -28,10 +33,17 @@ class FrameDiagnostics {
     std::filesystem::path directory;
     std::string stem, settings;
     HWND window = nullptr;
-    bool enabled = false, key_down = false;
+    bool enabled = false, key_down = false, overlay = true;
     std::uint64_t start = 0, last = 0, frame = 0, dropped = 0;
     std::uint64_t window_start = 0, window_frames = 0, window_scenes = 0, max_us = 0;
-    double fps = 0, game_fps = 0, ms = 0, maximum_ms = 0;
+    double fps = 0, scene_fps = 0, ms = 0, maximum_ms = 0;
+    bool generated_output = false;
+    static constexpr unsigned panel_width = 168, panel_height = 53, row_pitch = 768;
+    std::unique_ptr<RenderTexture> panel_texture;
+    std::unique_ptr<RenderBuffer> panel_upload;
+    std::unique_ptr<RT64::VideoInterfaceDescriptorSet> panel_descriptor;
+    std::array<std::array<char,64>,5> cached_lines{};
+    bool panel_valid = false;
     static std::array<unsigned,7> glyph(char c) noexcept {
         switch(c) {
         case '0':return {14,17,19,21,25,17,14}; case '1':return {4,12,4,4,4,4,14};
@@ -40,6 +52,9 @@ class FrameDiagnostics {
         case '6':return {14,16,16,30,17,17,14}; case '7':return {31,1,2,4,8,8,8};
         case '8':return {14,17,17,14,17,17,14}; case '9':return {14,17,17,15,1,1,14};
         case 'A':return {14,17,17,31,17,17,17}; case 'E':return {31,16,16,30,16,16,31};
+        case 'B':return {30,17,17,30,17,17,30}; case 'C':return {14,17,16,16,16,17,14};
+        case 'D':return {30,17,17,17,17,17,30}; case 'H':return {17,17,17,31,17,17,17};
+        case 'U':return {17,17,17,17,17,17,14}; case '/':return {1,1,2,4,8,16,16};
         case 'F':return {31,16,16,30,16,16,16}; case 'G':return {14,17,16,23,17,17,15};
         case 'I':return {14,4,4,4,4,4,14}; case 'L':return {16,16,16,16,16,16,31};
         case 'M':return {17,27,21,21,17,17,17}; case 'N':return {17,25,25,21,19,19,17};
@@ -69,7 +84,7 @@ class FrameDiagnostics {
                         file.open(directory/(stem+"-"+std::to_string(segment%4)+".csv"),std::ios::binary|std::ios::trunc);
                         if (!file) { failed.store(true); return; }
                         file << "# JFG frame diagnostics schema 1; render-hook intervals, not monitor scanout\n"
-                             << "# GAME counts screen-scene submissions; excludes 64x64 shadows\n"
+                             << "# SCENES counts screen-scene submissions, not simulation ticks; excludes 64x64 shadows\n"
                              << "# " << settings << "\n"
                              << "# Four rotating 16 MiB segments; queue overflow counted, never blocks rendering\n"
                              << "elapsed_us,render_frame,interval_us,scene_frames,scene_age_us,vi,queue_dropped\n";
@@ -94,21 +109,29 @@ public:
     ~FrameDiagnostics() { stopping.store(true,std::memory_order_release); if(writer.joinable())writer.join(); }
     void initialize(void* native_window, unsigned cap, bool unlimited, bool vsync) {
         window=static_cast<HWND>(native_window);
+        generated_output=cap!=0 || unlimited;
         wchar_t* value=nullptr; std::size_t length=0;
         (void)_wdupenv_s(&value,&length,L"JFG_VIDEO_CONFIG");
         auto profile=value ? std::filesystem::path(value).parent_path() : std::filesystem::current_path();
         std::free(value);
         directory=profile/L"performance";
         std::ifstream preferences(profile/L"performance.ini");std::string line;
-        while(std::getline(preferences,line))if(line=="enabled=1" || line=="enabled=1\r")enabled=true;
+        while(std::getline(preferences,line)) { if(!line.empty() && line.back()=='\r')line.pop_back(); if(line=="enabled=1")enabled=true; if(line=="overlay=0")overlay=false; }
         SYSTEMTIME utc{};GetSystemTime(&utc);char name[96]{};
         std::snprintf(name,sizeof(name),"frames-%04u%02u%02u-%02u%02u%02u-%lu",static_cast<unsigned>(utc.wYear),static_cast<unsigned>(utc.wMonth),static_cast<unsigned>(utc.wDay),static_cast<unsigned>(utc.wHour),static_cast<unsigned>(utc.wMinute),static_cast<unsigned>(utc.wSecond),GetCurrentProcessId());
         stem=name;settings="mode="+std::string(unlimited?"unlimited":cap?"custom":"original")+" target="+std::to_string(cap)+" vsync="+(vsync?"1":"0");
+        settings += std::string(" overlay=")+(overlay?"1":"0")+" overlay_renderer=cached-texture";
         start=frame_clock_us();
         auto& state=frame_diagnostic_state();state.scenes=0;state.scene_time=0;state.vi=0;
         writer=std::thread([this]{write_loop();});
     }
-    void draw(RenderCommandList* list,unsigned width,unsigned height) {
+    // RT64 destroys the present queue (and waits for its GPU work) before this
+    // hook. Release descriptors/resources while its device still exists.
+    void release_graphics() noexcept {
+        panel_descriptor.reset(); panel_upload.reset(); panel_texture.reset(); panel_valid=false;
+    }
+    void draw(RenderCommandList* list,unsigned width,unsigned height,
+              RenderDevice* device,const RT64::ShaderLibrary* shaders) {
         if(!list || width<100 || height<80)return;
         const bool focused=window && GetAncestor(window,GA_ROOT)==GetForegroundWindow();
         const bool down=focused && (GetAsyncKeyState(VK_F8)&0x8000)!=0;
@@ -123,7 +146,7 @@ public:
         max_us=(std::max)(max_us,interval);
         if(now-window_start>=500000){
             const double seconds=static_cast<double>(now-window_start)/1000000.;
-            fps=static_cast<double>(window_frames)/seconds;game_fps=static_cast<double>(scenes-window_scenes)/seconds;
+            fps=static_cast<double>(window_frames)/seconds;scene_fps=static_cast<double>(scenes-window_scenes)/seconds;
             ms=window_frames?static_cast<double>(now-window_start)/static_cast<double>(window_frames)/1000.:0;
             maximum_ms=static_cast<double>(max_us)/1000.;window_start=now;window_frames=0;window_scenes=scenes;max_us=0;
         }
@@ -132,36 +155,66 @@ public:
             queue[write]={now-start,frame,interval,scenes,scene_time && now>=scene_time?now-scene_time:0,state.vi.load(std::memory_order_relaxed),dropped};
             head.store(next,std::memory_order_release);
         }else ++dropped;
-        std::array<std::array<char,64>,3> lines{};
-        std::snprintf(lines[0].data(),lines[0].size(),"FPS %.1f  MS %.1f",fps,ms);
-        std::snprintf(lines[1].data(),lines[1].size(),"GAME %.1f MAX %.1f",game_fps,maximum_ms);
-        std::snprintf(lines[2].data(),lines[2].size(),"LOG %s  F8 TOGGLE",failed.load()?"ERROR":dropped?"GAPS":"ON");
-        const int scale=width>=480?2:1;const int panel=22*6*scale+12;const int left=static_cast<int>(width)-panel-8;
-        const RenderRect background(left,8,static_cast<int>(width)-8,8+27*scale+12);
-        list->clearColor(0U,RenderColor(0.02f,0.03f,0.05f,1.f),&background,1U);
-        std::vector<RenderRect> pixels;pixels.reserve(1200);
-        for(std::size_t row=0;row<lines.size();++row){
-            int x=left+6;const int y=14+static_cast<int>(row)*9*scale;
-            for(char c:lines[row]){
-                if(!c)break;if(x+5*scale>=static_cast<int>(width)-10)break;
-                const auto bitmap=glyph(c);
-                for(int dy=0;dy<7;++dy)for(int dx=0;dx<5;++dx)if(bitmap[static_cast<std::size_t>(dy)]&(1U<<(4-dx)))pixels.emplace_back(x+dx*scale,y+dy*scale,x+(dx+1)*scale,y+(dy+1)*scale);
-                x+=6*scale;
+        if(!overlay)return;
+        if(!device || !shaders || width<200 || height<140)return;
+        std::array<std::array<char,64>,5> lines{};
+        std::snprintf(lines[0].data(),lines[0].size(),"OUTPUT %.1f FPS",fps);
+        std::snprintf(lines[1].data(),lines[1].size(),"SCENES %.1f FPS",scene_fps);
+        std::snprintf(lines[2].data(),lines[2].size(),"MS %.1f MAX %.1f",ms,maximum_ms);
+        std::snprintf(lines[3].data(),lines[3].size(),"%s",generated_output?"INTERPOLATED / REPEATED":"ORIGINAL PRESENTATION");
+        std::snprintf(lines[4].data(),lines[4].size(),"LOG %s  F8 TOGGLE",failed.load()?"ERROR":dropped?"GAPS":"ON");
+        if(!panel_texture) {
+            panel_texture=device->createTexture(RenderTextureDesc::Texture2D(panel_width,panel_height,1,RenderFormat::R8G8B8A8_UNORM));
+            panel_upload=device->createBuffer(RenderBufferDesc::UploadBuffer(row_pitch*panel_height));
+            panel_descriptor=std::make_unique<RT64::VideoInterfaceDescriptorSet>(shaders->samplerLibrary.nearest.borderBorder.get(),device);
+            if(!panel_texture || !panel_upload || !panel_descriptor) { release_graphics();return; }
+            panel_descriptor->setTexture(panel_descriptor->gInput,panel_texture.get(),RenderTextureLayout::SHADER_READ);
+        }
+        if(!panel_valid || lines!=cached_lines) {
+            // The present worker waits for the preceding frame's GPU fence
+            // before invoking this hook again, so reusing the upload is safe.
+            auto* pixels=static_cast<std::uint32_t*>(panel_upload->map());
+            if(!pixels)return;
+            std::fill_n(pixels,(row_pitch/4)*panel_height,0xFF0D0805U);
+            for(std::size_t row=0;row<lines.size();++row) {
+                unsigned x=4;const unsigned y=4+static_cast<unsigned>(row)*9;
+                for(char c:lines[row]) {
+                    if(!c || x+5>=panel_width)break;
+                    const auto bitmap=glyph(c);
+                    for(unsigned dy=0;dy<7;++dy)for(unsigned dx=0;dx<5;++dx)
+                        if(bitmap[dy]&(1U<<(4-dx)))pixels[(y+dy)*(row_pitch/4)+x+dx]=0xFFD9F2F2U;
+                    x+=6;
+                }
             }
+            panel_upload->unmap();
+            list->barriers(RenderBarrierStage::COPY,RenderTextureBarrier(panel_texture.get(),RenderTextureLayout::COPY_DEST));
+            list->copyTextureRegion(RenderTextureCopyLocation::Subresource(panel_texture.get()),
+                RenderTextureCopyLocation::PlacedFootprint(panel_upload.get(),RenderFormat::R8G8B8A8_UNORM,panel_width,panel_height,1,row_pitch/4));
+            list->barriers(RenderBarrierStage::GRAPHICS,RenderTextureBarrier(panel_texture.get(),RenderTextureLayout::SHADER_READ));
+            cached_lines=lines;panel_valid=true;
         }
-        // Keep clear batches small: the tested NVIDIA driver fast-failed on
-        // a single very large rectangle array. No dependency modification.
-        for(std::size_t i=0;i<pixels.size();i+=16) {
-            const auto count=static_cast<std::uint32_t>((std::min)(std::size_t{16},pixels.size()-i));
-            list->clearColor(0U,RenderColor(0.95f,0.95f,0.85f,1.f),pixels.data()+i,count);
-        }
+        const unsigned scale=width>=480?2U:1U;
+        const int left=static_cast<int>(width-panel_width*scale-8);
+        list->setViewports(RenderViewport(static_cast<float>(left),8.f,static_cast<float>(panel_width*scale),static_cast<float>(panel_height*scale)));
+        list->setScissors(RenderRect(left,8,static_cast<int>(width)-8,static_cast<int>(8+panel_height*scale)));
+        const auto& shader=shaders->videoInterfaceNearest;
+        interop::VideoInterfaceCB constants{};
+        constants.videoResolution={float(panel_width),float(panel_height)};
+        constants.textureResolution=constants.videoResolution;constants.gamma=1.f;
+        list->setPipeline(shader.pipeline.get());
+        list->setGraphicsPipelineLayout(shader.pipelineLayout.get());
+        list->setGraphicsDescriptorSet(panel_descriptor->get(),0);
+        list->setGraphicsPushConstants(0,&constants);
+        list->setVertexBuffers(0,nullptr,0,nullptr);
+        list->drawInstanced(3,1,0,0);
     }
 };
 #else
 class FrameDiagnostics {
 public:
     void initialize(void*, unsigned, bool, bool) {}
-    void draw(RenderCommandList*, unsigned, unsigned) {}
+    void release_graphics() noexcept {}
+    void draw(RenderCommandList*, unsigned, unsigned, RenderDevice*, const RT64::ShaderLibrary*) {}
 };
 #endif
 } // namespace jfg

@@ -65,5 +65,25 @@ int main() {
     right.matrix[12]=left.matrix[12]=0.1f;
     const auto ambiguous=conflict.record({left,right},102,true);
     require(!ambiguous.transforms[0].matched && !ambiguous.transforms[1].matched);
+    // A changing 30/20 Hz cadence is valid motion. Shadow submissions do
+    // not consume the scene's previous timestamp; cuts still reject it.
+    jfg::PresentationHistory variable;
+    auto moving=a;
+    variable.record({moving},100,true);
+    moving.matrix[12]=0.05f;
+    require(variable.record({moving},102,true).source_rate==30);
+    variable.record({},103,false);
+    moving.matrix[12]=0.10f;
+    const auto slower=variable.record({moving},105,true);
+    require(slower.source_rate==20 && slower.transforms[0].matched);
+    require(slower.transforms[0].previous[12]==0.05f);
+    moving.matrix[12]=0.15f;
+    const auto faster=variable.record({moving},107,true);
+    require(faster.source_rate==30 && faster.transforms[0].matched);
+    require(faster.transforms[0].previous[12]==0.10f);
+    moving.matrix[12]=1.0f;
+    require(!variable.record({moving},110,true).transforms[0].matched);
+    require(!variable.record({moving},114,true).transforms[0].matched);
+    require(variable.record({moving},118,true).source_rate==15);
     return 0;
 }

@@ -59,7 +59,7 @@ function(jfg_video_patch_workload)
     jfg_video_replace([=[                            overrideTarget = interpolatedTargets[targetIndex].get();
                             overrideModifier = (targetIndex + 1);
 
-                            if (useDifferentCounters && (prevFrameCounters.available > 0) && (targetIndex < prevFrameCounters.available)) {]=] [=[                            const uint32_t storageIndex = jfgUnlimited ? (targetIndex % jfg::kPresentationRingSize) : targetIndex;
+                            if (useDifferentCounters && (prevFrameCounters.available > 0) && (targetIndex < prevFrameCounters.available)) {]=] [=[                            const uint32_t storageIndex = jfgUnlimited ? (targetIndex % jfg::kPresentationRingSize) : (targetIndex * 2U + jfgTargetBank);
                             overrideTarget = interpolatedTargets[storageIndex].get();
                             overrideModifier = (storageIndex + 1);
 
@@ -85,37 +85,82 @@ function(jfg_video_patch_workload)
     jfg_video_replace([=[                        if (skipWorkloadNow) {
                             displayTicks += workload.viOriginalRate * (displayFrames - (frame + 1));]=] [=[                        if (skipWorkloadNow && !jfgUnlimited) {
                             displayTicks += workload.viOriginalRate * (displayFrames - (frame + 1));]=])
+    jfg_video_replace([=[                if ((requiredFrames > 0) && (interpolatedTargets.size() < requiredFrames)) {
+                    uint32_t previousSize = uint32_t(interpolatedTargets.size());
+                    interpolatedTargets.resize(requiredFrames);
+                    for (uint32_t i = previousSize; i < requiredFrames; i++) {
+                        interpolatedTargets[i] = std::make_unique<RenderTarget>(interpolationTargetKey.address, Framebuffer::Type::Color, RenderMultisampling(), usesHDR);
+                    }
+                }]=] [=[                // Finite sequences have separate alternating banks. A new
+                // sequence must not wait for, or overwrite, the previous one.
+                const uint32_t jfgTargetBank = ext.sharedResources->interpolatedFramesIndex;
+                const uint32_t storageFrames = jfgUnlimited ? requiredFrames : requiredFrames * 2U;
+                {
+                    // The consumer reads this vector under the same mutex.
+                    // Growing it during a cadence change must not race a lookup.
+                    std::scoped_lock<std::mutex> targetsLock(ext.sharedResources->interpolatedMutex);
+                    if (interpolatedTargets.size() < storageFrames)
+                        interpolatedTargets.resize(storageFrames);
+                    for (uint32_t i = 0; i < requiredFrames; ++i) {
+                        const uint32_t slot = jfgUnlimited ? i : i * 2U + jfgTargetBank;
+                        if (!interpolatedTargets[slot])
+                            interpolatedTargets[slot] = std::make_unique<RenderTarget>(interpolationTargetKey.address, Framebuffer::Type::Color, RenderMultisampling(), usesHDR);
+                    }
+                }]=])
+    jfg_video_replace([=[                            else if (useDifferentCounters && (prevFrameCounters.available > 0) && (targetIndex < prevFrameCounters.available)) {
+                                // Wait until the target has finished presenting if the alternate frame counter (used by the present queue) is making use of this target.
+                                std::unique_lock<std::mutex> interpolatedLock(ext.sharedResources->interpolatedMutex);
+                                ext.sharedResources->interpolatedCondition.wait(interpolatedLock, [&]() {
+                                    frameReduction = frameReduction || (prevFrameCounters.presented <= targetIndex);
+                                    return prevFrameCounters.presented > targetIndex;
+                                });
+                            }]=] [=[                            // Capped frames use the other bank, so they do not
+                            // need the old cross-sequence target-reuse wait.]=])
     set(contents "${contents}" PARENT_SCOPE)
 endfunction()
 
 function(jfg_video_patch_present)
+    jfg_video_replace([=[        bool lockedWorkloadMutex = false;
+        InterpolatedFrameCounters &frameCounters = ext.sharedResources->interpolatedFrames[ext.sharedResources->interpolatedFramesIndex];]=] [=[        bool lockedWorkloadMutex = false;
+        const uint32_t jfgTargetBank = ext.sharedResources->interpolatedFramesIndex;
+        InterpolatedFrameCounters &frameCounters = ext.sharedResources->interpolatedFrames[jfgTargetBank];]=])
     jfg_video_replace([=[        int32_t framesToPresent = 1;]=] [=[        int32_t framesToPresent = 1;
-        bool jfgRepeatUnlimited = false;
+        bool jfgRepeatCompleted = false;
         bool jfgRepeatHasTarget = false;
         uint32_t jfgRepeatTarget = 0;]=])
     jfg_video_replace([=[                if (presentFb->interpolationEnabled) {
                     framesToPresent = frameCounters.count;
                 }]=] [=[                if (presentFb->interpolationEnabled) {
                     std::scoped_lock<std::mutex> lock(ext.sharedResources->interpolatedMutex);
-                    jfgRepeatUnlimited = frameCounters.count == jfg::kUnlimitedPresentation &&
+                    jfgRepeatCompleted = frameCounters.count > 1U &&
                         frameCounters.presented >= frameCounters.count;
-                    if (jfgRepeatUnlimited) {
-                        // A later VI can refer to this completed source frame. Its
-                        // ring contains only the last two images, not its full history.
-                        // Repeat the latest image once; never replay overwritten slots.
+                    if (jfgRepeatCompleted) {
+                        // A later VI can refer to an already consumed scene.
+                        // Replaying its old sequence rewinds motion at capped rates;
+                        // the unlimited ring additionally overwrites old slots.
+                        // Repeat the latest image, never restart old motion.
+                        // Keep the finite output window: one output per VI would
+                        // leave idle gaps between source submissions at high caps.
+                        if (frameCounters.count != jfg::kUnlimitedPresentation)
+                            framesToPresent = frameCounters.count;
                         jfgRepeatHasTarget = frameCounters.available > 0;
                         jfgRepeatTarget = jfgRepeatHasTarget ?
-                            ((frameCounters.available - 1) % jfg::kPresentationRingSize) : 0;
+                            (frameCounters.count == jfg::kUnlimitedPresentation ?
+                                ((frameCounters.available - 1) % jfg::kPresentationRingSize) :
+                                ((frameCounters.available - 1) * 2U + jfgTargetBank)) : 0;
+                        jfg::trace_interpolation("repeat", present.presentId, viOriginalRate,
+                            targetRate, jfgRepeatTarget, frameCounters.count, 1.0f, 0U, 0U);
                     }
                     else framesToPresent = frameCounters.count;
                 }]=])
-    jfg_video_replace([=[                RenderTargetKey colorTargetKey(presentFb->addressStart, presentFb->width, presentFb->siz, Framebuffer::Type::Color);]=] [=[                if (jfgRepeatUnlimited) {
+    jfg_video_replace([=[                RenderTargetKey colorTargetKey(presentFb->addressStart, presentFb->width, presentFb->siz, Framebuffer::Type::Color);]=] [=[                if (jfgRepeatCompleted) {
                     lockedWorkloadMutex = true;
                     ext.sharedResources->workloadMutex.lock();
                 }
                 RenderTargetKey colorTargetKey(presentFb->addressStart, presentFb->width, presentFb->siz, Framebuffer::Type::Color);]=])
     jfg_video_replace([=[                if (!present.paused && (viHistory.top().vi != present.screenVI)) {
                     viHistory.pushVI(present.screenVI, viFb->width);]=] [=[                if (jfgRepeatHasTarget) {
+                    std::scoped_lock<std::mutex> targetsLock(ext.sharedResources->interpolatedMutex);
                     colorTarget = ext.sharedResources->interpolatedColorTargets[jfgRepeatTarget].get();
                 }
                 if (!present.paused && (viHistory.top().vi != present.screenVI)) {
@@ -125,7 +170,14 @@ function(jfg_video_patch_present)
     jfg_video_replace([=[                if ((presentTimestamp != Timestamp()) && (targetRate > 0) && (targetRate > viOriginalRate)) {]=] [=[                if (!jfg::presentation_unlimited() && (presentTimestamp != Timestamp()) && (targetRate > 0) && (targetRate > viOriginalRate)) {]=])
     jfg_video_replace([=[                if (presentWaitEnabled) {]=] [=[                if (presentWaitEnabled && jfg::presentation_vsync()) {]=])
     jfg_video_replace([=[                    colorTarget = ext.sharedResources->interpolatedColorTargets[targetIndex].get();]=] [=[                    const bool jfgUnlimited = frameCounters.count == jfg::kUnlimitedPresentation;
-                    const uint32_t storageIndex = jfgUnlimited ? (targetIndex % jfg::kPresentationRingSize) : targetIndex;
+                    const uint32_t storageIndex = jfgUnlimited ? (targetIndex % jfg::kPresentationRingSize) : (targetIndex * 2U + jfgTargetBank);
                     colorTarget = ext.sharedResources->interpolatedColorTargets[storageIndex].get();]=])
+    jfg_video_replace([=[            uint32_t swapChainIndex = 0;]=] [=[            // available/presented normally count only extra targets, whereas
+            // count includes the base frame. Mark the whole sequence consumed
+            // after its final output so the next VI cannot start it again.
+            if (framesToPresent > 1 && i + 1 == framesToPresent)
+                frameCountersNextPresented = frameCounters.count;
+            uint32_t swapChainIndex = 0;]=])
+    jfg_video_replace([=[            if ((framesToPresent > 1) && (usingMSAA || (i > 0))) {]=] [=[            if (!jfgRepeatCompleted && (framesToPresent > 1) && (usingMSAA || (i > 0))) {]=])
     set(contents "${contents}" PARENT_SCOPE)
 endfunction()

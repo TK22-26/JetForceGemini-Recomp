@@ -76,8 +76,15 @@ public:
         result.transforms.resize(meshes.size());
         if (!scene) return result;
         const auto delta = tick > previous_tick_ ? tick - previous_tick_ : 0U;
+        // JFG alternates two- and three-VI scene intervals during ordinary
+        // gameplay. Those are valid 30/20 Hz samples, not camera cuts. Keep
+        // the real interval for output spacing and let the geometry/motion
+        // checks below reject discontinuities. Other cadence changes still
+        // invalidate history until a stable interval is observed.
+        const bool normal_cadence_change = (previous_delta_ == 2U || previous_delta_ == 3U) &&
+            (delta == 2U || delta == 3U);
         const bool continuous = previous_tick_ != 0U && delta >= 1U && delta <= 6U &&
-            (previous_delta_ == 0U || previous_delta_ == delta);
+            (previous_delta_ == 0U || previous_delta_ == delta || normal_cadence_change);
         if (continuous && 60U % delta == 0U)
             result.source_rate = static_cast<unsigned>(60U / delta);
         std::map<std::vector<std::uint32_t>, std::size_t> counts;

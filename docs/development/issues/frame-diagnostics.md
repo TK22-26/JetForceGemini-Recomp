@@ -1,7 +1,7 @@
-# PERF-002: Missing visible frame timing and slowdown capture
+# PERF-002: Frame diagnostics and reported stutter
 
-Status: verified in muted replays; local preview delivery; owner F8/live slowdown capture pending (2026-10-12).
-Severity: moderate observability limitation; slowdown severity/location unclassified.
+Status: counter/presentation corrections verified in muted tests; local preview candidate, owner live confirmation pending (2026-10-12).
+Severity: high owner-reported stutter; presentation defects reproduced and corrected in the candidate.
 Owner reports slowdowns while testing the high-refresh preview but has no visible
 counter or convenient frame log. Slowdown cause and location remain unconfirmed.
 The separate combat slowdown record is PERF-001; do not assume the same cause.
@@ -76,3 +76,194 @@ FPS, different hardware or long sessions. [Aggregate evidence](../../../evidence
 links the observations to the qualified runtime. Implementation:
 [counter and bounded writer](../../../src/renderer/frame_diagnostics.hpp),
 [scene counters](../../../include/jfg/renderer/frame_diagnostics_state.hpp).
+
+
+## Owner live regression, 2026-10-12
+
+Owner reports stutter only with the newly delivered diagnostic build, with
+GAME showing 20 while output shows 120 (Custom 120, VSync on). This supersedes
+the narrow muted replay qualification as evidence of live usability. Severity:
+high, reported regression plus misleading counter labels; the timing causes require comparison.
+Affected runtime: `9fc3233e51b0436f2675362bf9c803a81ee0a94a5a43cd1d9ee68612e2caa0f4`.
+Private owner timing capture: `frames-20261012-062848-6524-0.csv`; summarized
+in `fps-regression-owner-capture.json`. No reproduction or fix is claimed yet.
+
+Suspects: the overlay emits many rectangle-clear commands every output frame;
+we must compare this separately from asynchronous logging. The GAME counter is
+actually screen-scene submission cadence, not a verified simulation counter.
+The output counter includes interpolated and repeated frames and cannot establish
+120 unique game poses or smooth delivery. Original 30 versus observed 20 requires
+comparison with the pre-diagnostics runtime and scheduling evidence.
+
+Approved bounded work retains the production guard, investigation root and all
+existing counters. Automated tests remain muted and use isolated copied saves.
+
+
+### Owner F8 comparison and cadence-transition candidate
+
+Owner confirms the stutter continues with F8 off. The raw comparison repeats
+a large output gap at scene VI 4113 with legacy/cached/log-only instrumentation.
+Pre-diagnostics RT64 trace has four interpolated frames at VI 4110, a single
+unmatched scene at 4113 (source_rate=0), then six matched frames at 4116 (20 Hz).
+The history policy invalidates every change between two- and three-VI intervals;
+normal 30/20 Hz transitions therefore disable interpolation despite valid motion.
+This is a specific presentation defect distinct from source simulation slowdown.
+
+Candidate allows ordinary two/three-VI transitions to use their actual source
+interval and existing motion/geometry continuity checks. Camera jumps, unsafe
+mixed-transform geometry, long gaps and other cadence changes retain their
+existing rejection. Focused transition tests and muted native comparisons are
+pending. This candidate does not change guest timers or force 30 Hz simulation.
+
+
+### Completed-sequence replay candidate
+
+The cadence candidate restores six moving intermediates at VI 4113 and retains
+the same guest/renderer/save hashes, but a roughly 33 ms output gap remains.
+Do not credit it with eliminating the reported timing stutter.
+
+A separate capped-rate defect is visible in the baseline and candidate trace:
+VI 4498 is rendered once into four intermediates, then present events 3216,
+3217 and 3218 each present the entire 0..3 sequence again without a new scene.
+That replays motion backward at the start of each duplicate group. The previous
+repeat-latest guard applied only to Unlimited. Finite counters also count extra
+targets while their count includes the base frame, so completion was not marked
+as the complete sequence.
+
+Candidate marks completion after the final output and extends repeat-latest to
+completed capped sequences, with finite-array versus unlimited-ring indexing.
+No source updates or scene timing change. Native trace/pixel verification and
+regression checks are pending; this candidate is not yet delivered.
+
+
+### Capped streaming experiment
+
+The completed-sequence correction verifies 505 repeat groups with at most one
+output each and preserves all fixture hashes. It removes sequence rewind, but
+the fixed-batch 120 FPS moving-window p99 worsens from roughly 10 to 25 ms.
+This is not an accepted final performance fix and has not been delivered.
+
+Next candidate reuses the existing two-target, time-sampled producer/consumer
+ring for capped interpolation as well as Unlimited. The consumer still enforces
+the requested cap and VSync; the producer uses elapsed source-frame time and
+yields to new scene work. This avoids finite-batch restart and rate-transition
+phase resets without changing guest simulation. Tests and measurements pending.
+
+
+The initial capped-streaming replay preserves hashes and avoids sequence rewind,
+but its moving-window p99 is about 23 ms. Source review also identifies a capped
+producer/consumer mismatch: an unpaced producer can fill the ring with multiple
+nearly identical early-time poses before the capped consumer displays them.
+The next bounded variant paces pose sampling to the cap while retaining the
+existing presentation cap and yielding at source-window end/new scene work.
+No streaming variant is qualified or delivered yet.
+
+
+### Separate capped-sequence buffers
+
+The paced streaming variant reduces the moving-window maximum to 10.9 ms, but
+replay duration grows from about 76.8 to 81 seconds and wall-time scene cadence
+falls. Rejected: smoothing output by making the game wait violates the task.
+Neither capped streaming variant will be delivered in this form.
+
+Next candidate restores finite interpolation and gives consecutive sequences
+separate alternating target banks. The old shared target array forced the
+producer to wait for the previous sequence's consumer, then reduced/skipped
+frames because that intentional ownership wait counted against its render
+time budget. Two banks avoid cross-sequence overwrite/wait while existing
+present-ID ordering protects bank reuse. Unlimited retains its two-slot ring.
+Completion/repeat-latest and normal 30/20 Hz transition corrections remain.
+Build, replay, memory/scene-speed and presentation checks are pending.
+
+
+The first two-bank replay preserves baseline wall time/state and holds about
+60 outputs/second with a moving-window maximum of 19.6 ms. Its 120/VSync request
+was actually clamped to 60: the desktop now exposes one 1920x1080 display and
+RT64 reports 60 Hz, whereas earlier runs detected 240 Hz. The test's obsolete
+assumption of more than 100 duplicate groups failed (74 actual groups); this
+is not a 120 Hz performance pass. Preserve that failed assertion and evidence.
+
+Subsequent qualification will use explicit effective-rate checks: VSync-on at
+the currently reported 60 Hz and capped 120/360 with VSync off, without changing
+the owner's desktop settings. The old delivered runtime is rerun under those
+same current conditions. Target-bank allocation and consumer lookup share a
+mutex so vector growth during cadence transitions does not race presentation.
+
+
+The two-bank candidate alone fails qualification: 120/VSync-off moving-window
+p99 is 25.05 ms versus the delivered build's 9.82 ms. Unlimited also fails
+the scene-progression gate. No desktop update was made. Actual swapchain
+readback proves the previous runtime replays the same four distinct images
+for consecutive VI presentations; the candidate holds only the final image.
+The next experiment preserves a finite repeat output window while repeating
+that final image, so removing rewinds does not introduce idle present gaps.
+Readback runs are visual evidence, not timing benchmarks.
+
+
+## Qualified correction, 2026-10-12
+
+The owner's F8-off comparison confirms that disabling the counter does not stop
+stutter. The retained pre-logging runtime also produces 20 Hz source scenes on
+this route. Do not call that counter reading an invented conversion, force the
+guest simulation to 30 Hz, or confuse 120 outputs with 120 unique authored poses.
+
+Three defects are addressed in the final candidate:
+
+- The bitmap counter emitted hundreds of tiny rectangle clears each output.
+  It now uses one cached texture draw, uploaded when displayed text changes
+  (normally twice per second). Labels read OUTPUT and SCENES, with an explicit
+  INTERPOLATED / REPEATED line. Neither counts physical monitor scanout or
+  simulation ticks. `overlay=0` in performance.ini enables log-only isolation.
+- Ordinary two-to-three-VI scene intervals (30/20 Hz) invalidated interpolation
+  for one frame. These transitions now retain valid transform history; the
+  existing geometry, shared-matrix, projected-jump and other cadence rejection
+  checks remain. VI 4113 now has six moving intermediates at 120 and eighteen
+  at 360, rather than a single unmatched endpoint.
+- A later VI restarted an already completed finite interpolation sequence.
+  Actual GPU readback shows the old runtime displaying the same four distinct
+  images again. The correction repeats its latest image through the paced
+  output window. Presenting only one repeat per VI was rejected because it
+  introduced idle gaps. Alternating finite GPU target banks prevent the next
+  producer sequence from overwriting a target still being presented. Their
+  vector allocation/lookup is synchronized; intermediate-target storage is
+  roughly doubled. Unlimited retains its bounded two-target ring.
+
+The 120/VSync-off moving window changes from 119.43
+outputs/s, p99 9.823 ms and maximum
+29.735 ms to 120.00, p99
+9.725 ms and maximum 10.892 ms. At 360 the candidate
+measures 359.80 outputs/s, p99 3.494 ms and maximum
+7.110 ms. These are bounded fixture observations, not a claim that
+all owner-visible stutter is fixed.
+
+Original, VSync (currently detected 60 Hz), 120, 360, log-only, 1000 and Unlimited
+runs preserve the expected guest RAM, renderer snapshot and save hashes, with
+2,056 source scenes and zero CSV queue drops. Capped replay duration and source
+progression match the baseline. Unlimited's strict near-30-Hz progression gate
+failed in both old and new traced builds; compare its no-trace results separately.
+Its high output count does not establish full-speed gameplay under saturation.
+No game clock/input/audio scheduling change is made. Focused interpolation-history
+and RT64 interpolation tests pass. Test windows are hidden and muted; automated
+checks never take desktop focus. Current 60-Hz desktop VSync is not evidence of
+physical 120/360-Hz scanout; those rates were tested with VSync off.
+
+Actual swapchain readback verifies completed groups contain only repeated latest
+pixels. Readback is excluded from timing benchmarks. Source/aggregate evidence:
+[comparison receipt](../../../evidence/frame-diagnostics-regression.json),
+[history](../../../include/jfg/renderer/interpolation_history.hpp),
+[presentation adapters](../../../cmake/rt64_video_settings.cmake),
+[counter](../../../src/renderer/frame_diagnostics.hpp). Private attempts and
+failed gates remain under `fps-regression-*`; no ROM, generated code or save is
+published. Dependency inputs remain pinned, with patches in build-tree copies.
+
+The local preview remains experimental. Owner live testing, other scenes,
+fullscreen/high-refresh display behavior and long sessions remain outstanding.
+Original-mode joints/lighting and conservative actor interpolation remain in
+[RENDER-002](character-seams-lighting.md); combat throughput remains PERF-001.
+The original logging-build claim is not treated as proof that instrumentation
+alone caused every hitch. No public release or blanket stutter resolution.
+
+Transferable lessons: a steady FPS counter can conceal backward animation;
+validate image order as well as timing. Identical guest memory does not prove
+wall-time speed. Check source-scene throughput, compare observation on/off,
+verify effective VSync targets, and retain failed candidates and their costs.

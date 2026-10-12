@@ -124,6 +124,7 @@ void capture_deinit() {
         context->previous_deinit();
     }
     const std::scoped_lock lock(context->mutex);
+    context->diagnostics.release_graphics();
     context->device = nullptr;
 }
 
@@ -215,7 +216,7 @@ void CaptureContext::draw(
     const std::scoped_lock lock(mutex);
     clear_vi_guard_texel(application, list);
     if (application && application->swapChain) {
-        try { diagnostics.draw(list, application->swapChain->getWidth(), application->swapChain->getHeight()); } catch (...) {}
+        try { diagnostics.draw(list, application->swapChain->getWidth(), application->swapChain->getHeight(), device, application->shaderLibrary.get()); } catch (...) {}
     }
     if (!armed || scheduled || failed || application == nullptr ||
         application->swapChain == nullptr ||

@@ -115,7 +115,12 @@ manual play. Normal gameplay leaves the mod off.
 
 ## Slowdown capture
 
-The high-refresh preview now includes an F8 counter and asynchronous CSV frame
-logging. Muted replay checks pass; owner live-key and slowdown capture remain
-pending. The newly reported slowdown has no isolated cause or remedy yet.
-See [PERF-002](development/issues/frame-diagnostics.md).
+The high-refresh preview has an F8 counter and asynchronous CSV logs. The revised
+counter labels OUTPUT and SCENES separately and uses one cached texture draw.
+Completed interpolation sequences no longer restart old motion, and ordinary
+30/20-Hz source transitions retain valid interpolation. Muted 120/360 fixture
+pacing improves with matching game progression and memory, but the owner's
+reported stutter awaits live confirmation. Source scenes can still run at 20 Hz;
+Unlimited saturation also slightly reduces scene throughput in old/new tests.
+A high output counter does not establish unique game poses or monitor scanout.
+See [PERF-002](development/issues/frame-diagnostics.md) for remaining limits.
