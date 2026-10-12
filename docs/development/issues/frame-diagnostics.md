@@ -1,6 +1,6 @@
 # PERF-002: Frame diagnostics and reported stutter
 
-Status: counter/presentation corrections verified in muted tests; local preview delivered, owner live confirmation pending (2026-10-12).
+Status: native scene timing and present logging verified in bounded capped-play tests; packaging in progress, owner verification pending. Unlimited throughput and broader audio remain open.
 Severity: high owner-reported stutter; presentation defects reproduced and corrected in the candidate.
 Owner reports slowdowns while testing the high-refresh preview but has no visible
 counter or convenient frame log. Slowdown cause and location remain unconfirmed.
@@ -282,3 +282,150 @@ controls, diagnostics preference and save hashes were unchanged by delivery.
 Close the existing launcher and reopen the desktop shortcut to load the candidate.
 No public release, push, owner desktop input or game launch occurred during
 handoff. The tests were muted; owner live acceptance remains pending.
+
+
+## Source scene-rate investigation, owner approved 2026-10-12
+
+The owner explicitly asks to fix the remaining 20-Hz scene-update drop, with up
+to five hours and commits of this work. All prior HFR changes are already committed
+(implementation 19fde3c, delivery notes 0fac3b6); this research worktree starts
+clean. The existing high-refresh investigation/root and guard retain every charge.
+The unrelated main checkout has uncommitted timing/audio/control work and is
+preserved. The older PC/audio investigation is shelved and is not resumed here.
+Its retained source/evidence can inform this narrow scene-cadence investigation.
+
+Reproduction: the existing muted copied-save Goldwood bridge fixture changes
+from two to three VI intervals during movement (30 to 20 screen scenes/sec),
+including VI 4113 and following scenes. This occurs before logging was added and
+with Original presentation. Presentation-only fixes do not restore source cadence.
+Investigate modeled CPU Count cost, real host work/scheduling and explicit guest
+frame-selection behavior. Preserve elapsed movement/animation/weapon timing,
+input, audio deadlines and save correctness; do not accelerate game speed merely
+to raise the counter. Related prior combat work: [PERF-001](goldwood-combat-slowdown.md).
+All experiments use muted isolated profiles and guarded execution; no owner input.
+
+
+The original-policy bridge replay with low-volume update/cost tracing and input
+recording retains the exact baseline RAM/renderer/save hashes and 2,056 scenes.
+A second recorded-poll replay also preserves them. The next comparison switches
+only clock policy after an identical VI-3900 prefix; this is a diagnostic, not
+a delivered change. Retained source/evidence paths are recorded privately in
+`scene-rate-retained-timing.json`; no unrelated main files are changed.
+
+
+The baseline charges about 34.1 ms median modeled non-idle CPU work in the
+20-Hz bridge interval, crossing a 33.4 ms frame budget. Retained guest source
+`gameVi.c::viFrameSync` sets LOGIC_20FPS after a late frame and waits for more
+than 30 faster updates before restoring LOGIC_30FPS. The native elapsed-clock
+comparison starts from identical VI/poll/Count/RAM at VI 3900 and keeps two-VI
+updates (33.44 ms median) through that interval. It is an existing clock policy,
+not a guest frame-rate patch or forced time multiplier.
+
+The diagnostic native process reaches VI 4500 cleanly, but its final presentation
+is too old for the existing optional renderer snapshot, so the wrapper fails on
+missing rdram.bin.rt64. This is a capture limitation, not a qualified full pass;
+retain it and compare boundary/trace evidence separately.
+
+Candidate: opt-in native elapsed timing for interactive preview; finite reference
+probes keep the original instruction clock. Reuse the existing independently
+unit-tested periodic deadline/scanline phase helper to coalesce overdue video
+interrupts after a host stall without accelerating catch-up. Add bounded offline
+stall and pause observations for qualification. No guest frame-rate clamp, CPU
+span generation, unrelated main edits or audio DSP changes are imported.
+
+The first policy-check wrapper incorrectly expected a plain-text `retraces=4500` marker in JSON output. Its reference process exited normally and preserved all three reference hashes. Correct the parser in a new retained step; this is a harness failure, not a runtime failure.
+
+
+
+Qualification harness failures retained: the live trace-tail reader attempted to parse a partially flushed hexadecimal field; its hidden play child was stopped by the guarded worker. The follow-on analysis could not find the unfinished play window. The first startup probe requested an incompatible realtime flag and was rejected before starting. Fix the wrappers and rerun; these are not passing runtime checks. The interpolation-trace run overlapped the failed play child and cannot be used as an uncontended performance benchmark.
+
+Native timing restores about 29.8 screen scenes/s in the boundary replay, but the 120-FPS candidate has recurring ~16-ms output gaps. The 360-FPS candidate reaches ~354.6 output FPS with one ~25.9-ms gap. Treat presentation pacing as an unresolved candidate regression and investigate before delivery. Detailed qualification is retained in scene-rate-policy-analysis.json.
+
+The paired stage trace explains the apparent 120-FPS regression: draw-hook
+intervals reached 16.4 ms, while actual present-return intervals stayed near
+8.34 ms (p99 8.62, maximum 9.14 in that diagnostic interval). The counter sampled
+before RT64's limiter, so it measured preparation scheduling, not output pacing.
+This diagnostic overlapped a failed wrapper's hidden child and is not a final
+performance benchmark. Candidate correction: sample successful swapchain returns,
+keep the cached overlay drawing separate, and label CSV schema 2 explicitly.
+Monitor scanout/visible fluidity still require owner verification.
+
+The first final play wrapper successfully paused/resumed and requested close, but checked window ownership again after the runtime destroyed its window. That harness assertion terminated the waiting outer process before a complete receipt. Correct the closed-window polling condition in a new immutable wrapper and rerun. The initial startup play attempt shares that wrapper flaw; keep its evidence separate from successful tests.
+
+Unlimited qualification with the new timing boundary stops producing frames at
+VI 3900 and reaches the wall-clock watchdog (exit 4). Preserve the failed run:
+`scene-rate-final-compatibility/native-unlimited`. Capped modes complete this
+boundary. The unlimited ring waits for a free target/previous consumer without
+a deadline, despite checking scene expiry only after waking. Candidate: bound
+that wait by the existing scene time window, then mark generation complete and
+wake the consumer. This imposes no numeric FPS cap and does not overwrite an
+occupied target. The candidate needs replay qualification before delivery.
+
+The normal --play path with native timing from boot still has recurring long updates and audio starvation, unlike the identical-prefix boundary replay. The 1.25-second pause itself freezes Count correctly, but this candidate does not yet fix normal-play scene cadence. Startup audio qualification also fails its no-underrun requirement. Do not ship the boundary result as a completed fix; compare the normal-play stalls and preserve scene-rate-live-stall-analysis.json.
+
+The normal-play comparison enabled JFG_PHASE8_FRAME_CAPTURE. In --play this
+forces a synchronous GPU readback every 60 submitted presentations, waiting for
+the whole presentation queue to idle. The long trace gaps end in present(),
+not CPU computation or idle timer oversleep. Ordinary launcher Play strips this
+option; it belongs to the explicit heavy diagnostic capture. Correct the timing
+fixture to omit periodic screenshots in --play, preserving lightweight CSV and
+muted PCM recording. Do not treat screenshot-enabled results as ordinary-play
+performance or import unrelated CPU optimizations to compensate for readback.
+Heavy capture remains a documented source of stalls and audio starvation.
+
+Bounding the Unlimited wait removes the watchdog, but Unlimited still spends
+up to 33 ms inside scene full-sync submission, drops to 20-Hz updates and starves
+audio while emitting about 1,390 output frames/s. Candidate: give each in-flight
+sequence its own two-slot ring (four targets total), as finite sequences already
+have separate banks. Remove the previous sequence's target-reuse wait while
+retaining the current ring's slot ownership and deadline. This is bounded GPU
+storage, not a numeric FPS limit. Validate before retaining or delivering.
+
+The separate Unlimited banks did not recover source cadence (~19 scenes/s) or
+audio continuity; revert that experiment and its extra allocation. The renderer
+still ignores queued off-screen shadow passes until the old scene's time window
+ends. Those passes can contain CPU-visible readback, so queued work can hold up
+the next game update. Candidate: yield Unlimited interpolation to any queued
+workload, preserving the bounded slot wait and original two-target ring. There
+is still no numeric FPS cap. Check both scene rate and output spacing rather
+than crediting a high repeated-frame count.
+
+
+### Accepted implementation and remaining limits
+
+The private build enables JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING for --play.
+Elapsed steady time drives Count at 46.875 MHz; guest viFrameSync, update steps,
+movement scaling and save logic remain unchanged. Finite reference probes and
+other builds retain the original instruction clock by default. The native policy
+removes modeled CPU penalties as the trigger for the reproduced bridge's 20-Hz
+fallback when the host has enough time. The game's real-overload fallback and
+31-update recovery rule remain intact.
+
+Keep the original two-target Unlimited ring with a bounded scene-window wait,
+which fixes the transition watchdog. Extra banks did not recover cadence and are
+reverted. Eagerly yielding to all queued work recovered 30 scenes/s but produced
+~145 output FPS with ~41-ms gaps, so that experiment is reverted too. Unlimited
+can still delay game-dependent rendering and reduce source updates to ~20 Hz.
+Use Custom for this scene-rate correction; rates above 360 remain hardware and
+workload dependent. Neither rejected change is in the accepted source.
+
+CSV schema 2 measures successful present returns after pacing, retaining its
+columns. OUTPUT includes interpolated/repeated images; SCENES counts submissions.
+Neither measures monitor scanout. The cached overlay remains one texture draw.
+Normal 120-FPS play without periodic screenshots holds two-VI updates (~33.4 ms)
+and records zero audio underruns on the bridge. The 1.25-second frontend pause
+freezes Count and resumes without catch-up. Boundary comparisons preserve the
+route endpoints and copied save. Original-clock probes retain exact RAM/renderer/
+save hashes; native final RAM differs and is not claimed as reference parity.
+
+A 200-second startup comparison produces ~200.46 seconds of PCM in the reference
+and ~200.51 in native play, with ~98.8% nonzero samples. Native reports three
+underruns/one empty pause versus zero in this reference. This fails the strict
+zero-underrun startup gate; broad audio continuity and audible quality remain
+open. Explicit diagnostic screenshots impose synchronous GPU waits and must not
+be used as ordinary-play performance benchmarks. No audio DSP changes or CPU
+span optimizations were imported; the shelved audio investigation stays shelved.
+
+Other levels, combat, long sessions, full actor interpolation and reported seams/
+lighting remain outside this demonstrated correction. Tests were muted, hidden,
+and used copied saves. Every failed wrapper/candidate is retained privately.

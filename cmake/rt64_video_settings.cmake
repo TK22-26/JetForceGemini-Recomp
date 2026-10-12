@@ -65,7 +65,14 @@ function(jfg_video_patch_workload)
 
                             if (jfgUnlimited) {
                                 std::unique_lock<std::mutex> lock(ext.sharedResources->interpolatedMutex);
-                                ext.sharedResources->interpolatedCondition.wait(lock, [&]() {
+                                // The unlimited producer owns only this scene's
+                                // time window. A consumer can be waiting for the
+                                // next workload, so a slot wait must expire even
+                                // when no presentation notification can arrive.
+                                const auto remainingMicro = std::max<int64_t>(0,
+                                    originalTimeMicro - workloadTimer.elapsedMicroseconds());
+                                ext.sharedResources->interpolatedCondition.wait_for(lock,
+                                    std::chrono::microseconds(remainingMicro), [&]() {
                                     const bool previousDone = !useDifferentCounters || prevFrameCounters.presented >= prevFrameCounters.available;
                                     const bool slotFree = targetIndex < jfg::kPresentationRingSize ||
                                         curFrameCounters.presented > (targetIndex - jfg::kPresentationRingSize);

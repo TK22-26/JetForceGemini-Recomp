@@ -43,6 +43,7 @@
 #include "jfg/boot/reference_si_dma.hpp"
 #include "jfg/boot/reference_event_commit.hpp"
 #include "jfg/boot/native_event_batch.hpp"
+#include "jfg/boot/native_periodic_deadline.hpp"
 #include "jfg/boot/reference_flash_bus.hpp"
 #include "jfg/boot/original_timing_ai_dma.hpp"
 #include "jfg/boot/point_probe.hpp"
@@ -268,6 +269,7 @@ struct MmioTrace final {
   // Explicit diagnostic reference-device ownership. The cooperative control
   // continues using its existing register behavior unless this is enabled.
   bool guest_execution = false;
+  bool native_elapsed_time = false;
   std::uint64_t guest_count = 0U;
   std::uint64_t vi_next = 0U;
   std::uint64_t execution_io_revision = 0U;
@@ -582,10 +584,13 @@ LONG CALLBACK mmio_exception_handler(EXCEPTION_POINTERS *exception) {
       std::memcpy(reinterpret_cast<void*>(address), &g_mmio_trace->mi_pending, 4U);
     if (g_mmio_trace->guest_execution && !write && index == 3U && offset == 0x10U) {
       const auto origin = g_mmio_trace->vi_next - g_mmio_trace->vi_period;
+      const auto elapsed = g_mmio_trace->native_elapsed_time
+          ? jfg::boot::native_periodic_phase(g_mmio_trace->guest_count,
+                g_mmio_trace->vi_next, g_mmio_trace->vi_period)
+          : g_mmio_trace->guest_count-origin;
       const auto line = g_mmio_trace->vi_period == 783520U ?
-          static_cast<std::uint32_t>(((g_mmio_trace->guest_count - origin) * 263U) /
-              g_mmio_trace->vi_period) * 2U :
-          static_cast<std::uint32_t>((g_mmio_trace->guest_count - origin) / 1500U) & ~1U;
+          static_cast<std::uint32_t>((elapsed*263U)/g_mmio_trace->vi_period)*2U :
+          static_cast<std::uint32_t>(elapsed/1500U)&~1U;
       std::memcpy(reinterpret_cast<void*>(address), &line, 4U);
     }
     if (index == 9U && (!g_mmio_trace->guest_pif_boot || offset != 0x7fcU)) {
@@ -1673,6 +1678,7 @@ struct State : JfgOriginalTimingFast {
   bool diagnostic_host_clock_requested = false;
   std::uint64_t diagnostic_clock_boundary_vi = 0;
   bool diagnostic_clock_boundary_seen = false;
+  unsigned diagnostic_boundary_stall_ms = 0;
   // IO/exception boundaries force the full handler; ordinary instructions
   // share a bounded host-clock sampling quantum without modeled time charges.
   static constexpr unsigned kHostClockPollInstructions = 128U;
@@ -3059,6 +3065,8 @@ void service_live_window(State &state) {
       if (state.diagnostic_host_clock &&
           !state.host_count_clock.pause(std::chrono::steady_clock::now()))
         fail_closed_dispatch(state,"native-clock","pause",0U);
+      state.gameplay_trace.event("host-pause",{state.vi_retraces,state.diagnostic_host_clock ?
+          state.host_count_clock.sample(std::chrono::steady_clock::now()).value_or(UINT64_MAX) : state.cpu_count});
       state.host_audio.frontend_pause(true);
       SetPropW(frontend,L"JfgFrontendPaused",reinterpret_cast<HANDLE>(1));
       frontend_paused = true;
@@ -3077,6 +3085,8 @@ void service_live_window(State &state) {
     if (state.diagnostic_host_clock &&
         !state.host_count_clock.resume(std::chrono::steady_clock::now()))
       fail_closed_dispatch(state,"native-clock","resume",0U);
+    state.gameplay_trace.event("host-resume",{state.vi_retraces,state.diagnostic_host_clock ?
+        state.host_count_clock.sample(std::chrono::steady_clock::now()).value_or(UINT64_MAX) : state.cpu_count});
     state.host_audio.frontend_pause(false);
     state.host_frame_deadline_initialized = false;
     state.host_frame_start_initialized = false;
@@ -7164,10 +7174,17 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
         if (state.diagnostic_host_clock_requested) {
           state.diagnostic_host_clock = true;
+          state.mmio_trace->native_elapsed_time = true;
           state.execution_fast_profile_ready = false;
           state.host_clock_poll_budget = 0U;
           if (!state.host_count_clock.start(state.cpu_count,std::chrono::steady_clock::now()))
             fail_closed_dispatch(state,"native-clock","boundary-initialization",target);
+          if (state.diagnostic_boundary_stall_ms != 0U) {
+            state.gameplay_trace.event("native-stall-begin",{state.vi_retraces,state.cpu_count,state.diagnostic_boundary_stall_ms});
+            std::this_thread::sleep_for(std::chrono::milliseconds(state.diagnostic_boundary_stall_ms));
+            state.gameplay_trace.event("native-stall-end",{state.vi_retraces,
+                state.host_count_clock.sample(std::chrono::steady_clock::now()).value_or(UINT64_MAX)});
+          }
         }
       }
       if (target == 0x80044FACU) trace_gameplay_state(state, true);
@@ -9759,7 +9776,18 @@ extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned se
           // Same independently derived fixed progressive profile as the paired
           // Ares comparison; this does not implement arbitrary VI register modes.
           mmio.vi_period = mmio.vi_v_sync == 0U ? 500000U : 783520U;
-          mmio.vi_next += mmio.vi_period;
+          if (state.diagnostic_host_clock) {
+            const auto advanced = advance_native_periodic_deadline(
+                state.cpu_count, mmio.vi_next, mmio.vi_period);
+            if (!advanced || advanced->elapsed == 0U)
+              fail_closed_dispatch(state,"native-clock","vi-deadline-overflow",pc);
+            if (advanced->elapsed > 1U)
+              state.gameplay_trace.event("native-vi-coalesced",{state.vi_retraces,
+                  state.cpu_count,mmio.vi_next,advanced->next,advanced->elapsed,mmio.vi_period});
+            mmio.vi_next = advanced->next;
+          } else {
+            mmio.vi_next += mmio.vi_period;
+          }
           if (!service_host_audio(state, true))
             fail_closed_dispatch(state, "audio", "host-device", pc);
           break;
@@ -11158,7 +11186,12 @@ int run_child(const char *path, const unsigned retrace_target,
   char native_clock_flag[2]{};
   const auto native_clock_length = GetEnvironmentVariableA("JFG_DIAGNOSTIC_HOST_CLOCK",native_clock_flag,2U);
   if (native_clock_length != 0U && (native_clock_length != 1U || native_clock_flag[0] != '1')) return 3;
-  state.diagnostic_host_clock_requested = native_clock_length == 1U;
+  bool native_preview_play = false;
+#if defined(JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING)
+  native_preview_play = state.play_mode;
+#endif
+  state.diagnostic_host_clock_requested = native_clock_length == 1U || native_preview_play;
+  if (native_preview_play) jfg::support_event("timing=native-elapsed/experimental-preview");
   char cost_flag[2]{};
   const auto cost_length = GetEnvironmentVariableA("JFG_DIAGNOSTIC_CPU_COSTS", cost_flag, 2U);
   if (cost_length != 0U && (cost_length != 1U || cost_flag[0] != '1' ||
@@ -11175,7 +11208,17 @@ int run_child(const char *path, const unsigned retrace_target,
     if (state.input_replay_gameplay_time)
       state.replay_gameplay_first_poll = (std::numeric_limits<std::size_t>::max)();
   }
+  char stall_text[16]{};
+  const auto stall_length = GetEnvironmentVariableA("JFG_DIAGNOSTIC_BOUNDARY_STALL_MS",stall_text,16U);
+  if (stall_length != 0U) {
+    if (stall_length >= 16U || state.play_mode || !state.diagnostic_host_clock_requested ||
+        state.diagnostic_clock_boundary_vi == 0U) return 3;
+    const auto parsed = std::from_chars(stall_text,stall_text+stall_length,state.diagnostic_boundary_stall_ms);
+    if (parsed.ec != std::errc{} || parsed.ptr != stall_text+stall_length ||
+        state.diagnostic_boundary_stall_ms==0U || state.diagnostic_boundary_stall_ms>3000U) return 3;
+  }
   state.diagnostic_host_clock = state.diagnostic_host_clock_requested && state.diagnostic_clock_boundary_vi == 0U;
+  state.mmio_trace->native_elapsed_time = state.diagnostic_host_clock;
   if (state.diagnostic_host_clock_requested && (!state.guest_os_probe || !state.original_os_host_pacing ||
       !state.point_probe_pcs.empty() || state.device_event_stream || state.eret_transfer_stream.is_open())) return 3;
   state.execution_fast_profile_ready = !state.diagnostic_host_clock && state.guest_os_probe &&

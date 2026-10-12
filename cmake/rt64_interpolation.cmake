@@ -111,6 +111,7 @@ endif()
 file(READ "${source}" contents)
 set(before [=[swapChainValid = ext.swapChain->present(swapChainIndex, &waitSemaphore, 1);]=])
 set(after [=[swapChainValid = ext.swapChain->present(swapChainIndex, &waitSemaphore, 1);
+                if (swapChainValid) jfg::frame_diagnostic_state().presented();
                 jfg::trace_interpolation("present", present.presentId, viOriginalRate,
                     targetRate, static_cast<unsigned>(i), static_cast<unsigned>(framesToPresent),
                     0.0f, 0U, 0U);]=])
@@ -141,7 +142,8 @@ endif()
 string(REPLACE "${before}" "${after}" contents "${contents}")
 jfg_video_patch_present()
 set(generated "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64/rt64_present_queue.cpp")
-file(WRITE "${generated}" [=[#include "rt64_interpolation_capture.hpp"
+file(WRITE "${generated}" [=[#include "jfg/renderer/frame_diagnostics_state.hpp"
+#include "rt64_interpolation_capture.hpp"
 ]=] "${contents}")
 jfg_interpolation_replace_source("rt64_present_queue.cpp" "${generated}")
 

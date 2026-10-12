@@ -1,7 +1,9 @@
 # Experimental high-refresh rendering
 
 The research branch provides an RmlUi Video Settings window and opt-in
-presentation interpolation while preserving the original guest clock. Custom
+presentation interpolation while preserving gameplay speed. The native-timing
+preview uses elapsed host time in play; reference probes retain the original
+instruction clock. Custom
 targets and uncapped rendering exceed 360 presentations/s in a short replay
 fixture. This remains an unreleased candidate; sustained performance, broad scene
 coverage and owner playtesting are pending. Reproduced high-refresh terrain
@@ -100,7 +102,7 @@ unchanged. Original mode remains available.
 
 Implementation commit: `5527611ea10b247dbb2df46ca1870a8d93d365f4`.
 
-The owner's `Child ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Video settings-html.zip` design was translated into RML,
+The owner's `Child ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Video settings-html.zip` design was translated into RML,
 RCSS and native C++ events in the existing pinned RmlUi backend. No dependency
 upgrade, browser, React runtime or remote font loading is needed. The previous
 standard-controls dialog remains a fallback for builds without RmlUi.
@@ -288,3 +290,20 @@ still reduce source-scene throughput slightly under saturation; high output FPS
 alone does not qualify it. Current desktop VSync is tested at detected 60 Hz.
 Owner confirmation of the reported stutter is pending, as are broader scenes,
 complete actor interpolation and the separate joints/lighting reports.
+
+
+### Native scene timing preview (2026-10-12)
+
+The private runtime enables JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING=ON. The measured
+Goldwood bridge holds about 30 new scenes/s in capped play instead of falling to
+20 from modeled CPU penalties. Guest update steps, movement scaling and saves
+are unchanged. Other builds default to the original clock; finite reference
+probes retain it unless explicitly overridden for diagnostics.
+
+Counter/CSV schema 2 samples successful presentation after pacing. Use Custom for
+current testing: Unlimited can still hold up game work and lower scene cadence.
+Its reproduced transition hang is fixed by a bounded ring wait. Normal bridge/
+pause testing records zero audio underruns; longer native startup testing records
+three, so audio quality/loading continuity still need owner verification. Heavy
+screenshot diagnostics can stall the GPU; use lightweight F8 logs for performance
+reports. See [PERF-002](../development/issues/frame-diagnostics.md).

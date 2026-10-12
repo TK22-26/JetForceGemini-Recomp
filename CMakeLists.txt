@@ -19,6 +19,7 @@ project(
 
 option(JFG_BUILD_TESTS "Build the ROM-free unit tests" ON)
 option(JFG_BUILD_SYNTHETIC_GENERATED_TESTS "Build ROM-free generated-code link tests" ON)
+option(JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING "Use elapsed host time for native play in the private preview" OFF)
 option(JFG_WARNINGS_AS_ERRORS "Treat handwritten-code warnings as errors" ON)
 option(JFG_ENABLE_GENERATED_CODE "Build locally generated CPU code from a private root" OFF)
 option(JFG_BUILD_G2_PRODUCERS "Build private G2 evidence producers" OFF)
@@ -530,6 +531,13 @@ if(JFG_ENABLE_GENERATED_CODE)
         else()
             set(jfg_phase6_sanitizer_id "none")
             set(jfg_phase6_build_suffix "")
+        endif()
+        if(JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING)
+            if(NOT JFG_BUILD_PHASE8_LIVE)
+                message(FATAL_ERROR "Experimental native play timing requires the live runtime")
+            endif()
+            target_compile_definitions(jfg-native-boot PRIVATE JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING=1)
+            string(APPEND jfg_phase6_build_suffix "-NativeTimingPreview")
         endif()
         target_compile_definitions(jfg-native-boot PRIVATE
             "JFG_PHASE6_BUILD_IDENTITY=\"${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}-$<CONFIG>${jfg_phase6_build_suffix}\""

@@ -120,7 +120,10 @@ counter labels OUTPUT and SCENES separately and uses one cached texture draw.
 Completed interpolation sequences no longer restart old motion, and ordinary
 30/20-Hz source transitions retain valid interpolation. Muted 120/360 fixture
 pacing improves with matching game progression and memory, but the owner's
-reported stutter awaits live confirmation. Source scenes can still run at 20 Hz;
-Unlimited saturation also slightly reduces scene throughput in old/new tests.
+reported stutter awaits live confirmation. Native timing restores 30-Hz scene
+updates in the measured capped-play bridge. Unlimited can still reduce source
+cadence; use Custom for this fix. Longer native startup testing records three
+audio underruns, so broad audio continuity remains unverified. Schema 2 logs
+successful present returns after pacing; heavy screenshots can introduce stalls.
 A high output counter does not establish unique game poses or monitor scanout.
 See [PERF-002](development/issues/frame-diagnostics.md) for remaining limits.

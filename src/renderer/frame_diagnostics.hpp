@@ -23,7 +23,7 @@ namespace jfg {
 // Swapchain diagnostics only: never draw into guest feedback or block the render
 // thread on disk I/O. One producer, one writer, bounded queue and rotated files.
 #if defined(_WIN32)
-class FrameDiagnostics {
+class FrameDiagnostics : public FramePresentationObserver {
     struct Sample { std::uint64_t us, frame, interval, scenes, age, vi, dropped; };
     static constexpr std::size_t capacity = 8192;
     std::array<Sample, capacity> queue{};
@@ -83,7 +83,7 @@ class FrameDiagnostics {
                         std::filesystem::create_directories(directory);
                         file.open(directory/(stem+"-"+std::to_string(segment%4)+".csv"),std::ios::binary|std::ios::trunc);
                         if (!file) { failed.store(true); return; }
-                        file << "# JFG frame diagnostics schema 1; render-hook intervals, not monitor scanout\n"
+                        file << "# JFG frame diagnostics schema 2; successful present-return intervals, not monitor scanout\n"
                              << "# SCENES counts screen-scene submissions, not simulation ticks; excludes 64x64 shadows\n"
                              << "# " << settings << "\n"
                              << "# Four rotating 16 MiB segments; queue overflow counted, never blocks rendering\n"
@@ -106,7 +106,7 @@ class FrameDiagnostics {
         } catch (...) { failed.store(true); }
     }
 public:
-    ~FrameDiagnostics() { stopping.store(true,std::memory_order_release); if(writer.joinable())writer.join(); }
+    ~FrameDiagnostics() { FramePresentationObserver* expected=this; frame_diagnostic_state().observer.compare_exchange_strong(expected,nullptr); stopping.store(true,std::memory_order_release); if(writer.joinable())writer.join(); }
     void initialize(void* native_window, unsigned cap, bool unlimited, bool vsync) {
         window=static_cast<HWND>(native_window);
         generated_output=cap!=0 || unlimited;
@@ -124,21 +124,18 @@ public:
         start=frame_clock_us();
         auto& state=frame_diagnostic_state();state.scenes=0;state.scene_time=0;state.vi=0;
         writer=std::thread([this]{write_loop();});
+        state.observer.store(this,std::memory_order_release);
     }
     // RT64 destroys the present queue (and waits for its GPU work) before this
     // hook. Release descriptors/resources while its device still exists.
     void release_graphics() noexcept {
         panel_descriptor.reset(); panel_upload.reset(); panel_texture.reset(); panel_valid=false;
     }
-    void draw(RenderCommandList* list,unsigned width,unsigned height,
-              RenderDevice* device,const RT64::ShaderLibrary* shaders) {
-        if(!list || width<100 || height<80)return;
-        const bool focused=window && GetAncestor(window,GA_ROOT)==GetForegroundWindow();
-        const bool down=focused && (GetAsyncKeyState(VK_F8)&0x8000)!=0;
-        if(down && !key_down){ enabled=!enabled; last=0;window_start=0;window_frames=0;max_us=0; }
-        key_down=down;
+    // Sample after the frame limiter and successful swapchain submission.
+    // Render-hook work can happen early or late within a paced interval.
+    void presented(std::uint64_t now) noexcept override {
         if(!enabled)return;
-        const auto now=frame_clock_us();const auto interval=last?now-last:0;last=now;++frame;
+        const auto interval=last?now-last:0;last=now;++frame;
         auto& state=frame_diagnostic_state();const auto scenes=state.scenes.load(std::memory_order_relaxed);
         const auto scene_time=state.scene_time.load(std::memory_order_relaxed);
         if(!window_start){window_start=now;window_scenes=scenes;}
@@ -155,6 +152,15 @@ public:
             queue[write]={now-start,frame,interval,scenes,scene_time && now>=scene_time?now-scene_time:0,state.vi.load(std::memory_order_relaxed),dropped};
             head.store(next,std::memory_order_release);
         }else ++dropped;
+    }
+    void draw(RenderCommandList* list,unsigned width,unsigned height,
+              RenderDevice* device,const RT64::ShaderLibrary* shaders) {
+        if(!list || width<100 || height<80)return;
+        const bool focused=window && GetAncestor(window,GA_ROOT)==GetForegroundWindow();
+        const bool down=focused && (GetAsyncKeyState(VK_F8)&0x8000)!=0;
+        if(down && !key_down){ enabled=!enabled; last=0;window_start=0;window_frames=0;max_us=0; }
+        key_down=down;
+        if(!enabled)return;
         if(!overlay)return;
         if(!device || !shaders || width<200 || height<140)return;
         std::array<std::array<char,64>,5> lines{};
