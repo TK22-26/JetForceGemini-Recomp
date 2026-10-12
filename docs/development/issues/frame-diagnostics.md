@@ -1,6 +1,7 @@
 # PERF-002: Missing visible frame timing and slowdown capture
 
 Status: verified in muted replays; local preview delivery; owner F8/live slowdown capture pending (2026-10-12).
+Severity: moderate observability limitation; slowdown severity/location unclassified.
 Owner reports slowdowns while testing the high-refresh preview but has no visible
 counter or convenient frame log. Slowdown cause and location remain unconfirmed.
 The separate combat slowdown record is PERF-001; do not assume the same cause.
@@ -58,3 +59,20 @@ The observation tool has some rendering cost; compare with F8 off when needed.
 Private evidence: `fps-logging-qualification-v2/result.json` and per-mode CSV,
 frame captures, stdout/stderr; initial failed run and build receipts retained.
 This adds observability and does not claim to fix the newly reported slowdown.
+
+
+Implementation commit: `930c57517f31f624d2a05527cdcc1b5264ff4c72`.
+Machine-local package: `C:/JFG-builds/high-refresh-diagnostics-preview-20261012`.
+The existing preview shortcut now targets this package with the same profile;
+the new Performance Logs shortcut opens that profile's `performance` folder.
+All fourteen manifest entries and isolated launcher package resolution passed.
+Runtime SHA-256: `9fc3233e51b0436f2675362bf9c803a81ee0a94a5a43cd1d9ee68612e2caa0f4`.
+Old package and shortcut backup remain available; no public release was made.
+
+The Original run recorded 3,218 render rows and Custom recorded 16,132, with
+2,056 scene submissions in each. Custom diagnostics-on/off took 76.829/76.812
+seconds in this capped replay; this does not establish overhead at unlimited
+FPS, different hardware or long sessions. [Aggregate evidence](../../../evidence/frame-diagnostics.json)
+links the observations to the qualified runtime. Implementation:
+[counter and bounded writer](../../../src/renderer/frame_diagnostics.hpp),
+[scene counters](../../../include/jfg/renderer/frame_diagnostics_state.hpp).
