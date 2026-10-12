@@ -1,5 +1,5 @@
 {
-  "status": "Qualified local preview candidate; owner live confirmation pending",
+  "status": "Local preview delivered; owner live confirmation pending",
   "runtime_sha256": "b3e871f0cde15a90263f5e691932cf026e6cef182c42f3592ca86023e3fa3a50",
   "muted": true,
   "simulation_code_changed": false,
@@ -666,7 +666,7 @@
   "owner_capture_sha256": "ff71ed11bd58cac477bfb45a267ad5fb0334ca406c47e8bae6736725bff7ce21",
   "limits": [
     "Single hardware/scene fixture, not broad stutter acceptance",
-    "Source scene rate legitimately varies 30/20 in the pre-logging runtime",
+    "Source scene rate varies 30/20 in the pre-logging runtime",
     "Counter output includes generated/repeated images, not unique authored poses",
     "Current desktop VSync reports 60 Hz; 120/360 tested with VSync off",
     "Unlimited wall-time scene throughput is slightly below capped mode in old and new traced tests",
@@ -679,5 +679,14 @@
     "paced_streamed_capped": "Slows source progression (about 81 sec versus 77 sec); rejected",
     "bank_only": "Does not alone fill idle VI output gaps",
     "initial_qualification": "Correctly failed Unlimited strict progression gate; baseline later demonstrates this limit predates the candidate"
+  },
+  "delivery": {
+    "implementation_commit": "19fde3c7c0d5b102e4dd2c2d1fa6e0c9af4fbd67",
+    "runtime_sha256": "b3e871f0cde15a90263f5e691932cf026e6cef182c42f3592ca86023e3fa3a50",
+    "manifest_files_verified": 14,
+    "isolated_managed_launcher_init_passed": true,
+    "owner_profile_preserved": true,
+    "desktop_shortcut_updated": true,
+    "public_release": false
   }
 }

@@ -1,6 +1,6 @@
 # PERF-002: Frame diagnostics and reported stutter
 
-Status: counter/presentation corrections verified in muted tests; local preview candidate, owner live confirmation pending (2026-10-12).
+Status: counter/presentation corrections verified in muted tests; local preview delivered, owner live confirmation pending (2026-10-12).
 Severity: high owner-reported stutter; presentation defects reproduced and corrected in the candidate.
 Owner reports slowdowns while testing the high-refresh preview but has no visible
 counter or convenient frame log. Slowdown cause and location remain unconfirmed.
@@ -267,3 +267,18 @@ Transferable lessons: a steady FPS counter can conceal backward animation;
 validate image order as well as timing. Identical guest memory does not prove
 wall-time speed. Check source-scene throughput, compare observation on/off,
 verify effective VSync targets, and retain failed candidates and their costs.
+
+
+### Local delivery receipt
+
+Implementation commit: `19fde3c7c0d5b102e4dd2c2d1fa6e0c9af4fbd67`.
+Runtime SHA-256: `b3e871f0cde15a90263f5e691932cf026e6cef182c42f3592ca86023e3fa3a50`.
+Package: `C:/JFG-builds/high-refresh-diagnostics-v2-preview-20261012`.
+All 14 manifest file sizes/hashes and isolated managed
+launcher resolution passed. The existing desktop **JFG - High Refresh Preview**
+shortcut targets the new package with its original arguments/profile. The previous
+package and shortcut backup remain available. Audio, video, controller, modern
+controls, diagnostics preference and save hashes were unchanged by delivery.
+Close the existing launcher and reopen the desktop shortcut to load the candidate.
+No public release, push, owner desktop input or game launch occurred during
+handoff. The tests were muted; owner live acceptance remains pending.
