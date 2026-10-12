@@ -5,7 +5,8 @@ presentation interpolation while preserving gameplay speed. The native-timing
 preview uses elapsed host time in play; reference probes retain the original
 instruction clock. Custom
 targets and uncapped rendering exceed 360 presentations/s in a short replay
-fixture. This remains an unreleased candidate; sustained performance, broad scene
+fixture. The desktop shortcut selects the local native-timing preview; no public
+release is made. Sustained performance, broad scene
 coverage and owner playtesting are pending. Reproduced high-refresh terrain
 tearing is corrected in the tested local candidate. The owner's Original-mode
 joint and lighting reports remain open; see
@@ -102,7 +103,7 @@ unchanged. Original mode remains available.
 
 Implementation commit: `5527611ea10b247dbb2df46ca1870a8d93d365f4`.
 
-The owner's `Child ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Video settings-html.zip` design was translated into RML,
+The owner's `Child ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Video settings-html.zip` design was translated into RML,
 RCSS and native C++ events in the existing pinned RmlUi backend. No dependency
 upgrade, browser, React runtime or remote font loading is needed. The previous
 standard-controls dialog remains a fallback for builds without RmlUi.
@@ -307,3 +308,15 @@ pause testing records zero audio underruns; longer native startup testing record
 three, so audio quality/loading continuity still need owner verification. Heavy
 screenshot diagnostics can stall the GPU; use lightweight F8 logs for performance
 reports. See [PERF-002](../development/issues/frame-diagnostics.md).
+
+
+Delivered locally as `high-refresh-native-timing-preview-20261012`, through the
+existing **JFG - High Refresh Preview** desktop shortcut and unchanged profile.
+Close an older launcher before reopening the shortcut. The committed runtime
+averages 119.66 output FPS / 29.76 scenes/s with Custom 120 and requested VSync,
+and 351.99 output FPS / 29.78 scenes/s with Custom 360 and VSync off, in the
+bounded moving bridge window. These muted hidden-window checks do not verify
+physical monitor scanout or resolve the heavier combat report. Source commit,
+runtime hash, exact checks and remaining limitations are in
+[qualification](../../evidence/native-scene-timing.json). Owner testing remains
+pending; use F8 lightweight logging when reporting issues.

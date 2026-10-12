@@ -1,7 +1,7 @@
 # PERF-001: Goldwood combat slows game updates
 
 - **Severity: critical. Status: open; diagnostic candidate partly improves timing.**
-- Reported and last updated: 2026-10-11 UTC.
+- Reported: 2026-10-11 UTC. Last status cross-reference: 2026-10-12 UTC.
 - Affected: modern-controls v1.1 local preview with original instruction-clock runtime;
   source capture runtime SHA-256 `de2737396c3f840291de8a9155eaed415f6076beaf4d27200be6505cde11c538`.
 - [Implementation investigation and research](../../features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation).
@@ -62,9 +62,12 @@ memory does not imply identical future AI or frame-by-frame behavior.
 **No final resolution yet.** `HostCountClock` in
 [`include/jfg/boot/host_count_clock.hpp`](../../../include/jfg/boot/host_count_clock.hpp)
 and its integration in [`native_boot.cpp`](../../../src/boot/native_boot.cpp) are a
-private diagnostic candidate, enabled only by `JFG_DIAGNOSTIC_HOST_CLOCK=1`.
-The installed preview retains the reference clock. No release or fix commit is
-claimed. Do not promote this candidate until remaining timing requirements pass.
+private diagnostic candidate in the original combat investigation, enabled there
+by `JFG_DIAGNOSTIC_HOST_CLOCK=1`. On 2026-10-12, the separate high-refresh preview
+enables elapsed timing during play and qualifies a lighter bridge route; see
+[PERF-002](frame-diagnostics.md#local-preview-delivery-2026-10-12). That local
+delivery does not qualify this heavier fight or reopen the shelved PC/audio
+investigation. No combat resolution or public release is claimed.
 
 The candidate uses a steady clock at 46.875 MHz, preserves fractional timer units,
 handles guest wrap with a 64-bit count, excludes frontend pauses, and services

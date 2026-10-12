@@ -1,6 +1,6 @@
 # PERF-002: Frame diagnostics and reported stutter
 
-Status: native scene timing and present logging verified in bounded capped-play tests; packaging in progress, owner verification pending. Unlimited throughput and broader audio remain open.
+Status: native scene timing and present logging verified in bounded capped-play tests; local preview delivered, owner verification pending. Unlimited throughput and broader audio remain open.
 Severity: high owner-reported stutter; presentation defects reproduced and corrected in the candidate.
 Owner reports slowdowns while testing the high-refresh preview but has no visible
 counter or convenient frame log. Slowdown cause and location remain unconfirmed.
@@ -429,3 +429,39 @@ span optimizations were imported; the shelved audio investigation stays shelved.
 Other levels, combat, long sessions, full actor interpolation and reported seams/
 lighting remain outside this demonstrated correction. Tests were muted, hidden,
 and used copied saves. Every failed wrapper/candidate is retained privately.
+
+
+### Committed runtime qualification
+
+Implementation `5c7df1bdee61778590fb3b7baa281958a9167870`; rebuilt runtime SHA-256 `a14d9d77fc98ef6be1999a3ea9492d60467a4b107e376c66d431fbfd70231259`.
+
+| Normal play setting | Output FPS | New scenes/s | Update median ms | Output p99 ms | Output max ms |
+|---|---:|---:|---:|---:|---:|
+| play-120-vsync | 119.66 | 29.76 | 33.428 | 9.019 | 9.534 |
+| play-360 | 351.99 | 29.78 | 33.451 | 3.157 | 28.819 |
+
+These are hidden, muted, copied-save tests at 1600x900. The VSync row records the
+requested setting; it is not monitor-scanout verification. Both normal-play
+runs record zero audio underruns and CSV queue drops. Original-clock replay
+retains all three reference hashes. Five focused clock/scheduler/interpolation
+tests pass. The longer startup/audio and Unlimited limits above remain open.
+[Aggregate qualification](../../../evidence/native-scene-timing.json) records
+artifact identities and distinguishes checks made on earlier binaries from the
+final runtime. No full-game parity or blanket stutter resolution is claimed.
+
+
+### Local preview delivery (2026-10-12)
+
+The desktop **JFG - High Refresh Preview** shortcut now selects
+`C:\JFG-builds\high-refresh-native-timing-preview-20261012\JFG-Launcher.exe`.
+Close the old launcher and reopen that shortcut. Use a Custom cap for this
+scene-rate correction; F8 toggles the counter/log, and **JFG - Performance Logs**
+opens the existing log folder. The launcher initialization check selected the
+new runtime, all 14 manifest entries passed hash/size verification, and the
+existing profile/save/settings hashes were unchanged. The old package remains
+available. This is a local preview, not a public release.
+
+The implementation commit and exact delivered runtime are recorded above and
+in the qualification JSON. Owner live confirmation of the bridge and overall
+stutter remains pending. Unlimited source cadence, startup audio continuity,
+combat, other levels, seams and lighting are not declared resolved.

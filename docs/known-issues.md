@@ -13,8 +13,9 @@ hold the ongoing discussion, and fixed problems are recorded in the
 The owner's recorded drone fight drops to approximately 15 game updates per
 second in its busiest section. This is an actual update-cadence deficit, separate
 from the fixed modern camera-distance stepping. Detailed logging alone does not
-explain it. A native clock replacement is under qualification and is not installed
-in the delivered preview. See the [timing investigation](features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation)
+explain it. The separate high-refresh local preview now uses native timing and
+restores about 30 scene updates/s on the measured bridge route, but this does not
+verify the heavier combat encounter. The combat issue remains open. See the [timing investigation](features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation)
 for measurements, experiments and the remaining acceptance work.
 
 ## Character seams and lighting
