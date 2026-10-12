@@ -257,3 +257,19 @@ does not imply fully interpolated skin animation. This bounded result does not
 establish raster coverage parity or resolve the owner's exact pose. No new
 character fix or package was delivered; see the [issue's dense follow-up](../development/issues/character-seams-lighting.md#dense-thigh-follow-up-2026-10-12)
 and [aggregate evidence](../../evidence/high-refresh-character-seams-investigation.json).
+
+
+### FPS counter and slowdown logs
+
+The current local preview shows **FPS**, average **MS**, **GAME** scene rate,
+and worst **MAX** interval in the upper right. **F8** toggles both the counter
+and recording while the game has focus. Diagnostics start enabled in the preview;
+this shortcut does not change audio, saves or video rate preferences.
+
+Reproduce the slowdown, stop the game, and open **JFG - Performance Logs** on
+the desktop. Share the CSV files with the newest common session prefix. Raw
+frame intervals, scene counts/age and VI ticks distinguish output stalls from
+slower scene updates; FPS is rendered output, not monitor scanout. Logging uses
+a bounded queue and background writer, with four rotating 16 MiB files per
+session. Existing sessions are retained. See [PERF-002](../development/issues/frame-diagnostics.md)
+for limitations and validation. No slowdown remedy is claimed.

@@ -111,3 +111,11 @@ chests, collect NPC rewards and cross exits, but autonomous campaign
 completion is not established. Lupus hover, moving platforms, crawling,
 shooting and explosive gates and unsupported scripted traversal still need
 manual play. Normal gameplay leaves the mod off.
+
+
+## Slowdown capture
+
+The high-refresh preview now includes an F8 counter and asynchronous CSV frame
+logging. Muted replay checks pass; owner live-key and slowdown capture remain
+pending. The newly reported slowdown has no isolated cause or remedy yet.
+See [PERF-002](development/issues/frame-diagnostics.md).

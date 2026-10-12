@@ -4,6 +4,7 @@
 #include "jfg/renderer/vi_presentation.hpp"
 
 #include "rt64_f3ddkr.hpp"
+#include "frame_diagnostics.hpp"
 
 #include "hle/rt64_application.h"
 #include "hle/rt64_vi.h"
@@ -68,6 +69,7 @@ struct CaptureContext;
 std::atomic<CaptureContext*> active_capture = nullptr;
 
 struct CaptureContext {
+    FrameDiagnostics diagnostics;
     RT64::Application* application = nullptr;
     RenderDevice* device = nullptr;
     RT64::RenderHookInit* previous_init = nullptr;
@@ -212,6 +214,9 @@ void CaptureContext::draw(
     RenderFramebuffer* framebuffer) noexcept {
     const std::scoped_lock lock(mutex);
     clear_vi_guard_texel(application, list);
+    if (application && application->swapChain) {
+        try { diagnostics.draw(list, application->swapChain->getWidth(), application->swapChain->getHeight()); } catch (...) {}
+    }
     if (!armed || scheduled || failed || application == nullptr ||
         application->swapChain == nullptr ||
         application->presentQueue == nullptr || device == nullptr ||
@@ -788,6 +793,8 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
         }
         impl->capture = std::make_unique<CaptureContext>();
         impl->capture->application = impl->application.get();
+        impl->capture->diagnostics.initialize(configuration.native_window,
+            configuration.experimental_refresh_rate, configuration.unlimited_presentation, configuration.vsync);
         if (!impl->capture->activate()) {
             error = Rt64ShellError::render_hook_unavailable;
             return nullptr;

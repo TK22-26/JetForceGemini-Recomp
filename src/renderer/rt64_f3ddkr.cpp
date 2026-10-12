@@ -1,4 +1,5 @@
 #include "rt64_f3ddkr.hpp"
+#include "jfg/renderer/frame_diagnostics_state.hpp"
 #include "jfg/renderer/interpolation_bridge.hpp"
 #include <bit>
 #include "jfg/renderer/rt64_f3ddkr_address.hpp"
@@ -902,7 +903,16 @@ void prepare_interpolation(Context& context, RT64::State& state) {
 void full_sync(RT64::State* state, RT64::DisplayList** dl) {
     Context* context = find_context(state);
     const auto start = std::chrono::steady_clock::now();
-    if (context != nullptr) prepare_interpolation(*context, *state);
+    if (context != nullptr) {
+        const auto& workload = state->ext.workloadQueue->workloads[state->ext.workloadQueue->writeCursor];
+        bool scene = false;
+        for (std::uint32_t f = 0; f < workload.fbPairCount; ++f) {
+            const auto& pair = workload.fbPairs[f];
+            scene = scene || (pair.colorImage.width >= 320U && pair.colorImage.siz == G_IM_SIZ_16b);
+        }
+        if (scene) frame_diagnostic_state().scene(context->vi_tick);
+        prepare_interpolation(*context, *state);
+    }
     RT64::GBI_RDP::fullSync(state, dl);
     if (context != nullptr) {
         context->stats.full_sync_microseconds +=
