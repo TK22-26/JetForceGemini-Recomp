@@ -629,5 +629,23 @@
     }
   },
   "stationary_camera_non_framebuffer_different_bytes": 0,
-  "visible_newly_matched_bridge_samples": 0
+  "visible_newly_matched_bridge_samples": 0,
+  "delivery": {
+    "source_commit": "34c9986224c0508a45d1f7d1caa10f2b6b377526",
+    "previous_commit": "9407ccd726001bad4e2372af3bdfb94688394209",
+    "runtime_sha256": "f6c420fdb4ef5c7b4c361e334ca86e91a7ca94126c866e5645ab5f2db5d7546c",
+    "tests_verified": true,
+    "owner_visible_bridge_light_fix_verified": false,
+    "full_route_damage_fix_verified": false,
+    "shadow_fix_included": false,
+    "public_release": false,
+    "committed_at_utc": "2026-10-13T18:54:15 +0000",
+    "package_name": "high-refresh-route-review-20261013",
+    "manifest_verified": 14,
+    "launcher_init_passed": true,
+    "muted_tests": true,
+    "owner_profiles_preserved": true,
+    "delivered": true,
+    "delivered_at_utc": "2026-10-13T18:56:05.842380+00:00"
+  }
 }

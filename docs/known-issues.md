@@ -203,3 +203,9 @@ reported visible lag and its remedy are unverified. See
 [RENDER-006](development/issues/tutorial-late-object-jitter.md),
 [RENDER-007](development/issues/shadow-cadence.md), and
 [qualification](../evidence/high-refresh-route-review.json).
+
+The local `high-refresh-route-review-20261013` candidate is now installed through
+both High Refresh Preview and Jitter Capture shortcuts. Source `34c9986224c0508a45d1f7d1caa10f2b6b377526`;
+existing profiles and diagnostics arguments are preserved. This delivery does
+not close the three remaining owner reports above. See
+[delivery evidence](../evidence/high-refresh-route-review.json).

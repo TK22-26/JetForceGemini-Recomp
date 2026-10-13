@@ -531,3 +531,25 @@ The camera test's improved bridge matches are offscreen; exact visible late
 bridge/light jitter and full-route damage slowdown remain open. Shadow-mask
 cadence has no correction yet. See [review](../development/issues/tutorial-late-object-jitter.md#review-qualification-2026-10-13)
 and [evidence](../../evidence/high-refresh-route-review.json).
+
+## Local route-review candidate delivered (2026-10-13)
+
+Implementation commit `34c9986224c0508a45d1f7d1caa10f2b6b377526` is installed as
+`high-refresh-route-review-20261013` on D:. Both **JFG - High Refresh Preview**
+and **JFG - Jitter Capture** desktop shortcuts select it, preserving their
+existing profile and recording arguments. Close and reopen an older launcher
+to load it. All 14 package entries verify by size/hash, isolated setup resolves
+the new runtime, and both existing save/settings profiles are unchanged.
+The launcher remains the already qualified expanded-capture build.
+
+A packaging invocation initially omitted a PowerShell switch prefix and stopped
+before changing either shortcut. The corrected guarded continuation revalidated
+the staged package and old shortcut backups, then completed delivery. This was
+a delivery-script error, not a game test failure; evidence is preserved.
+
+This is a partial local correction, not a public release or a declaration that
+the tutorial is fixed. Completed-write pacing and hidden replay input are
+corrected; stationary camera coverage is extended. Exact full-route damage
+slowdown, visible late bridge/light jitter and shadow cadence remain open.
+Qualification and runtime identity are in
+[the delivery evidence](../../evidence/high-refresh-route-review.json).
