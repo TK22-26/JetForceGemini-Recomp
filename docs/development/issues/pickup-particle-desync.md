@@ -1,6 +1,6 @@
 # RENDER-005: Pickup particles desynchronize from interpolated gems
 
-Status: **candidate implemented and bounded-tested; owner live verification pending** (2026-10-13 UTC).
+Status: **correction bounded-tested and delivered locally; owner live verification pending** (2026-10-13 UTC).
 Severity: visible effect coherence defect. The owner confirms gems and drones
 look good in visibility preview implementation `c9189c1`, runtime
 `cb3de8f6593fa2abb0a12e7a2ea7f98ecf23ea817ad247505c1338a39dcd2292`, but particles
@@ -77,3 +77,12 @@ Implementation commit: 83cd8af0bad951d27939adadb74f374840d1303d. The committed b
 qualified runtime 14746717614559b93fa535f9caf0a02fce50f23d2df3ab23aa6e9302607f30aa.
 A copy is retained in the private D: evidence directory. Desktop delivery is
 held pending the controlled performance comparison above; no release was made.
+
+## Delivery after controlled combat qualification
+
+Particle implementation 83cd8af is retained in a93faa5ef61b86536327ffa83d48fc95835a21ff.
+The new high-refresh-combat-spans-20261013 preview includes it. All three isolated
+combat replays maintained near-30 scene cadence with zero audio underruns;
+package files and launcher initialization pass. Owner live particle confirmation
+remains pending. Historical held-delivery measurements above are preserved.
+See [current qualification](../../../evidence/combat-native-spans.json).

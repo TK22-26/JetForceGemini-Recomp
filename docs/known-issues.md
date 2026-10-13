@@ -8,22 +8,17 @@ Check this page before opening a report. It lists confirmed open limitations;
 hold the ongoing discussion, and fixed problems are recorded in the
 [runtime fix log](development/boot-gameplay-fix.md).
 
-## Critical: Goldwood combat slowdown
+## Goldwood combat cadence
 
-The owner's recorded drone fight drops to approximately 15 game updates per
-second in its busiest section. This is an actual update-cadence deficit, separate
-from the fixed modern camera-distance stepping. Detailed logging alone does not
-explain it. The separate high-refresh local preview now uses native timing and
-restores about 30 scene updates/s on the measured bridge route, but this does not
-verify the heavier combat encounter. The combat issue remains open. See the [timing investigation](features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation)
-for measurements, experiments and the remaining acceptance work.
-
-The latest research candidate also reduces native CPU bookkeeping with bounded
-instruction spans. Exact Original/native clock-state comparisons, ten focused
-C++ suites and pause/overload checks pass. Exclusive combat performance and
-delivery are still pending; the desktop visibility preview is unchanged.
+Older builds can spend prolonged periods at 20-25 game updates/s in drone fights.
+The latest local high-refresh preview corrects native recovery from the historical
+20-Hz hold and reduces CPU bookkeeping. Two isolated 120/VSync combat replays and
+one 360/no-VSync replay maintained about 29.7-29.8 scene updates/s, with zero audio
+underruns. They produced about 120 and 353-360 output FPS respectively. Rare single
+late updates remain; full-game and owner live acceptance are pending.
+The current desktop preview includes this change and the pickup-particle correction.
 See [PERF-001](development/issues/goldwood-combat-slowdown.md) and
-[candidate evidence](../evidence/combat-native-spans.json).
+[qualification](../evidence/combat-native-spans.json). No public release.
 
 ## Character seams and lighting
 
@@ -37,8 +32,8 @@ delay's exact cause has not been isolated. See
 
 A newer capped-presentation correction prevents repeated completed interpolation
 windows and shadow-only truncation. It passes bounded camera-pan/full-circle
-checks, with owner/physical-display verification pending. Source workload spikes
-and adaptive 30/20-Hz recovery are unchanged. See
+checks, with owner/physical-display verification pending. Genuine workload spikes remain; the latest native preview removes the historical
+31-fast-frame recovery hold after a slowdown. See
 [RENDER-003](development/issues/steady-fps-jitter.md).
 
 The [high-refresh candidate](features/high-refresh-rendering.md) has RmlUi

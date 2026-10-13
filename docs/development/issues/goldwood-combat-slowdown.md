@@ -1,6 +1,6 @@
 # PERF-001: Goldwood combat slows game updates
 
-- **Severity: critical. Status: open; diagnostic candidate partly improves timing.**
+- **Severity: critical in affected older builds. Status: bounded combat tests passed; local preview delivered, owner live verification pending.**
 - Reported: 2026-10-11 UTC. Last status cross-reference: 2026-10-13 UTC.
 - Affected: modern-controls v1.1 local preview with original instruction-clock runtime;
   source capture runtime SHA-256 `de2737396c3f840291de8a9155eaed415f6076beaf4d27200be6505cde11c538`.
@@ -432,3 +432,43 @@ verified all 2,909 body sources, their included headers, compiler flags/toolchai
 and dependency ages; fresh wrappers/support and normal object audits were kept.
 Transferable lesson: separate game-state/clock equivalence from performance,
 and never compare frame rates while another game or compiler is competing.
+
+## Controlled combat qualification and local delivery
+
+| Run | SCENES/s by combat window | OUTPUT/s by combat window | Audio underruns | Median update wall time excluding clock wait |
+|---|---|---|---:|---:|
+| prespan-120-a | 29.83 / 29.78 / 29.84 / 29.77 | 119.67 / 119.94 / 119.88 / 119.68 | 0 | 22.522 ms |
+| spans-120-clean-a | 29.82 / 29.79 / 29.83 / 29.75 | 119.76 / 119.95 / 119.83 / 119.60 | 0 | 21.945 ms |
+| spans-120-clean-b | 29.83 / 29.79 / 29.84 / 29.80 | 119.91 / 119.95 / 119.87 / 119.65 | 0 | 21.442 ms |
+| spans-360-clean | 29.80 / 29.73 / 29.81 / 29.68 | 358.13 / 359.55 / 355.88 / 352.77 | 0 | 22.058 ms |
+
+Controlled performance qualification completed after the competing controls
+tests ended. Two clean 120/VSync runs and one 360/no-VSync run each maintained
+29.68-29.84 SCENES/s across the measured combat windows, with zero audio
+underruns. Output was 119.60-119.95 at the 120 target and 352.77-359.55 at the
+360 target. One 3-VI update occurred in the first 120 run and one in the 360
+run; all other measured updates used 2 VIs. No sustained 20-25-Hz episode
+recurred. This qualifies bounded local combat cadence, not perfect pacing,
+physical scanout, all computers, every encounter or sustained exact 360 FPS.
+
+The original installed preview's valid comparison windows ranged from 24.74
+to 29.86 SCENES/s. The recovery-only build already held about 29.8 in its clean
+repeat. Native span batching reduced median update wall time excluding explicit
+clock wait from 22.522 ms there to 21.945 / 21.442 ms in the two 120 runs.
+That is modest observed headroom, not a claim that batching alone removed the
+20-Hz hold. These times also include renderer/OS work; open-loop fights can
+diverge with native timings. The demonstrated recovery hysteresis fix is the
+main explanation for avoiding prolonged 20-Hz episodes.
+
+The first new-CPU comparison overlapped another controls replay and was excluded,
+even though its audio counter was zero. Its process evidence and result remain.
+Two-minute quiet preflight and continuous JFG/compiler/linker process sampling
+qualified the final three runs; this is not whole-system load control.
+
+Delivered locally as high-refresh-combat-spans-20261013 on D: through **JFG - High Refresh Preview**.
+Implementation a93faa5ef61b86536327ffa83d48fc95835a21ff; runtime e7e3af29fd9aeec9e037da93a27d0e50272ba7bbb6b4ac77eb5f6536dd2d6fc5.
+All 14 manifest files and isolated muted launcher initialization verify.
+The existing owner save/settings and shortcut arguments are preserved. Tests
+were muted and used copied saves. The earlier pickup-particle correction is
+included. No public release. **Owner live verification and broader combat/game
+coverage remain open.** See [qualification](../../../evidence/combat-native-spans.json).

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "Implemented and functionally tested; delivery held for controlled performance comparison; combat remains critical/open",
+  "status": "Particle correction retained and delivered with native CPU preview; historical measurements below keep their recorded runtime; owner live review pending",
   "source_parent": "88929290ae2b3ecc61b293b0a490aee304eafc85",
   "candidate_runtime_sha256": "14746717614559b93fa535f9caf0a02fce50f23d2df3ab23aa6e9302607f30aa",
   "guard": {
@@ -561,10 +561,20 @@
   "private_evidence_directory": "D:/JFG-private/high-refresh-20261011/combat-20261013",
   "public_release": false,
   "delivery": {
-    "delivered": false,
-    "existing_desktop_preview_unchanged": true,
-    "reason": "Final combat dips/audio underruns and unresolved concurrent-load attribution; require controlled performance comparison"
+    "source_commit": "a93faa5ef61b86536327ffa83d48fc95835a21ff",
+    "runtime_sha256": "e7e3af29fd9aeec9e037da93a27d0e50272ba7bbb6b4ac77eb5f6536dd2d6fc5",
+    "performance_accepted": true,
+    "delivered": true,
+    "manifest_verified": 14,
+    "launcher_init_passed": true,
+    "muted_tests": true,
+    "owner_profile_preserved": true,
+    "owner_live_validation_pending": true,
+    "public_release": false,
+    "delivered_at_utc": "2026-10-13T13:34:19.487993+00:00",
+    "package_name": "high-refresh-combat-spans-20261013"
   },
   "implementation_commit": "83cd8af0bad951d27939adadb74f374840d1303d",
-  "candidate_retained_on_D": true
+  "candidate_retained_on_D": true,
+  "newer_qualification": "combat-native-spans.json"
 }

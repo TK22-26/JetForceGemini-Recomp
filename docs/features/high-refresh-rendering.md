@@ -448,3 +448,19 @@ pause/overload checks qualify its behavior. Combat performance and delivery
 are pending exclusive runtime access. The existing desktop preview remains.
 See [PERF-001](../development/issues/goldwood-combat-slowdown.md) for build
 compatibility, failed attempts and [evidence](../../evidence/combat-native-spans.json).
+
+### Qualified native combat preview delivered
+
+The controlled 120/VSync repeats maintained 29.75-29.84 SCENES/s and roughly
+120 OUTPUT/s. The 360/no-VSync repeat maintained 29.68-29.81 SCENES/s and
+352.77-359.55 OUTPUT/s. All three had zero audio underruns. Rare single late
+updates remain; this is bounded replay qualification, not physical-display or
+full-game acceptance. The earlier holds above are historical and superseded.
+
+The high-refresh-combat-spans-20261013 package is now linked by **JFG - High Refresh Preview**.
+It includes CPU spans, faster native 20-Hz recovery and particle lifetimes.
+Save/settings are preserved; all 14 manifest files and isolated launcher init
+verify. Implementation a93faa5ef61b86536327ffa83d48fc95835a21ff. Owner live review remains.
+See [PERF-001](../development/issues/goldwood-combat-slowdown.md) and
+[qualification](../../evidence/combat-native-spans.json) for failed comparisons,
+measurements and compatibility. No public release.
