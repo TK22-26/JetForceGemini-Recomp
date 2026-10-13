@@ -1,5 +1,7 @@
 #pragma once
+#include "jfg/renderer/rigid_camera.hpp"
 #include <array>
+#include <bit>
 #include <cstdint>
 #include <cstring>
 #include <map>
@@ -28,6 +30,7 @@ struct PresentationSpriteIdentity {
 struct PresentationRigidIdentity {
   std::uint32_t matrix = 0, actor = 0;
   std::uint64_t lifetime = 0, camera = 0;
+  RigidPresentationPose pose;
 };
 struct PresentationSceneIdentity {
   std::vector<PresentationModelIdentity> models;
@@ -75,15 +78,19 @@ presentation_vertex_identity(const PresentationSceneIdentity &scene,
   }
   return result;
 }
+inline const PresentationRigidIdentity* presentation_rigid_owner(
+    const PresentationSceneIdentity& scene, std::uint32_t matrix) {
+  const PresentationRigidIdentity* owner=nullptr;
+  for (const auto& rigid:scene.rigids) if(rigid.matrix==matrix) {
+    if(owner) return nullptr;
+    owner=&rigid;
+  }
+  return owner;
+}
 inline std::array<std::uint64_t, 4> presentation_rigid_key(
     const PresentationSceneIdentity &scene, std::uint32_t matrix,
     std::uint32_t source, std::uint32_t count) {
-  const PresentationRigidIdentity *owner = nullptr;
-  for (const auto &rigid : scene.rigids) {
-    if (rigid.matrix != matrix) continue;
-    if (owner) return {};
-    owner = &rigid;
-  }
+  const auto* owner = presentation_rigid_owner(scene, matrix);
   if (!owner || !owner->lifetime || !owner->camera || !count) return {};
   const PresentationModelIdentity *geometry = nullptr;
   for (const auto &model : scene.models) {
@@ -220,6 +227,15 @@ public:
     Rigid binding{actor, ram.u32(actor + 0x40U), ram.u32(actor + 0x6CU),
                   tick, (std::uint64_t(mode) << 32U) | (number + 1U), {}};
     for (unsigned i = 0; i < 16; ++i) binding.words[i] = ram.u32(matrix + i*4U);
+    // US camPushModelMtx constructs model at 0x800FAAB0, concatenates it
+    // with view/projection (0x800FAF78/0x800FAA70), then emits fixed MVP.
+    // Capture before another object reuses these scratch globals. The matrix
+    // byte/lifetime checks below and decoder product check bind the operands.
+    for (unsigned i=0;i<16;++i) {
+      binding.pose.world[i]=std::bit_cast<float>(ram.u32(0x800FAAB0U+i*4U));
+      binding.pose.view[i]=std::bit_cast<float>(ram.u32(0x800FAF78U+i*4U));
+      binding.pose.projection[i]=std::bit_cast<float>(ram.u32(0x800FAA70U+i*4U));
+    }
     rigids_[physical] = binding;
   }
   // camSetProjMtx writes one camera MVP at *a1 and emits its DMA command.
@@ -319,7 +335,7 @@ public:
           actor == actors_.end() || actor->second.header != rigid.header ||
           actor->second.models != rigid.models) it = rigids_.erase(it);
       else {
-        result.rigids.push_back({it->first, rigid.actor, actor->second.serial, rigid.camera});
+        result.rigids.push_back({it->first, rigid.actor, actor->second.serial, rigid.camera, rigid.pose});
         ++it;
       }
     }
@@ -369,6 +385,7 @@ private:
     std::uint32_t actor, header, models;
     std::uint64_t tick, camera;
     std::array<std::uint32_t, 16> words;
+    RigidPresentationPose pose;
   };
   std::map<std::uint32_t, Rigid> rigids_;
   struct ParticleSprite {

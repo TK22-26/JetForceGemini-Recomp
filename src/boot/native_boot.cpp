@@ -2988,7 +2988,7 @@ void sample_live_controller(State &state) noexcept {
     state.vi_retraces>=state.diagnostic_input_suspend_begin &&
     state.vi_retraces<state.diagnostic_input_suspend_end;
   const bool previously_blocked=state.pc_input_blocked;
-  state.pc_input_blocked=(block_physical && !state.input_replay_loaded) || replay_suspended;
+  state.pc_input_blocked=jfg::pc_input_motion_blocked(block_physical,state.input_replay_loaded,replay_suspended);
   if(previously_blocked!=state.pc_input_blocked)
     state.gameplay_trace.event("pc-input-suspended",{state.vi_retraces,state.pc_input_blocked?1U:0U});
   jfg::mod::Memory pc_memory({state.rdram,kRdramSize});
@@ -3007,7 +3007,7 @@ void sample_live_controller(State &state) noexcept {
     state.pc_mouse.clear();
   }
   state.pc_mouse_captured=want_mouse;
-  if(block_physical || replay_suspended){state.pc_aim.fill({});state.pc_wheel.clear();state.pc_mouse.clear();for(auto &motion:state.pc_stick_motion)motion.clear();for(auto &motion:state.pc_scope_motion)motion.clear();for(auto &motion:state.modern_scope_sensitivity)motion.clear();}
+  if(state.pc_input_blocked){state.pc_aim.fill({});state.pc_wheel.clear();state.pc_mouse.clear();for(auto &motion:state.pc_stick_motion)motion.clear();for(auto &motion:state.pc_scope_motion)motion.clear();for(auto &motion:state.modern_scope_sensitivity)motion.clear();}
   if(!state.modern_controls_active || pc_memory.u8(0x800FD7BDU)!=0 || !jfg::mod::pc_gameplay_active(pc_memory,state.phase9_player_actor) ||
      jfg::mod::scripted_camera_active(pc_memory,state.phase9_player_actor)) {
     state.pc_orbits.fill({});state.pc_shoulders.fill({});for(auto &motion:state.pc_stick_motion)motion.clear();for(auto &motion:state.pc_scope_motion)motion.clear();for(auto &motion:state.modern_scope_sensitivity)motion.clear();

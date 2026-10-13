@@ -507,6 +507,12 @@ inline PcLookDelta pc_camera_delta(std::uint8_t mode,PcLookDelta look,float tick
 }
 // Integrate the modern stick rate without throwing away sub-angle motion on
 // each guest update. Context changes and neutral input discard stale fractions.
+// A recording supplies input independently of physical window focus. Explicit
+// replay suspension still exercises the ordinary loss-of-input reset path.
+inline bool pc_input_motion_blocked(bool physical_blocked, bool replay_loaded,
+                                    bool replay_suspended) noexcept {
+  return (physical_blocked && !replay_loaded) || replay_suspended;
+}
 class PcStickMotion {
   double x_=0,y_=0;std::uint32_t context_=0;
 public:

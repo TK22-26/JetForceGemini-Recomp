@@ -189,3 +189,17 @@ alongside camera/actor/input events and frame timing. Setup smoke passes; the
 owner's repeated route and visual acceptance are pending. Initial idle waiting
 is excluded from active-route analysis, preserving raw replay timestamps.
 This diagnostic addition does not resolve RENDER-006.
+
+## Expanded route review status (2026-10-13)
+
+The owner's repeated capture is complete. Initial idle time is excluded using
+first active gameplay input while raw recording times remain preserved.
+Damage correlates with real 20-22 SCENES intervals. A completed framebuffer-write
+pacing correction and stationary-object camera-history extension pass bounded
+checks, but the exact full-route slowdown and visible light/bridge jitter remain
+open. The bounded 18-hit fixture stays near 120/30 with normal and expanded
+logging. Ground shadows lack caster-owned high-refresh mask/UV handling; the
+reported visible lag and its remedy are unverified. See
+[RENDER-006](development/issues/tutorial-late-object-jitter.md),
+[RENDER-007](development/issues/shadow-cadence.md), and
+[qualification](../evidence/high-refresh-route-review.json).

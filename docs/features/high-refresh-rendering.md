@@ -513,3 +513,21 @@ the exact later-cave crates/exit-light/bridge jitter still require live coverage
 their issue records remain open. All runtime tests were muted. Large private
 evidence and the new package stay on D:. The production guard remained enabled
 under the same investigation and counters throughout.
+
+## Expanded route review (2026-10-13)
+
+A completed CPU framebuffer-write VI now displays its last interpolation
+endpoint once rather than holding it for another full finite window. Recorded
+input also retains fractional stick motion while a replay window is hidden.
+Stationary rigid objects can retain history across camera-plane crossings when
+immutable world/view/projection operands validate against their emitted matrix;
+lifetimes, cuts and unknown geometry retain conservative handling.
+
+These changes pass ten focused C++ suites, four analyzer checks, exact
+non-framebuffer Original/Custom state comparison, muted 120/360 combat and
+pause/resume checks. Combat includes 18 damage events; normal/expanded logging
+both maintain about 120/30. 360-cap output averages 350-355 on this host.
+The camera test's improved bridge matches are offscreen; exact visible late
+bridge/light jitter and full-route damage slowdown remain open. Shadow-mask
+cadence has no correction yet. See [review](../development/issues/tutorial-late-object-jitter.md#review-qualification-2026-10-13)
+and [evidence](../../evidence/high-refresh-route-review.json).

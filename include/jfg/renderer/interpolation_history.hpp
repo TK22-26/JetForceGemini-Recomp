@@ -1,4 +1,5 @@
 #pragma once
+#include "jfg/renderer/rigid_camera.hpp"
 #include <array>
 #include <charconv>
 #include <cmath>
@@ -25,6 +26,7 @@ struct PresentationMesh {
     std::vector<std::array<float, 3>> positions;
     PresentationMatrix matrix{};
     bool eligible = true;
+    std::optional<RigidPresentationPose> rigid_pose;
 };
 // Known sprite lifetimes own the transform even when animation changes the
 // local quad dimensions. Retain vertex count and triangle connectivity; unknown
@@ -73,6 +75,11 @@ inline bool continuous_presentation_motion(const PresentationMesh& old,
                                           const PresentationMesh& current) noexcept {
     for (float value : old.matrix) if (!std::isfinite(value)) return false;
     for (float value : current.matrix) if (!std::isfinite(value)) return false;
+    for (const auto& point : current.positions)
+        for (float value : point) if (!std::isfinite(value)) return false;
+    if (old.rigid_pose && current.rigid_pose &&
+        stationary_rigid_camera_motion(*old.rigid_pose, *current.rigid_pose))
+        return true;
     bool visible = false;
     for (const auto& point : current.positions) {
         const auto project = [&](const PresentationMatrix& matrix) {

@@ -358,6 +358,19 @@ int main() {
   jfg::PcStickMotion integrated;int slow_turn=0;
   for(int i=0;i<16;++i)slow_turn+=integrated.take({1,-1},1.0F).x;
   check(slow_turn==2,"fractional stick rate survives repeated updates");
+  jfg::PcStickMotion foreground_recording,hidden_recording;
+  int foreground_turn=0,hidden_turn=0;
+  for(int i=0;i<16;++i) {
+    if(jfg::pc_input_motion_blocked(false,true,false))foreground_recording.clear();
+    if(jfg::pc_input_motion_blocked(true,true,false))hidden_recording.clear();
+    foreground_turn+=foreground_recording.take({1,-1},1.0F,100).x;
+    hidden_turn+=hidden_recording.take({1,-1},1.0F,100).x;
+  }
+  check(hidden_turn==2 && hidden_turn==foreground_turn,"recorded slow stick motion survives inactive-window replay");
+  check(jfg::pc_input_motion_blocked(true,false,false),"live focus loss still resets input fractions");
+  check(jfg::pc_input_motion_blocked(false,true,true),"explicit replay suspension still resets input fractions");
+  check(!jfg::pc_input_motion_blocked(false,false,false),"focused live input retains fractions");
+
   integrated.clear();auto one_update=integrated.take({257,-100},4.0F);
   integrated.clear();jfg::PcLookDelta many_updates;
   for(int i=0;i<4;++i){auto delta=integrated.take({257,-100},1.0F);many_updates.x+=delta.x;many_updates.y+=delta.y;}

@@ -3,6 +3,48 @@
 #include <limits>
 static void require(bool value) { if (!value) std::abort(); }
 int main() {
+    // A stationary owned bridge must not stop at source cadence merely
+    // because one of its vertices crosses the camera plane during a small pan.
+    const std::array<float,16> identity{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+    const std::array<float,16> perspective{1,0,0,0,0,1,0,0,0,0,1,1,0,0,-1,0};
+    jfg::PresentationMesh bridge;
+    bridge.key={10,11,12}; bridge.positions={{{1,0,0.005f}},{{0,0,10}}};
+    bridge.matrix=perspective;
+    auto pan=bridge; pan.matrix[14]=-1.01f; pan.matrix[15]=-0.01f;
+    require(!jfg::continuous_presentation_motion(bridge,pan));
+    jfg::RigidPresentationPose pose{identity,identity,perspective};
+    auto next_pose=pose; next_pose.view[14]=-0.01f;
+    require(jfg::rigid_pose_matches_matrix(pose,bridge.matrix));
+    require(jfg::rigid_pose_matches_matrix(next_pose,pan.matrix));
+    bridge.rigid_pose=pose; pan.rigid_pose=next_pose;
+    require(jfg::continuous_presentation_motion(bridge,pan));
+    jfg::PresentationHistory bridge_history;
+    bridge_history.record({bridge},200,true);
+    require(bridge_history.record({pan},202,true).transforms[0].matched);
+    auto teleported=next_pose; teleported.view[12]=300;
+    require(!jfg::stationary_rigid_camera_motion(pose,teleported));
+    auto turn=pose; turn.view[0]=turn.view[10]=0; turn.view[2]=1;turn.view[8]=-1;
+    require(!jfg::stationary_rigid_camera_motion(pose,turn));
+    auto changed_model=next_pose; changed_model.world[12]=0.5f;
+    require(!jfg::stationary_rigid_camera_motion(pose,changed_model));
+    require(!jfg::rigid_pose_matches_matrix(changed_model,pan.matrix));
+    auto zoom=next_pose; zoom.projection[0]=2;
+    require(!jfg::stationary_rigid_camera_motion(pose,zoom));
+    auto singular=next_pose;singular.view[0]=0;
+    require(!jfg::stationary_rigid_camera_motion(pose,singular));
+    auto table_view=next_pose;table_view.view[5]=table_view.view[10]=0.9993437f;
+    require(jfg::stationary_rigid_camera_motion(pose,table_view));
+    auto scaled_view=next_pose;scaled_view.view[5]=0.99f;
+    require(!jfg::stationary_rigid_camera_motion(pose,scaled_view));
+
+    auto nan=next_pose;nan.view[12]=std::numeric_limits<float>::quiet_NaN();
+    require(!jfg::stationary_rigid_camera_motion(pose,nan));
+    require(!jfg::rigid_pose_matches_matrix(nan,pan.matrix));
+    auto recycled=pan;recycled.key.push_back(99);
+    require(!bridge_history.record({recycled},204,true).transforms[0].matched);
+    auto invalid_vertex=pan;invalid_vertex.positions[0][0]=std::numeric_limits<float>::infinity();
+    require(!jfg::continuous_presentation_motion(bridge,invalid_vertex));
+
     require(jfg::parse_render_fps("") == 0U);
     require(jfg::parse_render_fps("60") == 60U);
     require(jfg::parse_render_fps("360") == 360U);

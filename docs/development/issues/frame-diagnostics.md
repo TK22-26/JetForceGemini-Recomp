@@ -465,3 +465,22 @@ The implementation commit and exact delivered runtime are recorded above and
 in the qualification JSON. Owner live confirmation of the bridge and overall
 stutter remains pending. Unlimited source cadence, startup audio continuity,
 combat, other levels, seams and lighting are not declared resolved.
+
+## Hidden controller replay fractional-motion regression (2026-10-13)
+
+The extended owner route exposed a replay limitation: physical focus gating
+cleared precise stick/scope fractional motion even when the recorded input path
+correctly bypassed the physical gate. Hidden replays could therefore diverge
+from focused live input. Candidate uses the already computed effective input
+block state for both suspension and fractional resets; live focus loss and
+explicit diagnostic replay suspension still reset. A fractional slow-stick
+regression check is added. Build and owner-route correspondence are pending;
+this is not presented as a damage-hitch or scenery-jitter fix.
+
+The hidden fractional-motion correction now passes focused input and replay
+checks: recorded low-rate input retains its accumulated fraction while live
+focus loss and explicit replay suspension still clear it. This removes one
+source of replay divergence; it does not restore full owner-route equivalence.
+Final native Play compares log-only and expanded tracing at 120/30 with 18
+actual damage events and no diagnostic drops. The owner's damage-correlated
+source-rate loss remains open. See [route qualification](tutorial-late-object-jitter.md#review-qualification-2026-10-13).

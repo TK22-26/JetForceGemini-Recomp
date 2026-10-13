@@ -1128,3 +1128,37 @@ the exact later-cave crates/exit-light/bridge jitter still require live coverage
 their issue records remain open. All runtime tests were muted. Large private
 evidence and the new package stay on D:. The production guard remained enabled
 under the same investigation and counters throughout.
+
+## Expanded route: damage-correlated drops (2026-10-13)
+
+The owner reports about a second of lag on damage. In capture 20261013-172104,
+health drops near VI 3742-3912 (session 64-67 seconds) coincide with roughly
+20-22 new scenes/s while output remains about 111-114/s. This is a real source
+cadence reduction, not just counter text. The window includes dense combat and
+expanded synchronous tracing; damage is correlated, not yet a proved cause.
+The later light/bridge segment mostly has even presentation phases, so its
+object matching failures must be considered separately. Initial menu/idle time
+is excluded from active-route summaries; raw timestamps are retained.
+
+The full owner route has not yet replayed faithfully using elapsed-VI input
+scheduling; the replay remains in the first room. Hidden recorded precise-stick
+fraction accumulation had a real focus-reset bug and now passes targeted input
+tests, but that change alone did not restore route correspondence. Do not infer
+a full-route fix from these partial replays.
+
+## Damage comparison qualification (2026-10-13)
+
+The final candidate corrects redundant completed framebuffer-write holds, and
+preserves non-render-buffer game state in Original/Custom comparison. A bounded
+Goldwood native Play fixture with 18 actual damage events maintains about
+120 OUTPUT / 29.8 SCENES with both light and expanded logging, no audio underruns
+and no diagnostic queue drops. Logging alone does not explain a slowdown in
+that fixture. 360-cap output averages 350-355 with about 29.8 SCENES, not a
+sustained 360. Deliberate pause/readback probes are reported separately.
+
+The owner's 20-22 SCENES damage-correlated window remains real and unexplained
+in the exact route. Replaying available inputs does not preserve the full
+route under timing changes, so unmatched baseline/candidate routes cannot
+prove a whole-route performance improvement. Keep PERF-001 open. See
+[review findings](tutorial-late-object-jitter.md#review-qualification-2026-10-13)
+and [aggregate qualification](../../../evidence/high-refresh-route-review.json).

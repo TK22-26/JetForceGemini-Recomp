@@ -153,6 +153,13 @@ function(jfg_video_patch_present)
                         jfg::trace_interpolation("completed", present.presentId, viOriginalRate,
                             targetRate, 0U, frameCounters.count, 1.0f,
                             present.fbOperations.size(), present.paused ? 1U : 0U);
+                        if (jfg::interpolation_trace_enabled()) for (const auto& operation : present.fbOperations) {
+                            if (operation.type == FramebufferOperation::Type::WriteChanges)
+                                jfg::trace_interpolation("completed-write", present.presentId,
+                                    presentFb->addressStart, operation.writeChanges.address,
+                                    static_cast<unsigned>(operation.type), frameCounters.count,
+                                    0.0f, operation.writeChanges.id, 0U);
+                        }
                     }
                     if (jfgRepeatCompleted && !present.paused && present.fbOperations.empty() && !jfgCaptureRequested &&
                         frameCounters.count != jfg::kUnlimitedPresentation) {
@@ -171,9 +178,12 @@ function(jfg_video_patch_present)
                         // Replaying its old sequence rewinds motion at capped rates;
                         // the unlimited ring additionally overwrites old slots.
                         // Repeat the latest image, never restart old motion.
-                        // Keep the finite output window: one output per VI would
-                        // leave idle gaps between source submissions at high caps.
-                        if (frameCounters.count != jfg::kUnlimitedPresentation && !jfgCaptureRequested)
+                        // CPU-write VIs have already applied their operations
+                        // above. They do not own another scene-time window:
+                        // holding the endpoint for that whole window delays the
+                        // next scene even though the output counter stays high.
+                        // Paused presentation retains its existing refresh loop.
+                        if (present.paused && frameCounters.count != jfg::kUnlimitedPresentation && !jfgCaptureRequested)
                             framesToPresent = frameCounters.count;
                         jfgRepeatHasTarget = frameCounters.available > 0;
                         jfgRepeatTarget = jfgRepeatHasTarget ?

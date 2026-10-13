@@ -267,9 +267,13 @@ int main() {
   w32(0x80140004U,0x80160000U); w8(0x80150013U,3);
   w8(0x8015004EU,0); w8(0x8015004FU,0);
   w32(0x800FA630U,1); w32(0x800FA634U,0);
+  w32(0x800FAAB0U,0x3f800000U); w32(0x800FAF78U,0x40000000U);w32(0x800FAA70U,0x40400000U);
   jfg::PresentationIdentityTracker rigid_tracker;
   rigid_tracker.rigid(ram,0x80190000U,0x80100000U,200);
   auto rigid_scene=rigid_tracker.capture(ram,200);
+  require(rigid_scene.rigids[0].pose.world[0]==1 && rigid_scene.rigids[0].pose.view[0]==2 && rigid_scene.rigids[0].pose.projection[0]==3);
+  w32(0x800FAAB0U,0x40800000U); // Scratch is reused; captured operands remain immutable.
+  require(rigid_tracker.capture(ram,200).rigids[0].pose.world[0]==1);
   require(rigid_scene.rigids.size()==1 && rigid_scene.models.size()==1);
   const auto rigid_key=jfg::presentation_rigid_key(rigid_scene,0x190000U,0x160000U,3);
   require(rigid_key[0]!=0 && rigid_key[3]!=0 && rigid_key[2]==0x80150000U);

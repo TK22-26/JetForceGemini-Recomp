@@ -58,6 +58,9 @@ struct SemanticVertexState {
     PresentationMatrix world{};
     std::uint32_t source = 0;
     std::array<std::uint64_t, 4> billboard_key{}, rigid_key{};
+    // Points into this task's immutable identities; consumed before begin()
+    // replaces that shared snapshot or clears the per-task vertex metadata.
+    const RigidPresentationPose* rigid_pose = nullptr;
 };
 struct Context {
     RT64::Application* application = nullptr;
@@ -468,6 +471,8 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
             context->matrix_physical_addresses[context->selected_matrix], address,
             static_cast<std::uint32_t>(count))
         : std::array<std::uint64_t, 4>{};
+    const auto* rigid_owner = rigid_key[0] ? presentation_rigid_owner(
+        *context->identities, context->matrix_physical_addresses[context->selected_matrix]) : nullptr;
     if (context->billboard) {
         const int workload_cursor = state->ext.workloadQueue->writeCursor;
         RT64::Workload& workload =
@@ -537,6 +542,7 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
                 context->semantic_vertices[global].billboard_key =
                     billboard_key;
                 context->semantic_vertices[global].rigid_key = rigid_key;
+                context->semantic_vertices[global].rigid_pose = rigid_owner ? &rigid_owner->pose : nullptr;
             }
             const hlslpp::float4 position =
                 workload.drawData.posTransformed[global];
@@ -1027,19 +1033,36 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         rigid_baseline = context.rigid_baseline_history.record(meshes, context.vi_tick, scene);
     std::map<unsigned, std::array<std::uint64_t, 4>> rigid_owners;
     std::set<unsigned> rigid_conflicts;
+    std::map<unsigned, const RigidPresentationPose*> rigid_poses;
     for (std::size_t v = 0; v < context.semantic_vertices.size() && v < data.worldIndices.size(); ++v) {
         const auto &key = context.semantic_vertices[v].rigid_key;
         if (!key[0] || !key[3]) continue;
         const auto matrix = data.worldIndices[v];
         const auto [it, inserted] = rigid_owners.emplace(matrix, key);
         if (!inserted && it->second != key) rigid_conflicts.insert(matrix);
+        const auto* pose=context.semantic_vertices[v].rigid_pose;
+        if (pose) {
+            const auto [previous, fresh]=rigid_poses.emplace(matrix,pose);
+            if (!fresh && *previous->second != *pose) rigid_conflicts.insert(matrix);
+        }
     }
     for (const auto &[matrix, key] : rigid_owners) if (matrix < meshes.size()) {
         if (rigid_conflicts.contains(matrix)) meshes[matrix].eligible = false;
-        else bind_presentation_rigid(meshes[matrix], key);
+        else {
+            bind_presentation_rigid(meshes[matrix], key);
+            const auto pose=rigid_poses.find(matrix);
+            if (pose!=rigid_poses.end() && rigid_pose_matches_matrix(*pose->second, meshes[matrix].matrix))
+                meshes[matrix].rigid_pose=*pose->second;
+        }
     }
     auto frame = std::make_shared<PresentationHistoryFrame>(
         context.presentation_history.record(meshes, context.vi_tick, scene));
+    if (rigid_trace) {
+        std::size_t valid=0;
+        for (const auto& mesh:meshes) valid+=mesh.rigid_pose.has_value();
+        trace_interpolation("rigid-pose", context.vi_tick, frame->source_rate, 0U, 0U,
+            static_cast<unsigned>(rigid_owners.size()), 0.0f, valid, 0U);
+    }
     if (rigid_trace) for (const auto &[matrix,key] : rigid_owners)
         if (matrix < frame->transforms.size())
             trace_interpolation("rigid",context.vi_tick,static_cast<unsigned>(key[1]>>32U),

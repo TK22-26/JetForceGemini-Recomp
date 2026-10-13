@@ -394,3 +394,15 @@ The rebuilt committed executable is byte-identical to that qualified binary.
 The owner has been asked to retest a stationary full-circle camera rotation at
 Custom 120 / VSync on. Monitor scanout and owner visual acceptance are pending;
 this record does not mark all high-refresh limitations resolved.
+
+## Completed CPU-write windows (2026-10-13)
+
+The expanded owner route exposes another completed-sequence case: framebuffer
+writes bypass the earlier empty-operation skip and repeat one endpoint for a
+full finite interval. The correction displays that completed endpoint once,
+without discarding CPU writes or changing game timing. Bounded repeated phases
+fall from 995 to 35 with no backward phases. Pause and final captures pass.
+The base/interpolated CPU-write target mismatch remains a separate limitation.
+See [the route review](tutorial-late-object-jitter.md#review-qualification-2026-10-13)
+and [qualification](../../../evidence/high-refresh-route-review.json).
+This does not establish a fix for the owner's exact late light/bridge jitter.

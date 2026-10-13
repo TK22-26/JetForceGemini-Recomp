@@ -244,3 +244,144 @@ normally. The attempt to isolate that helper did not propagate the desktop to
 the render child (it used Default); do not treat this as isolated-desktop or
 clean performance evidence. No timing or visual-fix claim relies on this smoke.
 The delivered runtime is unchanged from the qualified develop merge.
+
+## Owner repeat-route report (2026-10-13, review in progress)
+
+The expanded capture closed normally. The owner reports a roughly one-second
+laggy response when Juno is hit, and the exit light marker and bridge jittering
+again near the end. "Jumping" means visual jitter, not actors actually jumping.
+Juno's ground shadow also appears to update sluggishly; this last symptom is
+subjective and not yet established as a separate regression. Preserve the
+separation between whole-frame stalls, low source cadence, object history
+rejections and shadow-mask updates. No cause or fix is confirmed yet.
+
+Affected package: high-refresh-route-capture-20261013, launcher source
+9407ccd726001bad4e2372af3bdfb94688394209, unchanged merged runtime
+1381e018fa2ec2cc8cc0e9c64c785753485b4068a81a08b7f29f8ca0cee2e4f8.
+Input v8, camera/actor trace, interpolation trace, frame CSV, initial profile and
+final RAM/image are retained privately on D:. Initial launcher waiting was not
+recorded. Exclude initial in-game waiting from derived active-route reports;
+retain raw VI ordering. Expanded logging overhead is a possible confounder,
+not a demonstrated explanation for the reported symptoms.
+
+The first replay fixture rejected repeated controller polls sharing a VI because
+it selected retrace-range input ordering; the raw recording is retained and
+valid under recorded-poll ordering. A second, muted hidden replay using recorded
+VI timing runs cleanly with no audio underruns, but never leaves area 21, while
+the owner reaches areas 16, 26 and 157. It is NOT accepted as an exact route or
+late-cave performance comparison. Native elapsed-clock state divergence and
+replay-input correspondence must be checked before making a causal comparison.
+
+### Completed framebuffer-write window candidate
+
+The muted replay's extra trace identifies 297 completed-sequence events with a
+CPU write to the active screen framebuffer (0x10ff00 or 0x135700); all replayed
+an entire finite output window. The existing path already selects the latest
+interpolated image, so those outputs repeat one endpoint rather than new motion.
+Candidate presents that completed endpoint once per write event while retaining
+operation execution, pause, capture and unlimited handling. This does not yet
+correct the existing mismatch between CPU changes on the base target and the
+selected interpolated target. Route visual acceptance and timing comparison are
+pending. The focus fix passes input tests but did not restore owner-route
+correspondence by VI 7000; later-room reproduction remains unresolved.
+
+### Stationary rigid object camera candidate
+
+A fresh bounded bridge orbit again reproduces history rejection when a bridge
+vertex approaches/crosses the camera plane. Independent matrix reconstruction
+shows a stationary bridge and small camera steps (an example is about 8.55
+world units and axis cosine 0.9988), while the projected-vertex test rejects the
+whole shared transform. The previously rejected generic offscreen-vertex rule
+remains absent.
+
+Candidate captures immutable world/view/projection operands at the already
+validated US camPushModelMtx return, keeps actor/model/camera lifetime binding,
+and checks that their product describes the actual emitted fixed matrix.
+Unchanged world/projection plus a bounded rigid camera step may interpolate a
+stationary object across the camera plane. Unknown objects, changing poses,
+changed projection, cuts, conflicting bindings and invalid matrices retain the
+existing conservative path. No guest state is changed. Synthetic near-plane,
+teleport, model-change, projection-change, singular and invalid-value checks
+are added. Build, exact endpoint-state and rendered-image checks are pending.
+
+The first camera-candidate build exposed a compatibility constraint: RT64's
+adapter translation units use C++17, so a shared header cannot default a C++20
+comparison operator. Explicit array comparisons restore C++17 compatibility;
+the blocked image test did not run against a stale binary. Evidence is retained.
+
+The first immutable-pose candidate passes its unit tests, accepts all 3,732
+observed matrix/operand products, and preserves every non-framebuffer guest
+byte in the bounded orbit. It does not yet improve bridge matching (2,610 of
+3,500 before and after). Therefore it is not qualified as a bridge fix. The
+captured VI 4056 images face the pond and do not visibly show the rejected bridge;
+a visible rejected sample and the failing pose-continuity condition are being
+checked before further changes. Full poll-order native routes also diverge:
+the baseline reaches area 47, while the candidate reaches areas 16 and 26.
+Their whole-route FPS averages are not a controlled performance comparison.
+
+The missing pose acceptance is explained by guest lookup-table trigonometry:
+retained view axes have squared lengths near 0.99869, just outside the initial
+0.001 orthonormal tolerance. The revised check bounds near-unit axes, divides
+by their measured squared lengths when recovering the camera eye and normalizes
+orientation comparisons. Tests retain rejection of actual scale/cuts. A
+vertex-inside-screen test alone is insufficient for large bridge triangles;
+homogeneous polygon clipping is used to choose visible rejection captures.
+
+## Review qualification (2026-10-13)
+
+The completed-window pacing defect is reproduced and corrected in tests.
+A VI with CPU framebuffer writes was presenting the already completed endpoint
+for another whole 4/6-output interval. It now presents that endpoint once.
+Framebuffer operations, pause, final captures and the Unlimited path remain.
+In the bounded recorded-time comparison, repeated presentation phases fall
+from 995 to 35, with zero backwards phases. These runs do not establish exact
+whole-route input correspondence. The existing base-versus-interpolated target
+CPU-write limitation described above remains open.
+
+The stationary-object camera extension now accepts all 3,732 captured operand
+products and improves bridge matching from 2,610/3,500 to 3,500/3,500; the exit
+arrow remains 230/232. It preserves every non-framebuffer guest byte. However,
+homogeneous triangle clipping finds that all newly accepted bridge samples in
+this orbit are offscreen. This is tested coverage, NOT proof that the owner's
+visible bridge/light jitter is fixed. Camera cuts, lifetime changes, changing
+world/projection, invalid matrices and geometry keep conservative rejection.
+The header must remain compatible with RT64's C++17 translation units.
+
+A further native-clock tail attempt spent its entire gameplay section in area
+21 rather than reproducing the late bridge. Its 1,176 geometric frames produce
+no newly matched visible objects. Preserve this informative failure; do not
+repeat full-route FPS comparisons without clock/input correspondence. Available
+owner inputs lack the exact simulation-clock history needed for faithful route
+recreation, and poll-order baseline/candidate paths diverge.
+
+Final clean runtime SHA-256:
+`f6c420fdb4ef5c7b4c361e334ca86e91a7ca94126c866e5645ab5f2db5d7546c`.
+Ten focused C++ suites and four presentation-analyzer tests pass. Temporary
+geometry dumping is removed. Original/Custom 120 have identical save hashes
+and zero differing guest bytes outside the known rendering buffers. These
+readback-heavy state probes report 2/3 audio underruns; they are not clean
+performance evidence. The separately measured native Play tests below have zero.
+
+At 1164x873, isolated muted Goldwood combat with normal and expanded logging
+holds 119.65-119.95 OUTPUT and 29.76-29.86 SCENES across the measured windows.
+The expanded trace contains 18 damage events. All live runs have zero audio
+underruns and zero dropped diagnostic rows. A 360-cap run delivers
+349.89-354.92 OUTPUT / 29.73-29.82 SCENES, so it does not qualify sustained 360.
+Pause/resume passes; its deliberate 1.25-second pause is excluded from a
+slowdown claim. These are bounded checks, not the owner's full-route resolution.
+
+Active owner-route reporting now starts at first non-neutral gameplay input,
+VI 2010. The earlier VI 1978 position change was entry settling, not player
+input. Raw recording order/timestamps remain intact. The active route averages
+113.73 OUTPUT / 28.14 SCENES over 225.85 seconds, with 211 intervals over 20 ms
+and 67 over 40 ms. Its 1,466 ms maximum includes room-transition coverage and
+must not be attributed to a hit without correlation.
+
+The exact visible crate/light/bridge report, full-route damage slowdown and
+[shadow cadence](shadow-cadence.md) remain OPEN. Lessons: completed framebuffer
+writes do not authorize a fresh animation interval; immutable transform
+operands must be tied to emitted matrix bytes and object lifetimes; matching
+counters and offscreen geometry cannot establish a visible fix. Aggregate
+[evidence](../../../evidence/high-refresh-route-review.json) preserves the
+qualification scope without ROM-derived meshes or save files. Raw evidence is
+retained privately on D:. No public release or full-game acceptance is claimed.
