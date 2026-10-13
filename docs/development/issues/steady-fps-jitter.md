@@ -1,6 +1,6 @@
 # RENDER-003: Jitter with steady 120 OUTPUT / 30 SCENES
 
-Status: capped presentation-window correction verified in bounded tests; local delivery and owner visual verification pending. Broader pacing limits remain open.
+Status: capped presentation-window correction verified in bounded tests and delivered locally; owner visual verification pending. Source-workload and Unlimited limits remain open.
 Severity: high; smooth high-refresh rendering remains incomplete.
 
 ## Report and reproduction
@@ -371,3 +371,26 @@ identity are in qualification; the earlier failed capture remains preserved.
 One 144-cap fixture reported one audio underrun, and Unlimited reported 413 with
 about 19 scenes/s under saturation. Those are limitations, not audio acceptance;
 the 120-cap and capped combined-motion audio results are recorded separately.
+
+
+## Local delivery
+
+Implementation commit `b9c1aeee7d259f358a5a76ac22b9ba6c9b7644d6` is committed on the
+research branch. The desktop **JFG - High Refresh Preview** shortcut now targets
+`high-refresh-pacing-20261013` on D:. Close the game and launcher before reopening.
+The delivered runtime SHA-256 is `8bd6b7635ec71a70c735055af97df5119df9f8a0b00d942825b226259ffe9cf7`.
+All 14 package entries verify, an isolated launcher-init fixture resolves that
+exact runtime, and the owner's profile/settings/save hashes are unchanged. The
+older semantic package is retained. This is a local preview, not a release.
+
+The exact delivered binary passed nine focused C++ checks, four analyzer checks,
+the corrected full-circle trace (1,700 samples / 1,699 uniform steps), fresh
+combined 360-cap play, and the armed screenshot / exact reference-state test.
+The latest combined-motion run averaged 351.62 output FPS over its active
+window, with the existing 31-update source-cadence recovery still present.
+No audio underruns were recorded in those final circle/combined replays.
+The rebuilt committed executable is byte-identical to that qualified binary.
+
+The owner has been asked to retest a stationary full-circle camera rotation at
+Custom 120 / VSync on. Monitor scanout and owner visual acceptance are pending;
+this record does not mark all high-refresh limitations resolved.

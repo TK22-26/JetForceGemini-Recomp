@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "issue": "RENDER-003",
-  "status": "Candidate verified in bounded tests; owner live confirmation and local delivery pending",
+  "status": "Capped presentation-window correction tested and delivered locally; owner visual confirmation pending; source-workload and Unlimited limits remain",
   "source_parent": "32cb9921fb285a8dc9ae5fdbf403914dbde2d923",
   "candidate_runtime_sha256": "8bd6b7635ec71a70c735055af97df5119df9f8a0b00d942825b226259ffe9cf7",
   "implementation": [
@@ -1130,5 +1130,16 @@
   "final_focused_tests": {
     "count": 9,
     "log_sha256": "c9f76630b4123e106212a66813bb138384388c541bf8105d04a797a40f5b514f"
+  },
+  "implementation_commit": "b9c1aeee7d259f358a5a76ac22b9ba6c9b7644d6",
+  "delivered_runtime_sha256": "8bd6b7635ec71a70c735055af97df5119df9f8a0b00d942825b226259ffe9cf7",
+  "local_delivery": {
+    "manifest_verified": 14,
+    "launcher_init_passed": true,
+    "owner_profile_preserved": true,
+    "owner_live_validation_pending": true,
+    "public_release": false,
+    "delivered_at_utc": "2026-10-13T01:24:52.693660+00:00",
+    "package_name": "high-refresh-pacing-20261013"
   }
 }
