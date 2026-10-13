@@ -18,6 +18,13 @@ restores about 30 scene updates/s on the measured bridge route, but this does no
 verify the heavier combat encounter. The combat issue remains open. See the [timing investigation](features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation)
 for measurements, experiments and the remaining acceptance work.
 
+The latest research candidate also reduces native CPU bookkeeping with bounded
+instruction spans. Exact Original/native clock-state comparisons, ten focused
+C++ suites and pause/overload checks pass. Exclusive combat performance and
+delivery are still pending; the desktop visibility preview is unchanged.
+See [PERF-001](development/issues/goldwood-combat-slowdown.md) and
+[candidate evidence](../evidence/combat-native-spans.json).
+
 ## Character seams and lighting
 
 The owner reports the thigh seams and delayed lighting are absent at 120 FPS

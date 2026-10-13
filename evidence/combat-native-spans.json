@@ -1,0 +1,370 @@
+{
+  "schema": 1,
+  "status": "CPU candidate functionally qualified; isolated performance and delivery pending",
+  "candidate_runtime_sha256": "e7e3af29fd9aeec9e037da93a27d0e50272ba7bbb6b4ac77eb5f6536dd2d6fc5",
+  "upstream_source_commit": "9a6e6781975610ef59811f29355eba01d2d07d19",
+  "prior_correction_commit": "83cd8af0bad951d27939adadb74f374840d1303d",
+  "source_parent": "8359ba2ecf2f8b30c5ba805386d3e9f82538b0d6",
+  "guard": {
+    "enabled": true,
+    "investigation": "high-refresh-rendering-20261011",
+    "root": "high-refresh-rendering-20261011-discover",
+    "counters_reset": false
+  },
+  "validation": {
+    "original_guest_renderer_save_exact": true,
+    "native_clock_observations": 2606049,
+    "native_clock_count_and_instructions": [
+      3778965431,
+      3719094604
+    ],
+    "native_guest_renderer_save_exact": true,
+    "optimized_span_instructions": 145817191,
+    "compiled_generator_pairs": 4096,
+    "generator_tests": 6,
+    "focused_cpp_suites": 10,
+    "clock_boundary_exact": true,
+    "deliberate_overload_ms": 250,
+    "post_pause_phase": {
+      "samples": 1000,
+      "repeated_phases": 0,
+      "backward_phases": 0,
+      "phase_step_counts": {
+        "0.5000": 999
+      },
+      "present_interval_ms": {
+        "median": 8.339,
+        "p99": 8.76,
+        "maximum": 10.588
+      },
+      "expected_phase_step": 0.5,
+      "uneven_phase_steps": 0
+    }
+  },
+  "timing_policy": {
+    "host_poll_instructions": 128,
+    "maximum_span_instructions": 16,
+    "all_guest_operations_retained": true,
+    "reference_timing_unchanged": true
+  },
+  "initial_isolated_comparison": [
+    {
+      "case": "preview-120-a",
+      "runtime_sha256": "cb3de8f6593fa2abb0a12e7a2ea7f98ecf23ea817ad247505c1338a39dcd2292",
+      "bins": [
+        {
+          "vi": [
+            4000,
+            4500
+          ],
+          "output": 118.21907800116283,
+          "scenes": 24.743527953731753,
+          "interval_ms": {
+            "n": 989,
+            "median": 8.341,
+            "p99": 9.562,
+            "max": 31.994
+          },
+          "update_ms": {
+            "n": 207,
+            "median": 34.026,
+            "p99": 56.332,
+            "max": 62.105
+          },
+          "vi_deltas": {
+            "2": 124,
+            "3": 82,
+            "4": 1
+          }
+        },
+        {
+          "vi": [
+            4500,
+            4800
+          ],
+          "output": 119.89325891129702,
+          "scenes": 29.27159832951399,
+          "interval_ms": {
+            "n": 598,
+            "median": 8.3355,
+            "p99": 8.636,
+            "max": 9.34
+          },
+          "update_ms": {
+            "n": 146,
+            "median": 33.4645,
+            "p99": 50.029,
+            "max": 50.392
+          },
+          "vi_deltas": {
+            "3": 5,
+            "2": 141
+          }
+        },
+        {
+          "vi": [
+            4800,
+            5400
+          ],
+          "output": 119.95306462117087,
+          "scenes": 29.838574310923534,
+          "interval_ms": {
+            "n": 1202,
+            "median": 8.339,
+            "p99": 8.527,
+            "max": 8.798
+          },
+          "update_ms": {
+            "n": 299,
+            "median": 33.432,
+            "p99": 35.567,
+            "max": 36.754
+          },
+          "vi_deltas": {
+            "2": 299
+          }
+        },
+        {
+          "vi": [
+            5400,
+            5800
+          ],
+          "output": 119.68208603329528,
+          "scenes": 25.014904089562343,
+          "interval_ms": {
+            "n": 799,
+            "median": 8.339,
+            "p99": 9.408,
+            "max": 11.914
+          },
+          "update_ms": {
+            "n": 167,
+            "median": 33.991,
+            "p99": 54.079,
+            "max": 55.891
+          },
+          "vi_deltas": {
+            "2": 103,
+            "3": 64
+          }
+        }
+      ],
+      "audio_underruns": 0
+    },
+    {
+      "case": "candidate-120-a",
+      "runtime_sha256": "14746717614559b93fa535f9caf0a02fce50f23d2df3ab23aa6e9302607f30aa",
+      "bins": [
+        {
+          "vi": [
+            4000,
+            4500
+          ],
+          "output": 119.67361263791608,
+          "scenes": 29.76896058625485,
+          "interval_ms": {
+            "n": 1001,
+            "median": 8.334,
+            "p99": 8.831,
+            "max": 21.834
+          },
+          "update_ms": {
+            "n": 249,
+            "median": 33.44,
+            "p99": 35.977,
+            "max": 41.409
+          },
+          "vi_deltas": {
+            "2": 248,
+            "3": 1
+          }
+        },
+        {
+          "vi": [
+            4500,
+            4800
+          ],
+          "output": 119.22645873572262,
+          "scenes": 29.45594862882559,
+          "interval_ms": {
+            "n": 595,
+            "median": 8.337,
+            "p99": 8.756,
+            "max": 28.271
+          },
+          "update_ms": {
+            "n": 147,
+            "median": 33.423,
+            "p99": 40.5,
+            "max": 50.23
+          },
+          "vi_deltas": {
+            "2": 144,
+            "3": 3
+          }
+        },
+        {
+          "vi": [
+            4800,
+            5400
+          ],
+          "output": 119.82028950256638,
+          "scenes": 29.70586212293243,
+          "interval_ms": {
+            "n": 1202,
+            "median": 8.336,
+            "p99": 8.788,
+            "max": 11.485
+          },
+          "update_ms": {
+            "n": 298,
+            "median": 33.430499999999995,
+            "p99": 40.522,
+            "max": 50.403
+          },
+          "vi_deltas": {
+            "2": 295,
+            "3": 3
+          }
+        },
+        {
+          "vi": [
+            5400,
+            5800
+          ],
+          "output": 119.42945049432268,
+          "scenes": 29.63287117528307,
+          "interval_ms": {
+            "n": 798,
+            "median": 8.339,
+            "p99": 9.057,
+            "max": 24.341
+          },
+          "update_ms": {
+            "n": 198,
+            "median": 33.4305,
+            "p99": 39.058,
+            "max": 49.111
+          },
+          "vi_deltas": {
+            "2": 196,
+            "3": 2
+          }
+        }
+      ],
+      "audio_underruns": 0
+    },
+    {
+      "case": "preview-120-b",
+      "runtime_sha256": "cb3de8f6593fa2abb0a12e7a2ea7f98ecf23ea817ad247505c1338a39dcd2292",
+      "bins": [
+        {
+          "vi": [
+            4000,
+            4500
+          ],
+          "output": 119.44481091526298,
+          "scenes": 27.970493410307814,
+          "interval_ms": {
+            "n": 995,
+            "median": 8.337,
+            "p99": 9.299,
+            "max": 21.973
+          },
+          "update_ms": {
+            "n": 233,
+            "median": 33.51,
+            "p99": 53.307,
+            "max": 55.164
+          },
+          "vi_deltas": {
+            "2": 202,
+            "3": 31
+          }
+        },
+        {
+          "vi": [
+            4500,
+            4800
+          ],
+          "output": 119.75435636310395,
+          "scenes": 26.656285303415167,
+          "interval_ms": {
+            "n": 602,
+            "median": 8.339,
+            "p99": 8.795,
+            "max": 10.476
+          },
+          "update_ms": {
+            "n": 134,
+            "median": 33.552,
+            "p99": 50.759,
+            "max": 53.844
+          },
+          "vi_deltas": {
+            "2": 103,
+            "3": 31
+          }
+        },
+        {
+          "vi": [
+            4800,
+            5400
+          ],
+          "output": 119.94692373592821,
+          "scenes": 29.86189025565573,
+          "interval_ms": {
+            "n": 1201,
+            "median": 8.337,
+            "p99": 8.544,
+            "max": 8.984
+          },
+          "update_ms": {
+            "n": 299,
+            "median": 33.423,
+            "p99": 36.048,
+            "max": 37.614
+          },
+          "vi_deltas": {
+            "2": 299
+          }
+        },
+        {
+          "vi": [
+            5400,
+            5800
+          ],
+          "output": 119.76582857567702,
+          "scenes": 27.430721688797114,
+          "interval_ms": {
+            "n": 799,
+            "median": 8.335,
+            "p99": 8.637,
+            "max": 13.646
+          },
+          "update_ms": {
+            "n": 183,
+            "median": 33.606,
+            "p99": 54.672,
+            "max": 55.197
+          },
+          "vi_deltas": {
+            "2": 152,
+            "3": 31
+          }
+        }
+      ],
+      "audio_underruns": 0
+    }
+  ],
+  "excluded_comparison": "candidate-120-b overlapped a separate JFG runtime; excluded",
+  "limitations": [
+    "Clock transcript tests are functional checks, not performance measurements.",
+    "Present-return timing does not measure physical display scanout.",
+    "Other controls compilation/replays blocked exclusive performance measurements.",
+    "Owner live review, longer combat and full-game coverage remain pending."
+  ],
+  "private_evidence_id": "combat-isolated-20261013",
+  "public_release": false,
+  "delivered": false
+}

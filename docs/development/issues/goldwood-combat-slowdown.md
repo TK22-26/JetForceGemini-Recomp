@@ -352,3 +352,83 @@ Implementation commit: 83cd8af0bad951d27939adadb74f374840d1303d. The committed b
 qualified runtime 14746717614559b93fa535f9caf0a02fce50f23d2df3ab23aa6e9302607f30aa.
 A copy is retained in the private D: evidence directory. Desktop delivery is
 held pending the controlled performance comparison above; no release was made.
+
+## Three-hour combat continuation (2026-10-13 11:47 UTC)
+
+Owner approved three hours to fix combat drops. Same production investigation,
+root and accumulated charges retained, guard enabled. Candidate 83cd8af remains
+held for performance acceptance. First compare installed preview and candidate
+with no other JFG runtime, monitoring process overlap throughout. Large evidence:
+D:/JFG-private/high-refresh-20261011/combat-isolated-20261013. Tests muted, hidden,
+1600x900, copied Goldwood save and identical input/settings. This records work in
+progress, not a completed fix or delivered result.
+
+First isolated runs: installed preview 24.74/29.27/29.84/25.01 and
+27.97/26.66/29.86/27.43 SCENES/s; held candidate 29.77/29.46/29.71/29.63.
+All had zero audio underruns. The fourth comparison overlaps a separate
+modern-controls-camera-clearance runtime and is excluded from performance
+acceptance. No foreign process was stopped. Dependent requests stopped on the
+failed isolation prerequisite; no source import or build ran. Resume source
+integration using the three valid runs, repeat performance after isolation.
+
+Ported CPU eligibility caching, bounded native instruction spans and exact
+clock transcript support from develop 9a6e6781975610ef59811f29355eba01d2d07d19. All original guest
+operations and 128-instruction clock safepoints remain. This is a candidate;
+the new integration still requires differential tests and replay qualification.
+The import script assumed a blank line after the final CMake test target and
+stopped after writing source; a follow-up added the target using its actual EOF.
+No partial import was built. Dependent builds correctly stopped. Entry-offset
+lookup metadata remains a separately measured optimization to consider.
+
+The full CPU rebuild was canceled before its resource limit. A frozen copy of
+the prior completed archive supplied 2,909 unchanged generated bodies, after
+matching generated source/header text, recorded compiler flags/toolchain and
+dependency ages. Wrappers/runtime use this checkout; normal object-shape and
+link audits stay enabled. First cache scripts stopped on a concurrently changed
+project, path-comparison error, replaced wrapper log, then an MSBuild output-log
+filename variation. No failed cache request counted as validation. The repaired
+build and two focused timing suites pass; game/performance validation follows.
+
+## Native CPU candidate qualification
+
+The imported cache/span optimization removes repeated host bookkeeping around
+ordinary generated instructions. Groups contain at most 16 safe operations;
+dynamic RAM checks, branches, device accesses and observers retain the checked
+fallback. All guest operations and the 128-instruction clock sampling quantum
+remain. The 31-fast-frame recovery correction and particle identities are kept.
+This is a CPU optimization, not a forced game timestep or changed FPS counter.
+
+Ten focused C++ suites pass, as do six generator tests including 4,096 compiled
+RAM/MMIO pairs. Original guest/renderer/save state matches the reference exactly.
+Native transcript replay matches 2,606,049 clock observations and the final
+guest/renderer/save state exactly, with 145,817,191 instructions using spans.
+Those transcript runs are not performance evidence; recording adds overhead
+and the replay deliberately follows recorded time rather than wall time.
+Pause/resume preserves the clock boundary, and injected 250-ms overload remains
+visible. The post-pause trace has 1,000 samples, no repeats, backward phases or
+uneven phase steps. These are bounded software checks, not monitor scanout.
+
+The MSVC generator-test fixture initially failed Windows batch quoting after
+its source edit; the repaired invocation ran all six tests without skips.
+An initial performance preflight treated idle MSBuild node-reuse helpers as
+active load. Its owned waiting process was canceled before any benchmark.
+The replacement blocks actual compiler/linker/game processes and retains all
+guard charges. A read-only job-accounting query reports the current innermost
+Windows job; it is not proof of the supervisor's aggregate remaining allowance.
+
+**Candidate functionally qualified; isolated performance, delivery and owner
+live acceptance remain pending.** A separate controls task is running replays;
+no foreign process was stopped. See [candidate evidence](../../../evidence/combat-native-spans.json).
+Keep the production guard enabled and retain the same investigation/root and
+counters on handoff. Large private artifacts stay on D:.
+
+Build compatibility: native preview builds now require a generated span root;
+ordinary/reference builds retain their default behavior. After fresh private
+normalization and original timing setup, call
+scripts.original_timing_generation.finish_native_spans(root) once before
+building with JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING=ON. Never apply it twice or
+copy a header over stale generated bodies. Frozen-object reuse here separately
+verified all 2,909 body sources, their included headers, compiler flags/toolchain
+and dependency ages; fresh wrappers/support and normal object audits were kept.
+Transferable lesson: separate game-state/clock equivalence from performance,
+and never compare frame rates while another game or compiler is competing.

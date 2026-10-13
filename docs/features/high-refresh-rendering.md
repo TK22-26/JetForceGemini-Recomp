@@ -437,3 +437,14 @@ Implementation commit: 83cd8af0bad951d27939adadb74f374840d1303d. The committed b
 qualified runtime 14746717614559b93fa535f9caf0a02fce50f23d2df3ab23aa6e9302607f30aa.
 A copy is retained in the private D: evidence directory. Desktop delivery is
 held pending the controlled performance comparison above; no release was made.
+
+### Native CPU bookkeeping candidate (2026-10-13 UTC)
+
+The native timing path caches instruction eligibility and groups up to 16 safe
+operations between existing clock/device checks. Actual game operations and
+the 128-instruction sampling quantum remain unchanged. Ten focused suites,
+compiled RAM/MMIO comparisons, exact Original/native clock-state parity and
+pause/overload checks qualify its behavior. Combat performance and delivery
+are pending exclusive runtime access. The existing desktop preview remains.
+See [PERF-001](../development/issues/goldwood-combat-slowdown.md) for build
+compatibility, failed attempts and [evidence](../../evidence/combat-native-spans.json).

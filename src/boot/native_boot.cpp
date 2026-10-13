@@ -9,6 +9,12 @@
 #define JFG_ORIGINAL_TIMING_GENERATION 0
 #include "jfg/boot/original_timing_fast.h"
 #endif
+#ifndef JFG_NATIVE_TIMING_SPAN_GENERATION
+#define JFG_NATIVE_TIMING_SPAN_GENERATION 0
+#endif
+#if defined(JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING) && JFG_NATIVE_TIMING_SPAN_GENERATION != 1
+#error Native timing preview requires a qualified generated span root
+#endif
 #include "jfg/boot/hle.hpp"
 #include "jfg/boot/sync_print_sink.hpp"
 #include "jfg/boot/sound_queue_recovery.hpp"
@@ -17,6 +23,7 @@
 #include "jfg/boot/gameplay_trace.hpp"
 #include "jfg/boot/host_count_clock.hpp"
 #include "jfg/boot/native_frame_recovery.hpp"
+#include "jfg/boot/count_sample_tape.hpp"
 #include "jfg/boot/recorded_input_timeline.hpp"
 #include "jfg/mod/navigation_mod.hpp"
 #include "jfg/runtime/async_bounded_trace.hpp"
@@ -1689,6 +1696,10 @@ struct State : JfgOriginalTimingFast {
   // share a bounded host-clock sampling quantum without modeled time charges.
   static constexpr unsigned kHostClockPollInstructions = 128U;
   HostCountClock host_count_clock;
+  CountSampleTape native_clock_samples;
+  std::vector<char> native_clock_sample_buffer;
+  std::ofstream native_clock_sample_output;
+  std::ifstream native_clock_sample_input;
   HostDeadlineWait host_deadline_wait;
   std::uint64_t profile_host_wait_us = 0U;
   std::uint64_t profile_idle_count_ticks = 0U;
@@ -5003,6 +5014,14 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
 
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
 [[noreturn]] void probe_target_gate(State &state) {
+#if defined(_WIN32)
+  if (state.native_clock_samples.active()) {
+    if (!state.native_clock_samples.finish())
+      fail_closed_dispatch(state,"native-clock-tape","incomplete-or-invalid-transcript",0U);
+    state.gameplay_trace.event("native-clock-tape",{state.native_clock_samples.samples(),
+        state.cpu_count,state.observed_guest_instructions,state.native_clock_samples.replaying()});
+  }
+#endif
   if (state.mmio_trace == nullptr)
     fail_closed_dispatch(state, "probe", "missing-mmio-trace", 0U);
   if (state.guest_os_probe) {
@@ -7098,6 +7117,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto update_instructions = measure_update ? state.observed_guest_instructions : 0U;
         const auto callback_start = state.profile_out_of_line_instructions;
         const auto full_probe_start = state.profile_full_execution_probes;
+        const auto span_instructions_start = state.native_span_instructions;
+        const auto span_commits_start = state.native_span_commits;
         const auto handoff_start = state.guest_transport ? state.guest_transport->handoffs() : 0U;
         FILETIME process_created{}, process_exited{}, kernel_start{}, user_start{};
         ULONG64 process_cycles_start = 0;
@@ -7142,6 +7163,11 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
                   std::chrono::steady_clock::now() - update_started).count()),
               state.profile_host_wait_us - update_wait});
+          if (state.native_spans_enabled) {
+            state.gameplay_trace.event("native-span-work", {state.vi_retraces,state.controller_samples,
+                state.native_span_instructions-span_instructions_start,
+                state.native_span_commits-span_commits_start});
+          }
           if (state.diagnostic_cpu_costs) {
             FILETIME kernel_end{}, user_end{}; ULONG64 process_cycles_end = 0;
             const bool valid = process_costs &&
@@ -9112,6 +9138,7 @@ int native_cpu_operation(void* opaque, void* guest_context, std::uint32_t operat
     }
     if (operation == JFG_CPU_WRITE_REGISTER) {
       state.execution_fast_deadline = 0U;
+      state.native_fast_ready = false;
       if (selector == 11U) {
         if (!state.guest_timer.write(state.cpu_count, static_cast<std::uint32_t>(*value)))
           fail_closed_dispatch(state, "guest-cpu", "unqualified-compare-write", state.guest_last_pc);
@@ -9135,6 +9162,7 @@ int native_cpu_operation(void* opaque, void* guest_context, std::uint32_t operat
       cop0_status_write(context, context->status_reg & ~2U);
       state.guest_previous_branch = state.guest_previous_delay = false;
       state.guest_eret_boundary = true;
+      state.native_fast_ready = false;
       state.guest_transport->eret(next, state.guest_epc, *context);
       return 1;
     }
@@ -9455,6 +9483,10 @@ extern "C" void jfg_phase9_execution_probe(unsigned section, unsigned pc,
   if (g_active_child_state != nullptr && context != nullptr) {
     auto& state = *g_active_child_state;
     if (state.diagnostic_cpu_costs) ++state.profile_out_of_line_instructions;
+    if (state.diagnostic_host_clock) {
+      jfg_phase9_execution_probe_slow(section,pc,word,context);
+      return;
+    }
     // Private optimization: ordinary instructions before the next event need
     // only the same cost and pipeline bookkeeping. Hardware writes, interrupt
     // eligibility, exception return and observers fall back to the full path.
@@ -9505,6 +9537,10 @@ extern "C" void jfg_phase9_execution_probe_predecoded(unsigned metadata, unsigne
   if (g_active_child_state != nullptr && context != nullptr) {
     auto& state = *g_active_child_state;
     if (state.diagnostic_cpu_costs) ++state.profile_out_of_line_instructions;
+    if (state.diagnostic_host_clock) {
+      jfg_phase9_execution_probe_slow(section,pc,word,context);
+      return;
+    }
     // Private optimization: ordinary instructions before the next event need
     // only the same cost and pipeline bookkeeping. Hardware writes, interrupt
     // eligibility, exception return and observers fall back to the full path.
@@ -9565,12 +9601,15 @@ extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned se
         const auto now = std::chrono::steady_clock::now();
         if (!state.host_count_clock.ready() && !state.host_count_clock.start(state.cpu_count,now))
           fail_closed_dispatch(state,"native-clock","initialization",pc);
-        const auto count = state.host_count_clock.sample(now);
+        auto count = state.native_clock_samples.replaying() ? std::optional<std::uint64_t>{}
+            : state.host_count_clock.sample(now);
+        count = state.native_clock_samples.sample(state.observed_guest_instructions,pc,word,0U,count);
         if (!count || *count < state.cpu_count)
           fail_closed_dispatch(state,"native-clock","non-monotonic-time",pc);
         state.cpu_count = *count;
         mmio.guest_count = *count;
         state.host_clock_poll_budget = State::kHostClockPollInstructions;
+        state.native_fast_ready = false;
       }
       // A cached BEQ zero,zero,self + NOP loop has no architectural effect
       // between device events. Only skip after observing a complete warm
@@ -9593,12 +9632,16 @@ extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned se
           const auto ticks=deadline-state.cpu_count;
           if (state.diagnostic_host_clock) {
             const auto before = std::chrono::steady_clock::now();
-            const auto target_time = state.host_count_clock.deadline(deadline,before);
+            const auto target_time = state.native_clock_samples.replaying()
+                ? std::optional<HostCountClock::Time>{before}
+                : state.host_count_clock.deadline(deadline,before);
             if (!target_time) fail_closed_dispatch(state,"native-clock","idle-deadline",pc);
-            if (!state.host_deadline_wait.until(*target_time))
+            if (!state.native_clock_samples.replaying() && !state.host_deadline_wait.until(*target_time))
               fail_closed_dispatch(state,"native-clock","host-deadline-wait",pc);
             const auto after = std::chrono::steady_clock::now();
-            const auto count = state.host_count_clock.sample(after);
+            auto count = state.native_clock_samples.replaying() ? std::optional<std::uint64_t>{}
+                : state.host_count_clock.sample(after);
+            count = state.native_clock_samples.sample(state.observed_guest_instructions,pc,word,deadline,count);
             if (!count || *count < deadline)
               fail_closed_dispatch(state,"native-clock","early-idle-wakeup",pc);
             state.profile_host_wait_us += static_cast<std::uint64_t>(
@@ -9965,6 +10008,8 @@ extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned se
       state.execution_fast_pending =
           ((mmio.mi_pending & mmio.mi_mask.read()) ? 0x400U : 0U) |
           (state.guest_timer.interrupt() ? 0x8000U : 0U) | (state.guest_cause & 0x300U);
+
+      if (state.diagnostic_host_clock) jfg_native_timing_refresh(&state,&cpu);
 
       // After exception resumption and Count accounting, before the current
       // guest instruction. No clock reads/changes or guest writes in this hook.
@@ -11241,7 +11286,16 @@ int run_child(const char *path, const unsigned retrace_target,
   native_preview_play = state.play_mode;
 #endif
   state.diagnostic_host_clock_requested = native_clock_length == 1U || native_preview_play;
-  if (native_preview_play) jfg::support_event("timing=native-elapsed/experimental-preview");
+  char native_span_flag[2]{};
+  const auto native_span_length = GetEnvironmentVariableA("JFG_DIAGNOSTIC_NATIVE_SPANS",native_span_flag,2U);
+  if (native_span_length != 0U && (native_span_length != 1U || native_span_flag[0] != '1' ||
+      !state.diagnostic_host_clock_requested || JFG_NATIVE_TIMING_SPAN_GENERATION != 1 ||
+      state.instruction_effect_stream.is_open())) return 3;
+  state.native_spans_enabled = native_span_length == 1U || native_preview_play;
+  if (native_preview_play) {
+    jfg::support_event("timing=native-elapsed/experimental-preview");
+    jfg::support_event("timing=native-spans-enabled");
+  }
   char cost_flag[2]{};
   const auto cost_length = GetEnvironmentVariableA("JFG_DIAGNOSTIC_CPU_COSTS", cost_flag, 2U);
   if (cost_length != 0U && (cost_length != 1U || cost_flag[0] != '1' ||
@@ -11268,6 +11322,31 @@ int run_child(const char *path, const unsigned retrace_target,
         state.diagnostic_boundary_stall_ms==0U || state.diagnostic_boundary_stall_ms>3000U) return 3;
   }
   state.diagnostic_host_clock = state.diagnostic_host_clock_requested && state.diagnostic_clock_boundary_vi == 0U;
+  std::string clock_record_path,clock_replay_path;
+  const auto clock_path = [](const char* name,std::string& destination) {
+    char* value=nullptr;std::size_t size=0;
+    if (_dupenv_s(&value,&size,name)!=0) return false;
+    const bool valid=size<=32768U;
+    if (valid && value) destination=value;
+    std::free(value);return valid;
+  };
+  if (!clock_path("JFG_DIAGNOSTIC_CLOCK_RECORD",clock_record_path) ||
+      !clock_path("JFG_DIAGNOSTIC_CLOCK_REPLAY",clock_replay_path)) return 3;
+  if (!clock_record_path.empty() || !clock_replay_path.empty()) {
+    if (state.play_mode || !state.input_replay_loaded || !state.diagnostic_host_clock_requested ||
+        state.diagnostic_clock_boundary_vi==0U || state.diagnostic_boundary_stall_ms!=0U ||
+        (!clock_record_path.empty() && !clock_replay_path.empty())) return 3;
+    state.native_clock_sample_buffer.resize(65536U);
+    if (!clock_record_path.empty()) {
+      state.native_clock_sample_output.rdbuf()->pubsetbuf(state.native_clock_sample_buffer.data(),65536);
+      state.native_clock_sample_output.open(clock_record_path,std::ios::binary|std::ios::trunc);
+      if (!state.native_clock_samples.record(state.native_clock_sample_output)) return 3;
+    } else {
+      state.native_clock_sample_input.rdbuf()->pubsetbuf(state.native_clock_sample_buffer.data(),65536);
+      state.native_clock_sample_input.open(clock_replay_path,std::ios::binary);
+      if (!state.native_clock_samples.replay(state.native_clock_sample_input)) return 3;
+    }
+  }
   state.mmio_trace->native_elapsed_time = state.diagnostic_host_clock;
   if (state.diagnostic_host_clock_requested && (!state.guest_os_probe || !state.original_os_host_pacing ||
       !state.point_probe_pcs.empty() || state.device_event_stream || state.eret_transfer_stream.is_open())) return 3;

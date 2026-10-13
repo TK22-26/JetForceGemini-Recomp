@@ -734,3 +734,9 @@ target_include_directories(jfg_semantic_presentation_tests PRIVATE "${PROJECT_SO
 target_compile_features(jfg_semantic_presentation_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_semantic_presentation_tests)
 add_test(NAME jfg.semantic_presentation COMMAND jfg_semantic_presentation_tests)
+
+add_executable(jfg_count_sample_tape_tests count_sample_tape_tests.cpp)
+target_include_directories(jfg_count_sample_tape_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_count_sample_tape_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_count_sample_tape_tests)
+add_test(NAME jfg.count_sample_tape COMMAND jfg_count_sample_tape_tests)
