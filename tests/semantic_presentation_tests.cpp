@@ -258,5 +258,46 @@ int main() {
   tracker.particle_sprite(ram,0x80180004U,0x801b0078U,0x801c0000U,144);
   w32(0x800FB114U,4);
   require(tracker.capture(ram,144).sprites.empty());
+
+  // Two-frame rigid matrix buffers preserve actor/model identity, while
+  // overwritten memory, freed actors and changed camera/level must not.
+  w32(0x800FB114U, 5); w32(0x800F2CA8U, 1);
+  w8(0x801000A0U, 0); w8(0x8011001FU, 1);
+  w32(0x80120000U, 0x80140000U); w32(0x80140000U,0x80150000U);
+  w32(0x80140004U,0x80160000U); w8(0x80150013U,3);
+  w8(0x8015004EU,0); w8(0x8015004FU,0);
+  w32(0x800FA630U,1); w32(0x800FA634U,0);
+  jfg::PresentationIdentityTracker rigid_tracker;
+  rigid_tracker.rigid(ram,0x80190000U,0x80100000U,200);
+  auto rigid_scene=rigid_tracker.capture(ram,200);
+  require(rigid_scene.rigids.size()==1 && rigid_scene.models.size()==1);
+  const auto rigid_key=jfg::presentation_rigid_key(rigid_scene,0x190000U,0x160000U,3);
+  require(rigid_key[0]!=0 && rigid_key[3]!=0 && rigid_key[2]==0x80150000U);
+  require(jfg::presentation_rigid_key(rigid_scene,0x190000U,0x160001U,1)[0]==0);
+  require(jfg::presentation_rigid_key(rigid_scene,0x190000U,0x160000U,4)[0]==0);
+  require(jfg::presentation_rigid_key(rigid_scene,0x190000U,0x160000U,0)[0]==0);
+  rigid_tracker.rigid(ram,0x80190100U,0x80100000U,202);
+  rigid_scene=rigid_tracker.capture(ram,202);
+  require(jfg::presentation_rigid_key(rigid_scene,0x190100U,0x160000U,3)==rigid_key);
+  w32(0x80190000U,123); // old transient buffer now belongs to other work
+  require(rigid_tracker.capture(ram,202).rigids.size()==1);
+  rigid_tracker.rigid(ram,0x80190200U,0x80100200U,202); // not in live actor list
+  require(rigid_tracker.capture(ram,202).rigids.size()==1);
+  require(rigid_tracker.capture(ram,209).rigids.empty());
+  rigid_tracker.retire(0x80100000U);
+  rigid_tracker.rigid(ram,0x80190000U,0x80100000U,210);
+  rigid_scene=rigid_tracker.capture(ram,210);
+  const auto reused_rigid=jfg::presentation_rigid_key(rigid_scene,0x190000U,0x160000U,3);
+  require(reused_rigid[0]!=0 && reused_rigid[0]!=rigid_key[0]);
+  rigid_scene.models.push_back(rigid_scene.models[0]);
+  require(jfg::presentation_rigid_key(rigid_scene,0x190000U,0x160000U,3)[0]==0);
+  w32(0x800FA634U,1);
+  rigid_tracker.rigid(ram,0x80190000U,0x80100000U,212);
+  rigid_scene=rigid_tracker.capture(ram,212);
+  require(jfg::presentation_rigid_key(rigid_scene,0x190000U,0x160000U,3)[3]!=rigid_key[3]);
+  w32(0x800FB114U,6);
+  require(rigid_tracker.capture(ram,214).rigids.empty());
+  rigid_tracker.rigid(ram,0x80190001U,0x80100000U,216);
+  require(rigid_tracker.capture(ram,216).rigids.empty());
   return 0;
 }

@@ -1,6 +1,6 @@
 # PERF-001: Goldwood combat slows game updates
 
-- **Severity: critical in affected older builds. Status: bounded combat tests passed; local preview delivered, owner live verification pending.**
+- **Severity: high in current live tutorial capture, critical in affected older builds. Status: bounded combat tests passed; delivered preview still shows live tutorial cadence drops. Full-route issue open.**
 - Reported: 2026-10-11 UTC. Last status cross-reference: 2026-10-13 UTC.
 - Affected: modern-controls v1.1 local preview with original instruction-clock runtime;
   source capture runtime SHA-256 `de2737396c3f840291de8a9155eaed415f6076beaf4d27200be6505cde11c538`.
@@ -472,3 +472,23 @@ The existing owner save/settings and shortcut arguments are preserved. Tests
 were muted and used copied saves. The earlier pickup-particle correction is
 included. No public release. **Owner live verification and broader combat/game
 coverage remain open.** See [qualification](../../../evidence/combat-native-spans.json).
+
+## Owner tutorial capture after delivery
+
+The 2026-10-13 manual log-only Custom 120/VSync run still contains genuine scene
+cadence drops: 20.16 submissions/s over elapsed 7:15-7:35, and 21.61 then 24.85
+over 10:45-10:50 and 10:50-10:55. Output averages 110.05, 116.45 and 114.85
+respectively. The owner reports jitter on crates, an exit light and a bridge
+in the later cave/bridge area; exact room-to-log timing is unavailable.
+The qualified short combat comparisons are not withdrawn, but they do not
+generalize to this route. No new cause or remedy has been established.
+See [RENDER-006](tutorial-late-object-jitter.md) for evidence, limits and the
+unchanged production guard state. This review ran no new gameplay experiments.
+
+The separate entry-offset optimization is now imported from 9a6e6781975610ef59811f29355eba01d2d07d19.
+The controls investigation measured 666,854 lookup probes and 2.661 ms per
+combat update before its remedy, falling to 57 probes and 0.0028 ms there.
+Those are prior measurements, not new high-refresh performance results. Here,
+three dispatch paths now use offsets published with the same function pointer
+and overlay lifetime, instead of scanning preceding instructions. Fresh private
+normalization and unchanged game-body verification precede build acceptance.

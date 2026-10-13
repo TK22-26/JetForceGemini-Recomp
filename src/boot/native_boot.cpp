@@ -51,6 +51,7 @@
 #include "jfg/boot/reference_si_dma.hpp"
 #include "jfg/boot/reference_event_commit.hpp"
 #include "jfg/boot/native_event_batch.hpp"
+#include "generated_lookup_entry.h"
 #include "jfg/boot/native_periodic_deadline.hpp"
 #include "jfg/boot/reference_flash_bus.hpp"
 #include "jfg/boot/original_timing_ai_dma.hpp"
@@ -6963,26 +6964,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
       context->r0 = 0;
       if (state.generated_relocation_targets.contains(target)) {
-        for (std::uint32_t section = 0U;
-             section < jfg_generated_section_count(); ++section) {
-          JfgGeneratedSectionMetadata metadata{};
-          if (jfg_generated_section_metadata(section, &metadata) == 0)
-            fail_closed_dispatch(state, "generated", "section-metadata",
-                                 target);
-          const std::uint64_t text_begin = metadata.linked_vram;
-          const std::uint64_t text_end = text_begin + metadata.text_size;
-          if (target < text_begin || target >= text_end)
-            continue;
-          for (std::uint64_t candidate = text_begin; candidate < target;
-               candidate += sizeof(std::uint32_t)) {
-            if (jfg_generated_lookup_function(
-                    static_cast<std::int32_t>(candidate)) == generated) {
-              context->r0 = target - metadata.linked_vram;
-              break;
-            }
-          }
-          break;
-        }
+        // The published function table owns continuation offsets and their lifecycle.
+        context->r0 = jfg_generated_lookup_entry_offset(static_cast<std::int32_t>(target), nullptr);
       }
       ++state.generated_calls;
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
@@ -7151,8 +7134,16 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
                 static_cast<std::uint32_t>(context->r5),state.vi_retraces);
         }
 #endif
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        const bool observe_rigid = state.presentation_identity_enabled && target == 0x80041CA0U;
+        const auto rigid_actor = observe_rigid ? static_cast<std::uint32_t>(context->r6) : 0U;
+        const auto rigid_matrix = observe_rigid ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(
+            static_cast<std::uint32_t>(context->r5)) : 0U;
+#endif
         generated(rdram, context);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        if (observe_rigid)
+          state.presentation_identities.rigid({rdram,kRdramSize},rigid_matrix,rigid_actor,state.vi_retraces);
         if (state.presentation_identity_enabled && target == 0x80060EC4U)
           state.presentation_identities.particle_allocate({rdram,kRdramSize},
               static_cast<std::uint32_t>(context->r2));
@@ -7412,14 +7403,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
       context->r0 = 0;
       if (state.generated_relocation_targets.contains(target)) {
-        for (std::uint64_t candidate = text_begin; candidate < target;
-             candidate += sizeof(std::uint32_t)) {
-          if (jfg_generated_lookup_function(
-                  static_cast<std::int32_t>(candidate)) == published) {
-            context->r0 = target - metadata.linked_vram;
-            break;
-          }
-        }
+        // The published function table owns continuation offsets and their lifecycle.
+        context->r0 = jfg_generated_lookup_entry_offset(static_cast<std::int32_t>(target), nullptr);
       }
       published(rdram, context);
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
@@ -7519,16 +7504,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
                            target);
       context->r0 = 0;
       if (state.generated_relocation_targets.contains(translated_target)) {
-        const std::uint64_t text_begin = matched_metadata.linked_vram;
-        for (std::uint64_t candidate = text_begin;
-             candidate < translated_target;
-             candidate += sizeof(std::uint32_t)) {
-          if (jfg_generated_lookup_function(
-                  static_cast<std::int32_t>(candidate)) == published) {
-            context->r0 = translated_target - matched_metadata.linked_vram;
-            break;
-          }
-        }
+        // The published function table owns continuation offsets and their lifecycle.
+        context->r0 = jfg_generated_lookup_entry_offset(static_cast<std::int32_t>(translated_target), nullptr);
       }
       ++state.generated_calls;
       published(rdram, context);

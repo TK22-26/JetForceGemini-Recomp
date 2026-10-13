@@ -464,3 +464,15 @@ verify. Implementation a93faa5ef61b86536327ffa83d48fc95835a21ff. Owner live revi
 See [PERF-001](../development/issues/goldwood-combat-slowdown.md) and
 [qualification](../../evidence/combat-native-spans.json) for failed comparisons,
 measurements and compatibility. No public release.
+
+### Owner full tutorial review (2026-10-13 UTC)
+
+The delivered combat-spans preview remains incomplete for the full tutorial.
+The owner's log-only 120/VSync capture shows about 20 scene submissions/s over
+7:15-7:35, and 22-25 over 10:45-10:55 despite roughly 115-116 output FPS in
+the latter section. Crates, an exit light and a bridge jitter near the later
+cave/bridge area. No exact object-to-timestamp mapping or interpolation trace
+was captured, so visual and timing causes must not be conflated. This was a
+review of existing evidence, not a new experiment or runtime change. See
+[RENDER-006](../development/issues/tutorial-late-object-jitter.md) and its
+aggregate timing evidence. Earlier bounded passes remain scoped to their fixtures.

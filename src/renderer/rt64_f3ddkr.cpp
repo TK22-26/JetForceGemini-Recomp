@@ -57,7 +57,7 @@ struct SemanticVertexState {
     SemanticPresentationSample sample;
     PresentationMatrix world{};
     std::uint32_t source = 0;
-    std::array<std::uint64_t, 4> billboard_key{};
+    std::array<std::uint64_t, 4> billboard_key{}, rigid_key{};
 };
 struct Context {
     RT64::Application* application = nullptr;
@@ -80,6 +80,7 @@ struct Context {
     bool interpolate = false;
     std::uint64_t vi_tick = 0U;
     PresentationHistory presentation_history;
+    PresentationHistory rigid_baseline_history; // Used only by explicit diagnostics.
     SemanticPresentationHistory semantic_history;
     std::shared_ptr<const PresentationSceneIdentity> identities;
     std::array<hlslpp::float4x4,kMatrixCount> model_matrices{}, camera_matrices{};
@@ -461,6 +462,12 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
     hlslpp::float4x4 unanchored_matrix{};
     bool anchored_billboard = false;
     std::array<std::uint64_t, 4> billboard_key{};
+    const auto rigid_key = context->interpolate && context->identities &&
+            context->semantic_target && !context->billboard
+        ? presentation_rigid_key(*context->identities,
+            context->matrix_physical_addresses[context->selected_matrix], address,
+            static_cast<std::uint32_t>(count))
+        : std::array<std::uint64_t, 4>{};
     if (context->billboard) {
         const int workload_cursor = state->ext.workloadQueue->writeCursor;
         RT64::Workload& workload =
@@ -529,6 +536,7 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
                     {positions[global*3U],positions[global*3U+1U],positions[global*3U+2U]});
                 context->semantic_vertices[global].billboard_key =
                     billboard_key;
+                context->semantic_vertices[global].rigid_key = rigid_key;
             }
             const hlslpp::float4 position =
                 workload.drawData.posTransformed[global];
@@ -1013,8 +1021,31 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     for (const auto &[matrix, key] : billboard_owners)
         if (matrix < meshes.size())
             bind_presentation_billboard(meshes[matrix], key);
+    const bool rigid_trace = scene && interpolation_trace_enabled();
+    PresentationHistoryFrame rigid_baseline;
+    if (rigid_trace)
+        rigid_baseline = context.rigid_baseline_history.record(meshes, context.vi_tick, scene);
+    std::map<unsigned, std::array<std::uint64_t, 4>> rigid_owners;
+    std::set<unsigned> rigid_conflicts;
+    for (std::size_t v = 0; v < context.semantic_vertices.size() && v < data.worldIndices.size(); ++v) {
+        const auto &key = context.semantic_vertices[v].rigid_key;
+        if (!key[0] || !key[3]) continue;
+        const auto matrix = data.worldIndices[v];
+        const auto [it, inserted] = rigid_owners.emplace(matrix, key);
+        if (!inserted && it->second != key) rigid_conflicts.insert(matrix);
+    }
+    for (const auto &[matrix, key] : rigid_owners) if (matrix < meshes.size()) {
+        if (rigid_conflicts.contains(matrix)) meshes[matrix].eligible = false;
+        else bind_presentation_rigid(meshes[matrix], key);
+    }
     auto frame = std::make_shared<PresentationHistoryFrame>(
         context.presentation_history.record(meshes, context.vi_tick, scene));
+    if (rigid_trace) for (const auto &[matrix,key] : rigid_owners)
+        if (matrix < frame->transforms.size())
+            trace_interpolation("rigid",context.vi_tick,static_cast<unsigned>(key[1]>>32U),
+                static_cast<unsigned>(key[1]),static_cast<unsigned>(key[2]),
+                static_cast<unsigned>(meshes[matrix].positions.size()),0.0f,
+                rigid_baseline.transforms[matrix].matched,frame->transforms[matrix].matched);
     context.semantic_vertices.resize(data.worldIndices.size());
     std::vector<SemanticPresentationSample> samples;
     samples.reserve(context.semantic_vertices.size());

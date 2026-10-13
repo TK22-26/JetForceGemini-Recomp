@@ -17,6 +17,11 @@ one 360/no-VSync replay maintained about 29.7-29.8 scene updates/s, with zero au
 underruns. They produced about 120 and 353-360 output FPS respectively. Rare single
 late updates remain; full-game and owner live acceptance are pending.
 The current desktop preview includes this change and the pickup-particle correction.
+The subsequent owner tutorial capture still falls to about 20 scene updates/s
+for one 20-second section and 22-25 in a late section. Crates, the exit light
+and a bridge jitter in the later cave/bridge area. Source-cadence drops are
+measured; object-specific interpolation and the cause of the remaining load
+are unverified. See [the live capture review](development/issues/tutorial-late-object-jitter.md).
 See [PERF-001](development/issues/goldwood-combat-slowdown.md) and
 [qualification](../evidence/combat-native-spans.json). No public release.
 

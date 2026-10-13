@@ -44,6 +44,17 @@ inline void bind_presentation_billboard(PresentationMesh &mesh,
         mesh.key.push_back(static_cast<std::uint32_t>(value >> 32U));
     }
 }
+// Keep exact rigid geometry, but disambiguate identical assets by actor,
+// model instance and camera. Unknown objects retain conservative shape matching.
+inline void bind_presentation_rigid(PresentationMesh &mesh,
+    const std::array<std::uint64_t, 4> &owner) {
+    if (!owner[0] || !owner[3] || mesh.key.empty()) return;
+    mesh.key.push_back(0x52494744U);
+    for (auto value : owner) {
+        mesh.key.push_back(static_cast<std::uint32_t>(value));
+        mesh.key.push_back(static_cast<std::uint32_t>(value >> 32U));
+    }
+}
 struct PresentationTransform {
     PresentationMatrix previous{};
     bool matched = false;

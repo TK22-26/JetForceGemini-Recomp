@@ -114,5 +114,30 @@ int main() {
     const auto original_key = unknown.key;
     jfg::bind_presentation_billboard(unknown,{0,72,73,74});
     require(unknown.key == original_key);
-    return 0;
+
+    // Identical rigid crates need actor identity; draw order is not identity.
+    auto crate_a=a, crate_b=a;
+    crate_a.matrix[12]=0.0f; crate_b.matrix[12]=0.1f;
+    jfg::PresentationHistory unbound_crates;
+    unbound_crates.record({crate_a,crate_b},100,true);
+    const auto unbound=unbound_crates.record({crate_b,crate_a},102,true);
+    require(!unbound.transforms[0].matched && !unbound.transforms[1].matched);
+    jfg::bind_presentation_rigid(crate_a,{101,102,103,104});
+    jfg::bind_presentation_rigid(crate_b,{201,202,103,104});
+    jfg::PresentationHistory rigid_history;
+    rigid_history.record({crate_a,crate_b},100,true);
+    crate_a.matrix[12]=0.01f; crate_b.matrix[12]=0.11f;
+    const auto rigid_frame=rigid_history.record({crate_b,crate_a},102,true);
+    require(rigid_frame.transforms[0].matched && rigid_frame.transforms[1].matched);
+    require(rigid_frame.transforms[0].previous[12]==0.1f &&
+            rigid_frame.transforms[1].previous[12]==0.0f);
+    auto changed_crate=a;
+    changed_crate.matrix[12]=0.02f;
+    jfg::bind_presentation_rigid(changed_crate,{301,102,103,104});
+    require(!rigid_history.record({changed_crate},104,true).transforms[0].matched);
+    jfg::PresentationHistory rigid_geometry;
+    rigid_geometry.record({crate_a},100,true);
+    crate_a.key.push_back(17); // identity cannot authorize different geometry
+    require(!rigid_geometry.record({crate_a},102,true).transforms[0].matched);
+  return 0;
 }
