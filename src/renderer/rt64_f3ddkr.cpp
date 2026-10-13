@@ -1016,6 +1016,23 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     }
     if(scene) trace_interpolation("semantic",context.vi_tick,frame->source_rate,0U,0U,
         static_cast<unsigned>(semantic_count),0.0f,matched_count,moving_count);
+    if(scene && interpolation_trace_enabled()) {
+        std::set<PresentationMatrix> cameras;
+        for(const auto& sample:samples) if(sample.valid) cameras.insert(sample.camera);
+        std::size_t camera_vertices=0, camera_matched=0, all_matched=0;
+        for(std::size_t v=0;v<data.worldIndices.size();++v) {
+            const auto m=data.worldIndices[v];
+            if(m>=meshes.size()) continue;
+            const bool matched=frame->transforms[m].matched;
+            all_matched+=matched;
+            if(cameras.contains(meshes[m].matrix)) {
+                ++camera_vertices;camera_matched+=matched;
+            }
+        }
+        trace_interpolation("coverage",context.vi_tick,frame->source_rate,0U,
+            static_cast<unsigned>(camera_vertices),static_cast<unsigned>(data.worldIndices.size()),
+            0.0f,camera_matched,all_matched);
+    }
     state.setRefreshRate(static_cast<std::uint16_t>(frame->source_rate));
     publish_presentation_snapshot(&workload, std::move(frame));
     context.semantic_vertices.clear();

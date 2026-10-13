@@ -42,6 +42,7 @@ inline bool apply_presentation_interpolation(RT64::Workload& workload,
 }
 inline void trace_presentation_workload(RT64::Workload& workload,
         unsigned target, unsigned frame, unsigned count, float alpha) {
+    if (!interpolation_trace_enabled()) return;
     const auto snapshot = presentation_snapshot(&workload);
     if (!snapshot) return;
     std::size_t matched = 0, moving = 0;

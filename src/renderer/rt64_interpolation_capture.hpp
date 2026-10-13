@@ -25,12 +25,19 @@ struct InterpolationCapture {
 };
 inline std::unique_ptr<InterpolationCapture> begin_interpolation_capture(
         RenderDevice* device, RenderCommandList* commands, RenderTexture* texture,
-        unsigned width, unsigned height, std::uint64_t present, unsigned frame) {
+        unsigned width, unsigned height, std::uint64_t present, unsigned frame, std::uint64_t scene = 0) {
     static const auto directory = interpolation_capture_environment("JFG_RT64_FRAME_SEQUENCE");
     static const auto first = std::strtoull(
         interpolation_capture_environment("JFG_RT64_CAPTURE_FROM").c_str(), nullptr, 10);
-    if (directory.empty() || present < first || present-first >= 4 || frame >= 16 ||
+    static const auto firstScene = std::strtoull(
+        interpolation_capture_environment("JFG_RT64_CAPTURE_SCENE_FROM").c_str(), nullptr, 10);
+    static unsigned captured = 0;
+    const bool inRange = firstScene != 0 ?
+        (scene >= firstScene && scene-firstScene < 6) :
+        (present >= first && present-first < 4);
+    if (directory.empty() || !inRange || captured >= 64 || frame >= 16 ||
         width == 0 || height == 0 || width > 8192 || height > 8192) return nullptr;
+    ++captured;
     auto result = std::make_unique<InterpolationCapture>();
     result->width = width;
     result->height = height;

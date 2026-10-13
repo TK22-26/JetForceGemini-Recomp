@@ -22,6 +22,12 @@ inline bool presentation_unlimited_requested() {
 // Sentinels, not FPS limits. Uncapped output uses a two-target
 // producer/consumer ring and samples interpolation from monotonic time within
 // each source frame.
+// The active RT64 capture owner requests an actual draw even when its VI
+// refers to a scene whose interpolation sequence was already consumed.
+inline std::atomic<bool>& presentation_capture_pending() {
+  static std::atomic<bool> pending{false};
+  return pending;
+}
 inline constexpr std::uint32_t kUnlimitedPresentation = 0x7fffffffU;
 inline constexpr std::uint32_t kPresentationRingSize = 2U;
 inline unsigned presentation_target(unsigned requested, unsigned display) {

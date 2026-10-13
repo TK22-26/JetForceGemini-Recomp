@@ -9,10 +9,17 @@ function(jfg_video_replace needle replacement)
 endfunction()
 
 function(jfg_video_patch_workload)
+    jfg_video_replace([=[                    // Add total time the frame took to render.]=] [=[                    if (jfgSnapshot && !jfgOffscreen) {
+                        const unsigned outputIndex = !overrideTarget ? UINT32_MAX : overrideModifier - 1U;
+                        jfg::record_presentation_output(&curFrameCounters, outputIndex,
+                            {jfgSnapshot->tick, workload.viOriginalRate, frame, displayFrames, curFrameWeight});
+                    }
+                    // Add total time the frame took to render.]=])
+
     jfg_video_replace([=[                            skipWorkloadNow = ((frame + 1) < displayFrames) && (writeCursor != threadCursor);]=] [=[                            bool nextScene = (writeCursor != threadCursor);
-                            if (jfgUnlimited && nextScene) {
+                            if (nextScene) {
                                 // Small shadow-only passes between VIs must not end
-                                // a scene's time-based interpolation halfway through.
+                                // a scene's interpolation halfway through at any rate.
                                 // A queued scene or unknown workload still takes priority.
                                 nextScene = false;
                                 uint32_t next = threadCursor;
@@ -139,8 +146,26 @@ function(jfg_video_patch_present)
                     framesToPresent = frameCounters.count;
                 }]=] [=[                if (presentFb->interpolationEnabled) {
                     std::scoped_lock<std::mutex> lock(ext.sharedResources->interpolatedMutex);
+                    const bool jfgCaptureRequested = jfg::presentation_capture_pending().load(std::memory_order_acquire);
                     jfgRepeatCompleted = frameCounters.count > 1U &&
                         frameCounters.presented >= frameCounters.count;
+                    if (jfgRepeatCompleted) {
+                        jfg::trace_interpolation("completed", present.presentId, viOriginalRate,
+                            targetRate, 0U, frameCounters.count, 1.0f,
+                            present.fbOperations.size(), present.paused ? 1U : 0U);
+                    }
+                    if (jfgRepeatCompleted && !present.paused && present.fbOperations.empty() && !jfgCaptureRequested &&
+                        frameCounters.count != jfg::kUnlimitedPresentation) {
+                        // CPU framebuffer writes are real new content, not a
+                        // redundant VI; preserve their existing presentation path.
+                        // This VI names a scene whose entire finite sequence
+                        // was already consumed. A second full output window
+                        // freezes motion and makes the next scene arrive late.
+                        // Release the producer immediately; its next scene owns
+                        // the next interpolation window, not this duplicate VI.
+                        notifyPresentId(present);
+                        return;
+                    }
                     if (jfgRepeatCompleted) {
                         // A later VI can refer to an already consumed scene.
                         // Replaying its old sequence rewinds motion at capped rates;
@@ -148,7 +173,7 @@ function(jfg_video_patch_present)
                         // Repeat the latest image, never restart old motion.
                         // Keep the finite output window: one output per VI would
                         // leave idle gaps between source submissions at high caps.
-                        if (frameCounters.count != jfg::kUnlimitedPresentation)
+                        if (frameCounters.count != jfg::kUnlimitedPresentation && !jfgCaptureRequested)
                             framesToPresent = frameCounters.count;
                         jfgRepeatHasTarget = frameCounters.available > 0;
                         jfgRepeatTarget = jfgRepeatHasTarget ?
@@ -186,5 +211,18 @@ function(jfg_video_patch_present)
                 frameCountersNextPresented = frameCounters.count;
             uint32_t swapChainIndex = 0;]=])
     jfg_video_replace([=[            if ((framesToPresent > 1) && (usingMSAA || (i > 0))) {]=] [=[            if (!jfgRepeatCompleted && (framesToPresent > 1) && (usingMSAA || (i > 0))) {]=])
+    jfg_video_replace([=[            uint32_t swapChainIndex = 0;]=] [=[            const unsigned jfgSampleIndex = jfgRepeatHasTarget ? jfgRepeatTarget :
+                ((!usingMSAA && i == 0) ? UINT32_MAX :
+                    (frameCounters.count == jfg::kUnlimitedPresentation ?
+                        (unsigned(i) - unsigned(!usingMSAA)) % jfg::kPresentationRingSize :
+                        (unsigned(i) - unsigned(!usingMSAA)) * 2U + jfgTargetBank));
+            const auto jfgOutputSample = jfg::presentation_output_sample(&frameCounters, jfgSampleIndex);
+            uint32_t swapChainIndex = 0;]=])
+    jfg_video_replace([=[                if (swapChainValid) jfg::frame_diagnostic_state().presented();]=] [=[                if (swapChainValid) {
+                    jfg::frame_diagnostic_state().presented();
+                    jfg::trace_interpolation("display", jfgOutputSample.tick, jfgOutputSample.source,
+                        targetRate, jfgOutputSample.frame, jfgOutputSample.count,
+                        jfgOutputSample.alpha, present.presentId, jfgSampleIndex);
+                }]=])
     set(contents "${contents}" PARENT_SCOPE)
 endfunction()

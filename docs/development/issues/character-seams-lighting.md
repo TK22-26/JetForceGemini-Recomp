@@ -1,7 +1,8 @@
 # RENDER-002: Character/terrain seams and incorrect character lighting
 
-Status: **high-refresh tearing corrected in a tested local candidate; Original-mode
-thigh-joint and lighting reports open; owner confirmation pending** (2026-10-12).
+Status: **owner confirms thigh seams and delayed lighting absent at 120 FPS in
+the semantic preview; other poses/modes and exact lighting cause unverified**
+(2026-10-13 UTC).
 Severity: major visual fidelity problem; gameplay impact unconfirmed.
 
 ## Report and reproduction
@@ -293,3 +294,45 @@ The conservative high-refresh matcher currently holds connected skin at the
 original animation rate in this route. Higher output FPS is not a claim that
 all actor animation has been interpolated. Lighting recovery remains open and
 was not changed by these thigh checks.
+
+
+## Owner-approved continuation (2026-10-13 UTC)
+
+The owner approved five further hours to continue the open pacing, thigh-gap and
+delayed-lighting issues after local semantic-interpolation delivery. The same
+production guard remains enabled, retaining 19 attempts, 18 activities and
+33222.14147090912 seconds before the new lease. One additional guarded session
+is authorized until 05:29:07 UTC; no counters or roots are reset. New large
+artifacts use private storage on D:. Tests remain muted with owned hidden windows
+and copied profiles/saves. The installed semantic preview remains the comparison
+baseline until a new candidate is independently qualified.
+
+First step: correlate retained present intervals, guest update work and graphics
+submission waits around the combined-motion three-VI recovery episode. Reuse
+existing seam/lighting captures to define an exact pixel or spatial boundary;
+avoid repeating broad captures without a new discriminating measurement.
+
+
+### Owner verification of semantic preview
+
+After closing/reopening the new semantic preview, the owner reports "No seems
+at 120". The 120-FPS thigh symptom is therefore absent in this live check. This
+supersedes the earlier report that connected skin was held at source cadence:
+the semantic implementation now interpolates world-space vertex endpoints with
+shared joint/camera ownership. Other frame-rate modes and poses are not newly
+qualified by that statement. Lighting recovery remains under investigation.
+
+
+### Owner follow-up: stationary camera spin (2026-10-13 UTC)
+
+The owner reports only movement/camera jitter remains in the delivered semantic
+preview at 120 FPS. The thigh lines and delayed lighting are absent in that
+live check; this is scoped owner confirmation, not a claim of all-scene parity.
+A more precise jitter reproduction is to stand still and rotate the camera in a
+full circle. The view jumps and looks blurred despite a steady 120 OUTPUT /
+30 SCENES counter. Present frequency alone is therefore insufficient acceptance:
+measure the camera/geometry displacement of consecutive presented images.
+
+Current hypotheses include camera/terrain history falling back as visibility
+changes, skipped or repeated interpolation samples, and camera sampling phase.
+Separate the broad 20-Hz recovery event from this stable-counter reproduction.

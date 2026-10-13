@@ -20,18 +20,19 @@ for measurements, experiments and the remaining acceptance work.
 
 ## Character seams and lighting
 
-The local high-refresh candidate corrects reproduced terrain cracks caused by
-inconsistent interpolation of batches sharing a transform. Owner confirmation
-and broader character coverage are pending. The Original-mode joint and incorrect
-delayed lighting recovery reports remain open. A controlled return across the
-bridge matches the reference's visible lighting pattern, but the intermittent
-extra delay has not been isolated. Dense modern-route checks found no separating
-shared thigh vertices in 215 observed body frames; the specific see-through
-line still needs a marked current-build reproduction. This does not rule out
-raster coverage or other poses. See
+The owner reports the thigh seams and delayed lighting are absent at 120 FPS
+in the semantic high-refresh preview. Terrain interpolation cracks were also
+corrected. Other poses/modes remain unverified, and the intermittent lighting
+delay's exact cause has not been isolated. See
 [RENDER-002](development/issues/character-seams-lighting.md).
 
 ## High-refresh rendering
+
+A newer capped-presentation correction prevents repeated completed interpolation
+windows and shadow-only truncation. It passes bounded camera-pan/full-circle
+checks, with owner/physical-display verification pending. Source workload spikes
+and adaptive 30/20-Hz recovery are unchanged. See
+[RENDER-003](development/issues/steady-fps-jitter.md).
 
 The [high-refresh candidate](features/high-refresh-rendering.md) has RmlUi
 Video Settings in a separate Windows window with VSync, a Custom FPS target and Unlimited. A short replay

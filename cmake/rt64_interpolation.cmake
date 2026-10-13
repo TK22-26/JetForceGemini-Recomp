@@ -123,7 +123,7 @@ string(REPLACE "${before}" "${after}" contents "${contents}")
 set(before [=[                    commandList->barriers(RenderBarrierStage::NONE, RenderTextureBarrier(swapChainTexture, RenderTextureLayout::PRESENT));]=])
 set(after [=[                    auto jfgCapture = jfg::begin_interpolation_capture(ext.device, commandList,
                         swapChainTexture, ext.swapChain->getWidth(), ext.swapChain->getHeight(),
-                        present.presentId, static_cast<unsigned>(i));
+                        present.presentId, static_cast<unsigned>(i), jfgOutputSample.tick);
                     commandList->barriers(RenderBarrierStage::NONE, RenderTextureBarrier(swapChainTexture, RenderTextureLayout::PRESENT));]=])
 string(FIND "${contents}" "${before}" offset)
 if(offset EQUAL -1)

@@ -198,6 +198,7 @@ bool CaptureContext::activate() noexcept {
 void CaptureContext::deactivate() noexcept {
     CaptureContext* expected = this;
     if (active_capture.compare_exchange_strong(expected, nullptr)) {
+        presentation_capture_pending().store(false, std::memory_order_release);
         RT64::SetRenderHooks(previous_init, previous_draw, previous_deinit);
     }
 }
@@ -206,6 +207,7 @@ void CaptureContext::arm() noexcept {
     const std::scoped_lock lock(mutex);
     pixels.clear();
     armed = true;
+    presentation_capture_pending().store(true, std::memory_order_release);
     scheduled = false;
     failed = false;
 }
@@ -285,6 +287,7 @@ void CaptureContext::draw(
 bool CaptureContext::finish() noexcept {
     const std::scoped_lock lock(mutex);
     armed = false;
+    presentation_capture_pending().store(false, std::memory_order_release);
     if (!scheduled || failed || readback == nullptr || width == 0U ||
         height == 0U || row_pitch > SIZE_MAX / height) {
         return false;
@@ -1029,6 +1032,8 @@ Rt64ShellError Rt64Shell::present(const bool capture_frame) noexcept {
         return Rt64ShellError::none;
     }
     catch (...) {
+        if (capture_frame)
+            presentation_capture_pending().store(false, std::memory_order_release);
         return Rt64ShellError::renderer_exception;
     }
 }
