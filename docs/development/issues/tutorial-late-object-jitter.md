@@ -535,3 +535,26 @@ is still open.
 The direct-camera and secondary rigid-subset prototypes remain rejected and
 are absent from the selected source. See [aggregate evidence](../../../evidence/high-refresh-route-fix.json).
 No full-route or physical-display resolution is claimed.
+
+## Local continuation delivered, 2026-10-13
+
+Implementation commit aaae085c7be7d6ce140cde06c683ef19082470ee is installed in
+high-refresh-route-fix-20261013 on D:. Both **JFG - High Refresh Preview**
+and **JFG - Jitter Capture** desktop shortcuts select the new package, with
+their profile/recording arguments preserved. Close and reopen an old launcher
+to load it. All 14 package entries verify by size and hash; isolated muted
+setup selects the correct runtime. Both existing save/settings profiles are
+unchanged. The launcher remains the qualified expanded-capture build.
+
+This is a partial correction. Delayed-scene holds and retained CPU-written
+endpoints are corrected in bounded tests, timing/history overhead is reduced,
+and logging drains correctly. Procedural beam ownership has synthetic and
+non-target coverage. The native Unlimited scene-age candidate was rejected
+for worse frame spacing and is absent.
+
+The owner's exact damage/combat slowdown, visible late crates/exit marker/
+bridge jitter and shadow cadence remain open. Unlimited still has source
+starvation/audio errors. Initial waiting was excluded from gameplay analysis;
+the original capture was preserved. Neither a build nor hidden-window FPS
+establishes visible resolution. Runtime identity and measured limits are in
+[the delivery evidence](../../../evidence/high-refresh-route-fix.json).

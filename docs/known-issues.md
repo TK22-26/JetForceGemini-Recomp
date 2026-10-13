@@ -213,3 +213,9 @@ both High Refresh Preview and Jitter Capture shortcuts. Source `34c9986224c0508a
 existing profiles and diagnostics arguments are preserved. This delivery does
 not close the three remaining owner reports above. See
 [delivery evidence](../evidence/high-refresh-route-review.json).
+
+The current local candidate is **high-refresh-route-fix-20261013**, implementation
+aaae085c7be7d6ce140cde06c683ef19082470ee, selected by both preview/capture desktop shortcuts.
+It supersedes the older route-review package. Saves and settings are preserved;
+combat drops, exact late-room jitter, shadow cadence and Unlimited starvation
+remain open. See [current delivery evidence](../evidence/high-refresh-route-fix.json).

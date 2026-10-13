@@ -694,5 +694,24 @@
     "selected-play-review.json": "7d72cdcc6f48cef382a55af986cac6e13ce977e184c93590b8dc0fe8d2c66f43",
     "semantic-index-dense-replay-review.json": "887d2067ff383a1b4bf5cd828a410a58bcfd14f3ceda85fa81b43806b8cef48e",
     "variable-cadence-replay-review.json": "fc716019764006bef7b9e106ba554fa3e698a7894a565cc55247fca28b83b5a7"
+  },
+  "delivery": {
+    "source_commit": "aaae085c7be7d6ce140cde06c683ef19082470ee",
+    "previous_commit": "7531fecbd2bfa0fb17ff3ccff3fd7a9f81e41bd9",
+    "runtime_sha256": "1b0bdd0fbfe25eacbf3ed0417c1607a70eed49d4198a6add62f3fba12900f0db",
+    "tests_verified": true,
+    "owner_visible_bridge_light_fix_verified": false,
+    "full_route_damage_fix_verified": false,
+    "shadow_fix_included": false,
+    "unlimited_scene_age_included": false,
+    "public_release": false,
+    "committed_at_utc": "2026-10-13T23:17:52 +0000",
+    "package_name": "high-refresh-route-fix-20261013",
+    "manifest_verified": 14,
+    "launcher_init_passed": true,
+    "muted_tests": true,
+    "owner_profiles_preserved": true,
+    "delivered": true,
+    "delivered_at_utc": "2026-10-13T23:17:58.203818+00:00"
   }
 }
