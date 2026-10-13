@@ -125,8 +125,24 @@ int main() {
     require(faster.transforms[0].previous[12]==0.10f);
     moving.matrix[12]=1.0f;
     require(!variable.record({moving},110,true).transforms[0].matched);
-    require(!variable.record({moving},114,true).transforms[0].matched);
+    require(variable.record({moving},114,true).transforms[0].matched);
     require(variable.record({moving},118,true).source_rate==15);
+    // A missed update and recovery are timing changes, not camera cuts.
+    // These intervals occur in the owner's later-cave capture.
+    jfg::PresentationHistory missed;
+    auto late=a;
+    std::uint64_t tick=1000;
+    missed.record({late},tick,true);
+    for (const unsigned interval : {2U,4U,2U,1U,3U,6U,2U}) {
+        tick+=interval;late.matrix[12]+=0.01f;
+        const auto sample=missed.record({late},tick,true);
+        require(sample.source_rate==60U/interval && sample.transforms[0].matched);
+        require(sample.transforms[0].previous[12]<late.matrix[12]);
+    }
+    late.matrix[12]+=1.0f;
+    require(!missed.record({late},tick+4U,true).transforms[0].matched);
+    require(!missed.record({late},tick+40U,true).transforms[0].matched);
+    require(!missed.record({late},tick+40U,true).transforms[0].matched);
     // A living sprite can change dimensions without becoming another object.
     // Its anchor still interpolates; free/reuse and topology changes hold.
     auto sprite = a;

@@ -22,6 +22,8 @@
 #include "jfg/boot/reset_handoff.hpp"
 #include "jfg/boot/ipl_handoff.hpp"
 #include "jfg/boot/gameplay_trace.hpp"
+#include "jfg/renderer/interpolation_bridge.hpp"
+#include "jfg/renderer/frame_diagnostics_state.hpp"
 #include "jfg/boot/host_count_clock.hpp"
 #include "jfg/boot/native_frame_recovery.hpp"
 #include "jfg/boot/count_sample_tape.hpp"
@@ -1731,6 +1733,9 @@ struct State : JfgOriginalTimingFast {
   std::uint64_t profile_host_wait_us = 0U;
   std::uint64_t profile_idle_count_ticks = 0U;
   bool diagnostic_cpu_costs = false;
+  struct FunctionCost { std::uint64_t self_ns=0, inclusive_ns=0, calls=0; };
+  std::unordered_map<std::uint32_t, FunctionCost> profile_function_costs;
+  std::uint64_t profile_function_self_ns = 0;
   std::uint64_t profile_out_of_line_instructions = 0U;
   std::uint64_t profile_full_execution_probes = 0U;
   std::uint64_t profile_native_handler_ns = 0U;
@@ -5297,7 +5302,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
                mmio_trace.c_str(), state.journal.count, state_digest.c_str(),
                journal_digest.c_str());
   std::fflush(stdout);
-  state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
+  jfg::frame_diagnostic_state().finish(); jfg::finish_interpolation_trace(); state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
 }
 
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
@@ -5346,7 +5351,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
         static_cast<unsigned long long>(state.observed_guest_instructions),
         static_cast<unsigned long long>(state.graphics_tasks),
         static_cast<unsigned long long>(state.decoded_audio_tasks), state_hash(state).c_str());
-    std::fflush(stdout); state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
+    std::fflush(stdout); jfg::frame_diagnostic_state().finish(); jfg::finish_interpolation_trace(); state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
   }
   const auto &event_counts = state.journal.observed_counts;
   std::string overlay_sequence;
@@ -5900,7 +5905,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
       state.journal.count, state.journal.overflow ? "true" : "false",
       state_digest.c_str(), journal_digest.c_str());
   std::fflush(stdout);
-  state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
+  jfg::frame_diagnostic_state().finish(); jfg::finish_interpolation_trace(); state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
 }
 #endif
 
@@ -5972,7 +5977,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
       front_mode,
       state.journal.overflow ? "true" : "false");
   std::fflush(stdout);
-  state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
+  jfg::frame_diagnostic_state().finish(); jfg::finish_interpolation_trace(); state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
 }
 #endif
 
@@ -7537,6 +7542,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           ++state.profile_dispatch_prefix_calls;
         }
         const bool measure_update = target == 0x80044FACU && state.gameplay_trace;
+        if (measure_update && state.diagnostic_cpu_costs) state.profile_function_costs.clear();
         const auto update_started = measure_update ? std::chrono::steady_clock::now()
                                                   : std::chrono::steady_clock::time_point{};
         const auto update_count = measure_update ? state.cpu_count : 0U;
@@ -7596,8 +7602,25 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto rigid_matrix = observe_rigid ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(
             static_cast<std::uint32_t>(context->r5)) : 0U;
 #endif
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        const auto function_started = state.diagnostic_cpu_costs ? std::chrono::steady_clock::now()
+            : std::chrono::steady_clock::time_point{};
+        const auto function_children = state.profile_function_self_ns;
+        const auto function_wait = state.profile_host_wait_us;
+#endif
         generated(rdram, context);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        if (state.diagnostic_cpu_costs) {
+          const auto wall_ns = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+              std::chrono::steady_clock::now()-function_started).count());
+          const auto wait_ns = (state.profile_host_wait_us-function_wait)*1000U;
+          const auto active_ns = wall_ns > wait_ns ? wall_ns-wait_ns : 0U;
+          const auto children_ns = state.profile_function_self_ns-function_children;
+          const auto self_ns = active_ns > children_ns ? active_ns-children_ns : 0U;
+          state.profile_function_self_ns += self_ns;
+          auto& cost = state.profile_function_costs[target];
+          cost.self_ns += self_ns;cost.inclusive_ns += active_ns;++cost.calls;
+        }
         if (observe_rigid)
           state.presentation_identities.rigid({rdram,kRdramSize},rigid_matrix,rigid_actor,state.vi_retraces);
         if (state.presentation_identity_enabled && target == 0x80060EC4U)
@@ -7616,6 +7639,16 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
                 state.native_span_commits-span_commits_start});
           }
           if (state.diagnostic_cpu_costs) {
+            std::vector<std::pair<std::uint32_t,State::FunctionCost>> function_costs(
+                state.profile_function_costs.begin(),state.profile_function_costs.end());
+            std::sort(function_costs.begin(),function_costs.end(),[](const auto& a,const auto& b) {
+              return a.second.self_ns>b.second.self_ns;
+            });
+            for (std::size_t index=0;index<function_costs.size() && index<20U;++index) {
+              const auto& item=function_costs[index];
+              state.gameplay_trace.event("function-self-cost",{state.vi_retraces,state.controller_samples,
+                  item.first,item.second.self_ns,item.second.inclusive_ns,item.second.calls});
+            }
             FILETIME kernel_end{}, user_end{}; ULONG64 process_cycles_end = 0;
             const bool valid = process_costs &&
                 GetProcessTimes(GetCurrentProcess(), &process_created, &process_exited, &kernel_end, &user_end) &&
@@ -10085,6 +10118,10 @@ extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned se
       auto& cpu = *static_cast<recomp_context*>(context);
       auto& mmio = *state.mmio_trace;
       if (state.diagnostic_host_clock) {
+        // Only the exhausted instruction quantum can take the checked poll
+        // shortcut below. Every other reason for a full handler stays full.
+        const bool poll_certificate = state.native_fast_ready &&
+            state.host_clock_poll_budget == 1U;
         const auto now = std::chrono::steady_clock::now();
         if (!state.host_count_clock.ready() && !state.host_count_clock.start(state.cpu_count,now))
           fail_closed_dispatch(state,"native-clock","initialization",pc);
@@ -10097,6 +10134,45 @@ extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned se
         mmio.guest_count = *count;
         state.host_clock_poll_budget = State::kHostClockPollInstructions;
         state.native_fast_ready = false;
+        const unsigned poll_primary=word>>26U;
+        const bool poll_fpu=poll_primary==0x11U || poll_primary==0x31U ||
+            poll_primary==0x35U || poll_primary==0x39U || poll_primary==0x3dU;
+        const bool poll_park=poll_primary==3U &&
+            (((pc+4U)&0xf0000000U)|((word&0x03ffffffU)<<2U))==0x80075698U;
+        // The clock is sampled at the identical instruction boundary above.
+        // Reuse the existing device certificate only while no deadline has
+        // arrived and no CPU or I/O owner has invalidated it. Hardware/cache,
+        // idle parks and observer sites always retain the full path.
+        if (poll_certificate && !state.guest_eret_boundary &&
+            state.native_fast_status==cpu.status_reg &&
+            state.execution_fast_revision==mmio.execution_io_revision &&
+            state.cpu_count<state.execution_fast_deadline &&
+            (state.play_mode || state.observed_guest_instructions<=24000000000ULL) &&
+            poll_primary!=0x10U && poll_primary!=0x2fU &&
+            word!=0x1000ffffU && pc!=0x8009ab80U && pc!=0x80098b74U &&
+            !poll_park && (!poll_fpu || (cpu.status_reg&0x20000000U)!=0U) &&
+            mmio.device_error==nullptr && !mmio.sp_launch &&
+            mmio.flash_bus.mutations()==mmio.persisted_flash_mutations &&
+            !state.guest_clock_trace.is_open() && state.point_probe_pcs.empty() &&
+            !state.device_event_stream && !state.eret_transfer_stream.is_open() &&
+            !state.instruction_effect_stream.is_open()) {
+          if (measure_native_handler)
+            state.profile_native_handler_ns+=static_cast<std::uint64_t>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::steady_clock::now()-native_handler_began).count());
+          const bool delay=state.guest_previous_branch && pc==state.guest_last_pc+4U;
+          state.guest_last_pc=pc;state.guest_last_word=word;
+          state.guest_previous_delay=delay;
+          state.guest_previous_branch=poll_primary==1U ||
+              (poll_primary>=2U && poll_primary<=7U) ||
+              (poll_primary>=20U && poll_primary<=23U) ||
+              (poll_primary==0U && ((word&63U)==8U || (word&63U)==9U)) ||
+              (poll_primary==0x11U && ((word>>21U)&31U)==8U);
+          // Refresh also clamps a diagnostic's remaining instruction budget.
+          // Keep that boundary even when the device certificate is unchanged.
+          jfg_native_timing_refresh(&state,&cpu);
+          return;
+        }
       }
       // A cached BEQ zero,zero,self + NOP loop has no architectural effect
       // between device events. Only skip after observing a complete warm
@@ -10506,8 +10582,6 @@ extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned se
       state.execution_fast_pending =
           ((mmio.mi_pending & mmio.mi_mask.read()) ? 0x400U : 0U) |
           (state.guest_timer.interrupt() ? 0x8000U : 0U) | (state.guest_cause & 0x300U);
-      if (state.diagnostic_host_clock) jfg_native_timing_refresh(&state,&cpu);
-
       if (state.diagnostic_host_clock) jfg_native_timing_refresh(&state,&cpu);
 
       // After exception resumption and Count accounting, before the current

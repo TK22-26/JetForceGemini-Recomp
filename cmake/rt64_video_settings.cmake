@@ -9,6 +9,16 @@ function(jfg_video_replace needle replacement)
 endfunction()
 
 function(jfg_video_patch_workload)
+    jfg_video_replace([=[                ext.presentQueue->waitForPresentId(workload.presentId);]=] [=[                const auto jfgWaitStart = std::chrono::steady_clock::now();
+                ext.presentQueue->waitForPresentId(workload.presentId);
+                if (jfg::interpolation_trace_enabled()) {
+                    const auto snapshot = jfg::presentation_snapshot(&workload);
+                    jfg::trace_interpolation("workload-wait", snapshot ? snapshot->tick : 0U,
+                        workload.presentId, workload.workloadId, 0U, 0U, 0.0f,
+                        std::chrono::duration_cast<std::chrono::microseconds>(
+                            std::chrono::steady_clock::now()-jfgWaitStart).count(),
+                        snapshot && !snapshot->scene ? 1U : 0U);
+                }]=])
     jfg_video_replace([=[                    // Add total time the frame took to render.]=] [=[                    if (jfgSnapshot && !jfgOffscreen) {
                         const unsigned outputIndex = !overrideTarget ? UINT32_MAX : overrideModifier - 1U;
                         jfg::record_presentation_output(&curFrameCounters, outputIndex,
@@ -178,8 +188,8 @@ function(jfg_video_patch_present)
                         // Replaying its old sequence rewinds motion at capped rates;
                         // the unlimited ring additionally overwrites old slots.
                         // Repeat the latest image, never restart old motion.
-                        // CPU-write VIs have already applied their operations
-                        // above. They do not own another scene-time window:
+                        // CPU-write VIs update both the base and retained endpoint.
+                        // They do not own another scene-time window:
                         // holding the endpoint for that whole window delays the
                         // next scene even though the output counter stays high.
                         // Paused presentation retains its existing refresh loop.
@@ -202,8 +212,29 @@ function(jfg_video_patch_present)
                 RenderTargetKey colorTargetKey(presentFb->addressStart, presentFb->width, presentFb->siz, Framebuffer::Type::Color);]=])
     jfg_video_replace([=[                if (!present.paused && (viHistory.top().vi != present.screenVI)) {
                     viHistory.pushVI(present.screenVI, viFb->width);]=] [=[                if (jfgRepeatHasTarget) {
-                    std::scoped_lock<std::mutex> targetsLock(ext.sharedResources->interpolatedMutex);
-                    colorTarget = ext.sharedResources->interpolatedColorTargets[jfgRepeatTarget].get();
+                    {
+                        std::scoped_lock<std::mutex> targetsLock(ext.sharedResources->interpolatedMutex);
+                        colorTarget = ext.sharedResources->interpolatedColorTargets[jfgRepeatTarget].get();
+                    }
+                    // The ordinary operation pass updated the base framebuffer.
+                    // A completed scene displays its retained endpoint instead.
+                    // Apply the same changed-pixel mask to that endpoint, keeping
+                    // all untouched interpolated pixels and the original phase.
+                    if (colorTarget && !colorTarget->isEmpty() && !present.fbOperations.empty()) {
+                        const std::scoped_lock changesLock(screenFbChangePoolMutex);
+                        RenderWorkerExecution workerExecution(ext.presentGraphicsWorker);
+                        for (const auto& operation : present.fbOperations) {
+                            if (operation.type != FramebufferOperation::Type::WriteChanges ||
+                                operation.writeChanges.address != presentFb->addressStart) continue;
+                            const auto* changes = screenFbChangePool.get(operation.writeChanges.id);
+                            if (!changes || changes->type != FramebufferChange::Type::Color) continue;
+                            colorTarget->copyFromChanges(ext.presentGraphicsWorker, *changes,
+                                presentFb->width, presentFb->height, 0U, ext.shaderLibrary);
+                            jfg::trace_interpolation("completed-write-applied", present.presentId,
+                                presentFb->addressStart, operation.writeChanges.address,
+                                jfgRepeatTarget, frameCounters.count, 1.0f, operation.writeChanges.id, 0U);
+                        }
+                    }
                 }
                 if (!present.paused && (viHistory.top().vi != present.screenVI)) {
                     viHistory.pushVI(present.screenVI, viFb->width);]=])

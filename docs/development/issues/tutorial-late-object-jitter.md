@@ -407,3 +407,131 @@ corrected; stationary camera coverage is extended. Exact full-route damage
 slowdown, visible late bridge/light jitter and shadow cadence remain open.
 Qualification and runtime identity are in
 [the delivery evidence](../../../evidence/high-refresh-route-review.json).
+
+## Four-hour guarded continuation (2026-10-13)
+
+Owner approved four more hours after the route-review candidate delivery. The
+same production investigation, root and counters are preserved, with the guard
+still enabled. Focus: isolate the damage-correlated source-rate drop, obtain a
+visible reproducible later-room bridge/light fixture, and qualify shadow/body
+cadence. Prior offscreen matching improvement is not a visible fix. Use copied
+profiles, muted hidden owned windows and D: evidence; do not repeat mismatched
+whole-route averages as a causal comparison. Work remains open.
+
+The stationary-object subset regression is now reproduced in a focused test:
+changing the culled vertex/triangle key discards history despite an unchanged
+owned model pose and continuous camera. A candidate retains a separate immutable
+owner/pose endpoint across subset changes. It still rejects recycled or ambiguous
+owners, camera cuts, invalid operands/vertices and changing model/projection.
+This test addresses a concrete coverage hole; visible late-room qualification
+is pending. Diagnostic function self-time collection is also added under the
+existing finite CPU-cost probe option to distinguish increased guest work.
+
+
+A direct camera candidate binds world-space batches to a camera/room generation
+and immutable emitted view/projection operands, independent of the culled
+triangle set. Its history regression fails before the change and passes after;
+camera cuts, inconsistent claims, nonfinite geometry and level changes reject.
+The new identity test initially left a shared test fixture in a different room;
+restoring that fixture fixes its later unrelated sprite assertion. Both focused
+suites now pass. Runtime visible coverage still needs review.
+
+A CMake composition defect also dropped the regular-workload GPU timestamp
+observer when interpolation replaced the generated source. The candidate now
+composes the audited copies. A zero workload submission count in an affected
+profile means absent instrumentation, not zero GPU cost. The temporary private
+shadow probe's initial getenv warnings-as-errors failure was corrected with the
+Windows environment API; no game launched from that failed build.
+
+The explicit camera prototype was **rejected before delivery**: exact recorded
+clock/input coverage found 70,851 formerly matched batches rejected, and zero
+additional matches. Multiple emitted cameras reused a logical identity with
+different operands. Synthetic identity tests alone did not establish coverage.
+The prototype and its tests were removed; existing camera interpolation remains.
+Private evidence: route-fix-20261013/camera-coverage-review.json.
+
+A separate completed-presentation correctness defect is now reproduced in the
+trace: CPU writes target the displayed framebuffer address, but the ordinary
+write pass only updates its base render target. Completed high-refresh scenes
+then select the retained interpolation endpoint, hiding those changed pixels.
+The candidate applies the same CPU changed-pixel mask to that retained endpoint
+under the existing workload and pool ownership, without replaying old phases.
+This is a framebuffer update correction, not yet proof of the reported bridge
+or exit-light jitter. Paired presented-frame and guest-state checks follow.
+
+The completed-write paired clock replay preserves every guest byte and the save,
+with zero backward presentation phases in both cases. The corrected run applies
+234 completed CPU-write operations to the retained endpoint.
+The bounded image sequence is separately reviewed; matching game state alone
+does not establish the owner's exact bridge/light visual acceptance.
+Private evidence: route-fix-20261013/endpoint-write-review.json.
+
+The bridge fixture emits many batches for one rigid model. The first subset
+candidate required a single batch per owner, so it contributed no matches there.
+A revised candidate accepts several batches only when every claim has the same
+validated immutable model/view/projection and matrix; a contradictory or invalid
+claim rejects secondary owner history. It can preserve camera phase when all
+culled subsets change together. The new split-model regression fails before and
+passes after, including identical-shape batches. Invalid poses, conflicting valid
+poses, camera cuts and changing model transforms retain conservative handling.
+Visible bridge/light qualification remains pending.
+
+## Variable scene cadence (2026-10-13 continuation candidate)
+
+The owner's later-cave VI 13600-15200 window includes five four-VI scene
+intervals, four one-VI intervals and one ten-VI gap. The old continuity policy
+accepted only transitions between two and three VIs; four-to-two transitions
+discarded interpolation for both the delayed scene and its recovery. Twenty-one
+scene records have a zero source interpolation rate in that window, with whole
+camera groups held at endpoints. That is a measured timing-policy defect, not
+proof that all individual bridge/light matching faults have been resolved.
+
+The candidate accepts actual bounded one-to-six-VI intervals regardless of the
+prior interval. Geometry/lifetime, pose and motion rejection remain unchanged;
+long gaps, repeated timestamps, invalid data and camera cuts still hold.
+The added delayed-update/recovery test fails before and passes after. Source
+FPS continues to report real scene production; this does not claim to remove
+CPU combat drops or manufacture extra simulation updates. Replay qualification
+and live acceptance remain separate.
+
+The secondary owner-history experiment was rejected after the bridge orbit
+and three recorded-clock fixtures produced zero additional subset matches.
+Consistent duplicate batches passed synthetic tests, but there is no measured
+benefit in these real samples. That additional map/pose work is removed from
+the delivered candidate; existing exact rigid identity/camera matching remains.
+The prior direct-camera experiment likewise remains rejected. Preserve these
+failed attempts as evidence rather than labeling them visible jitter fixes.
+
+### Procedural exit-light candidate, 2026-10-13
+
+US behavior 68 calls beamDraw (overlay 76 in the pinned decomp), which generates two alternating eight-vertex buffers in actor control data, outside standard model geometry. Added host-only logical vertex ownership using actor lifetime, control allocation, shape flags and the verified emitted model/view/projection. Buffer changes retain logical vertex identity; invalid flags, ambiguous owners and stale matrices fall back. Synthetic buffer/lifetime validation passes. Actual visible-light coverage and full-route visual improvement are pending; this is not a resolved report.
+
+## Continuation qualification, 2026-10-13
+
+The selected correction keeps bounded one-to-six-VI scene intervals continuous
+instead of discarding the delayed update and its recovery. The exact-clock
+cadence comparison removes 12 unnecessary holds with no new rejected matches,
+backward presentation phases, guest-memory differences or save differences.
+Completed CPU framebuffer writes now update the retained displayed endpoint
+with the same changed-pixel mask; 234 operations were applied in the paired
+fixture without changing guest state.
+
+The procedural LightBeam path now owns logical vertices across its two DMA
+buffers and uses verified actor lifetime, control allocation, shape flags and
+model/view/projection operands. Ownership lookup is per DMA batch. Synthetic
+buffer/lifetime/ambiguity tests and real non-target beams exercise it; quiet and
+dense clock replays preserve all guest bytes, saves and instruction counts.
+This remains a candidate for the owner's exit marker, not a verified visual fix.
+
+The controlled room captures are **not visible bridge/exit-light acceptance**.
+Input/level correlation found movement and images before room 26 entry in the
+earlier attempts; beams recorded there include other scenes. The landmark-based
+attempt and a generation-stability retry remained in room 21. Room-26 endpoint
+metadata in other attempts showed the target beams disabled by their draw flags.
+Preserve those failures; final player location or actor matching counts alone
+cannot qualify an earlier screenshot. The exact crate/bridge/exit-light report
+is still open.
+
+The direct-camera and secondary rigid-subset prototypes remain rejected and
+are absent from the selected source. See [aggregate evidence](../../../evidence/high-refresh-route-fix.json).
+No full-route or physical-display resolution is claimed.

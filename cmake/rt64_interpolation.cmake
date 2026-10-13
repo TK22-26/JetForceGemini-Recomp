@@ -24,7 +24,7 @@ file(SHA256 "${source}" digest)
 if(NOT digest STREQUAL "6e53030e8899c42347b51e67879fcb9679ad487ac067c192612c432d85bca4a4" AND NOT digest STREQUAL "090cab491982923b41c75a55664586a61492343b89fe8963895c85bd6040d48f")
  message(FATAL_ERROR "Pinned RT64 interpolation input differs: src/hle/rt64_workload_queue.cpp")
 endif()
-file(READ "${source}" contents)
+file(READ "${jfg_workload_generated}" contents)
 set(before [=[                // Detect the color image to interpolate for this workload.]=])
 set(after [=[                const auto jfgSnapshot = jfg::presentation_snapshot(&workload);
                 const bool jfgOffscreen = jfgSnapshot && !jfgSnapshot->scene;

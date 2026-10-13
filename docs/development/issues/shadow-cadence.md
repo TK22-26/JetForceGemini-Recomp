@@ -48,3 +48,29 @@ The missing part identified here is explicit caster/receiver ownership and
 phase handling in this game's shadow path, not a claim that RT64 lacks UV
 interpolation. No shadow correction is included in this review. Keep RENDER-007
 open and require visible shadow/body comparisons before declaring a fix.
+
+## Caster/receiver probe (2026-10-13 continuation)
+
+A muted moving-Juno sequence provides a visible ground shadow. A bounded private
+probe observes 90 projection calls and 800 generated vertices. Juno's projected
+footprint changes between 8, 12 and 16 vertices as it clips across floor triangles;
+all receiver pointers in this sample are static terrain. The shadow texture is
+separately generated, then CPU-processed. Projector UVs depend on caster yaw,
+position and height, while receiver vertices are quantized world coordinates.
+
+The suspected offscreen presentation wait is ruled out in the measured combat
+sample: 102 passes total about 0.017 ms of that wait, with a zero median. This does
+not rule out mask rendering/readback cost. No shadow interpolation remedy has
+been qualified. A geometry-ordinal match or unconstrained footprint translation
+would not preserve clipping and is not included. Private evidence:
+route-fix-20261013/shadow-named-review.json and graphics-wait-review.json.
+
+## Continuation disposition, 2026-10-13
+
+No shadow remedy is included. The visible moving-shadow probe and source audit
+establish changing clipped receiver topology (8/12/16 vertices) and a separately
+CPU-processed mask. They do not quantify the owner's perceived lag or validate a
+caster/receiver interpolation scheme. Offscreen present-queue wait is negligible
+in the measured sample; GPU/readback cost is a separate measurement. A future
+change needs stable caster/receiver/clip identity and mask/UV phase coverage.
+Ordinal matching or translating the complete footprint is not a qualified fix.

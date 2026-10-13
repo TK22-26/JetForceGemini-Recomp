@@ -484,3 +484,95 @@ source of replay divergence; it does not restore full owner-route equivalence.
 Final native Play compares log-only and expanded tracing at 120/30 with 18
 actual damage events and no diagnostic drops. The owner's damage-correlated
 source-rate loss remains open. See [route qualification](tutorial-late-object-jitter.md#review-qualification-2026-10-13).
+
+## Workload GPU observer composition regression (2026-10-13)
+
+In the high-refresh/develop combined profile, the interpolation CMake layer
+read the original pinned workload source after the GPU timing layer had emitted
+its instrumented copy. The later source substitution discarded the workload GPU
+timestamp callback. Missing workload GPU submissions were not zero-cost GPU
+execution; earlier conclusions must not interpret them that way.
+
+The correction composes interpolation onto the already hash-validated generated
+GPU timing source. The combined runtime builds and its generated workload retains
+both the GPU completion observer and presentation changes. Native runtime
+verification is tracked with the route-fix evidence; the original dependency pin
+is unchanged. This instrumentation repair is separate from a combat FPS remedy.
+
+Expanded interpolation tracing still performed synchronous file writes under a
+mutex shared by the submit, render and present paths. It also computed a second
+full geometry-history pass solely for a legacy comparison. These are avoidable
+observer costs, not established sole causes of the owner's combat drop.
+
+The candidate queues complete formatted rows through the existing bounded
+diagnostic writer, drains at normal runtime exit, and appends a ten-column
+trace-end footer (last fields: dropped chunks, incomplete flag). Missing footer
+or nonzero status invalidates completeness claims. A 4,000-row concurrent test
+covers field integrity, final drain and rejection of writes after shutdown.
+The legacy comparison is now opt-in with JFG_RT64_COMPARE_MATCHING=1; final
+rigid-owned, semantic and camera-coverage observations remain in ordinary expanded
+captures. Performance and exact-state replay qualification follow. The temporary
+shadow geometry probe has been removed from the deliverable source.
+
+Review also found that normal runtime exits use _Exit, bypassing the frame CSV
+writer destructor. Up to its buffered tail could therefore be absent even after
+a normal close. The candidate explicitly detaches the presentation observer,
+waits for any in-flight enqueue, then drains the writer before exiting. Late
+callbacks remain safe while the renderer object is alive. A completed comment
+records the final queue-drop/error status; missing completion marks an incomplete
+capture. Final runtime close/drain verification remains pending.
+
+The continuation reproduces Unlimited source-rate loss and audio underruns in
+both the prior delivered preview and the candidate. Screen submission waits
+rise to about 14-17 ms in the candidate, versus sub-millisecond mask full sync.
+Additional asynchronous trace events distinguish draw/transform upload waits,
+render upload waits, the framebuffer fence and texture upload completion. Every
+original wait remains; no synchronization is removed on timing evidence alone.
+
+### Unlimited queue-window candidate, 2026-10-13
+
+The queue-stage trace separates the modes: capped 120 waits about 0.004 ms for a workload slot; Unlimited waits about 9.84-10.01 ms (95th percentile 24-26 ms). Unlimited starts a full interpolation window at worker consumption, although that scene has already waited for submission/queue ownership. The candidate timestamps host scene preparation and uses elapsed age for Unlimited phase, expiry and ring-slot deadlines. Capped scheduling and all synchronization remain. Unknown/future timestamps retain the local clock, and old scenes expire instead of receiving a new window. Native rates, audio, phase continuity and exact-state replays must qualify this candidate.
+
+## Continuation qualification, 2026-10-13
+
+Normal-close frame CSV and interpolation traces now finish with explicit
+completion records and zero queue-drop/write-error status in the qualified
+runs. The concurrent 4,000-row test, five analyzer tests, capped/Unlimited Play,
+pause/resume and Original/Custom replay checks pass. A footer proves records
+accepted through shutdown were drained; it does not prove logging stayed
+enabled for an entire play session. Older logs without a footer remain
+analyzable but cannot satisfy --require-complete.
+
+Expanded tracing queues complete rows instead of writing them synchronously
+on renderer paths. The unused second geometry matcher runs only with
+JFG_RT64_COMPARE_MATCHING=1. Workload GPU timing now composes with interpolation
+instead of being overwritten by the later CMake source substitution.
+
+The scene-age experiment below was rejected after the final native rendering review.
+Unlimited remains open; earlier provisional qualification is superseded by the rejection.
+
+## Unlimited scene-age candidate rejected, 2026-10-13
+
+The final native review rejects the prepared-scene-age candidate. It reduces
+queue delays and audio underruns (368 in the preceding native sample to 2 in the
+candidate sample), and the identical-clock busiest update falls from 49.0 to
+39.0 ms with identical guest memory, save and instruction counts. However its
+Unlimited presentation p99 expands from about 2.75 ms to 31.0 ms, with output
+bursts separated by long gaps. Those native paths are not workload-equivalent,
+but the rendering regression is sufficient to reject the scheduling change.
+Preserve all evidence. Do not accept lower CPU cost or fewer audio errors alone
+as proof of smooth rendering.
+
+All four scene-age source edits are reverted to the tested pre-candidate source.
+The selected binary is the queue-observer build 1b0bdd0f, whose exact-clock
+guest bytes, save, instruction counts and logical matching equal its preceding
+1609c019 build. All original resource waits remain. Unlimited's existing
+starvation/pacing issue stays open. No prepared-age correction is delivered.
+
+Final selected-runtime qualification: muted native 120/360 and pause/resume
+pass without audio underruns; complete traced runs have no backward phases.
+Unlimited remains functionally available but has source starvation/audio errors.
+The selected runtime is 1b0bdd0fbfe25eacbf3ed0417c1607a70eed49d4198a6add62f3fba12900f0db; the aggregate evidence supersedes
+provisional scene-age results. Physical scanout and the exact late-room visuals
+remain unverified. The Original/Custom state pair is on the functional predecessor;
+a separate selected-observer pair preserves every guest byte and matching decision.

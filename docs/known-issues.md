@@ -10,20 +10,24 @@ hold the ongoing discussion, and fixed problems are recorded in the
 
 ## Goldwood combat cadence
 
-Older builds can spend prolonged periods at 20-25 game updates/s in drone fights.
-The latest local high-refresh preview corrects native recovery from the historical
-20-Hz hold and reduces CPU bookkeeping. Two isolated 120/VSync combat replays and
-one 360/no-VSync replay maintained about 29.7-29.8 scene updates/s, with zero audio
-underruns. They produced about 120 and 353-360 output FPS respectively. Rare single
-late updates remain; full-game and owner live acceptance are pending.
-The current desktop preview includes this change and the pickup-particle correction.
-The subsequent owner tutorial capture still falls to about 20 scene updates/s
-for one 20-second section and 22-25 in a late section. Crates, the exit light
-and a bridge jitter in the later cave/bridge area. Source-cadence drops are
-measured; object-specific interpolation and the cause of the remaining load
-are unverified. See [the live capture review](development/issues/tutorial-late-object-jitter.md).
-See [PERF-001](development/issues/goldwood-combat-slowdown.md) and
-[qualification](../evidence/combat-native-spans.json). No public release.
+The owner's tutorial capture contains real 20-25 scene-update/s intervals and a
+damage-correlated hitch, even when rendered output remains near 120 FPS. The
+continuation reduces CPU bookkeeping/history overhead with exact guest-state
+checks, but native busy scenes still drop below 30. The full-route issue remains
+open. See [PERF-001](development/issues/goldwood-combat-slowdown.md).
+
+Delayed-scene interpolation holds and stale CPU-written presentation endpoints
+are corrected in tests. Procedural LightBeam vertices gain explicit ownership,
+but the exact late crates/exit marker/bridge visual report remains unqualified.
+Ground-shadow interpolation has no qualified fix. See
+[RENDER-006](development/issues/tutorial-late-object-jitter.md) and
+[RENDER-007](development/issues/shadow-cadence.md).
+
+Unlimited's additional queue-window delay remains open. The scene-age candidate
+reduced waiting but worsened frame spacing and was rejected. Bounded native rates/audio, exact replay scope and limits
+are in [the current qualification](../evidence/high-refresh-route-fix.json).
+Do not treat output FPS as the game-update rate or hidden-window tests as
+physical-monitor verification. This is a local preview, not a public release.
 
 ## Character seams and lighting
 

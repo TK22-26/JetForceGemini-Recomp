@@ -752,3 +752,9 @@ target_include_directories(jfg_count_sample_tape_tests PRIVATE "${PROJECT_SOURCE
 target_compile_features(jfg_count_sample_tape_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_count_sample_tape_tests)
 add_test(NAME jfg.count_sample_tape COMMAND jfg_count_sample_tape_tests)
+
+add_executable(jfg_interpolation_trace_tests interpolation_trace_tests.cpp)
+target_include_directories(jfg_interpolation_trace_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_interpolation_trace_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_interpolation_trace_tests)
+add_test(NAME jfg.interpolation_trace COMMAND jfg_interpolation_trace_tests "${CMAKE_CURRENT_BINARY_DIR}/interpolation-trace-test.tsv")

@@ -553,3 +553,51 @@ corrected; stationary camera coverage is extended. Exact full-route damage
 slowdown, visible late bridge/light jitter and shadow cadence remain open.
 Qualification and runtime identity are in
 [the delivery evidence](../../evidence/high-refresh-route-review.json).
+
+## Route-fix continuation, 2026-10-13
+
+The selected source corrects discarded delayed-scene intervals and CPU framebuffer
+writes hidden by retained interpolation endpoints. Semantic history and native
+timing bookkeeping have lower overhead while preserving game-state replay.
+Procedural LightBeam vertices now carry actor/control/buffer-independent
+identity, but the particular late exit marker still needs valid visible coverage.
+
+Frame and interpolation logging drain on normal exit and report completeness.
+Expanded traces avoid synchronous row writes and the unused baseline matcher.
+The Unlimited prepared-scene-age scheduling experiment was rejected after its
+native frame-spacing regression. All GPU/resource waits and scheduling remain.
+
+Twelve focused C++ suites, thirteen Python tests (including the compiled
+4,096-pair generator test), quiet/dense exact-state comparisons, Original/Custom
+non-framebuffer state equality, muted native 120/360/Unlimited and pause/resume
+provide bounded qualification. Native paths vary with timing; recorded-clock
+performance is not real-time FPS. The exact damage hitch/combat drops, visible
+late crates/light/bridge, shadow cadence and physical-display acceptance remain
+open. [Evidence and runtime identity](../../evidence/high-refresh-route-fix.json)
+are authoritative for this continuation; older sections describe earlier builds.
+
+## Unlimited scene-age candidate rejected, 2026-10-13
+
+The final native review rejects the prepared-scene-age candidate. It reduces
+queue delays and audio underruns (368 in the preceding native sample to 2 in the
+candidate sample), and the identical-clock busiest update falls from 49.0 to
+39.0 ms with identical guest memory, save and instruction counts. However its
+Unlimited presentation p99 expands from about 2.75 ms to 31.0 ms, with output
+bursts separated by long gaps. Those native paths are not workload-equivalent,
+but the rendering regression is sufficient to reject the scheduling change.
+Preserve all evidence. Do not accept lower CPU cost or fewer audio errors alone
+as proof of smooth rendering.
+
+All four scene-age source edits are reverted to the tested pre-candidate source.
+The selected binary is the queue-observer build 1b0bdd0f, whose exact-clock
+guest bytes, save, instruction counts and logical matching equal its preceding
+1609c019 build. All original resource waits remain. Unlimited's existing
+starvation/pacing issue stays open. No prepared-age correction is delivered.
+
+Final selected-runtime qualification: muted native 120/360 and pause/resume
+pass without audio underruns; complete traced runs have no backward phases.
+Unlimited remains functionally available but has source starvation/audio errors.
+The selected runtime is 1b0bdd0fbfe25eacbf3ed0417c1607a70eed49d4198a6add62f3fba12900f0db; the aggregate evidence supersedes
+provisional scene-age results. Physical scanout and the exact late-room visuals
+remain unverified. The Original/Custom state pair is on the functional predecessor;
+a separate selected-observer pair preserves every guest byte and matching decision.

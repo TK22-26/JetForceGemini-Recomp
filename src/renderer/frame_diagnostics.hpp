@@ -28,7 +28,8 @@ class FrameDiagnostics : public FramePresentationObserver {
     static constexpr std::size_t capacity = 8192;
     std::array<Sample, capacity> queue{};
     std::atomic<std::size_t> head{0}, tail{0};
-    std::atomic<bool> stopping{false}, failed{false};
+    std::atomic<bool> stopping{false}, failed{false}, accepting{true};
+    std::atomic<unsigned> producing{0};
     std::thread writer;
     std::filesystem::path directory;
     std::string stem, settings;
@@ -103,10 +104,26 @@ class FrameDiagnostics : public FramePresentationObserver {
                 if (file.is_open() && now-flushed>=1000000) { file.flush(); flushed=now; }
                 std::this_thread::sleep_for(std::chrono::milliseconds(25));
             }
+            if(file.is_open()) {
+                file<<"# completed queue_dropped="<<dropped<<" writer_failed="<<unsigned(failed.load())<<'\n';
+                file.flush();
+                if(!file) failed.store(true);
+            }
         } catch (...) { failed.store(true); }
     }
 public:
-    ~FrameDiagnostics() { FramePresentationObserver* expected=this; frame_diagnostic_state().observer.compare_exchange_strong(expected,nullptr); stopping.store(true,std::memory_order_release); if(writer.joinable())writer.join(); }
+    ~FrameDiagnostics() { finish(); }
+    void finish() noexcept override {
+        FramePresentationObserver* expected=this;
+        frame_diagnostic_state().observer.compare_exchange_strong(expected,nullptr);
+        accepting.store(false);
+        // A callback may already have loaded the observer. Keep this object
+        // alive, reject late callbacks, and wait for its bounded enqueue before
+        // telling the writer that no more samples can arrive.
+        while(producing.load()!=0U) std::this_thread::yield();
+        stopping.store(true,std::memory_order_release);
+        if(writer.joinable()) writer.join();
+    }
     void initialize(void* native_window, unsigned cap, bool unlimited, bool vsync) {
         window=static_cast<HWND>(native_window);
         generated_output=cap!=0 || unlimited;
@@ -134,7 +151,13 @@ public:
     // Sample after the frame limiter and successful swapchain submission.
     // Render-hook work can happen early or late within a paced interval.
     void presented(std::uint64_t now) noexcept override {
-        if(!enabled)return;
+        if(!accepting.load()) return;
+        producing.fetch_add(1U);
+        struct ProducerGuard {
+            std::atomic<unsigned>& count;
+            ~ProducerGuard(){count.fetch_sub(1U);}
+        } active{producing};
+        if(!accepting.load() || !enabled)return;
         const auto interval=last?now-last:0;last=now;++frame;
         auto& state=frame_diagnostic_state();const auto scenes=state.scenes.load(std::memory_order_relaxed);
         const auto scene_time=state.scene_time.load(std::memory_order_relaxed);

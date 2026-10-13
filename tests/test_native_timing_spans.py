@@ -53,15 +53,42 @@ class NativeSpanTests(unittest.TestCase):
         _, counts = rewrite_source('void f(void) {\n'+arithmetic(0x80010000)+bad+arithmetic(0x80010008)+'}\n')
         self.assertEqual(counts['spans'],0)
 
+    def test_pure_relocation_arithmetic_keeps_hardware_boundaries(self):
+        hi=instruction(0x80010000,0x3c080010,'ctx->r8 = S32(RELOC_HI16(1, 0x7654) << 16);')
+        lo=instruction(0x80010004,0x25087654,'ctx->r8 = ADD32(ctx->r8, RELOC_LO16(1, 0x7654));')
+        _,counts=rewrite_source('void f(void) {\n'+hi+lo+arithmetic(0x80010008)+'}\n')
+        self.assertEqual(counts['instructions'],2)
+        for body in ('ctx->r2 = MEM_W(ctx->r3, RELOC_LO16(1, 0x7654));',
+                     'ctx->r2 = hidden_callback(RELOC_HI16(1, 0));'):
+            boundary=instruction(0x80010004,0x8c627654,body,0x1000)
+            _,counts=rewrite_source('void f(void) {\n'+hi+boundary+arithmetic(0x80010008)+'}\n')
+            self.assertEqual(counts['spans'],0)
+
+    def test_relocated_memory_guards_actual_signed_operand(self):
+        load=instruction(0x80010004,0x8c627654,'ctx->r2 = MEM_W((int16_t)RELOC_LO16(1, 0x7654), ctx->r3);',0x1000)
+        result,counts=rewrite_source('void f(void) {\n'+arithmetic(0x80010000)+load+arithmetic(0x80010008)+'}\n')
+        self.assertEqual(counts['memory_guards'],1)
+        self.assertIn('(uint64_t)(int64_t)((int16_t)RELOC_LO16(1, 0x7654))',result)
+        for operand in ('RELOC_LO16(1, 0x7654)', '(int16_t)RELOC_LO16(call(), 0)', '(int16_t)RELOC_LO16(1, 0) + 4'):
+            body=f'ctx->r2 = MEM_W({operand}, ctx->r3);'
+            self.assertFalse(memory_expression_matches(body,0x8c627654,4))
+        self.assertFalse(memory_expression_matches('ctx->r2=MEM_W((int16_t)RELOC_LO16(1,0),ctx->r4);',0x8c627654,4))
+
     def test_malformed_pc_rejected(self):
         with self.assertRaises(ValueError):rewrite_source(arithmetic(0x80010000).replace('// 0x80010000','// 0x80010004'))
     def test_compiled_ram_mmio_and_poll_fallback_equivalence(self):
         compiler=shutil.which('clang++') or shutil.which('g++') or shutil.which('cl')
         if not compiler:self.skipTest('C++ compiler unavailable')
         body=arithmetic(0x80010000)+instruction(0x80010004,0x8c620000,'ctx->r2 = (int32_t)MEM_W(0, ctx->r3);',0x1000)+instruction(0x80010008,0x24440001,'ctx->r4 = ctx->r2 + 1;')+instruction(0x8001000c,0x00a01821,'ctx->r3 = ctx->r5;')+instruction(0x80010010,0xac640004,'MEM_W(4, ctx->r3) = (int32_t)ctx->r4;',0x2000)+arithmetic(0x80010014)+arithmetic(0x80010018)
+        body += instruction(0x8001001c,0x3c080010,'ctx->r8 = S32(RELOC_HI16(1, 0x7654) << 16);')+instruction(0x80010020,0x25087654,'ctx->r8 = ADD32(ctx->r8, RELOC_LO16(1, 0x7654));')+arithmetic(0x80010024)
+        body += instruction(0x80010028,0x8c697654,'ctx->r9 = MEM_W((int16_t)RELOC_LO16(1, 0x7654), ctx->r3);',0x1000)+instruction(0x8001002c,0xaca97654,'MEM_W((int16_t)RELOC_LO16(1, 0x7654), ctx->r5) = (int32_t)ctx->r9;',0x2000)+arithmetic(0x80010030)
         original='void original(uint8_t* rdram,recomp_context* ctx) {\n'+body+'}\n'
         optimized,counts=rewrite_source(original.replace('void original','void optimized'))
         self.assertGreater(counts['instructions'],3)
+        # Verify that the differential fixture exercises both admitted and
+        # rejected relocated accesses, rather than only misalignment fallbacks.
+        optimized=re.sub(r'jfg_native_timing_span_ram\(([^\n]*RELOC_LO16[^\n]*)\)',
+                         r'counted_relocated_ram(\1)',optimized)
         prefix=r'''
 #include "jfg/boot/original_timing_fast.h"
 #include <array>
@@ -70,6 +97,12 @@ class NativeSpanTests(unittest.TestCase):
 #include <cstdlib>
 extern "C" { JfgOriginalTimingFast* jfg_original_timing_state=nullptr; }
 static uint64_t revision=1,count=0;
+static unsigned relocated_admitted=0,relocated_rejected=0;
+static bool counted_relocated_ram(uint64_t address,unsigned width) {
+ const bool result=jfg_native_timing_span_ram(address,width);
+ if(result)++relocated_admitted;else ++relocated_rejected;
+ return result;
+}
 static unsigned slow=0,mmio=0;static int32_t peripheral=0;
 extern "C" void jfg_phase9_execution_probe_predecoded(unsigned m,unsigned pc,unsigned w,void* ctx){
  auto& s=*jfg_original_timing_state;++slow;++s.cpu_count;++s.observed_guest_instructions;
@@ -81,10 +114,14 @@ extern "C" void jfg_phase9_execution_probe_predecoded(unsigned m,unsigned pc,uns
 static int32_t* access_word(uint8_t* ram,uint64_t address){
  if(jfg_native_timing_span_ram(address,4))return reinterpret_cast<int32_t*>(ram+(address&0xff));
  const auto pc=jfg_original_timing_state->guest_last_pc;
- if(pc!=0x80010004U&&pc!=0x80010010U)std::abort();
+ if(pc!=0x80010004U&&pc!=0x80010010U&&pc!=0x80010028U&&pc!=0x8001002cU)std::abort();
  ++revision;++mmio;return &peripheral;
 }
 #define MEM_W(offset,reg) (*access_word(rdram,(uint64_t)(reg)+(offset)))
+static uint32_t section_addresses[2]{};
+#define S32(x) ((int32_t)(x))
+#define RELOC_HI16(section,offset) (((section_addresses[section]+(offset))>>16)+(((section_addresses[section]+(offset))>>15)&1))
+#define RELOC_LO16(section,offset) ((int16_t)(section_addresses[section]+(offset)))
 #define U64(x) ((uint64_t)(x))
 #define ADD32(x,y) ((int32_t)((x)+(y)))
 #define jfg_phase9_execution_probe_predecoded(m,p,w,c) jfg_native_timing_step(m,p,w,c)
@@ -100,17 +137,18 @@ int main(){
   c.r3=n%2?0xffffffff80000008ULL:0xffffffffa4400000ULL;
   c.r5=n%4<2?c.r3:(n%2?0xffffffffa4400000ULL:0xffffffff80000008ULL);
   auto run=[&](bool optimized_path){
-   ram.fill(0);revision=1;count=100;slow=mmio=0;peripheral=17;
+   section_addresses[1]=0x80000000U+n*0x7ff0U+((n&4U)?1U:0U);ram.fill(0);revision=1;count=100;slow=mmio=0;peripheral=17;
    JfgOriginalTimingFast local=s;recomp_context cpu=c;jfg_original_timing_state=&local;
    jfg_native_timing_refresh(&local,&cpu);
    if(optimized_path)optimized(ram.data(),&cpu);else original(ram.data(),&cpu);
-   return std::tuple(cpu.r1,cpu.r2,cpu.r3,cpu.r4,cpu.r5,ram,revision,count,slow,mmio,peripheral,
+   return std::tuple(cpu.r1,cpu.r2,cpu.r3,cpu.r4,cpu.r5,cpu.r8,cpu.r9,ram,revision,count,slow,mmio,peripheral,
      local.observed_guest_instructions,local.execution_fast_hits,local.cpu_count,
      local.host_clock_poll_budget,local.guest_last_pc,local.guest_last_word,
      local.guest_previous_branch,local.guest_previous_delay);
   };
   if(run(false)!=run(true)){printf("mismatch %u\n",n);return 1;}
  }
+ if(relocated_admitted<100U||relocated_rejected<100U){printf("relocated coverage %u %u\\n",relocated_admitted,relocated_rejected);return 2;}
  puts("4096 generated RAM/MMIO/safepoint pairs match");
 }
 '''

@@ -394,11 +394,29 @@ hlslpp::float4x4 presentation_matrix(const PresentationMatrix& m) {
             m[8],m[9],m[10],m[11],m[12],m[13],m[14],m[15]);
 }
 SemanticVertexState semantic_vertex(const Context& context,std::uint32_t source,
-                                   const std::array<float,3>& local) {
+                                   const std::array<float,3>& local,
+                                   const PresentationRigidIdentity* rigid,
+                                   const PresentationBeamIdentity* beam) {
     SemanticVertexState result;
     result.source = source;
     if(!context.identities || context.billboard) return result;
     const auto slot=context.selected_matrix;
+    if (beam && rigid->camera && rigid_pose_matches_matrix(rigid->pose,
+            presentation_matrix(context.matrices[slot]))) {
+        result.sample.key={beam->lifetime,
+            (std::uint64_t(beam->actor)<<32U)|beam->control,
+            (std::uint64_t(beam->header)<<16U)|beam->flags,rigid->camera,
+            0x4245414dU,(source-beam->vertices)/10U};
+        result.world=rigid->pose.world;
+        result.sample.camera=presentation_matrix(hlslpp::mul(
+            presentation_matrix(rigid->pose.view),presentation_matrix(rigid->pose.projection)));
+        const auto world=hlslpp::mul(hlslpp::float4(local[0],local[1],local[2],1.0f),
+            presentation_matrix(result.world));
+        result.sample.world={world.x,world.y,world.z};
+        result.sample.valid=std::isfinite(float(world.w)) &&
+            std::abs(float(world.w)-1.0f)<0.001f;
+        return result;
+    }
     if(context.camera_ids[slot]==0U) return result;
     const auto identity = presentation_vertex_identity(
         *context.identities, context.matrix_physical_addresses[slot], source);
@@ -471,8 +489,13 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
             context->matrix_physical_addresses[context->selected_matrix], address,
             static_cast<std::uint32_t>(count))
         : std::array<std::uint64_t, 4>{};
-    const auto* rigid_owner = rigid_key[0] ? presentation_rigid_owner(
-        *context->identities, context->matrix_physical_addresses[context->selected_matrix]) : nullptr;
+    const auto* rigid_owner = context->interpolate && context->identities &&
+        (rigid_key[0] || !context->identities->beams.empty())
+        ? presentation_rigid_owner(*context->identities,
+            context->matrix_physical_addresses[context->selected_matrix]) : nullptr;
+    const auto* beam = rigid_owner ? presentation_beam_vertex(
+        *context->identities,*rigid_owner,address) : nullptr;
+    if (beam && count > (80U-(address-beam->vertices))/10U) beam=nullptr;
     if (context->billboard) {
         const int workload_cursor = state->ext.workloadQueue->writeCursor;
         RT64::Workload& workload =
@@ -538,7 +561,7 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
                 const auto& positions=workload.drawData.posFloats;
                 context->semantic_vertices[global]=semantic_vertex(*context,
                     address+static_cast<std::uint32_t>((index-first)*10U),
-                    {positions[global*3U],positions[global*3U+1U],positions[global*3U+2U]});
+                    {positions[global*3U],positions[global*3U+1U],positions[global*3U+2U]},rigid_owner,beam);
                 context->semantic_vertices[global].billboard_key =
                     billboard_key;
                 context->semantic_vertices[global].rigid_key = rigid_key;
@@ -1028,8 +1051,9 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         if (matrix < meshes.size())
             bind_presentation_billboard(meshes[matrix], key);
     const bool rigid_trace = scene && interpolation_trace_enabled();
+    const bool rigid_compare=rigid_trace && interpolation_compare_enabled();
     PresentationHistoryFrame rigid_baseline;
-    if (rigid_trace)
+    if (rigid_compare)
         rigid_baseline = context.rigid_baseline_history.record(meshes, context.vi_tick, scene);
     std::map<unsigned, std::array<std::uint64_t, 4>> rigid_owners;
     std::set<unsigned> rigid_conflicts;
@@ -1063,12 +1087,18 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         trace_interpolation("rigid-pose", context.vi_tick, frame->source_rate, 0U, 0U,
             static_cast<unsigned>(rigid_owners.size()), 0.0f, valid, 0U);
     }
-    if (rigid_trace) for (const auto &[matrix,key] : rigid_owners)
+    if (rigid_compare) for (const auto &[matrix,key] : rigid_owners)
         if (matrix < frame->transforms.size())
             trace_interpolation("rigid",context.vi_tick,static_cast<unsigned>(key[1]>>32U),
                 static_cast<unsigned>(key[1]),static_cast<unsigned>(key[2]),
                 static_cast<unsigned>(meshes[matrix].positions.size()),0.0f,
                 rigid_baseline.transforms[matrix].matched,frame->transforms[matrix].matched);
+    if (rigid_trace) for (const auto &[matrix,key] : rigid_owners)
+        if (matrix < frame->transforms.size())
+            trace_interpolation("rigid-owned",context.vi_tick,static_cast<unsigned>(key[1]>>32U),
+                static_cast<unsigned>(key[1]),static_cast<unsigned>(key[2]),
+                static_cast<unsigned>(meshes[matrix].positions.size()),0.0f,
+                frame->transforms[matrix].matched,0U);
     context.semantic_vertices.resize(data.worldIndices.size());
     std::vector<SemanticPresentationSample> samples;
     samples.reserve(context.semantic_vertices.size());
@@ -1117,6 +1147,15 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     }
     if(scene) trace_interpolation("semantic",context.vi_tick,frame->source_rate,0U,0U,
         static_cast<unsigned>(semantic_count),0.0f,matched_count,moving_count);
+    if (scene && interpolation_trace_enabled()) {
+        std::map<std::uint32_t,std::array<unsigned,2>> beams;
+        for (std::size_t v=0;v<samples.size();++v) if(samples[v].key[4]==0x4245414dU) {
+            auto& count=beams[static_cast<std::uint32_t>(samples[v].key[1]>>32U)];
+            ++count[0]; count[1]+=history[v].matched;
+        }
+        for (const auto& [actor,count]:beams)
+            trace_interpolation("beam-owned",context.vi_tick,actor,0U,0U,count[0],0.0f,count[1],0U);
+    }
     if(scene && interpolation_trace_enabled()) {
         std::set<PresentationMatrix> cameras;
         for(const auto& sample:samples) if(sample.valid) cameras.insert(sample.camera);
@@ -1150,7 +1189,11 @@ void full_sync(RT64::State* state, RT64::DisplayList** dl) {
             scene = scene || (pair.colorImage.width >= 320U && pair.colorImage.siz == G_IM_SIZ_16b);
         }
         if (scene) frame_diagnostic_state().scene(context->vi_tick);
+        const auto history_start=std::chrono::steady_clock::now();
         prepare_interpolation(*context, *state);
+        if(scene && interpolation_trace_enabled()) trace_interpolation("history-cost",context->vi_tick,
+            0U,0U,0U,0U,0.0f,std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now()-history_start).count(),0U);
     }
     RT64::GBI_RDP::fullSync(state, dl);
     if (context != nullptr) {

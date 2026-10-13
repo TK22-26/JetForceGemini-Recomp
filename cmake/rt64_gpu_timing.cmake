@@ -26,9 +26,41 @@ foreach(jfg_gpu_stage IN ITEMS begin end complete)
     endif()
     string(REPLACE "${jfg_gpu_old}" "${jfg_gpu_new}" jfg_gpu_contents "${jfg_gpu_contents}")
 endforeach()
+# Optional CPU-side synchronization timings. Keep every original wait in place.
+foreach(jfg_wait_stage IN ITEMS draw transform render fence texture queue)
+    if(jfg_wait_stage STREQUAL "draw")
+        set(jfg_wait_site "ext.drawDataUploader->wait();")
+    elseif(jfg_wait_stage STREQUAL "transform")
+        set(jfg_wait_site "ext.transformsUploader->wait();")
+    elseif(jfg_wait_stage STREQUAL "render")
+        set(jfg_wait_site "framebufferRenderer->waitForUploaders();")
+    elseif(jfg_wait_stage STREQUAL "fence")
+        set(jfg_wait_site "ext.framebufferGraphicsWorker->wait();")
+    elseif(jfg_wait_stage STREQUAL "queue")
+        set(jfg_wait_site "ext.workloadQueue->advanceToNextWorkload();")
+    else()
+        set(jfg_wait_site "ext.textureCache->waitForGPUUploads();")
+    endif()
+    string(FIND "${jfg_gpu_contents}" "${jfg_wait_site}" jfg_wait_at)
+    if(jfg_wait_at EQUAL -1)
+        message(FATAL_ERROR "Pinned RT64 synchronization timing site is missing")
+    endif()
+    set(jfg_wait_replacement "[&] { const bool trace=jfg::interpolation_trace_enabled();
+        const auto begin=trace ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        ${jfg_wait_site}
+        if(trace) {
+            const auto snapshot=jfg::presentation_snapshot(&workload);
+            jfg::trace_interpolation(\"sync-${jfg_wait_stage}-wait\", snapshot ? snapshot->tick : 0U,
+                workload.workloadId, 0U, 0U, 0U, 0.0f,
+                std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-begin).count(),
+                snapshot && !snapshot->scene ? 1U : 0U);
+        }
+    }();")
+    string(REPLACE "${jfg_wait_site}" "${jfg_wait_replacement}" jfg_gpu_contents "${jfg_gpu_contents}")
+endforeach()
 set(jfg_gpu_generated "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64/hle/rt64_state.cpp")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64/hle")
-file(WRITE "${jfg_gpu_generated}" "#include \"jfg/renderer/rt64_gpu_timing_hooks.hpp\"\n${jfg_gpu_contents}")
+file(WRITE "${jfg_gpu_generated}" "#include \"jfg/renderer/interpolation_bridge.hpp\"\n#include \"jfg/renderer/rt64_gpu_timing_hooks.hpp\"\n${jfg_gpu_contents}")
 get_target_property(jfg_gpu_sources rt64 SOURCES)
 set(jfg_gpu_patched_sources)
 set(jfg_gpu_replaced FALSE)

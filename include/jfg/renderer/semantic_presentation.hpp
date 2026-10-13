@@ -1,6 +1,7 @@
 #pragma once
 #include "jfg/renderer/interpolation_history.hpp"
 #include <set>
+#include <unordered_map>
 
 namespace jfg {
 using PresentationVertexKey = std::array<std::uint64_t, 6>;
@@ -58,6 +59,15 @@ inline bool semantic_motion_continuous(const SemanticPresentationSample &a,
 // endpoint. Interpolate world-space vertex endpoints before applying one
 // shared camera sample, avoiding cracks caused by multiplying separately
 // blended joint matrices and deforming local vertices.
+struct PresentationVertexHash {
+  std::size_t operator()(const PresentationVertexKey& key) const noexcept {
+    std::size_t result=0;
+    for (const auto value:key)
+      result ^= std::hash<std::uint64_t>{}(value) + std::size_t{0x9e3779b9U} +
+                (result<<6U) + (result>>2U);
+    return result;
+  }
+};
 class SemanticPresentationHistory {
 public:
   std::vector<SemanticPresentationPrevious>
@@ -66,8 +76,9 @@ public:
     std::vector<SemanticPresentationPrevious> result(samples.size());
     if (!scene)
       return result;
-    std::map<PresentationVertexKey, SemanticPresentationSample> next;
-    std::set<std::uint64_t> blocked;
+    std::unordered_map<PresentationVertexKey, SemanticPresentationSample, PresentationVertexHash> next;
+    next.reserve(samples.size());
+    std::set<std::uint64_t> blocked, corrupt;
     const bool continuous = cadence && previous_tick_ != 0U &&
                             tick > previous_tick_ &&
                             tick - previous_tick_ <= 6U;
@@ -78,12 +89,22 @@ public:
         continue;
       if (!s.valid || !continuous)
         blocked.insert(actor);
-      if (!s.valid)
+      if (!s.valid) {
+        corrupt.insert(actor);
         continue;
-      const auto [it, inserted] = next.emplace(s.key, s);
+      }
+      // The old duplicate audit also rejected a unique NaN endpoint because
+      // it compares unequal to its own copy. Preserve that actor-wide poison
+      // when a corrupt vertex disappears from the following scene.
+      for (float value:s.world) if (std::isnan(value)) corrupt.insert(actor);
+      for (float value:s.camera) if (std::isnan(value)) corrupt.insert(actor);
+      // UV clones reuse one endpoint; do not allocate discarded duplicate nodes.
+      const auto [it, inserted] = next.try_emplace(s.key, s);
       if (!inserted &&
-          (it->second.world != s.world || it->second.camera != s.camera))
+          (it->second.world != s.world || it->second.camera != s.camera)) {
         blocked.insert(actor);
+        corrupt.insert(actor);
+      }
       const auto old = previous_.find(s.key);
       if (old == previous_.end() || !semantic_motion_continuous(old->second, s))
         blocked.insert(actor);
@@ -94,16 +115,6 @@ public:
       if (blocked.contains(samples[i].key[0]))
         result[i].matched = false;
     // A conflicting endpoint is not a valid anchor for the next scene.
-    std::set<std::uint64_t> corrupt;
-    for (const auto &s : samples)
-      if (s.key[0] != 0 && !s.valid)
-        corrupt.insert(s.key[0]);
-    for (const auto &s : samples) {
-      auto it = next.find(s.key);
-      if (it != next.end() &&
-          (it->second.world != s.world || it->second.camera != s.camera))
-        corrupt.insert(s.key[0]);
-    }
     for (auto it = next.begin(); it != next.end();) {
       if (corrupt.contains(it->first[0]))
         it = next.erase(it);
@@ -116,7 +127,7 @@ public:
   }
 
 private:
-  std::map<PresentationVertexKey, SemanticPresentationSample> previous_;
+  std::unordered_map<PresentationVertexKey, SemanticPresentationSample, PresentationVertexHash> previous_;
   std::uint64_t previous_tick_ = 0;
 };
 } // namespace jfg

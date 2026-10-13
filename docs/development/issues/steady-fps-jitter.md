@@ -406,3 +406,14 @@ The base/interpolated CPU-write target mismatch remains a separate limitation.
 See [the route review](tutorial-late-object-jitter.md#review-qualification-2026-10-13)
 and [qualification](../../../evidence/high-refresh-route-review.json).
 This does not establish a fix for the owner's exact late light/bridge jitter.
+
+## Variable-cadence continuation, 2026-10-13
+
+The scene-history policy now retains safe interpolation across actual bounded
+one-to-six-VI intervals, including delayed-scene recovery. It preserves lifetime,
+geometry, camera-cut and invalid-data rejection. Exact-clock tests remove 12
+unnecessary holds without backward phases or guest-state differences. Completed
+CPU writes also reach the retained displayed endpoint. These measured corrections
+do not establish that all movement/camera or late-room visual reports are fixed.
+See [route qualification](tutorial-late-object-jitter.md#continuation-qualification-2026-10-13)
+and [evidence](../../../evidence/high-refresh-route-fix.json).

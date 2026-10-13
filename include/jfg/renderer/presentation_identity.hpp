@@ -32,11 +32,19 @@ struct PresentationRigidIdentity {
   std::uint64_t lifetime = 0, camera = 0;
   RigidPresentationPose pose;
 };
+// US behavior 68 / beamDraw: two eight-vertex buffers in actor control data.
+// The physical buffer alternates; actor lifetime, control allocation and shape
+// flags identify the same logical vertices across scenes.
+struct PresentationBeamIdentity {
+  std::uint64_t lifetime = 0;
+  std::uint32_t actor = 0, control = 0, header = 0, vertices = 0, flags = 0;
+};
 struct PresentationSceneIdentity {
   std::vector<PresentationModelIdentity> models;
   std::vector<PresentationCameraIdentity> cameras;
   std::vector<PresentationSpriteIdentity> sprites;
   std::vector<PresentationRigidIdentity> rigids;
+  std::vector<PresentationBeamIdentity> beams;
 };
 // A reduced-detail mesh can use the main model's bone palette. Resolve
 // palette ownership first, then the vertex stream within that same actor.
@@ -86,6 +94,19 @@ inline const PresentationRigidIdentity* presentation_rigid_owner(
     owner=&rigid;
   }
   return owner;
+}
+inline const PresentationBeamIdentity* presentation_beam_vertex(
+    const PresentationSceneIdentity& scene, const PresentationRigidIdentity& owner,
+    std::uint32_t source) {
+  const PresentationBeamIdentity* found = nullptr;
+  for (const auto& beam:scene.beams) {
+    if (beam.actor!=owner.actor || beam.lifetime!=owner.lifetime ||
+        source<beam.vertices || source-beam.vertices>=80U ||
+        (source-beam.vertices)%10U) continue;
+    if (found) return nullptr;
+    found=&beam;
+  }
+  return found;
 }
 inline std::array<std::uint64_t, 4> presentation_rigid_key(
     const PresentationSceneIdentity &scene, std::uint32_t matrix,
@@ -290,6 +311,18 @@ public:
                               ? old->second.serial
                               : ++serial_;
       live[actor] = {serial, header, models};
+      // Verified US objPrintCustomObject case 68 calls beamDraw. Its control
+      // allocation contains 2 * 80 vertex bytes followed by state at +0xCC.
+      // A malformed/disabled beam gets no procedural interpolation identity.
+      const auto control=ram.u32(actor+0x68U);
+      if (ram.u16(actor+0x48U)==68U && ram.valid(control,0xD0U) &&
+          (control&3U)==0U && ram.u8(control+0xCCU)!=0U &&
+          ram.u8(control+0xCDU)<=1U) {
+        const auto flags=ram.u16(control+0xCEU);
+        if (flags && !(flags&~7U))
+          result.beams.push_back({serial,actor,control,header,
+              PresentationGuestView::physical(control)+ram.u8(control+0xCDU)*80U,flags});
+      }
       for (std::uint32_t j = 0; j < model_count; ++j) {
         const auto instance = ram.u32(models + j * 4U),
                    model = ram.u32(instance);

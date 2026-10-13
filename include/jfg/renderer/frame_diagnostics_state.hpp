@@ -11,12 +11,18 @@ inline std::uint64_t frame_clock_us() noexcept {
 // draw and presented run on the same present thread; the writer only sees samples.
 struct FramePresentationObserver {
     virtual void presented(std::uint64_t time_us) noexcept = 0;
+    virtual void finish() noexcept {}
 };
 struct FrameDiagnosticState {
     std::atomic<FramePresentationObserver*> observer{nullptr};
     void presented() noexcept {
         if (auto* sink = observer.load(std::memory_order_acquire))
             sink->presented(frame_clock_us());
+    }
+
+    void finish() noexcept {
+        if(auto* sink=observer.exchange(nullptr,std::memory_order_acq_rel))
+            sink->finish();
     }
 
     std::atomic<std::uint64_t> scenes{0}, scene_time{0}, vi{0};

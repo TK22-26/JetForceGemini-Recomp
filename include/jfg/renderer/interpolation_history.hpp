@@ -71,7 +71,8 @@ struct PresentationHistoryFrame {
     unsigned source_rate = 0;
     bool scene = false;
 };
-inline bool continuous_presentation_motion(const PresentationMesh& old,
+template<class Previous>
+inline bool continuous_presentation_motion(const Previous& old,
                                           const PresentationMesh& current) noexcept {
     for (float value : old.matrix) if (!std::isfinite(value)) return false;
     for (float value : current.matrix) if (!std::isfinite(value)) return false;
@@ -116,29 +117,30 @@ public:
         result.transforms.resize(meshes.size());
         if (!scene) return result;
         const auto delta = tick > previous_tick_ ? tick - previous_tick_ : 0U;
-        // JFG alternates two- and three-VI scene intervals during ordinary
-        // gameplay. Those are valid 30/20 Hz samples, not camera cuts. Keep
-        // the real interval for output spacing and let the geometry/motion
-        // checks below reject discontinuities. Other cadence changes still
-        // invalidate history until a stable interval is observed.
-        const bool normal_cadence_change = (previous_delta_ == 2U || previous_delta_ == 3U) &&
-            (delta == 2U || delta == 3U);
-        const bool continuous = previous_tick_ != 0U && delta >= 1U && delta <= 6U &&
-            (previous_delta_ == 0U || previous_delta_ == delta || normal_cadence_change);
+        // Real scene intervals vary when an update misses a retrace. Use
+        // the actual bounded interval; cadence changes alone are not cuts.
+        // Shape/lifetime, pose, finite-coordinate and motion checks below
+        // still reject discontinuities. Long gaps and repeated ticks hold.
+        const bool continuous = previous_tick_ != 0U && delta >= 1U && delta <= 6U;
         if (continuous && 60U % delta == 0U)
             result.source_rate = static_cast<unsigned>(60U / delta);
-        std::map<std::vector<std::uint32_t>, std::size_t> counts;
+        // Borrow current keys for counting; history retains only endpoints.
+        struct KeyLess {
+            bool operator()(const std::vector<std::uint32_t>* a,
+                            const std::vector<std::uint32_t>* b) const { return *a<*b; }
+        };
+        std::map<const std::vector<std::uint32_t>*, std::size_t, KeyLess> counts;
         for (const auto& mesh : meshes)
-            if (mesh.eligible && !mesh.key.empty()) ++counts[mesh.key];
-        std::map<std::vector<std::uint32_t>, PresentationMesh> next;
+            if (mesh.eligible && !mesh.key.empty()) ++counts[&mesh.key];
+        std::map<std::vector<std::uint32_t>, HistoryEndpoint> next;
         for (std::size_t i = 0; i < meshes.size(); ++i) {
             const auto& mesh = meshes[i];
-            if (!mesh.eligible || mesh.key.empty() || counts[mesh.key] != 1U) continue;
+            if (!mesh.eligible || mesh.key.empty() || counts[&mesh.key] != 1U) continue;
             const auto old = previous_.find(mesh.key);
             if (result.source_rate != 0U && old != previous_.end() &&
                 continuous_presentation_motion(old->second, mesh))
                 result.transforms[i] = {old->second.matrix, true};
-            next.emplace(mesh.key, mesh);
+            next.emplace(mesh.key,HistoryEndpoint{mesh.matrix,mesh.rigid_pose});
         }
         // A single F3DDKR matrix can feed many vertex batches. Matching or
         // rejecting those batches independently tears their shared edges.
@@ -174,13 +176,15 @@ public:
             result.transforms[i] = {cohort.previous, cohort.anchored && !cohort.blocked};
         }
         previous_ = std::move(next);
-        previous_delta_ = previous_tick_ == 0U ? 0U : delta;
         previous_tick_ = tick;
         return result;
     }
 private:
-    std::map<std::vector<std::uint32_t>, PresentationMesh> previous_;
+    struct HistoryEndpoint {
+        PresentationMatrix matrix;
+        std::optional<RigidPresentationPose> rigid_pose;
+    };
+    std::map<std::vector<std::uint32_t>, HistoryEndpoint> previous_;
     std::uint64_t previous_tick_ = 0;
-    std::uint64_t previous_delta_ = 0;
 };
 } // namespace jfg

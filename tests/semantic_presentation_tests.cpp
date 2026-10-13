@@ -57,6 +57,10 @@ int main() {
   require(!coherent.record({a, b}, 110, true, true)[0].matched);
   a.world[0] = std::numeric_limits<float>::quiet_NaN();
   require(!coherent.record({a, b}, 112, true, true)[0].matched);
+  // A nonfinite vertex poisons the entire stored actor endpoint even if that
+  // vertex is culled in the next scene. Valid visible parts must not reuse it.
+  require(!coherent.record({b}, 114, true, true)[0].matched);
+  require(coherent.record({b}, 116, true, true)[0].matched);
 
   // Synthetic guest layout: changing palette buffers keeps identity; frees,
   // absent actors, level changes and camera selection invalidate ownership.
@@ -303,5 +307,36 @@ int main() {
   require(rigid_tracker.capture(ram,214).rigids.empty());
   rigid_tracker.rigid(ram,0x80190001U,0x80100000U,216);
   require(rigid_tracker.capture(ram,216).rigids.empty());
+  // Procedural beam vertices retain their logical index across the two DMA
+  // buffers, but never bind another owner, stale matrix or malformed state.
+  w8(0x80100048U,0); w8(0x80100049U,68);
+  w32(0x80100068U,0x801d0000U);
+  w8(0x801d00ccU,1);w8(0x801d00cdU,0);w8(0x801d00cfU,6);
+  rigid_tracker.rigid(ram,0x80190000U,0x80100000U,220);
+  auto beam_scene=rigid_tracker.capture(ram,220);
+  require(beam_scene.beams.size()==1 && beam_scene.rigids.size()==1);
+  const auto* beam=jfg::presentation_beam_vertex(beam_scene,beam_scene.rigids[0],0x1d0046U);
+  require(beam && (0x1d0046U-beam->vertices)/10U==7U);
+  require(!jfg::presentation_beam_vertex(beam_scene,beam_scene.rigids[0],0x1d0050U));
+  require(!jfg::presentation_beam_vertex(beam_scene,beam_scene.rigids[0],0x1d0001U));
+  const auto beam_life=beam->lifetime;
+  w8(0x801d00cdU,1);
+  beam_scene=rigid_tracker.capture(ram,222);
+  beam=jfg::presentation_beam_vertex(beam_scene,beam_scene.rigids[0],0x1d0096U);
+  require(beam && beam->lifetime==beam_life && (0x1d0096U-beam->vertices)/10U==7U);
+  require(!jfg::presentation_beam_vertex(beam_scene,beam_scene.rigids[0],0x1d0046U));
+  auto wrong_owner=beam_scene.rigids[0];++wrong_owner.actor;
+  require(!jfg::presentation_beam_vertex(beam_scene,wrong_owner,0x1d0050U));
+  wrong_owner=beam_scene.rigids[0];++wrong_owner.lifetime;
+  require(!jfg::presentation_beam_vertex(beam_scene,wrong_owner,0x1d0050U));
+  beam_scene.beams.push_back(beam_scene.beams[0]);
+  require(!jfg::presentation_beam_vertex(beam_scene,beam_scene.rigids[0],0x1d0050U));
+  w8(0x801d00cdU,2);require(rigid_tracker.capture(ram,224).beams.empty());
+  w8(0x801d00cdU,0);w8(0x801d00cfU,8);require(rigid_tracker.capture(ram,224).beams.empty());
+  w8(0x801d00cfU,6);w8(0x801d00ccU,0);require(rigid_tracker.capture(ram,224).beams.empty());
+  w8(0x801d00ccU,1);w8(0x80100049U,67);require(rigid_tracker.capture(ram,224).beams.empty());
+  w8(0x80100049U,68);rigid_tracker.retire(0x80100000U);
+  require(rigid_tracker.capture(ram,226).beams[0].lifetime!=beam_life);
+  require(rigid_tracker.capture(ram,226).rigids.empty());
   return 0;
 }

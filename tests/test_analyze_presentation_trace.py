@@ -34,6 +34,15 @@ class PresentationTraceTests(unittest.TestCase):
         self.assertEqual(report["samples"], 2)
         self.assertEqual(report["backward_phases"], 1)
 
+    def test_completion_distinguishes_legacy_truncated_and_drained_logs(self):
+        footer="trace-end\t0\t0\t0\t0\t0\t0\t0\t0\t0\n"
+        self.assertFalse(analyze([row(100,30,1)])["complete"])
+        self.assertTrue(analyze([row(100,30,1),footer])["complete"])
+        self.assertFalse(analyze([footer.replace("\t0\t0\n","\t3\t1\n")])["complete"])
+        for lines in ([footer,row(102,30,1)],[footer,footer],["trace-end\t0\n"]):
+            with self.assertRaises(ValueError):
+                analyze(lines)
+
     def test_invalid_data_is_not_silently_successful(self):
         for line in ["display\t1\n", row(100, 30, math.nan), row(100, -1, .5)]:
             with self.assertRaises(ValueError):

@@ -27,19 +27,20 @@ def instruction_kind(metadata: int, word: int) -> tuple[bool, int]:
 
 
 
-def memory_expression_matches(body: str, word: int, width: int) -> bool:
-    """Only guard addresses proven identical to the generated memory operand.
+def memory_guard_address(body: str, word: int, width: int) -> str | None:
+    """Prove and return the actual generated address, including relocation.
 
-    MEM/LD add their two arguments; SD is (value, offset, base). Reject
-    relocation expressions and unrecognized forms rather than guarding a
-    decoded address while executing a different generated address.
+    MEM/LD add both operands; SD is (value, offset, base). Require the decoded
+    base register and either its exact literal offset or a signed, pure
+    RELOC_LO16 with two literal arguments. Never guard the ROM offset while
+    executing a different relocated address. Unknown forms stay unbatched.
     """
     matches = list(re.finditer(r'\b(MEM_W|MEM_H|MEM_HU|MEM_B|MEM_BU|LD|SD)\s*\(', body))
     if len(matches) != 1:
-        return False
+        return None
     match = matches[0]
     if {'MEM_W':4, 'MEM_H':2, 'MEM_HU':2, 'MEM_B':1, 'MEM_BU':1, 'LD':8, 'SD':8}[match[1]] != width:
-        return False
+        return None
     depth = 0
     start = match.end()
     args = []
@@ -56,13 +57,13 @@ def memory_expression_matches(body: str, word: int, width: int) -> bool:
             args.append(body[start:index].strip())
             start = index + 1
     else:
-        return False
+        return None
     if match[1] == 'SD':
         if len(args) != 3:
-            return False
+            return None
         args = args[1:]
     elif len(args) != 2:
-        return False
+        return None
     register = (word >> 21) & 31
     offset = word & 0xffff
     if offset & 0x8000:
@@ -79,9 +80,18 @@ def memory_expression_matches(body: str, word: int, width: int) -> bool:
 
     for base, immediate in (args, args[::-1]):
         base_matches = base == f'ctx->r{register}' if register else literal(base) == 0
-        if base_matches and literal(immediate) == offset:
-            return True
-    return False
+        if not base_matches:
+            continue
+        if literal(immediate) == offset:
+            return f'(uint64_t)({base}) + (uint64_t)(int64_t)(int16_t)0x{word & 0xffff:04x}U'
+        number=r'(?:0[xX][0-9a-fA-F]+|[0-9]+)'
+        if re.fullmatch(r'\(int16_t\)\s*RELOC_LO16\(\s*'+number+r'\s*,\s*'+number+r'\s*\)',immediate):
+            return f'(uint64_t)({base}) + (uint64_t)(int64_t)({immediate})'
+    return None
+
+
+def memory_expression_matches(body: str, word: int, width: int) -> bool:
+    return memory_guard_address(body, word, width) is not None
 
 
 def rewrite_source(text: str) -> tuple[str, dict[str, int]]:
@@ -104,10 +114,13 @@ def rewrite_source(text: str) -> tuple[str, dict[str, int]]:
         clean = re.sub(r'/\*.*?\*/|//[^\n]*', '', body, flags=re.S)
         allowed, width = instruction_kind(metadata, word)
         # No labels or scope changes; no declarations whose visibility could
-        # escape a span. Existing helper macros below are arithmetic only.
+        # escape a span. Existing helpers are arithmetic only. RELOC_HI16 and
+        # RELOC_LO16 read the host section table; only excluded calls can update
+        # that table. Memory guards below prove the actual generated address,
+        # including signed relocation operands; unknown forms stay unbatched.
         forbidden = re.search(r'[{}#]|\b(goto|return|switch|if|while|for|jfg_\w*)\b|^\s*[A-Za-z_]\w*:', clean, re.M)
         calls = set(re.findall(r'\b([A-Za-z_]\w*)\s*\(', clean))
-        known = {'SIGNED','U64','U32','S64','S32','ADD32','SUB32','MEM_W','MEM_H','MEM_HU','MEM_B','MEM_BU','LD','SD','CHECK_FR','CHECK_NAN','NAN_CHECK','DIV_S','DIV_U','DDIV','DDIVU','DMULT','DMULTU','MUL64','sqrtf','sqrt','fabsf','fabs','roundf','round','truncf','trunc','floorf','floor','ceilf','ceil','cvt_w_s','cvt_w_d','cvt_l_s','cvt_l_d','CVT_W_S','CVT_W_D','CVT_L_S','CVT_L_D','isnan'}
+        known = {'RELOC_HI16','RELOC_LO16','SIGNED','U64','U32','S64','S32','ADD32','SUB32','MEM_W','MEM_H','MEM_HU','MEM_B','MEM_BU','LD','SD','CHECK_FR','CHECK_NAN','NAN_CHECK','DIV_S','DIV_U','DDIV','DDIVU','DMULT','DMULTU','MUL64','sqrtf','sqrt','fabsf','fabs','roundf','round','truncf','trunc','floorf','floor','ceilf','ceil','cvt_w_s','cvt_w_d','cvt_l_s','cvt_l_d','CVT_W_S','CVT_W_D','CVT_L_S','CVT_L_D','isnan'}
         declares = re.search(r'^\s*(?:u?int(?:8|16|32|64)_t|gpr|bool|const|float|double|int|unsigned|signed|long|short|char|auto)\s+[A-Za-z_]\w*', clean, re.M)
         if forbidden or declares or calls-known or (width and not memory_expression_matches(clean, word, width)):
             allowed = False
@@ -131,9 +144,8 @@ def rewrite_source(text: str) -> tuple[str, dict[str, int]]:
         for i, record in enumerate(group):
             lines.append(re.sub(r'// 0x', '// native 0x', record['comment'], flags=re.I))
             if record['width']:
-                reg=(record['word']>>21)&31;offset=record['word']&0xffff
-                base=f'ctx->r{reg}' if reg else '0U'
-                address=f'(uint64_t)({base}) + (uint64_t)(int64_t)(int16_t)0x{offset:04x}U'
+                address=memory_guard_address(record['body'],record['word'],record['width'])
+                assert address is not None
                 lines.append(f'    if (!jfg_native_timing_span_ram({address}, {record["width"]}U)) {{\n')
                 if i:
                     previous=group[i-1]

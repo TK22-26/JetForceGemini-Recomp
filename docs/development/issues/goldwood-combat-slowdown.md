@@ -1162,3 +1162,97 @@ route under timing changes, so unmatched baseline/candidate routes cannot
 prove a whole-route performance improvement. Keep PERF-001 open. See
 [review findings](tutorial-late-object-jitter.md#review-qualification-2026-10-13)
 and [aggregate qualification](../../../evidence/high-refresh-route-review.json).
+
+The continuation audits pure relocation-address arithmetic inside native timing
+spans. The two relocation macros read the host section table and have no device
+callbacks; calls that can alter that table remain boundaries. Relocated memory
+operands are still excluded unless their actual address is proved. The candidate
+preserves every guest operation and the 128-instruction clock quantum. The new
+eligibility regression fails before and passes after; compiled differential
+cases exercise relocation-table changes between invocations alongside RAM/MMIO
+and clock-boundary fallback. Runtime replay/performance qualification is pending.
+
+The pure-arithmetic change preserves every replayed guest byte, save, instruction
+count and logical matching decision, but live dense combat still reaches 24-27
+SCENES/s. No combat resolution is claimed. A follow-up candidate validates the
+actual signed relocated memory address before batching; it never substitutes the
+unrelocated ROM immediate. Unknown expressions, MMIO and unaligned accesses keep
+the precise fallback. The compiled differential test includes relocated loads
+and stores, changing section tables, RAM/MMIO and all nearby poll boundaries.
+Runtime qualification follows.
+
+A second CPU candidate checks the existing pending-device certificate after
+each normal 128-instruction Count sample. If no device deadline has arrived and
+Status/I/O revision are unchanged, it avoids rewalking every inactive device.
+The Count sample, instruction boundary, guest operation and deadline remain
+identical. CP0/CACHE, idle/park sites, observers, device errors, flash mutations
+and invalidated certificates keep the complete handler. This is a candidate
+until exact recorded-clock state and native Play comparisons pass. A duplicated
+certificate refresh left by integration is also removed.
+
+Test review found that the first randomized relocated-memory fixture combined
+its section stride and base-selection parity so relocated cached-RAM cases were
+always misaligned. The test is corrected to exercise both admitted and rejected
+relocated accesses, with explicit minimum hit counts for each and all 4,096
+original/optimized architectural comparisons. The earlier eight-test pass alone
+did not establish that admitted branch; this limitation is recorded explicitly.
+
+A dense recorded-clock fixture now contains 1.50-1.70 million instructions per
+update, with about 3.8-4.3 ms in interpolation preparation. A storage candidate
+replaces ordered semantic-vertex lookup with full-key hashed lookup, avoids
+allocation for repeated UV clones, and records corrupt owners in the existing
+first pass. Identity equality, duplicate rejection, whole-character decisions,
+cut handling and endpoint arithmetic remain unchanged. A private 180-frame,
+7,200-sample differential harness compares every output field to the previous
+algorithm; full real-scene replay and native performance qualification follow.
+
+Review caught a NaN/culling edge case in the first-pass corruption audit: the old
+second pass rejects even a unique NaN endpoint because its copy compares unequal.
+A new regression removes that corrupt vertex in the following scene and requires
+all remaining actor parts to hold. It fails before the correction and passes
+afterward; the differential harness also includes this sequence. The initial
+private benchmark launch failed to locate the compiler by bare filename; using
+its explicit developer-environment path corrected setup before any game launch.
+
+## Continuation outcome, 2026-10-13
+
+The selected CPU changes admit proven relocation arithmetic and actual signed
+relocated RAM operands into existing bounded instruction spans, and reuse an
+unchanged pending-device certificate after the normal Count sample. The
+128-instruction clock quantum, maximum 16-instruction span, device deadlines,
+MMIO/alignment rejection, CP0/CACHE/observer paths and guest operations remain.
+Quiet and dense recorded-clock comparisons preserve every guest byte, save and
+guest instruction count.
+
+Semantic history uses full-key hashed lookup and avoids duplicate UV-clone
+allocation while preserving whole-actor corruption rejection. The dense
+same-workload comparison reduces median history cost from 3.90/4.09 ms to
+3.34/3.59 ms in the two busy windows. The NaN-then-culling regression and 4,096
+compiled RAM/MMIO/relocation/clock-boundary comparisons pass. One generic test
+invocation lacked a compiler on PATH and skipped that integration test; the
+developer-environment rerun executes all eight tests without skips.
+
+Native combat still has real scene-rate drops. Different native timing paths
+do not prove an end-to-end FPS uplift, and the owner's damage-correlated
+20-25 FPS full-route slowdown remains open. Unlimited's additional queue-window
+delay is measured in PERF-002; its candidate was rejected for worse presentation.
+It is not the sole cause of capped combat load. Final rates, audio and source identities are in
+[aggregate qualification](../../../evidence/high-refresh-route-fix.json).
+
+## Unlimited scene-age candidate rejected, 2026-10-13
+
+The final native review rejects the prepared-scene-age candidate. It reduces
+queue delays and audio underruns (368 in the preceding native sample to 2 in the
+candidate sample), and the identical-clock busiest update falls from 49.0 to
+39.0 ms with identical guest memory, save and instruction counts. However its
+Unlimited presentation p99 expands from about 2.75 ms to 31.0 ms, with output
+bursts separated by long gaps. Those native paths are not workload-equivalent,
+but the rendering regression is sufficient to reject the scheduling change.
+Preserve all evidence. Do not accept lower CPU cost or fewer audio errors alone
+as proof of smooth rendering.
+
+All four scene-age source edits are reverted to the tested pre-candidate source.
+The selected binary is the queue-observer build 1b0bdd0f, whose exact-clock
+guest bytes, save, instruction counts and logical matching equal its preceding
+1609c019 build. All original resource waits remain. Unlimited's existing
+starvation/pacing issue stays open. No prepared-age correction is delivered.
