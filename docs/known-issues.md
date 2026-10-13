@@ -140,7 +140,7 @@ pacing remain under investigation; see [RENDER-003](development/issues/steady-fp
 
 ## Jitter despite steady output counters
 
-The semantic character/camera candidate now matches actor lifetimes, model
+The local semantic character/camera preview now matches actor lifetimes, model
 instances, joints and logical vertices, and interpolates world-space vertex
 endpoints with a shared camera phase. Focused tests and bounded replays pass;
 owner live confirmation remains pending. Combined movement can still trigger

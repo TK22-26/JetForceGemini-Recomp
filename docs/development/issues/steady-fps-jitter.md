@@ -1,6 +1,6 @@
 # RENDER-003: Jitter with steady 120 OUTPUT / 30 SCENES
 
-Status: semantic character/camera candidate passes focused tests and bounded replays; owner visual confirmation pending. Overall jitter remains open.
+Status: semantic character/camera interpolation tested and delivered as a local preview; owner visual confirmation pending. Overall jitter remains open.
 Severity: high; smooth high-refresh rendering remains incomplete.
 
 ## Report and reproduction
@@ -162,3 +162,27 @@ animation samples. Carry stable ownership with the immutable render task, make
 all parts of an actor share the same fallback decision, and measure screenshot
 motion separately from timing to avoid diagnosing readback overhead as normal
 play stutter. Large evidence remains on D: with verified stable references.
+
+
+## Local preview delivery (2026-10-13 UTC)
+
+Implementation commit `01a35a13539a89e8842b8491eb37565d42b03de8` is packaged as
+`high-refresh-semantic-20261013` on D:. The existing **JFG - High Refresh Preview**
+desktop shortcut now selects that package. Close an older launcher and reopen
+the shortcut to test walking while turning the camera. Your existing profile,
+save and settings were preserved; all 14 package manifest entries and launcher
+initialization passed. F8 and **JFG - Performance Logs** remain available.
+No public release or push was made.
+
+The exact delivered runtime SHA-256 is `71f59d66fc20e62f85cc3c2c280e72a85b02aee61e0de5a87adf45fe80f906b4`.
+Final combined-motion qualification averaged 119.87 output FPS /
+27.49 scenes/s at Custom 120 with requested VSync, and
+345.38 / 27.44 at Custom 360 with VSync off.
+Output p99/max intervals were 8.637/10.200 ms and
+4.228/42.520 ms respectively.
+Both normal-play runs recorded zero audio underruns/dropped log rows; the exact
+original-clock memory/save reference still matches. The existing three-VI
+recovery episode remains visible; these are not steady-30/steady-360 claims.
+Detailed results are in the qualification JSON. Owner visual review, full-game
+coverage, physical monitor pacing and the separate seams/lighting issues remain
+open. The previous package is retained for comparison.
