@@ -67,3 +67,7 @@ Relevant tests are `tests/test_autonomy_*.py`. The progress-guard acceptance
 recipe is retained in its [contract](../planning/autonomy-progress-guard.md).
 All agent-launched validation still runs through the supervisor; test fixtures
 must not mutate the production ledger.
+
+### Private investigation storage
+
+Owner instruction (2026-10-12): keep new large experiment output, replay captures and private evidence on D:, under `D:/JFG-private/<investigation>`. Preserve source and the existing production guard ledger locations. Relocating retained evidence requires verified copies and stable references; high-refresh history uses directory junctions and per-file SHA-256 manifests. A storage move never creates a new investigation budget or replaces the operational ledger.

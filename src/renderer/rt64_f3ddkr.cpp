@@ -1,6 +1,8 @@
 #include "rt64_f3ddkr.hpp"
 #include "jfg/renderer/frame_diagnostics_state.hpp"
 #include "jfg/renderer/interpolation_bridge.hpp"
+#include "jfg/renderer/presentation_identity.hpp"
+#include "jfg/renderer/semantic_presentation.hpp"
 #include <bit>
 #include "jfg/renderer/rt64_f3ddkr_address.hpp"
 
@@ -51,6 +53,10 @@ constexpr std::size_t kMaximumReturnStackDepth = 64U;
 // F3D G_MOVEMEM payloads are at most 64 bytes (a full light set).
 constexpr std::uint32_t kMaximumMoveMemBytes = 64U;
 
+struct SemanticVertexState {
+    SemanticPresentationSample sample;
+    PresentationMatrix world{};
+};
 struct Context {
     RT64::Application* application = nullptr;
     RT64::GBI gbi{};
@@ -72,6 +78,13 @@ struct Context {
     bool interpolate = false;
     std::uint64_t vi_tick = 0U;
     PresentationHistory presentation_history;
+    SemanticPresentationHistory semantic_history;
+    std::shared_ptr<const PresentationSceneIdentity> identities;
+    std::array<hlslpp::float4x4,kMatrixCount> model_matrices{}, camera_matrices{};
+    std::array<std::uint64_t,kMatrixCount> camera_ids{};
+    std::array<bool,kMatrixCount> model_finite{};
+    bool semantic_target = false;
+    std::vector<SemanticVertexState> semantic_vertices;
     bool billboard = false;
     bool failed = false;
 };
@@ -228,6 +241,7 @@ void dma_matrix(RT64::State* state, RT64::DisplayList** dl) {
             ? context->simulation_rdram.data() + address
             : state->fromRDRAM(address));
     hlslpp::float4x4 decoded = fixed->toMatrix4x4();
+    const auto model_matrix = decoded;
     if (multiply) {
         if (!context->loaded_matrices.test(0U)) {
             reject(state, dl);
@@ -236,6 +250,21 @@ void dma_matrix(RT64::State* state, RT64::DisplayList** dl) {
         // JFG's multiply form composes the object matrix with slot zero's
         // already-combined camera MVP. RT64 uses row-vector matrices here.
         decoded = hlslpp::mul(decoded, context->matrices[0U]);
+    }
+    context->camera_ids[index] = 0U;
+    if (multiply && index != 0U && context->interpolate && context->identities) {
+        context->model_matrices[index] = model_matrix;
+        context->camera_matrices[index] = context->matrices[0U];
+        context->camera_ids[index] = context->camera_ids[0U];
+        const auto inverse = hlslpp::inverse(model_matrix);
+        bool finite = true;
+        for(int r=0;r<4;++r) for(int c=0;c<4;++c)
+            finite = finite && std::isfinite(float(model_matrix[r][c])) && std::isfinite(float(inverse[r][c]));
+        context->model_finite[index] = finite;
+    }
+    else if (!multiply && index == 0U && context->identities) {
+        for (const auto& camera : context->identities->cameras)
+            if (camera.matrix == address) context->camera_ids[index] = camera.identity;
     }
     context->matrices[index] = decoded;
     context->loaded_matrices.set(index);
@@ -270,6 +299,7 @@ void set_color_image(RT64::State* state, RT64::DisplayList** dl) {
         (*dl)->p0(19U, 2U));
     const std::uint16_t width = static_cast<std::uint16_t>(
         (*dl)->p0(0U, 12U) + 1U);
+    context->semantic_target = format == G_IM_FMT_RGBA && size == G_IM_SIZ_16b && width >= 320U;
     context->stats.color_image_address =
         segmented_physical(*state, (*dl)->w1);
     state->rdp->setColorImage(
@@ -346,6 +376,45 @@ void load_block(RT64::State* state, RT64::DisplayList** dl) {
         }
     }
     RT64::GBI_RDP::loadBlock(state, dl);
+}
+
+PresentationMatrix presentation_matrix(const hlslpp::float4x4& value) {
+    PresentationMatrix result{};
+    for(int r=0;r<4;++r) for(int c=0;c<4;++c) result[r*4+c]=value[r][c];
+    return result;
+}
+hlslpp::float4x4 presentation_matrix(const PresentationMatrix& m) {
+    return hlslpp::float4x4(m[0],m[1],m[2],m[3],m[4],m[5],m[6],m[7],
+            m[8],m[9],m[10],m[11],m[12],m[13],m[14],m[15]);
+}
+SemanticVertexState semantic_vertex(const Context& context,std::uint32_t source,
+                                   const std::array<float,3>& local) {
+    SemanticVertexState result;
+    if(!context.identities || context.billboard) return result;
+    const auto slot=context.selected_matrix;
+    // Unknown camera paths keep the existing conservative transform matcher.
+    if(context.camera_ids[slot]==0U) return result;
+    const auto address=context.matrix_physical_addresses[slot];
+    bool found=false;
+    for(const auto& model:context.identities->models) for(const auto palette:model.palettes) {
+        if(address<palette || address-palette>=model.bone_count*64U || (address-palette)%64U) continue;
+        // Duplicate ownership is ambiguous, even if guest pointers happen to match.
+        if(found) {result.sample.valid=false;return result;}
+        found=true;
+        const auto joint=(address-palette)/64U;
+        result.sample.key={model.lifetime,(std::uint64_t(model.actor)<<32U)|model.instance,
+            model.model,context.camera_ids[slot],joint,0};
+        result.world=presentation_matrix(context.model_matrices[slot]);
+        result.sample.camera=presentation_matrix(context.camera_matrices[slot]);
+        if(source<model.vertices || source-model.vertices>=model.vertex_count*10U ||
+            (source-model.vertices)%10U) continue;
+        result.sample.key[5]=(source-model.vertices)/10U;
+        const auto world=hlslpp::mul(hlslpp::float4(local[0],local[1],local[2],1.0f),context.model_matrices[slot]);
+        result.sample.world={world.x,world.y,world.z};
+        result.sample.valid=context.model_finite[slot] && std::isfinite(float(world.w)) &&
+            std::abs(float(world.w)-1.0f)<0.001f;
+    }
+    return result;
 }
 
 void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
@@ -438,6 +507,13 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
             if (global >= workload.drawData.posTransformed.size()) {
                 continue;
             }
+            if(context->interpolate && context->identities && context->semantic_target) {
+                context->semantic_vertices.resize(workload.drawData.worldIndices.size());
+                const auto& positions=workload.drawData.posFloats;
+                context->semantic_vertices[global]=semantic_vertex(*context,
+                    address+static_cast<std::uint32_t>((index-first)*10U),
+                    {positions[global*3U],positions[global*3U+1U],positions[global*3U+2U]});
+            }
             const hlslpp::float4 position =
                 workload.drawData.posTransformed[global];
             if (!std::isfinite(position.x) || !std::isfinite(position.y) ||
@@ -468,7 +544,7 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
 }
 
 [[nodiscard]] bool set_vertex_texture_coordinates(
-    RT64::State& state,
+    Context& context, RT64::State& state,
     RT64::RSP& rsp,
     const std::uint8_t vertex,
     const std::uint32_t coordinate) {
@@ -540,6 +616,11 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
         draw.lookAtIndices.emplace_back(look_at);
         draw.posTransformed.emplace_back(transformed);
         draw.posScreen.emplace_back(screen);
+        if(context.interpolate && context.identities && context.semantic_target) {
+            const auto semantic=global<context.semantic_vertices.size() ? context.semantic_vertices[global] : SemanticVertexState{};
+            context.semantic_vertices.resize(draw.worldIndices.size());
+            context.semantic_vertices[replacement]=semantic;
+        }
         rsp.indices[vertex] = replacement;
         rsp.used[vertex] = false;
         global = replacement;
@@ -666,7 +747,7 @@ void dma_triangles(RT64::State* state, RT64::DisplayList** dl) {
                     *context, *state, source + 6U +
                         static_cast<std::uint32_t>(corner * 4U)));
             if (!set_vertex_texture_coordinates(
-                    *state, *state->rsp, vertices[corner], coordinate)) {
+                    *context, *state, *state->rsp, vertices[corner], coordinate)) {
                 context->stats.rejection_reason = 4U;
                 context->stats.rejection_detail = vertices[corner];
                 reject(state, dl);
@@ -896,8 +977,48 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     }
     auto frame = std::make_shared<PresentationHistoryFrame>(
         context.presentation_history.record(meshes, context.vi_tick, scene));
+    context.semantic_vertices.resize(data.worldIndices.size());
+    std::vector<SemanticPresentationSample> samples;
+    samples.reserve(context.semantic_vertices.size());
+    for(const auto& vertex:context.semantic_vertices) {
+        auto sample=vertex.sample;
+        if(!data.modifyPosUints.empty()) sample.valid=false;
+        samples.push_back(sample);
+    }
+    const auto history=context.semantic_history.record(samples,context.vi_tick,scene,frame->source_rate!=0U);
+    std::size_t semantic_count=0,matched_count=0,moving_count=0;
+    std::vector<hlslpp::float4x4> inverse_worlds(frame->transforms.size());
+    std::vector<bool> inverse_ready(frame->transforms.size(),false);
+    for(std::size_t v=0;v<samples.size();++v) {
+        if(samples[v].key[0]==0U) continue;
+        ++semantic_count;
+        const auto m=data.worldIndices[v];
+        if(m>=frame->transforms.size()) continue;
+        auto& transform=frame->transforms[m];
+        transform.matched=false; // Hold all parts together on an invalid sample.
+        if(!history[v].matched) continue;
+        const auto& vertex=context.semantic_vertices[v];
+        if(!inverse_ready[m]) {
+            inverse_worlds[m]=hlslpp::inverse(presentation_matrix(vertex.world));
+            inverse_ready[m]=true;
+        }
+        const auto& inverse=inverse_worlds[m];
+        const auto& p=history[v].world;
+        const auto old_local=hlslpp::mul(hlslpp::float4(p[0],p[1],p[2],1.0f),inverse);
+        const float old[3]={old_local.x,old_local.y,old_local.z};
+        for(std::size_t c=0;c<3;++c) data.velFloats[v*3U+c]=data.posFloats[v*3U+c]-old[c];
+        transform.matched=true;transform.semantic_vertices=true;
+        transform.current_world=vertex.world;
+        transform.previous_camera=history[v].camera;
+        transform.current_camera=samples[v].camera;
+        ++matched_count;
+        if(samples[v].world!=history[v].world) ++moving_count;
+    }
+    if(scene) trace_interpolation("semantic",context.vi_tick,frame->source_rate,0U,0U,
+        static_cast<unsigned>(semantic_count),0.0f,matched_count,moving_count);
     state.setRefreshRate(static_cast<std::uint16_t>(frame->source_rate));
     publish_presentation_snapshot(&workload, std::move(frame));
+    context.semantic_vertices.clear();
 }
 
 void full_sync(RT64::State* state, RT64::DisplayList** dl) {
@@ -1005,6 +1126,9 @@ void reset(RT64::State* state) {
         context->matrix_segmented_addresses.fill(0U);
         context->matrix_physical_addresses.fill(0U);
         context->loaded_matrices.reset();
+        context->camera_ids.fill(0U);
+        context->model_finite.fill(false);
+        context->semantic_target=false;
         context->billboard = false;
     }
 }
@@ -1037,7 +1161,10 @@ Rt64F3ddkr::~Rt64F3ddkr() {
 }
 
 void Rt64F3ddkr::begin(
-    const std::span<const std::uint8_t> simulation_rdram, const std::uint64_t vi_tick) noexcept {
+    const std::span<const std::uint8_t> simulation_rdram, const std::uint64_t vi_tick,
+    std::shared_ptr<const PresentationSceneIdentity> identities) noexcept {
+    impl_->context.identities=std::move(identities);
+    impl_->context.semantic_vertices.clear();
     impl_->context.vi_tick = vi_tick;
     impl_->context.simulation_rdram = simulation_rdram;
     impl_->context.commands = 0U;

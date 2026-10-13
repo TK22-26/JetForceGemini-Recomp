@@ -16,7 +16,18 @@ inline bool apply_presentation_interpolation(RT64::Workload& workload,
         const hlslpp::float4x4 current = data.worldTransforms[i];
         auto result = current;
         auto previous = current;
-        if (snapshot->transforms[i].matched) {
+        if (snapshot->transforms[i].matched && snapshot->transforms[i].semantic_vertices) {
+            const auto matrix=[](const PresentationMatrix& m) {
+                return hlslpp::float4x4(m[0],m[1],m[2],m[3],m[4],m[5],m[6],m[7],
+                    m[8],m[9],m[10],m[11],m[12],m[13],m[14],m[15]);
+            };
+            const auto& pose=snapshot->transforms[i];
+            const auto world=matrix(pose.current_world);
+            const auto old=matrix(pose.previous_camera), camera=matrix(pose.current_camera);
+            result=hlslpp::mul(world,old*(1.0f-current_weight)+camera*current_weight);
+            previous=hlslpp::mul(world,old*(1.0f-previous_weight)+camera*previous_weight);
+        }
+        else if (snapshot->transforms[i].matched) {
             const auto& m = snapshot->transforms[i].previous;
             const hlslpp::float4x4 old(m[0],m[1],m[2],m[3],m[4],m[5],m[6],m[7],
                 m[8],m[9],m[10],m[11],m[12],m[13],m[14],m[15]);

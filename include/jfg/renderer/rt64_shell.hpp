@@ -6,6 +6,7 @@
 #include <span>
 
 namespace jfg {
+struct PresentationSceneIdentity;
 
 inline constexpr char kPinnedRt64Revision[] =
     "5473732a822a4423b5696e7cb18fecc425a59875";
@@ -95,6 +96,7 @@ struct Rt64GraphicsTask {
     std::uint32_t command_address = 0U;
     // Immutable guest submission time, independent of renderer output rate.
     std::uint64_t vi_tick = 0U;
+    std::shared_ptr<const PresentationSceneIdentity> presentation_scene{};
 };
 
 struct Rt64FramebufferInfo {

@@ -37,7 +37,7 @@ The [high-refresh candidate](features/high-refresh-rendering.md) has RmlUi
 Video Settings in a separate Windows window with VSync, a Custom FPS target and Unlimited. A short replay
 exceeds 360 presentations/s while preserving guest state. Unlimited pacing remains
 uneven, and its full replay took about 2% longer than Original. Sustained performance,
-semantic object identity, animation/effects, CPU overlays, transitions, audio-device
+complete semantic identity coverage, animation/effects, CPU overlays, transitions, audio-device
 behavior and physical 360+ Hz display qualification are incomplete. Original remains
 the default. Video Settings positioning, dropdown text alignment, simplified chrome and continuous FPS preset borders are tested; owner confirmation remains pending. See [RENDER-001](development/issues/high-refresh-rendering.md).
 
@@ -128,3 +128,23 @@ audio underruns, so broad audio continuity remains unverified. Schema 2 logs
 successful present returns after pacing; heavy screenshots can introduce stalls.
 A high output counter does not establish unique game poses or monitor scanout.
 See [PERF-002](development/issues/frame-diagnostics.md) for remaining limits.
+
+
+## Jitter despite steady FPS
+
+The owner reports jitter at steady 120 OUTPUT / 30 SCENES, especially while
+moving and rotating the camera together. The bridge scene-rate correction does
+not resolve this visual-smoothness report. Camera/animation coverage and display
+pacing remain under investigation; see [RENDER-003](development/issues/steady-fps-jitter.md).
+
+
+## Jitter despite steady output counters
+
+The semantic character/camera candidate now matches actor lifetimes, model
+instances, joints and logical vertices, and interpolates world-space vertex
+endpoints with a shared camera phase. Focused tests and bounded replays pass;
+owner live confirmation remains pending. Combined movement can still trigger
+the existing three-VI recovery episode in both baseline and candidate. A Custom
+360 target does not guarantee sustained 360 FPS. See
+[RENDER-003](development/issues/steady-fps-jitter.md) for coverage, timing limits
+and delivery status. Original-mode character seams and lighting remain open.

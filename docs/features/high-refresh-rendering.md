@@ -50,7 +50,7 @@ malformed or unreadable configuration is reported. Navigation-mod launches share
 the main profile's video choices.
 
 The machine-local complete preview is
-`C:\JFG-builds\high-refresh-diagnostics-v2-preview-20261012`. Its
+`C:\JFG-builds\high-refresh-native-timing-preview-20261012`. Its
 `Play-Video-Settings.cmd` and desktop **JFG - High Refresh Preview** shortcut reuse
 the earlier isolated high-refresh preview profile, preserving its saves and video
 preferences (initially Custom 60 / VSync on). Close the currently running launcher first: the production launcher
@@ -103,7 +103,7 @@ unchanged. Original mode remains available.
 
 Implementation commit: `5527611ea10b247dbb2df46ca1870a8d93d365f4`.
 
-The owner's `Child ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Video settings-html.zip` design was translated into RML,
+The owner's `Child ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Video settings-html.zip` design was translated into RML,
 RCSS and native C++ events in the existing pinned RmlUi backend. No dependency
 upgrade, browser, React runtime or remote font loading is needed. The previous
 standard-controls dialog remains a fallback for builds without RmlUi.
@@ -320,3 +320,29 @@ physical monitor scanout or resolve the heavier combat report. Source commit,
 runtime hash, exact checks and remaining limitations are in
 [qualification](../../evidence/native-scene-timing.json). Owner testing remains
 pending; use F8 lightweight logging when reporting issues.
+
+
+Owner follow-up: steady 120/30 still feels jittery, especially during simultaneous
+movement and camera rotation. Stable counters do not qualify complete visual
+interpolation. Explicit actor/joint/camera identities and synchronized visual
+sampling are the requested next target; [RENDER-003](../development/issues/steady-fps-jitter.md)
+tracks the report and verification.
+
+
+### Semantic character and camera interpolation candidate (2026-10-13 UTC)
+
+Animated models now carry actor lifetime, instance/model, joint, logical vertex
+and camera identities through each copied graphics task. Character vertices
+interpolate their world-space endpoints before the shared camera sample. UV
+duplicates keep their logical identity; invalid or discontinuous samples hold
+the whole actor at its endpoint. Unknown paths retain conservative matching.
+Simulation/input speed is unchanged. This is not yet a local skeletal hierarchy
+with quaternion blending or per-render camera input.
+
+Seven focused tests, actual-frame captures and bounded muted routes qualify the
+candidate scope; [RENDER-003](../development/issues/steady-fps-jitter.md) and the
+[evidence](../../evidence/semantic-interpolation.json) record exact results.
+Combined camera/movement still triggers an existing 31-update recovery episode
+in both old/new runtimes (~27.5 scenes/s over that window). A 360 target averaged
+~350 output FPS with an outlier. Physical display smoothness, full animation/
+effects coverage and owner acceptance remain open; counters alone are insufficient.

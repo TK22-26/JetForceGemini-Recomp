@@ -10,6 +10,7 @@ struct Application;
 }
 
 namespace jfg {
+struct PresentationSceneIdentity;
 
 struct Rt64F3ddkrStats {
     std::size_t matrix_commands = 0U;
@@ -55,7 +56,8 @@ public:
     Rt64F3ddkr(const Rt64F3ddkr&) = delete;
     Rt64F3ddkr& operator=(const Rt64F3ddkr&) = delete;
 
-    void begin(std::span<const std::uint8_t> simulation_rdram, std::uint64_t vi_tick = 0U) noexcept;
+    void begin(std::span<const std::uint8_t> simulation_rdram, std::uint64_t vi_tick = 0U,
+        std::shared_ptr<const PresentationSceneIdentity> identities = {}) noexcept;
     void install() noexcept;
     [[nodiscard]] bool complete() const noexcept;
     [[nodiscard]] std::size_t command_count() const noexcept;

@@ -29,6 +29,10 @@ struct PresentationMesh {
 struct PresentationTransform {
     PresentationMatrix previous{};
     bool matched = false;
+    // Semantic skin vertices already carry world-space endpoint motion.
+    // Keep the current joint transform and interpolate the shared camera.
+    bool semantic_vertices = false;
+    PresentationMatrix current_world{}, previous_camera{}, current_camera{};
 };
 struct PresentationHistoryFrame {
     std::vector<PresentationTransform> transforms;

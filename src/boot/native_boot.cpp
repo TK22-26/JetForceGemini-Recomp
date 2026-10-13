@@ -76,6 +76,7 @@
 #include "jfg/evidence/g2_private_task_adapter.hpp"
 #include "jfg/renderer/rt64_shell.hpp"
 #include "jfg/renderer/video_settings.hpp"
+#include "jfg/renderer/presentation_identity.hpp"
 #include "jfg/renderer/interpolation_history.hpp"
 #include "jfg/renderer/vi_presentation.hpp"
 #include "jfg/runtime/audio_task_bridge.hpp"
@@ -1391,6 +1392,10 @@ struct LiveViFieldRegisters final {
 struct State : JfgOriginalTimingFast {
   State() : JfgOriginalTimingFast{} { execution_fast_revision = UINT64_MAX; }
   bool ledgered = false;
+#if defined(JFG_PHASE8_LIVE_RUNTIME)
+  bool presentation_identity_enabled = false;
+  jfg::PresentationIdentityTracker presentation_identities;
+#endif
   bool os_initialized = false;
   jfg::GeneratedOverlayRuntime *runtime = nullptr;
   const std::uint8_t *rom = nullptr;
@@ -4701,6 +4706,8 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
     }
     return settings;
   }();
+  state.presentation_identity_enabled = video_settings &&
+      video_settings->mode != jfg::FrameRateMode::original;
   if (!video_settings) {
     (void)_dup2(saved_stdout, _fileno(stdout));
     _close(null_stdout);
@@ -4785,6 +4792,11 @@ bool execute_live_graphics_task(State &state, hle::GuestMemory &memory) {
     (void)write_private_rt64_snapshot(state, pending.rdram);
     return false;
   }
+  if (state.presentation_identity_enabled)
+    pending.task.presentation_scene = std::make_shared<const jfg::PresentationSceneIdentity>(
+        state.presentation_identities.capture(
+            {reinterpret_cast<const std::uint8_t*>(pending.rdram.data()),pending.rdram.size()},
+            state.vi_retraces));
   state.pending_graphics_tasks.push_back(std::move(pending));
   return true;
 }
@@ -7082,6 +7094,15 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const bool process_costs = measure_update && state.diagnostic_cpu_costs &&
             GetProcessTimes(GetCurrentProcess(), &process_created, &process_exited, &kernel_start, &user_start) &&
             QueryProcessCycleTime(GetCurrentProcess(), &process_cycles_start);
+#endif
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        if (state.presentation_identity_enabled) {
+          if (target == 0x800079B8U)
+            state.presentation_identities.retire(static_cast<std::uint32_t>(context->r4));
+          else if (target == 0x80040AA4U)
+            state.presentation_identities.camera({rdram,kRdramSize},
+                static_cast<std::uint32_t>(context->r5),state.vi_retraces);
+        }
 #endif
         generated(rdram, context);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
