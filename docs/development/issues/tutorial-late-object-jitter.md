@@ -192,3 +192,19 @@ Rigid identity is qualified as a candidate; no visual remedy for that exact
 unreproduced report is claimed. The rejected projection rule remains absent.
 See [merge qualification](../../../evidence/high-refresh-develop-merge.json)
 for rates, phase counts, provenance and limits. Preview packaging follows.
+
+## Local merged-preview delivery (2026-10-13)
+
+The qualified combined runtime/launcher is delivered as
+`high-refresh-develop-merged-20261013`. The existing desktop **JFG - High Refresh
+Preview** shortcut now selects it; close and reopen an older launcher to use
+the new package. Existing save, video/audio/control settings and log-only
+performance preferences are preserved byte-for-byte. Package validation and
+isolated setup initialization pass. Source merge: `f70b513c896df107163f2d72abed344a87dc2517`.
+Runtime SHA-256: `1381e018fa2ec2cc8cc0e9c64c785753485b4068a81a08b7f29f8ca0cee2e4f8`.
+
+This is a local preview, not a public release. Full-tutorial performance and
+the exact later-cave crates/exit-light/bridge jitter still require live coverage;
+their issue records remain open. All runtime tests were muted. Large private
+evidence and the new package stay on D:. The production guard remained enabled
+under the same investigation and counters throughout.

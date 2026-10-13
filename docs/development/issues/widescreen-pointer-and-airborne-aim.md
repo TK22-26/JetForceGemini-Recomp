@@ -158,3 +158,5 @@ zero failures, including aspect changes, video queries, Apply and pause/resume.
 The 120-check RmlUi video suite also passes. The runtime binary is unchanged.
 This corrects the demonstrated integration regression; physical owner acceptance
 and the separate late-cave interpolation report remain pending.
+
+The high-refresh message-conflict correction is included in merge `f70b513c896df107163f2d72abed344a87dc2517` and the locally delivered `high-refresh-develop-merged-20261013` package.
