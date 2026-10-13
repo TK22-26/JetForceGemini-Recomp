@@ -56,6 +56,8 @@ constexpr std::uint32_t kMaximumMoveMemBytes = 64U;
 struct SemanticVertexState {
     SemanticPresentationSample sample;
     PresentationMatrix world{};
+    std::uint32_t source = 0;
+    std::array<std::uint64_t, 4> billboard_key{};
 };
 struct Context {
     RT64::Application* application = nullptr;
@@ -390,30 +392,31 @@ hlslpp::float4x4 presentation_matrix(const PresentationMatrix& m) {
 SemanticVertexState semantic_vertex(const Context& context,std::uint32_t source,
                                    const std::array<float,3>& local) {
     SemanticVertexState result;
+    result.source = source;
     if(!context.identities || context.billboard) return result;
     const auto slot=context.selected_matrix;
-    // Unknown camera paths keep the existing conservative transform matcher.
     if(context.camera_ids[slot]==0U) return result;
-    const auto address=context.matrix_physical_addresses[slot];
-    bool found=false;
-    for(const auto& model:context.identities->models) for(const auto palette:model.palettes) {
-        if(address<palette || address-palette>=model.bone_count*64U || (address-palette)%64U) continue;
-        // Duplicate ownership is ambiguous, even if guest pointers happen to match.
-        if(found) {result.sample.valid=false;return result;}
-        found=true;
-        const auto joint=(address-palette)/64U;
-        result.sample.key={model.lifetime,(std::uint64_t(model.actor)<<32U)|model.instance,
-            model.model,context.camera_ids[slot],joint,0};
-        result.world=presentation_matrix(context.model_matrices[slot]);
-        result.sample.camera=presentation_matrix(context.camera_matrices[slot]);
-        if(source<model.vertices || source-model.vertices>=model.vertex_count*10U ||
-            (source-model.vertices)%10U) continue;
-        result.sample.key[5]=(source-model.vertices)/10U;
-        const auto world=hlslpp::mul(hlslpp::float4(local[0],local[1],local[2],1.0f),context.model_matrices[slot]);
-        result.sample.world={world.x,world.y,world.z};
-        result.sample.valid=context.model_finite[slot] && std::isfinite(float(world.w)) &&
-            std::abs(float(world.w)-1.0f)<0.001f;
-    }
+    const auto identity = presentation_vertex_identity(
+        *context.identities, context.matrix_physical_addresses[slot], source);
+    if (!identity.owner)
+        return result;
+    const auto &owner = *identity.owner;
+    const auto &geometry = identity.geometry ? *identity.geometry : owner;
+    result.sample.key = {
+        owner.lifetime, (std::uint64_t(owner.actor) << 32U) | geometry.instance,
+        geometry.model, context.camera_ids[slot],
+        identity.joint, identity.vertex};
+    result.world = presentation_matrix(context.model_matrices[slot]);
+    result.sample.camera = presentation_matrix(context.camera_matrices[slot]);
+    if (!identity.geometry)
+        return result;
+    const auto world =
+        hlslpp::mul(hlslpp::float4(local[0], local[1], local[2], 1.0f),
+                    context.model_matrices[slot]);
+    result.sample.world = {world.x, world.y, world.z};
+    result.sample.valid = context.model_finite[slot] &&
+                          std::isfinite(float(world.w)) &&
+                          std::abs(float(world.w) - 1.0f) < 0.001f;
     return result;
 }
 
@@ -457,6 +460,7 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
 
     hlslpp::float4x4 unanchored_matrix{};
     bool anchored_billboard = false;
+    std::array<std::uint64_t, 4> billboard_key{};
     if (context->billboard) {
         const int workload_cursor = state->ext.workloadQueue->writeCursor;
         RT64::Workload& workload =
@@ -465,6 +469,16 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
         if (anchor_index >= workload.drawData.posTransformed.size()) {
             reject(state, dl);
             return;
+        }
+        if (context->identities &&
+            anchor_index < context->semantic_vertices.size()) {
+            const auto source = context->semantic_vertices[anchor_index].source;
+            for (const auto &sprite : context->identities->sprites)
+                if (sprite.anchor == source) {
+                    billboard_key = {sprite.lifetime, sprite.actor,
+                                     sprite.sprite, context->camera_ids[0]};
+                    break;
+                }
         }
         unanchored_matrix = context->matrices[context->selected_matrix];
         context->matrices[context->selected_matrix][3] +=
@@ -513,6 +527,8 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
                 context->semantic_vertices[global]=semantic_vertex(*context,
                     address+static_cast<std::uint32_t>((index-first)*10U),
                     {positions[global*3U],positions[global*3U+1U],positions[global*3U+2U]});
+                context->semantic_vertices[global].billboard_key =
+                    billboard_key;
             }
             const hlslpp::float4 position =
                 workload.drawData.posTransformed[global];
@@ -728,7 +744,11 @@ void dma_triangles(RT64::State* state, RT64::DisplayList** dl) {
             common_clip &=
                 vertex_clip_code(workload.drawData.posTransformed[global]);
         }
-        if (common_clip != 0U)
+        // The current endpoint may be outside while an intermediate camera
+        // still sees this triangle. Clip interpolated scene geometry on the
+        // GPU at its presentation pose; keep original/offscreen behavior.
+        if (common_clip != 0U &&
+            !(context->interpolate && context->semantic_target))
             continue;
         const std::uint32_t cull_mode = (flags & 0x40U) != 0U
             ? 0U
@@ -809,6 +829,10 @@ void cull_display_list(RT64::State* state, RT64::DisplayList** dl) {
         if (common_clip == 0U)
             return;
     }
+    // As with individual triangles, the endpoint is insufficient to cull
+    // an interpolated display list. Loaded-vertex validation still applies.
+    if (context->interpolate && context->semantic_target)
+        return;
     // A cull at the top level has nothing to return to. RT64 would report
     // that as a clean EndDL and silently terminate the whole task.
     if (state->returnAddressStack.empty()) {
@@ -975,6 +999,26 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         meshes[ma].key.insert(meshes[ma].key.end(),
             {local_indices[a], local_indices[b], local_indices[c]});
     }
+    // Identical sprite quads must not match a different pickup just because
+    // their geometry is equal. Stable actor lifetime + asset + camera owns
+    // the billboard transform; texture animation keeps its authored cadence.
+    std::map<unsigned, std::array<std::uint64_t, 4>> billboard_owners;
+    for (std::size_t v = 0;
+         v < context.semantic_vertices.size() && v < data.worldIndices.size();
+         ++v) {
+        const auto &key = context.semantic_vertices[v].billboard_key;
+        if (key[0] != 0 && key[3] != 0)
+            billboard_owners[data.worldIndices[v]] = key;
+    }
+    for (const auto &[matrix, key] : billboard_owners)
+        if (matrix < meshes.size()) {
+            auto &shape = meshes[matrix].key;
+            shape.insert(shape.begin(), 0x42494C4CU);
+            for (auto value : key) {
+                shape.push_back(static_cast<unsigned>(value));
+                shape.push_back(static_cast<unsigned>(value >> 32U));
+            }
+        }
     auto frame = std::make_shared<PresentationHistoryFrame>(
         context.presentation_history.record(meshes, context.vi_tick, scene));
     context.semantic_vertices.resize(data.worldIndices.size());
@@ -987,6 +1031,15 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     }
     const auto history=context.semantic_history.record(samples,context.vi_tick,scene,frame->source_rate!=0U);
     std::size_t semantic_count=0,matched_count=0,moving_count=0;
+    if (scene && interpolation_trace_enabled()) {
+        std::size_t matched = 0;
+        for (const auto &[matrix, key] : billboard_owners)
+            matched += matrix < frame->transforms.size() &&
+                       frame->transforms[matrix].matched;
+        trace_interpolation("billboard", context.vi_tick, frame->source_rate, 0,
+                            0, static_cast<unsigned>(billboard_owners.size()),
+                            0, matched, 0);
+    }
     std::vector<hlslpp::float4x4> inverse_worlds(frame->transforms.size());
     std::vector<bool> inverse_ready(frame->transforms.size(),false);
     for(std::size_t v=0;v<samples.size();++v) {

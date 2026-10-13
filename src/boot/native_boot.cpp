@@ -7099,6 +7099,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         if (state.presentation_identity_enabled) {
           if (target == 0x800079B8U)
             state.presentation_identities.retire(static_cast<std::uint32_t>(context->r4));
+          else if (target == 0x80041174U) {
+            const jfg::PresentationGuestView ram({rdram,kRdramSize});
+            state.presentation_identities.sprite({rdram,kRdramSize},
+                static_cast<std::uint32_t>(context->r6),static_cast<std::uint32_t>(context->r7),
+                ram.u32(static_cast<std::uint32_t>(context->r29)+0x10U),state.vi_retraces);
+          }
           else if (target == 0x80040AA4U)
             state.presentation_identities.camera({rdram,kRdramSize},
                 static_cast<std::uint32_t>(context->r5),state.vi_retraces);

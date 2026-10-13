@@ -149,3 +149,13 @@ the existing three-VI recovery episode in both baseline and candidate. A Custom
 360 target does not guarantee sustained 360 FPS. See
 [RENDER-003](development/issues/steady-fps-jitter.md) for coverage, timing limits
 and delivery status. Original-mode character seams and lighting remain open.
+
+## Actor jitter and camera-edge visibility (2026-10-13)
+
+Goldwood drone LODs shared a skeleton palette that our identity resolver rejected;
+identical gem sprites lacked actor identity; endpoint camera clipping removed
+geometry needed by intermediate frames. Corrections now pass bounded pixel,
+state and focused test checks. Local delivery and owner live acceptance are
+pending. Full-game coverage, authored texture cadence and the existing adaptive
+scene-rate/Unlimited limits remain; see
+[RENDER-004](development/issues/actor-jitter-edge-culling.md).

@@ -122,5 +122,97 @@ int main() {
   w8(0x8015004FU, 128);
   require(
       tracker.capture(ram, 116).models.empty()); // Guest bone count is signed.
+  // Goldwood drones: compact LOD geometry shares the full model's palette.
+  // A second identical enemy must not acquire the first one's vertices.
+  jfg::PresentationSceneIdentity scene;
+  scene.models.push_back(
+      {1, 0x1000, 0x2000, 0x3000, {0x4000, 0x5000}, 0x6000, 20, 2});
+  scene.models.push_back({1, 0x1000, 0x2100, 0x3100, {}, 0x7000, 8, 2});
+  scene.models.push_back(
+      {2, 0x1100, 0x2200, 0x3000, {0x8000, 0x9000}, 0xa000, 20, 2});
+  scene.models.push_back({2, 0x1100, 0x2300, 0x3100, {}, 0xb000, 8, 2});
+  auto vertex = jfg::presentation_vertex_identity(scene, 0x4040, 0x701e);
+  require(vertex.owner && vertex.geometry && vertex.geometry->model == 0x3100 &&
+          vertex.geometry->instance == 0x2100 && vertex.joint == 1 &&
+          vertex.vertex == 3);
+  vertex = jfg::presentation_vertex_identity(scene, 0x5040, 0x701e);
+  require(vertex.geometry &&
+          vertex.geometry->instance == 0x2100); // palette swap
+  require(!jfg::presentation_vertex_identity(scene, 0x4040, 0xb01e).geometry);
+  require(!jfg::presentation_vertex_identity(scene, 0x4040, 0x701f).geometry);
+  require(!jfg::presentation_vertex_identity(scene, 0x4041, 0x701e).owner);
+  scene.models.push_back(scene.models[0]);
+  const auto ambiguous_palette = jfg::presentation_vertex_identity(scene, 0x4040, 0x701e);
+  require(ambiguous_palette.owner && !ambiguous_palette.geometry);
+
+  // Compact instances still appear in the task identity snapshot. Their
+  // inline vertex bytes are not treated as pointers to a private palette.
+  w8(0x8015004FU, 2);
+  w8(0x8011001FU, 2);
+  w32(0x80120004U, 0x80140100U);
+  w32(0x80140100U, 0x80150100U);
+  w32(0x80140104U, 0x80160100U);
+  w8(0x8015014EU, 1);
+  w8(0x8015014FU, 2);
+  w8(0x80150113U, 3);
+  w32(0x80140110U, 0xffff0001U);
+  w32(0x80140114U, 0x00140020U);
+  const auto lod = tracker.capture(ram, 118);
+  require(lod.models.size() == 2 && lod.models[1].palettes[0] == 0 &&
+          lod.models[1].vertices == 0x160100U);
+  vertex = jfg::presentation_vertex_identity(lod, 0x170040U, 0x16010aU);
+  require(vertex.geometry && vertex.geometry->instance == 0x80140100U &&
+          vertex.vertex == 1);
+
+  // Inline compact vertices can accidentally look like in-range pointers.
+  // Their overlap with the palette fields must still prevent ownership.
+  w32(0x80140104U, 0x80140110U);
+  w32(0x80140110U, 0x80171000U);
+  w32(0x80140114U, 0x80171100U);
+  const auto inline_lod = tracker.capture(ram, 118);
+  require(inline_lod.models.size() == 2 &&
+          inline_lod.models[1].palettes[0] == 0);
+
+  // Identical billboard assets retain distinct actor lifetimes. Address
+  // reuse, object frees, expiry and level changes cannot reuse old ownership.
+  w32(0x80180000U, 0x80190000U);
+  tracker.sprite(ram, 0x80180000U, 0x80100000U, 0x801a0000U, 118);
+  auto sprites = tracker.capture(ram, 118);
+  require(sprites.sprites.size() == 1 &&
+          sprites.sprites[0].anchor == 0x190000U &&
+          sprites.sprites[0].lifetime == sprites.models[0].lifetime);
+  const auto old_sprite = sprites.sprites[0].lifetime;
+  tracker.retire(0x80100000U);
+  require(tracker.capture(ram, 120).sprites.empty());
+  tracker.sprite(ram, 0x80180000U, 0x80100000U, 0x801a0000U, 120);
+  sprites = tracker.capture(ram, 120);
+  require(sprites.sprites.size() == 1 &&
+          sprites.sprites[0].lifetime != old_sprite);
+  require(tracker.capture(ram, 127).sprites.empty());
+  tracker.sprite(ram, 0x80180000U, 0x80100000U, 0x801a0000U, 128);
+  w32(0x800FB114U, 3);
+  require(tracker.capture(ram, 128).sprites.empty());
+  // Multiple pickups with the same asset are separate owners, including
+  // a sprite-only actor with no model array. Freeing one preserves the other.
+  w32(0x800F2CA8U, 2);
+  w32(0x80130004U, 0x80100200U);
+  w32(0x80100240U, 0x80110200U);
+  w32(0x8010026CU, 0);
+  w8(0x8011021FU, 0);
+  w32(0x80180004U, 0x80190010U);
+  tracker.sprite(ram, 0x80180000U, 0x80100000U, 0x801a0000U, 130);
+  tracker.sprite(ram, 0x80180004U, 0x80100200U, 0x801a0000U, 130);
+  sprites = tracker.capture(ram, 130);
+  require(sprites.sprites.size() == 2 &&
+          sprites.sprites[0].sprite == sprites.sprites[1].sprite &&
+          sprites.sprites[0].actor != sprites.sprites[1].actor &&
+          sprites.sprites[0].lifetime != sprites.sprites[1].lifetime);
+  tracker.retire(0x80100000U);
+  sprites = tracker.capture(ram, 132);
+  require(sprites.sprites.size() == 1 && sprites.sprites[0].actor == 0x80100200U);
+  scene.models.resize(3);
+  scene.models.push_back(scene.models[1]);
+  scene.models.back().instance++;
+  require(!jfg::presentation_vertex_identity(scene, 0x4040, 0x701e).geometry);
   return 0;
 }
