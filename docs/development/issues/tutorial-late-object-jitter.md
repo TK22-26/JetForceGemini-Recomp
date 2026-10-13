@@ -147,3 +147,48 @@ Owner then explicitly requested merging current develop. This candidate and
 evidence are checkpointed before that merge; the combined source must be rebuilt
 and qualified before any preview replacement. See
 [aggregate investigation](../../../evidence/tutorial-rigid-entry-investigation.json).
+
+## Develop integration (2026-10-13, qualification pending)
+
+Owner requested merging develop `63e49a7a71c3a914d2adc1d91fdcf00bef30d38e`
+into high-refresh checkpoint `60cb549bceb023d416dc7721793e809d33ac0699`.
+The merge preserves the high-refresh recovery policy, semantic/rigid identities,
+video dialog and render diagnostics alongside develop camera, controls, native
+audio sample source, profiling and render-viewport fixes. The newer diagnostic
+clock-stall environment name accepts the previous high-refresh name as a fallback;
+existing high-refresh trace event names remain stable. Both issue histories are
+retained. Build and replay results must be recorded before delivery; a successful
+merge alone does not establish late-cave or full-tutorial acceptance.
+
+The second merged combat comparison overlapped a separate Scooby-Doo launcher
+build. Its first window fell to 27.92 scenes/s and is explicitly excluded from
+acceptance. The dependent camera step did not launch. After the live-window
+regression, the remaining combat/360/pause cases use a fresh quiet preflight;
+the first clean merged combat case remains valid. No foreign work was stopped.
+
+## Develop merge qualification (2026-10-13)
+
+Develop `63e49a7a71c3a914d2adc1d91fdcf00bef30d38e` is integrated with the
+high-refresh candidate. Fresh generation has identical game files, and 25
+Python checks, 13 focused C++ suites, viewport tests, 120 video RmlUi checks and
+546 modern-controls UI checks pass. Original/Custom preserve every non-render-
+buffer guest byte. A new native-clock recording with the native audio source
+replays exactly. Older pre-merge raw hashes differ after the imported behavior
+changes; no claim of cross-revision bitwise equivalence is made.
+
+Review caught a real message-number collision missed by the initial non-live
+dialog test. The new live test reproduces swallowed widescreen relayout before
+the fix, then passes after the video-state query moves to its own message.
+Apply, pause/resume and aspect changes are checked on an isolated desktop.
+
+merged-combat-120-a: 119.7/29.81, 120.0/29.79, 119.8/29.84, 119.6/29.80 OUTPUT/SCENES; merged-combat-120-final-b: 119.7/29.85, 119.9/29.74, 119.9/29.84, 119.8/29.80 OUTPUT/SCENES; merged-combat-360: 352.0/29.79, 356.4/29.75, 357.3/29.83, 352.1/29.76 OUTPUT/SCENES. All three clean combat runs have zero audio underruns and
+no foreign compiler/game overlap. Pause/resume also passes. The full-circle
+trace has no backward presentation phases, and the reconstructed area-47 pond
+retains full north-facing camera distance. These are bounded muted tests,
+not a full tutorial or physical-display acceptance.
+
+The owner-reported later-cave objects and full-route cadence drops remain open.
+Rigid identity is qualified as a candidate; no visual remedy for that exact
+unreproduced report is claimed. The rejected projection rule remains absent.
+See [merge qualification](../../../evidence/high-refresh-develop-merge.json)
+for rates, phase counts, provenance and limits. Preview packaging follows.

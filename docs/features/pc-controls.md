@@ -40,11 +40,14 @@ of the game's Normal/Expert option.
 | Previous / next weapon | Wheel down / up | LB / RB; L1 / R1 |
 | Cycle sniper magnification | Middle mouse while scoped | Right-stick click while scoped |
 | Pause | Tab | Menu / Options |
-| Menu confirm / back | Enter / Backspace | A / B; Cross / Circle |
+| Menu select / back | E / Q; right-click also goes back | A / B; Cross / Circle |
 
 Increase and Decrease magnification are separate optional actions. Click an input
 to assign them or another action. Modern Jump/Crouch do not change sniper zoom.
-Leave the aim stance before jumping or crouching.
+Jump can start while Aim is held or toggled. Aiming, the reticle and sniper
+magnification remain active through takeoff, air time and landing. Release Aim
+to leave the aiming camera in midair. Native jump motion and air steering remain active.
+Leave the aim stance before crouching.
 
 Modern ground movement uses a view-locked third-person camera: turning the mouse
 or look stick turns the character, forward follows that heading, and left/right
@@ -77,10 +80,22 @@ pointer actions. The first click returning from another application activates th
 also issuing an input. Clicking within the already active launcher keeps the
 click when focus transfers from the launcher to its game viewport.
 
-This is **partial native-menu pointer support**. Options pages, save copy/erase,
-new-game naming, character selection, pause/inventory and dialogue still use the
-keyboard/controller menu bindings. Arrow keys, Enter and Backspace remain
-available. The launcher and controller editor continue to use RmlUi.
+Pause-menu icons and the pause Options icons support direct pointer selection
+and activation. A changed pause/Options selection plays the native selection
+sound. Character selection has clickable left/right arrows; click its central
+label or press E to accept and return.
+
+WASD (or rebound movement keys) also navigates menus. A/D adjusts native settings
+such as music volume; dedicated arrow bindings remain available. E selects at a
+menu root and closes informational pages such as Health, Weapons, Inventory,
+Tribals and Ship Parts. E also finishes Character selection and ordinary Options
+adjustment. Q and right-click are Back, including on Map; E on Map retains the
+game's travel confirmation. Held E cannot immediately close the page it opened.
+
+This remains **partial native-menu pointer support**. Nested Options settings
+use directional keys; save copy/erase, new-game naming, Options opened from the
+title/start flow, and dialogue are not a complete mouse interface. Explicitly
+rebound menu keys remain supported. The launcher and controller editor use RmlUi.
 
 ## Settings and compatibility
 
@@ -98,8 +113,9 @@ available. The launcher and controller editor continue to use RmlUi.
 - experimental-controls.ini is obsolete and ignored by the live runtime.
   Old mouse-look/dual-stick flags in pc-input.ini do not activate modern paths
   while Controller Mapping is selected. Existing files remain for rollback.
-- Recordings begun in Modern Controls use v6 with independent look/actions and
-  semantic native-menu selection events. The reader retains v1-v5 compatibility.
+- Recordings begun in Modern Controls use v8 with independent look/actions and
+  semantic native-menu selection events, including pause Options. The reader
+  retains v1-v7 compatibility.
   Recordings begun in original mode retain their older format; switching mode
   mid-recording does not consume look input that cannot be recorded.
 - XInput rumble is supported. Native SDL/DualSense rumble, gyro and adaptive
@@ -1437,3 +1453,148 @@ The ongoing bug/attempt/resolution record is [PERF-001](../development/issues/go
 It includes failed replay comparisons, partial timing improvements and future
 60+ FPS compatibility requirements. Future issues follow the persistent
 [issue documentation policy](../development/issues/README.md).
+
+
+The contiguous native-timing candidate has completed hidden correctness and
+performance qualification; see [PERF-001](../development/issues/goldwood-combat-slowdown.md#contiguous-candidate-qualification-and-handoff)
+for exact measurements, installation status, retained failures and owner acceptance.
+It does not resolve remaining slow updates or provide 60+ Hz rendering.
+
+
+### Modern keyboard Confirm default, 2026-10-11
+
+At the owner's request, new/reset modern profiles use **E** for menu Confirm,
+sharing E with gameplay Interact in separate contexts. Existing custom bindings
+remain loadable and are not globally migrated. The owner's preview profile will
+receive the requested change during delivery, with all other preferences kept.
+Implementation is pending build/test qualification and preview installation.
+
+
+### E menu-confirm delivery (2026-10-11 UTC)
+
+Modern keyboard/mouse menu Confirm now defaults to **E**, sharing E with Interact
+in its separate gameplay context. Custom saved bindings (including an explicitly
+chosen Enter) still round-trip, and original Controller Mapping keeps its own
+bindings. The owner's preview profile was changed from the former Enter default
+to E while closed; its save, launcher settings and other profile files were
+verified unchanged. The existing desktop shortcut still targets the same v1.1
+launcher/package directory.
+
+Verification: 126 modern-controls checks and 546 native RmlUi checks passed.
+The rebuilt launcher and runtime were installed and their package hashes checked.
+Runtime SHA-256: `234fdcc4c5d7e207a11c566007eb3c75637587003cfd2e714e2bf53169aeb6ff`.
+The accompanying [audio investigation](../development/issues/intermittent-music-crackle.md)
+remains open; this delivery does not claim a crackle fix.
+
+
+### 2026-10-13: native audio sample readiness preview
+
+The native-timing preview now satisfies the synthesis sample callback's readiness
+contract by loading from the resident ROM before publishing each cache entry.
+This removes the stale-sample failure reproduced under faster native execution;
+it does not change controls, music gain, DSP mixing, or global PI delays. The
+existing v1.1 Modern Controls Preview shortcut selects the tested local runtime,
+with ROM selection, saves and mappings preserved. Source checks and hidden
+normal-Play integration pass; owner listening/live verification is still pending.
+See [AUDIO-001](../development/issues/intermittent-music-crackle.md) for the causal
+evidence, exact validation and implications for future 60+ FPS work.
+
+### 2026-10-13: Native entry facing, jump momentum and focus continuity
+
+The local v1.1 preview now seeds modern entry facing from the native player, preserves full takeoff momentum and original air steering, and keeps camera orientation when physical input is suspended. Tests reproduce the old 180-degree Goldwood entry error, cover all three characters and both timing paths, and retain byte-identical original-mapping replay state. The owner-accepted audio repair remains enabled.
+
+See the [issue record](../development/issues/modern-controller-state-transitions.md) for causes, failed/inconclusive fixtures, qualification, refresh-rate implications and the remaining exact-route/physical-device live checks. These are local-preview results, not a public-release claim.
+
+### 2026-10-13: modern camera collision response
+
+The local v1.1 Modern Controls Preview now separates input orientation from
+collision-constrained camera distance. Native-validated positions stay on the
+chosen viewing ray, feet-only visibility no longer pulls the modern camera in,
+and outward recovery is eased without filtering mouse/stick rotation.
+Focused low-angle Goldwood tests reduce the maximum vertical camera step from
+45.1 to 5.1 world units on the native-timing dual-stick route. Original mapping's
+qualified replay remains byte-identical, and jump/focus regressions pass.
+
+This is a local candidate awaiting owner live verification, including the
+reported pond lip outside Goldwood spawn. A separate adjacent-obstacle replay
+reached a hollow stump; it must not be presented as exact pond verification.
+The native collision margin and queries are retained, large necessary pull-ins
+can still occur, and this is not a new sphere-sweep collision engine.
+See [CAMERA-005](../development/issues/camera-collision-bounce.md) for the cause,
+rejected expensive attempt, timing caveat, actual validation and remaining work.
+
+The preceding area-entry, jump/air-steering and focus-retention fixes were
+owner-validated and committed as 7b1ea4ba6228c126757b2b2e966ed7c0e1de8ca4.
+
+
+## 2026-10-13: pond false contacts and inward distance halving
+
+The first camera candidate improved upward bounce but the owner still saw inward
+jumps. Recovery of the final map identified the actual pond in Goldwood area 47;
+a reconstructed route reproduced two 200-to-100 camera pull-ins above clear
+geometry. Refining the distance search alone was insufficient. The current
+preview additionally rejects height-only native corrections only when a finite
+16-unit camera sphere and its focus ray are both proven clear. Unknown geometry
+and potential contacts keep native handling.
+
+The revised local package is build/modern-controls-camera-clearance-20261013
+(runtime 15c40b95d95cf48a388f652419efe7bedd0f42f6d6b641059a1ff65498241613).
+The reconstructed pond holds full distance; scripted mouse, low-angle, genuine
+obstruction, portable control/audio suites and original Mapping full-memory
+parity pass. Owner live verification and broad scenery coverage remain pending.
+
+The ordinary preview had not recorded a full route. Desktop JFG Camera Capture
+now explicitly enables the launcher's diagnostic recording and preserves initial
+settings/save data under Desktop/JFG Camera Captures. It follows the updated
+preview shortcut automatically. See the [CAMERA-005 follow-up](../development/issues/camera-collision-bounce.md)
+for the full issue history, partial attempt, measured costs, install receipt,
+recording limitation and future high-refresh/swept-volume requirements.
+
+
+### Develop source integration, 2026-10-13
+
+The completed controls, camera, native-timing and audio investigation changes,
+regressions and issue records are integrated on local develop. This includes the
+previously committed area-entry/jump/focus corrections. The owner has accepted
+the audio repair and those three controls fixes; the latest pond-clearance
+candidate still awaits live verification. This source integration is not a
+public release, does not resolve the remaining PERF-001/CAMERA-002 scope, and
+does not merge the separate high-refresh research branch.
+
+Integration validation rebuilds eight focused portable suites from the isolated
+develop worktree and runs the generated-entry, private-root generator and native
+span regressions there. The previously recorded runtime replay and preview
+qualification remain linked in the issue records. Original workspace files,
+other pending edits and installed user profiles are preserved.
+
+
+### 2026-10-13: Pause navigation, contextual action and jumping from aim
+
+Modern keyboard movement bindings now navigate native menus, Q defaults to Back,
+and E closes informational pages or finishes character selection. Direct pause
+Options targets and Character arrows preserve native availability, transition
+gates and selection sounds. Controller Mapping opens centered over its launcher.
+
+Jumping from aim reuses each character's native jump handler and airborne state.
+That first delivery resumed aim on landing; the follow-up below adds continuous
+airborne ADS.
+Native tests cover all three characters, sideways takeoff and held-button edges.
+Original Controller Mapping's reference jump replay retains byte-identical final
+RDRAM. See the [issue record](../development/issues/modern-pause-navigation.md)
+for causes, rejected attempts, verification scope and remaining owner checks.
+
+
+### 2026-10-13: Widescreen viewport and continuous airborne aim
+
+The launcher render area now follows the original selected 4:3 or 16:9 display
+mode, in windowed and fullscreen layouts. Transient cinematic VI cropping does
+not resize that area. Mouse coordinates continue to follow the actual displayed
+VI; pixel-coordinate replay fixtures now exercise wide and resized menu targets.
+
+Modern aim is independent of airborne locomotion. The shared native aim/zoom
+routine supplies look, while scoped adapters let camera, weapon, reticle and
+fade consumers observe aiming. The original air state still owns gravity,
+collision, momentum, steering, animation and landing. Continuing aim also retains
+pitch through the native landing-to-aim transition. Original Controller Mapping
+keeps the original restrictions. See the [issue record](../development/issues/widescreen-pointer-and-airborne-aim.md)
+for test results and remaining live verification.

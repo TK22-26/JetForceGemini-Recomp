@@ -235,6 +235,11 @@ void fonts() {
   if (oldTitle)
     DeleteObject(oldTitle);
 }
+jfg::frontend::GameViewport renderViewport(int width,int height) {
+  const auto aw=static_cast<int>(reinterpret_cast<UINT_PTR>(GetPropW(app.render,L"JfgGameAspectWidth")));
+  const auto ah=static_cast<int>(reinterpret_cast<UINT_PTR>(GetPropW(app.render,L"JfgGameAspectHeight")));
+  return jfg::frontend::game_viewport(width,height,aw,ah);
+}
 void layout() {
   RECT area{};
   GetClientRect(app.window, &area);
@@ -243,7 +248,7 @@ void layout() {
   MoveWindow(app.viewport, 0, top, std::max<LONG>(1, area.right),
              std::max<LONG>(1, area.bottom - top), TRUE);
   if (app.render && IsWindow(app.render)) {
-    const auto game = jfg::frontend::game_viewport(area.right, area.bottom - top);
+    const auto game = renderViewport(area.right, area.bottom - top);
     MoveWindow(app.render, game.x, game.y, game.width, game.height, TRUE);
   }
   if (app.shield)
@@ -262,7 +267,7 @@ void layout() {
   MoveWindow(app.viewport, 0, 0, std::max<LONG>(1, area.right),
              std::max<LONG>(1, area.bottom - scaled(footer)), TRUE);
   if (app.render && IsWindow(app.render)) {
-    const auto game = jfg::frontend::game_viewport(area.right, area.bottom - scaled(footer));
+    const auto game = renderViewport(area.right, area.bottom - scaled(footer));
     MoveWindow(app.render, game.x, game.y, game.width, game.height, TRUE);
   }
   if (app.home.size() >= 10) {
@@ -639,6 +644,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     settings.fullscreen=request.fullscreen!=0;settings.window_size=request.window_size;settings.pause_inactive=request.pause_inactive!=0;
     std::wstring error;return applyVideo(settings,error)?1:0;
   }
+  if(message==WM_APP+24) {if(reinterpret_cast<HWND>(wparam)==app.render && IsWindow(app.render))layout();return 0;}
 #ifdef JFG_RML_UI
   if (app.uiReady &&
       ((message >= WM_MOUSEFIRST && message <= WM_MOUSELAST) ||

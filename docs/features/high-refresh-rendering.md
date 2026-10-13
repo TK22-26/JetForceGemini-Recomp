@@ -476,3 +476,24 @@ was captured, so visual and timing causes must not be conflated. This was a
 review of existing evidence, not a new experiment or runtime change. See
 [RENDER-006](../development/issues/tutorial-late-object-jitter.md) and its
 aggregate timing evidence. Earlier bounded passes remain scoped to their fixtures.
+
+## Develop integration (2026-10-13, qualification pending)
+
+Owner requested merging develop `63e49a7a71c3a914d2adc1d91fdcf00bef30d38e`
+into high-refresh checkpoint `60cb549bceb023d416dc7721793e809d33ac0699`.
+The merge preserves the high-refresh recovery policy, semantic/rigid identities,
+video dialog and render diagnostics alongside develop camera, controls, native
+audio sample source, profiling and render-viewport fixes. The newer diagnostic
+clock-stall environment name accepts the previous high-refresh name as a fallback;
+existing high-refresh trace event names remain stable. Both issue histories are
+retained. Build and replay results must be recorded before delivery; a successful
+merge alone does not establish late-cave or full-tutorial acceptance.
+
+## Develop integration qualified (2026-10-13)
+
+The current candidate incorporates develop camera, controls, audio and widescreen
+changes. Build, UI, state replay, muted 120/360 combat, circle and pond checks
+pass; a demonstrated video/viewport message collision is corrected.
+See [qualification](../../evidence/high-refresh-develop-merge.json) and
+[remaining late-tutorial report](../development/issues/tutorial-late-object-jitter.md).
+Full-route visual acceptance remains open.

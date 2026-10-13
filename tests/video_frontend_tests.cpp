@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include "../launcher/native/video_settings_protocol.hpp"
+#include "../launcher/native/game_viewport.hpp"
 #include "jfg/renderer/video_settings.hpp"
 #include <algorithm>
 #include <cmath>
@@ -212,6 +213,43 @@ int wmain(int argc, wchar_t **argv) {
         Sleep(300);
         check(paused > 0 && paused == retraces(),
               "VI clock is stopped during settings");
+        // The native aspect notification must reach the launcher even while
+        // its separate Video Settings process queries current window state.
+        Search renderSearch{0, nullptr, L"JfgPhase8LiveRt64Window"};
+        EnumChildWindows(frontend, find_window,
+                         reinterpret_cast<LPARAM>(&renderSearch));
+        const HWND render = renderSearch.window;
+        check(render != nullptr, "live render child available for aspect changes");
+        if (render) {
+          const auto oldWidth = reinterpret_cast<WPARAM>(
+              GetPropW(render, L"JfgGameAspectWidth"));
+          const auto oldHeight = reinterpret_cast<LPARAM>(
+              GetPropW(render, L"JfgGameAspectHeight"));
+          for (int height : {180, 240}) {
+            SendMessageW(render, WM_APP + 22, 320, height);
+            bool matches = false;
+            for (unsigned attempt = 0; attempt < 100; ++attempt) {
+              RECT parent{}, actual{};
+              GetClientRect(GetParent(render), &parent);
+              GetClientRect(render, &actual);
+              const auto wanted = jfg::frontend::game_viewport(
+                  parent.right, parent.bottom, 320, height);
+              matches = actual.right == wanted.width &&
+                        actual.bottom == wanted.height;
+              if (matches) break;
+              Sleep(10);
+            }
+            check(matches, height == 180
+                ? "widescreen notification relayouts render child"
+                : "4:3 notification restores render child");
+            check((SendMessageW(frontend, jfg::frontend::kVideoState, 0, 0) & 4) != 0,
+                  "video state query remains distinct from aspect notification");
+          }
+          SendMessageW(render, WM_APP + 22,
+                       oldWidth ? oldWidth : 320,
+                       oldHeight ? oldHeight : 240);
+        }
+
       }
       auto click = [&](const char *id) {
         const auto found = coordinates.find(id);

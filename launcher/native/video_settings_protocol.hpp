@@ -3,7 +3,8 @@
 #include <array>
 #include <cstdint>
 namespace jfg::frontend {
-inline constexpr UINT kVideoState = WM_APP + 24;
+// WM_APP + 24 is the runtime-to-launcher display-aspect notification.
+inline constexpr UINT kVideoState = WM_APP + 25;
 inline constexpr ULONG_PTR kVideoApply = 0x4a564431;
 struct VideoRequest {
   std::uint32_t version = 1, mode = 0, fps = 60, vsync = 1;

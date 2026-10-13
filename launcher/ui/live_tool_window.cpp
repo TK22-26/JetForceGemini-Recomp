@@ -144,9 +144,7 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
   cls.hCursor = LoadCursorW(nullptr, IDC_ARROW);
   cls.hbrBackground = CreateSolidBrush(RGB(11, 15, 23));
   RegisterClassW(&cls);
-  int density = static_cast<int>(GetDpiForSystem());
-  if (live.kind == "video" && IsWindow(live.owner))
-    density = static_cast<int>(GetDpiForWindow(live.owner));
+  int density = static_cast<int>(IsWindow(live.owner) ? GetDpiForWindow(live.owner) : GetDpiForSystem());
   int initialX = CW_USEDEFAULT, initialY = CW_USEDEFAULT;
   RECT size{0, 0, MulDiv(live.kind == "video" ? 720 : live.kind == "map" ? 1200 : live.kind == "controllers" ? 1280 : 486, density, 96),
             MulDiv(live.kind == "video" ? 600 : live.kind == "map" ? 740 : live.kind == "controllers" ? 920 : 716, density, 96)};
@@ -157,20 +155,11 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
       const auto& work=monitor.rcWork;
       size.right=size.left+std::min<LONG>(size.right-size.left,work.right-work.left-32);
       size.bottom=size.top+std::min<LONG>(size.bottom-size.top,work.bottom-work.top-48);
-      if (live.kind == "video") {
-        // An owned top-level window is not automatically centered by Windows.
-        // Use the owner's monitor/DPI from the outset, keeping the complete
-        // dialog reachable when its owner is near or beyond a screen edge.
-        RECT owner = work;
-        if (IsWindow(live.owner) && !IsIconic(live.owner))
-          GetWindowRect(live.owner, &owner);
-        const LONG width = size.right - size.left;
-        const LONG height = size.bottom - size.top;
-        initialX = std::clamp(owner.left + (owner.right - owner.left - width) / 2,
-                              work.left, work.right - width);
-        initialY = std::clamp(owner.top + (owner.bottom - owner.top - height) / 2,
-                              work.top, work.bottom - height);
-      }
+      RECT anchor=work;
+      if(IsWindow(live.owner) && !IsIconic(live.owner))GetWindowRect(live.owner,&anchor);
+      const LONG width=size.right-size.left,height=size.bottom-size.top;
+      initialX=std::clamp<LONG>(anchor.left+(anchor.right-anchor.left-width)/2,work.left,work.right-width);
+      initialY=std::clamp<LONG>(anchor.top+(anchor.bottom-anchor.top-height)/2,work.top,work.bottom-height);
     }
   }
   live.window = CreateWindowExW(

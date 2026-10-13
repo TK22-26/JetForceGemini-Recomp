@@ -49,6 +49,16 @@ complete semantic identity coverage, animation/effects, CPU overlays, transition
 behavior and physical 360+ Hz display qualification are incomplete. Original remains
 the default. Video Settings positioning, dropdown text alignment, simplified chrome and continuous FPS preset borders are tested; owner confirmation remains pending. See [RENDER-001](development/issues/high-refresh-rendering.md).
 
+### Separate Modern Controls preview
+
+The owner's recorded drone fight drops to approximately 15 game updates per
+second in its busiest section. This is an actual update-cadence deficit, separate
+from the fixed modern camera-distance stepping. Detailed logging alone does not
+explain it. A native elapsed-time candidate is now available in the local Modern Controls
+Preview after hidden replay qualification. Remaining slow updates and owner live
+verification keep this issue critical and open; this is not a released fix. See the [timing investigation](features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation)
+for measurements, experiments and the remaining acceptance work.
+
 ## Windows 10 setup
 
 **v1.1.0 uses a prebuilt game and one-time ROM import.** The WSL/developer-tool
@@ -122,91 +132,49 @@ shooting and explosive gates and unsupported scripted traversal still need
 manual play. Normal gameplay leaves the mod off.
 
 
-## Slowdown capture
+## High-refresh diagnostics and remaining visual coverage
 
-The high-refresh preview has an F8 counter and asynchronous CSV logs. The revised
-counter labels OUTPUT and SCENES separately and uses one cached texture draw.
-Completed interpolation sequences no longer restart old motion, and ordinary
-30/20-Hz source transitions retain valid interpolation. Muted 120/360 fixture
-pacing improves with matching game progression and memory, but the owner's
-reported stutter awaits live confirmation. Native timing restores 30-Hz scene
-updates in the measured capped-play bridge. Unlimited can still reduce source
-cadence; use Custom for this fix. Longer native startup testing records three
-audio underruns, so broad audio continuity remains unverified. Schema 2 logs
-successful present returns after pacing; heavy screenshots can introduce stalls.
-A high output counter does not establish unique game poses or monitor scanout.
-See [PERF-002](development/issues/frame-diagnostics.md) for remaining limits.
+F8 reports OUTPUT and SCENES separately and asynchronous CSV logging records
+successful presents. A high output counter does not establish unique game poses
+or monitor scanout. Semantic character/camera, gem and drone corrections passed
+bounded replays; the owner confirmed gems and drones look good. Pickup-particle
+lifetime corrections are locally delivered, with live acceptance pending.
+The owner subsequently reported later-cave crates, exit light and bridge jitter,
+and the full tutorial log confirms intermittent source cadence drops. Those
+remain open. Historical attempts, failures, audio/Unlimited limits and delivery
+receipts are preserved in [PERF-002](development/issues/frame-diagnostics.md),
+[RENDER-003](development/issues/steady-fps-jitter.md),
+[RENDER-004](development/issues/actor-jitter-edge-culling.md),
+[RENDER-005](development/issues/pickup-particle-desync.md) and
+[RENDER-006](development/issues/tutorial-late-object-jitter.md).
 
+## Background-music static
 
-## Jitter despite steady FPS
+Goldwood music static in the experimental native-timing preview was traced to stale compressed sample data. The local preview now loads requested samples synchronously before consumption. Source-integrity checks and normal-Play integration pass, and the owner confirmed on 2026-10-13 that the audio is fixed in the delivered local preview. See [AUDIO-001: cause, remedy and verification limits](development/issues/intermittent-music-crackle.md). No complete audio fix is publicly released.
 
-The owner reports jitter at steady 120 OUTPUT / 30 SCENES, especially while
-moving and rotating the camera together. The bridge scene-rate correction does
-not resolve this visual-smoothness report. Camera/animation coverage and display
-pacing remain under investigation; see [RENDER-003](development/issues/steady-fps-jitter.md).
+## Modern controls: transitions, jumping and focus
 
+Candidate corrections for modern area-entry facing, jump momentum/air steering and focus-loss camera reset are verified in focused tests and delivered in the local v1.1 preview. Continuously active modern input reproduced a 180-degree Goldwood entry error; the corrected heading matches the original control path. The owner confirmed all three fixes in live play on 2026-10-13, and they are committed as 7b1ea4b; broader device and unusual-state coverage remains open. See [causes, regression evidence and live checks](development/issues/modern-controller-state-transitions.md).
 
-## Jitter despite steady output counters
+## Modern camera: terrain bounce and pond-lip contact
 
-The local semantic character/camera preview now matches actor lifetimes, model
-instances, joints and logical vertices, and interpolates world-space vertex
-endpoints with a shared camera phase. Focused tests and bounded replays pass;
-owner live confirmation remains pending. Combined movement can still trigger
-the existing three-VI recovery episode in both baseline and candidate. A Custom
-360 target does not guarantee sustained 360 FPS. See
-[RENDER-003](development/issues/steady-fps-jitter.md) for coverage, timing limits
-and delivery status. Original-mode character seams and lighting remain open.
+The revised local Modern Controls preview corrects two reproduced causes: coarse
+distance halving and a native height correction above clear finite pond geometry.
+The reconstructed Goldwood area-47 pond route now holds full camera distance
+through the prior 200-to-100 pull-ins; mouse, low-angle terrain, real obstruction
+and original Controller Mapping regressions pass. Owner live verification and
+broader scenery/moving-model coverage remain pending. Unknown geometry retains
+the native response. This is not a complete swept-volume camera overhaul.
 
-## Actor jitter and camera-edge visibility (2026-10-13)
+Use the Desktop JFG Camera Capture shortcut to record the next live reproduction.
+See [CAMERA-005](development/issues/camera-collision-bounce.md) for causes, failed
+and successful attempts, evidence, current package and limits. CAMERA-002 remains
+open for broader scenery-driven pull-ins.
 
-Goldwood drone LODs shared a skeleton palette that our identity resolver rejected;
-identical gem sprites lacked actor identity; endpoint camera clipping removed
-geometry needed by intermediate frames. Corrections now pass bounded pixel,
-state and focused test checks and are delivered in the local visibility preview.
-Owner live acceptance remains pending. Full-game coverage, authored texture cadence and the existing adaptive
-scene-rate/Unlimited limits remain; see
-[RENDER-004](development/issues/actor-jitter-edge-culling.md).
+## High-refresh develop integration (2026-10-13)
 
-
-Owner feedback on the visibility preview confirms gems and drones look good,
-but pickup particles desynchronize ([RENDER-005](development/issues/pickup-particle-desync.md))
-and frequent drone-combat 20-25 SCENES at 120 OUTPUT remains critical
-([PERF-001](development/issues/goldwood-combat-slowdown.md)). Both are open.
-
-
-The combat/particle candidate removes the native 31-fast-frame recovery hold and
-tracks billboard particle lifetimes through animated quad sizes. Bounded tests
-and state checks pass; combat remains a partial improvement with genuine host
-costs unresolved, and owner live particle confirmation is pending. See
-[qualification](../evidence/combat-particles.json), [PERF-001](development/issues/goldwood-combat-slowdown.md)
-and [RENDER-005](development/issues/pickup-particle-desync.md). Neither is declared
-a complete full-game resolution.
-
-
-### Performance acceptance remains open
-
-The final combat runs record **8 audio underruns at 120 and 62 at a 360 target**.
-These are observed failures of sustained smooth playback, not passing performance
-acceptance. The earlier recovery runs had zero; the initial old preview had five.
-A separate modern-controls-camera-collision runtime was observed active at
-10:46-10:47 UTC. Earlier overlap was not fully recorded, so its contribution to
-all timing samples is unproven. No owner process was stopped. A controlled
-single-runtime comparison remains necessary before attributing the late audio
-difference to this change or claiming sustained 30/360 performance.
-
-Functional/state/pixel checks pass, while combat remains critical/open and this
-preview is a partial correction. Preserve both successful and failed measurements.
-
-
-## Delivery held for performance verification
-
-The implementation is ready for review, but the desktop shortcut and installed
-visibility preview remain unchanged. Final combat has real drops and 8/62 audio
-underruns at 120/360; late concurrent-runtime load prevents clean attribution.
-The post-pause trace has 988 samples, no repeats/rewinds, and three skipped phase
-steps. Functional/state/pixel verification does not establish smooth performance.
-Do not replace the working preview or call combat fixed until a controlled
-single-runtime comparison resolves this. Both candidate sources and all evidence
-are preserved. The next bounded run should first coordinate exclusive runtime
-testing, compare unchanged/candidate builds on the same copied checkpoint, then
-profile remaining host execution/renderer costs if genuine drops persist.
+The combined candidate passes focused build/UI/state, muted 120/360 combat and
+camera replays. Its live viewport notification conflict is corrected. See
+[qualification](../evidence/high-refresh-develop-merge.json). This does not
+resolve the owner full-tutorial cadence drops or late-cave object jitter;
+[RENDER-006](development/issues/tutorial-late-object-jitter.md) remains open.

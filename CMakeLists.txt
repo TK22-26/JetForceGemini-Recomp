@@ -26,6 +26,7 @@ option(JFG_BUILD_G2_PRODUCERS "Build private G2 evidence producers" OFF)
 option(JFG_BUILD_PHASE5_CAPTURE
     "Build the private Phase 5 boundary-capture producer" OFF)
 option(JFG_BUILD_PHASE6_NATIVE_BOOT "Build the private Phase 6 native M2 runner" OFF)
+option(JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING "Use qualified native elapsed timing in a private interactive preview" OFF)
 option(JFG_ENABLE_RT64 "Build the pinned RT64 renderer shell" OFF)
 option(JFG_BUILD_PHASE7_RT64_RUNNER
     "Build the private-input Phase 7 RT64 captured-task runner" OFF)
@@ -270,6 +271,7 @@ if(JFG_ENABLE_RT64)
         "${jfg_rt64_root}/src/render")
 
     include(cmake/rt64_vi_presentation.cmake)
+    include(cmake/rt64_gpu_timing.cmake)
     include(cmake/rt64_depth_bounds.cmake)
     include(cmake/rt64_interpolation.cmake)
 
