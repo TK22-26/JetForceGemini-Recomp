@@ -564,5 +564,7 @@
     "delivered": false,
     "existing_desktop_preview_unchanged": true,
     "reason": "Final combat dips/audio underruns and unresolved concurrent-load attribution; require controlled performance comparison"
-  }
+  },
+  "implementation_commit": "83cd8af0bad951d27939adadb74f374840d1303d",
+  "candidate_retained_on_D": true
 }

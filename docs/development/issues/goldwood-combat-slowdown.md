@@ -347,3 +347,8 @@ single-runtime comparison resolves this. Both candidate sources and all evidence
 are preserved. The next bounded run should first coordinate exclusive runtime
 testing, compare unchanged/candidate builds on the same copied checkpoint, then
 profile remaining host execution/renderer costs if genuine drops persist.
+
+Implementation commit: 83cd8af0bad951d27939adadb74f374840d1303d. The committed build retains
+qualified runtime 14746717614559b93fa535f9caf0a02fce50f23d2df3ab23aa6e9302607f30aa.
+A copy is retained in the private D: evidence directory. Desktop delivery is
+held pending the controlled performance comparison above; no release was made.
