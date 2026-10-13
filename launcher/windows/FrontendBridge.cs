@@ -166,7 +166,8 @@ internal static class FrontendBridge
         string[] variables = { "JFG_GAMEPLAY_TRACE", "JFG_PHASE8_PROGRESS",
             "JFG_PHASE9_INPUT_RECORD", "JFG_PHASE9_ACTOR_TRACE",
             "JFG_PHASE95_NATIVE_POLL_TRACE", "JFG_PHASE8_FRAME_CAPTURE",
-            "JFG_PHASE8_RDRAM_CAPTURE", "JFG_PHASE8_INPUT_REPLAY" };
+            "JFG_PHASE8_RDRAM_CAPTURE", "JFG_PHASE8_INPUT_REPLAY",
+            "JFG_RT64_INTERPOLATION_TRACE" };
         foreach (string variable in variables)
             if (start.EnvironmentVariables.ContainsKey(variable))
                 throw new InvalidDataException("Diagnostics cannot be combined with duplicate recording or replay options.");
@@ -177,6 +178,7 @@ internal static class FrontendBridge
         start.EnvironmentVariables["JFG_PHASE8_PROGRESS"] = Path.Combine(directory, "progress.json");
         start.EnvironmentVariables["JFG_PHASE9_INPUT_RECORD"] = Path.Combine(directory, "input.txt");
         start.EnvironmentVariables["JFG_PHASE9_ACTOR_TRACE"] = "1";
+        start.EnvironmentVariables["JFG_RT64_INTERPOLATION_TRACE"] = Path.Combine(directory, "interpolation.tsv");
         start.EnvironmentVariables["JFG_PHASE95_NATIVE_POLL_TRACE"] = Path.Combine(directory, "polls.tsv");
         start.EnvironmentVariables["JFG_PHASE8_FRAME_CAPTURE"] = Path.Combine(directory, "last-frame.ppm");
         start.EnvironmentVariables["JFG_PHASE8_RDRAM_CAPTURE"] = Path.Combine(directory, "final-rdram.bin");
@@ -340,7 +342,10 @@ internal static class FrontendBridge
                         metadata.AppendLine("profile=" + root);
                         metadata.AppendLine("support=" + support.Session.DirectoryPath);
                         metadata.AppendLine("live_tools=" + process.StartInfo.EnvironmentVariables[mods ? "JFG_MOD_OUTPUT" : "JFG_LIVE_OUTPUT"]);
-                        metadata.AppendLine("logs=gameplay,timing,actor,input,polls,support,final-frame,final-rdram");
+                        metadata.AppendLine("logs=gameplay,timing,actor,camera,input,polls,interpolation,support,final-frame,final-rdram");
+                        metadata.AppendLine("performance_directory=" + Path.Combine(root, "performance"));
+                        metadata.AppendLine("capture_boundary=Play starts a fresh session; launcher waiting is not recorded.");
+                        metadata.AppendLine("analysis=Exclude initial gameplay idle from active-route timing; preserve original input timestamps for replay.");
                         metadata.AppendLine("note=Detailed logging can affect timings; compare against a normal session.");
                         File.WriteAllText(Path.Combine(capture, "session.txt"), metadata.ToString());
                         string initial = Path.Combine(capture, "initial-profile");
@@ -370,7 +375,8 @@ internal static class FrontendBridge
                     InventorySession.Record(mapDirectory,process);
                     var stdout = support.Session.Drain(process.StandardOutput);
                     var stderr = support.Session.Drain(process.StandardError);
-                    State("Playing. F11 fullscreen. Esc settings.");
+                    State(String.IsNullOrEmpty(gameplayTrace) ? "Playing. F11 fullscreen. Esc settings."
+                        : "Recording diagnostics. F11 fullscreen. Esc settings.");
                     string captureRequest = Path.Combine(root, "frontend-capture.request");
                     if (File.Exists(captureRequest)) File.Delete(captureRequest);
                     while (!process.HasExited)

@@ -499,8 +499,11 @@ namespace JfgLauncher
 
 
                 Environment.SetEnvironmentVariable("JFG_GAMEPLAY_TRACE", "must-not-inherit");
+                Environment.SetEnvironmentVariable("JFG_RT64_INTERPOLATION_TRACE", "must-not-inherit");
                 var diagnosticStart = LocalSetup.StartInfo(game, wrongRom, directory);
                 Environment.SetEnvironmentVariable("JFG_GAMEPLAY_TRACE", null);
+                Environment.SetEnvironmentVariable("JFG_RT64_INTERPOLATION_TRACE", null);
+                Check(!diagnosticStart.EnvironmentVariables.ContainsKey("JFG_RT64_INTERPOLATION_TRACE"), "ordinary play inherited interpolation logging");
                 Check(!diagnosticStart.EnvironmentVariables.ContainsKey("JFG_GAMEPLAY_TRACE"), "ordinary play inherited gameplay logging");
                 string diagnosticArgs = diagnosticStart.Arguments;
                 string diagnosticRoot = Path.Combine(directory, "diagnostic captures");
@@ -514,6 +517,10 @@ namespace JfgLauncher
                     Path.GetDirectoryName(diagnosticStart.EnvironmentVariables["JFG_PHASE9_INPUT_RECORD"]) == diagnosticSession &&
                     Path.GetDirectoryName(diagnosticStart.EnvironmentVariables["JFG_PHASE8_PROGRESS"]) == diagnosticSession &&
                     Path.GetDirectoryName(diagnosticStart.EnvironmentVariables["JFG_PHASE95_NATIVE_POLL_TRACE"]) == diagnosticSession, "capture streams split");
+                Check(diagnosticStart.EnvironmentVariables["JFG_RT64_INTERPOLATION_TRACE"] == Path.Combine(diagnosticSession, "interpolation.tsv"), "capture missing interpolation stream");
+                var conflictingTrace = LocalSetup.StartInfo(game, wrongRom, directory);
+                conflictingTrace.EnvironmentVariables["JFG_RT64_INTERPOLATION_TRACE"] = "existing.tsv";
+                Reject(delegate { FrontendBridge.ConfigureDiagnostics(conflictingTrace, diagnosticRoot); }, "duplicate interpolation capture accepted");
                 File.WriteAllText(Path.Combine(diagnosticSession, "sentinel.txt"), "retained");
                 string diagnosticSecond = FrontendBridge.ConfigureDiagnostics(LocalSetup.StartInfo(game, wrongRom, directory), diagnosticRoot);
                 Check(diagnosticSecond != diagnosticSession && File.ReadAllText(Path.Combine(diagnosticSession, "sentinel.txt")) == "retained", "repeat capture overwrote evidence");

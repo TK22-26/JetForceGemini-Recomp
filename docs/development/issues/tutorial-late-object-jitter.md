@@ -33,7 +33,7 @@ control of Juno. Rates use counter deltas divided by the sampled wall duration.
 
 | Window | Rendered output/s | New scene submissions/s | Worst present interval |
 |---|---:|---:|---:|
-| 0:30-3:30 | 119.66 | 29.92 | 15.71 ms |
+| 0:30-3:30 (may include initial waiting) | 119.66 | 29.92 | 15.71 ms |
 | 7:15-7:35 | 110.05 | 20.16 | 70.52 ms |
 | 10:40-10:45 | 119.66 | 26.66 | 10.90 ms |
 | 10:45-10:50 | 116.45 | 21.61 | 34.41 ms |
@@ -208,3 +208,39 @@ the exact later-cave crates/exit-light/bridge jitter still require live coverage
 their issue records remain open. All runtime tests were muted. Large private
 evidence and the new package stay on D:. The production guard remained enabled
 under the same investigation and counters throughout.
+
+## Expanded owner route capture (2026-10-13, preparation)
+
+The owner clarified that the earlier recording includes a long wait at the
+start because recording had begun without their realizing it. That waiting
+period must be excluded from active-route reports and review playback. The
+old timing-only capture has no exact input boundary, so no precise idle cutoff
+is invented. Retain the original evidence and timestamps for reproducibility;
+label old elapsed windows as session time, not active gameplay time.
+
+The owner approved one guarded hour to prepare and collect a fresh route.
+The explicit launcher diagnostics option now also enables the existing RT64
+interpolation trace (display phase and actor/model matching), alongside inputs,
+actor/camera events and timing. Ordinary Play still strips inherited diagnostic
+variables. A fresh capture starts on Play; waiting in the launcher is excluded.
+The status states that diagnostics are recording. Initial save/settings are
+snapshotted for replay. Frame CSV logging is enabled without an overlay in the
+dedicated muted copied profile, with all capture artifacts on D:.
+
+This is observation plumbing, not a jitter fix. Expanded synchronous traces
+can affect timing; observed stalls must later be compared to a normal run.
+Initial in-game waiting must be trimmed only in derived analysis/viewing, with
+raw VI/input ordering preserved. Setup validation passes; owner route collection
+and visual acceptance remain pending.
+
+Validation: 640 launcher checks (including explicit trace paths, inherited-variable
+stripping and duplicate rejection), 15 setup checks, six graphics-policy checks
+and viewport checks pass. A muted live smoke writes all eight requested streams,
+a v8 modern-input recording, rendered/source frame CSV, final image and guest RAM.
+It includes 10,485 display phases, 8,592 rigid-object samples and 2,638 semantic
+samples. The smoke close harness initially selected the runtime wrapper PID,
+not its render child; descendant lookup recovered and closed the owned game
+normally. The attempt to isolate that helper did not propagate the desktop to
+the render child (it used Default); do not treat this as isolated-desktop or
+clean performance evidence. No timing or visual-fix claim relies on this smoke.
+The delivered runtime is unchanged from the qualified develop merge.

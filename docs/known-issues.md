@@ -183,3 +183,9 @@ The qualified merged preview is now installed through the existing **JFG - High
 Refresh Preview** desktop shortcut. Save/settings are preserved. Its merge commit
 is `f70b513c896df107163f2d72abed344a87dc2517`; the full-tutorial and late-cave
 acceptance limits above remain open. No public release.
+
+The explicit route-capture launcher now records interpolation matching/phase
+alongside camera/actor/input events and frame timing. Setup smoke passes; the
+owner's repeated route and visual acceptance are pending. Initial idle waiting
+is excluded from active-route analysis, preserving raw replay timestamps.
+This diagnostic addition does not resolve RENDER-006.
