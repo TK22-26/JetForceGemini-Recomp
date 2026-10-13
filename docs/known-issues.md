@@ -155,7 +155,7 @@ and delivery status. Original-mode character seams and lighting remain open.
 Goldwood drone LODs shared a skeleton palette that our identity resolver rejected;
 identical gem sprites lacked actor identity; endpoint camera clipping removed
 geometry needed by intermediate frames. Corrections now pass bounded pixel,
-state and focused test checks. Local delivery and owner live acceptance are
-pending. Full-game coverage, authored texture cadence and the existing adaptive
+state and focused test checks and are delivered in the local visibility preview.
+Owner live acceptance remains pending. Full-game coverage, authored texture cadence and the existing adaptive
 scene-rate/Unlimited limits remain; see
 [RENDER-004](development/issues/actor-jitter-edge-culling.md).

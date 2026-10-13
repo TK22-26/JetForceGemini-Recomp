@@ -1,6 +1,6 @@
 # RENDER-004: Gem/enemy instability and camera-edge culling
 
-Status: **implemented and verified in bounded replays; local delivery pending;
+Status: **implemented, verified in bounded replays and delivered locally;
 owner live acceptance pending** (2026-10-13 UTC). Severity: high visual
 regression/coverage limitation. No save corruption reported.
 
@@ -127,3 +127,15 @@ The production guard remained enabled in the same investigation with all prior
 charges/root retained. Earlier related work: [RENDER-003](steady-fps-jitter.md),
 [RENDER-002](character-seams-lighting.md), and
 [high-refresh feature notes](../../features/high-refresh-rendering.md).
+
+## Local delivery
+
+Implementation `c9189c1d1d2e356f53a9801c283a527620f71b9b` is committed on
+`research/high-refresh-20261011`. The committed rebuild is byte-identical to the
+qualified runtime `cb3de8f6593fa2abb0a12e7a2ea7f98ecf23ea817ad247505c1338a39dcd2292`.
+Delivered on 2026-10-13 UTC as `high-refresh-visibility-20261013` on D: through
+the existing **JFG - High Refresh Preview** desktop shortcut. Close the old game
+and launcher before reopening it. The existing profile/save hashes are unchanged.
+All 14 package files verify, and isolated launcher initialization selects the new
+runtime. Prior preview packages are retained. Delivery does not change the live
+acceptance or full-game limitations above, and no public release was made.

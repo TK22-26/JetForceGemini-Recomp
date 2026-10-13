@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "issue": "RENDER-004",
-  "status": "Implemented and qualified in bounded replays; local delivery and owner live acceptance pending",
+  "status": "Corrections implemented, tested and delivered locally; owner live acceptance and full-game coverage pending",
   "source_parent": "1169b1243fc0df3b1ddf518309f481affe4e3829",
   "baseline_runtime_sha256": "8bd6b7635ec71a70c735055af97df5119df9f8a0b00d942825b226259ffe9cf7",
   "candidate_runtime_sha256": "cb3de8f6593fa2abb0a12e7a2ea7f98ecf23ea817ad247505c1338a39dcd2292",
@@ -812,8 +812,22 @@
     "renderer-cost-comparison.json": "3abde3e7b7222018e437a7fdcf17f31eaf57ed728178a1ef630370d7104081e9"
   },
   "delivery": {
-    "delivered": false,
-    "owner_live_acceptance_pending": true,
-    "public_release": false
-  }
+    "source_commit": "c9189c1d1d2e356f53a9801c283a527620f71b9b",
+    "runtime_sha256": "cb3de8f6593fa2abb0a12e7a2ea7f98ecf23ea817ad247505c1338a39dcd2292",
+    "qualified_runtime_sha256": "cb3de8f6593fa2abb0a12e7a2ea7f98ecf23ea817ad247505c1338a39dcd2292",
+    "branch": "research/high-refresh-20261011",
+    "guarded": true,
+    "manifest_verified": 14,
+    "launcher_init_passed": true,
+    "muted_tests": true,
+    "owner_profile_preserved": true,
+    "owner_live_validation_pending": true,
+    "public_release": false,
+    "delivered_at_utc": "2026-10-13T09:39:57.720851+00:00",
+    "delivered": true,
+    "package_name": "high-refresh-visibility-20261013",
+    "desktop_shortcut": "JFG - High Refresh Preview",
+    "owner_live_acceptance_pending": true
+  },
+  "implementation_commit": "c9189c1d1d2e356f53a9801c283a527620f71b9b"
 }
