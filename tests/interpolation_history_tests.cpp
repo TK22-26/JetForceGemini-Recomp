@@ -85,5 +85,34 @@ int main() {
     require(!variable.record({moving},110,true).transforms[0].matched);
     require(!variable.record({moving},114,true).transforms[0].matched);
     require(variable.record({moving},118,true).source_rate==15);
+    // A living sprite can change dimensions without becoming another object.
+    // Its anchor still interpolates; free/reuse and topology changes hold.
+    auto sprite = a;
+    sprite.positions = {{{0,0,0}}};
+    sprite.key = {0,0,0,0xFFFFFFFFU,1,0,0,0};
+    sprite.matrix[12] = 0;
+    auto resized = sprite;
+    resized.positions[0][0] = 0.05f;
+    resized.key[0] = 123;
+    resized.matrix[12] = 0.1f;
+    jfg::bind_presentation_billboard(sprite,{71,72,73,74});
+    jfg::bind_presentation_billboard(resized,{71,72,73,74});
+    jfg::PresentationHistory sprite_history;
+    sprite_history.record({sprite},100,true);
+    require(sprite_history.record({resized},102,true).transforms[0].matched);
+    auto reused_sprite = a;
+    reused_sprite.positions = {{{0,0,0}}};
+    reused_sprite.key = {0,0,0,0xFFFFFFFFU,1,0,0,0};
+    jfg::bind_presentation_billboard(reused_sprite,{75,72,73,74});
+    require(!sprite_history.record({reused_sprite},104,true).transforms[0].matched);
+    auto topology = resized;
+    topology.key.push_back(1);
+    jfg::PresentationHistory topology_history;
+    topology_history.record({resized},100,true);
+    require(!topology_history.record({topology},102,true).transforms[0].matched);
+    auto unknown = a;
+    const auto original_key = unknown.key;
+    jfg::bind_presentation_billboard(unknown,{0,72,73,74});
+    require(unknown.key == original_key);
     return 0;
 }

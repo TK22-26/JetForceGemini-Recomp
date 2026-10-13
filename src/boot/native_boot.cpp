@@ -16,6 +16,7 @@
 #include "jfg/boot/ipl_handoff.hpp"
 #include "jfg/boot/gameplay_trace.hpp"
 #include "jfg/boot/host_count_clock.hpp"
+#include "jfg/boot/native_frame_recovery.hpp"
 #include "jfg/boot/recorded_input_timeline.hpp"
 #include "jfg/mod/navigation_mod.hpp"
 #include "jfg/runtime/async_bounded_trace.hpp"
@@ -7079,6 +7080,15 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         ModernGuestTableScope modern_table(state,target,static_cast<std::uint32_t>(context->r4));
 #endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+#if defined(JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING)
+        if (target == 0x80054FBCU && state.diagnostic_host_clock) {
+          // Preserve viFrameSync's real-overload test, waits and elapsed delta.
+          // Remove only the console's sticky 31-fast-frame recovery delay.
+          auto& recovery = rdram[0xFECABU ^ 3U];
+          recovery = jfg::boot::native_frame_recovery_counter(true,
+              rdram[0xFECACU ^ 3U], recovery);
+        }
+#endif
         const bool measure_update = target == 0x80044FACU && state.gameplay_trace;
         const auto update_started = measure_update ? std::chrono::steady_clock::now()
                                                   : std::chrono::steady_clock::time_point{};
@@ -7099,11 +7109,21 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         if (state.presentation_identity_enabled) {
           if (target == 0x800079B8U)
             state.presentation_identities.retire(static_cast<std::uint32_t>(context->r4));
+          else if (target == 0x800610CCU)
+            state.presentation_identities.particle_retire(static_cast<std::uint32_t>(context->r4));
+          else if (target == 0x8005CE60U)
+            state.presentation_identities.particles_clear();
           else if (target == 0x80041174U) {
             const jfg::PresentationGuestView ram({rdram,kRdramSize});
-            state.presentation_identities.sprite({rdram,kRdramSize},
-                static_cast<std::uint32_t>(context->r6),static_cast<std::uint32_t>(context->r7),
-                ram.u32(static_cast<std::uint32_t>(context->r29)+0x10U),state.vi_retraces);
+            const auto output = static_cast<std::uint32_t>(context->r6);
+            const auto owner = static_cast<std::uint32_t>(context->r7);
+            const auto asset = ram.u32(static_cast<std::uint32_t>(context->r29)+0x10U);
+            if (static_cast<std::uint32_t>(context->r31) == 0x8005D59CU)
+              state.presentation_identities.particle_sprite({rdram,kRdramSize},
+                  output,owner,asset,state.vi_retraces);
+            else
+              state.presentation_identities.sprite({rdram,kRdramSize},
+                  output,owner,asset,state.vi_retraces);
           }
           else if (target == 0x80040AA4U)
             state.presentation_identities.camera({rdram,kRdramSize},
@@ -7112,6 +7132,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
         generated(rdram, context);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        if (state.presentation_identity_enabled && target == 0x80060EC4U)
+          state.presentation_identities.particle_allocate({rdram,kRdramSize},
+              static_cast<std::uint32_t>(context->r2));
         if (measure_update) {
           state.gameplay_trace.event("update-work", {state.vi_retraces, state.controller_samples,
               state.cpu_count - update_count, state.profile_idle_count_ticks - update_idle,

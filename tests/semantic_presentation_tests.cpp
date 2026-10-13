@@ -214,5 +214,49 @@ int main() {
   scene.models.push_back(scene.models[1]);
   scene.models.back().instance++;
   require(!jfg::presentation_vertex_identity(scene, 0x4040, 0x701e).geometry);
+  // Pool particles share assets but never lifetimes. Free and immediate
+  // reuse between captures must invalidate the old interpolation history.
+  tracker.particles_clear();
+  tracker.retire(0x80100200U);
+  w8(0x801b002dU, 2);
+  w32(0x801b004cU, 0x801c0000U);
+  tracker.particle_sprite(ram,0x80180000U,0x801b0000U,0x801c0000U,134);
+  require(tracker.capture(ram,134).sprites.empty()); // no observed allocation
+  tracker.particle_allocate(ram,0x801b0000U);
+  tracker.particle_sprite(ram,0x80180000U,0x801b0000U,0x801c0000U,134);
+  sprites = tracker.capture(ram,134);
+  require(sprites.sprites.size()==1 && sprites.sprites[0].actor==0x801b0000U);
+  const auto particle_lifetime = sprites.sprites[0].lifetime;
+  w8(0x801b00a5U,2);
+  w32(0x801b00c4U,0x801c0000U);
+  tracker.particle_allocate(ram,0x801b0078U);
+  tracker.particle_sprite(ram,0x80180004U,0x801b0078U,0x801c0000U,134);
+  sprites = tracker.capture(ram,134);
+  require(sprites.sprites.size()==2 &&
+          sprites.sprites[0].lifetime!=sprites.sprites[1].lifetime);
+  tracker.particle_retire(0x801b0000U);
+  tracker.particle_allocate(ram,0x801b0000U);
+  require(tracker.capture(ram,136).sprites.size()==1);
+  tracker.particle_sprite(ram,0x80180000U,0x801b0000U,0x801c0000U,136);
+  sprites=tracker.capture(ram,136);
+  require(sprites.sprites.size()==2 && sprites.sprites[0].lifetime!=particle_lifetime);
+  w32(0x801b004cU,0x801c0100U); // asset changed without a fresh anchor
+  require(tracker.capture(ram,136).sprites.size()==1);
+  tracker.particle_sprite(ram,0x80180000U,0x801b0000U,0x801c0000U,136);
+  require(tracker.capture(ram,136).sprites.size()==1);
+  require(tracker.capture(ram,143).sprites.empty()); // stale anchors
+  tracker.particle_allocate(ram,0); // failed allocation cannot mint ownership
+  w8(0x801b00a5U,0x80); // a freed slot is never captured
+  tracker.particle_sprite(ram,0x80180004U,0x801b0078U,0x801c0000U,144);
+  require(tracker.capture(ram,144).sprites.empty());
+  w8(0x801b00a5U,2);
+  tracker.particle_sprite(ram,0x80180004U,0x801b0078U,0x801c0000U,144);
+  require(tracker.capture(ram,144).sprites.size()==1);
+  tracker.particles_clear();
+  require(tracker.capture(ram,144).sprites.empty());
+  tracker.particle_allocate(ram,0x801b0078U);
+  tracker.particle_sprite(ram,0x80180004U,0x801b0078U,0x801c0000U,144);
+  w32(0x800FB114U,4);
+  require(tracker.capture(ram,144).sprites.empty());
   return 0;
 }

@@ -1,6 +1,9 @@
 #include "jfg/boot/host_count_clock.hpp"
+#include "jfg/boot/native_frame_recovery.hpp"
 #include <chrono>
 #include <cstdio>
+#include <vector>
+#include <algorithm>
 using jfg::boot::HostCountClock;
 using namespace std::chrono_literals;
 int main() {
@@ -8,6 +11,31 @@ int main() {
   const auto check = [&](bool condition, const char* label) {
     ++checks; if (!condition) { ++failures; std::fprintf(stderr,"FAILED: %s\n",label); }
   };
+  // Replay the supported guest's recovery decision with measured work
+  // intervals. A slow frame must retain its actual delta; only artificial
+  // subsequent holds disappear. Reference policy keeps all 31 holds.
+  const auto recover = [](bool native, const std::vector<unsigned>& work) {
+    std::uint8_t interval = 2, counter = 0;
+    std::vector<unsigned> elapsed;
+    for (unsigned measured : work) {
+      counter = jfg::boot::native_frame_recovery_counter(native,interval,counter);
+      if (interval == 3) {
+        if (measured < 3) { if (++counter > 30) interval = 2; }
+        else counter = 0;
+      } else if (measured >= 3) { interval = 3; counter = 0; }
+      elapsed.push_back((std::max)(measured,unsigned(interval)));
+    }
+    return elapsed;
+  };
+  const std::vector<unsigned> burst{2,3,2,2,5,2,2};
+  check(recover(true,burst)==std::vector<unsigned>({2,3,2,2,5,2,2}),"native recovery keeps real overload and recovers on the next fast frame");
+  check(recover(false,burst)==std::vector<unsigned>({2,3,3,3,5,3,3}),"reference recovery remains sticky");
+  check(recover(true,{3,3,3,4,4})==std::vector<unsigned>({3,3,3,4,4}),"sustained overload is never forced to 30 Hz");
+  for(unsigned interval=1;interval<=6;++interval)
+    for(unsigned counter=0;counter<256;++counter) {
+      check(jfg::boot::native_frame_recovery_counter(false,static_cast<std::uint8_t>(interval),static_cast<std::uint8_t>(counter))==counter,"reference counter unchanged");
+      if(interval!=3)check(jfg::boot::native_frame_recovery_counter(true,static_cast<std::uint8_t>(interval),static_cast<std::uint8_t>(counter))==counter,"other guest intervals unchanged");
+    }
   const auto origin = HostCountClock::Time{}+7h;
   HostCountClock clock;
   check(!clock.sample(origin),"sampling before initialization fails");

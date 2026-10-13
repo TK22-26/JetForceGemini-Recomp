@@ -112,6 +112,51 @@ public:
       else
         ++it;
   }
+  // US particle slots are 0x78 bytes. Allocation/free hooks distinguish
+  // immediate slot reuse even when it occurs between two captured scenes.
+  void particle_retire(std::uint32_t particle) {
+    particle = PresentationGuestView::physical(particle);
+    particles_.erase(particle);
+    for (auto it = particle_sprites_.begin(); it != particle_sprites_.end();)
+      if (it->second.particle == particle)
+        it = particle_sprites_.erase(it);
+      else
+        ++it;
+  }
+  void particles_clear() {
+    particles_.clear();
+    particle_sprites_.clear();
+  }
+  void particle_allocate(std::span<const std::uint8_t> data,
+                         std::uint32_t particle) {
+    const PresentationGuestView ram(data);
+    level(ram.u32(0x800FB114U));
+    particle_retire(particle);
+    if (!ram.valid(particle, 0x78U) || ram.u16(particle + 0x2CU) != 2U)
+      return;
+    if (particles_.size() >= 4096U)
+      particles_clear();
+    particles_[PresentationGuestView::physical(particle)] = ++serial_;
+  }
+  // Only the verified partDraw billboard caller uses this layout. Particle
+  // asset ownership is independent of nearby pickup actors and their assets.
+  void particle_sprite(std::span<const std::uint8_t> data,
+                       std::uint32_t output_pointer, std::uint32_t particle,
+                       std::uint32_t asset, std::uint64_t tick) {
+    const PresentationGuestView ram(data);
+    level(ram.u32(0x800FB114U));
+    const auto address = ram.u32(output_pointer);
+    const auto physical = PresentationGuestView::physical(particle);
+    const auto live = particles_.find(physical);
+    if (live == particles_.end() || !ram.valid(address, 10) ||
+        !ram.valid(particle, 0x78U) || ram.u16(particle + 0x2CU) != 2U ||
+        !asset || ram.u32(particle + 0x4CU) != asset)
+      return;
+    if (particle_sprites_.size() >= 4096U)
+      particle_sprites_.clear();
+    particle_sprites_[PresentationGuestView::physical(address)] =
+        {physical, asset, live->second, tick};
+  }
   // camDoSprite emits one world-space anchor at *a2 for the actor in a3.
   // Record addresses only; capture binds them to the actor's live lifetime.
   void sprite(std::span<const std::uint8_t> data, std::uint32_t output_pointer,
@@ -226,6 +271,20 @@ public:
         ++it;
       }
     }
+    for (auto it = particle_sprites_.begin(); it != particle_sprites_.end();) {
+      const auto &sprite = it->second;
+      const auto particle_live = particles_.find(sprite.particle);
+      if (tick < sprite.tick || tick - sprite.tick > 6U ||
+          particle_live == particles_.end() || particle_live->second != sprite.serial ||
+          ram.u16(sprite.particle + 0x2CU) != 2U ||
+          ram.u32(sprite.particle + 0x4CU) != sprite.asset)
+        it = particle_sprites_.erase(it);
+      else {
+        result.sprites.push_back({it->first, sprite.particle | 0x80000000U,
+                                  sprite.asset, sprite.serial});
+        ++it;
+      }
+    }
     return result;
   }
 
@@ -241,6 +300,12 @@ private:
     std::uint32_t actor, asset, header, models;
     std::uint64_t tick;
   };
+  struct ParticleSprite {
+    std::uint32_t particle, asset;
+    std::uint64_t serial, tick;
+  };
+  std::map<std::uint32_t, std::uint64_t> particles_;
+  std::map<std::uint32_t, ParticleSprite> particle_sprites_;
   std::map<std::uint32_t, Sprite> sprites_;
   std::map<std::uint32_t, Lifetime> actors_;
   std::map<std::uint32_t, Camera> cameras_;
@@ -251,6 +316,7 @@ private:
       actors_.clear();
       cameras_.clear();
       sprites_.clear();
+      particles_clear();
       level_ = current;
     }
   }

@@ -139,3 +139,11 @@ and launcher before reopening it. The existing profile/save hashes are unchanged
 All 14 package files verify, and isolated launcher initialization selects the new
 runtime. Prior preview packages are retained. Delivery does not change the live
 acceptance or full-game limitations above, and no public release was made.
+
+## Owner feedback after visibility delivery (2026-10-13)
+
+The owner confirms that gems and drones now look good. This is live confirmation
+of those corrections, not blanket acceptance of edge culling or all rendering.
+Particles above gems appear to desynchronize from the gems; tracked separately
+in [RENDER-005](pickup-particle-desync.md). Frequent 20-25 SCENES during drone
+combat at 120 OUTPUT remains a critical smoothness issue under [PERF-001](goldwood-combat-slowdown.md).

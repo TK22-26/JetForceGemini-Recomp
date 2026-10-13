@@ -159,3 +159,47 @@ state and focused test checks and are delivered in the local visibility preview.
 Owner live acceptance remains pending. Full-game coverage, authored texture cadence and the existing adaptive
 scene-rate/Unlimited limits remain; see
 [RENDER-004](development/issues/actor-jitter-edge-culling.md).
+
+
+Owner feedback on the visibility preview confirms gems and drones look good,
+but pickup particles desynchronize ([RENDER-005](development/issues/pickup-particle-desync.md))
+and frequent drone-combat 20-25 SCENES at 120 OUTPUT remains critical
+([PERF-001](development/issues/goldwood-combat-slowdown.md)). Both are open.
+
+
+The combat/particle candidate removes the native 31-fast-frame recovery hold and
+tracks billboard particle lifetimes through animated quad sizes. Bounded tests
+and state checks pass; combat remains a partial improvement with genuine host
+costs unresolved, and owner live particle confirmation is pending. See
+[qualification](../evidence/combat-particles.json), [PERF-001](development/issues/goldwood-combat-slowdown.md)
+and [RENDER-005](development/issues/pickup-particle-desync.md). Neither is declared
+a complete full-game resolution.
+
+
+### Performance acceptance remains open
+
+The final combat runs record **8 audio underruns at 120 and 62 at a 360 target**.
+These are observed failures of sustained smooth playback, not passing performance
+acceptance. The earlier recovery runs had zero; the initial old preview had five.
+A separate modern-controls-camera-collision runtime was observed active at
+10:46-10:47 UTC. Earlier overlap was not fully recorded, so its contribution to
+all timing samples is unproven. No owner process was stopped. A controlled
+single-runtime comparison remains necessary before attributing the late audio
+difference to this change or claiming sustained 30/360 performance.
+
+Functional/state/pixel checks pass, while combat remains critical/open and this
+preview is a partial correction. Preserve both successful and failed measurements.
+
+
+## Delivery held for performance verification
+
+The implementation is ready for review, but the desktop shortcut and installed
+visibility preview remain unchanged. Final combat has real drops and 8/62 audio
+underruns at 120/360; late concurrent-runtime load prevents clean attribution.
+The post-pause trace has 988 samples, no repeats/rewinds, and three skipped phase
+steps. Functional/state/pixel verification does not establish smooth performance.
+Do not replace the working preview or call combat fixed until a controlled
+single-runtime comparison resolves this. Both candidate sources and all evidence
+are preserved. The next bounded run should first coordinate exclusive runtime
+testing, compare unchanged/candidate builds on the same copied checkpoint, then
+profile remaining host execution/renderer costs if genuine drops persist.

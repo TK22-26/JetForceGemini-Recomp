@@ -26,6 +26,24 @@ struct PresentationMesh {
     PresentationMatrix matrix{};
     bool eligible = true;
 };
+// Known sprite lifetimes own the transform even when animation changes the
+// local quad dimensions. Retain vertex count and triangle connectivity; unknown
+// meshes still require exact geometry. Texture/local-quad animation itself
+// keeps its authored cadence, while the world anchor follows the shared phase.
+inline void bind_presentation_billboard(PresentationMesh &mesh,
+    const std::array<std::uint64_t, 4> &owner) {
+    const auto coordinate_words = mesh.positions.size() * 3U;
+    if (owner[0] == 0U || owner[3] == 0U ||
+        mesh.key.size() < coordinate_words + 2U ||
+        mesh.key[coordinate_words] != 0xFFFFFFFFU)
+        return;
+    mesh.key.erase(mesh.key.begin(), mesh.key.begin() + coordinate_words);
+    mesh.key.insert(mesh.key.begin(), 0x42494C4CU);
+    for (auto value : owner) {
+        mesh.key.push_back(static_cast<std::uint32_t>(value));
+        mesh.key.push_back(static_cast<std::uint32_t>(value >> 32U));
+    }
+}
 struct PresentationTransform {
     PresentationMatrix previous{};
     bool matched = false;

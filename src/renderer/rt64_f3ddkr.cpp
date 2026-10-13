@@ -1011,14 +1011,8 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             billboard_owners[data.worldIndices[v]] = key;
     }
     for (const auto &[matrix, key] : billboard_owners)
-        if (matrix < meshes.size()) {
-            auto &shape = meshes[matrix].key;
-            shape.insert(shape.begin(), 0x42494C4CU);
-            for (auto value : key) {
-                shape.push_back(static_cast<unsigned>(value));
-                shape.push_back(static_cast<unsigned>(value >> 32U));
-            }
-        }
+        if (matrix < meshes.size())
+            bind_presentation_billboard(meshes[matrix], key);
     auto frame = std::make_shared<PresentationHistoryFrame>(
         context.presentation_history.record(meshes, context.vi_tick, scene));
     context.semantic_vertices.resize(data.worldIndices.size());

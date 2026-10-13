@@ -1,7 +1,7 @@
 # PERF-001: Goldwood combat slows game updates
 
 - **Severity: critical. Status: open; diagnostic candidate partly improves timing.**
-- Reported: 2026-10-11 UTC. Last status cross-reference: 2026-10-12 UTC.
+- Reported: 2026-10-11 UTC. Last status cross-reference: 2026-10-13 UTC.
 - Affected: modern-controls v1.1 local preview with original instruction-clock runtime;
   source capture runtime SHA-256 `de2737396c3f840291de8a9155eaed415f6076beaf4d27200be6505cde11c538`.
 - [Implementation investigation and research](../../features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation).
@@ -230,3 +230,120 @@ The owner approved six additional hours on the same investigation. This does not
 reset counters, disable the production guard or change the installed preview.
 Critical acceptance remains open until residual costs and the listed regressions
 are qualified. Supporting replays alone are not a release claim.
+
+## High-refresh visibility preview combat follow-up (2026-10-13)
+
+The owner frequently sees 20-25 SCENES while fighting Goldwood drones despite
+120 OUTPUT in visibility preview `c9189c1` (runtime SHA-256
+`cb3de8f6593fa2abb0a12e7a2ea7f98ecf23ea817ad247505c1338a39dcd2292`). Drones and gems
+now look good, but this scene-cadence drop destroys the smooth result. Critical
+combat acceptance remains open. This report is in the current elapsed-clock
+high-refresh build, so the original modeled-clock contributor alone cannot
+explain it. Measure host work, renderer waits and the game's 31-update recovery
+rule without forcing simulation speed or hiding drops in the counter.
+
+One owner-approved guarded continuation in the existing high-refresh investigation
+runs within the prior deadline. This does not reopen the PC/audio investigation.
+Current before/after evidence will be recorded here; no new fix is yet claimed.
+
+The normal 120-cap copied-checkpoint combat replay reproduces 19.8-22.1 scenes/s
+through the fight. Diagnostic elapsed-clock samples show repeated genuine fast
+frames while the guest remains in its 31-fast-frame recovery hold. Candidate:
+seed only the native 20-Hz recovery counter to its threshold before viFrameSync;
+the original late-frame test, VI waits and returned elapsed interval stay intact.
+This allows the next genuinely fast update to restore 30 Hz and still preserves
+real overload. Reference instruction-clock execution remains unchanged.
+
+The first CPU-cost wrapper incorrectly combined the diagnostic option with Play,
+which the runtime rejects (exit 3). Its ownership assertion masked that status;
+a repaired wrapper recorded it. The corrected finite native-clock diagnostic
+omits screenshot/memory captures. These failed requests are retained, not passes.
+
+
+The recovery-only ordinary Play replay improves the four measured windows from
+19.8/19.8/22.1/19.6 to 27.4/26.9/23.9/25.2 scenes/s, with zero audio underruns.
+This is a partial improvement, not sustained-30 completion. Source diagnostics
+also observe roughly 4,600-6,000 full CPU/device probes per update because native
+elapsed time is sampled every 128 ordinary guest instructions. A controlled
+candidate tests a 512-instruction quantum. Per-instruction IO revision, exception,
+interrupt and deadline checks remain; no modeled clock or guest timestep is
+changed. Reference-mode and both sampling-boundary policies need qualification.
+
+
+The clean recovery/particle runtime with the existing 128-instruction quantum
+measures 29.47/29.78/29.83/27.31 scenes/s across the same four windows. The 512
+experiment measures 29.38/23.49/24.78/28.01; it does not establish a benefit and
+is rejected. Host-load/route variability limits attribution. Restore 128 for
+delivery; retain the boundary tests and failed-hypothesis evidence. Do not claim
+that reducing clock polling fixed combat. Real overload and full-game live
+acceptance remain open, even though removing the sticky recovery helps.
+
+
+## Retained correction and final qualification (2026-10-13 UTC)
+
+Native elapsed play now primes only the 20-Hz recovery counter before the
+supported US viFrameSync function. The original function still measures queued
+VIs, rejects late work, waits for its deadline and returns real elapsed time.
+The 31-consecutive-fast-frame hold was a demonstrated contributor to prolonged
+20-Hz episodes. This does not force 30 Hz or accelerate the simulation clock.
+The original instruction-clock reference path is unchanged. Genuine overload
+remains visible. The 512-instruction sampling experiment was rejected; 128 stays.
+
+Final runtime `14746717614559b93fa535f9caf0a02fce50f23d2df3ab23aa6e9302607f30aa`. Ordinary muted Play at Custom 120/VSync:
+
+| VI window | Before SCENES/s | Final SCENES/s | Final OUTPUT/s |
+|---|---:|---:|---:|
+| 4000-4500 | 19.83 | 26.79 | 117.92 |
+| 4500-4800 | 19.79 | 25.18 | 117.32 |
+| 4800-5400 | 22.14 | 23.98 | 112.34 |
+| 5400-5800 | 19.62 | 24.33 | 111.61 |
+
+These bounded copied-checkpoint results are not a sustained-30 guarantee or
+full-combat acceptance. Different native timings can affect an open-loop fight,
+and host-load variation was significant. Nine focused C++ suites pass. Final
+Original guest/renderer/save state matches exactly, native timing begins after
+an identical reference prefix, and a deliberate 250-ms overload remains visible.
+Pause/resume is qualified. Normal final audio underruns (120/360): 8/62.
+
+The first recovery test build stopped on narrowing warnings; explicit bounded
+casts corrected the test. A particle build stopped on local shadowing and was
+corrected. A restored-source executable hash assertion also stopped a request;
+no binary identity was assumed afterwards: all final replays identify the actual
+rebuilt artifact. These informative failures remain in the private manifest.
+
+Transferable lesson: distinguish mandatory elapsed-time handling from historical
+console recovery hysteresis. Raising OUTPUT cannot compensate for delayed scene
+production, and dropping polling frequency is not a demonstrated optimization.
+**Status remains critical/open, partial correction qualified; owner live review
+and further genuine host-cost work remain.** No public release.
+See [qualification](../../../evidence/combat-particles.json) and
+[particle issue](pickup-particle-desync.md). Large private evidence stays on D:.
+
+
+### Performance acceptance remains open
+
+The final combat runs record **8 audio underruns at 120 and 62 at a 360 target**.
+These are observed failures of sustained smooth playback, not passing performance
+acceptance. The earlier recovery runs had zero; the initial old preview had five.
+A separate modern-controls-camera-collision runtime was observed active at
+10:46-10:47 UTC. Earlier overlap was not fully recorded, so its contribution to
+all timing samples is unproven. No owner process was stopped. A controlled
+single-runtime comparison remains necessary before attributing the late audio
+difference to this change or claiming sustained 30/360 performance.
+
+Functional/state/pixel checks pass, while combat remains critical/open and this
+preview is a partial correction. Preserve both successful and failed measurements.
+
+
+## Delivery held for performance verification
+
+The implementation is ready for review, but the desktop shortcut and installed
+visibility preview remain unchanged. Final combat has real drops and 8/62 audio
+underruns at 120/360; late concurrent-runtime load prevents clean attribution.
+The post-pause trace has 988 samples, no repeats/rewinds, and three skipped phase
+steps. Functional/state/pixel verification does not establish smooth performance.
+Do not replace the working preview or call combat fixed until a controlled
+single-runtime comparison resolves this. Both candidate sources and all evidence
+are preserved. The next bounded run should first coordinate exclusive runtime
+testing, compare unchanged/candidate builds on the same copied checkpoint, then
+profile remaining host execution/renderer costs if genuine drops persist.
