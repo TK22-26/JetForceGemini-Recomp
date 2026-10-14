@@ -385,3 +385,106 @@ unit adds functions. Its original sources are restored and rebuilt. The revised
 probe places capture code in the host runtime and leaves the generated function
 inventory intact; the audit is retained. Evidence: filtered-register-native-120,
 shadow-limit-probe and shadow-limit-probe-v2. Probe results are diagnostic only.
+
+
+## Oversized secondary-shadow footprint (2026-10-14)
+
+The failed capture retains the projector return address and descriptor on the
+guest stack. They identify Juno's secondary shadow, with a footprint about
+13,059 world units across and stored shadow size about 652.94. Its ten model
+bone positions have X values around 7,340, while Juno's current X is about
+1,938. The source computes the secondary-shadow size from transformed model
+positions. This links excessive receiver collection to an oversized footprint,
+but the first bad matrix/position update has not yet been observed. The trace
+returns from room 16 to room 21 at VI 10720, shortly before the VI 10743 fault.
+A transition-related stale position is a hypothesis, not an established cause.
+
+The zero-size-footprint hypothesis does not explain this capture. An isolated
+clipping fixture demonstrates that degenerate input can admit unrelated
+triangles, but the actual captured quad is enormous, not collapsed. Preserve
+this distinction when interpreting the fixture.
+
+The third private limit probe builds with the normal object-shape audit intact,
+using a host helper and calls from two generated collector bodies. It stops
+before the first append beyond 64 records and does not repair guest state.
+The second attempt failed the host warnings-as-errors check for getenv; all
+attempts restored original files and rebuilt afterward. The third probe's
+first native run did not reproduce an overflow and remained in room 21; it
+did not exercise the failing return transition. Evidence: shadow-footprint-
+stack-evidence, shadow-limit-probe-v3, shadow-clip-degenerate-fixture.
+
+No production fix, crash resolution or desktop delivery follows from these
+findings. The shadow animation cadence issue remains separately open.
+
+
+A separate CPU-context ownership check finds that detached copies used by the
+synthetic overlay loader and menu sound retain the original context's f_odd
+pointer. An isolated fixture using the actual generated context type reproduces
+writes into the caller's odd floating-point registers in both FP modes. Rebasing
+the copied pointer isolates those writes. The guest-thread transport already
+rebases its resumed contexts. This is a concrete aliasing defect; whether a
+loader actually changes a live caller register on the failed route remains
+unobserved, so it is not yet assigned as the shadow overflow's cause. Evidence:
+context-copy-fixture. No guest timing or state repair is implied by the fixture.
+
+
+The detached-context candidate rebases the overlay-loader and menu-sound copies'
+odd-register pointer to their own storage, and restores the caller's host FP
+rounding mode after each helper returns. This fixes the isolated ownership
+fixture; the native crash linkage is still pending. Original/full-route state
+comparisons and native runs must qualify the change before delivery. The first
+fixture build rejected anonymous unions in the imported generated ABI under
+/W4 /WX; a local warning scope around that header preserves warnings-as-errors
+for the fixture itself. The first model-position observer used unsigned guest
+addresses with generated memory macros and faulted in the observer. Its second
+version uses bounds-checked physical RAM reads; that diagnostic fault is not
+an additional production-game failure. Evidence: context-copy-fixture-v2,
+model-position-probe/v2, detached-context-candidate.
+
+
+## Targeted room-return fixture
+
+The backward-crossing fixture reaches room 21, then 16, then 21, with the return
+observed at update 1128. It later stops in the renderer after about 52 seconds:
+triangle source `0x002de860` contains vertex index 101, while only vertices 0-23
+are loaded. The rejected command and triangle bytes agree between final guest
+RAM and the retained submission snapshot. This rules out a difference between
+those two retained copies at those bytes; it does not identify the first writer,
+exclude an earlier lifetime problem or connect this failure to the shadow
+scratch overflow. No model-position diagnostic fired first. This uses an isolated
+navigation-warp fixture and is not evidence of a new failure on the owner's
+unmodified route. Keep renderer validation enabled. Evidence:
+shadow-return-backward and shadow-return-triangle-evidence.
+
+The model-position observer's ordinary 17,000-retrace native run completes
+without capturing a large mismatch or overflow. It is a non-reproduction, not a
+fix. The detached-context candidate preserves exact guest RAM, save and per-update
+instruction counts in the dense recorded combat replay. Full Original and native
+room-return comparisons remain separately qualified by their result artifacts.
+
+
+## Detached CPU-context ownership correction
+
+The copied-context correction passes both the dense recorded combat comparison
+and the 17,000-retrace Original-mode reference: guest RAM, saved data and per-update
+instruction counts match; the full reference also matches the retained renderer
+RAM. This verifies preservation for those inputs, not native timing or stability.
+The isolated ABI fixture covers all sixteen odd registers in both FP modes.
+Only detached execution copies are rebased; same-context snapshots and the
+already-rebased guest-thread transport retain their existing behavior. Host FP
+rounding is restored when the detached guest helper returns.
+
+The native room-return comparison does not establish a stability improvement:
+the predecessor completes 4,801 retraces, while the candidate stops after about
+52 seconds with the existing runlink-address-table validation. Host-timed warp
+requests produce different transition/update timing, so this is not an exact
+before/after failure comparison. A related pre-correction diagnostic already
+failed with invalid limb-triangle bytes. The first corrupting write remains open;
+no renderer or module-address checks have been relaxed, and delivery stays held.
+Evidence: detached-context-full-original, detached-context-dense,
+return-context-before/after, return-context-comparison.
+
+The reconstructed animation fixture produces the same approximately 5,406-unit
+root X displacement from the saved failed RAM without live scheduling. This is
+post-fault state, not a captured pre-call replay. Its input provenance and the
+first contributing value still require tracing. Evidence: animation-snapshot-fixture.

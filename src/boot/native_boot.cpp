@@ -4333,8 +4333,13 @@ bool ensure_guest_overlay_allocation(
   // PI completion and module lifetime state. Preserve the pending call's CPU
   // arguments; the loader uses the current guest stack below its incoming SP.
   recomp_context loader_context = caller_context;
+  // A context copy retains f_odd's host pointer into its source. The detached
+  // loader must own every FPR; otherwise odd-register writes leak to the caller.
+  loader_context.f_odd = loader_context.mips3_float_mode
+      ? &loader_context.f1.u32l : &loader_context.f0.u32h;
   loader_context.r4 = matched_slot;
   loader(state.rdram, &loader_context);
+  set_cop1_cs(caller_context.fcr31);
   state.guest_overlay_loads_in_progress.erase(matched_slot);
   // Resume has a void guest ABI; its published base is the success condition.
   return (resume || static_cast<std::uint32_t>(loader_context.r2) != 0U) &&
@@ -7798,9 +7803,13 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           if(current.ready && current.kind==pending.kind && current.identity==pending.identity &&
              menu_ram.valid(stack-0x600U,0x600U) && menu_ram.u32(0x80001248U)==0x3C0F800FU) {
             if(auto* sound=jfg_generated_lookup_function(static_cast<std::int32_t>(0x80001248U))) {
-              auto sound_context=*context;sound_context.r29=stack-0x40U;
+              auto sound_context=*context;
+              sound_context.f_odd=sound_context.mips3_float_mode
+                  ? &sound_context.f1.u32l : &sound_context.f0.u32h;
+              sound_context.r29=stack-0x40U;
               sound_context.r4=0x16BU;sound_context.r5=0;
               sound(rdram,&sound_context);
+              set_cop1_cs(context->fcr31);
               state.gameplay_trace.event("menu-hover-sound",{state.vi_retraces,static_cast<unsigned>(current.kind),0x16BU});
             }
           }
