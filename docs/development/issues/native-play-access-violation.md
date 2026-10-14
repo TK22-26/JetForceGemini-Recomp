@@ -1,8 +1,8 @@
 # NATIVE-001: Native Play access violation during extended replay
 
-Status: reproduced once in a private candidate; cause and predecessor coverage
-under investigation. Not delivered. Severity: critical stability qualification
-blocker for this candidate.
+Status: intermittent failures reproduced in private native candidates; a corrupted
+guest pointer byte is confirmed, but its writer/cause remains unqualified.
+Not delivered. Severity: critical stability qualification blocker.
 
 A muted hidden 120-FPS/VSync native Play replay from the preserved tutorial
 profile stopped after approximately 200 seconds, before its 17,000-retrace
@@ -66,3 +66,71 @@ using printf introduced CRT inline-wrapper COMDAT exports. Replacing that call
 with bounded eight-digit formatting and existing stream primitives preserves the
 audited bridge inventory. No audit bypass or inventory relaxation is used, and
 no game was launched from the failed build. Failed logs are retained.
+
+The captured level-model word at 0x800f5b0c is 0x1f265a10, versus 0x80265a10
+in the clean candidate and delivered-preview runs. The failing host address is
+the generated mapping of that invalid guest pointer; 0x9f265a10 was the host
+mapping offset, not the stored guest value. The leading guest byte changed.
+The pinned decomp identifies the failing function as shadow geometry work
+(src/shadows.c, func_8001FD20), correcting the initial animation attribution.
+
+A temporary opt-in model-word observer samples at existing full CPU boundaries,
+retains 64 recent PCs and fails closed with RAM capture at the first valid-to-
+invalid transition. It is diagnostic-only, requires explicit private RAM capture,
+and never repairs the pointer or changes ordinary guest execution. Its timing
+runs are causal diagnostics, not FPS qualification.
+
+The observer's initial build stopped on shadowed-local and deprecated getenv
+warnings; using the existing Windows environment-reading convention with unique
+locals resolves them. No game ran from that failed build.
+
+The first model observer run actually completes 17,012 retraces without a
+pointer change or audio underrun, but its initial informational line breaks
+the parent's strict canonical-child-output parser. Both child stdout and stderr
+share that private protocol handle, so moving text to stderr alone was not
+sufficient. This is a diagnostic protocol failure, not another game crash.
+Fault details now go to an explicit .fault.txt companion beside the requested
+private RAM file; ordinary successful observation emits no protocol text.
+The prior run and rejection are preserved and are not counted as clean wrapper
+qualification. The game itself reported a normal window-close exit.
+
+A private hardware-watch fixture passes on twelve owned threads: three watched
+writes (including a single-byte corrupting write) are observed, reads/unrelated
+writes do not trigger, and restoring the debug context disarms the watch.
+An optional "hardware" mode now arms one unused write-watch slot in each guest
+execution thread at the existing observer boundary. A corrupting write records
+the exact host instruction/stack, CPU context and RAM, then fails closed.
+The software observer remains to detect writes by other threads. No external
+process is attached, no occupied debugger slot is overwritten, and ordinary Play
+does not install an exception observer. This diagnostic is not a gameplay fix.
+Evidence: hardware-word-watch-fixture/result.json and its compiled fixture.
+
+The first in-game hardware diagnostic stops at its own debug-register admission
+check near VI 2000, before observing a corrupting write. It is not another game
+crash. The asynchronous handler's armed flag is made volatile and a bounded
+per-thread setup receipt records the supplied debug-register context to explain
+any repeated refusal. Occupied debug registers still fail closed.
+
+The setup receipt identifies the hardware-diagnostic rejection: RaiseException
+provides ContextFlags 0x10004f, which excludes valid debug-register contents.
+A second thread's apparent Dr7 is uninitialized text-shaped data, not evidence
+that a real debugger occupied the slot. Volatile alone does not address that.
+
+A second isolated fixture passes twelve arm/write/disarm sequences using the
+documented suspended-thread API. An owned helper now briefly suspends only its
+requesting guest thread, gets valid debug registers, configures an unused slot,
+and resumes before any allocation/logging. The requester joins the helper and
+continues; errors fail closed and existing debug slots remain protected.
+The exception observer only handles actual owned data-watch traps. This replaces
+the unqualified RaiseException setup, not the game's scheduling or memory rules.
+Reference: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadcontext .
+
+## Corrected diagnostic qualification
+
+Private run suspended-model-120-0 ends with code 0; normal performance footer: True. No invalid watched pointer is observed in this run. Setup receipts verify the owned thread watch configuration.
+
+Private run suspended-model-120-1 ends with code 3; normal performance footer: False. No invalid watched pointer is observed in this run. Setup receipts verify the owned thread watch configuration.
+
+The second run stops at the original OS exception-handler jump table (guest PC 0x80075290, table 0x800aef50). It does not trigger the model-pointer watch first. Its truncated CSV also exposes a fixture parser TypeError before the normal result receipt; recovered-result.json retains the raw failure without claiming clean performance qualification. A switch-trap snapshot is still needed to distinguish malformed target/table from scheduler context corruption.
+
+The installed 1b0bdd0f preview also completes one 17,000-retrace native comparison. This is one clean baseline run, not proof that intermittent failures are absent. No desktop shortcut/profile or released package is changed. Evidence: suspended-model-review.json and delivered-extended-120.

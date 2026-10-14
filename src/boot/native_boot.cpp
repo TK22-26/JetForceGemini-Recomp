@@ -1675,6 +1675,14 @@ struct State : JfgOriginalTimingFast {
   std::string frame_capture_path;
   std::string rdram_capture_path;
   const recomp_context* private_fault_cpu = nullptr; // Explicit RAM-capture sessions only.
+  bool private_model_pointer_watch = false;
+  bool private_model_hardware_watch = false;
+  bool private_model_write_trap = false;
+
+  std::uint32_t private_model_pointer = 0U;
+  std::array<std::uint32_t,64> private_model_probe_pcs{};
+  std::uint64_t private_model_probe_position = 0U;
+
   std::string progress_path;
   std::string input_record_path;
   std::string retrace_hash_path;
@@ -5211,6 +5219,75 @@ void ledger(State &state, std::string_view category, std::string_view operation,
 }
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception);
+thread_local volatile bool private_model_watch_armed = false;
+thread_local std::uint32_t private_model_watch_previous = 0U;
+bool arm_private_model_write_watch(State& state) {
+  const DWORD requesting_thread=GetCurrentThreadId();
+  const auto watched_address=reinterpret_cast<DWORD64>(state.rdram+0xf5b0cU);
+  bool configured=false;
+  DWORD watch_error=0U;
+  DWORD64 original_dr0=0U,original_dr7=0U;
+  std::thread private_watch_helper([&] {
+    HANDLE requesting_handle=OpenThread(
+        THREAD_SUSPEND_RESUME|THREAD_GET_CONTEXT|THREAD_SET_CONTEXT,FALSE,requesting_thread);
+    if (requesting_handle==nullptr) { watch_error=GetLastError();return; }
+    CONTEXT debug_context{};
+    debug_context.ContextFlags=CONTEXT_DEBUG_REGISTERS;
+    if (SuspendThread(requesting_handle)!=DWORD(-1)) {
+      if (GetThreadContext(requesting_handle,&debug_context)) {
+        original_dr0=debug_context.Dr0;original_dr7=debug_context.Dr7;
+        if ((debug_context.Dr7&3U)==0U) {
+          debug_context.Dr0=watched_address;debug_context.Dr6=0U;
+          debug_context.Dr7=(debug_context.Dr7&~DWORD64{0xf0003U})|0xd0001U;
+          configured=SetThreadContext(requesting_handle,&debug_context)!=FALSE;
+          if (!configured) watch_error=GetLastError();
+        } else watch_error=ERROR_BUSY;
+      } else watch_error=GetLastError();
+      // Do not perform allocation, logging, or other host work while this
+      // requesting thread is suspended. Only the kernel context operations run.
+      if (ResumeThread(requesting_handle)==DWORD(-1)) std::_Exit(4);
+    } else watch_error=GetLastError();
+    CloseHandle(requesting_handle);
+  });
+  private_watch_helper.join();
+  FILE* private_watch_setup_log=nullptr;
+  (void)fopen_s(&private_watch_setup_log,(state.rdram_capture_path+".watch-setup.txt").c_str(),"ab");
+  if (private_watch_setup_log!=nullptr) {
+    std::fprintf(private_watch_setup_log,
+        "thread=%lu original_dr0=%llx original_dr7=%llx configured=%u error=%lu watched=%llx\n",
+        requesting_thread,original_dr0,original_dr7,configured?1U:0U,watch_error,watched_address);
+    std::fclose(private_watch_setup_log);
+  }
+  if (configured) {
+    std::memcpy(&private_model_watch_previous,state.rdram+0xf5b0cU,4U);
+    private_model_watch_armed=true;
+  }
+  return configured;
+}
+LONG CALLBACK private_model_write_observer(EXCEPTION_POINTERS* exception) {
+  auto* const state=g_active_child_state;
+  if (state==nullptr || !state->private_model_hardware_watch ||
+      exception==nullptr || exception->ExceptionRecord==nullptr ||
+      exception->ContextRecord==nullptr) return EXCEPTION_CONTINUE_SEARCH;
+  auto& host=*exception->ContextRecord;
+  const auto code=exception->ExceptionRecord->ExceptionCode;
+  const auto watched=reinterpret_cast<DWORD64>(state->rdram+0xf5b0cU);
+  if (code!=EXCEPTION_SINGLE_STEP || !private_model_watch_armed ||
+      (host.Dr6&1U)==0U || host.Dr0!=watched) return EXCEPTION_CONTINUE_SEARCH;
+  std::uint32_t current=0U;
+  std::memcpy(&current,state->rdram+0xf5b0cU,4U);
+  const auto previous=private_model_watch_previous;
+  private_model_watch_previous=current;
+  host.ContextFlags|=CONTEXT_DEBUG_REGISTERS;host.Dr6&=~DWORD64{1};
+  if (previous>=0x80000000U && previous<0x80400000U &&
+      current!=0U && (current<0x80000000U || current>=0x80400000U)) {
+    state->private_model_pointer=previous;
+    state->private_model_write_trap=true;
+    return child_exception_filter(exception);
+  }
+  return EXCEPTION_CONTINUE_EXECUTION;
+}
 LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
   jfg::support_crash(exception);
   State *const state = g_active_child_state;
@@ -5231,6 +5308,18 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
     // native-fault context. Ordinary Play neither captures RAM nor logs host
     // addresses. This observes the failed execution; it never resumes it.
     if (!state->rdram_capture_path.empty()) {
+      FILE* private_fault_capture_stream = nullptr;
+      (void)fopen_s(&private_fault_capture_stream,
+                   (state->rdram_capture_path+".fault.txt").c_str(),"wb");
+      FILE* const private_fault_output = private_fault_capture_stream != nullptr
+                                            ? private_fault_capture_stream : stderr;
+
+      if (state->private_model_write_trap) {
+        std::uint32_t after=0U;
+        std::memcpy(&after,state->rdram+0xf5b0cU,4U);
+        std::fprintf(private_fault_output,"private-model-hardware old=%08x new=%08x\n",
+                     state->private_model_pointer,after);
+      }
       hle::GuestMemory memory({state->rdram, kRdramSize},
                              hle::GuestMemory::Layout::native_word_big_endian);
       std::uint32_t running_thread = 0U;
@@ -5240,7 +5329,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
                                    ? record->ExceptionInformation[0] : 0U;
       const auto access_address = record != nullptr && record->NumberParameters >= 2U
                                       ? record->ExceptionInformation[1] : 0U;
-      std::fprintf(stderr,
+      std::fprintf(private_fault_output,
           "private-native-fault vi=%llu poll=%llu epc=%08x last_pc=%08x last_word=%08x "
           "running_thread=%08x thread_read=%u access_kind=%llu access_address=%llx rdram=%llx\n",
           static_cast<unsigned long long>(state->vi_retraces),
@@ -5253,7 +5342,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
 #if defined(_M_X64) || defined(__x86_64__)
       if (exception != nullptr && exception->ContextRecord != nullptr) {
         const auto& host = *exception->ContextRecord;
-        std::fprintf(stderr,
+        std::fprintf(private_fault_output,
             "private-native-registers rax=%llx rbx=%llx rcx=%llx rdx=%llx rsi=%llx rdi=%llx "
             "rbp=%llx rsp=%llx r8=%llx r9=%llx r10=%llx r11=%llx r12=%llx r13=%llx "
             "r14=%llx r15=%llx rip=%llx\n",
@@ -5268,16 +5357,21 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
             cpu.r8, cpu.r9, cpu.r10, cpu.r11, cpu.r12, cpu.r13, cpu.r14, cpu.r15,
             cpu.r16, cpu.r17, cpu.r18, cpu.r19, cpu.r20, cpu.r21, cpu.r22, cpu.r23,
             cpu.r24, cpu.r25, cpu.r26, cpu.r27, cpu.r28, cpu.r29, cpu.r30, cpu.r31};
-        std::fprintf(stderr, "private-last-observed-cpu status=%08x fcr31=%08x",
+        std::fprintf(private_fault_output, "private-last-observed-cpu status=%08x fcr31=%08x",
                      cpu.status_reg, cpu.fcr31);
         for (std::size_t index=0; index<registers.size(); ++index)
-          std::fprintf(stderr, " r%zu=%016llx", index,
+          std::fprintf(private_fault_output, " r%zu=%016llx", index,
                        static_cast<unsigned long long>(registers[index]));
-        std::fputc('\n', stderr);
+        std::fputc('\n', private_fault_output);
       }
       const bool captured = write_private_rdram_capture(*state);
-      std::fprintf(stderr, "private-native-rdram-captured=%u\n", captured ? 1U : 0U);
-      std::fflush(stderr);
+      std::fprintf(private_fault_output, "private-native-rdram-captured=%u\n", captured ? 1U : 0U);
+      std::fflush(private_fault_output);
+      if (private_fault_capture_stream != nullptr) std::fclose(private_fault_capture_stream);
+    }
+    if (state->private_model_write_trap) {
+      ledger(*state,"private-memory-watch","hardware-model-pointer",state->guest_last_pc);
+      std::_Exit(4);
     }
     if (state->active_bzero_address != 0U) {
       std::array<char, 64U> operation{};
@@ -10177,6 +10271,51 @@ extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned se
     auto& state = *g_active_child_state;
     if (!state.rdram_capture_path.empty())
       state.private_fault_cpu = static_cast<recomp_context*>(context);
+    if (state.private_model_pointer_watch && state.vi_retraces >= 2000U) {
+      if (state.private_model_hardware_watch && !private_model_watch_armed) {
+        if (!arm_private_model_write_watch(state))
+          fail_closed_dispatch(state,"private-memory-watch","debug-register-in-use",pc);
+      }
+
+      std::uint32_t current_model = 0U;
+      std::memcpy(&current_model,state.rdram+0xf5b0cU,sizeof(current_model));
+      const auto previous_model=state.private_model_pointer;
+      if (current_model != previous_model) {
+        if (previous_model >= 0x80000000U && previous_model < 0x80400000U &&
+            current_model != 0U && (current_model < 0x80000000U || current_model >= 0x80400000U)) {
+          FILE* private_model_capture_stream = nullptr;
+          (void)fopen_s(&private_model_capture_stream,
+                       (state.rdram_capture_path+".fault.txt").c_str(),"wb");
+          FILE* const private_model_output = private_model_capture_stream != nullptr
+                                               ? private_model_capture_stream : stderr;
+        std::fprintf(private_model_output,
+            "private-model-change vi=%llu poll=%llu pc=%08x last_pc=%08x word=%08x "
+            "old=%08x new=%08x\n",
+            static_cast<unsigned long long>(state.vi_retraces),
+            static_cast<unsigned long long>(state.controller_samples),
+            pc,state.guest_last_pc,word,previous_model,current_model);
+          const auto count=(std::min)(state.private_model_probe_position,
+                                      std::uint64_t{state.private_model_probe_pcs.size()});
+          for (std::uint64_t distance=count; distance>0U; --distance)
+            std::fprintf(private_model_output,"private-model-pc %08x\n",
+                state.private_model_probe_pcs[(state.private_model_probe_position-distance)%
+                                             state.private_model_probe_pcs.size()]);
+          const auto& cpu=*static_cast<recomp_context*>(context);
+          std::fprintf(private_model_output,
+              "private-model-registers a0=%016llx a1=%016llx a2=%016llx a3=%016llx "
+              "v0=%016llx v1=%016llx t0=%016llx t1=%016llx t2=%016llx t3=%016llx "
+              "s0=%016llx s1=%016llx sp=%016llx ra=%016llx\n",
+              cpu.r4,cpu.r5,cpu.r6,cpu.r7,cpu.r2,cpu.r3,cpu.r8,cpu.r9,cpu.r10,cpu.r11,
+              cpu.r16,cpu.r17,cpu.r29,cpu.r31);
+          std::fflush(private_model_output);
+          if (private_model_capture_stream != nullptr) std::fclose(private_model_capture_stream);
+          fail_closed_dispatch(state,"private-memory-watch","level-model-pointer-corrupt",pc);
+        }
+        state.private_model_pointer=current_model;
+      }
+      state.private_model_probe_pcs[state.private_model_probe_position++%
+                                   state.private_model_probe_pcs.size()]=pc;
+    }
     if (state.diagnostic_cpu_costs) ++state.profile_full_execution_probes;
     const bool measure_native_handler = state.diagnostic_cpu_costs && state.diagnostic_host_clock;
     const auto native_handler_began = measure_native_handler ? std::chrono::steady_clock::now()
@@ -12048,6 +12187,22 @@ int run_child(const char *path, const unsigned retrace_target,
   if (state.mmio_trace) state.mmio_trace->native_elapsed_time = state.diagnostic_host_clock;
   if (state.diagnostic_host_clock_requested && (!state.guest_os_probe || !state.original_os_host_pacing ||
       !state.point_probe_pcs.empty() || state.device_event_stream || state.eret_transfer_stream.is_open())) return 3;
+  char* model_watch_value = nullptr;
+  std::size_t model_watch_size = 0U;
+  if (_dupenv_s(&model_watch_value,&model_watch_size,"JFG_DIAGNOSTIC_MODEL_POINTER_WATCH") != 0)
+    return 3;
+  const bool model_watch_requested = model_watch_value != nullptr;
+  const bool model_watch_hardware = model_watch_requested && std::string_view(model_watch_value) == "hardware";
+  const bool model_watch_valid = !model_watch_requested || model_watch_hardware ||
+      std::string_view(model_watch_value) == "1";
+  std::free(model_watch_value);
+  if (!model_watch_valid || (model_watch_requested &&
+      (state.rdram_capture_path.empty() || !state.guest_os_probe))) return 3;
+  state.private_model_pointer_watch = model_watch_requested;
+  state.private_model_hardware_watch = model_watch_hardware;
+  if (model_watch_hardware && AddVectoredExceptionHandler(1U,private_model_write_observer)==nullptr)
+    return 3;
+
   state.execution_fast_profile_ready = !state.diagnostic_host_clock && state.guest_os_probe &&
       state.mmio_trace != nullptr && state.point_probe_pcs.empty() &&
       !state.device_event_stream && !state.eret_transfer_stream.is_open();
