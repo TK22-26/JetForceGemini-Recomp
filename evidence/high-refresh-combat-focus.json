@@ -34,6 +34,34 @@
     "360-slow-run-cost-review.json": {
       "sha256": "98d73376f4f60da98de6036b31bc9983d39e2fc7626de02b2aa62f10505581b4",
       "bytes": 26914
+    },
+    "camera-supplement-replay-review.json": {
+      "sha256": "fc69596de3742e34b720a325ae15b737b2216b172198b59d22fc2d890d3bf201",
+      "bytes": 10977
+    },
+    "camera-operand-review.json": {
+      "sha256": "bbb52f0d9aca3eda22c78eb30feb6a156015f5db08c31e7afd86906aa542fedd",
+      "bytes": 36034
+    },
+    "remaining-camera-motion-review.json": {
+      "sha256": "22eef16f1e0204b71c14e0160cf87350a7f4920f54ac88eccc2a7a965a665c46",
+      "bytes": 6812
+    },
+    "camera-zoom-replay-review.json": {
+      "sha256": "0121468df30ce594f926e5f50411962ff8967e4517389260316aad5bcd815529",
+      "bytes": 10784
+    },
+    "camera-zoom-full-original-review.json": {
+      "sha256": "89688f6612c5d0f469efe9ff275e791c4a0eadf26726f1e7c764c53cb9b7fc53",
+      "bytes": 3966
+    },
+    "transport-timing-review.json": {
+      "sha256": "2a9fe556e8308bc3a6d671f55f9ac9d2c7372604727f6b641c9a3e227c3f94a3",
+      "bytes": 3140
+    },
+    "single-policy-cost-review.json": {
+      "sha256": "aa8921c894a6f46221fab43eb8527eceed6243e109eef8385fa8b826e2687600",
+      "bytes": 21336
     }
   },
   "verified_scope": [
@@ -66,5 +94,37 @@
   "delivery": {
     "changed": false,
     "reason": "Native stability qualification remains open. No shortcut, owner profile or published release change."
+  },
+  "camera_supplement_qualification": {
+    "runtime_sha256": "914cc5d6185d6e2be7e3a9b1b970745c5d03b635859418064773eef9d05d2bbe",
+    "source_parent": "2c2fb8c1a073794a25158b85899fddd9b08c832a",
+    "comparison": {
+      "120": {
+        "gained_vertices": 9378,
+        "gained_scenes": 3,
+        "lost_vertices": 0,
+        "changed_anchors": 0,
+        "held_scenes": 11,
+        "additional_restored_vis": [
+          7733,
+          8560
+        ]
+      },
+      "360": {
+        "gained_vertices": 36463,
+        "gained_scenes": 43,
+        "lost_vertices": 0,
+        "changed_anchors": 0,
+        "held_scenes": 6,
+        "additional_restored_vis": [
+          6540,
+          10273,
+          13179
+        ]
+      }
+    },
+    "original_reference_equal": true,
+    "desktop_delivery": false,
+    "owner_visual_acceptance": false
   }
 }

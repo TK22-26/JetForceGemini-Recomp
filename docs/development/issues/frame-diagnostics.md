@@ -600,3 +600,20 @@ capture; it is not a completed replay. Normal Play and ordinary FPS/input/
 interpolation logging do not use this Count tape and retain their own limits.
 The camera-matching investigation continues with a normal Play capture and
 same-frame baseline matching; the transcript limit is not disabled or raised.
+
+The long-camera replay review initially compared the full `update` telemetry
+row and rejected matching RAM because host audio consumption differed. The
+producer identifies fields 10-13 as host queued/consumed audio bytes and
+under/overrun counters; playback progresses differently during a faster Count
+replay. This is an analysis error, not a demonstrated gameplay regression.
+The corrected review separately compares all guest update fields and every
+common complete `update-work` VI/input/Count/idle/instruction record, plus full
+RAM/save hashes. It records any terminal incomplete-row difference explicitly.
+Original failed reviews and raw telemetry remain preserved on D:.
+
+
+The explicit CPU-cost trace additionally reports `transport-wake-cost`: VI, input
+poll, number of baton receipts, summed publication-to-receipt nanoseconds, and
+cumulative maximum wake nanoseconds. It excludes guest-slice execution and is
+configured before participants exist. Ordinary Play performs no clock sampling
+for this diagnostic. Unit transport checks and exact recorded-state replay pass.

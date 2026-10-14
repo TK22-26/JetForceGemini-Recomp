@@ -7857,6 +7857,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto mmio_start = measure_update && state.mmio_trace ? state.mmio_trace->accesses : 0U;
         const auto graphics_start = measure_update ? state.graphics_submit_microseconds : 0U;
         const auto handoff_start = state.guest_transport ? state.guest_transport->handoffs() : 0U;
+        const auto transport_start = measure_update && state.diagnostic_cpu_costs && state.guest_transport
+            ? state.guest_transport->timing() : BatonExecutor::Timing{};
         FILETIME process_created{}, process_exited{}, kernel_start{}, user_start{};
         ULONG64 process_cycles_start = 0;
         const bool process_costs = measure_update && state.diagnostic_cpu_costs &&
@@ -7889,6 +7891,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
 #endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        const bool observe_camera=state.presentation_identity_enabled && target==0x80040AA4U;
+        const auto camera_output=observe_camera ? static_cast<std::uint32_t>(context->r5) : 0U;
+        const auto camera_matrix=observe_camera ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(camera_output) : 0U;
         const bool observe_rigid = state.presentation_identity_enabled && target == 0x80041CA0U;
         const auto rigid_actor = observe_rigid ? static_cast<std::uint32_t>(context->r6) : 0U;
         const auto rigid_matrix = observe_rigid ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(
@@ -7913,6 +7918,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           auto& cost = state.profile_function_costs[target];
           cost.self_ns += self_ns;cost.inclusive_ns += active_ns;++cost.calls;
         }
+        if (observe_camera && camera_matrix &&
+            jfg::PresentationGuestView({rdram,kRdramSize}).u32(camera_output)==camera_matrix+64U)
+          state.presentation_identities.camera_completed({rdram,kRdramSize},camera_matrix,state.vi_retraces);
         if (observe_rigid)
           state.presentation_identities.rigid({rdram,kRdramSize},rigid_matrix,rigid_actor,state.vi_retraces);
         if (state.presentation_identity_enabled && target == 0x80060EC4U)
@@ -7956,6 +7964,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
                 valid ? (ticks(kernel_end)-ticks(kernel_start))/10U : 0U,
                 valid ? (ticks(user_end)-ticks(user_start))/10U : 0U,
                 valid ? process_cycles_end-process_cycles_start : 0U, valid});
+            if (state.guest_transport) {
+              const auto transport_end = state.guest_transport->timing();
+              state.gameplay_trace.event("transport-wake-cost", {state.vi_retraces, state.controller_samples,
+                  transport_end.wakes - transport_start.wakes,
+                  transport_end.wake_ns - transport_start.wake_ns, transport_end.max_wake_ns});
+            }
             state.gameplay_trace.event("dispatch-prefix-cost", {state.vi_retraces, state.controller_samples,
                 state.profile_dispatch_prefix_ns-dispatch_prefix_ns_start,
                 state.profile_dispatch_prefix_calls-dispatch_prefix_calls_start,
@@ -12434,6 +12448,9 @@ int run_child(const char *path, const unsigned retrace_target,
             if (!state.eret_transfer_probe.emit(row))
               fail_closed_dispatch(state, "eret-transfer-probe", "output-or-boundary", state.guest_last_pc);
           });
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+      state.guest_transport->enable_timing(state.diagnostic_cpu_costs);
+#endif
       try {
         state.guest_transport->run(handoff.transfer_target, context,
             state.play_mode ? UINT64_MAX : 1000000U);

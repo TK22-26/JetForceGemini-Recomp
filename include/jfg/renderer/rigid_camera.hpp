@@ -88,4 +88,25 @@ inline bool stationary_rigid_camera_motion(const RigidPresentationPose& old,
     // A cut of more than two character heights must not drag nearby scenery.
     return distance2<=128.0*128.0;
 }
+// Camera generation/mode and emitted matrix bytes are validated by the caller.
+// The recorded guest zoom changes only the two positive lens scales (up to
+// 1.18% per source frame). Permit a bounded 2% common scale change, while
+// retaining the same view-motion checks and all other projection coefficients.
+inline bool continuous_owned_camera_motion(const RigidPresentationPose& old,
+                                           const RigidPresentationPose& current) {
+    for (unsigned i=0;i<16;++i) {
+        if (!std::isfinite(old.projection[i]) || !std::isfinite(current.projection[i]))
+            return false;
+        if (i!=0U && i!=5U && old.projection[i]!=current.projection[i]) return false;
+    }
+    if (old.projection[0]<=0 || old.projection[5]<=0 ||
+        current.projection[0]<=0 || current.projection[5]<=0) return false;
+    const double x=double(current.projection[0])/old.projection[0];
+    const double y=double(current.projection[5])/old.projection[5];
+    if (x<1.0/1.02 || x>1.02 || y<1.0/1.02 || y>1.02 || std::abs(x-y)>0.00001)
+        return false;
+    auto same_projection=current;
+    same_projection.projection=old.projection;
+    return stationary_rigid_camera_motion(old,same_projection);
+}
 } // namespace jfg

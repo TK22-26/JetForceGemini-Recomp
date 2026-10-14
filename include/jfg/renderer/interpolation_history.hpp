@@ -1,6 +1,7 @@
 #pragma once
 #include "jfg/renderer/rigid_camera.hpp"
 #include <array>
+#include <algorithm>
 #include <charconv>
 #include <cmath>
 #include <cstdint>
@@ -30,6 +31,8 @@ struct PresentationMesh {
     // mesh may follow a proven shared transform, but cannot anchor history.
     bool complete_local_topology = true;
     std::optional<RigidPresentationPose> rigid_pose;
+    std::optional<std::array<std::uint64_t,2>> camera_owner;
+    std::optional<RigidPresentationPose> camera_pose;
 };
 // F3DDKR may reload one numeric transform into several RT64 matrix slots.
 // Equal finite transforms still define one triangle space. Keep incomplete
@@ -88,6 +91,12 @@ struct PresentationHistoryFrame {
     std::uint64_t tick = 0;
     unsigned source_rate = 0;
     bool scene = false;
+    // Populated only by the explicit private matching observer.
+    std::vector<unsigned> debug_reasons;
+    std::vector<PresentationMatrix> debug_previous;
+    std::array<std::uint64_t,6> debug_cameras{};
+    float debug_projection_delta=0.0f;
+    std::vector<std::array<RigidPresentationPose,2>> debug_camera_rejections;
 };
 template<class Previous>
 inline bool continuous_presentation_motion(const Previous& old,
@@ -128,11 +137,15 @@ inline bool continuous_presentation_motion(const Previous& old,
 class PresentationHistory {
 public:
     PresentationHistoryFrame record(const std::vector<PresentationMesh>& meshes,
-                                    std::uint64_t tick, bool scene) {
+                                    std::uint64_t tick, bool scene, bool diagnostic = false) {
         PresentationHistoryFrame result;
         result.scene = scene;
         result.tick = tick;
         result.transforms.resize(meshes.size());
+        if (diagnostic) {
+            result.debug_reasons.resize(meshes.size());
+            result.debug_previous.resize(meshes.size());
+        }
         if (!scene) return result;
         const auto delta = tick > previous_tick_ ? tick - previous_tick_ : 0U;
         // Real scene intervals vary when an update misses a retrace. Use
@@ -153,13 +166,73 @@ public:
         std::map<std::vector<std::uint32_t>, HistoryEndpoint> next;
         for (std::size_t i = 0; i < meshes.size(); ++i) {
             const auto& mesh = meshes[i];
-            if (!mesh.eligible || !mesh.complete_local_topology || mesh.key.empty() || counts[&mesh.key] != 1U) continue;
+            if (!mesh.eligible || !mesh.complete_local_topology || mesh.key.empty() || counts[&mesh.key] != 1U) {
+                if(diagnostic) result.debug_reasons[i] =
+                    (!mesh.eligible?1U:0U) | (mesh.key.empty()?2U:0U) |
+                    ((!mesh.complete_local_topology)?256U:0U) |
+                    ((mesh.eligible && mesh.complete_local_topology && !mesh.key.empty() && counts[&mesh.key]!=1U)?4U:0U);
+                continue;
+            }
             const auto old = previous_.find(mesh.key);
+            if(diagnostic) {
+                if(old==previous_.end()) result.debug_reasons[i]|=8U;
+                else result.debug_previous[i]=old->second.matrix;
+                if(result.source_rate==0U)result.debug_reasons[i]|=16U;
+                else if(old!=previous_.end() && !continuous_presentation_motion(old->second,mesh))
+                    result.debug_reasons[i]|=32U;
+            }
             if (result.source_rate != 0U && old != previous_.end() &&
                 continuous_presentation_motion(old->second, mesh))
                 result.transforms[i] = {old->second.matrix, true};
             next.emplace(mesh.key,HistoryEndpoint{mesh.matrix,mesh.rigid_pose});
         }
+        // Scenery visibility changes can replace every exact geometry key.
+        // A byte-bound camera lifetime provides its own endpoint, independent
+        // of those batches. Validate the shared operands once per owner; all
+        // claims must agree, and actual cuts/projection changes still hold.
+        using CameraKey=std::array<std::uint64_t,2>;
+        std::map<CameraKey,std::optional<HistoryEndpoint>> cameras;
+        const PresentationMatrix identity{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+        for(const auto& mesh:meshes) if(mesh.camera_owner) {
+            bool valid=mesh.eligible && mesh.camera_pose &&
+                mesh.camera_pose->world==identity && (*mesh.camera_owner)[0] && (*mesh.camera_owner)[1];
+            for(const auto& point:mesh.positions)for(float value:point)
+                valid=valid && std::isfinite(value);
+            auto [found,fresh]=cameras.emplace(*mesh.camera_owner,std::nullopt);
+            if(fresh) {
+                if(valid && rigid_pose_matches_matrix(*mesh.camera_pose,mesh.matrix))
+                    found->second=HistoryEndpoint{mesh.matrix,mesh.camera_pose};
+            } else if(!valid || !found->second || found->second->matrix!=mesh.matrix ||
+                      found->second->rigid_pose!=mesh.camera_pose) found->second.reset();
+        }
+        std::map<CameraKey,PresentationMatrix> camera_anchors;
+        for(const auto& [key,current]:cameras) {
+            if(diagnostic)++result.debug_cameras[0];
+            if(!current)continue;
+            if(diagnostic)++result.debug_cameras[1];
+            const auto prior=previous_cameras_.find(key);
+            if(prior==previous_cameras_.end()) {
+                if(diagnostic)++result.debug_cameras[5];
+                continue;
+            }
+            const auto& old_pose=*prior->second.rigid_pose;
+            const auto& new_pose=*current->rigid_pose;
+            const bool motion=continuous_owned_camera_motion(old_pose,new_pose);
+            if(diagnostic) {
+                if(!motion)result.debug_camera_rejections.push_back({old_pose,new_pose});
+                if(motion)++result.debug_cameras[2];
+                else if(old_pose.projection!=new_pose.projection) {
+                    ++result.debug_cameras[3];
+                    for(unsigned component:{0U,5U})if(old_pose.projection[component]!=0.0f)
+                        result.debug_projection_delta=(std::max)(result.debug_projection_delta,
+                            std::abs(new_pose.projection[component]/old_pose.projection[component]-1.0f));
+                } else ++result.debug_cameras[4];
+            }
+            if(result.source_rate && motion)camera_anchors.emplace(key,prior->second.matrix);
+        }
+        previous_cameras_.clear();
+        for(const auto& entry:cameras)if(entry.second)
+            previous_cameras_.emplace(entry.first,*entry.second);
         // A single F3DDKR matrix can feed many vertex batches. Matching or
         // rejecting those batches independently tears their shared edges.
         // One unambiguous shape anchors the whole current matrix; conflicting
@@ -187,11 +260,29 @@ public:
                 cohort.anchored = true;
             }
         }
+        // Supplement an unanchored cohort only. Unusable semantic metadata
+        // cannot invalidate an independently proved geometry anchor. Gather
+        // all camera claims first so disagreement never depends on mesh order.
+        std::map<PresentationMatrix,std::optional<PresentationMatrix>> extra;
+        for(const auto& mesh:meshes) {
+            if(!mesh.camera_owner || mesh.positions.empty() || !finite_matrix(mesh.matrix))continue;
+            const auto& cohort=cohorts.at(mesh.matrix);
+            if(cohort.anchored || cohort.blocked)continue;
+            const auto anchor=camera_anchors.find(*mesh.camera_owner);
+            if(anchor==camera_anchors.end())continue;
+            auto [found,fresh]=extra.emplace(mesh.matrix,anchor->second);
+            if(!fresh && found->second && *found->second!=anchor->second)found->second.reset();
+        }
+        for(const auto& [matrix,anchor]:extra)if(anchor) {
+            auto& cohort=cohorts.at(matrix);
+            cohort.previous=*anchor;cohort.anchored=true;
+        }
         for (std::size_t i = 0; i < meshes.size(); ++i) {
             const auto& mesh = meshes[i];
             if (mesh.positions.empty() || !finite_matrix(mesh.matrix)) continue;
             const auto& cohort = cohorts.at(mesh.matrix);
             result.transforms[i] = {cohort.previous, cohort.anchored && !cohort.blocked};
+            if(diagnostic) result.debug_reasons[i]|=(cohort.blocked?64U:0U)|(!cohort.anchored?128U:0U);
         }
         previous_ = std::move(next);
         previous_tick_ = tick;
@@ -203,6 +294,7 @@ private:
         std::optional<RigidPresentationPose> rigid_pose;
     };
     std::map<std::vector<std::uint32_t>, HistoryEndpoint> previous_;
+    std::map<std::array<std::uint64_t,2>,HistoryEndpoint> previous_cameras_;
     std::uint64_t previous_tick_ = 0;
 };
 } // namespace jfg

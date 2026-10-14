@@ -221,3 +221,68 @@ recorded game state. No memory fault is observed; this validates the diagnostic
 on this route and does not qualify the reported corruption as fixed.
 Evidence: alias-page-replay-review.json, long-clock-replay-review.json,
 alias-page-write-fixture/result.json and recorded-native-clock-receipt.json.
+
+The alias-aware 360-FPS native recording also reaches its explicit 64-million-
+sample limit without a watched memory change, near VI 14231. It retains a
+second complete Count tape on D: (SHA-256
+3f703e333ac72ef00c978ac224f7da7b7a32f2bd5bca056fdbe6098bc9a756af).
+The diagnostic records 26 audio underruns and combat source windows around
+24-26 updates/s despite roughly 350 presentations/s. This is neither clean
+performance qualification nor a corruption remedy; page trapping and recording
+add diagnostic cost. Continue targeted matching analysis from recorded input
+rather than treating repeated non-failing live runs as proof of resolution.
+
+## External observation of the unchanged failing executable
+
+A private Windows debugger helper can observe the exact previously failing
+052e18d5 executable without recompiling it. Admission verifies the owned child
+PID/image and reads its RAM pointer using the matching PDB/PE section map. It
+watches both cached/uncached views of the model-pointer and interrupt-table
+pages, including all eight interrupt-offset words and nine handler targets.
+While single-stepping a protected write, other debuggee threads remain suspended;
+a change saves the pre-write host context and private RAM before diagnostic
+termination. It never repairs a value or attaches to an unrelated process.
+
+The twelve-thread, two-alias controlled fixture passes all 72 writes and 36
+invalid transitions, including byte writes and interrupt-target restoration.
+This qualifies the helper in that fixture, not the game fault. Native observation
+and memory dumps remain on D: under external-memory-observer and
+external-watch-native-120-0. Debugger/protection overhead and concurrent host
+load exclude these runs from performance acceptance. No corruption remedy is
+claimed; the delivered preview is unchanged.
+
+The unchanged 052e18d5 executable completes both bounded 17,000-VI external
+observations without reproducing corruption. The write observer handles 58,519
+protected writes with zero invalid transitions. The exception-only helper passes
+its controlled terminal-exception/minidump-precursor fixture and captures the
+4 MiB fixture RAM, then the game run exits normally. These are negative diagnostic
+observations, not crash fixes or complete owner-route verification.
+
+The exception-only game run records 661 audio underruns and reaches only
+3698 input polls by VI 17005. Thus an equal VI target under a
+slow observer does not imply an equal traversal of the input route. Windows
+notifies an attached debugger before application vectored handlers, so even
+without protected write pages it intercepts the runtime's normal MMIO exceptions.
+The helper also requests thread context on those first-chance events. This is a
+concrete intrusive-observer limitation; do not use these rates as game performance
+or absence of faults as stability proof. Further observation should preserve
+native execution timing more closely, with transient-corruption limitations made
+explicit. The observer's fixed 'pages=4' banner enumerates candidate pages;
+exception-only mode protects none, as its zero watched-write count confirms.
+Reference: https://learn.microsoft.com/en-us/windows/win32/debug/vectored-exception-handling .
+
+
+## Read-only polling and teardown qualification
+
+The unchanged failing executable completed one 17,005-VI run under 5-ms external
+read-only polling, reaching 8,159 controller polls with zero audio underruns.
+No protected pages or debugger attachment were used. The helper then failed its
+final memory read during orderly child teardown; the child itself exited normally.
+This is not a new game crash or a complete observer receipt. Preserve both logs.
+The revised helper allows up to two seconds for process exit after a failed read,
+records that terminal read error, and still fails if the process remains alive.
+Both a held-corruption snapshot and a controlled unmap-before-exit fixture pass.
+Polling can miss transient corruption and cannot identify the writer. A snapshot
+is an observation-time dump, not a faulting-instruction capture. NATIVE-001 remains
+open; the helper change is diagnostic only. Evidence: external-poll-native-120-0
+and external-poll-observer-v2, including its normal-exit fixture.

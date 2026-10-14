@@ -683,3 +683,75 @@ per-update instruction count. The 17,000-VI Original reference also preserves
 all guest/reference-framebuffer hashes and probe counters. Qualification and
 remaining hold details are retained in combat-focus-20261014/shared-matrix-*
 artifacts; this is a bounded verified correction, not an all-jitter resolution.
+
+Long exact-clock captures after the equal-slot fix still include isolated and
+short consecutive scenery-camera holds: 14/6,934 scenes in one 120-FPS route
+and 49/5,902 in a different 360-FPS route. The first report used an incorrect
+room event tag; its unknown-room values are not evidence of room transitions.
+The corrected room report and opt-in per-mesh reasons now distinguish missing
+history, motion rejection, ambiguous shapes and blocked cohorts on those exact
+recordings. No new camera policy is selected from hold counts alone.
+
+## Missing camera anchors in recorded routes
+
+The new exact-clock observer reproduces scenery holds with reason 136: every
+visible batch lacks its former geometry key and the shared camera has no anchor.
+This is new causal evidence distinct from the earlier candidate that added no
+coverage. With equal-slot safety and guest-ordered matrix validation now fixed,
+a candidate binds world-camera endpoints to the captured camera generation and
+mode/index. Emitted bytes and immutable view/projection operands validate the
+binding; geometry changes alone no longer erase it. Contradictory claims, cuts,
+projection changes, invalid coordinates and stale generations remain rejected.
+Validation is shared once per camera owner. Same-input old/new counts and exact
+game-state replay are required; no full-route visual resolution is claimed.
+
+The first camera-identity takeover is rejected: it restores 4,299/33,019 vertex
+samples in the 120/360 recorded routes, but loses 2,806,533/3,800,423 samples
+that the geometry matcher already accepts. All guest RAM/save and common
+instruction records remain exact, demonstrating why state equality is insufficient
+for rendering acceptance. The revised candidate supplies only missing cohort
+anchors and preserves independently validated geometry history. Conflicting
+additional camera claims cannot create an anchor. Camera validation diagnostics
+separate missing endpoints, changing projection and other motion rejection.
+The rejected patch/binaries and comparisons remain on D:.
+
+The supplement-only camera candidate passes both long exact-clock routes with
+zero lost vertices and zero changed existing anchors. It restores 4,299 samples
+in one 120-FPS scene and 33,019 samples in forty 360-FPS scenes. Camera holds
+fall from 14 to 13 and 49 to 9 respectively; these recordings follow different
+routes, so their counts are not an FPS comparison. All guest RAM/save bytes and
+common complete update-work records agree at the same deliberate transcript
+limit. Remaining projection/motion rejections require actual operand review.
+Evidence: camera-supplement-replay-review.json; candidate runtime 95b73d0a.
+No new preview delivery or full-route visual acceptance is claimed.
+
+## Recorded projection and motion rejection
+
+Both full operand captures preserve guest RAM/save and common complete update
+work. Every changed projection alters only its two positive lens scales;
+maximum relative change is 1.174%. A candidate permits at most 2% common scale
+change for explicitly owned cameras, preserving all other projection fields,
+view rotation/translation limits, generation, byte binding and cohort rules.
+Aspect-ratio/depth/reflection changes and larger zoom jumps still reject.
+This narrowly targets five remaining otherwise-safe camera holds in the two
+recordings, not every observed jump. Other holds include actual view jumps up
+to 148 degrees and about 1,276 world units, or scene-generation transitions.
+Their presence does not justify weakening camera-cut protection. Full replay
+qualification is required before selecting the zoom candidate.
+Evidence: camera-operand-review.json and remaining-camera-motion-review.json.
+
+
+## Camera supplement and zoom qualification
+
+Runtime `914cc5d6185d6e2be7e3a9b1b970745c5d03b635859418064773eef9d05d2bbe` passes both complete recorded-clock
+comparisons at their existing explicit limits, preserving all guest RAM/save
+bytes and common complete instruction records. Across the two different routes,
+120 restores 9,378 vertex samples in 3 scenes and 360 restores
+36,463 in 43 scenes. Both lose zero previous matches and change zero existing
+anchors. Remaining camera holds are 11/6; these route-specific counts are not an FPS comparison.
+The bounded zoom rule restores VIs 7733/8560 and 6540/10273/13179 respectively.
+The 17,000-VI Original reference preserves all guest/reference-framebuffer hashes,
+save and probe/instruction results. These qualify the targeted history remedy,
+not full-route physical-display acceptance. The native-stability blocker remains
+open and the desktop package is unchanged. Evidence: camera-zoom-replay-review.json
+and camera-zoom-full-original-review.json; failed takeover evidence is retained.

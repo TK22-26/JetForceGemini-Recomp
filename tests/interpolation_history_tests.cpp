@@ -34,6 +34,42 @@ int main() {
     jfg::PresentationHistory bridge_history;
     bridge_history.record({bridge},200,true);
     require(bridge_history.record({pan},202,true).transforms[0].matched);
+    {
+        auto camera_a=bridge,camera_b=pan;
+        camera_a.rigid_pose.reset();camera_b.rigid_pose.reset();
+        camera_a.camera_owner=camera_b.camera_owner=std::array<std::uint64_t,2>{77,1};
+        camera_a.camera_pose=pose;camera_b.camera_pose=next_pose;camera_b.key={45,46};
+        auto camera_part=camera_b;camera_part.key={51,52};
+        camera_part.complete_local_topology=false;
+        jfg::PresentationHistory direct;direct.record({camera_a},300,true);
+        auto camera_result=direct.record({camera_b,camera_part},302,true);
+        require(camera_result.transforms[0].matched && camera_result.transforms[1].matched);
+        require(camera_result.transforms[0].previous==camera_a.matrix);
+        auto wrong_camera=camera_part;wrong_camera.camera_pose->view[0]=2;
+        jfg::PresentationHistory conflict;conflict.record({camera_a},300,true);
+        camera_result=conflict.record({camera_b,wrong_camera},302,true);
+        require(!camera_result.transforms[0].matched && !camera_result.transforms[1].matched);
+        jfg::PresentationHistory reversed;reversed.record({camera_a},300,true);
+        camera_result=reversed.record({wrong_camera,camera_b},302,true);
+        require(!camera_result.transforms[0].matched && !camera_result.transforms[1].matched);
+        auto camera_cut=camera_b;camera_cut.camera_pose->view[12]=300;camera_cut.matrix[12]=300;
+        jfg::PresentationHistory cut_history;cut_history.record({camera_a},300,true);
+        require(!cut_history.record({camera_cut},302,true).transforms[0].matched);
+        auto new_camera=camera_b;new_camera.camera_owner->at(0)++;
+        jfg::PresentationHistory new_history;new_history.record({camera_a},300,true);
+        require(!new_history.record({new_camera},302,true).transforms[0].matched);
+        auto bad_camera_vertex=camera_b;bad_camera_vertex.positions[0][0]=std::numeric_limits<float>::infinity();
+        jfg::PresentationHistory bad_history;bad_history.record({camera_a},300,true);
+        require(!bad_history.record({bad_camera_vertex},302,true).transforms[0].matched);
+        auto anchored_a=camera_a,anchored_b=camera_a;
+        anchored_a.positions=anchored_b.positions={{{0,0,10}}};
+        anchored_b.camera_pose->projection[0]=2.0f; // Doesn't describe emitted bytes.
+        jfg::PresentationHistory fallback_history;fallback_history.record({anchored_a},300,true);
+        require(fallback_history.record({anchored_b},302,true).transforms[0].matched);
+        jfg::PresentationHistory gap_history;gap_history.record({camera_a},300,true);
+        gap_history.record({},302,true);
+        require(!gap_history.record({camera_b},304,true).transforms[0].matched);
+    }
     auto teleported=next_pose; teleported.view[12]=300;
     require(!jfg::stationary_rigid_camera_motion(pose,teleported));
     auto turn=pose; turn.view[0]=turn.view[10]=0; turn.view[2]=1;turn.view[8]=-1;
@@ -43,6 +79,32 @@ int main() {
     require(!jfg::rigid_pose_matches_matrix(changed_model,pan.matrix));
     auto zoom=next_pose; zoom.projection[0]=2;
     require(!jfg::stationary_rigid_camera_motion(pose,zoom));
+    {
+        auto small_zoom=next_pose;
+        small_zoom.projection[0]*=1.01f;small_zoom.projection[5]*=1.01f;
+        require(!jfg::stationary_rigid_camera_motion(pose,small_zoom));
+        require(jfg::continuous_owned_camera_motion(pose,small_zoom));
+        require(jfg::continuous_owned_camera_motion(small_zoom,pose));
+        auto aspect=small_zoom;aspect.projection[5]=pose.projection[5];
+        require(!jfg::continuous_owned_camera_motion(pose,aspect));
+        auto depth=small_zoom;depth.projection[14]+=0.01f;
+        require(!jfg::continuous_owned_camera_motion(pose,depth));
+        auto abrupt=small_zoom;abrupt.projection[0]=abrupt.projection[5]=1.03f;
+        require(!jfg::continuous_owned_camera_motion(pose,abrupt));
+        auto reflected=small_zoom;reflected.projection[11]*=-1.0f;
+        require(!jfg::continuous_owned_camera_motion(pose,reflected));
+        auto nonfinite=small_zoom;nonfinite.projection[0]=std::numeric_limits<float>::infinity();
+        require(!jfg::continuous_owned_camera_motion(pose,nonfinite));
+        auto moving_cut=small_zoom;moving_cut.view[12]=300;
+        require(!jfg::continuous_owned_camera_motion(pose,moving_cut));
+        auto first=bridge,last=pan;
+        first.rigid_pose.reset();last.rigid_pose.reset();
+        first.camera_owner=last.camera_owner=std::array<std::uint64_t,2>{78,1};
+        first.camera_pose=pose;last.camera_pose=small_zoom;
+        last.matrix[0]*=1.01f;last.matrix[5]*=1.01f;last.key={501};
+        jfg::PresentationHistory zoom_history;zoom_history.record({first},300,true);
+        require(zoom_history.record({last},302,true).transforms[0].matched);
+    }
     auto singular=next_pose;singular.view[0]=0;
     require(!jfg::stationary_rigid_camera_motion(pose,singular));
     auto table_view=next_pose;table_view.view[5]=table_view.view[10]=0.9993437f;

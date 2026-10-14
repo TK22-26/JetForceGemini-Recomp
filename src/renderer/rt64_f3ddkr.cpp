@@ -85,6 +85,7 @@ struct Context {
     PresentationHistory presentation_history;
     PresentationHistory rigid_baseline_history; // Used only by explicit diagnostics.
     PresentationHistory shared_matrix_baseline_history; // Same-input old-policy diagnostic.
+    PresentationHistory camera_shape_baseline_history; // Explicit comparison only.
     SemanticPresentationHistory semantic_history;
     std::shared_ptr<const PresentationSceneIdentity> identities;
     std::array<hlslpp::float4x4,kMatrixCount> model_matrices{}, camera_matrices{};
@@ -1134,8 +1135,54 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         shared_matrix_baseline=context.shared_matrix_baseline_history.record(
             old_policy,context.vi_tick,scene);
     }
+    PresentationHistoryFrame camera_shape_baseline;
+    if(rigid_compare) camera_shape_baseline=context.camera_shape_baseline_history.record(
+        meshes,context.vi_tick,scene);
+    if(context.identities)for(std::size_t m=0;m<meshes.size() && m<data.worldTransformPhysicalAddresses.size();++m) {
+        const PresentationCameraIdentity* owner=nullptr;
+        bool ambiguous=false;
+        for(const auto& camera:context.identities->cameras)
+            if(camera.matrix==data.worldTransformPhysicalAddresses[m] && camera.pose_valid) {
+                if(owner)ambiguous=true;
+                owner=&camera;
+            }
+        if(owner && !ambiguous) {
+            meshes[m].camera_owner=std::array<std::uint64_t,2>{owner->generation,owner->identity};
+            meshes[m].camera_pose=owner->pose;
+        }
+    }
     auto frame = std::make_shared<PresentationHistoryFrame>(
-        context.presentation_history.record(meshes, context.vi_tick, scene));
+        context.presentation_history.record(meshes, context.vi_tick, scene, rigid_compare));
+    if(rigid_compare) {
+        std::size_t gained=0,lost=0,changed=0,owned=0;
+        for(std::size_t m=0;m<meshes.size();++m) {
+            const auto& old=camera_shape_baseline.transforms[m];
+            const auto& current=frame->transforms[m];
+            owned+=meshes[m].camera_owner.has_value();
+            if(current.matched && !old.matched)gained+=meshes[m].positions.size();
+            if(old.matched && !current.matched)lost+=meshes[m].positions.size();
+            if(old.matched && current.matched && old.previous!=current.previous)++changed;
+        }
+        trace_interpolation("camera-identity",context.vi_tick,frame->source_rate,
+            static_cast<unsigned>(changed),static_cast<unsigned>(owned),
+            static_cast<unsigned>(data.worldIndices.size()),0.0f,gained,lost);
+        const auto& camera_debug=frame->debug_cameras;
+        trace_interpolation("camera-history",context.vi_tick,frame->source_rate,
+            static_cast<unsigned>(camera_debug[0]),static_cast<unsigned>(camera_debug[1]),
+            static_cast<unsigned>(camera_debug[2]),frame->debug_projection_delta,
+            camera_debug[3],camera_debug[4]);
+        for(unsigned owner=0;owner<frame->debug_camera_rejections.size();++owner)
+            for(unsigned endpoint=0;endpoint<2;++endpoint)for(unsigned part=0;part<2;++part)
+                for(unsigned row=0;row<4;++row) {
+                    const auto& pose=frame->debug_camera_rejections[owner][endpoint];
+                    const auto& matrix=part?pose.projection:pose.view;
+                    const auto pair=[&](unsigned c) {return
+                        (std::uint64_t(std::bit_cast<std::uint32_t>(matrix[row*4+c]))<<32U)|
+                        std::bit_cast<std::uint32_t>(matrix[row*4+c+1]);};
+                    trace_interpolation("camera-operand",context.vi_tick,owner,
+                        endpoint,part,row,0.0f,pair(0),pair(2));
+                }
+    }
     if(rigid_compare) {
         std::size_t gained=0,lost=0,changed=0;
         for(std::size_t m=0;m<meshes.size();++m) {
@@ -1244,6 +1291,26 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         }
         trace_interpolation("geometry-conflict",context.vi_tick,frame->source_rate,0U,0U,
             static_cast<unsigned>(cross_matrix_triangles),0.0f,equal_matrix_triangles,invalid_camera_vertices);
+        if(rigid_compare && context.vi_tick>=3300U) {
+            static unsigned captured_camera_holds=0;
+            for(std::size_t m=0;m<meshes.size();++m) {
+                if(!cameras.contains(meshes[m].matrix) || frame->transforms[m].matched ||
+                    meshes[m].positions.empty() || captured_camera_holds>=2048U) continue;
+                ++captured_camera_holds;
+                trace_interpolation("camera-hold",context.vi_tick,frame->source_rate,
+                    static_cast<unsigned>(m),frame->debug_reasons[m],
+                    static_cast<unsigned>(meshes[m].positions.size()),0.0f,
+                    meshes[m].key.size(),captured_camera_holds);
+                for(unsigned part=0;part<2;++part) for(unsigned row=0;row<4;++row) {
+                    const auto& matrix=part?meshes[m].matrix:frame->debug_previous[m];
+                    const auto pair=[&](unsigned c) {return
+                        (std::uint64_t(std::bit_cast<std::uint32_t>(matrix[row*4+c]))<<32U)|
+                        std::bit_cast<std::uint32_t>(matrix[row*4+c+1]);};
+                    trace_interpolation("camera-matrix",context.vi_tick,static_cast<unsigned>(m),
+                        part,row,captured_camera_holds,0.0f,pair(0),pair(2));
+                }
+            }
+        }
         trace_interpolation("coverage",context.vi_tick,frame->source_rate,0U,
             static_cast<unsigned>(camera_vertices),static_cast<unsigned>(data.worldIndices.size()),
             0.0f,camera_matched,all_matched);

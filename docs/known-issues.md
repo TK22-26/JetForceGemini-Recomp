@@ -229,3 +229,13 @@ aaae085c7be7d6ce140cde06c683ef19082470ee, selected by both preview/capture deskt
 It supersedes the older route-review package. Saves and settings are preserved;
 combat drops, exact late-room jitter, shadow cadence and Unlimited starvation
 remain open. See [current delivery evidence](../evidence/high-refresh-route-fix.json).
+
+
+The 2026-10-14 camera supplement now binds missing scenery-history anchors to
+verified camera lifetimes and admits small common lens-scale changes. Two long
+recorded routes gain matches with no lost/changed existing anchors; the full
+Original reference retains identical state and framebuffer results. This is a
+source candidate only. [RENDER-006](development/issues/tutorial-late-object-jitter.md)
+records the limits; native stability, combat drops, shadow cadence, Unlimited
+pacing and owner-visible full-route acceptance remain open. Desktop delivery is
+withheld under NATIVE-001.

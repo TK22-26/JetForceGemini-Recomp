@@ -1408,3 +1408,25 @@ A static 32-versus-16-instruction span model reduces span count by only about
 about 5.7 guest instructions per span commit. No 32-span runtime is selected
 or benchmarked; the established 16-instruction bound and 128-instruction polling
 quantum remain unchanged. Evidence: span-length-potential.json.
+
+## Measuring host-thread transport separately
+
+Function self time includes scheduling latency and cannot identify how much CPU
+is spent switching guest stacks. An opt-in CPU-cost diagnostic now measures
+baton publication-to-receipt latency on each side of a transfer; it excludes
+execution of the intervening guest slice. Ordinary transport remains unmeasured.
+Per-update counts/totals and the cumulative maximum accompany the existing
+instruction/handler/graphics counters. This is observation only: the scheduler,
+context-transfer rules, thread implementation and game timing are unchanged.
+A transport optimization requires measured cost and exact-state qualification.
+
+
+The measured baton wake totals are approximately 0.31-0.39 ms median per update
+in four dense-route windows, about 1% of active update wall time. The larger
+__osEnqueueAndYield self-time label includes other work and is not evidence that
+thread switching causes the combat deficit. No scheduler replacement is selected.
+A second same-clock capture disables the extra comparison histories and actor
+trace while keeping cost counters; its RAM/save/instruction equality passes.
+This separates ordinary history work from expensive diagnostic comparison passes.
+These instrumented captures are cost observations, not uncontended FPS acceptance.
+Evidence: transport-timing-review.json and single-policy-cost-review.json.

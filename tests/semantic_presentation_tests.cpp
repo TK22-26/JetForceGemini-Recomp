@@ -148,6 +148,21 @@ int main() {
   w8(0x801000A0U, 0);
   w32(0x800F2CA8U, 257);
   require(tracker.capture(ram, 114).models.empty());
+  // Camera snapshots must retain captured operands and reject buffer reuse.
+  w32(0x800F2CA8U,1);w32(0x80180000U,0x80190000U);
+  tracker.camera(ram,0x80180000U,114);
+  for(unsigned i=0;i<16;++i) {
+    w32(0x800FAF78U+i*4U,0x3f800000U);w32(0x800FAA70U+i*4U,0x40000000U);
+    w32(0x80190000U+i*4U,i+17U);
+  }
+  tracker.camera_completed(ram,0x80190000U,114);
+  const auto captured_camera=tracker.capture(ram,114);
+  require(captured_camera.cameras.size()==1 && captured_camera.cameras[0].pose_valid);
+  require(captured_camera.cameras[0].generation!=0);
+  w32(0x800FAF78U,0x40800000U);
+  require(tracker.capture(ram,115).cameras[0].pose.view[0]==1.0f);
+  w32(0x80190004U,999U);
+  require(!tracker.capture(ram,115).cameras[0].pose_valid);
   // Byte-swapped access must remain bounded even for a partial final word.
   const std::array<std::uint8_t, 5> truncated{0, 1, 2, 3, 4};
   const jfg::PresentationGuestView short_ram(truncated);

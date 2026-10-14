@@ -665,3 +665,13 @@ all guest RAM, save data and 7,837 update records through its explicit capture
 limit. This is reproducibility/observer validation, not a crash remedy or an
 FPS guarantee. See [the native issue](../development/issues/native-play-access-violation.md).
 The installed desktop preview is unchanged.
+
+
+The 2026-10-14 camera supplement now binds missing scenery-history anchors to
+verified camera lifetimes and admits small common lens-scale changes. Two long
+recorded routes gain matches with no lost/changed existing anchors; the full
+Original reference retains identical state and framebuffer results. This is a
+source candidate only. [RENDER-006](../development/issues/tutorial-late-object-jitter.md)
+records the limits; native stability, combat drops, shadow cadence, Unlimited
+pacing and owner-visible full-route acceptance remain open. Desktop delivery is
+withheld under NATIVE-001.

@@ -20,6 +20,9 @@ struct PresentationModelIdentity {
 struct PresentationCameraIdentity {
   std::uint32_t matrix = 0;
   std::uint64_t identity = 0;
+  std::uint64_t generation = 0;
+  RigidPresentationPose pose;
+  bool pose_valid = false;
 };
 struct PresentationSpriteIdentity {
   std::uint32_t anchor = 0, actor = 0, sprite = 0;
@@ -274,6 +277,23 @@ public:
     cameras_[PresentationGuestView::physical(address)] = {
         (std::uint64_t(mode) << 32U) | (number + 1U), tick};
   }
+  // Capture camera operands after camSetProjMtx emits the fixed matrix, before
+  // another object reuses the guest scratch matrices. Bind to exact bytes.
+  void camera_completed(std::span<const std::uint8_t> data,
+                        std::uint32_t matrix, std::uint64_t tick) {
+    const PresentationGuestView ram(data);
+    const auto found=cameras_.find(PresentationGuestView::physical(matrix));
+    if (found==cameras_.end() || !ram.valid(matrix,64U) || (matrix&3U)) return;
+    auto& camera=found->second;
+    camera.tick=tick;
+    camera.pose.world={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+    for (unsigned i=0;i<16;++i) {
+      camera.words[i]=ram.u32(matrix+i*4U);
+      camera.pose.view[i]=std::bit_cast<float>(ram.u32(0x800FAF78U+i*4U));
+      camera.pose.projection[i]=std::bit_cast<float>(ram.u32(0x800FAA70U+i*4U));
+    }
+    camera.pose_valid=true;
+  }
   PresentationSceneIdentity capture(std::span<const std::uint8_t> data,
                                     std::uint64_t tick) {
     const PresentationGuestView ram(data);
@@ -283,7 +303,11 @@ public:
       if (tick < it->second.tick || tick - it->second.tick > 6U)
         it = cameras_.erase(it);
       else {
-        result.cameras.push_back({it->first, it->second.identity});
+        bool unchanged=it->second.pose_valid;
+        for(unsigned i=0;i<16 && unchanged;++i)
+          unchanged=ram.u32(it->first+i*4U)==it->second.words[i];
+        result.cameras.push_back({it->first,it->second.identity,camera_generation_,
+                                  it->second.pose,unchanged});
         ++it;
       }
     }
@@ -409,6 +433,9 @@ private:
   };
   struct Camera {
     std::uint64_t identity, tick;
+    std::array<std::uint32_t,16> words{};
+    RigidPresentationPose pose;
+    bool pose_valid=false;
   };
   struct Sprite {
     std::uint32_t actor, asset, header, models;
@@ -432,6 +459,7 @@ private:
   std::map<std::uint32_t, Camera> cameras_;
   std::uint64_t serial_ = 0;
   std::uint32_t level_ = UINT32_MAX;
+  std::uint64_t camera_generation_=0;
   void level(std::uint32_t current) {
     if (current != level_) {
       actors_.clear();
@@ -440,6 +468,7 @@ private:
       sprites_.clear();
       particles_clear();
       level_ = current;
+      camera_generation_=++serial_;
     }
   }
 };
