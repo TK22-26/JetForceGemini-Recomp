@@ -46,5 +46,29 @@ int main(){
  }
  {std::stringstream output;CountSampleTape t;check(t.record(output),"prefix recording header");
   check(t.sample(1,4,0,0,100)==100&&!t.release_prefix(100)&&t.finish(),"recording prefix released");}
+
+ {
+  CountSampleTape bounded;std::stringstream output;
+  check(!bounded.set_sample_limit(0)&&!bounded.set_sample_limit(64000001U),"invalid sample limits accepted");
+  check(bounded.set_sample_limit(64000000U)&&bounded.set_sample_limit(2),"bounded configuration refused");
+  check(bounded.record(output)&&!bounded.set_sample_limit(3),"active record budget changed");
+  check(bounded.sample(1,4,0,0,100)==100&&bounded.sample(2,8,0,0,101)==101,"bounded record lost samples");
+  check(bounded.samples()==2&&bounded.limit_reached(),"limit accounting mismatch");
+  check(!bounded.sample(3,12,0,0,102)&&bounded.samples()==2&&!bounded.finish(),"exhausted recording passed");
+  check(!bounded.set_sample_limit(4),"exhausted tape reset");
+ }
+ {
+  CountSampleTape bounded;std::stringstream input(bytes);
+  check(bounded.set_sample_limit(2)&&bounded.replay(input),"bounded replay setup");
+  check(!bounded.set_sample_limit(3),"active replay budget changed");
+  for(unsigned i=0;i<2;++i)check(bounded.sample(1000+i,0x80010000U+4*i,0x24210001U,i%2?5000+i:0,std::nullopt)==5000+i,"bounded replay mismatch");
+  check(!bounded.sample(1002,0x80010008U,0x24210001U,0,std::nullopt)&&bounded.samples()==2&&bounded.limit_reached()&&!bounded.finish(),"exhausted replay passed");
+ }
+ {
+  CountSampleTape exact;std::stringstream output;
+  check(exact.set_sample_limit(1)&&exact.record(output),"exact limit setup");
+  check(exact.sample(1,4,0,0,100)==100&&exact.finish(),"exactly sized recording rejected");
+  check(!exact.set_sample_limit(2),"finished tape budget changed");
+ }
  std::cout<<checks<<" Count sample transcript contracts passed\n";
 }

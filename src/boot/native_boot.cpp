@@ -105,6 +105,7 @@
 #include <cfenv>
 #include <cstdint>
 #include <cstdio>
+#include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <deque>
@@ -1677,7 +1678,11 @@ struct State : JfgOriginalTimingFast {
   const recomp_context* private_fault_cpu = nullptr; // Explicit RAM-capture sessions only.
   bool private_model_pointer_watch = false;
   bool private_model_hardware_watch = false;
+  bool private_model_page_watch = false;
+  bool private_model_pages_ready = false;
+  std::uintptr_t private_memory_writer_pc = 0U;
   bool private_model_write_trap = false;
+  std::uint32_t private_model_write_offset = 0xf5b0cU;
 
   std::uint32_t private_model_pointer = 0U;
   std::array<std::uint32_t,64> private_model_probe_pcs{};
@@ -4060,6 +4065,8 @@ void write_private_progress(State &state,
   // per-frame hot path used by the renderer diagnostics.
   if (state.input_record.is_open())
     state.input_record.flush();
+  if (state.native_clock_sample_output.is_open())
+    state.native_clock_sample_output.flush();
   if (state.timing_trace.is_open())
     state.timing_trace.flush();
   state.gameplay_trace.flush();
@@ -5220,8 +5227,119 @@ void ledger(State &state, std::string_view category, std::string_view operation,
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
 LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception);
+
+// Explicit private diagnostics only: abort otherwise bypasses the unhandled
+// exception filter and loses the guest state at a fail-closed switch trap.
+void private_abort_capture(int signal_number) {
+  (void)signal_number;
+  CONTEXT private_abort_context{};
+  RtlCaptureContext(&private_abort_context);
+  EXCEPTION_RECORD private_abort_record{};
+  private_abort_record.ExceptionCode=0xe04a4647U;
+  private_abort_record.ExceptionAddress=
+      reinterpret_cast<void*>(private_abort_context.Rip);
+  EXCEPTION_POINTERS private_abort_pointers{&private_abort_record,&private_abort_context};
+  (void)child_exception_filter(&private_abort_pointers);
+}
+
+constexpr std::array<std::uint32_t,10> kPrivatePageWatchWords{
+    0xf5b0cU,0xaef50U,0xaef54U,0xaef58U,0xaef5cU,
+    0xaef60U,0xaef64U,0xaef68U,0xaef6cU,0xaef70U};
+struct PrivatePageWriteStep {
+  void* page = nullptr;
+  std::uintptr_t instruction = 0U;
+  std::array<std::uint32_t,10> before{};
+};
+thread_local PrivatePageWriteStep private_page_write_step{};
+bool arm_private_memory_pages(State& state) {
+  const auto base=reinterpret_cast<std::uintptr_t>(state.rdram);
+  constexpr std::array<std::uintptr_t,4> offsets{0xae000U,0xf5000U,0x200ae000U,0x200f5000U};
+  for (const auto offset:offsets) {
+    MEMORY_BASIC_INFORMATION info{};
+    if (VirtualQuery(reinterpret_cast<void*>(base+offset),&info,sizeof(info))==0U ||
+        info.State!=MEM_COMMIT || info.Protect!=PAGE_READWRITE)return false;
+  }
+  std::size_t protected_pages=0U;
+  for (const auto offset:offsets) {
+    DWORD previous=0U;
+    if (!VirtualProtect(reinterpret_cast<void*>(base+offset),4096U,PAGE_READONLY,&previous)) {
+      for (std::size_t restore=0U;restore<protected_pages;++restore)
+        (void)VirtualProtect(reinterpret_cast<void*>(base+offsets[restore]),4096U,PAGE_READWRITE,&previous);
+      return false;
+    }
+    ++protected_pages;
+  }
+  state.private_model_pages_ready=true;
+  FILE* page_watch_receipt=nullptr;
+  (void)fopen_s(&page_watch_receipt,(state.rdram_capture_path+".watch-setup.txt").c_str(),"ab");
+  if (page_watch_receipt!=nullptr) {
+    std::fprintf(page_watch_receipt,"page-watch cached-and-uncached pages=4 words=10 vi=%llu\n",
+                 static_cast<unsigned long long>(state.vi_retraces));
+    std::fclose(page_watch_receipt);
+  }
+  return true;
+}
+LONG CALLBACK private_page_write_observer(EXCEPTION_POINTERS* exception) {
+  auto* const state=g_active_child_state;
+  if (state==nullptr || !state->private_model_page_watch || exception==nullptr ||
+      exception->ExceptionRecord==nullptr || exception->ContextRecord==nullptr)
+    return EXCEPTION_CONTINUE_SEARCH;
+  auto& record=*exception->ExceptionRecord;
+  auto& host=*exception->ContextRecord;
+  auto& pending=private_page_write_step;
+  if (record.ExceptionCode==EXCEPTION_SINGLE_STEP && pending.page!=nullptr) {
+    DWORD previous=0U;
+    if (!VirtualProtect(pending.page,4096U,PAGE_READONLY,&previous))
+      fail_closed_dispatch(*state,"private-memory-watch","page-reprotect",state->guest_last_pc);
+    pending.page=nullptr;
+    host.EFlags&=~0x100U;
+    for (std::size_t watch_index=0U;watch_index<kPrivatePageWatchWords.size();++watch_index) {
+      std::uint32_t current=0U;
+      std::memcpy(&current,state->rdram+kPrivatePageWatchWords[watch_index],4U);
+      const auto before=pending.before[watch_index];
+      const bool invalid=watch_index==0U
+          ? before>=0x80000000U && before<0x80400000U && current!=0U &&
+            (current<0x80000000U || current>=0x80400000U)
+          : current!=before;
+      if (invalid) {
+        state->private_model_pointer=before;
+        state->private_model_write_offset=kPrivatePageWatchWords[watch_index];
+        state->private_memory_writer_pc=pending.instruction;
+        state->private_model_write_trap=true;
+        return child_exception_filter(exception);
+      }
+    }
+    return EXCEPTION_CONTINUE_EXECUTION;
+  }
+  if (record.ExceptionCode!=EXCEPTION_ACCESS_VIOLATION ||
+      record.NumberParameters<2U || record.ExceptionInformation[0]!=1U)
+    return EXCEPTION_CONTINUE_SEARCH;
+  const auto address=record.ExceptionInformation[1];
+  const auto base=reinterpret_cast<std::uintptr_t>(state->rdram);
+  if (address<base)return EXCEPTION_CONTINUE_SEARCH;
+  const auto mapped_offset=address-base;
+  if (!(mapped_offset<kRdramSize ||
+        (mapped_offset>=0x20000000U && mapped_offset<0x20000000U+kRdramSize)))
+    return EXCEPTION_CONTINUE_SEARCH;
+  const auto physical_page=(mapped_offset&0x1fffffffU)&~std::uintptr_t{4095U};
+  if (physical_page!=0xae000U && physical_page!=0xf5000U)
+    return EXCEPTION_CONTINUE_SEARCH;
+  if (pending.page!=nullptr || (host.EFlags&0x100U)!=0U)
+    fail_closed_dispatch(*state,"private-memory-watch","page-step-overlap",state->guest_last_pc);
+  for (std::size_t watch_index=0U;watch_index<kPrivatePageWatchWords.size();++watch_index)
+    std::memcpy(&pending.before[watch_index],state->rdram+kPrivatePageWatchWords[watch_index],4U);
+  pending.page=reinterpret_cast<void*>(address&~std::uintptr_t{4095U});
+  pending.instruction=host.Rip;
+  DWORD previous=0U;
+  if (!VirtualProtect(pending.page,4096U,PAGE_READWRITE,&previous))
+    fail_closed_dispatch(*state,"private-memory-watch","page-write-enable",state->guest_last_pc);
+  host.EFlags|=0x100U;
+  return EXCEPTION_CONTINUE_EXECUTION;
+}
+
 thread_local volatile bool private_model_watch_armed = false;
-thread_local std::uint32_t private_model_watch_previous = 0U;
+constexpr std::array<std::uint32_t,4> kPrivateMemoryWatchOffsets{0xf5b0cU,0xaef50U,0xaef5cU,0xaef70U};
+thread_local std::array<std::uint32_t,4> private_model_watch_previous{};
 bool arm_private_model_write_watch(State& state) {
   const DWORD requesting_thread=GetCurrentThreadId();
   const auto watched_address=reinterpret_cast<DWORD64>(state.rdram+0xf5b0cU);
@@ -5237,9 +5355,13 @@ bool arm_private_model_write_watch(State& state) {
     if (SuspendThread(requesting_handle)!=DWORD(-1)) {
       if (GetThreadContext(requesting_handle,&debug_context)) {
         original_dr0=debug_context.Dr0;original_dr7=debug_context.Dr7;
-        if ((debug_context.Dr7&3U)==0U) {
-          debug_context.Dr0=watched_address;debug_context.Dr6=0U;
-          debug_context.Dr7=(debug_context.Dr7&~DWORD64{0xf0003U})|0xd0001U;
+        if ((debug_context.Dr7&255U)==0U) {
+          debug_context.Dr0=watched_address;
+          debug_context.Dr1=reinterpret_cast<DWORD64>(state.rdram+kPrivateMemoryWatchOffsets[1]);
+          debug_context.Dr2=reinterpret_cast<DWORD64>(state.rdram+kPrivateMemoryWatchOffsets[2]);
+          debug_context.Dr3=reinterpret_cast<DWORD64>(state.rdram+kPrivateMemoryWatchOffsets[3]);
+          debug_context.Dr6=0U;
+          debug_context.Dr7=(debug_context.Dr7&~DWORD64{0xffff00ffU})|0xdddd0055U;
           configured=SetThreadContext(requesting_handle,&debug_context)!=FALSE;
           if (!configured) watch_error=GetLastError();
         } else watch_error=ERROR_BUSY;
@@ -5260,7 +5382,9 @@ bool arm_private_model_write_watch(State& state) {
     std::fclose(private_watch_setup_log);
   }
   if (configured) {
-    std::memcpy(&private_model_watch_previous,state.rdram+0xf5b0cU,4U);
+    for (std::size_t watch_index=0;watch_index<kPrivateMemoryWatchOffsets.size();++watch_index)
+      std::memcpy(&private_model_watch_previous[watch_index],
+                  state.rdram+kPrivateMemoryWatchOffsets[watch_index],4U);
     private_model_watch_armed=true;
   }
   return configured;
@@ -5272,19 +5396,30 @@ LONG CALLBACK private_model_write_observer(EXCEPTION_POINTERS* exception) {
       exception->ContextRecord==nullptr) return EXCEPTION_CONTINUE_SEARCH;
   auto& host=*exception->ContextRecord;
   const auto code=exception->ExceptionRecord->ExceptionCode;
-  const auto watched=reinterpret_cast<DWORD64>(state->rdram+0xf5b0cU);
   if (code!=EXCEPTION_SINGLE_STEP || !private_model_watch_armed ||
-      (host.Dr6&1U)==0U || host.Dr0!=watched) return EXCEPTION_CONTINUE_SEARCH;
-  std::uint32_t current=0U;
-  std::memcpy(&current,state->rdram+0xf5b0cU,4U);
-  const auto previous=private_model_watch_previous;
-  private_model_watch_previous=current;
-  host.ContextFlags|=CONTEXT_DEBUG_REGISTERS;host.Dr6&=~DWORD64{1};
-  if (previous>=0x80000000U && previous<0x80400000U &&
-      current!=0U && (current<0x80000000U || current>=0x80400000U)) {
-    state->private_model_pointer=previous;
-    state->private_model_write_trap=true;
-    return child_exception_filter(exception);
+      (host.Dr6&15U)==0U) return EXCEPTION_CONTINUE_SEARCH;
+  const std::array<DWORD64,4> watched_addresses{host.Dr0,host.Dr1,host.Dr2,host.Dr3};
+  for (std::size_t watch_index=0;watch_index<kPrivateMemoryWatchOffsets.size();++watch_index) {
+    const DWORD64 watch_bit=DWORD64{1}<<watch_index;
+    if ((host.Dr6&watch_bit)==0U)continue;
+    const auto offset=kPrivateMemoryWatchOffsets[watch_index];
+    if (watched_addresses[watch_index]!=reinterpret_cast<DWORD64>(state->rdram+offset))
+      return EXCEPTION_CONTINUE_SEARCH;
+    std::uint32_t current=0U;
+    std::memcpy(&current,state->rdram+offset,4U);
+    const auto previous=private_model_watch_previous[watch_index];
+    private_model_watch_previous[watch_index]=current;
+    host.ContextFlags|=CONTEXT_DEBUG_REGISTERS;host.Dr6&=~watch_bit;
+    const bool invalid=watch_index==0U
+        ? previous>=0x80000000U && previous<0x80400000U &&
+          current!=0U && (current<0x80000000U || current>=0x80400000U)
+        : current!=previous;
+    if (invalid) {
+      state->private_model_pointer=previous;
+      state->private_model_write_offset=offset;
+      state->private_model_write_trap=true;
+      return child_exception_filter(exception);
+    }
   }
   return EXCEPTION_CONTINUE_EXECUTION;
 }
@@ -5292,6 +5427,8 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
   jfg::support_crash(exception);
   State *const state = g_active_child_state;
   if (state != nullptr) {
+    if (state->native_clock_sample_output.is_open())
+      state->native_clock_sample_output.flush();
     const std::uint32_t target =
         state->recent_dispatch_position == 0U
             ? 0U
@@ -5316,9 +5453,11 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
 
       if (state->private_model_write_trap) {
         std::uint32_t after=0U;
-        std::memcpy(&after,state->rdram+0xf5b0cU,4U);
-        std::fprintf(private_fault_output,"private-model-hardware old=%08x new=%08x\n",
-                     state->private_model_pointer,after);
+        std::memcpy(&after,state->rdram+state->private_model_write_offset,4U);
+        std::fprintf(private_fault_output,"private-memory-write method=%s address=%08x old=%08x new=%08x writer_pc=%llx\n",
+                     state->private_model_page_watch ? "pages" : "hardware",
+                     0x80000000U+state->private_model_write_offset,state->private_model_pointer,after,
+                     static_cast<unsigned long long>(state->private_memory_writer_pc));
       }
       hle::GuestMemory memory({state->rdram, kRdramSize},
                              hle::GuestMemory::Layout::native_word_big_endian);
@@ -5406,6 +5545,8 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   if (state.input_record.is_open())
     state.input_record.flush();
+  if (state.native_clock_sample_output.is_open())
+    state.native_clock_sample_output.flush();
   if (state.timing_trace.is_open())
     state.timing_trace.flush();
   state.gameplay_trace.flush();
@@ -10272,6 +10413,9 @@ extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned se
     if (!state.rdram_capture_path.empty())
       state.private_fault_cpu = static_cast<recomp_context*>(context);
     if (state.private_model_pointer_watch && state.vi_retraces >= 2000U) {
+      if (state.private_model_page_watch && !state.private_model_pages_ready &&
+          !arm_private_memory_pages(state))
+        fail_closed_dispatch(state,"private-memory-watch","page-setup",pc);
       if (state.private_model_hardware_watch && !private_model_watch_armed) {
         if (!arm_private_model_write_watch(state))
           fail_closed_dispatch(state,"private-memory-watch","debug-register-in-use",pc);
@@ -10348,7 +10492,7 @@ extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned se
             : state.host_count_clock.sample(now);
         count = state.native_clock_samples.sample(state.observed_guest_instructions,pc,word,0U,count);
         if (!count || *count < state.cpu_count)
-          fail_closed_dispatch(state,"native-clock","non-monotonic-time",pc);
+          fail_closed_dispatch(state,"native-clock",state.native_clock_samples.limit_reached() ? "sample-limit" : "non-monotonic-time",pc);
         state.cpu_count = *count;
         mmio.guest_count = *count;
         state.host_clock_poll_budget = State::kHostClockPollInstructions;
@@ -12159,6 +12303,19 @@ int run_child(const char *path, const unsigned retrace_target,
   };
   if (!clock_path("JFG_DIAGNOSTIC_CLOCK_RECORD",clock_record_path) ||
       !clock_path("JFG_DIAGNOSTIC_CLOCK_REPLAY",clock_replay_path)) return 3;
+  char clock_limit_text[32]{};
+  const auto clock_limit_length=GetEnvironmentVariableA(
+      "JFG_DIAGNOSTIC_CLOCK_SAMPLE_LIMIT",clock_limit_text,32U);
+  if (clock_limit_length!=0U) {
+    if (clock_limit_length>=32U || state.play_mode ||
+        (clock_record_path.empty() && clock_replay_path.empty())) return 3;
+    std::uint64_t clock_sample_limit=0U;
+    const auto parsed_limit=std::from_chars(clock_limit_text,
+        clock_limit_text+clock_limit_length,clock_sample_limit);
+    if (parsed_limit.ec!=std::errc{} ||
+        parsed_limit.ptr!=clock_limit_text+clock_limit_length ||
+        !state.native_clock_samples.set_sample_limit(clock_sample_limit)) return 3;
+  }
   if (!clock_record_path.empty() || !clock_replay_path.empty()) {
     if (state.play_mode || !state.input_replay_loaded || !state.diagnostic_host_clock_requested ||
         state.diagnostic_clock_boundary_vi==0U || state.diagnostic_boundary_stall_ms!=0U ||
@@ -12193,14 +12350,20 @@ int run_child(const char *path, const unsigned retrace_target,
     return 3;
   const bool model_watch_requested = model_watch_value != nullptr;
   const bool model_watch_hardware = model_watch_requested && std::string_view(model_watch_value) == "hardware";
-  const bool model_watch_valid = !model_watch_requested || model_watch_hardware ||
+  const bool model_watch_pages = model_watch_requested && std::string_view(model_watch_value) == "pages";
+  const bool model_watch_valid = !model_watch_requested || model_watch_hardware || model_watch_pages ||
       std::string_view(model_watch_value) == "1";
   std::free(model_watch_value);
   if (!model_watch_valid || (model_watch_requested &&
       (state.rdram_capture_path.empty() || !state.guest_os_probe))) return 3;
+  if (model_watch_requested && std::signal(SIGABRT,private_abort_capture)==SIG_ERR)
+    return 3;
   state.private_model_pointer_watch = model_watch_requested;
   state.private_model_hardware_watch = model_watch_hardware;
-  if (model_watch_hardware && AddVectoredExceptionHandler(1U,private_model_write_observer)==nullptr)
+  state.private_model_page_watch = model_watch_pages;
+  if ((model_watch_hardware || model_watch_pages) &&
+      AddVectoredExceptionHandler(1U,model_watch_pages ? private_page_write_observer
+                                                     : private_model_write_observer)==nullptr)
     return 3;
 
   state.execution_fast_profile_ready = !state.diagnostic_host_clock && state.guest_os_probe &&

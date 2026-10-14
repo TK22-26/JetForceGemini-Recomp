@@ -655,3 +655,13 @@ while [NATIVE-001](../development/issues/native-play-access-violation.md) is
 investigated. No public release or full-route acceptance is claimed.
 [Current evidence](../../evidence/high-refresh-combat-focus.json) records
 identities, private artifact hashes, verified scope and unresolved limits.
+
+### 2026-10-14 extended memory-diagnostic checkpoint
+
+The native stability qualification remains open. The private diagnostic now
+retains abort context and supports bounded clock transcripts plus cached/
+uncached memory-write observation. A 64-million-observation replay preserves
+all guest RAM, save data and 7,837 update records through its explicit capture
+limit. This is reproducibility/observer validation, not a crash remedy or an
+FPS guarantee. See [the native issue](../development/issues/native-play-access-violation.md).
+The installed desktop preview is unchanged.

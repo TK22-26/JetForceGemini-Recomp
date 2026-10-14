@@ -134,3 +134,90 @@ Private run suspended-model-120-1 ends with code 3; normal performance footer: F
 The second run stops at the original OS exception-handler jump table (guest PC 0x80075290, table 0x800aef50). It does not trigger the model-pointer watch first. Its truncated CSV also exposes a fixture parser TypeError before the normal result receipt; recovered-result.json retains the raw failure without claiming clean performance qualification. A switch-trap snapshot is still needed to distinguish malformed target/table from scheduler context corruption.
 
 The installed 1b0bdd0f preview also completes one 17,000-retrace native comparison. This is one clean baseline run, not proof that intermittent failures are absent. No desktop shortcut/profile or released package is changed. Evidence: suspended-model-review.json and delivered-extended-120.
+
+The watched repeat identifies a second concrete failure at __osException's
+interrupt dispatch (PC 0x80075290, __osIntTable 0x800aef50), before any observed
+model-pointer change. An explicit private diagnostic now handles SIGABRT to
+save the existing fault context/RAM before terminating; ordinary Play keeps
+its original abort disposition. Diagnostic exception code 0xe04a4647 identifies
+this deliberate snapshot. No invalid target is repaired or allowed through.
+The Windows CRT documents this abort-handler logging/termination path:
+https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/abort .
+
+The first abort-capture build rejects a redundant unreachable termination after the existing non-returning fault handler. Removing that unreachable statement preserves warning-as-error checks; no replay used the failed build.
+
+The repaired diagnostic builds successfully, but its private receipt script omitted a hashlib import at final reporting. The dependent replay correctly did not run. A separate validation request rechecks the build and produces its hash; prior failed receipts remain intact.
+
+Two abort-capable watched Play runs and the subsequent recorded-combat-prefix
+diagnostic are retained separately from performance qualification. The first
+two finish without memory faults but have 100/89 audio underruns amid high host
+load. A foreground status sample identifies unrelated .NET CPU/disk activity;
+that sample does not explain every hitch. The next controlled-prefix capture
+records per-process CPU, memory and I/O totals, not merely selected executable
+names. The private directory review initially included sibling host-load JSON
+files in its glob; the corrected review filters directories, preserving the
+failed request and preventing its dependent replay from launching.
+
+The hardware observer is expanded only after a twelve-thread four-slot fixture
+passes. It watches the level-model pointer plus the immutable redispatch, RCP
+and timer interrupt-table targets. A changed table word captures the actual
+writer even if its damaged value remains inside RDRAM. Occupied debug slots
+still refuse setup, and ordinary Play remains unaffected. This is diagnostic
+coverage, not a proven corruption remedy.
+
+## Bounded clock recording for reproducibility
+
+Repeated live runs can take different paths before an intermittent failure.
+An explicit finite-diagnostic Count transcript allowance may now be chosen
+before recording/replay starts, up to 64,000,000 samples (2,048,000,016 bytes).
+The default remains 16,000,000. Active/exhausted/finished transcripts cannot
+raise their allowance or reset sample counters. Exhaustion is reported as a
+sample limit, and a failed exhausted tape cannot finish successfully. Private
+failure exits flush the Count stream before saving RAM so buffered final
+interrupt observations are retained. Unit checks exercise record/replay bounds,
+invalid limits and unchanged charges. This is separate from the production
+investigation ledger: its guard, ancestry and all prior charges remain intact.
+Large captures stay on the owner's evidence drive; this does not select a new
+clock policy or change ordinary Play.
+
+The first configurable-transcript build catches a missed member insertion in the private edit script. The missing limit field is added, and build/tests must pass before recording; the dependent capture correctly did not launch.
+
+The first large Count capture reaches exactly 64,000,000 samples and stops
+at the explicit sample limit (guest PC 0x80098a20), near VI 16309. No memory
+fault is observed. Its replay reaches the same deliberate stop. The private
+postprocessor then rejects a partially written terminal gameplay-trace row;
+this is a reader failure, not a game crash. Recovered metadata uses the saved
+native exit code and raw RAM; it does not invent native elapsed time or a
+successful original wrapper receipt. The private reader now ignores only an
+unterminated final trace row, retaining all complete records and raw evidence.
+The Count file is 2,048,000,016 bytes, SHA-256
+2e54d0504cc82f2cea8dd30a3a6a32a7148b21dd083a9e2cd59d78897c1eb195.
+Neither the transcript bound nor this replay resolves the intermittent fault.
+
+The 64-million-observation replay matches every guest RAM byte and save at the
+same explicit sample-limit PC. All 7,836 common complete update records agree;
+one extra complete record remains only in the recording because the replay's
+terminal trace write was interrupted. This qualifies reproducibility of this
+long non-failing route, not resolution of the intermittent corruption.
+
+GuestBacking maps cached and uncached RDRAM through different host addresses.
+A hardware watch on one linear address does not cover the other alias. A
+separate private page-write mode now observes writes through both views of the
+two relevant pages, single-steps the original instruction, restores protection,
+and compares the model word plus all nine interrupt-table targets. It captures
+the pre-write host PC if a watched word becomes invalid/changes. A twelve-thread,
+two-alias fixture verifies byte corruption, same-value and unrelated writes,
+reads and disarming. The mode installs only with explicit private capture;
+normal Play does not protect these pages. It is a diagnostic, not a memory
+repair. Writes by an unexpected concurrent host thread can still observe a
+non-atomic guest snapshot; writer-PC attribution remains separate from that
+snapshot limit. Native recorded-route qualification is pending.
+
+The alias-aware observer passes the complete available 64-million-sample route:
+all 4 MiB of RAM, the save and all 7,837 complete update records match the
+recording at the same explicit sample-limit stop. The watched replay completes
+in about 177 seconds, versus 280 seconds for recording, without changing the
+recorded game state. No memory fault is observed; this validates the diagnostic
+on this route and does not qualify the reported corruption as fixed.
+Evidence: alias-page-replay-review.json, long-clock-replay-review.json,
+alias-page-write-fixture/result.json and recorded-native-clock-receipt.json.
