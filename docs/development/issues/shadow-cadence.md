@@ -74,3 +74,13 @@ caster/receiver interpolation scheme. Offscreen present-queue wait is negligible
 in the measured sample; GPU/readback cost is a separate measurement. A future
 change needs stable caster/receiver/clip identity and mask/UV phase coverage.
 Ordinal matching or translating the complete footprint is not a qualified fix.
+
+## Continuation review, 2026-10-14 UTC
+
+The preserved moving-shadow image sequence was inspected again. A bounded
+fixed-region dark-pixel centroid analysis is exploratory only: the region
+can include terrain and becomes invalid as the camera or occluders move.
+It cannot establish a shadow lag measurement. The clipped receiver polygon
+and CPU mask remain distinct from Juno's interpolated skeleton. Translating
+the current footprint or matching clipped vertex ordinals would be unsafe
+across changing terrain/topology. No qualified shadow correction is selected.

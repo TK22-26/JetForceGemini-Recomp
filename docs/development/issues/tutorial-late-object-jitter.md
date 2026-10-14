@@ -558,3 +558,128 @@ starvation/audio errors. Initial waiting was excluded from gameplay analysis;
 the original capture was preserved. Neither a build nor hidden-window FPS
 establishes visible resolution. Runtime identity and measured limits are in
 [the delivery evidence](../../../evidence/high-refresh-route-fix.json).
+
+## Five-hour guarded continuation, 2026-10-14 UTC
+
+Owner approved five hours after the route-fix preview. The same operational
+investigation/root and all prior charges are retained; the guard stays enabled.
+Selected baseline is implementation aaae085 with documentation e51b0af and runtime
+1b0bdd0f. Work prioritizes actual combat source-rate cost and a visibly qualified
+late-room fixture. Preserve original game timing, muted owned tests, copied saves,
+and raw evidence on D:. The scene-age, direct-camera and secondary subset
+experiments remain rejected unless new evidence supports a distinct correction.
+No bounded replay, synthetic match or build alone closes the owner's reports.
+
+The initial 2026-10-14 stage/alias renderer builds retained stale generated
+layout code. Their visual/performance acceptance is invalid and is being rerun;
+see [BUILD-001](stale-generated-renderer.md). Guest-state equality alone did not
+detect this private build error. The delivered preview is unaffected.
+
+The coherent near-beam capture now visibly includes the room-26 exit light;
+all 48 logical vertices match during the captured pan. The far-exit-facing
+sequence also visibly includes the bridge. Whole-orbit telemetry still has
+isolated rigid-pose validation failures. Source inspection found the validator
+reassociates world/view/projection using double arithmetic, whereas the guest
+computes single-precision world * (view * projection) with a specific paired
+sum order. A bounded matching diagnostic records rejected operands to determine
+whether this numeric mismatch causes the remaining isolated holds. This is a
+new concrete hypothesis; no broad tolerance relaxation or jitter resolution is
+claimed. Raw captures remain on D: under combat-focus-20261014.
+
+## Captured numeric validation defect, 2026-10-14 UTC
+
+The near-beam pan captures 19 rejected rigid poses, including ten for the
+actual room-26 bridge. Repeating the guest's single-precision operation order
+matches every rejected endpoint within one signed 16.16 unit. The prior
+double-precision reassociation differs by enough to trigger conservative
+rejection near cancellation. This is a demonstrated unnecessary hold, not a
+reason to weaken topology, lifetime, finite-value or camera-cut checks.
+
+The candidate computes view * projection, then world * that product, preserving
+the guest's (t1+t2)+(t0+t3) single-precision sum and preventing FMA contraction.
+The captured cancellation regression fails before and passes after; an altered
+endpoint and nonfinite input remain rejected. Live coverage and performance are
+still required; this does not prove every late object or shadow is fixed.
+
+The corrected camera orbit records zero rejected rigid operands, versus nineteen
+poses before the arithmetic correction. During VI 3300-3950 all 3,240 bridge
+batches match (the preceding run rejected twenty batches around one bad pose).
+The runs differ slightly in native update ordinals; this is bounded coverage,
+not an identical wall-clock or full-route comparison. The visible exit light
+continues to use logical beam ownership. An exploratory report initially
+queried the wrong event tag; its beam field was empty and is not evidence.
+The corrected report uses the actual beam-owned producer tag.
+
+The complete 17,000-VI Original reference preserves every guest RAM byte, save,
+instruction count and reference framebuffer hash. The matrix-only dense replay
+also preserves state and matching decisions in that combat fixture. This
+establishes numeric/state safety in those cases, not physical-display smoothness
+or a solution for every crate, bridge, marker or shadow.
+
+## Combat-camera hold lead, 2026-10-14 UTC
+
+The newer camera-coverage analysis finds no held world-camera vertices in the
+two controlled late-room pans, but 120 of 1,220 combat scenes at 120 output FPS
+and 74 of 1,185 at 360 have camera holds. Some are consecutive; other actors
+remain interpolated. These are matching observations, not uncontended FPS
+comparisons. The earlier direct-camera candidate yielded zero extra matches
+and remains unselected.
+
+A new diagnostic distinguishes triangles that cross genuinely different
+transforms from triangles whose RT64 matrix indices differ while their numeric
+matrices are identical. The current eligibility gate rejects either case and
+can block an entire shared camera cohort. This is a hypothesis until captured
+hold events establish the correlation. The private poll-quantum experiment is
+preserved but parked while another game's tests prevent clean FPS measurement;
+ordinary code is restored to its qualified 128-instruction quantum.
+
+## Camera conflict observer follow-up, 2026-10-14 UTC
+
+A normal Play capture to VI 6500 recorded 2,236 scenes and one camera hold
+at VI 6450. The held camera cohort had zero ineligible vertices and zero
+numerically equal cross-matrix triangles; 140 other cross-matrix triangles
+were present. This capture does not support relaxing the existing cross-matrix
+triangle safety rule. The earlier sustained camera holds remain under review;
+native reruns can take different paths, so disappearance on a new run alone is
+not proof of a fix. Evidence: combat-focus-20261014/camera-conflict-live-review.json
+and camera-hold-room-correlation.json.
+
+The earlier sustained holds are not room transitions: the 120-FPS capture holds
+world-camera geometry for 120 scenes at VI 5028-5272 within room 21, while
+semantic actors continue matching. A 360-FPS capture similarly holds within
+room 21. The one hold in the newer capture occurs around the room change.
+Control-event correlation includes both aimed and orbit modes; aim transitions
+alone do not explain all holds. A bounded opt-in per-mesh reason observer now
+distinguishes absent geometry history, rejected motion, cohort conflict and
+ineligible geometry without changing the matching decision.
+
+## Equal matrix slots poison world-camera interpolation, 2026-10-14 UTC
+
+The 360-FPS diagnostic reproduces a sustained world-camera hold starting at
+VI 4814. At that frame six cross-slot triangles use numerically identical
+matrices; their 18 vertices are marked ineligible, blocking the entire shared
+camera cohort even though the other scenery meshes have valid prior anchors.
+The per-mesh reasons confirm cohort rejection, including the two affected slots.
+This is distinct from the rejected explicit camera-identity prototype.
+
+The candidate treats equal finite matrices as one triangle space. Cross-slot
+meshes have incomplete local topology, so they cannot anchor shape history;
+they may only follow an existing complete, unambiguous cohort anchor.
+Different transforms, nonfinite values, contradictory history, absent anchors
+and invalid cadence retain endpoint rejection. Opt-in same-input comparison
+runs the old eligibility policy alongside the candidate to measure gains and
+any lost/changed anchors. Synthetic policy checks and native qualification follow.
+
+The first policy-test build stopped on warnings-as-errors because new fixture
+variables shadowed earlier locals. Renaming those test locals resolves the build;
+no game was launched by the dependent qualification steps before that check passed.
+
+The same-input old/new comparison now restores 219,538 vertex samples at 360
+and 436,504 at 120 across 3,117 scenes in each run. It loses zero formerly valid
+matches and changes zero valid prior anchors. There remain 15/17 camera-hold
+frames; restored samples alone do not establish the owner's full-route visual
+acceptance. The dense exact-clock replay preserves every guest byte, save and
+per-update instruction count. The 17,000-VI Original reference also preserves
+all guest/reference-framebuffer hashes and probe counters. Qualification and
+remaining hold details are retained in combat-focus-20261014/shared-matrix-*
+artifacts; this is a bounded verified correction, not an all-jitter resolution.

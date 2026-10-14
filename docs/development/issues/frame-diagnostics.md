@@ -576,3 +576,27 @@ The selected runtime is 1b0bdd0fbfe25eacbf3ed0417c1607a70eed49d4198a6add62f3fba1
 provisional scene-age results. Physical scanout and the exact late-room visuals
 remain unverified. The Original/Custom state pair is on the functional predecessor;
 a separate selected-observer pair preserves every guest byte and matching decision.
+
+## Five-hour guarded continuation, 2026-10-14 UTC
+
+Owner approved five hours after the route-fix preview. The same operational
+investigation/root and all prior charges are retained; the guard stays enabled.
+Selected baseline is implementation aaae085 with documentation e51b0af and runtime
+1b0bdd0f. Work prioritizes actual combat source-rate cost and a visibly qualified
+late-room fixture. Preserve original game timing, muted owned tests, copied saves,
+and raw evidence on D:. The scene-age, direct-camera and secondary subset
+experiments remain rejected unless new evidence supports a distinct correction.
+No bounded replay, synthetic match or build alone closes the owner's reports.
+
+## Internal Count-transcript bound, 2026-10-14 UTC
+
+A requested 6,500-VI exact-clock capture stopped at VI 4384 after reaching the
+existing 16,000,000-sample CountSampleTape bound. The retained tape is exactly
+512,000,016 bytes (header plus bounded rows). The caller reports the overly broad
+native-clock/non-monotonic-time trap for a null sample, so that text alone does
+not prove the host clock went backward. This was an exhausted internal proof
+transcript, not a demonstrated game-clock regression. Preserve the partial
+capture; it is not a completed replay. Normal Play and ordinary FPS/input/
+interpolation logging do not use this Count tape and retain their own limits.
+The camera-matching investigation continues with a normal Play capture and
+same-frame baseline matching; the transcript limit is not disabled or raised.

@@ -43,6 +43,17 @@ class PresentationTraceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 analyze(lines)
 
+    def test_corrupt_render_rate_cannot_hide_behind_zero_display_samples(self):
+        corrupt = "render\t1000\t4200\t864323521\t120\t0\t1\t1\t0\t0\n"
+        with self.assertRaises(ValueError):
+            analyze([corrupt, row(4200, 0, 1)])
+        with self.assertRaises(ValueError):
+            analyze([row(4200, 864323521, 1)])
+        valid = corrupt.replace("864323521", "30")
+        report = analyze([valid, row(4200, 0, 1), row(4202, 30, .25)])
+        self.assertEqual(report["render_source_rates"], {30: 1})
+        self.assertEqual(report["display_source_rates"], {0: 1, 30: 1})
+
     def test_invalid_data_is_not_silently_successful(self):
         for line in ["display\t1\n", row(100, 30, math.nan), row(100, -1, .5)]:
             with self.assertRaises(ValueError):

@@ -114,13 +114,15 @@ def rewrite_source(text: str) -> tuple[str, dict[str, int]]:
         clean = re.sub(r'/\*.*?\*/|//[^\n]*', '', body, flags=re.S)
         allowed, width = instruction_kind(metadata, word)
         # No labels or scope changes; no declarations whose visibility could
-        # escape a span. Existing helpers are arithmetic only. RELOC_HI16 and
+        # escape a span. MUL_S/MUL_D are plain floating-point multiplication;
+        # preserve their expressions and existing FPU eligibility checks.
+        # Existing helpers are arithmetic only. RELOC_HI16 and
         # RELOC_LO16 read the host section table; only excluded calls can update
         # that table. Memory guards below prove the actual generated address,
         # including signed relocation operands; unknown forms stay unbatched.
         forbidden = re.search(r'[{}#]|\b(goto|return|switch|if|while|for|jfg_\w*)\b|^\s*[A-Za-z_]\w*:', clean, re.M)
         calls = set(re.findall(r'\b([A-Za-z_]\w*)\s*\(', clean))
-        known = {'RELOC_HI16','RELOC_LO16','SIGNED','U64','U32','S64','S32','ADD32','SUB32','MEM_W','MEM_H','MEM_HU','MEM_B','MEM_BU','LD','SD','CHECK_FR','CHECK_NAN','NAN_CHECK','DIV_S','DIV_U','DDIV','DDIVU','DMULT','DMULTU','MUL64','sqrtf','sqrt','fabsf','fabs','roundf','round','truncf','trunc','floorf','floor','ceilf','ceil','cvt_w_s','cvt_w_d','cvt_l_s','cvt_l_d','CVT_W_S','CVT_W_D','CVT_L_S','CVT_L_D','isnan'}
+        known = {'MUL_S','MUL_D','RELOC_HI16','RELOC_LO16','SIGNED','U64','U32','S64','S32','ADD32','SUB32','MEM_W','MEM_H','MEM_HU','MEM_B','MEM_BU','LD','SD','CHECK_FR','CHECK_NAN','NAN_CHECK','DIV_S','DIV_U','DDIV','DDIVU','DMULT','DMULTU','MUL64','sqrtf','sqrt','fabsf','fabs','roundf','round','truncf','trunc','floorf','floor','ceilf','ceil','cvt_w_s','cvt_w_d','cvt_l_s','cvt_l_d','CVT_W_S','CVT_W_D','CVT_L_S','CVT_L_D','isnan'}
         declares = re.search(r'^\s*(?:u?int(?:8|16|32|64)_t|gpr|bool|const|float|double|int|unsigned|signed|long|short|char|auto)\s+[A-Za-z_]\w*', clean, re.M)
         if forbidden or declares or calls-known or (width and not memory_expression_matches(clean, word, width)):
             allowed = False

@@ -1674,6 +1674,7 @@ struct State : JfgOriginalTimingFast {
   RecordedInputTimeline recorded_input_timeline;
   std::string frame_capture_path;
   std::string rdram_capture_path;
+  const recomp_context* private_fault_cpu = nullptr; // Explicit RAM-capture sessions only.
   std::string progress_path;
   std::string input_record_path;
   std::string retrace_hash_path;
@@ -1726,6 +1727,8 @@ struct State : JfgOriginalTimingFast {
   static constexpr unsigned kHostClockPollInstructions = 128U;
   HostCountClock host_count_clock;
   CountSampleTape native_clock_samples;
+  std::uint64_t diagnostic_clock_release_vi = 0;
+  bool diagnostic_clock_released = false;
   std::vector<char> native_clock_sample_buffer;
   std::ofstream native_clock_sample_output;
   std::ifstream native_clock_sample_input;
@@ -5224,6 +5227,58 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
     char support_exception[40]{};
     std::snprintf(support_exception, sizeof(support_exception), "native_exception=0x%08lx", static_cast<unsigned long>(code));
     jfg::support_event(support_exception);
+    // Private, explicit RAM-capture sessions also retain the otherwise lost
+    // native-fault context. Ordinary Play neither captures RAM nor logs host
+    // addresses. This observes the failed execution; it never resumes it.
+    if (!state->rdram_capture_path.empty()) {
+      hle::GuestMemory memory({state->rdram, kRdramSize},
+                             hle::GuestMemory::Layout::native_word_big_endian);
+      std::uint32_t running_thread = 0U;
+      const bool thread_read = memory.read_u32(0x800a9e90U, running_thread);
+      const auto* record = exception != nullptr ? exception->ExceptionRecord : nullptr;
+      const auto access_kind = record != nullptr && record->NumberParameters >= 2U
+                                   ? record->ExceptionInformation[0] : 0U;
+      const auto access_address = record != nullptr && record->NumberParameters >= 2U
+                                      ? record->ExceptionInformation[1] : 0U;
+      std::fprintf(stderr,
+          "private-native-fault vi=%llu poll=%llu epc=%08x last_pc=%08x last_word=%08x "
+          "running_thread=%08x thread_read=%u access_kind=%llu access_address=%llx rdram=%llx\n",
+          static_cast<unsigned long long>(state->vi_retraces),
+          static_cast<unsigned long long>(state->controller_samples),
+          state->guest_epc, state->guest_last_pc, state->guest_last_word,
+          running_thread, thread_read ? 1U : 0U,
+          static_cast<unsigned long long>(access_kind),
+          static_cast<unsigned long long>(access_address),
+          static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(state->rdram)));
+#if defined(_M_X64) || defined(__x86_64__)
+      if (exception != nullptr && exception->ContextRecord != nullptr) {
+        const auto& host = *exception->ContextRecord;
+        std::fprintf(stderr,
+            "private-native-registers rax=%llx rbx=%llx rcx=%llx rdx=%llx rsi=%llx rdi=%llx "
+            "rbp=%llx rsp=%llx r8=%llx r9=%llx r10=%llx r11=%llx r12=%llx r13=%llx "
+            "r14=%llx r15=%llx rip=%llx\n",
+            host.Rax, host.Rbx, host.Rcx, host.Rdx, host.Rsi, host.Rdi, host.Rbp, host.Rsp,
+            host.R8, host.R9, host.R10, host.R11, host.R12, host.R13, host.R14, host.R15, host.Rip);
+      }
+#endif
+      if (state->private_fault_cpu != nullptr) {
+        const auto& cpu = *state->private_fault_cpu;
+        const std::array<std::uint64_t,32> registers{
+            0, cpu.r1, cpu.r2, cpu.r3, cpu.r4, cpu.r5, cpu.r6, cpu.r7,
+            cpu.r8, cpu.r9, cpu.r10, cpu.r11, cpu.r12, cpu.r13, cpu.r14, cpu.r15,
+            cpu.r16, cpu.r17, cpu.r18, cpu.r19, cpu.r20, cpu.r21, cpu.r22, cpu.r23,
+            cpu.r24, cpu.r25, cpu.r26, cpu.r27, cpu.r28, cpu.r29, cpu.r30, cpu.r31};
+        std::fprintf(stderr, "private-last-observed-cpu status=%08x fcr31=%08x",
+                     cpu.status_reg, cpu.fcr31);
+        for (std::size_t index=0; index<registers.size(); ++index)
+          std::fprintf(stderr, " r%zu=%016llx", index,
+                       static_cast<unsigned long long>(registers[index]));
+        std::fputc('\n', stderr);
+      }
+      const bool captured = write_private_rdram_capture(*state);
+      std::fprintf(stderr, "private-native-rdram-captured=%u\n", captured ? 1U : 0U);
+      std::fflush(stderr);
+    }
     if (state->active_bzero_address != 0U) {
       std::array<char, 64U> operation{};
       (void)std::snprintf(operation.data(), operation.size(),
@@ -5308,6 +5363,8 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
 [[noreturn]] void probe_target_gate(State &state) {
 #if defined(_WIN32)
+  if (state.diagnostic_clock_release_vi != 0U && !state.diagnostic_clock_released)
+    fail_closed_dispatch(state,"native-clock-tape","prefix-release-not-reached",0U);
   if (state.native_clock_samples.active()) {
     if (!state.native_clock_samples.finish())
       fail_closed_dispatch(state,"native-clock-tape","incomplete-or-invalid-transcript",0U);
@@ -7758,6 +7815,27 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           }
         }
       }
+      if (target == 0x80044FACU && state.diagnostic_clock_release_vi != 0U &&
+          !state.diagnostic_clock_released && state.vi_retraces >= state.diagnostic_clock_release_vi) {
+        // Qualification-only transition, after a complete game update. Hash
+        // the exact shared starting state before reanchoring elapsed time.
+        // No guest RAM, CPU Count, input ordinal or device deadline is changed.
+        jfg::testkernel::Sha256 hasher;hasher.update_bytes(state.rdram,kRdramSize);
+        const auto digest=hasher.finish();std::array<std::uint32_t,8> words{};
+        for (std::size_t i=0;i<digest.size();++i)
+          words[i/4U]=(words[i/4U]<<8U)|std::to_integer<unsigned>(digest[i]);
+        if (!state.diagnostic_host_clock || !state.native_clock_samples.release_prefix(state.cpu_count))
+          fail_closed_dispatch(state,"native-clock-tape","invalid-prefix-release",target);
+        state.native_clock_sample_input.close();
+        state.gameplay_trace.event("native-clock-release",{state.vi_retraces,state.controller_samples,
+            state.cpu_count,state.observed_guest_instructions,state.native_clock_samples.samples(),
+            words[0],words[1],words[2],words[3],words[4],words[5],words[6],words[7]});
+        state.host_count_clock=HostCountClock{};
+        state.native_fast_ready=false;state.host_clock_poll_budget=0U;
+        if (!state.host_count_clock.start(state.cpu_count,std::chrono::steady_clock::now()))
+          fail_closed_dispatch(state,"native-clock-tape","release-clock-start",target);
+        state.diagnostic_clock_released=true;
+      }
       if (target == 0x80044FACU) trace_gameplay_state(state, true);
       if (target == 0x80044FACU && state.update_hash_trace.is_open()) {
         ++state.completed_game_updates;
@@ -10097,6 +10175,8 @@ extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned se
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   if (g_active_child_state != nullptr && context != nullptr) {
     auto& state = *g_active_child_state;
+    if (!state.rdram_capture_path.empty())
+      state.private_fault_cpu = static_cast<recomp_context*>(context);
     if (state.diagnostic_cpu_costs) ++state.profile_full_execution_probes;
     const bool measure_native_handler = state.diagnostic_cpu_costs && state.diagnostic_host_clock;
     const auto native_handler_began = measure_native_handler ? std::chrono::steady_clock::now()
@@ -11954,6 +12034,16 @@ int run_child(const char *path, const unsigned retrace_target,
       state.native_clock_sample_input.open(clock_replay_path,std::ios::binary);
       if (!state.native_clock_samples.replay(state.native_clock_sample_input)) return 3;
     }
+  }
+  char release_text[32]{};
+  const auto release_length=GetEnvironmentVariableA("JFG_DIAGNOSTIC_CLOCK_RELEASE_VI",release_text,32U);
+  if (release_length != 0U) {
+    if (release_length>=32U || state.play_mode || !state.gameplay_trace ||
+        !state.input_replay_by_poll || !state.native_clock_samples.replaying()) return 3;
+    const auto parsed=std::from_chars(release_text,release_text+release_length,state.diagnostic_clock_release_vi);
+    if (parsed.ec!=std::errc{} || parsed.ptr!=release_text+release_length ||
+        state.diagnostic_clock_release_vi<=state.diagnostic_clock_boundary_vi ||
+        state.diagnostic_clock_release_vi>=state.retrace_target) return 3;
   }
   if (state.mmio_trace) state.mmio_trace->native_elapsed_time = state.diagnostic_host_clock;
   if (state.diagnostic_host_clock_requested && (!state.guest_os_probe || !state.original_os_host_pacing ||

@@ -665,3 +665,14 @@ The final candidate retains a paced repeat window and uses alternating GPU
 intermediate-target banks. Its 120/360 output timing and original scene progression
 pass the muted fixture; Unlimited saturation and owner live confirmation remain
 limits. The former UI-only status is not broad high-refresh acceptance.
+
+## 2026-10-14 continuation checkpoint
+
+CPU/history work savings and numeric/equal-slot camera-history corrections are
+recorded in [the feature notes](../../features/high-refresh-rendering.md#combat-and-camera-continuation-2026-10-14-source-candidate)
+and [qualification](../../../evidence/high-refresh-combat-focus.json).
+These remain a source candidate: extended native failures block a new desktop
+delivery. Combat/damage drops, a few camera holds, exact late-room visuals,
+shadow cadence and Unlimited pacing remain open. The production guard and
+same investigation/counters remain intact; this checkpoint does not authorize
+another attempt or extend the owner's deadline.

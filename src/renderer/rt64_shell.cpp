@@ -1007,11 +1007,7 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
                 std::chrono::duration_cast<std::chrono::microseconds>(
                     std::chrono::steady_clock::now() - rdram_check_start)
                     .count());
-        application.processDisplayLists(
-            const_cast<std::uint8_t*>(impl_->task_rdram.data()),
-            task.command_address & 0x00FF'FFFFU,
-            0U,
-            true);
+        impl_->f3ddkr->process_display_list(task.command_address & 0x00FF'FFFFU);
         if (!impl_->f3ddkr->complete()) {
             return Rt64ShellError::unsupported_commands;
         }

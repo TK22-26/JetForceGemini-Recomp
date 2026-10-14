@@ -74,6 +74,17 @@ class NativeSpanTests(unittest.TestCase):
             self.assertFalse(memory_expression_matches(body,0x8c627654,4))
         self.assertFalse(memory_expression_matches('ctx->r2=MEM_W((int16_t)RELOC_LO16(1,0),ctx->r4);',0x8c627654,4))
 
+    def test_pure_float_multiply_keeps_control_and_unknown_boundaries(self):
+        for macro,word in [('MUL_S',0x46020802),('MUL_D',0x46220802)]:
+            body=instruction(0x80010000,word,f'ctx->sf0 = {macro}(ctx->sf1, ctx->sf2);',0x100)
+            _,counts=rewrite_source('void f(void) {\n'+body+arithmetic(0x80010004)+arithmetic(0x80010008)+'}\n')
+            self.assertEqual(counts['instructions'],2,macro)
+        for macro in ['MUL_UNKNOWN','write_fcsr','callback']:
+            body=instruction(0x80010004,0x46020802,f'ctx->sf0 = {macro}(ctx->sf1, ctx->sf2);',0x100)
+            _,counts=rewrite_source('void f(void) {\n'+arithmetic(0x80010000)+body+arithmetic(0x80010008)+'}\n')
+            self.assertEqual(counts['spans'],0,macro)
+        self.assertFalse(instruction_kind(0x100,0x44c1f800)[0]) # CTC1 is still a boundary.
+
     def test_malformed_pc_rejected(self):
         with self.assertRaises(ValueError):rewrite_source(arithmetic(0x80010000).replace('// 0x80010000','// 0x80010004'))
     def test_compiled_ram_mmio_and_poll_fallback_equivalence(self):
@@ -82,6 +93,7 @@ class NativeSpanTests(unittest.TestCase):
         body=arithmetic(0x80010000)+instruction(0x80010004,0x8c620000,'ctx->r2 = (int32_t)MEM_W(0, ctx->r3);',0x1000)+instruction(0x80010008,0x24440001,'ctx->r4 = ctx->r2 + 1;')+instruction(0x8001000c,0x00a01821,'ctx->r3 = ctx->r5;')+instruction(0x80010010,0xac640004,'MEM_W(4, ctx->r3) = (int32_t)ctx->r4;',0x2000)+arithmetic(0x80010014)+arithmetic(0x80010018)
         body += instruction(0x8001001c,0x3c080010,'ctx->r8 = S32(RELOC_HI16(1, 0x7654) << 16);')+instruction(0x80010020,0x25087654,'ctx->r8 = ADD32(ctx->r8, RELOC_LO16(1, 0x7654));')+arithmetic(0x80010024)
         body += instruction(0x80010028,0x8c697654,'ctx->r9 = MEM_W((int16_t)RELOC_LO16(1, 0x7654), ctx->r3);',0x1000)+instruction(0x8001002c,0xaca97654,'MEM_W((int16_t)RELOC_LO16(1, 0x7654), ctx->r5) = (int32_t)ctx->r9;',0x2000)+arithmetic(0x80010030)
+        body += instruction(0x80010034,0x46020802,'ctx->sf0 = MUL_S(ctx->sf1, ctx->sf2);',0x100)+instruction(0x80010038,0x46220802,'ctx->df0 = MUL_D(ctx->df1, ctx->df2);',0x100)+arithmetic(0x8001003c)
         original='void original(uint8_t* rdram,recomp_context* ctx) {\n'+body+'}\n'
         optimized,counts=rewrite_source(original.replace('void original','void optimized'))
         self.assertGreater(counts['instructions'],3)
@@ -92,6 +104,9 @@ class NativeSpanTests(unittest.TestCase):
         prefix=r'''
 #include "jfg/boot/original_timing_fast.h"
 #include <array>
+#include <bit>
+#include <cfenv>
+#pragma STDC FENV_ACCESS ON
 #include <tuple>
 #include <cstdio>
 #include <cstdlib>
@@ -122,6 +137,8 @@ static uint32_t section_addresses[2]{};
 #define S32(x) ((int32_t)(x))
 #define RELOC_HI16(section,offset) (((section_addresses[section]+(offset))>>16)+(((section_addresses[section]+(offset))>>15)&1))
 #define RELOC_LO16(section,offset) ((int16_t)(section_addresses[section]+(offset)))
+#define MUL_S(a,b) ((a)*(b))
+#define MUL_D(a,b) ((a)*(b))
 #define U64(x) ((uint64_t)(x))
 #define ADD32(x,y) ((int32_t)((x)+(y)))
 #define jfg_phase9_execution_probe_predecoded(m,p,w,c) jfg_native_timing_step(m,p,w,c)
@@ -136,12 +153,18 @@ int main(){
   s.guest_previous_branch=n%3==0;c.status_reg=0x20000000U;c.r1=n;
   c.r3=n%2?0xffffffff80000008ULL:0xffffffffa4400000ULL;
   c.r5=n%4<2?c.r3:(n%2?0xffffffffa4400000ULL:0xffffffff80000008ULL);
+  const uint32_t floats[]{0U,0x80000000U,0x3f800001U,0xbf800001U,0x7f7fffffU,0x00800000U,1U,0x7f800000U};
+  const uint64_t doubles[]{0ULL,0x8000000000000000ULL,0x3ff0000000000001ULL,0xbff0000000000001ULL,0x7fefffffffffffffULL,0x0010000000000000ULL,1ULL,0x7ff0000000000000ULL};
+  c.sf1=std::bit_cast<float>(floats[(n/4)%8]);c.sf2=std::bit_cast<float>(uint32_t{0x3fa66666});
+  c.df1=std::bit_cast<double>(doubles[(n/4)%8]);c.df2=std::bit_cast<double>(uint64_t{0x3ff4cccccccccccdULL});
+  const int rounding[]{FE_TONEAREST,FE_DOWNWARD,FE_UPWARD,FE_TOWARDZERO};
   auto run=[&](bool optimized_path){
+   if(std::fesetround(rounding[n%4])!=0)std::abort();std::feclearexcept(FE_ALL_EXCEPT);
    section_addresses[1]=0x80000000U+n*0x7ff0U+((n&4U)?1U:0U);ram.fill(0);revision=1;count=100;slow=mmio=0;peripheral=17;
    JfgOriginalTimingFast local=s;recomp_context cpu=c;jfg_original_timing_state=&local;
    jfg_native_timing_refresh(&local,&cpu);
    if(optimized_path)optimized(ram.data(),&cpu);else original(ram.data(),&cpu);
-   return std::tuple(cpu.r1,cpu.r2,cpu.r3,cpu.r4,cpu.r5,cpu.r8,cpu.r9,ram,revision,count,slow,mmio,peripheral,
+   return std::tuple(std::bit_cast<uint32_t>(cpu.sf0),std::bit_cast<uint64_t>(cpu.df0),std::fetestexcept(FE_ALL_EXCEPT),cpu.r1,cpu.r2,cpu.r3,cpu.r4,cpu.r5,cpu.r8,cpu.r9,ram,revision,count,slow,mmio,peripheral,
      local.observed_guest_instructions,local.execution_fast_hits,local.cpu_count,
      local.host_clock_poll_budget,local.guest_last_pc,local.guest_last_word,
      local.guest_previous_branch,local.guest_previous_delay);
@@ -156,11 +179,11 @@ int main(){
             path=Path(temp);cpp=path/'spans.cpp';exe=path/('spans.exe' if os.name=='nt' else 'spans')
             cpp.write_text(prefix+original+optimized+suffix)
             if Path(compiler).name.lower() in ('cl', 'cl.exe'):
-                command=[compiler,'/nologo','/std:c++20','/O2','/EHsc',
+                command=[compiler,'/nologo','/std:c++20','/O2','/EHsc','/fp:strict',
                     '/I'+str(ROOT/'include'),'/I'+str(ROOT/'tests/fixtures/original-timing-context'),
                     str(cpp),'/Fe'+str(exe),'/Fo'+str(path/'spans.obj')]
             else:
-                command=[compiler,'-std=c++20','-O2','-I'+str(ROOT/'include'),
+                command=[compiler,'-std=c++20','-O2','-frounding-math','-ffp-contract=off','-I'+str(ROOT/'include'),
                     '-I'+str(ROOT/'tests/fixtures/original-timing-context'),str(cpp),'-o',str(exe)]
             subprocess.run(command,check=True,capture_output=True,text=True)
             result=subprocess.run([str(exe)],check=True,capture_output=True,text=True)

@@ -433,9 +433,26 @@ void reserved_instruction(uint8_t* rdram, recomp_context* ctx, uint32_t vram, ui
 }
 
 void switch_error(const char* func, uint32_t vram, uint32_t jtbl) {
-    (void)func;
-    (void)vram;
-    (void)jtbl;
+    // Avoid CRT printf inline wrappers: the bridge's exported symbol
+    // inventory is fixed, including compiler-emitted COMDAT functions.
+    static constexpr char kDigits[] = "0123456789abcdef";
+    static constexpr char kPrefix[] = "jfg switch trap: pc=0x";
+    static constexpr char kTable[] = " table=0x";
+    static constexpr char kFunction[] = " function=";
+    static constexpr char kUnknown[] = "(unknown)";
+    char pc_text[9]{}, table_text[9]{};
+    for (unsigned index=0; index<8U; ++index) {
+        const unsigned shift=(7U-index)*4U;
+        pc_text[index]=kDigits[(vram>>shift)&15U];
+        table_text[index]=kDigits[(jtbl>>shift)&15U];
+    }
+    std::fputs(kPrefix, stderr);
+    std::fputs(pc_text, stderr);
+    std::fputs(kTable, stderr);
+    std::fputs(table_text, stderr);
+    std::fputs(kFunction, stderr);
+    std::fputs(func != nullptr ? func : kUnknown, stderr);
+    std::fputc('\n', stderr);
     fail_closed(TrapSite::switch_error);
 }
 

@@ -50,6 +50,14 @@ public:
     }
     ++samples_;last_instruction_=row[0];last_count_=row[3];return row[3];
   }
+  // A finite diagnostic may replay an exact prefix, then measure native time.
+  // Release is explicit and only legal at the last observed Count. Ordinary
+  // finish still requires EOF; failed/empty/finished tapes cannot be released.
+  bool release_prefix(std::uint64_t count) {
+    if (!input_ || output_ || finished_ || failed_ || samples_ == 0U ||
+        count != last_count_ || !*input_) return false;
+    input_ = nullptr; finished_ = true; return true;
+  }
   bool finish() {
     if (!active()) return true;
     if (finished_ || failed_) return false;

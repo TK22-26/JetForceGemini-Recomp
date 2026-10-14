@@ -21,6 +21,8 @@ def analyze(lines: Iterable[str], *, first_vi: int = 0,
         raise ValueError("expected FPS must be positive and finite")
     samples = []
     completion = None
+    render_rates = Counter()
+    display_rates = Counter()
     for number, line in enumerate(lines, 1):
         fields = line.strip().split("\t")
         if not fields[0]:
@@ -38,6 +40,17 @@ def analyze(lines: Iterable[str], *, first_vi: int = 0,
                 raise ValueError(f"invalid completion status on line {number}")
             completion = {"dropped_chunks": dropped, "writer_failed": bool(failed)}
             continue
+        # A stale C++ snapshot layout can corrupt only the render-worker rate
+        # while display records fall back to zero. Do not accept that as a
+        # phase-correct trace merely because no backwards samples remain.
+        if fields[0] == "render" and len(fields) == 10:
+            try:
+                rate = int(fields[3])
+                if not 0 <= rate <= 60:
+                    raise ValueError("source rate is outside the supported VI clock")
+            except ValueError as error:
+                raise ValueError(f"invalid render record on line {number}: {error}") from error
+            render_rates[rate] += 1
         if fields[0] != "display":
             continue
         try:
@@ -45,10 +58,11 @@ def analyze(lines: Iterable[str], *, first_vi: int = 0,
                 raise ValueError("expected ten fields")
             timestamp, tick, source, target, frame, count = map(int, fields[1:7])
             alpha = float(fields[7])
-            if not math.isfinite(alpha) or not 0 <= alpha <= 1 or source < 0:
+            if not math.isfinite(alpha) or not 0 <= alpha <= 1 or not 0 <= source <= 60:
                 raise ValueError("invalid source rate or interpolation weight")
         except ValueError as error:
             raise ValueError(f"invalid display record on line {number}: {error}") from error
+        display_rates[source] += 1
         if source == 0 or tick < first_vi or (last_vi is not None and tick >= last_vi):
             continue
         # The previous endpoint is one *actual source interval* before this tick.
@@ -60,6 +74,8 @@ def analyze(lines: Iterable[str], *, first_vi: int = 0,
     epsilon = 0.0001  # TSV weights have six significant digits.
     result = {
         "samples": len(samples),
+        "render_source_rates": dict(render_rates),
+        "display_source_rates": dict(display_rates),
         "completion": completion,
         "complete": completion is not None and
                     completion["dropped_chunks"] == 0 and not completion["writer_failed"],

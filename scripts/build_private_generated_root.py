@@ -2457,6 +2457,16 @@ static const JfgLookupEntry kLookupEntries[] = {{
 static JfgLookupSlot kLookupSlots[{lookup_capacity}u];
 int jfg_generated_lookup_dirty = 1;
 
+/* Mix high section bits as well as aligned instruction offsets before masking.
+ * The full guest address remains the key; publication order is unchanged. */
+static uint32_t jfg_generated_lookup_hash(uint32_t address) {{
+    address ^= address >> 16U;
+    address *= UINT32_C(0x7feb352d);
+    address ^= address >> 15U;
+    address *= UINT32_C(0x846ca68b);
+    return address ^ (address >> 16U);
+}}
+
 static void jfg_generated_lookup_rebuild(void) {{
     const size_t capacity = sizeof(kLookupSlots) / sizeof(kLookupSlots[0]);
     for (size_t index = 0; index < capacity; ++index) {{
@@ -2471,7 +2481,7 @@ static void jfg_generated_lookup_rebuild(void) {{
             continue;
         }}
         const uint32_t address = base + entry->offset;
-        size_t slot = ((size_t)(address * UINT32_C(2654435761))) &
+        size_t slot = ((size_t)jfg_generated_lookup_hash(address)) &
                       (capacity - 1u);
         while (kLookupSlots[slot].function != NULL &&
                kLookupSlots[slot].address != address) {{
@@ -2492,7 +2502,7 @@ static const JfgLookupSlot* jfg_generated_lookup_slot(int32_t vram) {{
     if (jfg_generated_lookup_dirty) {{
         jfg_generated_lookup_rebuild();
     }}
-    size_t slot = ((size_t)(address * UINT32_C(2654435761))) &
+    size_t slot = ((size_t)jfg_generated_lookup_hash(address)) &
                   (capacity - 1u);
     while (kLookupSlots[slot].function != NULL) {{
         if (kLookupSlots[slot].address == address) {{

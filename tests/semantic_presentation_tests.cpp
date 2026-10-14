@@ -7,6 +7,37 @@ static void require(bool v) {
     std::abort();
 }
 int main() {
+  // Reusing storage must preserve identity through growth, reordered subsets,
+  // offscreen passes and empty scenes; stale slots must not revive old actors.
+  {
+    jfg::SemanticPresentationHistory history;
+    std::vector<jfg::SemanticPresentationSample> points(512);
+    for (std::size_t i=0;i<points.size();++i) {
+      auto& point=points[i];point.key={i+1,1,2,3,4,i};
+      point.camera={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+      point.world={float(i%17)*0.001f,0,0};point.valid=true;
+    }
+    (void)history.record(points,10,true,true);
+    auto old=points;for(auto& point:points)point.world[0]+=0.01f;
+    auto result=history.record(points,12,true,true);
+    for(std::size_t i=0;i<points.size();++i)
+      require(result[i].matched && result[i].world==old[i].world);
+    for(std::size_t i=512;i<2048;++i) {
+      auto point=points[i%512];point.key[0]=i+1;point.key[5]=i;points.push_back(point);
+    }
+    result=history.record(points,14,true,true);
+    for(std::size_t i=0;i<points.size();++i)require(result[i].matched==(i<512));
+    std::reverse(points.begin(),points.end());points.resize(256);
+    result=history.record(points,16,true,true);
+    for(const auto& point:result)require(point.matched);
+    (void)history.record({},17,false,false);
+    result=history.record(points,18,true,true);
+    for(const auto& point:result)require(point.matched);
+    (void)history.record({},20,true,true);
+    result=history.record(points,22,true,true);
+    for(const auto& point:result)require(!point.matched);
+  }
+
   const jfg::PresentationMatrix identity{1, 0, 0, 0, 0, 1, 0, 0,
                                          0, 0, 1, 0, 0, 0, 0, 1};
   jfg::SemanticPresentationSample a{

@@ -23,13 +23,27 @@ inline bool rigid_pose_matches_matrix(const RigidPresentationPose& pose,
             return false;
     if (std::abs(pose.projection[11]) < 0.000001f || pose.projection[15] != 0)
         return false;
-    std::array<double, 16> world_view{};
-    for (unsigned row=0;row<4;++row) for (unsigned col=0;col<4;++col)
-        for (unsigned k=0;k<4;++k)
-            world_view[row*4+col] += double(pose.world[row*4+k])*pose.view[k*4+col];
+    // mathMtxCatF first builds view * projection, then world * that result.
+    // Its single-precision sum is (t1+t2)+(t0+t3). Reassociating these
+    // products changes cancellation near the origin enough to reject valid
+    // fixed-point endpoints. Volatile intermediates enforce float rounding
+    // and prevent contraction, regardless of the host compiler's FMA support.
+    const auto concatenate=[](const auto& a,const auto& b) {
+        std::array<float,16> out{};
+        for(unsigned row=0;row<4;++row) for(unsigned col=0;col<4;++col) {
+            const volatile float t0=a[row*4]*b[col];
+            const volatile float t1=a[row*4+1]*b[4+col];
+            const volatile float t2=a[row*4+2]*b[8+col];
+            const volatile float t3=a[row*4+3]*b[12+col];
+            const volatile float left=t1+t2, right=t0+t3;
+            out[row*4+col]=left+right;
+        }
+        return out;
+    };
+    const auto expected=concatenate(pose.world,concatenate(pose.view,pose.projection));
     for (unsigned row=0;row<4;++row) for (unsigned col=0;col<4;++col) {
-        double value=0;
-        for (unsigned k=0;k<4;++k) value+=world_view[row*4+k]*pose.projection[k*4+col];
+        const double value=expected[row*4+col];
+        if (!std::isfinite(value)) return false;
         // Float guest concatenation followed by signed 16.16 quantization.
         const double endpoint=combined[row*4+col];
         if (std::abs(value-endpoint)>0.0001+std::abs(endpoint)*0.00001) return false;

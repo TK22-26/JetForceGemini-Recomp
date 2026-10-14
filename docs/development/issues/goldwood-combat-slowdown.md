@@ -1256,3 +1256,155 @@ The selected binary is the queue-observer build 1b0bdd0f, whose exact-clock
 guest bytes, save, instruction counts and logical matching equal its preceding
 1609c019 build. All original resource waits remain. Unlimited's existing
 starvation/pacing issue stays open. No prepared-age correction is delivered.
+
+## Five-hour guarded continuation, 2026-10-14 UTC
+
+Owner approved five hours after the route-fix preview. The same operational
+investigation/root and all prior charges are retained; the guard stays enabled.
+Selected baseline is implementation aaae085 with documentation e51b0af and runtime
+1b0bdd0f. Work prioritizes actual combat source-rate cost and a visibly qualified
+late-room fixture. Preserve original game timing, muted owned tests, copied saves,
+and raw evidence on D:. The scene-age, direct-camera and secondary subset
+experiments remain rejected unless new evidence supports a distinct correction.
+No bounded replay, synthetic match or build alone closes the owner's reports.
+
+The new dense-stage observer preserves all guest bytes, instructions and matching
+decisions. Semantic history is the largest measured preparation stage (1.51 ms
+median), followed by geometry-key construction (0.81 ms). A candidate reuses the
+continuity result for exactly equal UV-cloned vertices while retaining full-key
+identity, conflicting/invalid actor-wide rejection and NaN/culling behavior.
+The old algorithm is the differential oracle; real replay and native checks
+remain required. This does not change game timing or count extra simulation.
+
+The initial 2026-10-14 stage/alias renderer builds retained stale generated
+layout code. Their visual/performance acceptance is invalid and is being rerun;
+see [BUILD-001](stale-generated-renderer.md). Guest-state equality alone did not
+detect this private build error. The delivered preview is unaffected.
+
+A diagnostic-only replay-prefix release is being added to establish identical
+combat starting state before real native timing measurements. At a complete
+update boundary it fingerprints RAM, Count, input and instruction ordinals,
+then releases the checked Count transcript and reanchors only the host clock.
+It requires finite non-Play replay with an explicit boundary before the probe
+end; normal replay still requires EOF. This is test infrastructure, not a
+performance fix, and does not change the launcher or default gameplay policy.
+
+Coherent renderer requalification preserves guest state and logical matching.
+The alias reuse lowers dense history preparation by roughly 0.2-0.3 ms, while
+busy updates still exceed 33 ms. The current semantic stage alone is 1.26 ms
+median. A further candidate retains two contiguous endpoint tables, with full-key
+collision checks and unchanged invalid-owner rejection, instead of allocating
+individual hash nodes every scene. It must pass the prior implementation oracle,
+real-state replay and native-prefix performance review before selection.
+
+The flat-table candidate preserves the dense replay byte-for-byte and all
+matching decisions. Dense semantic cost falls from about 1.26 to 0.97 ms.
+One native-prefix comparison improves the busy window from 23.3 to 28.6 source
+FPS; later paths differ, so this is encouraging rather than isolated causal
+proof or a stable-30 guarantee. Detailed CPU profiling itself adds cost, but
+its disabled control still reproduces the real slowdown.
+
+A preparation candidate reserves mesh storage from actual per-matrix vertex
+counts, and binds the F3DDKR context only for the owning synchronous interpreter
+call. The latter replaces repeated global mutex/map lookup while keeping the
+fallback registry for other states/threads and restoring the binding on return
+or exception. Neither change alters geometry, identities or GPU resource waits.
+State, rendering and native timing qualification follow.
+
+A concrete CPU omission is found in the span generator: MUL_S and MUL_D expand
+to plain multiplication in the pinned generated header, but were absent from
+the pure-helper allowlist. Matrix loops therefore fragment around each multiply.
+The candidate adds only those two macros; it keeps the original arithmetic,
+FPU/Status checks, 16-instruction maximum, 128-instruction clock quantum, MMIO
+fallback and all control/callback boundaries. The added eligibility regression
+fails before and passes after. The compiled 4,096-case differential now also
+compares float/double output bits and FP exceptions in four rounding modes,
+including signed zero, subnormal, overflow and infinity inputs. Exact recorded
+clock and native performance qualification remain required.
+
+The multiplication-span candidate passes exact-clock dense replay with unchanged
+guest bytes, save, instruction totals and logical matching. In a combined
+comparison against the delivered 1b0bdd0f runtime, the busiest median update falls
+from 37.872 to 35.626 ms and history preparation from 3.735 to 2.633 ms. The
+earlier busy window changes only 32.915 to 32.730 ms. These are profiled,
+identical-workload costs, not native FPS promises. Native released-prefix
+measurements still include sub-30 source rates; the combat report remains open.
+
+Another measured hypothesis concerns the generated function table: multiplying
+an aligned address then masking only its low bits does not mix overlay/section
+bits. A probe model and compiled original-versus-mixed benchmark use the actual
+inventory while checking identical function/continuation resolution. This is
+distinct from the already removed continuation metadata scan. No lookup change
+is selected until semantic, lifecycle and native-game checks qualify it.
+
+The actual-inventory compiled lookup benchmark preserves every queried function,
+continuation and miss. Mixing the whole 32-bit address reduces lookup time by
+about 33-51% in resident, sampled-hot-section and all-section models. This saves
+nanoseconds per call and does not explain the full combat deficit. The generator
+candidate retains full-address equality, first-published collision precedence,
+lazy rebuilds and lifecycle invalidation. Existing compiled rebase/unload/reload
+and generator checks pass; regenerated game bodies and headers are byte-exact.
+Native replay qualification is still required before delivery.
+
+A foreground process-status check at 03:01 UTC found a concurrent
+Scooby-Doo diagnostic plus unrelated host activity. The owner was asked to pause
+its game tests. The later lookup native comparison is not accepted as isolated
+FPS evidence; earlier native runs without a full process-load monitor also
+cannot rule out this contention. Exact recorded-state and Original reference
+comparisons remain valid for correctness, not uncontended performance.
+
+The older 512-instruction poll candidate remains rejected. A distinct private
+experiment will compare 128 versus 256 only after releasing the identical
+recorded combat prefix; ordinary Play and the entire prefix retain 128.
+Repeated reversed-order runs with host-load monitoring are required before
+considering a policy change. No default clock or game-speed change is selected.
+
+## Monitored polling comparison, 2026-10-14 UTC
+
+After the owner paused the other task and its diagnostic exited, four reversed-
+order 128/256/256/128 runs began at the same recorded combat RAM/Count/input/
+instruction boundary. No foreign game or compiler was observed by the two-second
+monitor. Source windows ranged 29.21-29.92 updates/s with 128 and 29.52-29.91
+with 256. The later native paths differ and the effect is small; these observations
+do not justify changing the established clock policy. The private 256 probe is
+not selected. Ordinary Play retains 128 and the existing 16-instruction spans.
+Both earlier attempts that detected the open foreign process deferred without
+launching a game. Evidence: combat-focus-20261014/poll-clear-abba-review.json,
+its per-run host-load records and poll-decision.json.
+
+A second monitored reversed-order comparison uses the pre-flat-table baseline
+and the qualified CPU/matrix/lookup candidate, with identical recorded release
+state in all four runs and no observed foreign game/build activity. The busiest
+window is about 28.51 updates/s in both baseline runs; the candidate produces
+29.62 in one run and 28.51 in the other. Early active work is slightly lower,
+but changing later instruction workloads and run variability prevent a stable
+30-FPS guarantee. Select the exact-state-preserving CPU reductions for measured
+work savings; keep PERF-001 open. Evidence: cpu-clear-abba-review.json and its
+host-load records. Neither the 256-instruction probe nor scene-age scheduling
+experiment is included.
+
+## Severe 360-FPS qualification hitch remains under review
+
+The selected equal-slot candidate's later normal Play run completes and drains
+its logs, but VI 4000-4800 averages only about 11 scene updates/s and 181-189
+presentations/s, with 34 audio underruns. This is a failed performance check,
+despite successful state/phase/completion checks. Earlier same-runtime dual-policy
+captures were substantially smoother, so neither a new rendering regression nor
+external host contention is ruled out. Do not deliver based on a generic
+"completed successfully" assertion. The actual work/submit/history costs and a
+monitored identical-prefix old/new comparison are required. Evidence:
+shared-native-play-review.json and 360-slow-run-cost-review.json.
+
+The subsequent monitored 360-FPS before/after/after/before comparison preserves
+all four release RAM/Count/input/instruction/tape boundaries and observes no
+foreign game/build activity. It does not reproduce the 11-FPS collapse or audio
+underruns. Both versions still reach approximately 26-27 scene updates/s in
+combat windows. Per-process CPU deltas are retained; changing native paths
+prevent attributing the previous severe hitch or claiming a stable-30 remedy.
+Evidence: shared360-abba-review.json and its four host-load records.
+
+A static 32-versus-16-instruction span model reduces span count by only about
+5.3%, with 0.11% more instructions covered. The sampled dense runtime averages
+about 5.7 guest instructions per span commit. No 32-span runtime is selected
+or benchmarked; the established 16-instruction bound and 128-instruction polling
+quantum remain unchanged. Evidence: span-length-potential.json.

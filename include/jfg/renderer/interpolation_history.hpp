@@ -26,8 +26,26 @@ struct PresentationMesh {
     std::vector<std::array<float, 3>> positions;
     PresentationMatrix matrix{};
     bool eligible = true;
+    // A cross-slot triangle has no complete per-slot topology key. Such a
+    // mesh may follow a proven shared transform, but cannot anchor history.
+    bool complete_local_topology = true;
     std::optional<RigidPresentationPose> rigid_pose;
 };
+// F3DDKR may reload one numeric transform into several RT64 matrix slots.
+// Equal finite transforms still define one triangle space. Keep incomplete
+// local topology out of shape matching; another complete mesh must anchor the
+// shared cohort. Actually different/invalid transforms retain endpoint safety.
+inline bool allow_shared_matrix_triangle(PresentationMesh& a,
+    PresentationMesh& b, PresentationMesh& c) {
+    bool equal = a.matrix == b.matrix && a.matrix == c.matrix;
+    for(float value:a.matrix) equal = equal && std::isfinite(value);
+    if(!equal) {
+        a.eligible=b.eligible=c.eligible=false;
+        return false;
+    }
+    a.complete_local_topology=b.complete_local_topology=c.complete_local_topology=false;
+    return true;
+}
 // Known sprite lifetimes own the transform even when animation changes the
 // local quad dimensions. Retain vertex count and triangle connectivity; unknown
 // meshes still require exact geometry. Texture/local-quad animation itself
@@ -131,11 +149,11 @@ public:
         };
         std::map<const std::vector<std::uint32_t>*, std::size_t, KeyLess> counts;
         for (const auto& mesh : meshes)
-            if (mesh.eligible && !mesh.key.empty()) ++counts[&mesh.key];
+            if (mesh.eligible && mesh.complete_local_topology && !mesh.key.empty()) ++counts[&mesh.key];
         std::map<std::vector<std::uint32_t>, HistoryEndpoint> next;
         for (std::size_t i = 0; i < meshes.size(); ++i) {
             const auto& mesh = meshes[i];
-            if (!mesh.eligible || mesh.key.empty() || counts[&mesh.key] != 1U) continue;
+            if (!mesh.eligible || !mesh.complete_local_topology || mesh.key.empty() || counts[&mesh.key] != 1U) continue;
             const auto old = previous_.find(mesh.key);
             if (result.source_rate != 0U && old != previous_.end() &&
                 continuous_presentation_motion(old->second, mesh))

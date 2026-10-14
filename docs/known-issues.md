@@ -29,6 +29,16 @@ are in [the current qualification](../evidence/high-refresh-route-fix.json).
 Do not treat output FPS as the game-update rate or hidden-window tests as
 physical-monitor verification. This is a local preview, not a public release.
 
+## Extended native stability qualification
+
+Longer private native tutorial replays have exposed an access violation in the
+current high-refresh candidate and a different generated switch trap in an
+earlier candidate. Clean bounded and Original replays do not establish that
+these native paths are stable. Delivery is withheld while the cause and
+installed-preview coverage are investigated. See
+[NATIVE-001](development/issues/native-play-access-violation.md) and
+[the continuation evidence](../evidence/high-refresh-combat-focus.json).
+
 ## Character seams and lighting
 
 The owner reports the thigh seams and delayed lighting are absent at 120 FPS

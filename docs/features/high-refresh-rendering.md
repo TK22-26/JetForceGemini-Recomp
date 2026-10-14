@@ -624,3 +624,34 @@ starvation/audio errors. Initial waiting was excluded from gameplay analysis;
 the original capture was preserved. Neither a build nor hidden-window FPS
 establishes visible resolution. Runtime identity and measured limits are in
 [the delivery evidence](../../evidence/high-refresh-route-fix.json).
+
+## Combat and camera continuation, 2026-10-14 (source candidate)
+
+Semantic endpoint history now reuses contiguous tables and identical UV-clone
+decisions. Mesh storage is reserved from actual vertices, synchronous F3DDKR
+dispatch avoids repeated registry locking, pure float/double multiplication can
+use existing native spans, and generated function lookup mixes all address bits.
+The existing 16-instruction span and 128-instruction clock bounds remain.
+
+Two concrete camera-history faults are corrected in bounded tests. Rigid-pose
+validation now repeats the guest's single-precision matrix order instead of
+rejecting valid fixed-point matrices through reassociation. Triangles split
+across numerically identical finite matrix slots may follow a shared camera
+anchor; incomplete slot geometry cannot create an anchor of its own. Actual
+different transforms, conflicts, cuts and missing anchors retain conservative
+handling. Same-input captures gain matches without lost matches or changed old
+anchors, and Original/dense comparisons retain exact guest state.
+
+These are partial improvements. Monitored native combat still reaches the
+mid-to-high 20s in scene updates/s. One 360-FPS run has a much worse hitch that
+the subsequent monitored reversed-order comparison does not reproduce.
+Full-route shadow/late-object visuals and Unlimited pacing remain open.
+
+Extended native qualification also exposes failures: an access violation in
+the candidate and a different switch-error trap in its earlier predecessor.
+Opt-in private crash capture and attributable switch-error diagnostics preserve
+the needed context; they do not fix the game. The desktop preview is unchanged
+while [NATIVE-001](../development/issues/native-play-access-violation.md) is
+investigated. No public release or full-route acceptance is claimed.
+[Current evidence](../../evidence/high-refresh-combat-focus.json) records
+identities, private artifact hashes, verified scope and unresolved limits.

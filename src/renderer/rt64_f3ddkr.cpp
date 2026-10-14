@@ -84,6 +84,7 @@ struct Context {
     std::uint64_t vi_tick = 0U;
     PresentationHistory presentation_history;
     PresentationHistory rigid_baseline_history; // Used only by explicit diagnostics.
+    PresentationHistory shared_matrix_baseline_history; // Same-input old-policy diagnostic.
     SemanticPresentationHistory semantic_history;
     std::shared_ptr<const PresentationSceneIdentity> identities;
     std::array<hlslpp::float4x4,kMatrixCount> model_matrices{}, camera_matrices{};
@@ -97,8 +98,15 @@ struct Context {
 
 std::mutex contexts_mutex;
 std::unordered_map<RT64::State*, Context*> contexts;
+// Bound only during synchronous interpretation by the owning adapter. This
+// avoids a global mutex/hash lookup for every command without retaining a
+// pointer after the call, across destruction, or on another renderer thread.
+thread_local Context* dispatch_context = nullptr;
+
 
 [[nodiscard]] Context* find_context(RT64::State* state) noexcept {
+    if (dispatch_context && dispatch_context->application->state.get() == state)
+        return dispatch_context;
     const std::scoped_lock lock(contexts_mutex);
     const auto iterator = contexts.find(state);
     return iterator == contexts.end() ? nullptr : iterator->second;
@@ -999,9 +1007,29 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         scene = scene || (pair.colorImage.width >= 320U &&
             pair.colorImage.siz == G_IM_SIZ_16b && !pair.drawColorRect.isEmpty());
     }
+    const bool history_profile=interpolation_trace_enabled();
+    auto history_stage_started=history_profile ? std::chrono::steady_clock::now()
+        : std::chrono::steady_clock::time_point{};
+    const auto history_stage=[&](unsigned stage) {
+        if (!history_profile) return;
+        const auto now=std::chrono::steady_clock::now();
+        trace_interpolation("history-stage",context.vi_tick,stage,scene?1U:0U,0U,
+            static_cast<unsigned>(data.worldIndices.size()),0.0f,
+            std::chrono::duration_cast<std::chrono::microseconds>(now-history_stage_started).count(),
+            data.worldTransforms.size());
+        history_stage_started=std::chrono::steady_clock::now();
+    };
     std::vector<PresentationMesh> meshes(data.worldTransforms.size());
     std::vector<std::uint32_t> local_indices(data.worldIndices.size());
+    std::vector<std::size_t> vertex_counts(meshes.size());
+    for (std::size_t v=0;v<data.worldIndices.size();++v)
+        if (data.worldIndices[v]<meshes.size() && v*3U+2U<data.posFloats.size())
+            ++vertex_counts[data.worldIndices[v]];
     for (std::size_t i = 0; i < meshes.size(); ++i) {
+        // UV clones normally contribute one triangle index per position.
+        // Reserve headroom once; unusual topology still grows normally.
+        meshes[i].positions.reserve(vertex_counts[i]);
+        meshes[i].key.reserve(vertex_counts[i]*6U+11U);
         for (std::size_t r = 0; r < 4; ++r)
             for (std::size_t c = 0; c < 4; ++c)
                 meshes[i].matrix[r*4+c] = data.worldTransforms[i].m[r][c];
@@ -1023,6 +1051,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         mesh.key.push_back(0xFFFFFFFFU);
         mesh.key.push_back(static_cast<std::uint32_t>(mesh.positions.size()));
     }
+    std::size_t cross_matrix_triangles=0, equal_matrix_triangles=0;
     for (std::size_t t = 0; t + 2 < data.faceIndices.size(); t += 3) {
         const auto a = data.faceIndices[t], b = data.faceIndices[t+1], c = data.faceIndices[t+2];
         if (a >= data.worldIndices.size() || b >= data.worldIndices.size() ||
@@ -1030,12 +1059,15 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         const auto ma = data.worldIndices[a], mb = data.worldIndices[b], mc = data.worldIndices[c];
         if (ma >= meshes.size() || mb >= meshes.size() || mc >= meshes.size()) continue;
         if (ma != mb || ma != mc) {
-            meshes[ma].eligible = meshes[mb].eligible = meshes[mc].eligible = false;
+            ++cross_matrix_triangles;
+            if(allow_shared_matrix_triangle(meshes[ma],meshes[mb],meshes[mc]))
+                ++equal_matrix_triangles;
             continue;
         }
         meshes[ma].key.insert(meshes[ma].key.end(),
             {local_indices[a], local_indices[b], local_indices[c]});
     }
+    history_stage(1U); // Geometry keys and local indices.
     // Identical sprite quads must not match a different pickup just because
     // their geometry is equal. Stable actor lifetime + asset + camera owns
     // the billboard transform; texture animation keeps its authored cadence.
@@ -1077,10 +1109,47 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             const auto pose=rigid_poses.find(matrix);
             if (pose!=rigid_poses.end() && rigid_pose_matches_matrix(*pose->second, meshes[matrix].matrix))
                 meshes[matrix].rigid_pose=*pose->second;
+            else if (pose!=rigid_poses.end() && rigid_compare && context.vi_tick>=3300U) {
+                static unsigned captured=0;
+                if(captured<512U) {
+                    ++captured;
+                    const std::array<float,16>* matrices[]{&pose->second->world,&pose->second->view,
+                        &pose->second->projection,&meshes[matrix].matrix};
+                    for(unsigned part=0;part<4;++part)for(unsigned row=0;row<4;++row) {
+                        const auto& m=*matrices[part];
+                        const auto pair=[&](unsigned c) { return
+                            (std::uint64_t(std::bit_cast<std::uint32_t>(m[row*4+c]))<<32U)|
+                            std::bit_cast<std::uint32_t>(m[row*4+c+1]); };
+                        trace_interpolation("rigid-reject",context.vi_tick,static_cast<unsigned>(key[1]>>32U),
+                            part,row,captured,0.0f,pair(0),pair(2));
+                    }
+                }
+            }
         }
+    }
+    PresentationHistoryFrame shared_matrix_baseline;
+    if(rigid_compare) {
+        auto old_policy=meshes;
+        for(auto& mesh:old_policy) if(!mesh.complete_local_topology) mesh.eligible=false;
+        shared_matrix_baseline=context.shared_matrix_baseline_history.record(
+            old_policy,context.vi_tick,scene);
     }
     auto frame = std::make_shared<PresentationHistoryFrame>(
         context.presentation_history.record(meshes, context.vi_tick, scene));
+    if(rigid_compare) {
+        std::size_t gained=0,lost=0,changed=0;
+        for(std::size_t m=0;m<meshes.size();++m) {
+            const auto& old=shared_matrix_baseline.transforms[m];
+            const auto& current=frame->transforms[m];
+            if(current.matched && !old.matched)gained+=meshes[m].positions.size();
+            if(old.matched && !current.matched)lost+=meshes[m].positions.size();
+            if(old.matched && current.matched && old.previous!=current.previous)++changed;
+        }
+        trace_interpolation("matrix-sharing",context.vi_tick,frame->source_rate,
+            static_cast<unsigned>(changed),0U,static_cast<unsigned>(data.worldIndices.size()),
+            0.0f,gained,lost);
+    }
+    history_stage(2U); // Matrix ownership and rigid/shape history.
     if (rigid_trace) {
         std::size_t valid=0;
         for (const auto& mesh:meshes) valid+=mesh.rigid_pose.has_value();
@@ -1108,6 +1177,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         samples.push_back(sample);
     }
     const auto history=context.semantic_history.record(samples,context.vi_tick,scene,frame->source_rate!=0U);
+    history_stage(3U); // Semantic history and ownership diagnostics.
     std::size_t semantic_count=0,matched_count=0,moving_count=0;
     if (scene && interpolation_trace_enabled()) {
         std::size_t matched = 0;
@@ -1145,6 +1215,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         ++matched_count;
         if(samples[v].world!=history[v].world) ++moving_count;
     }
+    history_stage(4U); // Previous-world endpoint conversion.
     if(scene) trace_interpolation("semantic",context.vi_tick,frame->source_rate,0U,0U,
         static_cast<unsigned>(semantic_count),0.0f,matched_count,moving_count);
     if (scene && interpolation_trace_enabled()) {
@@ -1160,6 +1231,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         std::set<PresentationMatrix> cameras;
         for(const auto& sample:samples) if(sample.valid) cameras.insert(sample.camera);
         std::size_t camera_vertices=0, camera_matched=0, all_matched=0;
+        std::size_t invalid_camera_vertices=0;
         for(std::size_t v=0;v<data.worldIndices.size();++v) {
             const auto m=data.worldIndices[v];
             if(m>=meshes.size()) continue;
@@ -1167,12 +1239,16 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             all_matched+=matched;
             if(cameras.contains(meshes[m].matrix)) {
                 ++camera_vertices;camera_matched+=matched;
+                invalid_camera_vertices+=!meshes[m].eligible;
             }
         }
+        trace_interpolation("geometry-conflict",context.vi_tick,frame->source_rate,0U,0U,
+            static_cast<unsigned>(cross_matrix_triangles),0.0f,equal_matrix_triangles,invalid_camera_vertices);
         trace_interpolation("coverage",context.vi_tick,frame->source_rate,0U,
             static_cast<unsigned>(camera_vertices),static_cast<unsigned>(data.worldIndices.size()),
             0.0f,camera_matched,all_matched);
     }
+    history_stage(5U); // Coverage diagnostics.
     state.setRefreshRate(static_cast<std::uint16_t>(frame->source_rate));
     publish_presentation_snapshot(&workload, std::move(frame));
     context.semantic_vertices.clear();
@@ -1332,6 +1408,17 @@ void Rt64F3ddkr::begin(
     impl_->context.stats = {};
     impl_->context.failed = false;
     reset(impl_->context.application->state.get());
+}
+
+void Rt64F3ddkr::process_display_list(std::uint32_t address) {
+    auto& context=impl_->context;
+    struct RestoreBinding {
+        Context* previous;
+        ~RestoreBinding() { dispatch_context=previous; }
+    } restore{dispatch_context};
+    dispatch_context=&context;
+    context.application->processDisplayLists(
+        const_cast<std::uint8_t*>(context.simulation_rdram.data()),address,0U,true);
 }
 
 void Rt64F3ddkr::install() noexcept {

@@ -3,6 +3,19 @@
 #include <limits>
 static void require(bool value) { if (!value) std::abort(); }
 int main() {
+    // A captured stationary bridge near cancellation. Guest concatenation is
+    // world * (view * projection), with single-precision paired sums.
+    // Reassociation in double rejects this valid signed 16.16 endpoint.
+    {
+        jfg::RigidPresentationPose precise{{0.0f,0.0f,0.796875f,0.0f,-0.0f,0.796875f,0.0f,0.0f,-0.796875f,-0.0f,0.0f,0.0f,1331.0f,0.0f,882.0f,1.0f},{-0.99926477670669556f,-0.0f,0.038340121507644653f,0.0f,-0.0f,1.0f,0.0f,0.0f,-0.038340121507644653f,0.0f,-0.99926477670669556f,0.0f,1368.890380859375f,-40.010002136230469f,1518.405029296875f,1.0f},{1.5415109395980835f,0.0f,0.0f,0.0f,0.0f,2.0553479194641113f,0.0f,0.0f,0.0f,0.0f,-1.0013341903686523f,-1.0f,0.0f,0.0f,-20.013341903686523f,0.0f}};
+        auto endpoint=std::array<float,16>{-0.0471038818359375f,0.0f,0.7973480224609375f,0.796295166015625f,0.0f,1.637847900390625f,0.0f,0.0f,1.2274932861328125f,0.0f,0.0305938720703125f,0.030548095703125f,7.789031982421875f,-82.234466552734375f,-709.01556396484375f,-688.084228515625f};
+        require(jfg::rigid_pose_matches_matrix(precise,endpoint));
+        endpoint[12]+=0.01f;
+        require(!jfg::rigid_pose_matches_matrix(precise,endpoint));
+        endpoint[12]=std::numeric_limits<float>::infinity();
+        require(!jfg::rigid_pose_matches_matrix(precise,endpoint));
+    }
+
     // A stationary owned bridge must not stop at source cadence merely
     // because one of its vertices crosses the camera plane during a small pan.
     const std::array<float,16> identity{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
@@ -197,5 +210,37 @@ int main() {
     rigid_geometry.record({crate_a},100,true);
     crate_a.key.push_back(17); // identity cannot authorize different geometry
     require(!rigid_geometry.record({crate_a},102,true).transforms[0].matched);
+    // Reproduced camera stall: equal matrices in distinct slots were marked
+    // ineligible, poisoning the whole scenery cohort. Incomplete cross-slot
+    // geometry can follow a complete anchor, but cannot invent one itself.
+    {
+        auto anchor=a, cross_left=a, cross_right=a;
+        anchor.key={901};cross_left.key={902};cross_right.key={903};
+        anchor.matrix=cross_left.matrix=cross_right.matrix=identity;
+        anchor.positions=cross_left.positions=cross_right.positions={{{0,0,0}}};
+        require(jfg::allow_shared_matrix_triangle(cross_left,cross_right,cross_left));
+        require(cross_left.eligible && cross_right.eligible &&
+            !cross_left.complete_local_topology && !cross_right.complete_local_topology);
+        jfg::PresentationHistory shared;
+        shared.record({anchor,cross_left,cross_right},100,true);
+        anchor.matrix[12]=cross_left.matrix[12]=cross_right.matrix[12]=0.1f;
+        const auto frame=shared.record({anchor,cross_left,cross_right},102,true);
+        for(const auto& transform:frame.transforms)
+            require(transform.matched && transform.previous==identity);
+        jfg::PresentationHistory unanchored;
+        unanchored.record({cross_left,cross_right},100,true);
+        const auto no_anchor=unanchored.record({cross_left,cross_right},102,true);
+        require(!no_anchor.transforms[0].matched && !no_anchor.transforms[1].matched);
+        auto different=cross_right;different.matrix[12]+=0.01f;
+        require(!jfg::allow_shared_matrix_triangle(cross_left,different,cross_left));
+        require(!cross_left.eligible && !different.eligible);
+        require(!shared.record({anchor,cross_left,different},104,true).transforms[0].matched);
+        auto invalid_cross=a;invalid_cross.matrix[0]=std::numeric_limits<float>::infinity();
+        auto invalid2=invalid_cross;
+        require(!jfg::allow_shared_matrix_triangle(invalid_cross,invalid2,invalid_cross));
+        invalid_cross=a;invalid_cross.matrix[0]=std::numeric_limits<float>::quiet_NaN();
+        invalid2=invalid_cross;
+        require(!jfg::allow_shared_matrix_triangle(invalid_cross,invalid2,invalid_cross));
+    }
   return 0;
 }

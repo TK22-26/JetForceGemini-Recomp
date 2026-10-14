@@ -1,7 +1,10 @@
 #pragma once
 #include "jfg/renderer/interpolation_history.hpp"
 #include <set>
-#include <unordered_map>
+#include <functional>
+#include <algorithm>
+#include <limits>
+#include <stdexcept>
 
 namespace jfg {
 using PresentationVertexKey = std::array<std::uint64_t, 6>;
@@ -69,6 +72,46 @@ struct PresentationVertexHash {
   }
 };
 class SemanticPresentationHistory {
+  struct Endpoint {
+    SemanticPresentationSample sample;
+    std::size_t first = 0;
+  };
+  // Two retained, contiguous endpoint tables avoid one heap allocation per
+  // logical vertex per scene. Hash collisions always compare the entire key;
+  // indices are local to each table and are rebuilt before reusing storage.
+  struct Endpoints {
+    static constexpr auto empty = (std::numeric_limits<std::size_t>::max)();
+    std::vector<Endpoint> entries;
+    std::vector<std::size_t> slots;
+    void clear(std::size_t maximum) {
+      if (maximum > empty / 4U) throw std::length_error("semantic history capacity");
+      std::size_t capacity=16U;
+      while (capacity < maximum*2U) capacity*=2U;
+      if (capacity > slots.size()) slots.resize(capacity);
+      std::fill(slots.begin(),slots.end(),empty);
+      entries.clear();entries.reserve(maximum);
+    }
+    std::pair<Endpoint*,bool> insert(const SemanticPresentationSample& sample,std::size_t first) {
+      auto slot=PresentationVertexHash{}(sample.key)&(slots.size()-1U);
+      while (slots[slot]!=empty) {
+        auto& entry=entries[slots[slot]];
+        if (entry.sample.key==sample.key) return {&entry,false};
+        slot=(slot+1U)&(slots.size()-1U);
+      }
+      slots[slot]=entries.size();entries.push_back({sample,first});
+      return {&entries.back(),true};
+    }
+    const Endpoint* find(const PresentationVertexKey& key) const {
+      if (slots.empty()) return nullptr;
+      auto slot=PresentationVertexHash{}(key)&(slots.size()-1U);
+      while (slots[slot]!=empty) {
+        const auto& entry=entries[slots[slot]];
+        if (entry.sample.key==key) return entry.sample.valid ? &entry : nullptr;
+        slot=(slot+1U)&(slots.size()-1U);
+      }
+      return nullptr;
+    }
+  };
 public:
   std::vector<SemanticPresentationPrevious>
   record(const std::vector<SemanticPresentationSample> &samples,
@@ -76,8 +119,7 @@ public:
     std::vector<SemanticPresentationPrevious> result(samples.size());
     if (!scene)
       return result;
-    std::unordered_map<PresentationVertexKey, SemanticPresentationSample, PresentationVertexHash> next;
-    next.reserve(samples.size());
+    next_.clear(samples.size());
     std::set<std::uint64_t> blocked, corrupt;
     const bool continuous = cadence && previous_tick_ != 0U &&
                             tick > previous_tick_ &&
@@ -93,41 +135,42 @@ public:
         corrupt.insert(actor);
         continue;
       }
-      // The old duplicate audit also rejected a unique NaN endpoint because
-      // it compares unequal to its own copy. Preserve that actor-wide poison
-      // when a corrupt vertex disappears from the following scene.
-      for (float value:s.world) if (std::isnan(value)) corrupt.insert(actor);
-      for (float value:s.camera) if (std::isnan(value)) corrupt.insert(actor);
-      // UV clones reuse one endpoint; do not allocate discarded duplicate nodes.
-      const auto [it, inserted] = next.try_emplace(s.key, s);
-      if (!inserted &&
-          (it->second.world != s.world || it->second.camera != s.camera)) {
+      // Identical UV clones share one continuity decision. Keep the full key
+      // and endpoint comparison: conflicting clones still poison the actor.
+      const auto [it, inserted] = next_.insert(s,i);
+      if (inserted) {
+        (*it) = {s, i};
+      } else if ((*it).sample.world == s.world &&
+                 (*it).sample.camera == s.camera) {
+        result[i] = result[(*it).first];
+        continue;
+      } else {
         blocked.insert(actor);
         corrupt.insert(actor);
       }
+      // A unique NaN endpoint was rejected by the original duplicate audit.
+      // Preserve its poison even when that vertex is culled next scene.
+      for (float value:s.world) if (std::isnan(value)) corrupt.insert(actor);
+      for (float value:s.camera) if (std::isnan(value)) corrupt.insert(actor);
       const auto old = previous_.find(s.key);
-      if (old == previous_.end() || !semantic_motion_continuous(old->second, s))
+      if (old == nullptr || !semantic_motion_continuous(old->sample, s))
         blocked.insert(actor);
       else
-        result[i] = {old->second.world, old->second.camera, true};
+        result[i] = {old->sample.world, old->sample.camera, true};
     }
     for (std::size_t i = 0; i < samples.size(); ++i)
       if (blocked.contains(samples[i].key[0]))
         result[i].matched = false;
     // A conflicting endpoint is not a valid anchor for the next scene.
-    for (auto it = next.begin(); it != next.end();) {
-      if (corrupt.contains(it->first[0]))
-        it = next.erase(it);
-      else
-        ++it;
-    }
-    previous_ = std::move(next);
+    for (auto& entry : next_.entries)
+      if (corrupt.contains(entry.sample.key[0])) entry.sample.valid=false;
+    std::swap(previous_,next_);
     previous_tick_ = tick;
     return result;
   }
 
 private:
-  std::unordered_map<PresentationVertexKey, SemanticPresentationSample, PresentationVertexHash> previous_;
+  Endpoints previous_, next_;
   std::uint64_t previous_tick_ = 0;
 };
 } // namespace jfg

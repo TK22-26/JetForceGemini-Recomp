@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "date_utc": "2026-10-14",
+  "status": "source candidate; desktop delivery withheld pending native stability investigation",
+  "source_parent": "e51b0af2c89d8ad3052c7aedf51b040c06a6a5a5",
+  "desktop_runtime_sha256": "1b0bdd0fbfe25eacbf3ed0417c1607a70eed49d4198a6add62f3fba12900f0db",
+  "matrix_qualification_runtime_sha256": "ad17e4c3357f85ee46b65c12a1e3672d203955bbb48bba29181ac6d87fc3bba0",
+  "diagnostic_runtime_sha256": "bbed817e723524dc1bee0118150bcda8ccd2c6745bb4acf53701e998aa0e51b3",
+  "private_artifacts": {
+    "shared-matrix-live-review.json": {
+      "sha256": "83c79587ce32822a98c5f936bec56e434af357225611c45d4c04df0bb229f4fc",
+      "bytes": 32692
+    },
+    "shared-matrix-full-original-review.json": {
+      "sha256": "73dd4731df10154903c2c506669c37af23a2da8086422a7218c5c4666fc1dbb1",
+      "bytes": 3982
+    },
+    "shared-matrix-remaining-holds.json": {
+      "sha256": "2be188e238e6b74c4ddfae5eaef1590257c86fd77793d6123ad1ecd2acd38987",
+      "bytes": 8582
+    },
+    "shared360-abba-review.json": {
+      "sha256": "244ea5453ed092869a0488603f193a72a2d40188bcf6a3ba57f9850e013d0f5d",
+      "bytes": 15113
+    },
+    "extended-native-comparison.json": {
+      "sha256": "f60cf365ea10b09665e942ccc22655c1c9471f2f417f40f8da5e8e07bda58c47",
+      "bytes": 11529
+    },
+    "span-length-potential.json": {
+      "sha256": "7bdc66a7b2c1ce3f328cb3f633e3d972c5cda8a7b3f643b98918b0f5d6d8731f",
+      "bytes": 300782
+    },
+    "360-slow-run-cost-review.json": {
+      "sha256": "98d73376f4f60da98de6036b31bc9983d39e2fc7626de02b2aa62f10505581b4",
+      "bytes": 26914
+    }
+  },
+  "verified_scope": [
+    "Compiled semantic-history oracle preserves matching including conflicts and NaN poisoning.",
+    "Dense recorded-clock comparisons preserve guest RAM, save and instruction progression.",
+    "Original 17000-retrace comparison preserves every guest byte and reference result.",
+    "Equal finite cross-slot matrices recover camera matching without changed old anchors or lost vertex matches in bounded same-input captures.",
+    "Muted native 120/360 and pause checks are bounded; completion alone is not a performance pass."
+  ],
+  "remaining": [
+    "Combat source cadence still reaches the mid-to-high 20s; damage/full-route timing remains open.",
+    "One 360 normal-Play run collapses to about 11 updates/s with audio underruns; monitored ABBA did not reproduce that collapse.",
+    "Extended native Play has an access violation in the candidate and a distinct switch trap in its pre-equal-slot predecessor; clean repeats do not establish resolution.",
+    "A small number of unanchored camera holds remain; exact owner late-room and physical-display acceptance are pending.",
+    "Clipped ground-shadow/mask cadence has no qualified fix.",
+    "Unlimited starvation/pacing remains open; rejected scene-age scheduling is absent."
+  ],
+  "unchanged_policy": {
+    "native_span_limit": 16,
+    "host_clock_poll_instructions": 128,
+    "original_simulation_timing": true,
+    "gpu_resource_waits": true
+  },
+  "guard": {
+    "investigation": "high-refresh-rendering-20261011",
+    "enabled": true,
+    "counters_reset": false,
+    "same_recovery_attempt": true
+  },
+  "delivery": {
+    "changed": false,
+    "reason": "Native stability qualification remains open. No shortcut, owner profile or published release change."
+  }
+}

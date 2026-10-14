@@ -28,5 +28,23 @@ int main(){
  {std::stringstream output;CountSampleTape t;check(t.record(output),"instruction header");check(t.sample(2,4,0,0,100)==100,"instruction sample");check(!t.sample(1,4,0,0,101),"backward instruction ordinal");}
  {std::stringstream output;CountSampleTape t;check(t.record(output),"idle header");check(!t.sample(1,4,0,101,100),"early idle return");}
  {std::stringstream output;CountSampleTape t;check(t.record(output),"output header");output.setstate(std::ios::badbit);check(!t.sample(1,4,0,0,100)&&!t.finish(),"output failure ignored");}
+ {
+  std::stringstream input(bytes);CountSampleTape t;
+  check(!t.release_prefix(5000),"inactive prefix released");
+  check(t.replay(input)&&!t.release_prefix(5000),"empty prefix released");
+  check(t.sample(1000,0x80010000,0x24210001,0,std::nullopt)==5000,"prefix first sample");
+  check(!t.release_prefix(4999)&&!t.release_prefix(5001),"mismatched Count released");
+  check(t.replaying()&&t.release_prefix(5000),"valid prefix refused");
+  check(!t.active()&&!t.replaying()&&t.samples()==1&&t.finish(),"released state invalid");
+  check(t.sample(1001,0x80010004,0x24210001,0,5003)==5003,"native Count not passed through");
+  check(!t.release_prefix(5000)&&!t.replay(input),"prefix restarted");
+ }
+ {
+  std::stringstream input(bytes);CountSampleTape t;check(t.replay(input),"failed prefix header");
+  check(!t.sample(1001,0x80010000,0x24210001,0,std::nullopt),"prefix mismatch absent");
+  check(!t.release_prefix(5000)&&!t.finish(),"failed prefix released");
+ }
+ {std::stringstream output;CountSampleTape t;check(t.record(output),"prefix recording header");
+  check(t.sample(1,4,0,0,100)==100&&!t.release_prefix(100)&&t.finish(),"recording prefix released");}
  std::cout<<checks<<" Count sample transcript contracts passed\n";
 }

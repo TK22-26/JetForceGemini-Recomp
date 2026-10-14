@@ -59,6 +59,7 @@ public:
     void begin(std::span<const std::uint8_t> simulation_rdram, std::uint64_t vi_tick = 0U,
         std::shared_ptr<const PresentationSceneIdentity> identities = {}) noexcept;
     void install() noexcept;
+    void process_display_list(std::uint32_t address);
     [[nodiscard]] bool complete() const noexcept;
     [[nodiscard]] std::size_t command_count() const noexcept;
     [[nodiscard]] Rt64F3ddkrStats stats() const noexcept;
