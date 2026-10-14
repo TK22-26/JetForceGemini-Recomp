@@ -286,3 +286,102 @@ Polling can miss transient corruption and cannot identify the writer. A snapshot
 is an observation-time dump, not a faulting-instruction capture. NATIVE-001 remains
 open; the helper change is diagnostic only. Evidence: external-poll-native-120-0
 and external-poll-observer-v2, including its normal-exit fixture.
+
+
+The revised read-only helper completes 45,625 samples over 250.687 seconds in
+external-poll-native-120-1. The unchanged old runtime exits normally at
+17005 VI / 8189 controller polls, with
+0 audio underruns. No watched corruption is detected. The terminal
+unmap/read race is recorded and process exit confirmed. This remains one further
+non-reproduction, not proof of native stability or exact writer attribution.
+
+
+## External debug-register experiment
+
+A private helper sets unused write-watch registers on owned threads of the exact
+previously failing executable, without debugger attachment or page protection.
+It watches the model word and the first eight interrupt-table bytes through both
+cached and uncached views. All other interrupt-table bytes remain uncovered.
+It briefly suspends each newly observed thread to set registers; a new thread
+may execute before the next scan. Occupied watch slots are rejected. The helper
+restores its own registers on bounded completion. A data-watch exception goes to
+the existing executable's fault capture, so the saved RIP is after the write.
+Any model write can trigger, including legitimate initialization; a capture is
+not automatically memory corruption. Controlled fixtures must pass before use
+on the game. Evidence: external-register-observer, kept private on D:.
+
+Controlled cached/uncached model-byte and table-word writes reach the existing
+unhandled-exception path. Read/unrelated-write and disarm fixtures also pass,
+with twelve worker threads armed in each case. Game cause remains unlocated.
+
+
+The first unchanged-executable register watch captures an expected model-pointer
+store in shadow initialization at VI 6353 / poll 2975 (guest 0x8001d804), writing
+a valid 0x80265a10. This is a deliberate diagnostic stop, not another corruption.
+It verifies that the old executable's fault path saves RAM and post-write host
+registers without debugger attachment. The next bounded watch starts after this
+observed initialization, at VI 7000; legitimate later initialization can still
+trigger and must be distinguished from corruption.
+
+The private fixture's `hidden` summary used the final owned-window list, which
+is cleared when a child exits before the loop observes its process termination.
+That incorrectly reports false for this deliberate stop. The fixture did assert
+the window was hidden when it attached, and its saved environment requests the
+hidden diagnostic window. A revised receipt retains the actual earlier check;
+raw historical receipts are preserved. This is diagnostic metadata, not a game
+visibility or mute-setting change. Evidence: external-register-native-120-0.
+
+
+Reviewing the original bad RAM beyond the model word shows repeating
+03 00 1f 1f 1f bytes at 12-byte strides across neighboring globals, with later
+writes surviving between them. The model byte is part of broader structured
+corruption, not evidence of a lone random bit flip. A source-pattern search
+records candidate byte-store loops and the actual run extents. Pattern similarity
+alone does not identify the executed writer; the filtered watch remains the
+causal check. Evidence: corruption-byte-pattern.json and the preserved original
+RAM capture. This observation does not yet justify changing game lighting or
+shadow routines.
+
+
+The after-initialization watch reaches VI 12833 / poll 6245, then stops on the
+same legitimate shadowInit store (guest 0x8001d804, post-write host RVA 0x20c9d9f6)
+with model value 0x80265a10 and canonical interrupt handlers. It does not capture
+the corrupting write. Moving admission later cannot cover this repeated valid
+initialization reliably. A private observer therefore adds a narrowly filtered
+vectored handler to the unchanged failing executable: only the exact verified
+post-store instruction, expected pointer value and owned model-watch slot may
+continue. Other instructions, values, watched tables and exception types retain
+the existing fault path. This changes the diagnostic process/module layout and
+can still affect reproducibility; it is not a runtime repair or stability proof.
+Controlled fixtures must qualify filtering before any game run. Evidence:
+external-register-native-120-after-init and filtered-register-observer.
+
+
+## Shadow polygon scratch-buffer lead
+
+The preserved failed RAM has polygon count 472 at `0x800f45e8` and vertex
+count 32. The pinned decomp allocates `0x300` bytes at `0x800f45f0`, or 64
+12-byte polygon records. Both receiver collection routines (actual ROM entries
+`0x8001e8b8` and `0x8001ee1c`) append records without a polygon-capacity check.
+Their vertex cache clamps to index 31, matching the repeated `03 00 1f 1f 1f`
+pattern. Record 450 begins at `0x800f5b08`; its third vertex index lands exactly
+at model word `0x800f5b0c`, explaining the captured `0x1f265a10` value.
+The per-caster caller resets both counters before collection at `0x8001e684`
+and `0x8001e698`. This is strong evidence of a shadow scratch overflow, but
+neither the precise executed writer nor why so many polygons were accepted has
+yet been captured. Do not repair the model pointer or claim that all native
+failures share this cause. A private pre-overflow capture will retain CPU/RAM
+before the first out-of-bounds append. Evidence: shadow-overflow-source-evidence.
+
+The filtered register observer passed all nine controlled fixtures, including
+allowed initialization, wrong-value, wrong-instruction and uncached writes.
+
+
+The first filtered-watch route completes with 72 threads armed, no watched
+writes, no captured corruption and no audio underruns. It is a non-reproduction,
+not a stability fix. The first private shadow-limit build fails the generated
+object-shape audit because placing the capture helper in a generated translation
+unit adds functions. Its original sources are restored and rebuilt. The revised
+probe places capture code in the host runtime and leaves the generated function
+inventory intact; the audit is retained. Evidence: filtered-register-native-120,
+shadow-limit-probe and shadow-limit-probe-v2. Probe results are diagnostic only.

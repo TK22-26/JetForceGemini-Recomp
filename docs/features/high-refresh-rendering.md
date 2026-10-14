@@ -675,3 +675,17 @@ source candidate only. [RENDER-006](../development/issues/tutorial-late-object-j
 records the limits; native stability, combat drops, shadow cadence, Unlimited
 pacing and owner-visible full-route acceptance remain open. Desktop delivery is
 withheld under NATIVE-001.
+
+
+A checked native overlay-identity index now avoids repeated scalar scans while
+comparing every validated inventory byte on every lookup and rebuilding from an
+immutable snapshot when anything changes. Dense replay and the full 17,000-VI
+Original route retain exact RAM, save, instruction and reference-framebuffer
+results. The measured saving is about 0.13 ms per busy update. Native combat still
+falls below 30 scene updates/s, including the corrected, explicitly configured
+360 FPS capture. [PERF-001](../development/issues/goldwood-combat-slowdown.md)
+and [PERF-002](../development/issues/frame-diagnostics.md) retain qualifications
+and the private harness rate-label correction. A shadow scratch-buffer overflow
+is now strongly indicated by the failed RAM and original source layout; its
+precise executed writer and excessive input cause remain under investigation.
+The source checkpoint does not update the desktop preview or resolve NATIVE-001.

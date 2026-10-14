@@ -617,3 +617,23 @@ poll, number of baton receipts, summed publication-to-receipt nanoseconds, and
 cumulative maximum wake nanoseconds. It excludes guest-slice execution and is
 configured before participants exist. Ordinary Play performs no clock sampling
 for this diagnostic. Unit transport checks and exact recorded-state replay pass.
+
+
+## Private comparison-rate label correction, 2026-10-14
+
+The inventory-loaded360 captures actually saved fps=120 in video.ini. A nested
+script-source replacement changed the case label but did not reach the fixture's
+FPS argument. The first inventory-final360 request inherited the same error and
+is also excluded from 360 qualification. Preserve the captures as loaded 120-FPS
+observations only. This is a private harness error, not a video-settings/runtime
+regression. A replacement materializes one script and asserts its FPS argument
+and saved video configuration. The separate inventory-native360 cases are audited
+from their configuration independently. Evidence: inventory-rate-label-correction.json.
+
+Windows CPU sampling could not start: WPR returned 0xc5585011 when enabling its
+system-performance profiling policy. No recording was started or cancelled and
+no permission changes were attempted. Continue using the in-process stage timers.
+The first finer sync-stage probe stopped on a source-pattern assertion before
+writing/building code because its input retained CRLF line endings. The bounded
+replacement normalizes text before matching and restores the original generated
+source in a finally block. Preserve combat-cpu-sampling and sync-stage-probe.

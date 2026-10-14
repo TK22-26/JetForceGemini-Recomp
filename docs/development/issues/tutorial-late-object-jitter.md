@@ -755,3 +755,11 @@ save and probe/instruction results. These qualify the targeted history remedy,
 not full-route physical-display acceptance. The native-stability blocker remains
 open and the desktop package is unchanged. Evidence: camera-zoom-replay-review.json
 and camera-zoom-full-original-review.json; failed takeover evidence is retained.
+
+
+The bounded, mod-warped late-cave capture visibly contains the exit marker and
+surrounding terrain. Its eight distinct presented images cover two consecutive
+source scenes at phases 0.25/0.5/0.75/1.0, with 30 SCENES / 120 OUTPUT in the
+matching trace. This verifies the target is visible and intermediate images are
+produced; eight images do not establish an all-route jitter remedy or physical
+monitor pacing. Evidence: camera-zoom-near-beam-phase-review.json and its raw PPMs.

@@ -758,3 +758,9 @@ target_include_directories(jfg_interpolation_trace_tests PRIVATE "${PROJECT_SOUR
 target_compile_features(jfg_interpolation_trace_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_interpolation_trace_tests)
 add_test(NAME jfg.interpolation_trace COMMAND jfg_interpolation_trace_tests "${CMAKE_CURRENT_BINARY_DIR}/interpolation-trace-test.tsv")
+
+add_executable(jfg_runlink_native_identity_tests runlink_native_identity_tests.cpp)
+target_include_directories(jfg_runlink_native_identity_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_runlink_native_identity_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_runlink_native_identity_tests)
+add_test(NAME jfg.runlink_native_identity COMMAND jfg_runlink_native_identity_tests)

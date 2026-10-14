@@ -126,5 +126,45 @@
     "original_reference_equal": true,
     "desktop_delivery": false,
     "owner_visual_acceptance": false
+  },
+  "overlay_identity_qualification": {
+    "source_parent": "02dfe270d914dd50d43e2c5f2c0f92cf6d48eedb",
+    "runtime_sha256": "47021ec1c1bbef17ab08499fe29cc15a2928539d79a814b023fa61230a3856d0",
+    "dense_and_original_exact": true,
+    "original_vi": 17000,
+    "profiled_busy_inventory_median_ms_before": 0.656,
+    "profiled_busy_inventory_median_ms_after": 0.526,
+    "native_stable_30": false,
+    "desktop_delivery": false,
+    "artifacts": {
+      "inventory-verified360-review.json": {
+        "sha256": "c43b058e2920e916857b0afe5ca354f00fb08fa6dd30c5acd3f09fed20808b87",
+        "bytes": 7676
+      },
+      "inventory-rate-label-correction.json": {
+        "sha256": "c770e970a80c82122d1ed7ade134aa4b3452bcc9a13c281c230e97478c69ddd5",
+        "bytes": 1340
+      },
+      "shadow-overflow-source-evidence.json": {
+        "sha256": "015861e4f6ae6be00fec5cf83c77635836263ef99225f1ced0c37a49cad1003c",
+        "bytes": 735
+      },
+      "sync-stage-probe-normalized/costs.json": {
+        "sha256": "4e70b4a38cf2be7c122468df41884065c27e6312973d5c70886efb86c5d35b1f",
+        "bytes": 8467
+      },
+      "sync-stage-probe-normalized/restored.json": {
+        "sha256": "389b7f9b5405f32e14bfa6c26d82104dd78f4ad4832318fd5a4078976213b575",
+        "bytes": 111
+      },
+      "filtered-register-observer/fixture-result.json": {
+        "sha256": "6e26af41ca254a2659621d777fbcfbf3c6aaa81248335df181fbe4dcc86dd1c9",
+        "bytes": 1007
+      },
+      "filtered-register-native-120/register-watch-result.json": {
+        "sha256": "13f271e899d1f962233b94eb7f78e0a0b0a776799d78c88668e566459f264f9f",
+        "bytes": 152
+      }
+    }
   }
 }

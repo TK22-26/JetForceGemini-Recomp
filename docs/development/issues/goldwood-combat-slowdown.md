@@ -1430,3 +1430,63 @@ trace while keeping cost counters; its RAM/save/instruction equality passes.
 This separates ordinary history work from expensive diagnostic comparison passes.
 These instrumented captures are cost observations, not uncontended FPS acceptance.
 Evidence: transport-timing-review.json and single-policy-cost-review.json.
+
+
+## Checked overlay-identity index candidate
+
+The single-policy capture attributes about 0.58-0.66 ms per busy update to repeated
+157-record overlay identity scans. A private byte-checked index passes 18,004
+oracle checks (duplicates, changed identities, absent values, moved tables and
+invalid extents) and reduces lookup time about 35-40% in reversed-order synthetic
+workloads. It compares the complete validated inventory bytes on every call,
+rebuilds on any difference, resolves hash collisions with the full identity and
+rejects duplicates. Allocation bases are still read live; guest load/resume,
+publication and lifecycle handling are unchanged. No unchecked lifetime cache
+is introduced. This is a small CPU-work candidate, not a combat-FPS resolution.
+Actual replay and native comparison are required before selection. Evidence:
+overlay-inventory-cost-review.json and inventory-index-prototype/result.json.
+
+
+The byte-checked overlay index passes the dense recorded combat replay and full
+17,000-VI Original replay: RAM, save, complete instruction trace and reference
+framebuffer agree. Profiled busy-update inventory work changes from 0.656 to
+0.526 ms median, a small saving. The 120/360 native comparisons were interrupted
+by foreign compiler activity and are not accepted as FPS qualification. Keep the
+candidate separate from any stable-30 claim. Evidence: inventory-index-dense,
+inventory-index-full-original-review.json, indexed-inventory-cost-review.json,
+inventory-native120-review.json and inventory-native360-review.json.
+
+A private compiler prototype added restricted aliases only inside admitted
+16-instruction spans, leaving all hook and fallback boundaries intact. Its real
+matrix leaf differential failed byte-exact RAM equality on synthetic edge cases.
+It is rejected before changing the generator or rebuilding game functions;
+normal generated code is unchanged. Preserve span-alias-prototype/decision.json
+and mismatch-details.log. Compiler hints require state-level differential proof,
+even when a pointer-separation argument appears sound.
+
+
+The rejected restricted-alias leaf's first difference is a NaN representation
+at RAM offset 0x32c: baseline 0xffc00000 versus candidate 0x7fc00001. CPU snapshot
+equality alone would miss this memory-result difference. The prototype remains
+unselected; the production generator has no restricted-alias change.
+
+The owner authorized continuing under the existing unrelated host load. The
+new inventory-loaded120/360 reversed-order runs therefore retain all process
+observations instead of stopping when another compiler appears. They are loaded
+host observations, not isolated performance acceptance or proof that a slowdown
+is caused by this candidate. Exact release state is checked independently.
+
+
+The corrected 360 FPS comparison verifies saved `fps=360` and VSync disabled.
+Both runs share the exact release point; output averages roughly 354-359 FPS,
+while combat scene windows still vary around 25-30 FPS. This single native pair
+does not establish stable 30 FPS or a general gameplay speedup. The indexed
+inventory remains a small CPU-cost reduction supported by exact replay, not a
+resolution of PERF-001. Incorrectly labelled private runs are documented in
+[frame diagnostics](frame-diagnostics.md); their raw evidence is retained.
+
+A temporary full-sync stage probe passes the same dense exact-state checks and
+is removed/rebuilt afterward. In the busy window, texture upload wait is about
+0.34 ms per scene, GPU fence wait 0.70 ms, queue wait 0.006 ms, and history 2.68 ms.
+Other renderer work is distributed across several stages. No dominant queue
+wait was found, and synchronization is retained. Evidence: sync-stage-probe-normalized.

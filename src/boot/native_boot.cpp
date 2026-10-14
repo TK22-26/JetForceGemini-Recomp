@@ -40,6 +40,7 @@
 #include <future>
 #include <atomic>
 #include "jfg/boot/runlink_module_table.hpp"
+#include "jfg/boot/runlink_native_identity.hpp"
 #include "jfg/boot/thread_scheduler.hpp"
 #include "jfg/boot/guest_thread_transport.hpp"
 #include "jfg/boot/tlb.hpp"
@@ -1456,6 +1457,7 @@ struct State : JfgOriginalTimingFast {
   bool executing_generated_overlay = false;
   const char *last_overlay_publication_failure = "none";
   std::unordered_set<std::uint32_t> generated_relocation_targets;
+  jfg::boot::NativeRunlinkIdentityIndex native_overlay_identity_index;
   std::unordered_map<std::uint32_t, std::pair<std::uint32_t, std::uint32_t>>
       events;
   std::uint32_t pi_command_queue = 0U;
@@ -4280,29 +4282,21 @@ bool ensure_guest_overlay_allocation(
   if (table == 0U)
     return true; // The guest has not initialized its module inventory yet.
   // Validate the complete word-aligned inventory once. Its native-word
-  // layout allows memcpy reads; inspect every identity on every call so
-  // unloads, changed identities, duplicate entries and malformed tables
-  // retain the checked path's behavior. No guest allocation is cached.
+  // layout allows a byte-exact inventory comparison on every call. The
+  // derived identity index is invalidated by any changed byte, preserving
+  // unloads, duplicates and malformed-table rejection. Bases stay live below.
   const std::uint64_t first_record = std::uint64_t{table} + kRunlinkModuleRecordSize;
   const std::uint64_t inventory_end = std::uint64_t{table} +
       kRunlinkOverlaySlotCount * kRunlinkModuleRecordSize + 20U;
   if ((table & 3U) != 0U || first_record + 4U < kKseg0 ||
       inventory_end > std::uint64_t{kKseg0} + kRdramSize)
     return false;
-  std::uint32_t matched_slot = 0U, matched_record = 0U;
-  for (std::uint32_t slot = 1U; slot <= kRunlinkOverlaySlotCount; ++slot) {
-    const auto record = table + slot * kRunlinkModuleRecordSize;
-    std::array<std::uint32_t, 4U> identity{};
-    std::memcpy(identity.data(), state.rdram + (record + 4U - kKseg0),
-                sizeof(identity));
-    if (identity[0] != metadata.rom_start || identity[1] != metadata.text_size ||
-        identity[2] != metadata.data_size || identity[3] != metadata.bss_size)
-      continue;
-    if (matched_slot != 0U)
-      return false;
-    matched_slot = slot;
-    matched_record = record;
-  }
+  static_assert(kRunlinkOverlaySlotCount == NativeRunlinkIdentityIndex::kSlotCount);
+  const auto matched_slot = state.native_overlay_identity_index.find(
+      {state.rdram + static_cast<std::size_t>(first_record - kKseg0),
+       NativeRunlinkIdentityIndex::kRecordBytes},
+      {metadata.rom_start, metadata.text_size, metadata.data_size, metadata.bss_size});
+  const auto matched_record = table + matched_slot * kRunlinkModuleRecordSize;
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   if (state.diagnostic_cpu_costs) {
     state.profile_overlay_inventory_ns += static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
