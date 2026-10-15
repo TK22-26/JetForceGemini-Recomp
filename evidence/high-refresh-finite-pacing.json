@@ -1646,7 +1646,9 @@
         "jfg.flash": true
       },
       "original_audio_underruns": 2,
-      "original_audio_scope": "Instruction-clock reference with final readback; not native-play audio or FPS qualification. The separate 120/360 native prototype captures each report zero audio underruns."
+      "original_audio_scope": "Instruction-clock reference with final readback; not native-play audio or FPS qualification. The separate 120/360 native prototype captures each report zero audio underruns.",
+      "dense_phase_steps_over_one_vi": 98,
+      "dense_pacing_scope": "Recorded-clock equality fixture still has displayed phase gaps. This is state/matching qualification, not native pacing acceptance."
     }
   },
   "private_evidence": [
@@ -1655,7 +1657,10 @@
     "clock-queue-repeated360",
     "queue-outcomes-review",
     "queue-scene-ownership-review",
-    "scene-owned-queue-review"
+    "scene-owned-queue-review",
+    "scene-owned-full-original-review",
+    "scene-owned-dense-review",
+    "scene-owned-exact-state/qualification"
   ],
   "scope": "Normal hidden captures are starting-area observations; complete owner tutorial-route, damage/combat, late visual, shadow and Unlimited issues remain open."
 }

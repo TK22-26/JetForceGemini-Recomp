@@ -542,3 +542,10 @@ The Original instruction-clock/reference run reports 2 audio underruns
 with final readback. Its exact-state pass is not native-play FPS/audio acceptance;
 the separate 120/360 native prototype runs each report zero audio underruns.
 The owner route, damage/combat consistency, shadows and Unlimited remain open.
+
+
+The dense recorded-clock equality fixture also has 98 displayed phase steps
+larger than one VI in its analyzed interval. Its pass qualifies guest state and
+matching only; it is not native pacing acceptance. These gaps and their complete
+trace remain preserved, alongside the separate normal-Play 120/360 results.
+No all-captures-smooth claim follows from the private prototype checks.
