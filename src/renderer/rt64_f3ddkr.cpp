@@ -18,6 +18,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <future>
+#include "jfg/renderer/floating_environment.hpp"
 #include <unordered_map>
 
 namespace jfg {
@@ -1020,6 +1022,31 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             data.worldTransforms.size());
         history_stage_started=std::chrono::steady_clock::now();
     };
+    context.semantic_vertices.resize(data.worldIndices.size());
+    std::vector<SemanticPresentationSample> semantic_samples;
+    semantic_samples.reserve(context.semantic_vertices.size());
+    for (const auto& vertex : context.semantic_vertices) {
+        auto sample = vertex.sample;
+        if (!data.modifyPosUints.empty()) sample.valid = false;
+        semantic_samples.push_back(sample);
+    }
+    const bool semantic_cadence = context.presentation_history.has_continuous_cadence(context.vi_tick, scene);
+    std::fenv_t semantic_environment{};
+    const bool semantic_parallel = scene && semantic_samples.size() >= 128 &&
+        capture_floating_environment(semantic_environment);
+    struct SemanticResult {
+        std::vector<SemanticPresentationSample> samples;
+        std::vector<SemanticPresentationPrevious> history;
+        int flags = 0;
+    };
+    auto semantic_job = std::async(semantic_parallel ? std::launch::async : std::launch::deferred,
+        [&context, values = std::move(semantic_samples), tick = context.vi_tick, scene,
+         semantic_cadence, semantic_parallel, semantic_environment]() mutable {
+            const ScopedFloatingEnvironment environment(
+                semantic_parallel ? &semantic_environment : nullptr);
+            auto history = context.semantic_history.record(values, tick, scene, semantic_cadence);
+            return SemanticResult{std::move(values), std::move(history), floating_exception_flags()};
+        });
     std::vector<PresentationMesh> meshes(data.worldTransforms.size());
     std::vector<std::uint32_t> local_indices(data.worldIndices.size());
     std::vector<std::size_t> vertex_counts(meshes.size());
@@ -1215,15 +1242,10 @@ void prepare_interpolation(Context& context, RT64::State& state) {
                 static_cast<unsigned>(key[1]),static_cast<unsigned>(key[2]),
                 static_cast<unsigned>(meshes[matrix].positions.size()),0.0f,
                 frame->transforms[matrix].matched,0U);
-    context.semantic_vertices.resize(data.worldIndices.size());
-    std::vector<SemanticPresentationSample> samples;
-    samples.reserve(context.semantic_vertices.size());
-    for(const auto& vertex:context.semantic_vertices) {
-        auto sample=vertex.sample;
-        if(!data.modifyPosUints.empty()) sample.valid=false;
-        samples.push_back(sample);
-    }
-    const auto history=context.semantic_history.record(samples,context.vi_tick,scene,frame->source_rate!=0U);
+    auto semantic_result = semantic_job.get();
+    if (semantic_parallel) merge_floating_exceptions(semantic_result.flags);
+    const auto& samples = semantic_result.samples;
+    const auto& history = semantic_result.history;
     history_stage(3U); // Semantic history and ownership diagnostics.
     std::size_t semantic_count=0,matched_count=0,moving_count=0;
     if (scene && interpolation_trace_enabled()) {

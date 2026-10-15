@@ -773,3 +773,10 @@ target_include_directories(jfg_runlink_native_identity_tests PRIVATE "${PROJECT_
 target_compile_features(jfg_runlink_native_identity_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_runlink_native_identity_tests)
 add_test(NAME jfg.runlink_native_identity COMMAND jfg_runlink_native_identity_tests)
+
+add_executable(jfg_floating_environment_tests floating_environment_tests.cpp
+    "${PROJECT_SOURCE_DIR}/src/renderer/floating_environment.cpp")
+target_include_directories(jfg_floating_environment_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_floating_environment_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_floating_environment_tests)
+add_test(NAME jfg.floating_environment COMMAND jfg_floating_environment_tests)

@@ -9,12 +9,22 @@ autonomous repair loop or game parity. Implemented 2026-09-27 in
 
 ## Production ledger
 
-The operational ledger is `tools/private/autonomy/jobs.sqlite` in the original
-checkout, which is currently the sibling directory `../Jet Force Gemini Recomp/`.
-Moving the working checkout did not reset any investigation or counter. Before
-autonomous work, recover that ledger, verify its guard is enabled and recover
-the existing investigation state and remaining budget. Never create a
-replacement ledger. Guard-disabled tests use isolated fixture ledgers only.
+The authoritative operational ledger is
+`D:/JFG-private/autonomy-production/jobs.sqlite`. In the current main checkout,
+`tools/private/autonomy` is a junction to that directory. On 2026-10-15 the owner
+requested preservation before deleting the original checkouts. The ledger was
+moved using a verified SQLite backup after all jobs stopped; its logical
+contents, enabled guard, investigation roots and counters were preserved. The
+original operational filename was retired to prevent accidental duplicate use.
+The private receipt is
+`D:/JFG-retained/legacy-preservation-20261015/production-ledger-migration.json`.
+
+Before autonomous work, recover this ledger, verify its guard is enabled and
+recover the existing investigation state and remaining budget. Relocation does
+not reopen a shelved investigation or grant new allowance. Historical supervisor
+scripts may still refer to the retired location; do not run them unchanged.
+Never create a replacement ledger. Guard-disabled tests use isolated fixture
+ledgers only.
 
 The 2026-09-27 rollout backed the ledger up to
 `jobs.pre-progress-guard-20260927.sqlite`, then migrated and enabled it while

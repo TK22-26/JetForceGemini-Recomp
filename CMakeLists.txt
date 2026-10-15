@@ -342,6 +342,7 @@ if(JFG_ENABLE_RT64)
 
     add_library(jfg_rt64_renderer STATIC
         src/renderer/rt64_f3ddkr.cpp
+        src/renderer/floating_environment.cpp
         src/renderer/rt64_callbacks.cpp
         src/renderer/rt64_shell.cpp
     )

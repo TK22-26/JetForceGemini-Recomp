@@ -1865,3 +1865,110 @@ incremental migration, not a digest-only freshness override.
 {"case": "mi-control360-original-access", "audio_underruns": 4, "host_cpu_median": 45.75, "top_observed_cpu": [{"name": "jfg-native-boot.exe", "mean_one_core_percent": 157.25311629869427}, {"name": "wezterm-gui.exe", "mean_one_core_percent": 90.29440400852674}, {"name": "python3.11.exe", "mean_one_core_percent": 67.1250767350496}, {"name": "explorer.exe", "mean_one_core_percent": 60.396829252577014}, {"name": "dwm.exe", "mean_one_core_percent": 42.53977885100147}, {"name": "System", "mean_one_core_percent": 37.263308917025206}, {"name": "msedge.exe", "mean_one_core_percent": 15.898587273822951}, {"name": "OneDrive.Sync.Service.exe", "mean_one_core_percent": 13.836089880972068}]}
 
 {"case": "mi-control360-direct-access", "audio_underruns": 0, "host_cpu_median": 34.8, "top_observed_cpu": [{"name": "jfg-native-boot.exe", "mean_one_core_percent": 157.7145628791479}, {"name": "wezterm-gui.exe", "mean_one_core_percent": 82.17584582959971}, {"name": "python3.11.exe", "mean_one_core_percent": 62.78593839091493}, {"name": "dwm.exe", "mean_one_core_percent": 34.02654898415906}, {"name": "System", "mean_one_core_percent": 32.37957178027382}, {"name": "python.exe", "mean_one_core_percent": 19.58336000021389}, {"name": "msedge.exe", "mean_one_core_percent": 16.559118079025712}, {"name": "explorer.exe", "mean_one_core_percent": 16.28926111976895}]}
+
+
+The integrated parallel semantic-history candidate restores each worker's prior
+floating-point environment on normal return and exception unwinding. The worker
+owns its input copy and separate history, and joins before consumption. A shared
+rate predicate preserves offscreen/reset/repeat/cadence behavior. The first build
+failed warnings-as-errors on the old predicate's now-unused local; removing that
+local retains the warning gate. Three focused tests then pass, including pooled
+worker restoration and cadence agreement. Exact-state and native FPS
+qualification remain pending. Evidence: parallel-semantic-scoped-environment-recovered
+and parallel-fenv-unused-local-recovery. No desktop package is changed.
+
+
+The renderer submission boundary now preserves bounded exception text and source
+VI in captured stderr while retaining its existing error code. Previously, the
+catch-all erased the original exception behind submit-15, preventing diagnosis
+of the unreproduced native 360 failure. This is observability, not a crash fix.
+No allocation is required on this error path, and normal frames add no logging.
+Build and existing renderer-shell tests pass; repeated native checks follow.
+Evidence: renderer-submit-exception-context.
+
+
+### Post-move continuation and parallel candidate qualification
+
+The owner approved another six hours after the legacy-checkout preservation.
+The same production investigation resumes against the migrated ledger, with
+its guard and all prior counters retained. One bounded continuation is admitted;
+this does not erase the exhausted preceding attempt. No desktop package changes.
+
+The parallel-history candidate matches the dense recorded-clock state and
+17,000-VI Original RAM/save/renderer snapshot. Native 120 completes without
+audio underruns but still has three-VI updates. Native 360 completes without
+the earlier submit exception, yet logs 20 audio-underrun events and a combat
+scene rate around 25 Hz. Correctness correspondence is established only for
+the compared paths; neither native result meets the no-20-FPS goal. Evidence:
+parallel-fenv-qualification and postmove-reconciliation/qualification-review.json.
+
+The preservation handoff incorrectly described step 427 as unexecuted: the
+worker had accepted and completed its exception-context change before stopping.
+Its passing build/shell-test result and source edit are retained. Only steps
+428 and 429 were cancelled before execution. Corrected private handoff:
+legacy-preservation-resume-correction-20261015.json. Historical evidence is
+unchanged; new requests will qualify the remaining candidates.
+
+
+A distinct private rounding-control fixture targets repeated CFC1/CTC1
+rounding changes in the measured drone/pathfinding routines. It compares the
+existing generated helpers with direct MSVC-x64 MXCSR round-bit access, retaining
+all other MXCSR bits. This is a local prototype, not a selected runtime change.
+Validation includes existing sticky exception flags, all rounding directions,
+DAZ/FTZ combinations, arithmetic output bits, complete CRT environment snapshots
+and errno. Evidence: rounding-control-fixture/result.json and run.log.
+The x64-specific scope follows Microsoft's documented SSE2 control environment;
+other architectures retain the portable helpers. Whole-game correspondence
+and performance remain prerequisites even if the isolated fixture passes.
+
+
+A private dispatch experiment gates temporary counter snapshots to the scopes
+that consume them. Actual counters, timing hooks and observations remain active;
+this only avoids reading unused baselines on unrelated guest calls. Identical
+recorded inputs/timing are compared in alternating order with heavy profiling
+off. Source and the ordinary candidate executable are restored afterward.
+Evidence: dispatch-snapshot-gating. Performance selection requires review;
+this is not a completed combat remedy.
+
+
+The rounding-control fixture passes 4,096 control-state and 6,400 arithmetic
+comparisons. A save/set/get/restore microbenchmark drops from about 75 ns to
+35 ns; this is not the number of calls or savings in a game update. A second
+fixture measures the actual float-to-int conversion. Only finite normal values
+strictly inside the int32 range use the hardware intrinsic; denormals, zeros,
+NaNs, infinities and out-of-range operands retain the CRT implementation.
+Evidence: rounded-conversion-fixture/result.json. Runtime selection remains
+pending exact-state and measured whole-update comparisons.
+
+
+### Controlled parallel-history cost and rejected micro-optimizations
+
+Four alternating same-binary runs preserve exact RAM, save, update instructions
+and interpolation decisions. In the recorded busy window, serial history costs
+2.545 / 2.491 ms median; parallel history costs 1.919 / 1.814 ms. This repeatable
+roughly 0.6-0.7 ms history reduction is a qualified component improvement, not a
+no-20-FPS resolution. Whole-update medians vary from 28.793 to 30.950 ms without
+a similarly strong separation. Two native 360 runs complete with zero audio
+underruns and no renderer exception, but retain three-VI updates (one and 23 in
+the combat window respectively). Their different native instruction paths do
+not support a causal whole-combat comparison. Evidence:
+parallel-fenv-controlled-costs/runs.json and retained host-load observations.
+
+Gating unused dispatch-counter snapshots preserves all recorded comparisons
+but yields no clear repeatable combat benefit (baseline medians 28.791 / 28.567
+ms, candidate 28.466 / 28.718 ms). It is not selected; source and runtime were
+restored. Evidence: dispatch-snapshot-gating.
+
+The rounded-conversion fixture passes 1,048,576 edge-case comparisons, including
+value bits, MXCSR, CRT environment and errno. Its nanosecond-scale conversion
+savings do not explain the multi-millisecond combat excess. The prepared
+hot-function experiment remains unqueued; no rounding-helper change is selected.
+The next investigation targets native instruction locations rather than
+promoting isolated microbenchmark gains. Evidence: rounded-conversion-fixture.
+
+The parallel-history source checkpoint preserves its existing serial cadence
+rules, copied input ownership and worker floating-point environment, restoring
+the pool thread on success or exception. Focused cadence/environment/shell
+tests, dense recorded comparison and 17,000-VI Original comparison passed as
+recorded above. Native 360 robustness and the owner's full route remain open.
+This checkpoint does not update the installed desktop preview.

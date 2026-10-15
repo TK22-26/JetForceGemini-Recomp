@@ -1,3 +1,5 @@
+#include <exception>
+#include <cstdio>
 #include "jfg/runtime/snapshot_copy.hpp"
 #include "jfg/renderer/rt64_shell.hpp"
 #include "jfg/renderer/presentation_policy.hpp"
@@ -1031,7 +1033,16 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
         }
         return Rt64ShellError::none;
     }
+    catch (const std::exception& error) {
+        // Preserve the underlying failure in captured stderr. The public error
+        // code remains stable, and the failure path needs no heap allocation.
+        std::fprintf(stderr, "RT64_SUBMIT_EXCEPTION vi=%llu message=%.512s\n",
+            static_cast<unsigned long long>(task.vi_tick), error.what());
+        return Rt64ShellError::renderer_exception;
+    }
     catch (...) {
+        std::fprintf(stderr, "RT64_SUBMIT_EXCEPTION vi=%llu message=unknown exception\n",
+            static_cast<unsigned long long>(task.vi_tick));
         return Rt64ShellError::renderer_exception;
     }
 }

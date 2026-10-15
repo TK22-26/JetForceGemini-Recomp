@@ -843,3 +843,36 @@ The no-20-FPS target is still open. The detailed profiler and analyzer now
 identify entity work, especially drone/pathfinding routines, as substantial
 CPU targets alongside renderer submission. Heavy profiling is removed for final
 FPS acceptance. All captures here were muted and hidden; desktop unchanged.
+
+
+A private periodic instruction-pointer sampler is qualified with a known busy
+integer loop and a sleeping thread. It records thread identity, instruction
+address and cycles advanced between checks; symbolization happens after target
+sampling, using local pinned binaries/PDBs. Suspension encloses only kernel
+context operations and is balanced before allocation, I/O or symbol lookup.
+No guest RAM, stack contents or register dump is written. Evidence:
+pc-sampler-fixture/result.json. This locates host-code hotspots without adding
+per-function callbacks, but its time-based observations are not precise CPU
+percentages and its captures cannot be used for uninstrumented FPS acceptance.
+
+
+The first combat sampler attached to JFG's waiting watchdog parent, collecting
+only five samples. Its sample-count assertion correctly rejects attribution;
+the game route itself completed, and source plus runtime restoration succeeded.
+The corrected capture requires the authenticated child-mode argument and the
+owned process ancestry, without logging its token. It reuses the exact retained
+anchor runtime/PDB and qualified sampler, then restores the ordinary runtime.
+Evidence: pc-sampling-combat (rejected parent capture) and pc-sampling-child
+(corrected child capture). No kernel permissions, guest memory changes, game
+function timing hooks or public profiler option are introduced.
+
+
+The all-thread child sampler reached its 300,000-observation limit before combat.
+Suspending sleeping threads also advanced their cycle counts, defeating the
+activity filter; those captures provide no combat attribution. The replacement
+records the update thread identity once, samples only that owned thread and
+requires combat-window coverage. Its known-loop fixture excludes the sleeping
+thread. Exact recorded-state comparison and restoration remain mandatory.
+Evidence: pc-sampling-update-thread. Periodic RIP observations still include
+waiting and observer effects, so they are not exact CPU percentages or FPS
+acceptance. Earlier incomplete captures remain preserved.

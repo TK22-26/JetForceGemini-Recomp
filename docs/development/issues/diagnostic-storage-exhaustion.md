@@ -78,3 +78,33 @@ successfully. Evidence: build-drive-recovery-20261015/before-manifest.json,
 relocation.json, build.log and result.json. Existing build scripts still use
 the C: path, which now requires D: to be available. Long-term retention remains
 open; this does not qualify the gameplay candidate.
+
+## 2026-10-15 owner-requested legacy checkout preservation
+
+The owner requested preservation and a pause before deleting the two legacy
+checkouts named `Jet Force Gemini Recomp`. All high-refresh jobs stopped and
+three queued experiments were withdrawn before execution. The current checkout
+named `JetForceGemini-Recomp` and its active worktree remain separate.
+
+Legacy source, Git history and uncommitted changes were moved to the private
+archive `D:/JFG-retained/legacy-preservation-20261015/legacy-checkout`; Git status
+before and after the move matched. Only top-level legacy build directories were
+left in the old D: checkout. Required upstream references, emulator and private
+signing material from the old Desktop tools directory were copied separately,
+with file counts, lengths and SHA-256 checks. Rebuildable Python virtual
+environments were excluded. Copy manifests and the source-move receipt are
+retained in the archive; private material must not be published.
+
+The production ledger was preserved at
+`D:/JFG-private/autonomy-production/jobs.sqlite` using SQLite backup. Its logical
+dump matched the original, integrity checking passed, the guard remained enabled
+and all investigation roots, counters and admission history were unchanged.
+The old operational filename was retired. See the
+[updated ledger location and continuation requirements](../../planning/autonomy-progress-guard.md#production-ledger).
+
+This preservation removes the high-refresh task's dependency on the two old
+checkout roots. Historical scripts and old builds may still contain absolute
+paths and are recovery material, not qualified runnable installations. The
+active `C:/JFG-builds` tree remains required. No gameplay fix, release acceptance,
+new investigation allowance or measured disk-space saving follows from this
+administrative move. Work remains paused at the owner's request.

@@ -185,6 +185,10 @@ class PresentationHistory {
         }
     };
 public:
+    bool has_continuous_cadence(std::uint64_t tick, bool scene) const {
+        const auto delta = tick > previous_tick_ ? tick - previous_tick_ : 0U;
+        return scene && previous_tick_ != 0U && delta >= 1U && delta <= 6U && 60U % delta == 0U;
+    }
     PresentationHistoryFrame record(const std::vector<PresentationMesh>& meshes,
                                     std::uint64_t tick, bool scene, bool diagnostic = false) {
         PresentationHistoryFrame result;
@@ -201,8 +205,7 @@ public:
         // the actual bounded interval; cadence changes alone are not cuts.
         // Shape/lifetime, pose, finite-coordinate and motion checks below
         // still reject discontinuities. Long gaps and repeated ticks hold.
-        const bool continuous = previous_tick_ != 0U && delta >= 1U && delta <= 6U;
-        if (continuous && 60U % delta == 0U)
+        if (has_continuous_cadence(tick, scene))
             result.source_rate = static_cast<unsigned>(60U / delta);
         next_.clear(meshes.size());
         std::vector<std::size_t> indices(meshes.size(),Shapes::empty);

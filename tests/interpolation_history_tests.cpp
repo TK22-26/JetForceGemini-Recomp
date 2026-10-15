@@ -3,6 +3,18 @@
 #include <limits>
 static void require(bool value) { if (!value) std::abort(); }
 int main() {
+    // The worker's preflight gate must equal the gate recorded by geometry,
+    // including offscreen passes, repeat ticks, cadence changes and resets.
+    {
+        jfg::PresentationHistory history;
+        for (const auto tick : {10ULL, 12ULL, 12ULL, 15ULL, 20ULL, 26ULL, 30ULL, 29ULL, 31ULL}) {
+            const bool expected = history.has_continuous_cadence(tick, true);
+            require(!history.has_continuous_cadence(tick, false));
+            require(history.record({}, tick, false).source_rate == 0U);
+            require((history.record({}, tick, true).source_rate != 0U) == expected);
+        }
+    }
+
     // A captured stationary bridge near cancellation. Guest concatenation is
     // world * (view * projection), with single-precision paired sums.
     // Reassociation in double rejects this valid signed 16.16 endpoint.
