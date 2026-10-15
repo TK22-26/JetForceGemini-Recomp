@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <stdexcept>
 #include <string_view>
 #include <vector>
 
@@ -135,6 +136,54 @@ inline bool continuous_presentation_motion(const Previous& old,
 // and jumps use endpoints.
 // This conservative prototype does not replace semantic actor identities.
 class PresentationHistory {
+    struct HistoryEndpoint {
+        PresentationMatrix matrix;
+        std::optional<RigidPresentationPose> rigid_pose;
+    };
+    struct ShapeEntry {
+        std::vector<std::uint32_t> key;
+        HistoryEndpoint endpoint;
+        std::uint64_t hash=0;
+        std::size_t count=0;
+    };
+    // Retain two contiguous tables instead of allocating ordered-map nodes for
+    // every shape in every scene. A hash only chooses a probe sequence: complete
+    // keys still establish identity, and duplicate keys cannot anchor history.
+    // Rebuild all slot indices before reusing either table's storage.
+    struct Shapes {
+        static constexpr std::size_t empty=std::size_t(-1);
+        std::vector<ShapeEntry> entries;
+        std::vector<std::size_t> slots;
+        static std::uint64_t hash_key(const std::vector<std::uint32_t>& key) {
+            std::uint64_t value=0xcbf29ce484222325ULL;
+            for(auto word:key){value^=word;value*=0x100000001b3ULL;}
+            return value;
+        }
+        void clear(std::size_t maximum) {
+            if(maximum>empty/4U)throw std::length_error("shape history capacity");
+            std::size_t capacity=16U;while(capacity<maximum*2U)capacity*=2U;
+            if(capacity>slots.size())slots.resize(capacity);
+            std::fill(slots.begin(),slots.end(),empty);entries.clear();entries.reserve(maximum);
+        }
+        std::size_t insert(const PresentationMesh& mesh) {
+            const auto hash=hash_key(mesh.key);auto slot=hash&(slots.size()-1U);
+            while(slots[slot]!=empty){auto& entry=entries[slots[slot]];
+                if(entry.hash==hash && entry.key==mesh.key){++entry.count;return slots[slot];}
+                slot=(slot+1U)&(slots.size()-1U);
+            }
+            const auto index=entries.size();slots[slot]=index;
+            entries.push_back({mesh.key,{mesh.matrix,mesh.rigid_pose},hash,1U});return index;
+        }
+        const HistoryEndpoint* find(const ShapeEntry& key) const {
+            if(slots.empty())return nullptr;
+            auto slot=key.hash&(slots.size()-1U);
+            while(slots[slot]!=empty){const auto& entry=entries[slots[slot]];
+                if(entry.hash==key.hash && entry.key==key.key)return entry.count==1U?&entry.endpoint:nullptr;
+                slot=(slot+1U)&(slots.size()-1U);
+            }
+            return nullptr;
+        }
+    };
 public:
     PresentationHistoryFrame record(const std::vector<PresentationMesh>& meshes,
                                     std::uint64_t tick, bool scene, bool diagnostic = false) {
@@ -155,36 +204,31 @@ public:
         const bool continuous = previous_tick_ != 0U && delta >= 1U && delta <= 6U;
         if (continuous && 60U % delta == 0U)
             result.source_rate = static_cast<unsigned>(60U / delta);
-        // Borrow current keys for counting; history retains only endpoints.
-        struct KeyLess {
-            bool operator()(const std::vector<std::uint32_t>* a,
-                            const std::vector<std::uint32_t>* b) const { return *a<*b; }
-        };
-        std::map<const std::vector<std::uint32_t>*, std::size_t, KeyLess> counts;
-        for (const auto& mesh : meshes)
-            if (mesh.eligible && mesh.complete_local_topology && !mesh.key.empty()) ++counts[&mesh.key];
-        std::map<std::vector<std::uint32_t>, HistoryEndpoint> next;
-        for (std::size_t i = 0; i < meshes.size(); ++i) {
-            const auto& mesh = meshes[i];
-            if (!mesh.eligible || !mesh.complete_local_topology || mesh.key.empty() || counts[&mesh.key] != 1U) {
-                if(diagnostic) result.debug_reasons[i] =
-                    (!mesh.eligible?1U:0U) | (mesh.key.empty()?2U:0U) |
-                    ((!mesh.complete_local_topology)?256U:0U) |
-                    ((mesh.eligible && mesh.complete_local_topology && !mesh.key.empty() && counts[&mesh.key]!=1U)?4U:0U);
+        next_.clear(meshes.size());
+        std::vector<std::size_t> indices(meshes.size(),Shapes::empty);
+        for(std::size_t i=0;i<meshes.size();++i) {
+            const auto& mesh=meshes[i];
+            if(mesh.eligible && mesh.complete_local_topology && !mesh.key.empty())
+                indices[i]=next_.insert(mesh);
+        }
+        for(std::size_t i=0;i<meshes.size();++i) {
+            const auto& mesh=meshes[i];
+            const auto index=indices[i];
+            const bool duplicate=index!=Shapes::empty && next_.entries[index].count!=1U;
+            if(index==Shapes::empty || duplicate) {
+                if(diagnostic)result.debug_reasons[i]=(!mesh.eligible?1U:0U)|(mesh.key.empty()?2U:0U)|
+                    (!mesh.complete_local_topology?256U:0U)|(duplicate?4U:0U);
                 continue;
             }
-            const auto old = previous_.find(mesh.key);
+            const auto* old=previous_.find(next_.entries[index]);
             if(diagnostic) {
-                if(old==previous_.end()) result.debug_reasons[i]|=8U;
-                else result.debug_previous[i]=old->second.matrix;
+                if(!old)result.debug_reasons[i]|=8U;
+                else result.debug_previous[i]=old->matrix;
                 if(result.source_rate==0U)result.debug_reasons[i]|=16U;
-                else if(old!=previous_.end() && !continuous_presentation_motion(old->second,mesh))
-                    result.debug_reasons[i]|=32U;
+                else if(old && !continuous_presentation_motion(*old,mesh))result.debug_reasons[i]|=32U;
             }
-            if (result.source_rate != 0U && old != previous_.end() &&
-                continuous_presentation_motion(old->second, mesh))
-                result.transforms[i] = {old->second.matrix, true};
-            next.emplace(mesh.key,HistoryEndpoint{mesh.matrix,mesh.rigid_pose});
+            if(result.source_rate && old && continuous_presentation_motion(*old,mesh))
+                result.transforms[i]={old->matrix,true};
         }
         // Scenery visibility changes can replace every exact geometry key.
         // A byte-bound camera lifetime provides its own endpoint, independent
@@ -284,16 +328,12 @@ public:
             result.transforms[i] = {cohort.previous, cohort.anchored && !cohort.blocked};
             if(diagnostic) result.debug_reasons[i]|=(cohort.blocked?64U:0U)|(!cohort.anchored?128U:0U);
         }
-        previous_ = std::move(next);
+        std::swap(previous_,next_);
         previous_tick_ = tick;
         return result;
     }
 private:
-    struct HistoryEndpoint {
-        PresentationMatrix matrix;
-        std::optional<RigidPresentationPose> rigid_pose;
-    };
-    std::map<std::vector<std::uint32_t>, HistoryEndpoint> previous_;
+    Shapes previous_,next_;
     std::map<std::array<std::uint64_t,2>,HistoryEndpoint> previous_cameras_;
     std::uint64_t previous_tick_ = 0;
 };

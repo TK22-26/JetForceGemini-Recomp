@@ -782,3 +782,14 @@ transition/health qualification. RENDER-006 stays open for exact owner-visible
 bridge/crate/marker jitter and full-route verification. Evidence:
 lifetime-late-cave-review.json, lifetime-late-cave-sequence and
 transition-call-native-review.json.
+
+
+A separate current-source far-exit orbit produces eight distinct intermediate
+images showing the cave opening and distant wooden span. Actual actor labels
+identify all 3,000 observed longwoodbridge batches as matched in VIs 3800-4400.
+The outgoing arrow has 600/600 matches. Two isolated holds belong to the incoming
+arrow and five to a RegionID object, not the bridge; they are retained for review.
+No wooden crates are visible in this capture. This is bounded matching/image
+coverage with a mod-warped route and readback, not full-route visual or physical
+display acceptance. Evidence: lifetime-visible-bridge-review,
+lifetime-visible-bridge-actor-review and the retained image sequence.

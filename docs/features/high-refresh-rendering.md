@@ -714,3 +714,13 @@ existing profiles, arguments and saves. Previous links/package remain available
 for rollback. This supersedes the preceding source-only checkpoint; combat
 source-rate consistency, shadow cadence, Unlimited pacing and owner-visible
 late-room acceptance remain open. No public release is made.
+
+
+The shape-history lookup now uses two contiguous tables with full-key equality
+and duplicate rejection. Alternating-order measurements on identical meshes
+reduce this stage from about 0.46 to 0.31 ms median. Collision/reuse tests, exact
+dense guest state and matching, full Original state/renderer reference, and
+bounded 120/360 native captures qualify the change. This small CPU saving does
+not establish stable 30-Hz combat or close the remaining visual reports. See
+[PERF-001](../development/issues/goldwood-combat-slowdown.md) and
+[qualification](../../evidence/high-refresh-shape-history.json).

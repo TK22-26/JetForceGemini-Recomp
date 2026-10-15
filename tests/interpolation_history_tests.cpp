@@ -304,5 +304,29 @@ int main() {
         invalid2=invalid_cross;
         require(!jfg::allow_shared_matrix_triangle(invalid_cross,invalid2,invalid_cross));
     }
+    // Reusing and growing a probe table must not retain old slot indices or
+    // turn duplicate shapes into anchors. These keys share low hash bits.
+    {
+        std::vector<jfg::PresentationMesh> shapes;
+        for (unsigned i=0;i<96;++i) {
+            auto shape=a;shape.key={i*65536U+1U};shape.matrix=identity;
+            shape.matrix[12]=static_cast<float>(i)*0.001f;
+            shape.positions={{{0,0,1}}};shapes.push_back(shape);
+        }
+        jfg::PresentationHistory reused;
+        reused.record(shapes,100,true);
+        for(const auto& transform:reused.record(shapes,102,true).transforms)
+            require(transform.matched);
+        const auto duplicate_frame=reused.record({shapes[0],shapes[0]},104,true);
+        require(!duplicate_frame.transforms[0].matched && !duplicate_frame.transforms[1].matched);
+        require(!reused.record({shapes[0]},106,true).transforms[0].matched);
+        require(reused.record({shapes[0]},108,true).transforms[0].matched);
+        reused.record({},110,true);
+        for(const auto& transform:reused.record(shapes,112,true).transforms)
+            require(!transform.matched);
+        std::reverse(shapes.begin(),shapes.end());
+        for(const auto& transform:reused.record(shapes,114,true).transforms)
+            require(transform.matched);
+    }
   return 0;
 }

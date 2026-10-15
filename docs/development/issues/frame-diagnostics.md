@@ -680,3 +680,31 @@ recording qualification, not a stable-combat-FPS fix. The standalone format
 benchmark takes roughly 30% of the old formatter time; ordinary Play is unchanged.
 Evidence: trace-format-candidate, trace-format-dense-review and
 trace-format-native-review. Local delivery follows package qualification.
+
+
+## Display-statistics availability probe, 2026-10-15 UTC
+
+A temporary read-only D3D12 probe records 7,603 successful Present returns.
+GetLastPresentCount advances, while all successful GetFrameStatistics samples
+have zero displayed-present, refresh and synchronization counters. The window
+is intentionally hidden, so no physical-monitor cadence is established. A
+successful statistics call with zero counters must not be interpreted as either
+a displayed-FPS measurement or proof that the game drops every frame.
+
+The query costs 2.1 microseconds median / 4.6 at p99 in this hidden fixture, but
+that is not visible-mode overhead qualification. No Present sync interval,
+waitable-object behavior, DwmFlush call, clock or limiter is changed. The private
+observer is removed and normal source rebuilt; the installed desktop is unchanged.
+Microsoft documents that submitted and displayed counts can differ and notes
+limitations for multiple monitors/fullscreen interactions and hardware queues:
+[frame statistics](https://learn.microsoft.com/en-us/windows/win32/api/dxgi/ns-dxgi-dxgi_frame_statistics),
+[GetFrameStatistics](https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgiswapchain-getframestatistics).
+
+The first private probe retained rows until a static destructor, which the
+runtime's intentional _Exit shutdown does not execute. No statistics file was
+produced, so that attempt gives no statistics evidence. The replacement uses
+a bounded private mapped file that survives process cleanup; existing production
+logs already use explicit finish/drain calls. Dependent bridge capture did not
+run after the first failed observer and was correctly resubmitted after restore.
+Evidence: private-dxgi-statistics, private-dxgi-statistics-mapped and
+dxgi-statistics-mapped-review.json. Neither private observer ships.

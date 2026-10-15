@@ -1530,3 +1530,49 @@ Evidence: transition-call-native-review.json, recorded-player-health-v2-review.j
 and health-window-cadence-review.json. PERF-001 remains open. Transferable lesson:
 record actual location, transition identity and health state before attributing
 a long update interval to combat or accepting a nominal full-length input replay.
+
+
+## Shape-history storage candidate, 2026-10-15 UTC
+
+Current captures attribute about 0.5 ms per scene to shape/rigid ownership and
+history. A private dual-history comparison feeds identical meshes to the prior
+ordered-map implementation and a contiguous probing table, alternating call
+order. Across 1,337 combat scenes, the measured history call changes from
+460.5 to 305.9 microseconds median (total cost ratio 0.664), with identical
+matching decisions. This is a small CPU-cost saving, not game-FPS acceptance.
+
+The candidate stores complete keys and rejects duplicate identities; hashes
+only select lookup slots. Two tables retain storage between scenes. All 3,600
+independent prior-implementation differential frames match, including an isolated
+variant that forces every full hash to collide. Existing history cases and a
+new growth/reuse/duplicate regression pass, as does C++17 header compatibility.
+Production exact-state and native qualification remain pending; the desktop
+package is unchanged. Evidence: shape-history-paired-cost, shape-history-oracle
+and shape-history-candidate. No lifetime/camera/geometry gate is relaxed.
+
+
+The first production shape-history build stops on a warnings-as-errors test
+variable shadowing an existing local. Source is restored and rebuilt before the
+replacement renames only that local; dependent replay requests are withdrawn
+without execution. This is a test-source compile issue, not a running-game
+regression. All failed logs and unchanged counters are retained.
+
+
+The production shape-history candidate passes its recorded-clock dense replay:
+all physical guest RAM and save bytes, 1,847 complete guest instruction/update
+records and 17,715 interpolation decisions match the prior source. The full
+17,000-VI Original comparison also preserves the renderer snapshot, physical
+RAM, save, probe counters and all complete per-update instruction records against
+the qualified cold-overlay baseline. Both measurement orders favor the new
+lookup implementation. Normal 120/VSync and 360/no-VSync captures each complete
+over 6,000 VIs without invalid accesses, audio underruns/overruns, or dropped
+frame rows. These starting-area captures are not full owner-route traversal.
+
+The approximately 0.15 ms median stage saving qualifies this small CPU-work
+correction. It does not establish stable 30-Hz combat, solve the exact damage
+hitch, or verify physical-display pacing. The source change is selected after
+these checks; local package qualification follows. Evidence:
+shape-history-dense-review, shape-history-full-original-review and
+shape-history-candidate-native-review. Compatibility lesson: replacing a lookup
+container must preserve full identity equality, duplicate rejection and scene
+lifetime rules, including collision and storage-reuse behavior.
