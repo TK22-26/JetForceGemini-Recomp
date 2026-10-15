@@ -57,6 +57,11 @@ windows and shadow-only truncation. It passes bounded camera-pan/full-circle
 checks, with owner/physical-display verification pending. Genuine workload spikes remain; the latest native preview removes the historical
 31-fast-frame recovery hold after a slowdown. See
 [RENDER-003](development/issues/steady-fps-jitter.md).
+Further private tests reproduce a finite-clock/presentation-queue mismatch that
+can skip a rendered scene while the FPS counter remains high. A broad queue
+candidate caused audio/source-cadence regressions at 360 FPS and was rejected.
+The installed preview retains the previously qualified presentation policy.
+
 
 The [high-refresh candidate](features/high-refresh-rendering.md) has RmlUi
 Video Settings in a separate Windows window with VSync, a Custom FPS target and Unlimited. A short replay

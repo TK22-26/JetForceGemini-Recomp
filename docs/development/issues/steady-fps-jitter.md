@@ -417,3 +417,110 @@ CPU writes also reach the retained displayed endpoint. These measured correction
 do not establish that all movement/camera or late-room visual reports are fixed.
 See [route qualification](tutorial-late-object-jitter.md#continuation-qualification-2026-10-13)
 and [evidence](../../../evidence/high-refresh-route-fix.json).
+
+
+## Finite clock and queued scene investigation, 2026-10-15 UTC
+
+Normal Play uses 46,875,000 Count ticks per second and a 783,520-tick VI
+period in the qualified NTSC mode: about 59.82617 VIs/s. Renderer source labels
+remain nominal 30/20. Counting exactly four images per nominal 30-Hz scene at
+120 FPS therefore underfills the output clock. In a stable 1,800-VI window,
+current 120/360 captures repeat 8/9 endpoints respectively; all observed repeats
+coincide with completed CPU framebuffer-write presents. This correlation alone
+does not establish the cause of every owner-visible jitter event.
+
+A private rational-resampling experiment uses the reduced 78,352/78,125 duration
+ratio without changing Count, guest scheduling or simulation. Repeated endpoints
+fall to 2 in both runs, but whole rendered scenes are then skipped: at 120 FPS,
+VI 4890 is fully rendered after a five-image sequence and never displayed. The
+present queue drops the current event whenever another event is pending, then
+marks its interpolation sequence consumed. The equivalent 360-FPS case follows
+a thirteen-image sequence. The initial ratio-only candidate is not selected.
+
+A second private experiment retains an unconsumed finite scene when exactly one
+later present is queued; deeper backlog, pause, empty swap chains and Unlimited
+keep the existing skip behavior. Its captured results are retained separately.
+Neither private experiment is in the desktop package at this checkpoint. These
+are hidden-window phase observations, not physical-display acceptance. Original
+reference timing, framebuffer writes and original guest update speed remain
+required compatibility checks before selection. Evidence: finite-phase-repeat-
+context, finite-clock-ratio-native-review, finite-clock-gap-context and
+clock-queue-retain-review. Large/private captures remain on the evidence volume.
+
+Transferable lesson: nominal VI/source labels are not elapsed-time rates; a
+fractional output schedule must also be qualified against queue admission and
+scene consumption, rather than evaluated from FPS averages alone.
+
+
+The presentation analyzer now accepts an explicit --vi-hz value for elapsed
+phase-spacing checks, retains nominal source labels for VI-span reconstruction,
+and reports up to 32 anomaly contexts with source VI, present ID, interpolation
+weight and sequence length. Selected-window source rates are separate from the
+whole-file inventory. Relative phase-versus-wall-time error exposes accumulated
+lag that an average FPS counter can hide. Eight focused tests cover native and
+nominal clocks, cadence changes, freeze/jump context, bounded output, corrupt
+records and drained/truncated logs. This is analysis tooling, not a renderer fix.
+For qualified native NTSC Play use --vi-hz 59.82616908311211; leave the default
+for nominal/reference captures. A log alone does not prove monitor scanout.
+
+
+The broad one-pending-event candidate fails 360-FPS qualification: 53 audio
+underruns in its first run and 169 in a repeat. The subsequent unchanged baseline
+has zero underruns, despite a higher sampled whole-host CPU average (33.4% vs
+23.0%). Native paths can diverge, so this is an acceptance failure rather than an
+exact-state causal benchmark. No broad queue change is selected or installed.
+A production draft was prepared but never admitted/executed. The prior generated
+sources and normal runtime are restored; failed evidence is retained.
+
+A narrower private variant additionally requires both queued presents to name
+the same graphics workload. Its 360-FPS run reports 0
+audio underruns, 0 unsupported accesses and
+6006 VIs. Results and scene/guest wait distributions are in
+queue-outcomes-review. This observation alone does not qualify installation.
+The first nested request for this variant was withdrawn before execution to
+correct string escaping; its immutable draft is retained. No counters reset.
+
+
+The context limit retains the 32 largest phase errors, listed in capture order,
+so a small persistent nominal/elapsed clock mismatch cannot crowd out a later
+whole-scene jump. A ninth regression and the real-capture CLI verify that case.
+The CLI still rejects incomplete traces with --require-complete. This changes
+only offline analysis; the logging runtime and desktop package are unchanged.
+
+
+The same-workload-ID restriction fires zero times in its capture: offscreen
+workloads make raw graphics IDs insufficient for logical-scene equivalence.
+A separate private observer retains the ratio-only behavior and records current/
+next workload IDs, pending-event count, active interpolation VI and consumed
+count at each skip. In VIs 4000-5800 it classifies fresh finite skips as
+{'different_workload_same_scene': 3} and finds 2 rendered scene VIs with no display sample.
+The explicit per-scene contexts are preserved in queue-scene-ownership-review.
+This remains a bounded hidden trace; no scene queue correction is selected.
+The observer is removed and the normal generated sources/runtime restored.
+
+
+## Scene-owned queue candidate checkpoint, 2026-10-15 UTC
+
+A private bounded registry assigns one logical scene token to the scene workload
+and its following offscreen shadow workloads. Unknown metadata breaks the token
+chain; reused slots require exact workload IDs. Retention requires exactly one
+later event, matching nonzero scene ownership, fresh finite output, an active
+swap chain and unpaused presentation. Deeper backlog and Unlimited retain their
+existing policy. The private candidate also includes the elapsed-clock ratio.
+
+Current status: **bounded candidate; full qualification pending**. Its 120/360 observations respectively report
+[0, 0] audio underruns,
+[0, 0] repeated phases and
+[0, 0] rendered scene VIs
+without a display sample in the selected window. Those values qualify only the
+recorded hidden runs. See [the checkpoint](../../../evidence/high-refresh-finite-pacing.json)
+for exact hashes, intervals, failures and remaining acceptance work.
+
+No clock/queue candidate is installed. The private registry, generated renderer
+patches and observer are removed after testing; the verified history-storage
+preview remains on the desktop. Before selecting a production version, scope the
+ratio to the native clock, retain Original reference timing, prove guest-state
+and matching equality, test registry lifecycle/reuse and pause, and check further
+caps and the actual owner route. This checkpoint does not resolve RENDER-003 or
+PERF-001. The offline analyzer change is the only selected source implementation
+from this final pacing continuation.

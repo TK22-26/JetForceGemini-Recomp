@@ -731,3 +731,9 @@ storage package, including the prior overlay-lifetime and trace-format fixes.
 Saves, settings and shortcut arguments are unchanged; prior links/packages are
 retained. The current delivery receipt is in high-refresh-shape-history.json.
 Physical-display and full-route acceptance remain open.
+
+
+The optional presentation-trace analyzer now records bounded freeze/jump context
+and accepts the explicit native VI clock frequency for phase-spacing checks.
+See [RENDER-003](../development/issues/steady-fps-jitter.md). Private clock/queue
+experiments are separate from the installed, qualified history-storage preview.
