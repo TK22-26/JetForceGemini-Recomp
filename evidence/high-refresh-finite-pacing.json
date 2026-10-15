@@ -1624,11 +1624,28 @@
     "production_source_changed": false,
     "generated_source_restored": true,
     "pending": [
-      "Native-only clock configuration and Original exact-state reference",
-      "Guest-state/matching equality",
-      "Lifecycle, reuse, unknown metadata and concurrent publication qualification",
-      "Pause/inactive/other caps and physical-display/full-owner-route verification"
-    ]
+      "Native-only clock configuration and production integration",
+      "Pause/inactive/other caps and physical-display/full-owner-route verification",
+      "Concurrent publication, lifecycle and shutdown review beyond the bounded registry tests"
+    ],
+    "exact_state_qualification": {
+      "completed": [
+        "Original RAM/save/renderer/probe/instruction equality",
+        "Recorded-clock dense RAM/save/instruction/matching equality"
+      ],
+      "step_exit_code": 0,
+      "normal_runtime_restored": true,
+      "registry_CXX17_lifecycle_tests_passed": true,
+      "scope": "Private prototype. Tests do not substitute for native-only production clock integration, pause/other caps or owner display acceptance.",
+      "original_guest_update_records": 4754,
+      "dense_guest_update_records": 1847,
+      "dense_matching_records": 17715,
+      "original_ram_save_renderer_probe_equal": true,
+      "dense_equal_files": {
+        "rdram.bin": true,
+        "jfg.flash": true
+      }
+    }
   },
   "private_evidence": [
     "finite-clock-ratio-native-review",

@@ -524,3 +524,15 @@ and matching equality, test registry lifecycle/reuse and pause, and check furthe
 caps and the actual owner route. This checkpoint does not resolve RENDER-003 or
 PERF-001. The offline analyzer change is the only selected source implementation
 from this final pacing continuation.
+
+
+The final private prototype completes these exact-state stages:
+['Original RAM/save/renderer/probe/instruction equality', 'Recorded-clock dense RAM/save/instruction/matching equality'] (step exit code 0). The saved reports
+compare physical RAM, save, renderer/probe state where captured, complete guest
+instruction/update records and dense matching decisions against their recorded
+baselines. Separate C++17 registry tests pass scene/offscreen ownership, unknown
+metadata, slot eviction, long offscreen chains and workload-ID restart. Those
+checks do not establish production readiness or physical-monitor smoothness.
+The normal runtime is restored after the binary comparisons. Production clock
+scoping, integration, pause/other caps and full-route/live checks remain pending;
+this prototype is still not in the desktop package.
