@@ -53,3 +53,11 @@ The operational progress guard must remain enabled. Recover the existing high-re
 Private evidence IDs: cold-original-classified-paired; floating-state-difference-classification; clang-integer-functions-paired; owner-pause-stocktake-20261015. Prepared requests for cold-original-transition-checks, compiler-size-factor-audit and production-fp-mode-classification were withdrawn before execution. Their scripts and existing evidence remain preserved on the evidence volume. Public records contain no ROM, generated game code or personal save data.
 
 Persistent issue records remain the source of symptoms, attempts, verification limits and eventual resolution: [issue index](issues/README.md), [combat](issues/goldwood-combat-slowdown.md), [late objects](issues/tutorial-late-object-jitter.md), and [shadows](issues/shadow-cadence.md).
+
+
+## Subsequent owner direction
+
+The owner subsequently approved five hours of resumed work and explicitly authorized faster implementations/algorithms even when they are not instruction-for-instruction authentic, provided AI and gameplay behavior remain equivalent. The pause record above remains historical. The guarded continuation preserves the same investigation and counters. Current validation and implementation direction is recorded in PERF-001; the compiler-factor and floating-mode fixtures may now be executed under this new authorization.
+
+
+The resumed investigation selected the compact original-timing helper for source integration after four exact recorded comparisons, the retained Original reference, and native 120/360 checks. Median recorded combat work improves by about 3.7 ms; remaining slow native updates keep the no-20-FPS goal open. Standard runtime rebuild/package qualification remain separate from this source checkpoint. See PERF-001 for evidence and limits.

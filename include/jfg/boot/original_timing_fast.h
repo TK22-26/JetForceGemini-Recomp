@@ -35,8 +35,10 @@ BizHawk bdddf4a58aa1a022afb11dc73294a81a5aa7bbd5.
 #include "recomp.h"
 #if defined(_MSC_VER)
 #define JFG_CLOCK_INLINE __forceinline
+#define JFG_CLOCK_NOINLINE __declspec(noinline)
 #else
 #define JFG_CLOCK_INLINE inline __attribute__((always_inline))
+#define JFG_CLOCK_NOINLINE __attribute__((noinline,unused))
 #endif
 typedef struct { unsigned tag,valid,dirty; } JfgTimingCacheLine;
 // Shared host state only. The native event handler and generated instruction
@@ -174,7 +176,10 @@ static JFG_CLOCK_INLINE void jfg_native_timing_step(unsigned metadata,unsigned p
  }
  jfg_phase9_execution_probe_predecoded(metadata,pc,word,context);
 }
-static JFG_CLOCK_INLINE void jfg_original_timing_step(unsigned metadata,unsigned pc,unsigned word,void* context) {
+// Forced inlining of the cache model substantially expands generated code
+// under MSVC. Keep one callable copy per translation unit; native instruction
+// and span checks stay inline, and all modeled costs and fallbacks remain.
+static JFG_CLOCK_NOINLINE void jfg_original_timing_step(unsigned metadata,unsigned pc,unsigned word,void* context) {
  JfgOriginalTimingFast* s=jfg_original_timing_state;
  unsigned kind=(metadata>>12U)&3U;
  // CACHE instructions and every event/observer boundary retain the fully
@@ -219,3 +224,4 @@ static JFG_CLOCK_INLINE void jfg_original_timing_step(unsigned metadata,unsigned
 #define jfg_phase9_execution_probe_predecoded(m,p,w,c) do { if (jfg_original_timing_state && jfg_original_timing_state->diagnostic_host_clock) jfg_native_timing_step(m,p,w,c); else if ((m)&0x800000U) jfg_original_timing_step(m,p,w,c); else (jfg_phase9_execution_probe_predecoded)(m,p,w,c); } while (0)
 #endif
 #undef JFG_CLOCK_INLINE
+#undef JFG_CLOCK_NOINLINE
