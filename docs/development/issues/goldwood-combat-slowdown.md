@@ -1772,3 +1772,96 @@ The no-20-FPS target is still open. The detailed profiler and analyzer now
 identify entity work, especially drone/pathfinding routines, as substantial
 CPU targets alongside renderer submission. Heavy profiling is removed for final
 FPS acceptance. All captures here were muted and hidden; desktop unchanged.
+
+
+### Integer entity-span compiler candidate, 2026-10-15
+
+After sparse profiling identified entity/pathfinding CPU cost, a private compiler
+hint is limited to admitted integer-only spans in nine measured functions. CPU
+context and cached RAM use distinct restricted aliases; floating spans and all
+original fallbacks remain intact. The first build rejects shadowed local variable
+names under warnings-as-errors and performs no replay. The replacement uses
+distinct names and matching private memory macros, preserving that warning gate.
+Evidence, exact-state results and paired costs: integer-entity-span-alias-paired
+and integer-entity-span-distinct-paired/review.json on D:. No selection or stable
+30 FPS claim follows from compilation alone; private sources are restored.
+
+
+The isolated mask-access benchmark measures about 13.9-14.9 microseconds for
+a guarded read/write pair versus 18-21 nanoseconds for direct model calls.
+This establishes an access-cost reduction, not a whole-game speedup; the
+production callback bridge adds a small lifetime-check cost absent from that
+prototype. A source candidate now adds optional MI-mask CPU-bridge operations
+with exact mapped-memory fallback, callback lifetime checks and rejection-value
+preservation. Native callback handling retains journal, device and I/O-revision
+effects; reference timing remains on the original access path. Generated-site
+rewriting, artifact inventory updates and runtime qualification are pending.
+Evidence: native-mi-bridge-implementation. No new desktop package is delivered.
+
+
+The first integration build stops at the generated-root freshness check because
+the normalizer changed. This produces no replay result. The private incremental
+migration updates the new runtime exports, symbol inventory, link registry and
+qualified instruction sites together, then records the new generator digest.
+Local declarations avoid changing the shared generated header. The guard and
+build freshness checks remain enabled. Evidence: native-mi-bridge-generation.
+
+
+The broader integration build exposes missing original-timing exports in the
+link-only smoke executable. Its registry deliberately does not run guest
+bodies. The harness now supplies a null timing state and an aborting hook,
+so accidental guest execution still fails instead of receiving fake timing.
+The runtime executable itself linked in the failed broad build; qualification
+waits for the repaired full build and focused tests. The initial migration
+wrapper also stopped on an existing evidence directory; no evidence was erased.
+
+The timing-hook link stubs are shared by all three link-only audit executables;
+the first harness adjustment fixed smoke linking but baseline/patch audits
+exposed the same missing exports. No runtime timing code is stubbed.
+
+
+The integrated MI-mask candidate passes the full Release build, 12 focused
+CTest checks, exact 4,000-VI recorded-state comparison and exact 17,000-VI
+Original comparison (including renderer snapshot). Native 120 completes with
+zero audio underruns but retains actual 3-VI/20 Hz updates. Native 360 fails
+near VI 5737 with Rt64ShellError::renderer_exception (submit-15), 125 audio
+underrun trace events and heavy cadence loss beforehand. Its host CPU samples
+reach 99.6% (median 51%); that observation alone does not assign causality.
+The candidate is held, not qualified or delivered. A same-binary mapped-access
+control and exception-detail capture will distinguish the new register path
+from existing native 360 pacing/resource problems. Evidence:
+native-mi-bridge-qualification, mi-bridge-native360 and mi-bridge-native360-control.
+A review/commit wrapper had a Python syntax error and committed nothing.
+
+
+The 360 FPS comparison wrapper restored both diagnostic source edits, but its
+final rebuild failed with LNK1180 (insufficient disk space). Two dependent
+checkpoint jobs then stopped at their prerequisite assertions without editing
+source. This was a build-environment failure, not new gameplay evidence.
+Recovery relocated only the investigation's build tree to D: after a complete
+file-hash comparison and retained the original C: path through a junction. The
+ordinary candidate rebuild succeeded; earlier failure records remain intact.
+Evidence: build-drive-recovery-20261015. The desktop preview is unchanged.
+
+
+### MI-mask source checkpoint; qualification remains incomplete
+
+The same diagnostic binary completes a 360 FPS mapped-access control with four
+audio underruns and a direct-access run with zero. Both retain actual 3-VI
+updates; their native instruction/timing paths differ, so this is not a causal
+whole-combat speedup measurement. Neither run repeats the earlier renderer
+exception, and its cause remains open. The diagnostic exception capture and
+control switch are removed afterward and the ordinary candidate is rebuilt.
+Evidence: mi-bridge-native360-control and mi-bridge-source-checkpoint-recovered/review.json.
+
+This source checkpoint preserves the narrow register-access candidate and its
+reproducible validation, not a completed no-20-FPS remedy or release. The exact
+recorded/Original state results and 120 FPS audio result remain valid. Native
+360 robustness requires further work; no desktop launcher/package changes.
+Fresh generated roots include the two runtime exports and qualified site pass;
+older generated inventories require regeneration or the documented complete
+incremental migration, not a digest-only freshness override.
+
+{"case": "mi-control360-original-access", "audio_underruns": 4, "host_cpu_median": 45.75, "top_observed_cpu": [{"name": "jfg-native-boot.exe", "mean_one_core_percent": 157.25311629869427}, {"name": "wezterm-gui.exe", "mean_one_core_percent": 90.29440400852674}, {"name": "python3.11.exe", "mean_one_core_percent": 67.1250767350496}, {"name": "explorer.exe", "mean_one_core_percent": 60.396829252577014}, {"name": "dwm.exe", "mean_one_core_percent": 42.53977885100147}, {"name": "System", "mean_one_core_percent": 37.263308917025206}, {"name": "msedge.exe", "mean_one_core_percent": 15.898587273822951}, {"name": "OneDrive.Sync.Service.exe", "mean_one_core_percent": 13.836089880972068}]}
+
+{"case": "mi-control360-direct-access", "audio_underruns": 0, "host_cpu_median": 34.8, "top_observed_cpu": [{"name": "jfg-native-boot.exe", "mean_one_core_percent": 157.7145628791479}, {"name": "wezterm-gui.exe", "mean_one_core_percent": 82.17584582959971}, {"name": "python3.11.exe", "mean_one_core_percent": 62.78593839091493}, {"name": "dwm.exe", "mean_one_core_percent": 34.02654898415906}, {"name": "System", "mean_one_core_percent": 32.37957178027382}, {"name": "python.exe", "mean_one_core_percent": 19.58336000021389}, {"name": "msedge.exe", "mean_one_core_percent": 16.559118079025712}, {"name": "explorer.exe", "mean_one_core_percent": 16.28926111976895}]}

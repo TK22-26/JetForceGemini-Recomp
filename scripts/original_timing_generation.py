@@ -120,6 +120,11 @@ def finish_native_spans(root: Path) -> dict:
     record["native_spans"] = {**counts, "schema": 1,
         "generator_sha256": hashlib.sha256(Path(native_timing_spans.__file__).read_bytes()).hexdigest(),
         "default_enabled": False}
+    if __package__:
+        from . import native_mmio_access
+    else:
+        import native_mmio_access
+    record["native_mmio_mask"] = native_mmio_access.rewrite_tree(root)
     record_path.write_text(json.dumps(record, indent=2)+"\n")
     header = root / "jfg_original_timing.h"
     header.write_text(header.read_text()+"#define JFG_NATIVE_TIMING_SPAN_GENERATION 1\n")

@@ -88,6 +88,8 @@ RUNTIME_BRIDGE_SYMBOLS = [
     "jfg_minimal_runtime_section_capacity",
     "jfg_minimal_runtime_unbind_cpu",
     "jfg_minimal_runtime_unbind_dispatch",
+    "jfg_mmio_mask_read32",
+    "jfg_mmio_mask_write32",
     "pause_self",
     "recomp_syscall_handler",
     "reserved_instruction",
@@ -2900,7 +2902,10 @@ def make_registry(
     support: list[dict[str, int | str]],
     section_count_value: int,
 ) -> str:
-    declarations: list[str] = []
+    declarations: list[str] = [
+        'extern "C" int32_t jfg_mmio_mask_read32(uint8_t*, void*, uint64_t);',
+        'extern "C" void jfg_mmio_mask_write32(uint8_t*, void*, uint64_t, uint32_t);',
+    ]
     references: list[str] = []
     for row in authoritative:
         name = str(row["name"])
@@ -2951,6 +2956,10 @@ extern "C" int jfg_generated_link_smoke(void) {
     if (jfg_generated_lookup_function(INT32_C(0x{int(first['vram']):08X})) != {first['name']}) {{
         return 2;
     }}
+    auto* volatile mask_read_reference = &jfg_mmio_mask_read32;
+    auto* volatile mask_write_reference = &jfg_mmio_mask_write32;
+    (void)mask_read_reference;
+    (void)mask_write_reference;
     auto* volatile relocation_reference = &jfg_generated_apply_relocations;
     auto* volatile checked_relocation_reference = &jfg_generated_apply_relocations_checked;
     auto* volatile relocation_count_reference = &jfg_generated_relocation_count;

@@ -668,3 +668,12 @@ Compatibility lesson: releasing a queue slot can merely move producer stalls;
 measure game-update cadence and both queue waits, not just output FPS or one
 queue. Bounding presentation delay trades interpolation coverage during a
 real slow update for less backlog and requires visible cadence qualification.
+
+
+The unselected native scene-retention/clock-scale source is preserved in research
+commit 53527b626bbd14c10ff2ed151454a8bb585aae39 (branch research/native-scene-retention-candidate-20261015).
+It is removed from the active high-refresh working source before targeted CPU
+optimization because its earlier native 360 FPS run had audio underruns. The
+private bounded/common-clock alternatives remain retained in prior evidence;
+neither is silently treated as a delivered fix. The active baseline is rebuilt,
+and the installed desktop preview remains unchanged.

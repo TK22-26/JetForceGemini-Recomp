@@ -60,3 +60,21 @@ The batch stopped during verification of the fifth directory: PowerShell Get-Ite
 The helper needs hidden-file-aware enumeration and lookup consistently in any future owner-authorized archive. It was not retried during this continuation. Private receipt: storage-archive-verification.json.
 
 At audio-preview handoff, C: has 59.54 GB free (55.45 GiB). This is the current volume reading, not a claim that the archive alone reclaimed that amount; other cleanup and concurrent builds also affect free space. The verified archive remains 51.99 GB of logical data across four directories.
+
+
+## 2026-10-15 high-refresh build recovery
+
+The ordinary candidate restore link failed with LNK1180 after the control
+captures had completed. The previous executable was unavailable afterward;
+no replay was attempted against that incomplete output. All source restoration
+had already completed. Two dependent jobs failed their prerequisite checks and
+did not proceed. The prior failures remain recorded.
+
+The active high-refresh build tree was copied to D:, with every regular file
+checked by SHA-256 and length, then its C: path was retained by a junction. Only
+the verified redundant original was removed. Shared dependency trees, preview
+profiles and unrelated builds were outside this move. The candidate then linked
+successfully. Evidence: build-drive-recovery-20261015/before-manifest.json,
+relocation.json, build.log and result.json. Existing build scripts still use
+the C: path, which now requires D: to be available. Long-term retention remains
+open; this does not qualify the gameplay candidate.

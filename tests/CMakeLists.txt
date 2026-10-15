@@ -467,6 +467,15 @@ if(JFG_BUILD_SYNTHETIC_GENERATED_TESTS)
         PATCH_AUDIT_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/generated_patch_audit.cpp"
     )
 
+    add_executable(jfg_native_mmio_bridge_tests native_mmio_bridge_tests.cpp)
+    target_include_directories(jfg_native_mmio_bridge_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_include_directories(jfg_native_mmio_bridge_tests SYSTEM PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/generated-code-synthetic/include")
+    target_link_libraries(jfg_native_mmio_bridge_tests PRIVATE jfg_synthetic_generated_minimal_runtime_objects)
+    target_compile_features(jfg_native_mmio_bridge_tests PRIVATE cxx_std_20)
+    jfg_set_project_warnings(jfg_native_mmio_bridge_tests)
+    add_test(NAME jfg.native_mmio_bridge COMMAND jfg_native_mmio_bridge_tests)
+
     add_executable(jfg_generated_runtime_capacity_tests
         generated_runtime_capacity_tests.cpp
     )

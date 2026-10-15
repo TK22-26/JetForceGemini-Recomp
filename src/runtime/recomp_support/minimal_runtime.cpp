@@ -379,6 +379,25 @@ int jfg_minimal_runtime_unbind_cpu(JfgCpuOperationCallback callback, void* opaqu
     return 1;
 }
 
+int32_t jfg_mmio_mask_read32(uint8_t* rdram, void* context, uint64_t address) {
+    std::uint64_t value = 0U;
+    if (address == UINT64_C(0xffffffffa430000c) && context != nullptr &&
+        cpu_operation(static_cast<recomp_context*>(context),
+                      JFG_CPU_READ_MI_MASK, 0xa430000cU, value))
+        return static_cast<int32_t>(value);
+    return MEM_W(0, address);
+}
+
+void jfg_mmio_mask_write32(uint8_t* rdram, void* context, uint64_t address,
+                         uint32_t value) {
+    std::uint64_t bridged = value;
+    if (address == UINT64_C(0xffffffffa430000c) && context != nullptr &&
+        cpu_operation(static_cast<recomp_context*>(context),
+                      JFG_CPU_WRITE_MI_MASK, 0xa430000cU, bridged)) return;
+    // A declining optional callback cannot alter the original store value.
+    MEM_W(0, address) = static_cast<int32_t>(value);
+}
+
 gpr cop0_status_read(recomp_context* ctx) {
     return read_status(ctx);
 }

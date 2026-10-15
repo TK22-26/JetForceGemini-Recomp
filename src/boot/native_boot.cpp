@@ -10039,6 +10039,30 @@ int native_cpu_operation(void* opaque, void* guest_context, std::uint32_t operat
   // that enabling extended addressing supplies a compatible EntryHi state.
   if ((static_cast<std::uint32_t>(cop0_status_read(context)) & 0xe0U) != 0U) return 0;
   if (state.guest_os_probe) {
+    if (operation == JFG_CPU_READ_MI_MASK || operation == JFG_CPU_WRITE_MI_MASK) {
+      auto* trace = state.mmio_trace;
+      if (selector != 0xa430000cU || trace == nullptr ||
+          !state.diagnostic_host_clock || !trace->native_elapsed_time ||
+          !trace->guest_execution || !trace->guest_mi_mask ||
+          !trace->mi_mask.initialized() || trace->pending_page != nullptr) return 0;
+      const auto address = reinterpret_cast<std::uintptr_t>(trace->pages[2U]) + 0x0cU;
+      if (operation == JFG_CPU_READ_MI_MASK) {
+        trace->record(2U, address, false);
+        *value = trace->mi_mask.read();
+        return 1;
+      }
+      auto next = trace->mi_mask;
+      if (*value > UINT32_MAX || !next.command(static_cast<std::uint32_t>(*value))) return 0;
+      trace->record(2U, address, true);
+      trace->mi_mask = next;
+      ++trace->execution_io_revision;
+      trace->device_write_page = 2U;
+      trace->device_write_offset = 0x0cU;
+      trace->device_write_value = next.read();
+      // The device model owns this register. Any subsequent guarded access
+      // refreshes the page mirror before the host load executes.
+      return 1;
+    }
     const auto extend = [](std::uint32_t word) {
       return static_cast<std::uint64_t>(static_cast<std::int64_t>(static_cast<std::int32_t>(word)));
     };
