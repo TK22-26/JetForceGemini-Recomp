@@ -621,3 +621,12 @@ The unchanged launcher passes bundled-runtime init/setup protocol checks; all
 files remain unchanged. Previous links and package are retained for rollback.
 This supersedes the earlier source-only delivery status. No public release or
 full-route/live acceptance is claimed; PERF-001 and the visual issues remain open.
+
+
+The transition observer subsequently confirms that the long native replay stays
+in level 21 and includes a death/respawn reload. Its stable completion is valid
+for that path, not complete owner-route traversal. Targeted room-return fixtures
+and the level-26 exit-marker fixture provide separate, explicitly bounded room
+coverage. The observed path-cache ownership repair remains qualified as recorded;
+all-route stability and visual acceptance remain open. See PERF-001's 2026-10-15
+coverage correction and transition-call-native-review.json.

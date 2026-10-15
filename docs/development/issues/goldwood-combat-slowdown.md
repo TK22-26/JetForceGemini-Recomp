@@ -1505,3 +1505,28 @@ path-cache lifetime fix addresses memory corruption; PERF-001 remains open.
 Evidence: overlay-cold-native120/360, overlay-lifetime-cadence-review and
 capture-overhead-native-review. Preserve source-update intervals alongside
 output averages; level/mode stability alone cannot identify damage events.
+
+
+## Replay coverage and health-event qualification, 2026-10-15 UTC
+
+A private transition-call observer resolves the long native replay gap: the
+original mainRestartAfterDeath routine at 0x80046378 executes at VI 7155. Juno's
+sampled health reaches zero at VI 6933 and resets at VI 7250; the largest update
+interval is 1,139.504 ms across VIs 7182-7250. After entering Goldwood, this replay
+stays in level 21. Therefore the extended native input replays do not reproduce
+the owner's later-cave route. Earlier references to an extended owner-input
+route describe replay duration/input provenance, not complete location coverage.
+The observer is removed and normal source rebuilt before further qualification.
+
+The owner's retained recording instead has approximately 104 ms update intervals
+near nonfatal health losses in levels 21 and 16. A new 120-FPS native capture has
+a largest interval of 48.616 ms in its sampled nonfatal-loss windows. These are
+different paths and events, not a matched A/B or a damage-hitch resolution. Health
+is sampled from playerBoy properties+6; actor initialization and lifetime changes
+must be distinguished from damage. Windows overlap and are not independent trials.
+The misleading hitPlayer symbol is a proximity query, not an actual damage hook.
+
+Evidence: transition-call-native-review.json, recorded-player-health-v2-review.json
+and health-window-cadence-review.json. PERF-001 remains open. Transferable lesson:
+record actual location, transition identity and health state before attributing
+a long update interval to combat or accepting a nominal full-length input replay.

@@ -763,3 +763,22 @@ source scenes at phases 0.25/0.5/0.75/1.0, with 30 SCENES / 120 OUTPUT in the
 matching trace. This verifies the target is visible and intermediate images are
 produced; eight images do not establish an all-route jitter remedy or physical
 monitor pacing. Evidence: camera-zoom-near-beam-phase-review.json and its raw PPMs.
+
+
+## Current-package target capture and coverage, 2026-10-15 UTC
+
+The post-lifetime-fix source is captured again with the controlled level-26 warp,
+near-exit movement and camera orbit fixture. The exit marker and cave terrain
+are visibly present in all eight images, covering two source scenes (VIs 3501
+and 3505), each with phases 0.25/0.5/0.75/1.0 at 30 source / 120 output. Every
+image hash differs. The bridge and wooden crates are not visible in this fixture.
+This qualifies visible intermediate images for the exit marker only; readbacks,
+mod warp and infinite health prevent ordinary-play performance acceptance.
+Neither eight images nor a hidden window establish physical-display pacing.
+
+The extended native owner-input replay remains in level 21 and reaches death/
+respawn. It does not cover the full recorded later-cave path; see PERF-001's
+transition/health qualification. RENDER-006 stays open for exact owner-visible
+bridge/crate/marker jitter and full-route verification. Evidence:
+lifetime-late-cave-review.json, lifetime-late-cave-sequence and
+transition-call-native-review.json.

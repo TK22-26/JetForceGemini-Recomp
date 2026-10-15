@@ -224,5 +224,32 @@
     "guest_pause_resume_cycles": 2,
     "ownership_watch_invalid_writes_after_fix": 0,
     "private_observers_removed": true
+  },
+  "native_coverage_correction": {
+    "date_utc": "2026-10-15T00:58:38.559232+00:00",
+    "native_level": 21,
+    "death_restart_pc": "0x80046378",
+    "death_restart_vi": 7155,
+    "largest_respawn_interval_ms": 1139.504,
+    "owner_nonfatal_loss_interval_ms": 104.659,
+    "new_native_nonfatal_loss_interval_ms": 48.616,
+    "matched_damage_comparison": false,
+    "full_owner_route": false,
+    "late_cave_fixture": {
+      "level": 26,
+      "visible": "exit marker and cave terrain",
+      "scenes": [
+        3501,
+        3505
+      ],
+      "distinct_images": 8,
+      "bridge_crates_visible": false,
+      "physical_display_verified": false
+    },
+    "evidence": [
+      "transition-call-native-review.json",
+      "health-window-cadence-review.json",
+      "lifetime-late-cave-visible-review.json"
+    ]
   }
 }

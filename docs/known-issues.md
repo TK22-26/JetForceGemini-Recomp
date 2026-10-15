@@ -14,7 +14,9 @@ The owner's tutorial capture contains real 20-25 scene-update/s intervals and a
 damage-correlated hitch, even when rendered output remains near 120 FPS. The
 continuation reduces CPU bookkeeping/history overhead with exact guest-state
 checks, but native busy scenes still drop below 30. The full-route issue remains
-open. See [PERF-001](development/issues/goldwood-combat-slowdown.md).
+open. Current long native input replays remain in the starting area and reach
+death/respawn; they do not establish later-cave route coverage. See
+[PERF-001](development/issues/goldwood-combat-slowdown.md).
 
 Delayed-scene interpolation holds and stale CPU-written presentation endpoints
 are corrected in tests. Procedural LightBeam vertices gain explicit ownership,
