@@ -2043,3 +2043,37 @@ The compiler candidate still produces three-VI updates. Lower median CPU work is
 The stable-base memory-predicate prototype passes 87,516 address-boundary/random checks and all four exact recorded comparisons. Combat medians are 30.282/29.055 ms baseline versus 29.755/28.793 ms candidate, with no consistent quiet-scene advantage. The small variable saving does not justify selecting the generated-source change. Ordinary source/runtime are restored. Evidence: span-range-guards-paired.
 
 The shared fallback wrapper's complete leaf fixture returned 3. Evidence: outlined-native-fallbacks/fixture/result.json. The candidate stops before whole-runtime testing; no generator change is selected.
+
+
+The private fallback-outlining matrix fixture failed special-value RAM comparison immediately (NaN payloads at offsets 0x118 and 0x134), so no whole-runtime outlined candidate was built. Clang's additional classification also finds a CPU-state mismatch at case 112; treating RAM NaNs as one class does not establish equivalence. Both broad candidates remain unselected. The integer-only compiler comparison was withdrawn before execution to keep the owner's reference tutorial capture free of concurrent game/build work. Evidence: outlined-native-fallbacks/fixture, clang-float-payload-classification, and immutable request withdrawal records. The unchanged preview remains installed.
+
+
+Owner tutorial follow-up: severe stalls are confirmed in the recorded Original-mode route, including 15.0-update/s diagnostic windows. The capture inherited debug cheats, forced pistol selection and inactive dual-stick controls; it is not a clean default-game comparison. See [DIAG-002](reference-owner-capture-contamination.md) for the full audit, per-level timing and prepared correction. Missed-input causation and matching original-game targeting remain open; no auto-aim cheat was identified among the enabled overrides.
+
+
+A narrower compiler comparison replaces only eleven sampled generated bodies with no floating-point operations or register access. Every called function, timing hook, memory check and original source remains. The complete RAM, save, instruction counts and interpolation decisions must match across the recorded route. Evidence: clang-integer-functions-paired. This does not qualify compiler-wide exceptional floating behavior. The ordinary executable is restored afterward.
+
+
+The floating-state diagnostic classifies differing 32-bit words only in RAM and floating registers; all integer/control state, timing structures, counters, hook calls and exception flags must remain exact. Classification preserves the earlier strict failures and does not redefine exact equivalence or select a runtime. Evidence: floating-state-difference-classification/result.json.
+
+
+The follow-up cold-original-helper performance diagnostic runs only after the complete 8,192-case classification found differences confined to NaN sign/payload representations. All finite values, integer/control state, timing state and exception flags matched in that fixture. Strict equivalence remains false; the diagnostic must preserve exact recorded game RAM/save/instruction/interpolation decisions and does not select or install a runtime. Evidence: cold-original-classified-paired.
+
+
+The resumed integer-only compiler comparison passed all four exact recorded-route checks. Combat medians were 38.148/32.236 ms baseline and 29.443/33.681 ms candidate; host contention and inconsistent pair results prevent a repeatable benefit claim. It remains unselected. The complete exceptional-value classification found only NaN sign/payload changes in the matrix fixture (Clang: 1,009 affected cases; cold original helper: 204), with all 8,192 cases matching finite/non-floating state, timing, hooks and exception flags. This clarifies the prior CPU mismatch but does not make either candidate byte-exact or qualified for delivery. Evidence: clang-integer-functions-paired and floating-state-difference-classification. The owner ended upstream debugging; performance work continues solely on our runtime.
+
+
+### Owner-requested pause and compiler attribution limit
+
+The owner requested a pause after the current comparison to take stock. The four cold-helper/build comparisons finished and preserved exact RAM, save, per-update instruction counts and interpolation decisions. The ordinary executable was restored; no preview change occurred.
+
+| Run | Combat active median, ms | Combat active p95, ms |
+|---|---|---|
+| baseline-a | 29.361 | 42.847 |
+| candidate-a | 27.601 | 43.872 |
+| candidate-b | 27.571 | 43.71 |
+| baseline-b | 37.753 | 55.585 |
+
+These are recorded-clock CPU-cost observations, not new native FPS acceptance. The slower tail still exceeds the 33.3 ms update budget. Audit of the original compiler command revealed a confound: production generated C uses /fp:precise and /std:c11, while the manual candidate commands use /fp:strict and omit /std:c11. Consequently the measured effect cannot be attributed solely to helper outlining or solely to changing the compiler. Existing exact-route matches remain valid for the tested binaries; causal optimization claims require matched compiler/language settings. The prepared one-factor size audit and production-mode compatibility fixture were withdrawn before execution at the owner's pause request, along with additional transition tests. No results are claimed for them.
+
+See [the pause checkpoint](../high-refresh-checkpoint-2026-10-15.md) for verified improvements, open issues and recommended next steps. The production guard remains enabled; pausing preserves its existing investigation, attempts and charges.

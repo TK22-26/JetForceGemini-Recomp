@@ -101,3 +101,22 @@ The non-original captures contain repeating one/one/four-VI updates: fast update
 
 
 The fresh pinned-source build did not produce a completed build receipt. Its guarded request/log is preserved as 473a-vibintoast-source-build-invocation; no source-build success is claimed.
+
+
+## Active setting confirmation and owner capture
+
+The guarded owned-window check opened the published release through normal save/character selection. The RmlUi Visuals tab visibly selected **60 + Interpolated**, while the gameplay overlay and per-update timing still showed about 30 updates/presents per second with the previously recorded uneven pacing. This confirms the requested setting reached the active UI; it does not rely solely on the options file. Evidence: vibintoast-owned-activation-check/visuals-active.png and retained command receipts. Switching to Original through that UI saved frame_rate=0 and restored even two-VI updates in this quiet area. The internal delta changed to 1; broader mode-switch compatibility remains unqualified.
+
+The earlier F9 keyboard injection omitted the scan code. Supplying MapVirtualKeyW and bounded AttachThreadInput foreground activation opened the debug window. No input was sent without checking the window's process and foreground ownership. These were local capture problems, not upstream runtime regressions.
+
+The fresh-source build first stopped at a locally incorrect CMake tool path. After correction, the unmodified upstream batch exited 255 with ".z64 was unexpected at this time." when JFG_ROM contained the owner's parenthesized filename. The conditional error-message echo expands that path without escaping parentheses. A private short-path ROM copy is prepared as the next workaround; no successful source build is claimed. Prior logs and scripts are retained, including the initial pre-execution quoting correction.
+
+The owner offered a manual tutorial run. Automated comparisons and the source build were withdrawn before execution while a separate muted, copied-save release session records per-update game timing, player/level observations and visible FPS. The release binary exposes screen FPS in its overlay but not per-present timestamps in this logging path. Exclude startup and initial waiting when reviewing the route. Evidence: vibintoast-owner-tutorial-20261015. The owner's visual report and resulting logs must qualify combat and later-level conclusions; setup alone is not validation.
+
+
+Owner tutorial follow-up: severe stalls are confirmed in the recorded Original-mode route, including 15.0-update/s diagnostic windows. The capture inherited debug cheats, forced pistol selection and inactive dual-stick controls; it is not a clean default-game comparison. See [DIAG-002](../development/issues/reference-owner-capture-contamination.md) for the full audit, per-level timing and prepared correction. Missed-input causation and matching original-game targeting remain open; no auto-aim cheat was identified among the enabled overrides.
+
+
+## Owner-directed end of reference testing
+
+The owner explicitly stopped further upstream debugging. The later source-build retry was canceled before completion; no build success or clean replacement capture is claimed. The earlier automated quiet-cadence runs also inherited gameplay debug overrides, so they are observations under those profiles rather than clean release benchmarks. The contaminated owner recording cannot support a fair overall quality ranking. No reviewed upstream change has demonstrated the stable combat updates required by PERF-001, and none is adopted as a fix. Any retained source idea must prove correctness and benefit in our own implementation. Evidence: owner-cancelled-build receipt and DIAG-002.
