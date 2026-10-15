@@ -708,3 +708,138 @@ logs already use explicit finish/drain calls. Dependent bridge capture did not
 run after the first failed observer and was correctly resubmitted after restore.
 Evidence: private-dxgi-statistics, private-dxgi-statistics-mapped and
 dxgi-statistics-mapped-review.json. Neither private observer ships.
+
+
+## Owner-requested deeper bottleneck profiling, 2026-10-15
+
+The owner requests finer cost percentages even if capture adds overhead. A
+private diagnostic extends function self timing with owned instruction counts,
+native-handler time, synchronous graphics time and dispatch-prefix time,
+subtracting nested generated calls. It emits every measured function at update
+completion through the buffered writer, plus actor/drone counts and cumulative
+command/triangle counts. These are wall-time categories; scheduling and probe
+overhead remain visible limits, and nested/inclusive figures must not be summed.
+
+Evidence and exact-state check result: combat-focus-20261014/
+detailed-function-cost-profile and parallel-and-detailed-cost-decision.json on D:.
+The public desktop remains unchanged. Ordinary Play does not enable CPU_COSTS.
+This profiling is investigation support, not a fix or native FPS acceptance.
+
+
+The first normal-Play profiling attempt exits during setup because production
+CPU_COSTS intentionally rejects Play. It performs no gameplay and supplies no
+performance result. A private replacement permits profiling only with an input
+replay and gameplay trace, adds selected-function thread CPU-cycle measurements
+and update service totals, and restores the original gate/source after capture.
+It keeps the separate bounded/common-clock renderer candidate explicit.
+Thread-cycle counts are inclusive on one host thread; overlapping entries must
+not be summed. The same-clock dense state check precedes normal-timing captures.
+Evidence: detailed-native-cost-captures, detailed-native-service-profile and
+its service-review.json. No public profiling setting or FPS fix is delivered.
+
+
+A lighter private observer measures each guarded MMIO page from guard-handler
+entry through single-step completion and guard rearm. It excludes the initial
+Windows exception delivery, includes scheduler interruption, and is not a pure
+CPU percentage. It avoids per-function tracing; the recorded-clock dense replay
+retains exact RAM/save/update/interpolation correspondence. Normal 120/VSync and
+360/no-VSync each finish over 6,000 retraces without audio underruns or unsupported
+accesses, but still contain three-VI (approximately 50 ms) game updates.
+The 120 FPS combat capture has median active update time 30.304 ms and
+median measured MMIO fault time 1.771 ms. Per-page counts and aggregate
+wall-time fractions are in mmio-fault-cost-probe/cost-review.json on D:.
+The original source and runtime were restored; this observer does not ship.
+
+
+### Sparse CPU/wait attribution and controlled optimization comparison, 2026-10-15
+
+A lighter observer identifies roughly 1.8 ms/update in measured MMIO exception
+handling during one native 120 FPS combat segment (about 6% of active wall time).
+It excludes initial exception delivery and includes observer/preemption costs.
+The MI interrupt-mask page is its largest component. A private candidate routes
+only osSetIntMask's two fixed-address accesses through the existing mask model,
+retaining instruction probes, read/write journals and I/O revision effects.
+Other addresses, unsupported commands and reference-clock execution fall back
+to guarded accesses. A later guarded read refreshes the page mirror.
+
+The first dense replay matches RAM, save, complete update/instruction records,
+interpolation decisions and the runtime state hash. Native 120/VSync and
+360/no-VSync finish without audio underruns or unsupported accesses, but still
+contain three-VI updates. This is a candidate, not a stable-30 fix or delivery.
+
+A sparse follow-up measures selected entity, pathfinding, animation, audio and
+graphics scopes with both wall intervals and thread cycles. Its on/off/on/off
+recorded-clock comparison uses one executable and exact state correspondence:
+
+- stage-mi-dense-off-a: active median 32.037 ms; game-thread cycles 47.699 million/update.
+- stage-mi-dense-on-a: active median 32.200 ms; game-thread cycles 51.823 million/update.
+- stage-mi-dense-on-b: active median 31.999 ms; game-thread cycles 45.632 million/update.
+- stage-mi-dense-off-b: active median 31.726 ms; game-thread cycles 48.139 million/update.
+
+The initial extracted handler fixture had an unresolved save-device dependency;
+its completed replacement is recorded below. Detailed qualification is in
+direct-mi-mask-handler-fixture; paired costs and scope hierarchy are in
+sparse-stage-direct-mi-paired/review.json, with host-load evidence. Source and
+normal runtime are restored after each private experiment; desktop unchanged.
+
+Percentages use CPU cycles on the same thread, not wall-time durations that
+include another thread's work while blocked. Nested scope percentages overlap;
+they are not a pie chart. Microsoft explicitly advises against converting
+[QueryThreadCycleTime](https://learn.microsoft.com/en-us/windows/win32/api/realtimeapiset/nf-realtimeapiset-querythreadcycletime)
+counts into elapsed time. Profiler results locate work; final FPS must be checked
+with expensive instrumentation removed.
+
+
+The reusable scripts/analyze_cpu_stage_trace.py analyzer reconstructs selected
+scope trees by host thread, subtracts child cycles once, and reports exclusive
+and inclusive CPU shares separately. Invalid child counters exclude an entire
+update; negative residuals fail validation instead of being clamped. Other
+threads, partial records and unfinished scopes are reported separately. Synthetic
+regressions cover nested/recursive scopes, siblings, different threads, truncated
+rows and VI-window boundaries. Real capture reports are retained under
+stage-analyzer-validation on D:. The private stage observer remains opt-in and
+is not part of the installed preview.
+
+
+### Measured combat attribution and qualification limits, 2026-10-15
+
+The sparse profiler's native 120 FPS control covers 233 completed combat updates.
+Entity updates consume 75.05% of the game-update thread's measured CPU cycles.
+The additive exclusive breakdown is 23.56% drone behavior, 23.34% pathfinding,
+18.67% other object-update work, 11.10% level draw-command work, 10.04% animation
+matrices, 9.13% other update work, 2.76% rcpFast3d and 1.40% rcpWaitDP. These are
+CPU shares on that thread, not shares of total frame wall time or GPU load.
+Animation includes work under multiple parents, so its full 10.04% should not
+be added to the inclusive entity figure. Nested scopes are subtracted once.
+Ten unfinished selected scopes at process close are reported and excluded;
+233 complete update trees have valid counters, with no partial stage rows.
+
+Separately, graphics submission consumes 9.389 ms/update of elapsed time in that
+window, including 6.011 ms in full-sync/history. Scene history contributes 2.379
+ms/update. Measured scene texture/fence waits contribute roughly 0.586/0.574 ms,
+and offscreen fence waits 0.254 ms. Enclosing and child durations overlap.
+Do not sum these wall figures with the CPU percentages above.
+
+Direct MI-mask handling removes four Windows exceptions per selected read/write
+pair. The exact extracted-handler fixture passes 46,656 valid mask/command cases
+and 64 reference-clock fallback cases, preserving journals, device effects and
+a subsequent guarded read. Two earlier fixture links failed because the full
+handler references save-device code; linking the already built runtime resolves
+those fixture dependencies. Those attempts produced no correctness result.
+Evidence: direct-mi-mask-handler-runtime-fixture; the earlier fixture outputs
+remain retained. The four recorded-clock on/off captures preserve state but
+do not establish a repeatable whole-update saving amid the observed cost
+variation. The native on/off routes also differ in instruction/pathfinding work,
+so their different counts of slow updates are not a causal speedup measurement.
+
+A separate private nested-dispatch lease retains binding lifetime across nested
+calls and passes existing capacity/failure tests, concurrent nesting, stale
+escaped-target rejection and exception/rejection cases. Its small benchmark
+varies from about 18-25 ns/call versus roughly 22-23 ns for the control. This
+uncertain, small saving does not justify selecting it as a combat remedy. No
+production dispatch change is made. Evidence: nested-dispatch-lease-prototype.
+
+The no-20-FPS target is still open. The detailed profiler and analyzer now
+identify entity work, especially drone/pathfinding routines, as substantial
+CPU targets alongside renderer submission. Heavy profiling is removed for final
+FPS acceptance. All captures here were muted and hidden; desktop unchanged.

@@ -1,7 +1,7 @@
 # PERF-001: Goldwood combat slows game updates
 
 - **Severity: critical. Status: open; bounded local previews qualified, but the owner full-tutorial capture still has source-cadence drops. Combined develop/high-refresh bounded qualification passed and the local preview is delivered; full-route acceptance remains open.**
-- Reported: 2026-10-11 UTC. Last updated: 2026-10-13 UTC.
+- Reported: 2026-10-11 UTC. Last updated: 2026-10-15 UTC.
 - Affected: modern-controls v1.1 local preview with original instruction-clock runtime;
   source capture runtime SHA-256 `de2737396c3f840291de8a9155eaed415f6076beaf4d27200be6505cde11c538`.
 - [Implementation investigation and research](../../features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation).
@@ -1588,3 +1588,187 @@ state/readback comparison, not normal-play performance or audio acceptance.
 The separate native 120/360 captures each report zero audio underruns.
 Full-route damage/combat consistency and the remaining visual limitations stay
 open. This is local delivery, not a public release or all-issues-fixed claim.
+
+
+### 2026-10-15 finite-presentation queue investigation
+
+The integrated finite-clock/scene-ownership candidate preserves both exact-state
+references but increases measured scene queue waits at 360 FPS. One normal
+native run has 49 audio underruns and 24.7-28.6 scenes/s windows. A shared-prefix
+comparison and a private empty-event coalescing alternative are recorded in
+[RENDER-003](steady-fps-jitter.md#queue-pressure-in-the-integrated-candidate).
+The coalescing normal capture holds two-VI updates in the reviewed window, but
+still has missing presentation scenes. Neither variant is delivered. Queue
+latency, native combat consistency and damage timing remain open; a successful
+exact-state replay does not establish performance acceptance.
+
+
+The private bounded two-retrace finite-window test removes normal-run audio
+underruns seen with the unbounded sequence handoff, but still has slow game
+updates and repeated phases. The active-Present storage experiment is rejected
+because it moves stalls to WorkloadQueue and increases measured latency.
+Details and failed-attempt evidence are recorded in RENDER-003's bounded native
+presentation window section. Both remain unselected; desktop package unchanged.
+
+
+Owner acceptance clarified on 2026-10-15: eliminate combat drops to 20 source
+FPS, retaining the original 30-FPS simulation target. A high interpolated
+output count, or a 29.x window average containing 50-ms updates, does not meet
+this target. The remaining slow updates are being compared by actual active
+work, idle waits and time outside main update; no counter smoothing or game
+clock acceleration is accepted as a substitute. Evidence: bounded-source-
+critical-path-review on D:.
+
+
+The bounded normal capture's 66 three-retrace updates have 34.24 ms median
+active update work, compared with 26.88 ms for its two-retrace updates. Median
+idle work is 12.44 ms in the slow group; the missed two-retrace completion
+then waits for the third retrace. Ordinary wake overshoot is about 0.4 ms in
+the slow group and submission-slot waits are negligible after the bounded
+window change. This narrows the residual investigation to active work and
+its scheduling, not a cosmetic FPS label. Active wall time can include host
+preemption; CPU profiling is being considered alongside graphics preparation.
+The source remains unselected and no stable-30 resolution is claimed.
+
+
+### Parallel graphics-history prototype and rejected CPU leaf, 2026-10-15
+
+A private native-count publication experiment removes two redundant native
+bookkeeping stores in an isolated real generated matrix leaf. Its synthetic
+byte-exact differential fails at case 21: RAM offset 0x130 changes a NaN payload
+from 0x7fc00001 to 0xffc00000. It is rejected before changing any production
+header/generated game code. Compiler scheduling can change exceptional float
+representations even when the edited stores concern integer timing metadata.
+Evidence: native-count-store-prototype/result.json on D:.
+
+The user asked about multithreading. Rendering is already threaded; gameplay
+shares ordered mutable guest state. A separate private experiment overlaps
+semantic character/particle history with shape/camera geometry preparation.
+The semantic worker owns a copied sample vector and its own history, and joins
+before its output is consumed or Context can be destroyed. It uses the same
+cadence gate and captures/merges the host floating-point environment. Gameplay
+updates remain ordered. This initial std::async prototype measures potential;
+it is not a selected per-frame thread architecture. Normal native observations
+and a same-recorded-clock RAM/save/instruction/matching differential are kept
+in parallel-semantic-review and parallel-semantic-dense-review. Source and
+normal runtime are restored after capture; desktop package unchanged.
+
+
+### Controlled parallel cost and entity-count question, 2026-10-15
+
+The owner reports that slowdown increases with things on screen, asks about
+multithreading, and requests more detailed profiling. Entity AI, collision,
+animation and graphics can all scale together; visibility correlation alone
+does not identify their relative contributions. Existing wall-time attribution
+includes runtime handlers and synchronous graphics inside guest scheduler calls.
+The no-20-FPS acceptance target remains unchanged.
+
+Four identical recorded-clock/input captures in serial/parallel/parallel/serial
+order preserve RAM, save, 1,847 complete update/instruction records and all
+17,715 interpolation matching decisions. Busy history preparation medians are
+2.477/2.725 ms serial and 1.756/1.799 ms parallel. This is a stage-cost saving,
+not stable-30 qualification; whole-update costs and host load are retained in
+parallel-semantic-paired-secure-env/review.json and its host-load files. The first
+comparison failed at compile time on the deprecated getenv API; its replacement
+uses _dupenv_s. Source is restored after both attempts. The installed desktop
+remains unchanged. Local MSVC future implementation uses Concurrency::create_task;
+no claim that this creates a fresh OS thread per frame is established.
+
+The pure-integer restricted-span leaf passes 32,768 differential cases after
+correcting its fixture to use addresses in its actual allocation. The earlier
+fixture's unmapped uncached alias caused an access violation; that result is not
+a proven candidate defect. Alternating copy benchmarks show no compelling gain
+(roughly 159-162 ns median), so this compiler hint remains unselected. Both
+integer-span-alias-prototype and integer-span-mapped-fixture evidence remain on D:.
+
+A new private full-function profiler separates nested instruction, native-handler,
+graphics and dispatch-prefix counters before reporting each function's owned
+work. It records validated actor-slot/drone counts and cumulative geometry counts.
+All rows go through the existing buffered trace writer. Wall residuals still
+include host preemption and instrumentation, so they must not be labelled pure
+on-CPU time. Negative residuals must be reported, never silently converted into
+a precise percentage. Detailed state and matching checks are recorded in
+detailed-function-cost-profile; its source/runtime are restored after capture.
+
+
+### Detailed stage profiling and direct MI-mask candidate, 2026-10-15
+
+A lighter observer identifies roughly 1.8 ms/update in measured MMIO exception
+handling during one native 120 FPS combat segment (about 6% of active wall time).
+It excludes initial exception delivery and includes observer/preemption costs.
+The MI interrupt-mask page is its largest component. A private candidate routes
+only osSetIntMask's two fixed-address accesses through the existing mask model,
+retaining instruction probes, read/write journals and I/O revision effects.
+Other addresses, unsupported commands and reference-clock execution fall back
+to guarded accesses. A later guarded read refreshes the page mirror.
+
+The first dense replay matches RAM, save, complete update/instruction records,
+interpolation decisions and the runtime state hash. Native 120/VSync and
+360/no-VSync finish without audio underruns or unsupported accesses, but still
+contain three-VI updates. This is a candidate, not a stable-30 fix or delivery.
+
+A sparse follow-up measures selected entity, pathfinding, animation, audio and
+graphics scopes with both wall intervals and thread cycles. Its on/off/on/off
+recorded-clock comparison uses one executable and exact state correspondence:
+
+- stage-mi-dense-off-a: active median 32.037 ms; game-thread cycles 47.699 million/update.
+- stage-mi-dense-on-a: active median 32.200 ms; game-thread cycles 51.823 million/update.
+- stage-mi-dense-on-b: active median 31.999 ms; game-thread cycles 45.632 million/update.
+- stage-mi-dense-off-b: active median 31.726 ms; game-thread cycles 48.139 million/update.
+
+The initial extracted handler fixture had an unresolved save-device dependency;
+its completed replacement is recorded below. Detailed qualification is in
+direct-mi-mask-handler-fixture; paired costs and scope hierarchy are in
+sparse-stage-direct-mi-paired/review.json, with host-load evidence. Source and
+normal runtime are restored after each private experiment; desktop unchanged.
+
+Percentages use CPU cycles on the same thread, not wall-time durations that
+include another thread's work while blocked. Nested scope percentages overlap;
+they are not a pie chart. Microsoft explicitly advises against converting
+[QueryThreadCycleTime](https://learn.microsoft.com/en-us/windows/win32/api/realtimeapiset/nf-realtimeapiset-querythreadcycletime)
+counts into elapsed time. Profiler results locate work; final FPS must be checked
+with expensive instrumentation removed.
+
+
+### Measured combat attribution and qualification limits, 2026-10-15
+
+The sparse profiler's native 120 FPS control covers 233 completed combat updates.
+Entity updates consume 75.05% of the game-update thread's measured CPU cycles.
+The additive exclusive breakdown is 23.56% drone behavior, 23.34% pathfinding,
+18.67% other object-update work, 11.10% level draw-command work, 10.04% animation
+matrices, 9.13% other update work, 2.76% rcpFast3d and 1.40% rcpWaitDP. These are
+CPU shares on that thread, not shares of total frame wall time or GPU load.
+Animation includes work under multiple parents, so its full 10.04% should not
+be added to the inclusive entity figure. Nested scopes are subtracted once.
+Ten unfinished selected scopes at process close are reported and excluded;
+233 complete update trees have valid counters, with no partial stage rows.
+
+Separately, graphics submission consumes 9.389 ms/update of elapsed time in that
+window, including 6.011 ms in full-sync/history. Scene history contributes 2.379
+ms/update. Measured scene texture/fence waits contribute roughly 0.586/0.574 ms,
+and offscreen fence waits 0.254 ms. Enclosing and child durations overlap.
+Do not sum these wall figures with the CPU percentages above.
+
+Direct MI-mask handling removes four Windows exceptions per selected read/write
+pair. The exact extracted-handler fixture passes 46,656 valid mask/command cases
+and 64 reference-clock fallback cases, preserving journals, device effects and
+a subsequent guarded read. Two earlier fixture links failed because the full
+handler references save-device code; linking the already built runtime resolves
+those fixture dependencies. Those attempts produced no correctness result.
+Evidence: direct-mi-mask-handler-runtime-fixture; the earlier fixture outputs
+remain retained. The four recorded-clock on/off captures preserve state but
+do not establish a repeatable whole-update saving amid the observed cost
+variation. The native on/off routes also differ in instruction/pathfinding work,
+so their different counts of slow updates are not a causal speedup measurement.
+
+A separate private nested-dispatch lease retains binding lifetime across nested
+calls and passes existing capacity/failure tests, concurrent nesting, stale
+escaped-target rejection and exception/rejection cases. Its small benchmark
+varies from about 18-25 ns/call versus roughly 22-23 ns for the control. This
+uncertain, small saving does not justify selecting it as a combat remedy. No
+production dispatch change is made. Evidence: nested-dispatch-lease-prototype.
+
+The no-20-FPS target is still open. The detailed profiler and analyzer now
+identify entity work, especially drone/pathfinding routines, as substantial
+CPU targets alongside renderer submission. Heavy profiling is removed for final
+FPS acceptance. All captures here were muted and hidden; desktop unchanged.

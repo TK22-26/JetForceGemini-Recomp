@@ -549,3 +549,122 @@ larger than one VI in its analyzed interval. Its pass qualifies guest state and
 matching only; it is not native pacing acceptance. These gaps and their complete
 trace remain preserved, alongside the separate normal-Play 120/360 results.
 No all-captures-smooth claim follows from the private prototype checks.
+
+### 2026-10-15 production integration candidate
+
+The owner approved a six-hour continuation with all production-guard charges
+preserved. The previously private finite-clock/scene-ownership prototype is being
+integrated into the pinned build-tree patches. The production candidate scopes
+ownership to each RT64 State/shared queue lifetime, clears it on teardown/reuse,
+and fails closed for unknown or evicted workloads. Only qualified native NTSC
+pacing uses the 78352/78125 duration ratio; instruction-clock and unknown startup
+modes retain 1/1. A clock-mode change resets the finite tick accumulator.
+
+Build, lifecycle/concurrency tests, exact-state comparisons and native presentation
+runs are pending for this integration. The installed preview remains unchanged.
+This does not resolve native combat-update drops, the dense recorded-clock pacing
+gaps, shadow-mask cadence or the unverified late tutorial route.
+
+The first integrated 120-FPS native capture has no repeated/backward phases,
+missing rendered scenes or audio underruns in the reviewed window. The following
+360-FPS run fails acceptance: 49 audio underruns and seven rendered-but-undisplayed
+scene VIs, despite no repeated/backward phase values. Its combat windows vary
+around 24.7-28.6 scenes/s. Native input paths differ, so this is a candidate
+qualification failure, not yet a causal attribution. Preset/pause request 354 was
+withdrawn before execution. Delivery is withheld while a shared recorded-prefix
+comparison distinguishes candidate behavior from starting-state/host-load changes.
+Evidence: production-scene-owned-native-review.
+
+The shared-prefix candidate run completed, but its report formatter expected a Play-only audio field in a probe result and raised KeyError. Raw results were already saved. The correction reuses that run and collects only the missing baseline; no successful game test is discarded or rerun. Request 356 stopped at its prerequisite check without analysis.
+
+
+### Queue pressure in the integrated candidate
+
+All focused tests pass. The integrated candidate preserves the dense reference's
+physical RAM/save, 1,847 complete update records and 17,715 matching decisions.
+The 17,000-VI Original comparison preserves RAM, save, renderer snapshot, probe
+counters and 4,754 complete guest-update records. These are state comparisons;
+neither substitutes for native presentation or audio acceptance.
+
+A 360-FPS shared-prefix comparison verifies identical release state. The candidate
+records zero audio underrun events, three repeated phases and one missing rendered
+scene; the installed build records zero underrun events, five repeated phases
+and two missing scenes. Native suffixes differ, so these are observations, not
+strict per-frame causal measurements. Candidate scene queue waits total 279.1 ms
+over the selected window versus 11.5 ms in the installed build, with p99 2.745
+versus 0.218 ms. Ordinary shadow passes have negligible queue waits. The separate
+failed normal-native 360 capture has substantially longer waits and 49 underruns.
+The source candidate remains unselected and the desktop package is unchanged.
+
+A second private candidate coalesces an older empty presentation event into its
+newer same-scene event while preserving the unconsumed interpolation sequence.
+Events containing CPU framebuffer writes retain their existing delivery. Both
+shared-prefix and normal-native 360 captures have no audio underrun events and
+no repeated/backward phases, but still omit three and two rendered scene VIs.
+The normal capture maintains two-VI game updates throughout VIs 4000-5800; it is
+not proof of combat performance on every route. The prototype is not selected;
+all generated source is restored afterward. Further work must explain the
+remaining scene skips and bound queue latency without dropping CPU writes,
+weakening synchronization or changing guest simulation.
+
+Private evidence: production-scene-owned-native-review, production-prefix360-review,
+production-pacing-cost-review, production-queue-owner-cost-review and
+coalesced-scene-present-review. Original instruction-clock fixture coverage
+remains in level 21; the earlier recorded native clock reaches levels 16 and 26,
+which may provide a bounded starting prefix for future late-route qualification.
+
+
+The empty-event observer identifies a further failure: a forwarded fresh sequence
+can be skipped by its receiving notification when newer work is queued. Seven
+other observed fresh skips have two pending notifications despite the immediate
+next event sharing the same scene. An explicit one-event handoff prototype
+preserves that receiver's obligation to show the untouched finite sequence.
+Its normal 360-FPS capture has no missing/repeated/backward scenes in the selected
+window, but has 32 audio underruns and source-cadence drops. It is rejected for
+delivery pending queue-latency correction; zero missing scenes alone is not
+acceptance. The detailed observer itself had ten underruns and is not a normal
+performance baseline. All generated observers/prototypes are restored.
+
+A follow-up instrument measures PresentQueue submission-slot waits independently
+from WorkloadQueue waits. See sequence-handoff-queue-costs for the measurements.
+The next candidate must reduce producer blocking without discarding framebuffer
+writes, invalidating active Present storage, or increasing latency unchecked.
+No public or desktop delivery has occurred.
+
+
+### Bounded native presentation window candidate (2026-10-15)
+
+The private active-Present copy frees the notification slot early but moves
+backpressure into WorkloadQueue: about 3.2 seconds of aggregate wait in the
+reviewed window. Notification-ready to first output increases from 42.3 to
+48.9 ms median in separate native suffixes; this is not a deterministic latency
+A/B. The normal run has 18 audio underruns and four missing scenes. Rejected;
+all generated sources are restored. Evidence: owned-present-storage-review
+and owned-present-storage-cost-review on D:.
+
+A separate bounded-window prototype combines explicit adjacent same-scene
+handoff with a maximum two-retrace finite presentation window. The retail
+scheduler's two-retrace completion threshold is verified in pinned assembly
+at 0x800506E4 and __scTaskComplete; no simulation or guest clock is changed.
+Slow intervals still supply their actual interpolation span and source-rate
+label. The prototype starts later in a long interval instead of extending
+the renderer backlog to replay the entire interval. Reference clocks and
+Unlimited are unchanged. Nonempty CPU-write events retain only with one
+pending notification; deeper backlogs preserve the original skip policy.
+
+Both shared-prefix and normal 360/no-VSync captures have zero missing
+presentation scenes, backward phases, dropped trace chunks and audio-underrun
+events (the normal Play device counters also report zero underruns/overruns).
+The shared-prefix scene windows are 29.4-29.7/s, with 13 repeated phases;
+normal Play has 54 repeated phases and still falls below 30 scenes/s. This
+is a private candidate, not stable-30 acceptance or a delivered fix.
+Slow-source transitions reset the current rational remainder, requiring a
+further continuous-clock check. A wrapper assembly attempt (step 369) failed
+before any source mutation/build; the readable replacement (370) completed
+and restored/rebuilt both generated sources. Evidence: bounded-scene-window-
+review and bounded-scene-window-cost-review on D:.
+
+Compatibility lesson: releasing a queue slot can merely move producer stalls;
+measure game-update cadence and both queue waits, not just output FPS or one
+queue. Bounding presentation delay trades interpolation coverage during a
+real slow update for less backlog and requires visible cadence qualification.
