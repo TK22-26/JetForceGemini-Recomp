@@ -1961,8 +1961,7 @@ restored. Evidence: dispatch-snapshot-gating.
 
 The rounded-conversion fixture passes 1,048,576 edge-case comparisons, including
 value bits, MXCSR, CRT environment and errno. Its nanosecond-scale conversion
-savings do not explain the multi-millisecond combat excess. The prepared
-hot-function experiment remains unqueued; no rounding-helper change is selected.
+savings do not explain the multi-millisecond combat excess. The later hot-function comparison is recorded below; no rounding-helper change is selected.
 The next investigation targets native instruction locations rather than
 promoting isolated microbenchmark gains. Evidence: rounded-conversion-fixture.
 
@@ -1972,3 +1971,75 @@ the pool thread on success or exception. Focused cadence/environment/shell
 tests, dense recorded comparison and 17,000-VI Original comparison passed as
 recorded above. Native 360 robustness and the owner's full route remain open.
 This checkpoint does not update the installed desktop preview.
+
+
+### October 15 reference and native instruction sampling
+
+The owner-requested [VibinToast review](../../upstream/reference-review-2026-10-15-vibintoast.md) distinguishes its real 60 Hz scheduler, disabled matrix interpolation path and unqualified release timings. Its operating-system replacement architecture is a useful performance lead; no claim of eliminating combat drops is accepted without measurement.
+
+The scoped native sampler now follows the actual update thread and preserves exact recorded RAM, save, instruction and interpolation comparisons. Combat samples include generated drone/path work, dispatch and lookup bookkeeping, rounded conversion, and a large wait-state share. Wait samples and sampler observer effects prevent treating these proportions as CPU-cycle percentages. The earlier all-thread sample limit expired before combat, so that capture cannot support combat attribution. Evidence: pc-sampling-update-thread, including timer/thread-selection fixtures and restored.json. No sampling hooks remain in the committed runtime. The native sampled run retained three-VI updates and one audio underrun; it is diagnostic evidence, not FPS acceptance.
+
+
+A private dispatch-cache experiment combines immutable target-to-mapping and linked-section metadata in a bounded tagged array. Dynamic generated-function lookup, overlay allocation/publication, relocation and instruction boundaries remain unchanged. Collision replacement only causes metadata recomputation. Alternating recorded-clock comparisons require exact RAM/save, per-update instructions and interpolation decisions. Evidence: dispatch-metadata-cache-paired. The source/runtime are restored after this experiment; selection requires measured whole-update benefit and broader qualification.
+
+
+A private native-only rounding/conversion comparison modifies only the nine
+previously measured entity/pathfinding functions that actually call the relevant
+helpers. It retains all instruction hooks, guest FCR31 writes and original-clock
+fallbacks; unusual float conversion inputs keep the CRT operation. Separate
+noinline helper boundaries retain the existing generated math context. Four
+recorded-clock captures alternate baseline/candidate/candidate/baseline and
+require exact RAM/save, per-update instructions and interpolation decisions.
+Evidence: rounding-hot-functions-paired. Source/runtime restoration occurs even
+on failure; any performance choice requires review, not a build-only claim.
+
+
+The private Clang hot-function comparison compiles nine unchanged generated CPU bodies and links them ahead of the normal archive in an isolated executable. It retains every timing hook and dynamically checked operation. The special-value leaf fixture differs in NaN payloads; the separate finite fixture and exact recorded-route comparison do not erase that limitation or authorize delivery. Evidence: clang-hot-functions-paired. All source is unchanged and the ordinary runtime is restored after the experiment.
+
+
+### October 15 controlled compiler and helper comparisons
+
+All four runs of each comparison preserve exact recorded RAM/save, per-update instruction counts and interpolation decisions. These use the same recorded guest timing, so the following numbers measure host update cost, not newly demonstrated game FPS. Every experiment restores the ordinary runtime; the desktop preview remains unchanged.
+
+| Experiment | Baseline combat median, ms (A / B) | Candidate combat median, ms (A / B) | Result |
+|---|---|---|---|
+| Immutable dispatch metadata cache | 30.079 / 29.165 | 30.548 / 28.102 | Mixed whole-update results; not selected. |
+| Native rounding/conversion helpers in nine hot functions | 29.402 / 28.040 | 28.824 / 29.123 | No consistent benefit; not selected. |
+| Clang, nine unchanged hot functions | 29.223 / 29.315 | 27.412 / 28.505 | Lower median cost in both pairs; exceptional-value compatibility remains unqualified. |
+
+Clang reduces combat median host work by roughly 0.8-1.8 ms in these pairs, but candidate 95th-percentile work remains 41.5-43.9 ms, above the 33.3 ms budget. An 8,192-case finite-input matrix fixture matches the baseline, while the exceptional-input fixture differs in NaN payload bits. Real-route correspondence does not establish equivalence for those inputs. No compiler candidate is selected or delivered. Evidence IDs: clang-generated-leaf-toolchain, clang-finite-leaf-cost, and the three experiment directories named above.
+
+
+A broader private Clang comparison compiles the unchanged generated bodies observed at least five times in the pinned combat samples (capped at 64 functions) and links them ahead of the normal archive in an isolated executable. It retains every timing hook and dynamically checked operation. The special-value leaf fixture differs in NaN payloads; the separate finite fixture and exact recorded-route comparison do not erase that limitation or authorize delivery. Evidence: clang-sampled-functions-paired. All source is unchanged and the ordinary runtime is restored after the experiment.
+
+
+A private grouped-memory-validation prototype combines repeated bounds/alignment predicates for stable base registers inside existing native spans. Every original fallback and timing hook remains, and a failed combined predicate uses the existing individual checks. Boundary/random address proofs precede four exact recorded-clock comparisons. Evidence: span-range-guards-paired. This experiment restores the ordinary runtime; no generator change or preview is selected by this test alone.
+
+
+The broader private Clang candidate also receives four alternating real-time 120 FPS route runs with muted audio and copied initial state. Actual VI intervals and underruns are counted independently of rendered FPS. Native timing changes can produce different game paths, so these are repeated robustness observations, not exact-state CPU comparisons. Evidence: clang-sampled-native120. The ordinary runtime and desktop preview are preserved; special-value compiler compatibility remains open.
+
+
+The broader 62-function Clang comparison preserves all recorded comparisons. Combat medians are 29.464/30.005 ms for baseline and 26.444/26.511 ms for candidate; candidate p95 remains 44.700/44.197 ms. This supports a component throughput improvement, not a no-dip claim. Four real-time route comparisons are tracked separately. The inspected baseline executable contains about 589.6 MiB of machine code versus 13.5 MiB in the independently built reference release. Different runtimes/features prevent treating that ratio as a CPU speed ratio. It motivates a private experiment sharing repeated fallback timing code, with every observation preserved. No candidate is selected from file size alone.
+
+The inline-symbol resolver now passes its forced-inline fixture (24 of 54 outer-function bytes resolve to the nested helper) and loads the matching pinned PDB. In combat it resolves inline attribution for only 52/1088 and 65/1095 executable-address observations. This sparse subset cannot establish a timing-bookkeeping CPU percentage. Prior fixture attempts failed symbol loading; loading the live fixture module and supplying the captured module size resolves that harness problem. Evidence: inline-pc-attribution-loaded-module. No new game sampling was needed.
+
+
+Existing sparse stage captures are additionally partitioned by measured active update duration above/below 33.33 ms, preserving complete nested scopes and exact root-to-update joins. This asks whether tail updates have different CPU work or renderer/wait costs rather than relying on whole-window averages. Instrumented wall durations remain observations, not uninstrumented FPS acceptance. Evidence: slow-update-stage-attribution. No new game logging or runtime mutation is needed for this analysis.
+
+
+### Real-time compiler comparison and unselected memory predicates
+
+The four 120 FPS/VSync runs use the same input recording and copied initial save, with no expensive function profiler. Native timing can change later instruction paths, so they supplement the exact recorded-clock comparison rather than replace it. All remain private experiments.
+
+| Run | Combat three-VI / four-VI updates | Extended three-VI / four-VI updates | Extended active median, ms |
+|---|---|---|---|
+| clang-native120-baseline-a | 11 / 0 | 127 / 1 | 28.593 |
+| clang-native120-candidate-a | 11 / 0 | 28 / 0 | 21.572 |
+| clang-native120-candidate-b | 7 / 0 | 69 / 2 | 26.222 |
+| clang-native120-baseline-b | 70 / 0 | 254 / 5 | 29.645 |
+
+The compiler candidate still produces three-VI updates. Lower median CPU work is not the requested no-20-FPS result. Encounter coverage is recorded separately in clang-sampled-native120/encounter-coverage.json; failed coverage analysis, if any, cannot qualify the route. The installed preview remains unchanged.
+
+The stable-base memory-predicate prototype passes 87,516 address-boundary/random checks and all four exact recorded comparisons. Combat medians are 30.282/29.055 ms baseline versus 29.755/28.793 ms candidate, with no consistent quiet-scene advantage. The small variable saving does not justify selecting the generated-source change. Ordinary source/runtime are restored. Evidence: span-range-guards-paired.
+
+The shared fallback wrapper's complete leaf fixture returned 3. Evidence: outlined-native-fallbacks/fixture/result.json. The candidate stops before whole-runtime testing; no generator change is selected.
