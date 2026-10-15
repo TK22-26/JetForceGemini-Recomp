@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "date_utc": "2026-10-14",
-  "status": "source candidate; desktop delivery withheld pending native stability investigation",
+  "date_utc": "2026-10-15",
+  "status": "source candidate; captured stale overlay cache corrected and qualified in bounded tests; local delivery/live review pending",
   "source_parent": "e51b0af2c89d8ad3052c7aedf51b040c06a6a5a5",
   "desktop_runtime_sha256": "1b0bdd0fbfe25eacbf3ed0417c1607a70eed49d4198a6add62f3fba12900f0db",
   "matrix_qualification_runtime_sha256": "ad17e4c3357f85ee46b65c12a1e3672d203955bbb48bba29181ac6d87fc3bba0",
@@ -62,6 +62,30 @@
     "single-policy-cost-review.json": {
       "sha256": "aa8921c894a6f46221fab43eb8527eceed6243e109eef8385fa8b826e2687600",
       "bytes": 21336
+    },
+    "beam-phase-reference-review.json": {
+      "sha256": "d494f2434934d868cacd746441ce1558fd34d3ba83714b325bb647a1a4ea6707",
+      "bytes": 5158
+    },
+    "overlay-cold-guest-pause-review.json": {
+      "sha256": "f94a5217dc6d7965f4d413862962905c81c88ece1571e39ad35991af2a8224d2",
+      "bytes": 16088
+    },
+    "overlay-cold-native120-review.json": {
+      "sha256": "70a31022e44ef88c79a7773be2ad1da2a5240bc42b7f0a41ef93bb3aff634d44",
+      "bytes": 4359
+    },
+    "overlay-cold-native360-review.json": {
+      "sha256": "6808243a9de26b3d24d187adf152c78971ebb4b8abcfda2acfcbb3e61ab658c0",
+      "bytes": 4433
+    },
+    "path-cache-after-return-review.json": {
+      "sha256": "942090b126cb8ea2a17ae701e2d2e8ee0a7fc79495b135dda8cd6e7eea316022",
+      "bytes": 15823
+    },
+    "path-cache-multiple-return-review.json": {
+      "sha256": "470af8a434bfd5911d092c06d72fe195dc69f24a15ad1fbb1831f27f009e960f",
+      "bytes": 22952
     }
   },
   "verified_scope": [
@@ -74,7 +98,7 @@
   "remaining": [
     "Combat source cadence still reaches the mid-to-high 20s; damage/full-route timing remains open.",
     "One 360 normal-Play run collapses to about 11 updates/s with audio underruns; monitored ABBA did not reproduce that collapse.",
-    "Extended native Play has an access violation in the candidate and a distinct switch trap in its pre-equal-slot predecessor; clean repeats do not establish resolution.",
+    "Captured stale path-cache write corrected in targeted/extended tests; broader live stability remains unverified and earlier distinct exceptions are not all assigned this cause.",
     "A small number of unanchored camera holds remain; exact owner late-room and physical-display acceptance are pending.",
     "Clipped ground-shadow/mask cadence has no qualified fix.",
     "Unlimited starvation/pacing remains open; rejected scene-age scheduling is absent."
@@ -93,7 +117,7 @@
   },
   "delivery": {
     "changed": false,
-    "reason": "Native stability qualification remains open. No shortcut, owner profile or published release change."
+    "reason": "Source checkpoint only; desktop remains at the recorded baseline pending package qualification."
   },
   "camera_supplement_qualification": {
     "runtime_sha256": "914cc5d6185d6e2be7e3a9b1b970745c5d03b635859418064773eef9d05d2bbe",
@@ -166,5 +190,36 @@
         "bytes": 152
       }
     }
+  },
+  "overlay_lifetime_qualification": {
+    "timestamp_utc": "2026-10-15T00:26:37.930728+00:00",
+    "runtime_sha256": "243d77a1f4e6de2a821e70a8fc5635a90ee3a08ee2e0203dca03e6752144d8b0",
+    "source_sha256": "9e0efc4873acc1e263408259ffefa60b9e11f956fa836912cc396edad73c8f5c",
+    "original_physical_ram_save_instruction_records_equal": true,
+    "original_update_records": 4754,
+    "renderer_changed_bytes": 98,
+    "renderer_change": "Exact beam scroll/reset model predicts all changed bytes; other renderer bytes equal.",
+    "beam_scroll_calls": 4176,
+    "old_phase": 280,
+    "new_phase": 56,
+    "native_runs": [
+      {
+        "case": "overlay-cold-native120",
+        "runtime_sha256": "243d77a1f4e6de2a821e70a8fc5635a90ee3a08ee2e0203dca03e6752144d8b0",
+        "vi_retraces": 17012,
+        "audio_underruns": 0,
+        "invalid_accesses": 0
+      },
+      {
+        "case": "overlay-cold-native360",
+        "runtime_sha256": "243d77a1f4e6de2a821e70a8fc5635a90ee3a08ee2e0203dca03e6752144d8b0",
+        "vi_retraces": 17007,
+        "audio_underruns": 0,
+        "invalid_accesses": 0
+      }
+    ],
+    "guest_pause_resume_cycles": 2,
+    "ownership_watch_invalid_writes_after_fix": 0,
+    "private_observers_removed": true
   }
 }

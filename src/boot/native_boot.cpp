@@ -1444,6 +1444,9 @@ struct State : JfgOriginalTimingFast {
   std::unordered_map<std::uint32_t,
       std::pair<std::uint32_t, JfgGeneratedSectionMetadata>> generated_section_cache;
   std::unordered_set<std::uint32_t> guest_overlay_loads_in_progress;
+  // Fresh guest loads recreate DATA/BSS before their init callback. Suspended
+  // modules resume the existing state and must never enter this set.
+  std::unordered_set<std::uint32_t> pending_cold_overlay_images;
   jfg::ControllerMapping controller_mapping{};
   jfg::ControllerPorts controller_ports;
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
@@ -4267,6 +4270,57 @@ enum class SyntheticOverlayPublication : std::uint8_t {
   reload,
 };
 
+// Observe the original cold loader without publishing a synthetic base into
+// its still-empty record. Publication is deferred until the guest allocated
+// the module, so its allocator, relocation work and init ordering stay intact.
+bool note_guest_cold_overlay_load(State &state, const std::uint32_t slot) {
+  if (slot == 0U)
+    return true;
+  if (slot >= kRunlinkOverlaySlotCount)
+    return false;
+  hle::GuestMemory memory({state.rdram, kRdramSize},
+                         hle::GuestMemory::Layout::native_word_big_endian);
+  std::uint32_t table = 0U, base = 0U;
+  if (!memory.read_u32(kRunlinkModuleTablePointer, table) || table == 0U ||
+      (table & 3U) != 0U || table < kKseg0 ||
+      std::uint64_t{table} + (slot + 1U) * kRunlinkModuleRecordSize >
+          std::uint64_t{kKseg0} + kRdramSize)
+    return false;
+  const auto record = table + slot * kRunlinkModuleRecordSize;
+  if (!memory.read_u32(record, base))
+    return false;
+  if (base != 0U)
+    return true; // The original loader also returns without loading anything.
+  const auto suspension = resolve_runlink_suspension(memory, 0x800FEAD8U, 16U, slot);
+  if (suspension != RunlinkSuspensionResult::absent)
+    return suspension == RunlinkSuspensionResult::suspended;
+  RunlinkModuleIdentity identity{};
+  if (!memory.read_u32(record + 4U, identity.rom_start) ||
+      !memory.read_u32(record + 8U, identity.text_size) ||
+      !memory.read_u32(record + 12U, identity.data_size) ||
+      !memory.read_u32(record + 16U, identity.bss_size))
+    return false;
+  std::uint32_t linked = 0U;
+  for (std::uint32_t section = 0U; section < jfg_generated_section_count(); ++section) {
+    JfgGeneratedSectionMetadata metadata{};
+    if (jfg_generated_section_metadata(section, &metadata) == 0)
+      return false;
+    if (metadata.is_overlay != 1U || metadata.rom_start != identity.rom_start ||
+        metadata.text_size != identity.text_size || metadata.data_size != identity.data_size ||
+        metadata.bss_size != identity.bss_size)
+      continue;
+    if (linked != 0U)
+      return false;
+    linked = metadata.linked_vram;
+  }
+  if (linked != 0U) {
+    state.pending_cold_overlay_images.insert(linked);
+    state.gameplay_trace.event("overlay-cold-prepare",
+        {state.vi_retraces, state.controller_samples, slot, linked});
+  }
+  return true;
+}
+
 bool ensure_guest_overlay_allocation(
     State &state, const JfgGeneratedSectionMetadata &metadata,
     recomp_context &caller_context) {
@@ -4332,6 +4386,8 @@ bool ensure_guest_overlay_allocation(
   // Use the real generated loader, including temporary relocation allocations,
   // PI completion and module lifetime state. Preserve the pending call's CPU
   // arguments; the loader uses the current guest stack below its incoming SP.
+  if (!resume)
+    state.pending_cold_overlay_images.insert(metadata.linked_vram);
   recomp_context loader_context = caller_context;
   // A context copy retains f_odd's host pointer into its source. The detached
   // loader must own every FPR; otherwise odd-register writes leak to the caller.
@@ -4350,7 +4406,7 @@ bool ensure_guest_overlay_allocation(
 bool publish_synthetic_overlay(
     State &state, const std::uint32_t section,
     const JfgGeneratedSectionMetadata &metadata,
-    const SyntheticOverlayPublication publication =
+    SyntheticOverlayPublication publication =
         SyntheticOverlayPublication::ensure_active) {
   const auto reject = [&state](const char *reason) {
     state.last_overlay_publication_failure = reason;
@@ -4360,6 +4416,9 @@ bool publish_synthetic_overlay(
   if (state.rdram == nullptr || state.rom == nullptr ||
       metadata.is_overlay != 1U)
     return reject("invalid-input");
+  const bool cold_image = state.pending_cold_overlay_images.contains(metadata.linked_vram);
+  if (cold_image)
+    publication = SyntheticOverlayPublication::reload;
   const bool was_active = state.active_overlay_sections.contains(section);
   if (was_active &&
       publication == SyntheticOverlayPublication::ensure_active) {
@@ -4445,6 +4504,12 @@ bool publish_synthetic_overlay(
   if (!mirror_synthetic_overlay_in_runlink(state, metadata))
     return reject("runlink");
   state.active_overlay_sections.insert(section);
+  if (cold_image) {
+    state.pending_cold_overlay_images.erase(metadata.linked_vram);
+    state.gameplay_trace.event("overlay-cold-publish",
+        {state.vi_retraces, state.controller_samples, section, metadata.linked_vram,
+         was_active ? 1U : 0U});
+  }
   return true;
 }
 
@@ -7603,9 +7668,16 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         state.generated_section_cache.emplace(target,
             std::make_pair(target_section, target_metadata));
       }
-      if (target_metadata.is_overlay == 1U &&
-          !ensure_guest_overlay_allocation(state, target_metadata, *context))
-        fail_closed_dispatch(state, "runlink", "guest-overlay-load", target);
+      if (target == 0x80052CFCU &&
+          !note_guest_cold_overlay_load(state, static_cast<std::uint32_t>(context->r4)))
+        fail_closed_dispatch(state, "runlink", "cold-load-identity", target);
+      if (target_metadata.is_overlay == 1U) {
+        if (!ensure_guest_overlay_allocation(state, target_metadata, *context))
+          fail_closed_dispatch(state, "runlink", "guest-overlay-load", target);
+        if (state.pending_cold_overlay_images.contains(target_metadata.linked_vram) &&
+            !publish_synthetic_overlay(state, target_section, target_metadata))
+          fail_closed_overlay_publication(state, target);
+      }
       if (caller_is_overlay && target_metadata.is_overlay == 1U &&
           target_section == kHintTextOverlaySection &&
           target_section != caller_section) {

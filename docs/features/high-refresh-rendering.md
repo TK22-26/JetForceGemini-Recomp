@@ -689,3 +689,19 @@ and the private harness rate-label correction. A shadow scratch-buffer overflow
 is now strongly indicated by the failed RAM and original source layout; its
 precise executed writer and excessive input cause remain under investigation.
 The source checkpoint does not update the desktop preview or resolve NATIVE-001.
+
+
+### 2026-10-15 overlay lifetime qualification
+
+Fresh guest loads now recreate normalized DATA/BSS before initialization;
+suspension/resume preserves state. This removes a captured pathfinding write
+through a freed cache pointer. Targeted transitions, the ownership-watched route,
+actual in-game pause/resume and normal 120/360 extended native runs pass within
+their recorded scope. Original physical RAM/save/instructions remain exact.
+The sole renderer-snapshot difference is fully predicted by restarting the beam
+texture-scroll phase on a fresh load; the old reference retained the prior
+module lifetime's phase. No runtime memory repair or validation bypass is added.
+See [NATIVE-001](../development/issues/native-play-access-violation.md) for exact
+cause, failed checks, qualification and limits. Combat source-rate drops, shadow
+cadence, Unlimited pacing and owner-visible full-route review remain open. This
+source checkpoint does not update the desktop preview or constitute a release.

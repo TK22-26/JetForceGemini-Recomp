@@ -1,8 +1,9 @@
 # NATIVE-001: Native Play access violation during extended replay
 
-Status: intermittent failures reproduced in private native candidates; a corrupted
-guest pointer byte is confirmed, but its writer/cause remains unqualified.
-Not delivered. Severity: critical stability qualification blocker.
+Status: captured stale path-cache write corrected and verified in targeted and
+extended native tests; broader live verification and local delivery pending.
+Severity: critical memory corruption; bounded test verification is not a claim
+that every historical exception has the same cause.
 
 A muted hidden 120-FPS/VSync native Play replay from the preserved tutorial
 profile stopped after approximately 200 seconds, before its 17,000-retrace
@@ -488,3 +489,122 @@ The reconstructed animation fixture produces the same approximately 5,406-unit
 root X displacement from the saved failed RAM without live scheduling. This is
 post-fault state, not a captured pre-call replay. Its input provenance and the
 first contributing value still require tracing. Evidence: animation-snapshot-fixture.
+
+
+## Animation prefix corruption localized
+
+The retained animation table identifies Juno's active asset as animation 1063,
+allocated at 0x802de7b0 with size 0x2e0. Comparing against the matching ROM asset
+finds 57 changed bytes, all within its first 68 bytes; the remainder is intact.
+The adjacent animation 1062 matches its ROM data except for its expected runtime
+reference count. This is localized live asset corruption, not merely a stale
+model/world matrix or an animation-decoder rounding discrepancy.
+
+An isolated replay clears the output matrices and still reproduces the 5,406-unit
+X error from the corrupt header/frame inputs. Restoring only the affected prefix
+in that private fixture and rederiving the frame pointer/stride with the original
+formula produces a root close to the actor again. This counterfactual establishes
+the data's contribution to the oversized shadow; it is not an approved production
+repair. No runtime asset replacement, pointer repair or overflow clamp is added.
+A private observer arms only ROM-equal immutable animation headers, ignores the
+mutable reference-count byte, and captures the first later difference. The first
+writer and its lifetime contract remain open. Evidence:
+animation-snapshot-trace, animation-header-restored-fixture,
+animation-prefix-corruption-evidence, animation-header-watch.
+
+
+## First invalid path-cache write captured
+
+The immutable-header observer catches a valid animation 1053 prefix changing
+near VI 3484 during overlay 155 pathfinding. A second observer stops immediately
+before store PC 0x09b00180: its cache base/destination 0x802de830 is inside a live
+allocation owned by module 142 (base 0x802de370, size 5792), rather than an owned
+0x500-byte path cache. The write is within the cache's nominal 64-record range;
+this is a stale allocation pointer, not an exceeded record count. The normalized
+pathfinding state still associates that pointer with Juno. This captures an
+actual invalid writer before subsequent animation, triangle or shadow damage.
+
+The guest cold loader reloads DATA and clears BSS, whereas normalized host
+publication currently reuses active mutable state. The pathfinding exit callback
+frees cached allocations, making stale pointers across a later fresh load unsafe.
+A lifecycle correction must distinguish a fresh load from suspension/resume,
+reset normalized state before its new init callback, retain live allocator bases,
+and preserve the original guest loader's allocation/relocation/completion work.
+Evidence: animation-header-return, path-cache-return,
+path-cache-stale-owner-evidence. Native stability and delivery remain unqualified.
+
+
+The cold-load candidate passes the dense combat comparison and the formerly
+failing room-21/16/21 ownership-watch run. The full Original replay preserves
+physical guest RAM, save, all probe counters and total instructions, but fails
+the previous whole-renderer-snapshot hash: 98 bytes differ in section 74 (guest
+beam module 76), comprising its texture scroll phase and 48 associated UV
+halfwords. All differences share a phase offset of 224; other snapshot bytes
+are exact. This is not a complete renderer equality pass. The original beam
+module's DATA contains this mutable phase, so a genuine cold reload should
+reset it. A private pre/post scroll and fresh-load observer is required to
+verify that explanation before accepting the changed reference. The initial
+failed assertion and snapshots are preserved; no check is silently waived.
+Evidence: overlay-cold-full-original, path-cache-after-return,
+beam-phase-lifecycle-watch-v2. The first private observer did not compile
+because its macro expected a local RAM pointer; sources were restored and rebuilt.
+Normal native/pause qualification is deferred while
+this specific renderer difference is reviewed.
+
+
+## Fresh overlay lifetime correction, 2026-10-15 UTC
+
+The host now records an actual fresh guest module load and recreates the
+normalized ROM DATA/zeroed BSS before its init callback. It preserves the guest's
+chosen allocation, relocation/PI work and callback order. Already-loaded calls
+retain state. Suspended modules use the original resume path and retain their
+mutable state. Direct normalized calls that must allocate a module also mark
+the fresh load, including modules without init callbacks. Pending state is cleared
+only after successful publication. No guest pointer repair, renderer-check
+relaxation or shadow-buffer clamp is used.
+
+This corrects the demonstrated lifetime defect: the pathfinding exit callback
+frees cache allocations, but stale normalized BSS previously retained those
+pointers after a later cold load. A pre-store observer previously stopped with
+the cache pointer inside another module's allocation. With the correction, the
+same targeted room-21/16/21 fixture finishes without an invalid write; a longer
+fixture completes three observed room transitions and 9,000 retraces. Its eight
+warp requests include retries and are not eight successful transitions. The
+17,000-retrace owner-input native run also completes with the ownership observer
+and no invalid-cache capture. These fixtures do not prove all historical native
+exceptions share one writer.
+
+The full Original comparison preserves physical guest RAM, saved data, all
+probe counters, and all 4,754 complete per-update instruction records. The initial
+whole-renderer-snapshot assertion fails by 98 bytes. The follow-up observer
+accounts for every byte: 4,176 calls to the original beamScroll routine accumulate
+phase 280 without cold resets, versus 56 with the reset at VI 2118. One phase
+halfword and its 48 dependent texture-coordinate halfwords explain the complete
+difference; every other renderer snapshot byte is identical. Both fresh-load
+observations read phase zero. This is the intended DATA reset, not a blanket
+renderer equality pass or evidence of a new position-jitter fix. The private
+observer and normal candidate produce the same resulting renderer snapshot.
+
+Two actual in-game Start-button pause/resume cycles complete and return to
+play. The existing module-table/suspension unit suite passes. Normal, non-observer
+120-FPS/VSync and 360-FPS/no-VSync runs each complete at least 17,000 retraces,
+with unchanged source saves, no invalid accesses, no audio underruns/overruns,
+and complete frame logs without dropped rows. Those native routes use host time
+and can differ; they do not establish stable 30-Hz combat or physical-monitor
+smoothness. Existing unrelated host load was owner-authorized.
+
+Source: src/boot/native_boot.cpp, note_guest_cold_overlay_load,
+ensure_guest_overlay_allocation and publish_synthetic_overlay. Evidence:
+overlay-cold-dense, path-cache-after-return, path-cache-owner-after-120,
+path-cache-multiple-return, beam-phase-reference-review, overlay-cold-guest-pause,
+overlay-cold-native120/360 and overlay-cold-unit-test. The first beam observer
+failed compilation because a memory macro lacked its local RAM pointer; both
+probe attempts restore/rebuild normal source, and only the corrected observer
+qualifies the renderer difference. Preserve the initial failed hash assertion.
+
+Compatibility lesson: stable translated code addresses do not imply persistent
+module DATA/BSS. Preserve cold-load versus resume semantics, and compare copied
+overlay graphics as well as physical game RAM. A reference change must be
+explained by exact original operations and lifecycle evidence. Combat cadence,
+shadow-mask cadence, Unlimited pacing and owner-visible full-route acceptance
+remain separately open. This checkpoint does not change the desktop package.

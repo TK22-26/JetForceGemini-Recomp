@@ -31,11 +31,12 @@ physical-monitor verification. This is a local preview, not a public release.
 
 ## Extended native stability qualification
 
-Longer private native tutorial replays have exposed an access violation in the
-current high-refresh candidate and a different generated switch trap in an
-earlier candidate. Clean bounded and Original replays do not establish that
-these native paths are stable. Delivery is withheld while the cause and
-installed-preview coverage are investigated. See
+A stale normalized overlay cache pointer was captured writing into a reused
+guest allocation. The fresh-load correction passes the targeted ownership watch,
+room returns, actual pause/resume and extended native 120/360 tests. Broader live
+verification remains pending; these tests do not assign every historical native
+exception to the same cause. The source checkpoint has not changed the desktop
+package. See
 [NATIVE-001](development/issues/native-play-access-violation.md) and
 [the continuation evidence](../evidence/high-refresh-combat-focus.json).
 
