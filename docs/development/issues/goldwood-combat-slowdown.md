@@ -1576,3 +1576,15 @@ shape-history-dense-review, shape-history-full-original-review and
 shape-history-candidate-native-review. Compatibility lesson: replacing a lookup
 container must preserve full identity equality, duplicate rejection and scene
 lifetime rules, including collision and storage-reuse behavior.
+
+
+The local high-refresh preview and jitter-capture desktop links now include the
+qualified shape-history storage change (80293adb), alongside the
+prior overlay-lifetime and optional formatter fixes. Installed runtime:
+e73bd0c1b6377d5bea0d941e6fa13854f8f56b54bea31a2a58b8f4a136d0f478. Both links retain arguments, and all 40 checked
+profile files remain unchanged. The original package/links remain available.
+The instruction-clock Original reference reports 2 audio underruns; it is a
+state/readback comparison, not normal-play performance or audio acceptance.
+The separate native 120/360 captures each report zero audio underruns.
+Full-route damage/combat consistency and the remaining visual limitations stay
+open. This is local delivery, not a public release or all-issues-fixed claim.

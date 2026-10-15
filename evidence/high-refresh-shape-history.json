@@ -1,6 +1,6 @@
 {
   "date_utc": "2026-10-15",
-  "status": "verified source correction; local package qualification pending",
+  "status": "verified and delivered as local preview; broader combat/visual limitations remain open",
   "runtime_sha256": "e73bd0c1b6377d5bea0d941e6fa13854f8f56b54bea31a2a58b8f4a136d0f478",
   "paired_stage_cost": {
     "runtime": "672a8dadb0ecaa49997445063862fca6678fd3a2d486658a3f9eeb796845d007",
@@ -90,7 +90,9 @@
       "rdram.bin.rt64": "423cc7925a3d31bf56a78e0c46809ed33a121ab72ebef7032e60e340cb5dcb0d"
     },
     "probe_equal": true,
-    "complete_update_records": 4754
+    "complete_update_records": 4754,
+    "audio_underruns": 2,
+    "audio_scope": "Instruction-clock reference with final readback, not normal-play audio/performance qualification. Separate native captures each have zero underruns."
   },
   "native": [
     {
@@ -345,5 +347,17 @@
       "sha256": "15ce973a5b86232186ef8e52a5ff46303b259d53b53f81034b75d7cd94f95065",
       "bytes": 1416
     }
+  },
+  "source_commit": "80293adb33899cca03b9da8417fbeabb045dcfce",
+  "delivery": {
+    "delivered_at_utc": "2026-10-15T01:28:48.341614+00:00",
+    "shortcuts": [
+      "JFG - High Refresh Preview.lnk",
+      "JFG - Jitter Capture.lnk"
+    ],
+    "profile_files_unchanged": 40,
+    "manifest_verified": 14,
+    "launcher_sha256": "60b2696f1447101809053922a1aa5b24efc94c197875a63ad22b3fb9c4dc045c",
+    "launcher_setup_runtime_protocol_passed": true
   }
 }

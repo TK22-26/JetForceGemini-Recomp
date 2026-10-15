@@ -724,3 +724,10 @@ bounded 120/360 native captures qualify the change. This small CPU saving does
 not establish stable 30-Hz combat or close the remaining visual reports. See
 [PERF-001](../development/issues/goldwood-combat-slowdown.md) and
 [qualification](../../evidence/high-refresh-shape-history.json).
+
+
+The local high-refresh preview/capture links now select the qualified history
+storage package, including the prior overlay-lifetime and trace-format fixes.
+Saves, settings and shortcut arguments are unchanged; prior links/packages are
+retained. The current delivery receipt is in high-refresh-shape-history.json.
+Physical-display and full-route acceptance remain open.
