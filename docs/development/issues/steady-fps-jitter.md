@@ -536,3 +536,9 @@ checks do not establish production readiness or physical-monitor smoothness.
 The normal runtime is restored after the binary comparisons. Production clock
 scoping, integration, pause/other caps and full-route/live checks remain pending;
 this prototype is still not in the desktop package.
+
+
+The Original instruction-clock/reference run reports 2 audio underruns
+with final readback. Its exact-state pass is not native-play FPS/audio acceptance;
+the separate 120/360 native prototype runs each report zero audio underruns.
+The owner route, damage/combat consistency, shadows and Unlimited remain open.

@@ -1644,7 +1644,9 @@
       "dense_equal_files": {
         "rdram.bin": true,
         "jfg.flash": true
-      }
+      },
+      "original_audio_underruns": 2,
+      "original_audio_scope": "Instruction-clock reference with final readback; not native-play audio or FPS qualification. The separate 120/360 native prototype captures each report zero audio underruns."
     }
   },
   "private_evidence": [
