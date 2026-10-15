@@ -1,6 +1,6 @@
 {
   "date_utc": "2026-10-15",
-  "status": "tested source candidate; local package delivery pending",
+  "status": "tested and delivered as local preview; full-route/live issues remain open",
   "parent_runtime_sha256": "243d77a1f4e6de2a821e70a8fc5635a90ee3a08ee2e0203dca03e6752144d8b0",
   "runtime_sha256": "ae65a40c6fe437d0baedb17a2a70346320976ea7e2c3f2fd532ad43ab27b9fa7",
   "formatter_microbenchmark_new_over_old": 0.29560184937414336,
@@ -300,5 +300,16 @@
       "sha256": "86d97142336e5404246deedec5f356060b1d6e91a2e90fdb77c6e42fa26027ba",
       "bytes": 17483
     }
+  },
+  "delivery": {
+    "delivered_at_utc": "2026-10-15T00:46:41.735837+00:00",
+    "shortcuts": [
+      "JFG - High Refresh Preview.lnk",
+      "JFG - Jitter Capture.lnk"
+    ],
+    "profile_files_unchanged": 40,
+    "manifest_verified": 14,
+    "launcher_sha256": "60b2696f1447101809053922a1aa5b24efc94c197875a63ad22b3fb9c4dc045c",
+    "launcher_setup_runtime_protocol_passed": true
   }
 }

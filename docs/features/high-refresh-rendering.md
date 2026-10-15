@@ -705,3 +705,12 @@ See [NATIVE-001](../development/issues/native-play-access-violation.md) for exac
 cause, failed checks, qualification and limits. Combat source-rate drops, shadow
 cadence, Unlimited pacing and owner-visible full-route review remain open. This
 source checkpoint does not update the desktop preview or constitute a release.
+
+
+The local high-refresh desktop links were updated after package/hash and bundled
+runtime protocol qualification. The installed package includes 06718f7f (fresh
+overlay lifetime) and 38847126 (cheaper optional trace formatting), preserving
+existing profiles, arguments and saves. Previous links/package remain available
+for rollback. This supersedes the preceding source-only checkpoint; combat
+source-rate consistency, shadow cadence, Unlimited pacing and owner-visible
+late-room acceptance remain open. No public release is made.

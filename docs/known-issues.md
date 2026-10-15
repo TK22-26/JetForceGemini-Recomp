@@ -35,8 +35,8 @@ A stale normalized overlay cache pointer was captured writing into a reused
 guest allocation. The fresh-load correction passes the targeted ownership watch,
 room returns, actual pause/resume and extended native 120/360 tests. Broader live
 verification remains pending; these tests do not assign every historical native
-exception to the same cause. The source checkpoint has not changed the desktop
-package. See
+exception to the same cause. The local high-refresh desktop preview now includes the qualified
+correction; broader live stability and visual acceptance remain open. See
 [NATIVE-001](development/issues/native-play-access-violation.md) and
 [the continuation evidence](../evidence/high-refresh-combat-focus.json).
 

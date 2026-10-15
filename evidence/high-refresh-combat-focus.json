@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "date_utc": "2026-10-15",
-  "status": "source candidate; captured stale overlay cache corrected and qualified in bounded tests; local delivery/live review pending",
+  "status": "captured stale overlay cache corrected and qualified; local preview installed, broader live review pending",
   "source_parent": "e51b0af2c89d8ad3052c7aedf51b040c06a6a5a5",
   "desktop_runtime_sha256": "1b0bdd0fbfe25eacbf3ed0417c1607a70eed49d4198a6add62f3fba12900f0db",
   "matrix_qualification_runtime_sha256": "ad17e4c3357f85ee46b65c12a1e3672d203955bbb48bba29181ac6d87fc3bba0",
@@ -116,8 +116,11 @@
     "same_recovery_attempt": true
   },
   "delivery": {
-    "changed": false,
-    "reason": "Source checkpoint only; desktop remains at the recorded baseline pending package qualification."
+    "changed": true,
+    "timestamp_utc": "2026-10-15T00:46:41.735837+00:00",
+    "runtime_sha256": "ae65a40c6fe437d0baedb17a2a70346320976ea7e2c3f2fd532ad43ab27b9fa7",
+    "source_commit": "38847126b4ba47b7904e9d931e08e9ba13669ba2",
+    "scope": "Qualified lifetime correction plus optional formatter; no all-jitter-fixed or stable-30 claim."
   },
   "camera_supplement_qualification": {
     "runtime_sha256": "914cc5d6185d6e2be7e3a9b1b970745c5d03b635859418064773eef9d05d2bbe",

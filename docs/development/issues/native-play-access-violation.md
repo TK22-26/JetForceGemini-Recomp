@@ -1,7 +1,7 @@
 # NATIVE-001: Native Play access violation during extended replay
 
 Status: captured stale path-cache write corrected and verified in targeted and
-extended native tests; broader live verification and local delivery pending.
+extended native tests; local preview installed, broader live verification pending.
 Severity: critical memory corruption; bounded test verification is not a claim
 that every historical exception has the same cause.
 
@@ -608,3 +608,16 @@ overlay graphics as well as physical game RAM. A reference change must be
 explained by exact original operations and lifecycle evidence. Combat cadence,
 shadow-mask cadence, Unlimited pacing and owner-visible full-route acceptance
 remain separately open. This checkpoint does not change the desktop package.
+
+
+### Local preview delivery, 2026-10-15 UTC
+
+Both existing high-refresh preview/capture desktop links now select the qualified
+overlay-lifetime package, including the separately qualified optional trace
+formatter. Runtime ae65a40c6fe437d0baedb17a2a70346320976ea7e2c3f2fd532ad43ab27b9fa7
+contains the source correction in 06718f7f and formatting checkpoint 38847126.
+The unchanged launcher passes bundled-runtime init/setup protocol checks; all
+14 manifest entries verify. Shortcut arguments and existing profile/save/config
+files remain unchanged. Previous links and package are retained for rollback.
+This supersedes the earlier source-only delivery status. No public release or
+full-route/live acceptance is claimed; PERF-001 and the visual issues remain open.
