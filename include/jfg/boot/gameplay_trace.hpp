@@ -2,6 +2,7 @@
 #include "jfg/runtime/async_diagnostic_file.hpp"
 #include <array>
 #include <chrono>
+#include <charconv>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
@@ -10,6 +11,34 @@
 #include <span>
 
 namespace jfg::boot {
+namespace detail {
+enum class TraceFormatError { none, record_limit, format_error };
+struct TraceFormatResult {
+  std::size_t length = 0;
+  TraceFormatError error = TraceFormatError::none;
+};
+// Preserve the private TSV schema and its conservative per-value bound. Only
+// the returned bytes are initialized; no terminator is written to the stream.
+inline TraceFormatResult format_gameplay_trace_row(std::array<char, 2048>& row,
+    std::int64_t microseconds, const char* kind, std::span<const std::uint64_t> values) {
+  auto formatted = std::to_chars(row.data(), row.data() + row.size(), microseconds);
+  if (formatted.ec != std::errc{}) return {0, TraceFormatError::format_error};
+  char* cursor = formatted.ptr;
+  *cursor++ = '\t';
+  const char* name = kind ? kind : "(null)";
+  for (std::size_t i = 0; i < 32U && name[i] != '\0'; ++i) *cursor++ = name[i];
+  for (const auto value : values) {
+    if (static_cast<std::size_t>(cursor - row.data()) + 19U >= row.size())
+      return {0, TraceFormatError::record_limit};
+    *cursor++ = '\t';
+    formatted = std::to_chars(cursor, row.data() + row.size(), value, 16);
+    if (formatted.ec != std::errc{}) return {0, TraceFormatError::format_error};
+    cursor = formatted.ptr;
+  }
+  *cursor++ = '\n';
+  return {static_cast<std::size_t>(cursor - row.data()), TraceFormatError::none};
+}
+} // namespace detail
 // Explicit, private diagnostics. Disabled by default; never part of support ZIPs.
 class GameplayTrace {
 public:
@@ -32,18 +61,14 @@ public:
     if (!*this) return;
     const auto now = std::chrono::steady_clock::now();
     const auto us = std::chrono::duration_cast<std::chrono::microseconds>(now - start_).count();
-    std::array<char, 2048> row{};
-    int used = std::snprintf(row.data(), row.size(), "%lld\t%.32s",
-                            static_cast<long long>(us), kind);
-    if (used < 0) return;
-    for (const auto value : values) {
-      if (static_cast<std::size_t>(used) + 19U >= row.size()) { stop("record-limit"); return; }
-      const int n = std::snprintf(row.data() + used, row.size() - static_cast<std::size_t>(used),
-                                  "\t%llx", static_cast<unsigned long long>(value));
-      if (n < 0) { stop("format-error"); return; }
-      used += n;
+    std::array<char, 2048> row;
+    const auto formatted = detail::format_gameplay_trace_row(row,
+        static_cast<std::int64_t>(us), kind, values);
+    if (formatted.error != detail::TraceFormatError::none) {
+      stop(formatted.error == detail::TraceFormatError::record_limit ? "record-limit" : "format-error");
+      return;
     }
-    row[static_cast<std::size_t>(used++)] = '\n';
+    const auto used = static_cast<std::streamsize>(formatted.length);
     if (bytes_ + static_cast<std::uint64_t>(used) + 64U > limit_) { stop("byte-limit"); return; }
     stream_.write(row.data(), used);
     bytes_ += static_cast<std::uint64_t>(used);

@@ -1490,3 +1490,18 @@ is removed/rebuilt afterward. In the busy window, texture upload wait is about
 0.34 ms per scene, GPU fence wait 0.70 ms, queue wait 0.006 ms, and history 2.68 ms.
 Other renderer work is distributed across several stages. No dominant queue
 wait was found, and synchronization is retained. Evidence: sync-stage-probe-normalized.
+
+
+## Post-lifetime-correction native observations, 2026-10-15 UTC
+
+The non-observer candidate completes the extended owner-input route at both
+120/VSync and 360/no-VSync without crashes, invalid accesses or audio underruns.
+Reviewed combat windows run near 119.9 output/29.8 scenes at 120, and 358-360
+output/29.2-29.8 scenes at 360. Longer individual updates still occur. Four
+minimal/expanded-capture observations do not reproduce a consistent large
+logging penalty. These are current-build observations under the allowed host
+load, not a controlled causal speedup or stable-30 guarantee. The captured
+path-cache lifetime fix addresses memory corruption; PERF-001 remains open.
+Evidence: overlay-cold-native120/360, overlay-lifetime-cadence-review and
+capture-overhead-native-review. Preserve source-update intervals alongside
+output averages; level/mode stability alone cannot identify damage events.

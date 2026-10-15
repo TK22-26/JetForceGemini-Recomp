@@ -637,3 +637,46 @@ The first finer sync-stage probe stopped on a source-pattern assertion before
 writing/building code because its input retained CRLF line endings. The bounded
 replacement normalizes text before matching and restores the original generated
 source in a finally block. Preserve combat-cpu-sampling and sync-stage-probe.
+
+
+## Logging-cost comparison, 2026-10-15 UTC
+
+After the stale overlay-cache correction, four reversed-order normal-clock
+observations compare frame-CSV-only recording with gameplay/actor/interpolation/
+PCM capture. Both modes mostly produce 119.7-120.0 output and 29.5-29.8 scene
+frames/s in the reviewed combat windows. One expanded window falls to 28.79;
+there is no consistent large slowdown across both repetitions. Host CPU averages
+15-16%, with none of the monitored foreign game/compiler/find processes seen.
+Native paths can differ, so this is neither an exact workload A/B nor proof of
+zero recording cost. Evidence: capture-overhead-native-review and per-run loads.
+
+The first attempted comparison exits before gameplay because recorded-clock
+boundary/release diagnostics require gameplay tracing. The replacement uses
+fully native clocks in both variants and leaves that validation intact. A private
+formatter prototype initially could not locate cl.exe despite its child environment;
+the replacement resolves the compiler from the imported toolchain PATH. Failed
+requests/evidence remain retained; production behavior was unchanged.
+
+
+## Optional trace formatting candidate, 2026-10-15 UTC
+
+The gameplay TSV formatter uses integer to_chars in place of one printf call
+per value. A standalone reversed-order microbenchmark and 12,000 independent
+old-format differential cases cover signed timestamp extremes, full-width hex,
+name truncation, poisoned buffers and record limits. Existing byte-limit/drain
+tests pass. Private capture performance and exact replay are still pending;
+this does not establish a fix for combat FPS or change ordinary Play.
+
+
+The formatter candidate passes runtime qualification: all 4 MiB of physical game
+RAM, save data, 1,847 complete guest update records and 17,715 interpolation
+matching records equal the prior candidate under the same recorded clock/input.
+The trace includes 36,634 actor rows. The first review requested an RT64 snapshot
+that neither dense fixture captured; its failed request is retained. No renderer
+snapshot equality is claimed for this pair. Normal 120/VSync and 360/no-VSync
+expanded captures each complete over 6,000 retraces with no audio underruns,
+invalid accesses, dropped frame rows or failed interpolation footer. This is
+recording qualification, not a stable-combat-FPS fix. The standalone format
+benchmark takes roughly 30% of the old formatter time; ordinary Play is unchanged.
+Evidence: trace-format-candidate, trace-format-dense-review and
+trace-format-native-review. Local delivery follows package qualification.
