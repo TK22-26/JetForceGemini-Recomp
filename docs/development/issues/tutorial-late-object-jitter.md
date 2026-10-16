@@ -879,3 +879,8 @@ The final native audio tail-overflow correction does not modify renderer code.
 [Qualification](../../../evidence/high-refresh-audio-bridge.json) binds captures,
 source hashes and tests. Owner visual verification, other late objects and
 shadow cadence remain separately open.
+
+
+## Local preview delivery (2026-10-16 UTC)
+
+Both desktop shortcuts now select source ca6ef7a883b2568da9df2ff0665ec7169c9f4be1 and runtime SHA-256 8dbe521304348ecda93c9f153fbd15f95486b2050b456e37ee221562e30f6a56. Package/launcher setup checks and copied-profile migration pass; all 40 checked live profile files and shortcut arguments are preserved. The previous package and links remain available for rollback. Owner listening and bridge visual review remain pending. [Qualification and delivery](../../../evidence/high-refresh-audio-bridge.json) record the exact scope. This is a local preview, not a public release or completion of the broader no-dip goal.

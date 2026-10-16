@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "qualified for local preview; owner listening and bridge visual review pending",
+  "status": "qualified audio and bridge changes delivered locally; owner listening and visual review pending",
   "runtime_sha256": "8dbe521304348ecda93c9f153fbd15f95486b2050b456e37ee221562e30f6a56",
   "runtime_source_files": {
     "include/jfg/boot/native_audio_playback.hpp": "e91fdd1712a4453c6e1d32ad2207693c5dc1975cadd1d05895c46f56c7e43008",
@@ -150,5 +150,17 @@
   "owner_live_verified": false,
   "no_20fps_goal_complete": false,
   "private_evidence_root": "route-audio-bridge-20261016",
-  "delivered": false
+  "delivered": true,
+  "runtime_source_commit": "ca6ef7a883b2568da9df2ff0665ec7169c9f4be1",
+  "delivery": {
+    "delivered_at_utc": "2026-10-16T08:43:47.355823+00:00",
+    "shortcuts": [
+      "JFG - High Refresh Preview.lnk",
+      "JFG - Jitter Capture.lnk"
+    ],
+    "profile_files_unchanged": 40,
+    "manifest_verified": 14,
+    "launcher_sha256": "60b2696f1447101809053922a1aa5b24efc94c197875a63ad22b3fb9c4dc045c",
+    "launcher_setup_runtime_protocol_passed": true
+  }
 }

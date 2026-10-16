@@ -750,3 +750,6 @@ The latest local preview adds bounded native collision traversal and expanded pr
 
 
 The 2026-10-16 native audio/bridge candidate passes bounded muted playback and rendering checks. Native playback follows sample demand and immediately delivers completed PCM; the bridge now interpolates its bending vertices. Owner listening/visual acceptance remains pending, as do broader object/shadow coverage and the no-20-FPS goal. [Implementation, compatibility and qualification](../development/native-audio-playback.md).
+
+
+Both High Refresh Preview and Jitter Capture now select the local audio/bridge package with existing profiles and arguments. Owner listening and visual review remain pending. [Current implementation and evidence](../development/native-audio-playback.md).

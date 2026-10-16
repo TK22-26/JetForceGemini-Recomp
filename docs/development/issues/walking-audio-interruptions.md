@@ -1,6 +1,6 @@
 # AUDIO-002: Frequent audible interruptions in optimized high-refresh preview
 
-Status: **cause reproduced; native playback remedy verified in bounded tests; local preview and owner listening check pending** (2026-10-16 UTC).
+Status: **cause reproduced; native playback remedy verified in bounded tests; local preview delivered; owner listening check pending** (2026-10-16 UTC).
 Severity: high; interruptions occur during ordinary walking as well as combat.
 
 The owner reports substantially more stable gameplay and no noticeable FPS drops
@@ -119,3 +119,8 @@ Transferable lesson: count actual audio samples and host playback demand.
 A completed synthesis task is not proof that its PCM was accepted or delivered.
 Preserve submission outcomes and payload identity when changing scheduling.
 Owner listening verification remains pending; these tests were muted.
+
+
+## Local preview delivery (2026-10-16 UTC)
+
+Both desktop shortcuts now select source ca6ef7a883b2568da9df2ff0665ec7169c9f4be1 and runtime SHA-256 8dbe521304348ecda93c9f153fbd15f95486b2050b456e37ee221562e30f6a56. Package/launcher setup checks and copied-profile migration pass; all 40 checked live profile files and shortcut arguments are preserved. The previous package and links remain available for rollback. Owner listening and bridge visual review remain pending. [Qualification and delivery](../../../evidence/high-refresh-audio-bridge.json) record the exact scope. This is a local preview, not a public release or completion of the broader no-dip goal.
