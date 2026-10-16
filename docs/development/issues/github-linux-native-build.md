@@ -3,7 +3,9 @@
 - ID: BUILD-002; severity: high for Linux native/AppImage builds.
 - Source: [GitHub #15](https://github.com/TK22-26/JetForceGemini-Recomp/issues/15), filed 2026-10-16.
 - Affected report: Linux AppImage source `8b6837d`, GCC 16.2.1, CachyOS x86-64.
-- Status: reported declaration defect confirmed in current source; no Linux remedy or build qualification in this review. Open.
+- Status: reported compiler defects corrected in released v1.2.0 source; actual GCC native translation unit and full GCC/Clang host builds pass. A playable Linux/AppImage release remains unqualified.
+
+## Initial report and audit (historical)
 
 Both declaration and definition of `jfg_phase9_execution_probe_slow` still use `__declspec(noinline)` in `src/boot/native_boot.cpp`. GCC rejects that MSVC spelling. The reported missing declaration and unused `emit_device_event` diagnostics are consistent with that first compilation failure; they are not evidence that the event function should be removed.
 
@@ -37,3 +39,13 @@ Linux bounded volume-file tests already pass. Full source retry remains pending.
 ## Verified candidate scope
 
 The actual native translation unit now compiles under GCC 13 with -Wall/-Wextra/-Wpedantic/-Wconversion/-Wshadow/-Werror. Windows native, Linux volume and Linux input checks pass. The separate Linux frontend/AppImage branch and reporter GCC 16.2.1 runtime remain outside this Windows release qualification.
+
+## Published release verification
+
+Available in [v1.2.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.2.0), built from `f56cd94c4bd7583bceee201eb3f229f744216bc1` after
+[PR #16](https://github.com/TK22-26/JetForceGemini-Recomp/pull/16) merged. The
+[tagged-release workflow](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/38981221560) passed its full checks, verified the prebuilt
+Windows bundle and published it. The public download was downloaded again and
+its ZIP, per-member hashes, package inventory and clean runtime identity verified.
+This release includes the remedy and finite verification described above; it
+does not expand the recorded hardware, Linux, campaign or fresh-install coverage.

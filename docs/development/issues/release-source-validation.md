@@ -1,6 +1,6 @@
 # BUILD-003: Release source validation
 
-Status: candidate remediation, qualification in progress for 1.2.0.
+Status: resolved for the v1.2.0 release source/build qualification; original failures and platform limits retained below.
 
 Release validation found unregistered controller-prototype rasterizations and launcher screenshots, numeric opcode/section identifiers mistaken for hex payloads, synthetic compiler fixtures mistaken for generated game code, and a repeatedly mis-encoded prototype filename inflating one feature-note line beyond 3 MB. These block publication, not gameplay.
 
@@ -51,3 +51,19 @@ gate was disabled. Final CI and publication remain independent release gates.
 Transferable lesson: GCC, Clang and MSVC differ in aggregate and signedness
 diagnostics. Run each supported compiler over all fixtures before publication;
 checking only the native game translation unit cannot validate the host suite.
+
+## Published release verification
+
+Available in [v1.2.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.2.0), built from `f56cd94c4bd7583bceee201eb3f229f744216bc1` after
+[PR #16](https://github.com/TK22-26/JetForceGemini-Recomp/pull/16) merged. The
+[tagged-release workflow](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/38981221560) passed its full checks, verified the prebuilt
+Windows bundle and published it. The public download was downloaded again and
+its ZIP, per-member hashes, package inventory and clean runtime identity verified.
+This release includes the remedy and finite verification described above; it
+does not expand the recorded hardware, Linux, campaign or fresh-install coverage.
+
+The final desktop verification initially expected a four-component version
+string. The native launcher correctly reports `1.2.0`; its numeric PE fields are
+1, 2, 0, 0. The check now verifies those fields and the preserved shortcut
+arguments, without changing the published package. Original failure retained
+in the private publication receipts.

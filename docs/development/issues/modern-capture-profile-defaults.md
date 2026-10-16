@@ -51,3 +51,13 @@ Screenshot review confirms separate left Mouse/WASD groups and one right Keys gr
 
 
 The unified layout is delivered through High Refresh Preview and Jitter Capture with source `19a2373266dc78845abddf7ea468e312e2d4b8eb`. Both shortcut profiles now use the explicitly requested shared E for Interact/Confirm and have no modern arrow bindings. Exact previous profile files and links are backed up privately. All 39 other checked files and every other field in the edited profiles are unchanged, including saves and inversion. Three copied-profile setup checks resolve the new packaged runtime. This is local delivery, not a public release or physical owner gameplay acceptance.
+
+## Published release verification
+
+Available in [v1.2.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.2.0), built from `f56cd94c4bd7583bceee201eb3f229f744216bc1` after
+[PR #16](https://github.com/TK22-26/JetForceGemini-Recomp/pull/16) merged. The
+[tagged-release workflow](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/38981221560) passed its full checks, verified the prebuilt
+Windows bundle and published it. The public download was downloaded again and
+its ZIP, per-member hashes, package inventory and clean runtime identity verified.
+This release includes the remedy and finite verification described above; it
+does not expand the recorded hardware, Linux, campaign or fresh-install coverage.

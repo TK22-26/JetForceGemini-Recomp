@@ -38,3 +38,13 @@ Source `95efb8f97b47717921aa4c29ab17245771c3ff22` is delivered through both **JF
 ### Owner live confirmation (2026-10-16)
 
 After testing the delivered followup, the owner reports no noticeable slowdowns and that all reported issues seem resolved, and authorizes committing. This closes the pending owner confirmation for this local preview within that reported play session. It is not a public release or exhaustive all-route/Unlimited acceptance. No further runtime experiments or game changes are part of the launcher update-button task.
+
+## Published release verification
+
+Available in [v1.2.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.2.0), built from `f56cd94c4bd7583bceee201eb3f229f744216bc1` after
+[PR #16](https://github.com/TK22-26/JetForceGemini-Recomp/pull/16) merged. The
+[tagged-release workflow](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/38981221560) passed its full checks, verified the prebuilt
+Windows bundle and published it. The public download was downloaded again and
+its ZIP, per-member hashes, package inventory and clean runtime identity verified.
+This release includes the remedy and finite verification described above; it
+does not expand the recorded hardware, Linux, campaign or fresh-install coverage.

@@ -3,7 +3,9 @@
 - ID: SETUP-001; severity: high for affected source-build setup, outside normal prebuilt v1.1.0 ROM-import flow.
 - Source: [GitHub #4](https://github.com/TK22-26/JetForceGemini-Recomp/issues/4), opened 2026-10-03; comments reviewed through 2026-10-09.
 - Affected report: v0.4.0-preview.1 (`c88c411`), Windows 10 22H2, PowerShell 5.1.
-- Status: partially addressed; firmware/old-WSL cases and clean-machine retest remain open.
+- Status: firmware/old-WSL/failure-handling corrections released in v1.2.0; 28 setup checks pass. Fresh Windows 10 installation and unrelated optional-tool reports remain unverified.
+
+## Initial report and audit (historical)
 
 | Report | Current evidence | Remaining acceptance |
 |---|---|---|
@@ -32,3 +34,13 @@ are preserved. All 28 mocked setup assertions pass, including old-WSL, firmware,
 failed-install and missing-registration cases. No BIOS, WSL or system settings were
 changed by tests. Full fresh Windows 10 installation and unrelated optional tooling
 comments remain outside this verified scope.
+
+## Published release verification
+
+Available in [v1.2.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.2.0), built from `f56cd94c4bd7583bceee201eb3f229f744216bc1` after
+[PR #16](https://github.com/TK22-26/JetForceGemini-Recomp/pull/16) merged. The
+[tagged-release workflow](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/38981221560) passed its full checks, verified the prebuilt
+Windows bundle and published it. The public download was downloaded again and
+its ZIP, per-member hashes, package inventory and clean runtime identity verified.
+This release includes the remedy and finite verification described above; it
+does not expand the recorded hardware, Linux, campaign or fresh-install coverage.
