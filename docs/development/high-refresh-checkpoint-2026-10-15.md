@@ -64,3 +64,6 @@ The resumed investigation selected the compact original-timing helper for source
 
 
 The compact-timing standard build was subsequently qualified and delivered to both high-refresh desktop shortcuts. The expanded function/graphics profiler is now a separately qualified source change, disabled by default; it is not installed on those shortcuts. Controlled median improvement remains about 13%, while native slow updates keep PERF-001 open. Current diagnostic controls and limitations are in [function profiling](function-profiling.md).
+
+
+The detailed profiler led to qualified bounded resident-math dispatch. Exact recorded comparisons show about 1.1-1.5 ms lower median combat work in the two controlled pairs, with a separate integrated confirmation and preserved tested state. The final combined binary passes the Original reference, full diagnostic correspondence and native 120/360 captures; local package delivery is separate. Remaining occasional three-VI updates keep PERF-001 open. The production guard and existing counters remain authoritative; this checkpoint grants no new budget.

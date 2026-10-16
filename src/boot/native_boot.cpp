@@ -23,6 +23,7 @@
 #include "jfg/boot/ipl_handoff.hpp"
 #include "jfg/boot/gameplay_trace.hpp"
 #include "jfg/boot/function_profile.hpp"
+#include "jfg/boot/native_resident_math.h"
 #include "jfg/renderer/interpolation_bridge.hpp"
 #include "jfg/renderer/frame_diagnostics_state.hpp"
 #include "jfg/boot/host_count_clock.hpp"
@@ -1755,6 +1756,8 @@ struct State : JfgOriginalTimingFast {
   std::uint64_t profile_host_wait_us = 0U;
   std::uint64_t profile_idle_count_ticks = 0U;
   bool diagnostic_cpu_costs = false;
+  bool resident_math_enabled=false;
+  std::uint64_t pure_angle_calls=0,pure_diff_calls=0,pure_trig_calls=0;
   bool diagnostic_update_cycles = false;
   unsigned diagnostic_function_profile=0;
   bool diagnostic_gpu_costs=false;
@@ -7691,6 +7694,31 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   if (state.vi_retraces >= 5683U && state.dispatch_calls % 1024U == 0U)
     write_private_progress(state, "dispatch");
 #endif
+
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  // Qualified bounded resident leaves cannot call, yield, write
+  // memory or change section ownership. Preserve dispatch/watch history above.
+  // Original timing, instruction observers and focused dispatch diagnostics
+  // retain the complete generated path. Helper admission cannot cross a poll.
+  if(state.resident_math_enabled &&
+     (target==0x80049C84U || target==0x80049D80U || target==0x80049C30U || target==0x80049C34U) &&
+     state.guest_os_probe && !state.diagnostic_cpu_costs && state.focus_update_start==0U &&
+     !state.guest_clock_trace.is_open() && state.point_probe_pcs.empty() &&
+     !state.device_event_stream && !state.eret_transfer_stream.is_open() &&
+     !state.instruction_effect_stream.is_open()) {
+    if(target==0x80049C84U && jfg_native_angle_try(rdram,context)) {
+      ++state.generated_calls;++state.pure_angle_calls;return 1;
+    }
+
+    if((target==0x80049C30U || target==0x80049C34U) &&
+       jfg_native_trig_try(rdram,context,target==0x80049C30U)) {
+      ++state.generated_calls;++state.pure_trig_calls;return 1;
+    }
+    if(target==0x80049D80U && jfg_native_angle_diff_try(rdram,context)) {
+      ++state.generated_calls;++state.pure_diff_calls;return 1;
+    }
+  }
+#endif
   if (target == jfg::boot::kSyncPrintSink) {
     hle::GuestMemory memory({rdram, kRdramSize},
                            hle::GuestMemory::Layout::native_word_big_endian);
@@ -8006,6 +8034,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           ++state.profile_dispatch_prefix_calls;
         }
         const bool measure_update = target == 0x80044FACU && state.gameplay_trace;
+        const auto pure_angle_before=state.pure_angle_calls,pure_diff_before=state.pure_diff_calls,pure_trig_before=state.pure_trig_calls;
+
         if (measure_update && state.diagnostic_cpu_costs) state.profile_function_costs.clear();
         const auto update_started = measure_update ? std::chrono::steady_clock::now()
                                                   : std::chrono::steady_clock::time_point{};
@@ -8104,6 +8134,10 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           state.presentation_identities.particle_allocate({rdram,kRdramSize},
               static_cast<std::uint32_t>(context->r2));
         if (measure_update) {
+          if(state.resident_math_enabled)state.gameplay_trace.event("resident-math",{
+            state.vi_retraces,state.controller_samples,state.pure_angle_calls-pure_angle_before,
+            state.pure_diff_calls-pure_diff_before,state.pure_trig_calls-pure_trig_before});
+
           state.gameplay_trace.event("update-work", {state.vi_retraces, state.controller_samples,
               state.cpu_count - update_count, state.profile_idle_count_ticks - update_idle,
               state.observed_guest_instructions - update_instructions,
@@ -12480,6 +12514,11 @@ int run_child(const char *path, const unsigned retrace_target,
       !state.diagnostic_host_clock_requested || JFG_NATIVE_TIMING_SPAN_GENERATION != 1 ||
       state.instruction_effect_stream.is_open())) return 3;
   state.native_spans_enabled = native_span_length == 1U || native_preview_play;
+  char pure_math[2]{};
+  const auto pure_length=GetEnvironmentVariableA("JFG_DIAGNOSTIC_RESIDENT_MATH",pure_math,2U);
+  if(pure_length && (pure_length!=1U || (pure_math[0]!='0' && pure_math[0]!='1') || (pure_math[0]=='1' && !state.native_spans_enabled)))return 3;
+  state.resident_math_enabled=pure_length==1U ? pure_math[0]=='1' : native_preview_play;
+
   if (native_preview_play) {
     jfg::support_event("timing=native-elapsed/experimental-preview");
     jfg::support_event("timing=native-spans-enabled");

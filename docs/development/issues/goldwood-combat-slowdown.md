@@ -2219,3 +2219,43 @@ The stable-base RAM-check consolidation passes its 661,374 boundary/alignment ch
 The ordinary FPS-only observations retain slow scenes with no full gameplay tracing or process monitor: the first extended window has 94 three-VI and 20 longer scene intervals, while the second has four three-VI intervals. Scene submissions are not independent simulation ticks, and differing native paths prevent causal claims about instrumentation. Evidence: native-span-range-paired and compact-fps-only-native120.
 
 The owner requested hyper-detailed profiling. The implemented profiler now captures all reached function/caller edges or selected stages, plus same-update root/process cycles, wake latency, graphics submission, GPU completed timestamps and history/RDP-sync timings. Exact recorded state checks and the disabled Original comparison pass. Full profiling materially raises update cost, so its induced 20-FPS updates are not a normal-play regression claim. The lower-overhead native captures still contain genuine budget overruns. Earlier correlated captures show 10-16 ms of graphics submission in several slow updates, alongside substantial entity/pathfinding CPU costs; the recorded GPU timestamp totals are much smaller but not a complete root-owned GPU interval. This motivates splitting CPU-side interpolation preparation from RT64 synchronization; it does not yet establish one universal slowdown cause. See [profiler guide](../function-profiling.md), [PERF-002](frame-diagnostics.md), and [qualified diagnostics receipt](../../../evidence/high-refresh-function-profile.json). PERF-001 remains open.
+
+
+### Profiler-directed resident math dispatch experiment
+
+The full capture finds roughly 2,435 Arctanf and 1,335 mathDiffAngle calls per combat update. An earlier angle-body replacement did not prove a gain. A distinct private candidate now tests whether bounded native equivalents can also avoid generic generated-dispatch metadata and scope setup. Dispatch history, MMIO failure checks, generated-call counts and the outer function profiler remain. Focused/instruction observers and Original timing retain fallback; admission preserves clock sampling boundaries. C++ helper fixtures compare 200,000 complete CPU/timing/FENV states against the generated C reference. The candidate is unselected pending repeated exact-workload comparisons. Evidence: native-pure-dispatch-fixtures and native-pure-dispatch-build.
+
+
+The first private dispatch build failed because its insertion placed the helper under the unused fallback-header branch and duplicated CRLF line endings. Its dependent comparison correctly refused to run. The corrected private build normalizes only the candidate text and places helpers after the selected timing header. Original source bytes/runtime are restored in both attempts; no failed executable was delivered. Evidence: native-pure-dispatch-build and native-pure-dispatch-build-fixed.
+
+
+The first native math comparison completed its muted control capture, then the review rejected an expected ai_submission_overflows field absent from this play-mode summary. The corrected review explicitly checks the present unsupported-access/audio underflow/overflow fields and reuses the exact saved first capture; it does not rerun or replace that evidence. Evidence: native-pure-dispatch-native.
+
+
+The profiler also identifies sine/cosine table lookups as frequent CPU calls. A private extension retains the existing guest table, exact register effects and counted paths, requires a bounded 20-instruction native certificate, and falls back for unsupported/nonfinite table entries. It changes no guest memory or lookup approximation. A further 200,000 C++ versus generated-C context/timing/FENV comparisons precede the combined four-helper build and exact recorded comparisons. Evidence: native-trig-dispatch-fixtures and native-four-math-build. This remains a candidate, not a no-dip remedy.
+
+
+The shared-prefix review initially requested play-only audio fields from the finite original-OS probe summary and refused that analysis. The corrected review uses the existing 14-field tick records for audio underflow/overflow counters and reports both release-boundary totals and native-suffix deltas. Recorded-prefix audio overflows are preserved and separated from new native-suffix errors. It reuses the already completed first capture and does not replace evidence. Evidence: native-four-math-prefix-native.
+
+
+### Selected resident-math source candidate, final build awaiting qualification
+
+The four resident math replacements preserve the original guest table and full observed CPU/timing/FENV effects, with 400,000 differential checks against locally generated C. Four exact recorded combat comparisons preserve RAM/save/instructions/interpolation and show about 1.1-1.5 ms lower median update work within the two pairs. The source enables these bounded helpers only in the experimental native preview; Original timing, insufficient timing budget, unsupported inputs and explicit instruction/focused observers retain generated execution. JFG_DIAGNOSTIC_RESIDENT_MATH=0 selects the reference dispatch path for comparison. A reusable validation script and original synthetic fixture permit local reproduction without publishing generated game code. Shared-prefix/native evidence remains separate from final-build qualification and the no-20-FPS goal remains open. Evidence: native-four-math-recorded, native-four-math-prefix-native and resident-math-source-build.
+
+
+The first public helper fixture build correctly refused an invalid include-contract test: the selected timing header undefines its internal inline macro at its end. Removing that macro check keeps the documented include order and the compiler type checks; it changes no math or timing logic. The corrected 400,000-case local reference comparison and build are recorded separately. Evidence: resident-math-source-build (failed header contract) and resident-math-source-build-fixed. No failed executable was delivered.
+
+
+### Resident-math and profiler final qualification
+
+The source-integrated four-helper build passes all 400,000 generated-reference cases; exact recorded combat with helpers disabled/enabled; the retained 17,000-VI Original comparison; full per-function profiling with exact recorded state; and muted native 120/VSync and 360/no-VSync runs. The final recorded confirmation measures 26.786 ms disabled versus 25.682 ms enabled in combat. This is additional to the earlier compact-helper improvement, not a claim that independently measured percentages add directly.
+
+Four shared-prefix tests begin from exactly equal recorded state, then run in real time. Extended three-VI update counts are 1/20 for controls and 0/2 for the candidate; their subsequent native paths and host timings differ. The recorded prefix has its own preserved audio totals; no new audio underflows/overflows occur in those native suffixes. These observations do not establish a zero-dip guarantee.
+
+| Final capture | Median active work (ms) | Three-VI intervals | Longer intervals |
+|---|---:|---:|---:|
+| resident-final-profile-full | 35.356 | 94 | 0 |
+| resident-final-native120 | 24.140 | 86 | 0 |
+| resident-final-native360 | 24.802 | 8 | 0 |
+
+The full-profile row includes substantial observer overhead; it must not be read as ordinary gameplay FPS. Default profiling is off. Source and reproducible fixtures are integrated, with package delivery tracked separately. The no-20-FPS goal, late-route visual acceptance and shadow cadence remain open. See [native math notes](../native-resident-math.md) and [combined qualification](../../../evidence/high-refresh-resident-math.json).
