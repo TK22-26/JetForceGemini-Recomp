@@ -1,6 +1,6 @@
 # PERF-001: Goldwood combat slows game updates
 
-- **Severity: critical. Status: open; bounded local previews qualified, but the owner full-tutorial capture still has source-cadence drops. Combined develop/high-refresh bounded qualification passed and the local preview is delivered; full-route acceptance remains open.**
+- **Severity: critical. Status: open; native ROM loading improvement qualified after collision/math/timing optimizations. Tested combat windows retain two-VI updates; later renderer and cold-load hitches plus full-route live acceptance remain open.**
 - Reported: 2026-10-11 UTC. Last updated: 2026-10-16 UTC.
 - Affected: modern-controls v1.1 local preview with original instruction-clock runtime;
   source capture runtime SHA-256 `de2737396c3f840291de8a9155eaed415f6076beaf4d27200be6505cde11c538`.
@@ -2379,3 +2379,18 @@ during the latest recorded tutorial route. This is useful live evidence, not
 proof that every update met 30 FPS. Frequent audio interruptions and late bridge
 strobing remain, tracked in AUDIO-002 and RENDER-006. Do not claim complete
 smooth-play acceptance from this report.
+
+
+The audio/bridge qualification retains a repeatable ordinary Goldwood update gap: poll 2387 (VI 4935 at 120 output, VI 4932 at 360 output) expands from 45 to 48 actors and takes about 32.27 ms of measured active work plus 15-16 ms of known wait. No cold overlay or level/death transition occurs in that interval. This is a remaining 3-VI update, not a no-dip pass. A narrow full-function capture around that event is being reviewed; profiler overhead must be separated from ordinary-play timing. The new audio/bridge package stays selected while this follow-up remains private. The first capture timed out because its stop monitor read the memory-buffered trace before shutdown; it produced no usable trace and is excluded. The recovery monitors the independent FPS CSV for its stop target, then closes normally to flush the trace. Evidence: residual-cadence-roots and residual-goldwood-profile-recovery under route-audio-bridge-20261016.
+
+
+A narrower full-function capture reproduces the poll-2387 explosion: shockwave/expsprite creation loads 11 texture frames. texLoadSprite includes 11.13 ms and its texture ROM section reads include 8.35 ms; decompression itself is about 1.95 ms. These inclusive profile times overlap and are not summed. A private opt-in candidate lets a validated immutable-ROM PI read complete on the next Count tick after its host copy, retaining normal register/interrupt delivery, validation and unchanged FlashRAM timing. This removes the simulated cartridge-bus delay only in native elapsed-time mode; Original retains its existing model. It is not selected or delivered until unprofiled comparisons and compatibility checks establish the result. Evidence: explosion-decompression-profile and native-rom-completion-build.
+
+The first ROM-completion fixture build stopped on signed/unsigned optional-value comparisons under warnings-as-errors; no capture ran and source/runtime were restored. The corrected unsigned comparisons pass. Four alternating unprofiled, muted native replays compare the opt-in next-tick ROM completion with the existing bus duration using the same compiled candidate. All preserve copied profiles and the selected desktop package. Their post-start native paths can diverge, so route/event identity and every missed update interval are retained rather than treating a lower median as complete acceptance. Evidence: native-rom-completion-abba and native-rom-completion-review.
+
+The second control stayed at two VIs for the explosion despite a 36.815 ms root duration, so the initial all-controls-miss promotion assertion refused before changing source. Preserve that mixed outcome. Both candidate explosion roots are shorter (33.198/33.974 ms versus 48.161/36.815 ms), all four have the same 45-to-48 actor-count change, and both candidate combat windows have no three-VI updates or audio errors. Native paths and scheduling phases differ; these results admit integration/compatibility qualification of a loading-latency improvement, not a universal no-dip claim. Final default-policy and Original comparisons are still required.
+
+
+## Native ROM completion qualified (2026-10-16 UTC)
+
+The final integrated binary passes Original and recorded-clock correspondence, including an explicit fast-ROM request that stays on reference timing during recorded replay. Final native 120/360 combat windows each contain 749 two-VI intervals and no missed intervals; audio under/overruns, rejected submissions and payload mismatches are zero. The six-minute capture remains in Goldwood after a death restart rather than reproducing the owner late-cave route. It retains three gaps: death/reload, a 67.115 ms interval containing 40.72 ms graphics submission/39.60 ms full synchronization, and a 49.96 ms cold-overlay load. The 67 ms update performs no ROM reads, so its renderer path is separate work. The native ROM improvement is qualified for local packaging, not a universal no-20-FPS resolution. [Policy, measurements and compatibility](../native-rom-loading.md); [binary qualification](../../../evidence/high-refresh-native-rom.json).

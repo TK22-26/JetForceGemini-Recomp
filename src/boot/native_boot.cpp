@@ -290,6 +290,7 @@ struct MmioTrace final {
   // continues using its existing register behavior unless this is enabled.
   bool guest_execution = false;
   bool native_elapsed_time = false;
+  bool native_rom_completion = false;
   std::uint64_t guest_count = 0U;
   std::uint64_t vi_next = 0U;
   std::uint64_t execution_io_revision = 0U;
@@ -498,6 +499,7 @@ LONG CALLBACK mmio_exception_handler(EXCEPTION_POINTERS *exception) {
             (g_mmio_trace->ai_dma.interrupt() ? 4U : 0U);
       }
       if (g_mmio_trace->pending_page_index == 5U) {
+
         g_mmio_trace->device_pi_offset = offset;
         g_mmio_trace->device_pi_value = value;
         if (!g_mmio_trace->pi_dma.write(offset, value, g_mmio_trace->guest_count,
@@ -505,7 +507,8 @@ LONG CALLBACK mmio_exception_handler(EXCEPTION_POINTERS *exception) {
                 [](void* device, bool to_ram, std::uint32_t cart, std::uint32_t dram,
                    std::uint32_t length, std::span<std::uint8_t> ram) {
                   return static_cast<jfg::boot::ReferenceFlashBus*>(device)->transfer(to_ram, cart, dram, length, ram);
-                }, &g_mmio_trace->flash_bus))
+                }, &g_mmio_trace->flash_bus,
+                g_mmio_trace->native_rom_completion && g_mmio_trace->native_elapsed_time))
           g_mmio_trace->device_error = "unsupported-pi-transaction";
         g_mmio_trace->mi_pending = (g_mmio_trace->mi_pending & ~16U) |
             (g_mmio_trace->pi_dma.interrupt() ? 16U : 0U);
@@ -8162,6 +8165,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto update_started = measure_update ? std::chrono::steady_clock::now()
                                                   : std::chrono::steady_clock::time_point{};
         const auto update_count = measure_update ? state.cpu_count : 0U;
+        const auto rom_before=measure_update && state.mmio_trace ?
+            state.mmio_trace->pi_dma.rom_transfers() : jfg::boot::OriginalTimingPiDma::RomTransfers{};
         const auto update_idle = measure_update ? state.profile_idle_count_ticks : 0U;
         const auto update_wait = measure_update ? state.profile_host_wait_us : 0U;
         const auto update_instructions = measure_update ? state.observed_guest_instructions : 0U;
@@ -8300,6 +8305,15 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           state.presentation_identities.particle_allocate({rdram,kRdramSize},
               static_cast<std::uint32_t>(context->r2));
         if (measure_update) {
+          if(state.mmio_trace) {
+            const auto rom_after=state.mmio_trace->pi_dma.rom_transfers();
+            if(rom_after.calls!=rom_before.calls)
+              state.gameplay_trace.event("rom-dma",{
+                state.vi_retraces,state.controller_samples,rom_after.calls-rom_before.calls,
+                rom_after.bytes-rom_before.bytes,rom_after.bus_ticks-rom_before.bus_ticks,
+                rom_after.scheduled_ticks-rom_before.scheduled_ticks,
+                rom_after.native_calls-rom_before.native_calls});
+          }
           if(state.diagnostic_bsp_enabled) {
             const auto bsp_after=jfg::boot::native_collision_counters();
             state.gameplay_trace.event("bsp-execution",{
@@ -12845,7 +12859,25 @@ int run_child(const char *path, const unsigned retrace_target,
         state.diagnostic_clock_release_vi<=state.diagnostic_clock_boundary_vi ||
         state.diagnostic_clock_release_vi>=state.retrace_target) return 3;
   }
-  if (state.mmio_trace) state.mmio_trace->native_elapsed_time = state.diagnostic_host_clock;
+  char rom_completion_flag[2]{};
+  const auto rom_completion_length=GetEnvironmentVariableA(
+      "JFG_DIAGNOSTIC_NATIVE_ROM_COMPLETION",rom_completion_flag,2U);
+  if(rom_completion_length && (rom_completion_length!=1U ||
+      (rom_completion_flag[0]!='0' && rom_completion_flag[0]!='1') ||
+      (rom_completion_flag[0]=='1' && !state.diagnostic_host_clock_requested)))return 3;
+  const bool native_rom_requested=rom_completion_length ? rom_completion_flag[0]=='1' : native_preview_play;
+  if (state.mmio_trace) {
+    state.mmio_trace->native_elapsed_time = state.diagnostic_host_clock;
+    // Recorded clock and instruction observers retain the reference bus model.
+    // Ordinary input replay and the function-cost profiler remain eligible.
+    state.mmio_trace->native_rom_completion=native_rom_requested &&
+        !state.native_clock_sample_input.is_open() && !state.native_clock_sample_output.is_open() &&
+        state.focus_update_start==0U && !state.guest_clock_trace.is_open() &&
+        state.point_probe_pcs.empty() && !state.device_event_stream &&
+        !state.eret_transfer_stream.is_open() && !state.instruction_effect_stream.is_open();
+    if(state.mmio_trace->native_rom_completion)
+      jfg::support_event("assets=native-rom-completion");
+  }
   if(state.diagnostic_host_clock && state.native_audio_playback && state.mmio_trace &&
       !state.mmio_trace->ai_dma.native_queue_capacity(4U))
     fail_closed_dispatch(state,"audio","native-queue-capacity",0U);

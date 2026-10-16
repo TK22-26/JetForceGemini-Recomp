@@ -1,6 +1,6 @@
 # AUDIO-002: Frequent audible interruptions in optimized high-refresh preview
 
-Status: **cause reproduced; native playback remedy verified in bounded tests; local preview delivered; owner listening check pending** (2026-10-16 UTC).
+Status: **native playback remedy delivered and bounded tests pass; occasional long-stall underrun observed; owner listening acceptance pending** (2026-10-16 UTC).
 Severity: high; interruptions occur during ordinary walking as well as combat.
 
 The owner reports substantially more stable gameplay and no noticeable FPS drops
@@ -124,3 +124,7 @@ Owner listening verification remains pending; these tests were muted.
 ## Local preview delivery (2026-10-16 UTC)
 
 Both desktop shortcuts now select source ca6ef7a883b2568da9df2ff0665ec7169c9f4be1 and runtime SHA-256 8dbe521304348ecda93c9f153fbd15f95486b2050b456e37ee221562e30f6a56. Package/launcher setup checks and copied-profile migration pass; all 40 checked live profile files and shortcut arguments are preserved. The previous package and links remain available for rollback. Owner listening and bridge visual review remain pending. [Qualification and delivery](../../../evidence/high-refresh-audio-bridge.json) record the exact scope. This is a local preview, not a public release or completion of the broader no-dip goal.
+
+A later unprofiled comparison control (native ROM fast completion disabled, PCM file capture disabled) reports one audio underrun despite the earlier zero-underrun qualification runs. It is preserved as a new observed limit, not excluded or attributed to the opt-in ROM change. The remaining comparisons must record audio counters before applying acceptance checks. Evidence: native-rom-completion-abba/reference-a and rom-reference-audio-observation under route-audio-bridge-20261016. Owner listening acceptance remains pending.
+
+The later control underrun coincides with a 160.184 ms presentation gap, roughly 168 ms without game/audio progress, and nine coalesced retraces. About 132 ms of queued audio drains before progress resumes. This establishes a long-stall limit; it does not identify the stall initiator or show ordinary walking starvation persists unchanged. Both final native-ROM default replays have zero underruns/overruns, rejected buffers or payload mismatches. Their muted checks do not replace owner listening. Evidence: residual-audio-underrun-timeline and native-rom-audio-late-audit.

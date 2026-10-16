@@ -753,3 +753,6 @@ The 2026-10-16 native audio/bridge candidate passes bounded muted playback and r
 
 
 Both High Refresh Preview and Jitter Capture now select the local audio/bridge package with existing profiles and arguments. Owner listening and visual review remain pending. [Current implementation and evidence](../development/native-audio-playback.md).
+
+
+The native ROM loading improvement is qualified for local packaging: the tested 120/360 combat windows hold two-VI game updates with zero audio errors, and Original/recorded-clock comparisons pass. Later renderer/cold-load gaps and owner audio/bridge acceptance remain open. The isolated control underrun coincided with a roughly 160 ms game/presentation stall. [Measurements and scope](../development/native-rom-loading.md).

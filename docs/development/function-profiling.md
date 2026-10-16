@@ -79,3 +79,6 @@ Route traces also emit route-transition at the existing mainChangeLevel and main
 Transition correlation covers the complete interval between consecutive update returns as well as the measured root body. A transition dispatched between roots therefore remains visible. These calls are recorded separately rather than assigned to a root that did not execute them.
 
 Each update also carries the most recent transition call and its age. This preserves delayed restart context without claiming that a prior call occurred inside the measured update or caused every later stall.
+
+
+ROM loading observations are available without full function profiling. The rare rom-dma record reports per-update reads, copied bytes, reference bus ticks, scheduled ticks and native-read count after VI/poll. It distinguishes synchronous host copying from deferred emulated cartridge completion; durations are scheduling counters, not thread CPU measurements. See [native ROM policy](native-rom-loading.md).
