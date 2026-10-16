@@ -455,7 +455,7 @@ private:
   struct Camera {
     std::uint64_t identity, tick;
     std::array<std::uint32_t,16> words{};
-    RigidPresentationPose pose;
+    RigidPresentationPose pose{};
     bool pose_valid=false;
   };
   struct Sprite {
@@ -466,7 +466,7 @@ private:
     std::uint32_t actor, header, models;
     std::uint64_t tick, camera;
     std::array<std::uint32_t, 16> words;
-    RigidPresentationPose pose;
+    RigidPresentationPose pose{};
   };
   std::map<std::uint32_t, Rigid> rigids_;
   struct ParticleSprite {

@@ -13,3 +13,13 @@ Lesson: register exact UI asset provenance when adding rasterizations, and keep 
 ## Verified candidate scope
 
 Current policy, exact-body mutation regression tests and schema validation pass. The external-output launcher test harness is corrected; the first link probe was missing input_stick.cpp and its corrected link passes. The complete published-history clone remains a pre-push check.
+
+## Full CI portability follow-up
+
+The first release PR CI found LP64 narrowing in the randomized runlink fixture:
+std::mt19937 produces 32-bit values but exposes unsigned long on GCC/Linux. The
+fixture now explicitly obtains uint32_t words. GCC also requires explicit default
+initialization for omitted aggregate pose members; they now have `{}` initializers,
+preserving the previous value-initialization behavior. These are compile defects,
+not observed gameplay regressions. The initial failed CI run is retained as
+38977882410. Full host GCC/CTest qualification is required before the follow-up push.

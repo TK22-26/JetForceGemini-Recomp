@@ -29,25 +29,26 @@ void put(std::vector<std::uint8_t> &data, unsigned i, const Identity &key) {
 }
 int main() {
   std::mt19937 random(79131);
+  const auto word = [&random] { return static_cast<std::uint32_t>(random()); };
   std::vector<std::uint8_t> data(Index::kRecordBytes);
   std::array<Identity, 157> identities{};
   for (unsigned i = 0; i < identities.size(); ++i) {
-    identities[i] = {random(), random(), random(), random()};
+    identities[i] = {word(), word(), word(), word()};
     put(data, i, identities[i]);
   }
   Index test;
   for (unsigned round = 0; round < 6000; ++round) {
-    const unsigned slot = random() % 157U;
+    const unsigned slot = word() % 157U;
     if (round % 3 == 0) {
-      identities[slot] = {random(), random(), random(), random()};
+      identities[slot] = {word(), word(), word(), word()};
       put(data, slot, identities[slot]);
     }
     if (round % 7 == 0)
-      put(data, random() % 157U, identities[slot]);
+      put(data, word() % 157U, identities[slot]);
     if (round % 11 == 0)
-      data[random() % data.size()] ^= static_cast<std::uint8_t>(random());
+      data[word() % data.size()] ^= static_cast<std::uint8_t>(word());
     Identity key = round % 5 == 0
-                       ? Identity{random(), random(), random(), random()}
+                       ? Identity{word(), word(), word(), word()}
                        : identities[slot];
     require(test.find(data, key) == legacy(data, key));
     require(test.find(data, key) == legacy(data, key));
