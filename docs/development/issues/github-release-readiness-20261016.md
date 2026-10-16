@@ -45,3 +45,24 @@ Private receipts: release-1.2.0-20261016. Game/input source fixes preserve the o
 accepted Windows behavior. No clean all-route/Unlimited/audio guarantee is claimed.
 This record describes a committed release candidate once the following commit is
 created; publication is tracked separately. Initial audit findings above are history.
+
+## Published release verification
+
+Available in [v1.2.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.2.0), built from `f56cd94c4bd7583bceee201eb3f229f744216bc1` after
+[PR #16](https://github.com/TK22-26/JetForceGemini-Recomp/pull/16) merged. The
+[tagged-release workflow](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/38981221560) passed its full checks, verified the prebuilt
+Windows bundle and published it. The public download was downloaded again and
+its ZIP, per-member hashes, package inventory and clean runtime identity verified.
+This release includes the remedy and finite verification described above; it
+does not expand the recorded hardware, Linux, campaign or fresh-install coverage.
+
+The four GitHub reports were reviewed and their concrete source corrections are
+included. #14's exact reproduced startup defect is resolved. #13's requested GUI
+toggle is available. #15's compiler corrections are shipped as source, without a
+Linux AppImage claim. #4's setup remedies pass fixtures, without a fresh Windows
+10 installation claim. GitHub issues have not been automatically closed or
+treated as fully reporter-verified.
+
+The live released updater returns `current` / `v1.2.0`. Owner desktop launchers
+now point to the verified package while retaining their original profile and
+diagnostic arguments; previous shortcuts and binaries are preserved privately.

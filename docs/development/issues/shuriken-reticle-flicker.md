@@ -55,7 +55,7 @@ Source commit `26295c75dd43848f59cdd1268518d7131861dbee` is packaged in the loca
 On the unified-keys preview (source 19a2373, runtime SHA-256 93514316aada84480c437c3f6eb08dfe192b22a43fa29f678242d4143bf133d7), the owner reports the shuriken reticle initially worked, disappeared completely, and returned after death. The owner otherwise reports the game looks good except occasional ground-shuriken jitter and crouch mouse inversion. Death recovery provides a state-reset comparison, not a proven cause. The prior isolated original-drawer fixture did not cover this sustained gameplay transition; do not mark the issue resolved. The completed capture started 19:29:48 UTC and was preserved with hashes under private shuriken-followup-20261016/owner-capture. Compare actual weapon/aim state, CPU draw/import activity, framebuffer address, and mask age before loss and after death.
 
 
-Latest owner trace analysis: 2,418 CPU write operations were all retained and presented. Shuriken aiming has no CPU framebuffer writes around 140–169 seconds (322 updates), then resumes after respawn. This narrows the sustained disappearance upstream of retained-mask composition but does not yet distinguish native drawing from write detection. Private evidence: `D:/JFG-private/high-refresh-20261011/shuriken-followup-20261016/coverage-report.json`. New trace observations record original reticle entry points and software line coordinates; no forced reticle is enabled.
+Latest owner trace analysis: 2,418 CPU write operations were all retained and presented. Shuriken aiming has no CPU framebuffer writes around 140â€“169 seconds (322 updates), then resumes after respawn. This narrows the sustained disappearance upstream of retained-mask composition but does not yet distinguish native drawing from write detection. Private evidence: `D:/JFG-private/high-refresh-20261011/shuriken-followup-20261016/coverage-report.json`. New trace observations record original reticle entry points and software line coordinates; no forced reticle is enabled.
 
 
 The real-weapon replay confirms that frontDrawTarget and the deferred software-line writer continue producing on-screen pixels during the gap. VI updateScreen can consume these edits into present.fbOperations and update RAMHash before submit-time checkRDRAM sees them. The previous cache captured only submit-time operations. The first combined-path trial mistakenly compared visible height 240 with RT64's 32-pixel-aligned texture allocation height 256, rejecting every VI mask. This failed trial is retained as owner-present-overlay; it does not qualify a fix. The corrected candidate checks the logical VI dimensions and draws only that extent, uses each Present's pool ownership through its last GPU fence, and lets a fresh mask supersede a cached mask to avoid stale cursor strokes.
@@ -83,3 +83,13 @@ Source `95efb8f97b47717921aa4c29ab17245771c3ff22` is delivered through both **JF
 ### Owner live confirmation (2026-10-16)
 
 After testing the delivered followup, the owner reports no noticeable slowdowns and that all reported issues seem resolved, and authorizes committing. This closes the pending owner confirmation for this local preview within that reported play session. It is not a public release or exhaustive all-route/Unlimited acceptance. No further runtime experiments or game changes are part of the launcher update-button task.
+
+## Published release verification
+
+Available in [v1.2.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.2.0), built from `f56cd94c4bd7583bceee201eb3f229f744216bc1` after
+[PR #16](https://github.com/TK22-26/JetForceGemini-Recomp/pull/16) merged. The
+[tagged-release workflow](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/38981221560) passed its full checks, verified the prebuilt
+Windows bundle and published it. The public download was downloaded again and
+its ZIP, per-member hashes, package inventory and clean runtime identity verified.
+This release includes the remedy and finite verification described above; it
+does not expand the recorded hardware, Linux, campaign or fresh-install coverage.

@@ -36,18 +36,18 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
-| BUILD-003 | Release source policy and compiler portability | Exact-body provenance and GCC/Clang/sanitizer corrections verified; final CI/publication pending | [Release validation](release-source-validation.md) |
-| NATIVE-002 | GitHub #14 mouse-look startup access violation | Exact v1.1.0 crash reproduced; early-memory remedy verified in current enabled startup | [Startup report](github-mouse-look-startup.md) |
-| BUILD-002 | GitHub #15 GCC native build failure | Portable source and actual GCC translation unit verified; AppImage runtime not qualified | [Linux build review](github-linux-native-build.md) |
-| INPUT-010 | GitHub #13 controller camera inversion | GUI toggle verified with persistence and camera/aim deltas; reporter retest pending | [Controls review](github-controller-vertical-inversion.md) |
-| SETUP-001 | GitHub #4 Windows 10 source setup | Firmware/WSL/failure handling fixed; 28 checks pass, fresh Windows 10 retest pending | [Setup review](github-windows-source-setup.md) |
+| BUILD-003 | Release source policy and compiler portability | Resolved for released v1.2.0; full CI and published bundle verification pass | [Release validation](release-source-validation.md) |
+| NATIVE-002 | GitHub #14 mouse-look startup access violation | Reproduced startup cause resolved in v1.2.0; current enabled startup passes | [Startup report](github-mouse-look-startup.md) |
+| BUILD-002 | GitHub #15 GCC native build failure | Portable source released in v1.2.0; actual GCC source verified, AppImage not qualified | [Linux build review](github-linux-native-build.md) |
+| INPUT-010 | GitHub #13 controller camera inversion | GUI toggle released in v1.2.0; persistence/deltas verified, reporter retest pending | [Controls review](github-controller-vertical-inversion.md) |
+| SETUP-001 | GitHub #4 Windows 10 source setup | Fixes released in v1.2.0; 28 checks pass, fresh Windows 10 retest pending | [Setup review](github-windows-source-setup.md) |
 | DISPLAY-001 | Widescreen viewport and pointer alignment | Verified in tests; preview installed, live check pending | [Investigation](widescreen-pointer-and-airborne-aim.md) |
 | INPUT-008 | Menu bindings save but are hidden; retained mouse preference | Unified Keys, no arrows and shared E verified and delivered locally; owner check pending | [Profile/default review](modern-capture-profile-defaults.md) |
-| RENDER-008 | Shuriken reticle flickers and disappears | Corrected, tested and delivered locally; owner reports resolved in live play | [Report and investigation](shuriken-reticle-flicker.md) |
-| INPUT-009 | Mouse pitch reverses while crouching | Corrected, tested and delivered locally; owner reports resolved in live play | [Investigation](crouch-mouse-inversion.md) |
-| RENDER-009 | Ground shurikens jitter | Corrected, tested and delivered locally; owner reports resolved in live play | [Investigation](ground-shuriken-jitter.md) |
+| RENDER-008 | Shuriken reticle flickers and disappears | Released in v1.2.0 after tests and owner live acceptance | [Report and investigation](shuriken-reticle-flicker.md) |
+| INPUT-009 | Mouse pitch reverses while crouching | Released in v1.2.0 after tests and owner live acceptance | [Investigation](crouch-mouse-inversion.md) |
+| RENDER-009 | Ground shurikens jitter | Released in v1.2.0 after tests and owner live acceptance | [Investigation](ground-shuriken-jitter.md) |
 | INPUT-007 | Keep aiming active throughout modern jumps | Verified in tests; preview installed, live check pending | [Investigation](widescreen-pointer-and-airborne-aim.md) |
-| LAUNCHER-001 | No launcher update discovery; stale release description | Owner-approved amber card and browser actions verified, committed and delivered locally | [Cause, implementation and checks](launcher-update-discovery.md) |
+| LAUNCHER-001 | No launcher update discovery; stale release description | Released in v1.2.0; owner-approved layout, UI and live updater verified | [Cause, implementation and checks](launcher-update-discovery.md) |
 | RENDER-001 | Smooth 60-360+ FPS presentation | Presentation pacing and FPS preset corrections tested; owner visual confirmation pending | [Evidence and plan](high-refresh-rendering.md) |
 | RENDER-002 | Juno joint/terrain seams and incorrect dark lighting | Owner reports thigh gaps and delayed lighting absent at 120 FPS in semantic preview; broader coverage remains | [Report and evidence](character-seams-lighting.md) |
 | RENDER-003 | Jitter despite steady 120 OUTPUT / 30 SCENES | Bounded holds corrected; finite-clock/shadow-scene queue cause captured; private ownership candidate and live verification pending | [Report and investigation](steady-fps-jitter.md) |

@@ -25,7 +25,7 @@ download or ROM-import failure.
 
 Add a background helper that reads the public GitHub latest stable release API,
 compares numeric version components, and writes an atomic frontend result.
-The native UI checks at startup, offers Help > Check for updates…, and retains
+The native UI checks at startup, offers Help > Check for updatesâ€¦, and retains
 a home-screen notice for newer releases. A fixed project URL opens the download
 page only on request. The helper caps response size and request duration and
 reports offline, invalid-data and rate-limit failures without blocking gameplay.
@@ -121,3 +121,13 @@ The separate controls audit passes **790 native UI assertions**, including the c
 ### Local delivery
 
 Launcher source `628d1ff40ff14ce44a6921e89e594050b290b766` is delivered through **JFG - High Refresh Preview**, **JFG - Jitter Capture**, and the isolated **JFG - Update Button Preview**. The latter retains the explicit sample flag; both normal links use real discovery. All 41 files in the two owner gameplay profiles remained unchanged. Three fresh/copied-profile setup checks selected the accepted runtime, all 14 package payload hashes passed, and the final packaged checker again reported current / v1.1.0. The runtime remains pinned to `95efb8f97b47717921aa4c29ab17245771c3ff22`. Older packages and shortcut backups remain available. No public update is released; the [GitHub audit](github-release-readiness-20261016.md) records outstanding qualification blockers.
+
+## Published release verification
+
+Available in [v1.2.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.2.0), built from `f56cd94c4bd7583bceee201eb3f229f744216bc1` after
+[PR #16](https://github.com/TK22-26/JetForceGemini-Recomp/pull/16) merged. The
+[tagged-release workflow](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/38981221560) passed its full checks, verified the prebuilt
+Windows bundle and published it. The public download was downloaded again and
+its ZIP, per-member hashes, package inventory and clean runtime identity verified.
+This release includes the remedy and finite verification described above; it
+does not expand the recorded hardware, Linux, campaign or fresh-install coverage.
