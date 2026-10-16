@@ -14,3 +14,6 @@ Boundary tests cover byte-identical ROM reads with both policies, asynchronous c
 The observed explosion performs 27 ROM reads totaling 4,576 bytes. The reference bus model schedules 44,915 Count ticks (about 0.96 ms total); native completion schedules 27 ticks. The wall-time benefit includes avoiding the associated waiting/waking path and, when close to a retrace boundary, avoiding the extra update interval. Do not claim that all of the roughly 11 ms profiled loading time was cartridge-bus duration. Alternating ordinary explosion roots measured 48.161/36.815 ms in controls and 33.198/33.974 ms with native completion. One control retained two-VI cadence, so this is loading headroom rather than a universal no-dip guarantee.
 
 The longer default run retains a 631.54 ms death/reload interval, a 67.115 ms interval containing 40.72 ms graphics submission (39.60 ms full synchronization), and a 49.96 ms cold-overlay load. The renderer stall has no ROM reads. Its internal cause remains open. The replay stays in Goldwood after the death restart, so it does not qualify the owner's exact late-cave route.
+
+
+Local delivery is complete. Both desktop shortcuts select the qualified native-ROM package and preserve their profiles/arguments. [Package and delivery receipt](../../evidence/high-refresh-native-rom.json). Owner live acceptance remains pending.

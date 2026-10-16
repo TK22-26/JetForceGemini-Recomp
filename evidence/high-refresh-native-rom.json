@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "native ROM loading improvement qualified; local delivery pending; broader no-dip goal open",
+  "status": "qualified native ROM loading improvement delivered locally; later hitches and owner verification remain open",
   "runtime_sha256": "5f902049bd3e4a991a020f17e63a51d0291f28709057a9aa7efc03097692764b",
   "runtime_source_files": {
     "include/jfg/boot/original_timing_pi_dma.hpp": "3e57403ff17752e4c442245907c83fe12f3da3891810588ee9e7ccb2da15edfc",
@@ -1147,7 +1147,7 @@
       ]
     }
   },
-  "delivered": false,
+  "delivered": true,
   "owner_live_verified": false,
   "no_20fps_goal_complete": false,
   "limits": [
@@ -1164,5 +1164,17 @@
     "native-rom-recorded-correspondence",
     "native-rom-final-native-v2",
     "native-rom-audio-late-audit"
-  ]
+  ],
+  "runtime_source_commit": "8277a80611e73c0dc57285e32e0761e9b7519e41",
+  "delivery": {
+    "delivered_at_utc": "2026-10-16T09:39:21.249969+00:00",
+    "shortcuts": [
+      "JFG - High Refresh Preview.lnk",
+      "JFG - Jitter Capture.lnk"
+    ],
+    "profile_files_unchanged": 40,
+    "manifest_verified": 14,
+    "launcher_sha256": "60b2696f1447101809053922a1aa5b24efc94c197875a63ad22b3fb9c4dc045c",
+    "launcher_setup_runtime_protocol_passed": true
+  }
 }

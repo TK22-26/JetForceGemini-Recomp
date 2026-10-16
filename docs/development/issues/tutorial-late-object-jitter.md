@@ -884,3 +884,6 @@ shadow cadence remain separately open.
 ## Local preview delivery (2026-10-16 UTC)
 
 Both desktop shortcuts now select source ca6ef7a883b2568da9df2ff0665ec7169c9f4be1 and runtime SHA-256 8dbe521304348ecda93c9f153fbd15f95486b2050b456e37ee221562e30f6a56. Package/launcher setup checks and copied-profile migration pass; all 40 checked live profile files and shortcut arguments are preserved. The previous package and links remain available for rollback. Owner listening and bridge visual review remain pending. [Qualification and delivery](../../../evidence/high-refresh-audio-bridge.json) record the exact scope. This is a local preview, not a public release or completion of the broader no-dip goal.
+
+
+The High Refresh Preview and Jitter Capture desktop links now select the native-ROM package: source 8277a80611e73c0dc57285e32e0761e9b7519e41, runtime SHA-256 5f902049bd3e4a991a020f17e63a51d0291f28709057a9aa7efc03097692764b. Launcher/setup checks pass; all 40 checked profile files and shortcut arguments are preserved. Earlier audio and bridge remedies are included. Owner listening/visual acceptance, later renderer/load hitches and the broader no-20-FPS goal remain open. [Qualification and delivery](../../../evidence/high-refresh-native-rom.json).
