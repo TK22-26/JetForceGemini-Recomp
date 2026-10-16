@@ -86,12 +86,13 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     demand(ui.el("modern-content")&&!ui.el("mapping-content"),"modern content replaces mapping content only");
     demand(!ui.el("action-mc-experimental")&&!ui.el("action-pc-experimental"),"obsolete experimental switch removed");
     demand(ui.modern[0].pad[2]==0,"Xbox A defaults to Jump");
-    demand(ui.el("mc-menu-binding-11")&&ui.el("mc-menu-binding-22"),"controller Confirm and Save are visible");
+    demand(element("mc-row-0")->GetInnerRML().find("Confirm")!=std::string::npos && element("mc-row-2")->GetInnerRML().find("Save game")!=std::string::npos,"controller shared actions are visible in existing groups");
     demand(!ui.el("mc-context-select")&&!ui.el("action-mc-bind-menu"),"redundant context and rebinding controls removed");
     editInput(8);demand(ui.el("action-mc-assign-8")&&ui.el("action-mc-assign-9"),"row picker retains separate zoom actions");click("action-mc-cancel");
     click("action-mc-free-0");
-    demand(ui.modern[0].pad[2]==-1&&ui.modern[0].pad[11]==0,"row clear preserves bindings used in menus");
+    demand(ui.modern[0].pad[2]==-1&&ui.modern[0].pad[11]==-1,"clearing a physical input clears all its visible actions");
     click("mc-row-0");click("action-mc-assign-2");demand(ui.modern[0].pad[2]==0,"free button can select its action again");
+    editInput(0);click("action-mc-assign-11");demand(ui.modern[0].pad[2]==0&&ui.modern[0].pad[11]==0,"Confirm can share the restored Jump input");
     const auto contextProfile=ui.read("modern-controls.ini");
     pointerClick("mc-glyph-select");pointerClick("mc-glyph-select");
     MSG pendingClose{};demand(!PeekMessageW(&pendingClose,window,WM_CLOSE,WM_CLOSE,PM_NOREMOVE),"repeated select clicks do not close controller window");
@@ -327,38 +328,53 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     click("action-mc-view-list");capture("review-dualsense-list.tga");
     click("action-mc-tab-settings");capture("review-dualsense-settings.tga");
     ui.assignDevice(-3);click("action-mc-tab-buttons");
-    demand(!ui.el("mc-row-13")&&!ui.el("mc-row-8")&&!ui.el("mc-row-38"),"menu-only keys do not appear as free gameplay rows");
-    demand(ui.modern[0].keys[11]=='E'&&ui.modern[0].keys[12]=='Q',"menu bindings remain saved");
-    for(int action:{11,12,18,19,20,21,22})demand(ui.el(("mc-menu-binding-"+std::to_string(action)).c_str())!=nullptr,"menu actions have explicit editors");
+    demand(!ui.el("mc-menu-bindings"),"no separate menu/dialogue card");
     const auto savedMenuProfile=ui.modern[0];
-    // Reproduce the owner's old Enter profile and Add F -> Confirm report.
+    const auto inKeys=[&](int key){return element("mc-gameplay-keys")->QuerySelector("#mc-row-"+std::to_string(key))!=nullptr;};
+    demand(element("mc-column-0")->GetInnerRML().find("MOUSE")!=std::string::npos &&
+        element("mc-column-0")->GetInnerRML().find("MOVEMENT KEYS")!=std::string::npos,"left mouse and movement lists retained");
+    demand(inKeys('Q')&&inKeys(VK_F5),"Back and Save live in Keys");
+    for(int key=37;key<=40;++key)demand(!ui.el(("mc-row-"+std::to_string(key)).c_str()),"no arrow rows");
     auto retained=savedMenuProfile;retained.keys[11]=VK_RETURN;retained.look.mouse_invert_y=0;
     demand(ui.saveModern(retained),"retained profile fixture saved");ui.loadModern();ui.modal("controllers");settle();
-    demand(element("mc-menu-row-11")->GetInnerRML().find("Enter")!=std::string::npos,"old Enter Confirm is visible");
-    click("action-mc-add-key");settle();FrontendUiMessage(WM_KEYDOWN,'F',0);settle();
-    click("action-mc-assign-11");
-    demand(ui.modern[0].keys[11]=='F'&&element("mc-menu-row-11")->GetInnerRML().find(">F<")!=std::string::npos,"added F appears with Confirm");
+    demand(inKeys(VK_RETURN),"old Enter Confirm is visible in Keys");
+    click("action-mc-add-key");settle();FrontendUiMessage(WM_KEYDOWN,'F',0);settle();click("action-mc-assign-11");
+    demand(ui.modern[0].keys[11]=='F'&&inKeys('F'),"new F Confirm appears in Keys");
     ui.loadModern();ui.modal("controllers");settle();
-    demand(ui.modern[0].keys[11]=='F'&&ui.modern[0].keys[4]=='E'&&!ui.modern[0].look.mouse_invert_y,"reload preserves custom Confirm, Interact and inversion");
-    demand(element("mc-menu-row-11")->GetInnerRML().find(">F<")!=std::string::npos,"reloaded F stays visible");
-    capture("menu-confirm-f.tga");
-    click("mc-menu-binding-11");settle();demand(ui.modernCapture==11,"Confirm row starts capture");
-    FrontendUiMessage(WM_KEYDOWN,'E',0);settle();
-    demand(ui.modernPanel.empty()&&ui.modern[0].keys[11]=='E'&&ui.modern[0].keys[4]=='E',"Confirm shares E with gameplay Interact");
-    click("action-mc-clear-11");
-    demand(ui.modern[0].keys[11]==0&&ui.modern[0].keys[4]=='E',"clearing Confirm retains Interact");
-    demand(element("mc-menu-row-11")->GetInnerRML().find("Unbound")!=std::string::npos,"unbound Confirm remains visible");
-    click("mc-menu-binding-11");settle();FrontendUiMessage(WM_KEYDOWN,'F',0);settle();
-    demand(ui.modern[0].keys[11]=='F',"unbound Confirm can be rebound");
+    demand(inKeys('F')&&ui.modern[0].keys[4]=='E'&&!ui.modern[0].look.mouse_invert_y,"reload retains new row and other preferences");
+    capture("unified-keys-f.tga");
+    click("action-mc-add-key");settle();FrontendUiMessage(WM_KEYDOWN,'G',0);settle();click("action-mc-assign-18");
+    demand(inKeys('G'),"new menu navigation key goes to Keys");
+    click("action-mc-add-key");settle();FrontendUiMessage(WM_KEYDOWN,'I',0);settle();click("action-mc-assign-13");
+    demand(inKeys('I')&&element("mc-column-0")->QuerySelector("#mc-row-87"),"new movement key goes to Keys and left W remains");
+    click("action-mc-add-key");settle();FrontendUiMessage(WM_KEYDOWN,VK_UP,0);settle();
+    demand(ui.modernPanel=="capture"&&ui.modernCapture==-2,"arrow key cannot be added");click("action-mc-cancel");
+    editInput('E');click("action-mc-assign-11");
+    demand(ui.modernPanel.empty()&&ui.modern[0].keys[11]=='E'&&ui.modern[0].keys[4]=='E',"E shares Confirm and Interact without replacement");
+    ui.loadModern();ui.modal("controllers");settle();
+    const auto shared=element("mc-row-69")->GetInnerRML();
+    demand(inKeys('E')&&shared.find("Interact")!=std::string::npos&&shared.find("Confirm")!=std::string::npos,"both E actions visible after reload");
+    editInput('E');click("action-mc-assign-11");
+    demand(ui.modern[0].keys[11]==0&&ui.modern[0].keys[4]=='E',"unassigning Confirm keeps shared Interact");
+    editInput('E');click("action-mc-assign-11");
+    demand(ui.modern[0].keys[11]=='E'&&ui.modern[0].keys[4]=='E',"Confirm can be restored to shared E");
+    editInput('E');click("action-mc-assign-1");demand(ui.modernPanel=="conflict","same-context duplicate offers choice");
+    click("action-mc-conflict-both");
+    demand(ui.modern[0].keys[1]=='E'&&ui.modern[0].keys[4]=='E'&&ui.modern[0].keys[11]=='E',"Keep both retains every shared action");
+    ui.loadModern();ui.modal("controllers");settle();
+    demand(ui.modern[0].keys[1]=='E'&&ui.modern[0].keys[4]=='E'&&ui.modern[0].keys[11]=='E',"same-context duplicates persist");
     click("action-mc-view-diagram");
-    demand(element("mc-menu-row-11")->GetInnerRML().find(">F<")!=std::string::npos,"diagram also exposes custom Confirm");
+    demand(element("mc-gameplay-keys")->QuerySelector("#action-mc-select-73") &&
+        element("mc-gameplay-keys")->QuerySelector("#action-mc-select-71"),"diagram Keys includes new movement and menu keys");
+    demand(!ui.el("mc-menu-bindings"),"diagram has no separate menu card");
     {
       Rml::ElementList ids;ui.doc->QuerySelectorAll(ids,"[id]");std::vector<std::string> unique;
-      for(auto* e:ids){demand(std::find(unique.begin(),unique.end(),e->GetId())==unique.end(),"menu diagram IDs remain unique");unique.push_back(e->GetId());}
+      for(auto* e:ids){demand(std::find(unique.begin(),unique.end(),e->GetId())==unique.end(),"diagram IDs remain unique with shared keys");unique.push_back(e->GetId());}
     }
     click("action-mc-view-list");
     demand(ui.saveModern(savedMenuProfile),"restore only test profile");ui.modal("controllers");settle();
-    demand(!ui.doc->QuerySelector(".mc-key-group .mc-binding-value.free"),"Keys contains only bound gameplay actions");
+    capture("unified-keys-shared-e.tga");
+    demand(!element("mc-gameplay-keys")->QuerySelector(".mc-binding-value.free"),"Keys contains only bound inputs");
     editInput(VK_SPACE);
     demand(ui.el("action-mc-assign-11")&&ui.el("action-mc-assign-18"),"menu bindings remain accessible in the action picker");
     click("action-mc-cancel");
@@ -378,7 +394,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
       surface->context->SetDensityIndependentPixelRatio(dpi);settle();
       float labelX=-1;
       Rml::ElementList rows;ui.doc->QuerySelectorAll(rows,"#mc-gameplay-keys .mc-binding-row");
-      demand(rows.size()==5,"default Keys list has five gameplay bindings");
+      demand(rows.size()==7,"Keys includes gameplay plus Back and Save with shared E");
       for(auto* row:rows) {
         auto* chip=row->QuerySelector(".mc-chip");auto* name=row->QuerySelector(".mc-physical-name");
         demand(chip&&name,"key row retains keycap and name");

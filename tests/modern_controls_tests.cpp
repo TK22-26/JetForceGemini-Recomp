@@ -18,6 +18,32 @@ int main(int argc,char **argv) {
     check(PcInputConfig{}.mouse_invert_y==0,"original mouse mapping defaults remain unchanged");
     auto savedNonInverted=config;savedNonInverted.look.mouse_invert_y=0;
     check(parse_modern_controls(serialize_modern_controls(savedNonInverted),parsed) && parsed.look.mouse_invert_y==0,"explicit non-inverted modern preference survives loading");
+    {
+        ModernControlsConfig legacy;legacy.enabled=true;legacy.look.mouse_invert_y=0;
+        legacy.keys[index(ModernAction::menu_confirm)]='F';
+        auto text=serialize_modern_controls(legacy);
+        for(auto [action,key]:std::array<std::pair<ModernAction,int>,4>{{
+            {ModernAction::menu_up,38},{ModernAction::menu_down,40},
+            {ModernAction::menu_left,37},{ModernAction::menu_right,39}}}) {
+            const std::string field="key."+std::string(kModernActions[index(action)].id)+"=";
+            const auto begin=text.find(field)+field.size(),end=text.find('\n',begin);
+            text.replace(begin,end-begin,std::to_string(key));
+        }
+        ModernControlsConfig migrated;
+        check(parse_modern_controls(text,migrated),"legacy arrow profile loads");
+        check(serialize_modern_controls(migrated)==serialize_modern_controls(legacy),"only arrows removed from legacy profile");
+        for(int key=37;key<=40;++key) {
+            check(rebind_modern_action(migrated,true,ModernAction::fire,key)==ModernBindResult::invalid,"new arrow binding rejected");
+            auto raw=legacy;raw.keys[index(ModernAction::fire)]=key;
+            check(sample_modern_keyboard(raw,[&](int pressed){return pressed==key;}).held==0,"raw arrow binding cannot fire");
+        }
+        check(rebind_modern_action(migrated,true,ModernAction::menu_confirm,'E')==ModernBindResult::changed &&
+            migrated.keys[index(ModernAction::interact)]=='E',"shared E confirm preserves Interact");
+        const auto sample=sample_modern_keyboard(migrated,[](int key){return key=='E';});
+        check(map_modern_actions(sample,true).buttons==0x8000 && map_modern_actions(sample,false).buttons==0x8000,"shared E operates by gameplay/menu context");
+        check(parse_modern_controls(serialize_modern_controls(migrated),parsed) && parsed.keys[index(ModernAction::menu_confirm)]=='E' &&
+            parsed.keys[index(ModernAction::interact)]=='E',"duplicate E survives save and reload");
+    }
     const auto defaults=serialize_modern_controls(config);
     check(!config.enabled,"new profiles must preserve original mapping mode");
     check(parse_modern_controls(defaults,parsed) && serialize_modern_controls(parsed)==defaults,"default profile roundtrip");
@@ -158,7 +184,9 @@ int main(int argc,char **argv) {
     keys={};keys['S']=true;check(map_modern_actions(keyboard(),true).y==-80,"S navigates menus down");
     keys['W']=true;check(map_modern_actions(keyboard(),true).y==0,"opposite movement directions cancel in menus");
     keys={};keys['A']=keys[39]=true;
-    check(map_modern_actions(keyboard(),true).x==80,"explicit menu direction takes precedence");
+    check(map_modern_actions(keyboard(),true).x==-80,"arrow keys cannot override movement navigation");
+    config.keys[index(ModernAction::menu_right)]='L';keys['L']=true;
+    check(map_modern_actions(keyboard(),true).x==80,"explicit non-arrow menu direction takes precedence");
     config.keys[index(ModernAction::move_left)]='J';keys={};keys['J']=true;
     check(map_modern_actions(keyboard(),true).x==-80,"rebound movement keys navigate menus");
     config={};keys={};
@@ -214,7 +242,9 @@ int main(int argc,char **argv) {
 
     config={};keys={};keys['W']=true;
     check(map_modern_actions(keyboard(),true).y==80,"keyboard movement also navigates menus");
-    keys[38]=true;check(map_modern_actions(keyboard(),true).y==80,"dedicated keyboard menu navigation works");
+    keys={};keys[38]=true;check(map_modern_actions(keyboard(),true).y==0,"arrow input is not menu navigation");
+    config.keys[index(ModernAction::menu_up)]='U';keys['U']=true;
+    check(map_modern_actions(keyboard(),true).y==80,"dedicated non-arrow keyboard menu navigation works");
     check(rebind_modern_action(config,false,ModernAction::move_forward,9)==ModernBindResult::invalid,"pad editor rejects unsupported digital movement rows");
     auto badPad=config;badPad.pad[index(ModernAction::move_forward)]=9;
     check(!parse_modern_controls(serialize_modern_controls(badPad),parsed),"unsupported pad rows reject atomically");

@@ -78,7 +78,7 @@ settings are hidden. Diagrams and instructions read saved bindings, including
 unbound and shared inputs. The diagram and list share selection; Hide diagram
 returns to the grouped overview. Side buttons appear in the mouse group when
 bound and can always be selected from the diagram or captured. Extra keyboard
-keys appear when bound to gameplay or scope actions.
+keys appear in the right-hand Keys list for every action, including menu and movement actions. Mouse and the W/A/S/D movement list remain at the left. Confirm, Back and Save also belong to Keys; there is no separate Menus & dialogue card. Shared inputs list every assigned action (for example E: Interact + Confirm). Selecting an assigned action in the picker removes only that assignment; clearing a physical input removes all its listed actions. Arrow keys are excluded from Modern Controls defaults, saved-profile loading and new bindings; movement keys navigate menus.
 
 The native layout uses the launcher's dark theme and amber focus. It supports
 scrolling, narrow windows and display scaling. Keyboard Tab navigation is trapped

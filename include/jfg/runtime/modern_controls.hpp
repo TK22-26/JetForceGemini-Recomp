@@ -51,7 +51,7 @@ struct ModernControlsConfig {
     // Windows virtual keys plus portable wheel IDs. Zero is unbound.
     std::array<int,kModernActionCount> keys{
         2,1,32,17,'E',kPcWheelDown,kPcWheelUp,4,0,0,9,'E','Q',
-        'W','S','A','D',16,38,40,37,39,0x74};
+        'W','S','A','D',16,0,0,0,0,0x74};
     PcInputConfig look = [] {
         PcInputConfig c;c.modern=c.mouse_aim=c.dual_stick=1;c.mouse_invert_y=1;return c;
     }();
@@ -59,6 +59,9 @@ struct ModernControlsConfig {
 inline constexpr std::array<std::string_view,11> kModernSettings{
     "version","enabled","aim_toggle","glyph_style","movement_stick",
     "movement_deadzone","axis_threshold","trigger_threshold","mouse_scope_sensitivity","pad_scope_sensitivity","mouse_original_acceleration"};
+// Modern keyboard navigation follows the movement keys; arrow keys are not
+// bindings. Keep the persisted action IDs for controller and profile compatibility.
+inline constexpr bool modern_arrow_key(int key) { return key>=37 && key<=40; }
 inline std::string serialize_modern_controls(const ModernControlsConfig &c) {
     std::string out;
     const std::array<int,kModernSettings.size()> values{5,int(c.enabled),int(c.aim_toggle),int(c.glyph_style),
@@ -68,7 +71,7 @@ inline std::string serialize_modern_controls(const ModernControlsConfig &c) {
         out+=std::string(kModernSettings[i])+"="+std::to_string(values[i])+"\n";
     for(std::size_t i=0;i<kModernActionCount;++i) {
         out+="pad."+std::string(kModernActions[i].id)+"="+std::to_string(c.pad[i])+"\n";
-        out+="key."+std::string(kModernActions[i].id)+"="+std::to_string(c.keys[i])+"\n";
+        out+="key."+std::string(kModernActions[i].id)+"="+std::to_string(modern_arrow_key(c.keys[i])?0:c.keys[i])+"\n";
     }
     const auto look=serialize_pc_input(c.look);
     std::size_t start=0;
@@ -150,6 +153,9 @@ inline bool parse_modern_controls(std::string_view text,ModernControlsConfig &re
     c.movement_deadzone=values[5];c.axis_threshold=values[6];c.trigger_threshold=values[7];
     c.mouse_scope_sensitivity=values[8];c.pad_scope_sensitivity=values[9];
     c.mouse_original_acceleration=values[10]!=0;
+    // Retire arrow bindings from saved modern profiles without changing other
+    // choices, including shared E actions, inversion and controller mappings.
+    for(auto& key:c.keys)if(modern_arrow_key(key))key=0;
     result=c;return true;
 }
 inline bool modern_binding_conflicts(ModernAction first,ModernAction second) {
@@ -173,7 +179,8 @@ inline ModernBindResult rebind_modern_action(ModernControlsConfig &c,bool keyboa
     ModernAction action,int binding,ModernBindPolicy policy=ModernBindPolicy::reject_conflict) {
     const auto index=static_cast<std::size_t>(action);
     if(index>=kModernActionCount || (!keyboard && !kModernActions[index].gamepad) ||
-       binding<(keyboard?0:-1) || binding>(keyboard?kPcWheelDown:26))
+       binding<(keyboard?0:-1) || binding>(keyboard?kPcWheelDown:26) ||
+       (keyboard && modern_arrow_key(binding)))
         return ModernBindResult::invalid;
     auto &bindings=keyboard?c.keys:c.pad;
     if(bindings[index]==binding)return ModernBindResult::unchanged;
@@ -263,7 +270,7 @@ inline ModernActionSample sample_modern_pad(const ModernControlsConfig &c,const 
 template<class Down> ModernActionSample sample_modern_keyboard(const ModernControlsConfig &c,Down down) {
     ModernActionSample out;
     for(std::size_t i=0;i<kModernActionCount;++i)
-        if(c.keys[i]!=0 && down(c.keys[i]))out.held|=std::uint32_t{1}<<i;
+        if(c.keys[i]!=0 && !modern_arrow_key(c.keys[i]) && down(c.keys[i]))out.held|=std::uint32_t{1}<<i;
     const auto held=[&](ModernAction a){return (out.held&modern_bit(a))!=0;};
     const int speed=held(ModernAction::move_fast)?127:80;
     out.move={static_cast<std::int8_t>((int(held(ModernAction::move_right))-int(held(ModernAction::move_left)))*speed),
@@ -292,8 +299,8 @@ inline ControllerPortSample map_modern_actions(const ModernActionSample &input,b
     const auto held=[&](ModernAction a){return (input.held&modern_bit(a))!=0;};
     if(held(ModernAction::pause))out.buttons|=0x1000;
     if(menu) {
-        // Movement bindings also navigate menus. Explicit menu bindings (arrow
-        // keys by default) remain available and take precedence on their axis.
+        // Movement bindings also navigate menus. Optional non-arrow keyboard
+        // bindings and controller D-pad actions take precedence on their axis.
         // This respects remapped movement keys without hard-coding WASD.
         if(held(ModernAction::menu_confirm))out.buttons|=0x8000;
         if(can_save && held(ModernAction::menu_save))out.buttons|=0x2000;

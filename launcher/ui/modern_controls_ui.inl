@@ -148,7 +148,7 @@
     actions+=modernButton("mc-cancel","Cancel");
     host->SetInnerRML("<div class=\"mc-overlay-shade\"><div class=\"mc-overlay-panel mc-panel-"+modernPanel+"\"><div class=\"mc-overlay-title\">"+
       (modernPanel=="picker"?modernChip(modernSelected,true,40):"")+"<span class=\"mc-overlay-heading\"><strong>"+escape(title)+"</strong>"+
-      (modernPanel=="picker"?"<span>Choosing an action moves it here from its current binding.</span>":"")+"</span>"+
+      (modernPanel=="picker"?"<span>A key or button can have multiple actions. Click an assigned action to remove only that action.</span>":"")+"</span>"+
       mcControl("mc-dismiss","×","mc-overlay-close")+"</div><div id=\"mc-overlay-body\" class=\"mc-overlay-body\">"+body+"</div><div class=\"mc-overlay-actions\">"+actions+"</div></div></div>");
     host->SetProperty("display","block");
     if(auto* cancel=el("action-mc-cancel"))cancel->Focus(true);
@@ -226,6 +226,10 @@
       binding=delta>0?jfg::kPcWheelUp:jfg::kPcWheelDown;
     }
     if(binding>=0) {
+      if(jfg::modern_arrow_key(binding)) {
+        label("mc-capture-status","Use a letter, number or function key. Movement keys navigate menus.");
+        return true;
+      }
       if(modernReleased && binding!=VK_F11 && modernHasFocus())modernCaptured(binding);
       return true;
     }
@@ -430,7 +434,13 @@
     if(a.rfind("mc-palette-",0)==0){const int i=std::stoi(a.substr(11));if(i>=0 && i<int(jfg::kModernActionCount))modernBeginCapture(i);return true;}
     if(a=="mc-add-key"){modernBeginCapture(-2);return true;}
     if(a.rfind("mc-capture-",0)==0){const int i=std::stoi(a.substr(11));if(i>=0 && i<int(jfg::kModernActionCount))modernBeginCapture(i);return true;}
-    if(a.rfind("mc-assign-",0)==0){modernBind(std::stoi(a.substr(10)),modernSelected);return true;}
+    if(a.rfind("mc-assign-",0)==0) {
+      const int index=std::stoi(a.substr(10));
+      const auto& bindings=pcKeyboard()?modern[player].keys:modern[player].pad;
+      if(index>=0 && index<int(jfg::kModernActionCount))
+        modernBind(index,bindings[index]==modernSelected?(pcKeyboard()?0:-1):modernSelected);
+      return true;
+    }
     if(a.rfind("mc-clear-",0)==0){modernBind(std::stoi(a.substr(9)),pcKeyboard()?0:-1);return true;}
     if(a=="mc-conflict-replace" || a=="mc-conflict-both") {
       modernBind(modernPendingAction,modernPendingBinding,a=="mc-conflict-replace"?jfg::ModernBindPolicy::replace_conflicts:jfg::ModernBindPolicy::keep_both);return true;

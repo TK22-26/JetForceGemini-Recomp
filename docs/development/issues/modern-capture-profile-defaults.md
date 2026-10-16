@@ -1,6 +1,6 @@
 # INPUT-008: Retained capture profile differs from modern defaults
 
-Status: cause identified; owner's inversion choice corrected live; menu-binding UI verified in tests; delivered in local preview; live confirmation pending. Severity: usability. Affected: draw-key preview, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e and retained route-capture profile.
+Status: owner-requested unified Keys revision verified in tests and screenshot review; local delivery pending. Severity: usability. Affected: draw-key preview, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e and retained route-capture profile.
 
 During the longer owner measurement the owner reports unexpected mouse direction and E not acting as the expected A/Confirm. The attached Scooby-Doo image was accidental; the owner confirms JFG. Turning vertical inversion Off fixes the direction according to the owner.
 
@@ -34,3 +34,17 @@ The native offscreen RmlUi suite passes 717 checks, including the owner reproduc
 
 
 The local High Refresh Preview launcher was updated after native UI validation and launcher/setup checks. Runtime remains unchanged. Commit 95b084a contains the editor fix. The first combined packaging test could not find source fixtures from the external D: staging directory; running the same compiled C# suite from inside the checkout passed, followed by packaging. All failed output is retained. Live owner confirmation remains pending.
+
+
+## Owner revision: unified Keys list and shared actions (2026-10-16)
+
+The owner rejects a separate Menus & dialogue card and arrow-key navigation. Keep Mouse and the W/A/S/D movement list at the left; put Confirm, Back, Save and every other added keyboard key in the right-hand Keys list, including new movement/menu bindings. The owner explicitly requests E for both Interact and Confirm. Candidate removes context filtering from input rows, shows every assigned action on a shared key, and lets selecting an already assigned action remove only that assignment. Existing overlapping-context Keep both remains available. Defaults remove arrows; legacy modern profiles retire arrow bindings while preserving non-arrow choices, inversion, controller bindings and saves. Original controller mapping is outside this policy. No live profile has been changed yet. Native UI/core checks and package delivery remain pending.
+
+
+The first revised checks exposed two obsolete test assumptions: the arrow-only test accidentally retained held W, and the old clear-row test expected hidden menu assignments to survive clearing that physical input. The new list displays all assignments, so clearing an input clears its visible actions; removing one assigned action in its picker preserves the others. Regression expectations now explicitly test both operations and restore the shared controller Confirm before continuing. The failed evidence is retained.
+
+
+Core controls checks pass (155), and the native offscreen UI suite passes 772 checks with no physical desktop input. Coverage includes new Confirm/menu/movement keys in Keys, shared E persistence and per-action removal, Keep both for overlapping actions, no arrow rows/capture, left lists retained, diagram uniqueness and DPI geometry. The second wrapper accidentally read the first failed UI result while the new executable succeeded; verified-checks.json pins the actual successful ui-checks-02/result.json and source hashes. Both artifacts remain intact. Screenshots and package qualification follow.
+
+
+Screenshot review confirms separate left Mouse/WASD groups and one right Keys group, including F/Q/F5 and shared E: Interact + Confirm without truncation at the reference size. The reticle renderer source is unchanged by this revision. Current [qualification](../../../evidence/unified-modern-keys.json) pins the controls runtime and bounded checks; delivery follows. Compatibility lesson: list physical inputs across all action contexts, keep shared actions independently editable, and do not hide newly added inputs behind context filters or a second category.

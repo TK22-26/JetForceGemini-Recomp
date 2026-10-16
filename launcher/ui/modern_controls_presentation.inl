@@ -48,7 +48,7 @@
       (selected?" selected":"")+(disabled?" disabled":"")+"\""+(disabled?" disabled=\"disabled\"":"")+
       (close?" aria-label=\"Close dialog\"":clear?" aria-label=\"Clear binding\"":"")+">"+content+"</button>";
   }
-  unsigned modernShownContext() const {return modernContext==jfg::kModernGameplay?3:modernContext;}
+  unsigned modernShownContext() const {return jfg::kModernGameplay | jfg::kModernScoped | jfg::kModernMenus;}
   std::string modernShownActions(int binding) const {
     if(binding==-12)return "Look";
     auto result=modernActionNames(binding,modernShownContext());
@@ -160,17 +160,14 @@
       if(!extra.empty())groups.push_back({"OTHER INPUTS",extra});
       return groups;
     }
-    std::vector<int> moves,keys;
-    for(auto a:{jfg::ModernAction::move_forward,jfg::ModernAction::move_left,jfg::ModernAction::move_back,jfg::ModernAction::move_right}) {
-      const int b=modern[player].keys[std::size_t(a)];
-      if(b>6 && b<256 && std::find(moves.begin(),moves.end(),b)==moves.end())moves.push_back(b);
-    }
-    // The list shows bindings for the displayed gameplay/scope actions.
-    // Menu-only actions are shown separately by modernMenuBindingsHtml().
-    for(std::size_t i=0;i<modern[player].keys.size();++i) {
-      const int b=modern[player].keys[i];
-      if(b>6 && b<256 && (jfg::kModernActions[i].contexts&modernShownContext()) &&
-        std::find(moves.begin(),moves.end(),b)==moves.end() && std::find(keys.begin(),keys.end(),b)==keys.end())keys.push_back(b);
+    // Keep the familiar left-hand movement keys in place. Every other bound
+    // keyboard key belongs to Keys, regardless of its action or input context.
+    const std::vector<int> moves{'W','A','S','D'};
+    std::vector<int> keys;
+    for(int b:modern[player].keys) {
+      if(b>6 && b<256 && !jfg::modern_arrow_key(b) &&
+        std::find(moves.begin(),moves.end(),b)==moves.end() &&
+        std::find(keys.begin(),keys.end(),b)==keys.end())keys.push_back(b);
     }
     std::vector<int> mouse{-12,1,2,4,256,257};
     for(int b:{5,6})if(std::find(modern[player].keys.begin(),modern[player].keys.end(),b)!=modern[player].keys.end())mouse.push_back(b);
@@ -208,27 +205,6 @@
     return html+"</section>";
   }
 
-  std::string modernMenuBindingsHtml() {
-    const auto& binds=pcKeyboard()?modern[player].keys:modern[player].pad;
-    std::string html="<section id=\"mc-menu-bindings\" class=\"mc-binding-group mc-menu-group"+
-      std::string(pcKeyboard()?" mc-key-group":"")+"\"><div class=\"mc-section-title\">MENUS &amp; DIALOGUE</div>";
-    for(auto action:{jfg::ModernAction::menu_confirm,jfg::ModernAction::menu_back,
-        jfg::ModernAction::menu_up,jfg::ModernAction::menu_down,jfg::ModernAction::menu_left,
-        jfg::ModernAction::menu_right,jfg::ModernAction::menu_save}) {
-      const auto index=std::size_t(action);const auto number=std::to_string(index);
-      const int binding=binds[index];const bool unbound=binding==(pcKeyboard()?0:-1);
-      const std::string name=action==jfg::ModernAction::menu_confirm?"Confirm / dialogue":std::string(jfg::kModernActions[index].label);
-      // IDs and clear operations use the action, because E can also be Interact.
-      html+="<div id=\"mc-menu-row-"+number+"\" class=\"mc-binding-row\"><span class=\"mc-chip-space\">"+
-        (unbound?"<span class=\"muted\">—</span>":modernChip(binding))+
-        "</span><span class=\"mc-physical-name\">"+escape(unbound?"Unbound":modernInputDescription(binding))+"</span>";
-      html+="<button id=\"mc-menu-binding-"+number+"\" data-action=\"mc-capture-"+number+
-        "\" class=\"mc-binding-value\""+std::string(modernOnline()?"":" disabled=\"disabled\"")+"><span>"+escape(name)+
-        "</span></button>"+mcControl("mc-clear-"+number,"","mc-row-clear"+std::string(unbound?" invisible":""),false,unbound)+"</div>";
-    }
-    return html+"<div class=\"mc-hint\">Confirm advances dialogue and selects menu options. Click an action to change its key or button.</div></section>";
-  }
-
   std::string modernHowHtml() {
     const auto& c=modern[player];const auto& binds=pcKeyboard()?c.keys:c.pad;
     const auto key=[&](jfg::ModernAction a){
@@ -262,11 +238,11 @@
   std::string modernRowsHtml() {
     const auto groups=modernGroups();std::string html="<div class=\"mc-columns\">";
     if(pcKeyboard()) {
-      html+="<div id=\"mc-column-0\" class=\"mc-column\">"+modernGroupHtml(groups[0])+modernGroupHtml(groups[1])+"</div><div id=\"mc-column-1\" class=\"mc-column\">"+modernGroupHtml(groups[2])+modernMenuBindingsHtml()+"</div><div id=\"mc-column-2\" class=\"mc-column\">"+modernHowHtml()+"</div>";
+      html+="<div id=\"mc-column-0\" class=\"mc-column\">"+modernGroupHtml(groups[0])+modernGroupHtml(groups[1])+"</div><div id=\"mc-column-1\" class=\"mc-column\">"+modernGroupHtml(groups[2])+"</div><div id=\"mc-column-2\" class=\"mc-column\">"+modernHowHtml()+"</div>";
     } else {
       html+="<div id=\"mc-column-0\" class=\"mc-column\">"+modernGroupHtml(groups[0])+modernGroupHtml(groups[1])+"</div><div id=\"mc-column-1\" class=\"mc-column\">"+modernGroupHtml(groups[2])+modernGroupHtml(groups[3]);
       if(groups.size()>5)html+=modernGroupHtml(groups[5]);
-      html+="</div><div id=\"mc-column-2\" class=\"mc-column\">"+modernGroupHtml(groups[4])+modernMenuBindingsHtml()+modernHowHtml()+"</div>";
+      html+="</div><div id=\"mc-column-2\" class=\"mc-column\">"+modernGroupHtml(groups[4])+modernHowHtml()+"</div>";
     }
     return html+"</div>";
   }
@@ -322,7 +298,6 @@
     const int selected=modernSelectedInput();
     std::string html="<div class=\"mc-diagram-layout\"><div id=\"mc-diagram-list\" class=\"mc-diagram-list\">";
     for(const auto& group:modernGroups())html+=modernGroupHtml(group,true);
-    html+=modernMenuBindingsHtml();
     html+="</div><div class=\"mc-diagram-stage\"><div class=\"mc-art-area\">"+(pcKeyboard()?modernKeyboardArt():modernPadArt())+"</div>";
     html+="<div class=\"mc-current\">"+modernChip(selected,true,44)+"<span class=\"mc-current-copy\"><strong>"+escape(modernShownActions(selected))+"</strong><span>"+escape(modernInputDescription(selected))+" · "+escape(modernContextName(modernContext))+"</span></span>";
     const auto& binds=pcKeyboard()?modern[player].keys:modern[player].pad;int first=-1;
@@ -428,7 +403,7 @@
         const bool assigned=!captureAction && binding==modernSelected;
         rows+=mcControl(std::string(captureAction?"mc-palette-":"mc-assign-")+std::to_string(i),
           "<span class=\"mc-option-copy\"><strong>"+escape(std::string(jfg::kModernActions[i].label))+"</strong><span>"+escape(modernActionDescription(i))+"</span></span>"+
-          "<span class=\"mc-option-current\"><span>"+std::string(assigned?"On this button":unbound?"Unbound":"Currently")+"</span>"+
+          "<span class=\"mc-option-current\"><span>"+std::string(assigned?"Assigned (click to remove)":unbound?"Unbound":"Currently")+"</span>"+
           (unbound?"":modernChip(binding,false,26))+"</span>","mc-action-option",assigned);
       }
       if(!rows.empty())html+="<div class=\"mc-section-title\">"+std::string(group.title)+"</div>"+rows;

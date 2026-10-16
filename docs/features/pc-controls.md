@@ -86,7 +86,7 @@ sound. Character selection has clickable left/right arrows; click its central
 label or press E to accept and return.
 
 WASD (or rebound movement keys) also navigates menus. A/D adjusts native settings
-such as music volume; dedicated arrow bindings remain available. E selects at a
+such as music volume. Modern Controls uses movement keys for navigation and removes arrow bindings. E selects at a
 menu root and closes informational pages such as Health, Weapons, Inventory,
 Tribals and Ship Parts. E also finishes Character selection and ordinary Options
 adjustment. Q and right-click are Back, including on Map; E on Map retains the
