@@ -167,9 +167,9 @@ public:
     return valid(address, 1) && offset < data_.size() ? data_[offset] : 0;
   }
   std::uint16_t u16(std::uint32_t address) const {
-    return valid(address, 2)
+    return static_cast<std::uint16_t>(valid(address, 2)
                ? (std::uint16_t(u8(address)) << 8U) | u8(address + 1U)
-               : 0;
+               : 0);
   }
   std::uint32_t u32(std::uint32_t address) const {
     if (!valid(address, 4) || (address & 3U))

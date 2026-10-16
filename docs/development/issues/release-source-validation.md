@@ -23,3 +23,16 @@ initialization for omitted aggregate pose members; they now have `{}` initialize
 preserving the previous value-initialization behavior. These are compile defects,
 not observed gameplay regressions. The initial failed CI run is retained as
 38977882410. Full host GCC/CTest qualification is required before the follow-up push.
+
+The follow-up CI passed GCC Debug and Release (99 tests each), then caught signed
+fixture indexing under Clang and promoted byte-expression narrowing under the
+sanitizer compiler. The fixture explicitly validates/casts nonnegative indices;
+the bounded two-byte read explicitly narrows its combined result. The byte values
+and camera/reticle behavior are unchanged. Failed run 38978308958 is retained.
+Full Clang and sanitizer build/test coverage is required before the next push.
+
+The full local AddressSanitizer + undefined-behavior build passes all 84 tests
+in the CI scope (the existing isolated trap-probe quarantine is unchanged).
+Clang is not installed in this WSL distribution, so its configuration failed
+before compilation. Clang validation remains a required GitHub CI job; no compiler
+warning, required check or production guard is disabled to work around that absence.

@@ -436,13 +436,13 @@ int main() {
     "next input snapshot preserves new events without repeating focus loss");
   jfg::ControllerInputGate focusGate;std::array<jfg::ControllerPortSample,4> resumed{};
   if(focusMotion.focus_lost)(void)focusGate.blocked(true,resumed);
-  resumed[0]=jfg::map_pc_keyboard(jfg::pc_keyboard_preset(),[&](int key){return key<256&&(held[key]||pressed[key]);});
+  resumed[0]=jfg::map_pc_keyboard(jfg::pc_keyboard_preset(),[&](int key){return key>=0&&key<256&&(held[static_cast<std::size_t>(key)]||pressed[static_cast<std::size_t>(key)]);});
   check(focusGate.blocked(false,resumed),"click which restores focus cannot fire");
   mailbox.key(1,false);pressed.fill(false);mailbox.consume(held,pressed,closed);
-  resumed[0]=jfg::map_pc_keyboard(jfg::pc_keyboard_preset(),[&](int key){return key<256&&(held[key]||pressed[key]);});
+  resumed[0]=jfg::map_pc_keyboard(jfg::pc_keyboard_preset(),[&](int key){return key>=0&&key<256&&(held[static_cast<std::size_t>(key)]||pressed[static_cast<std::size_t>(key)]);});
   check(!focusGate.blocked(false,resumed),"focus click release re-arms keyboard and mouse");
   mailbox.key(1,true);mailbox.consume(held,pressed,closed);
-  resumed[0]=jfg::map_pc_keyboard(jfg::pc_keyboard_preset(),[&](int key){return key<256&&(held[key]||pressed[key]);});
+  resumed[0]=jfg::map_pc_keyboard(jfg::pc_keyboard_preset(),[&](int key){return key>=0&&key<256&&(held[static_cast<std::size_t>(key)]||pressed[static_cast<std::size_t>(key)]);});
   check(!focusGate.blocked(false,resumed)&&(resumed[0].buttons&0x2000),"fresh click after focus release fires normally");
   jfg::WindowInputMailbox repeatBox;pressed.fill(false);
   repeatBox.key('W',true);repeatBox.key('W',true,true);repeatBox.consume_frame(held,pressed,closed);
