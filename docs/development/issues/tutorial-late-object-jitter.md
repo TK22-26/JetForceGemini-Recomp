@@ -1,7 +1,6 @@
 # RENDER-006: Late tutorial objects jitter; live cadence drops
 
-Status: **owner-reported visual defect; timing drops verified in the existing
-manual capture; cause and remedy open** (2026-10-13 UTC).
+Status: **deforming bridge remedy verified in bounded rendering tests; owner visual acceptance and broader object coverage remain open** (2026-10-16 UTC).
 Severity: high; the full tutorial does not meet smooth-play acceptance.
 
 ## Report and affected build
@@ -793,3 +792,90 @@ No wooden crates are visible in this capture. This is bounded matching/image
 coverage with a mod-warped route and readback, not full-route visual or physical
 display acceptance. Evidence: lifetime-visible-bridge-review,
 lifetime-visible-bridge-actor-review and the retained image sequence.
+
+## Owner review of optimized preview (2026-10-16 UTC)
+
+The latest owner session confirms runtime 34ce90c9a11bba75a9ae47f3ae3d8a40d635b20357bf8c52391f4bd015a6bff1.
+Gameplay felt substantially more stable, but the late bridge still visibly strobes
+at a 120 FPS target, described as if it only appears at 30 FPS. This is an
+owner-reproduced visual defect; previous numeric tests did not resolve it.
+
+Separately, jumping on the late bridge did not produce the physical response the
+owner expected. **Original-game behavior remains unconfirmed**. The owner
+explicitly requests an original-ROM EmuHawk comparison before classifying this
+as a recomp physics defect. Retained EmuHawk copies are available. Do not alter
+physics based only on this expectation or conflate it with the rendering defect.
+New capture ID: 20261016-062617-3fd7bf54efdd4eab861c018a60fcc3c5.
+Related frequent audio interruptions are tracked in [AUDIO-002](walking-audio-interruptions.md).
+
+The first original-ROM setup reused the earlier lighting fixture save and loaded room 92, not the owner late bridge in room 26. No bridge physics conclusion was drawn. Corrected setup uses a disposable copy of the owner capture initial save and identifies the playerBoy actor explicitly. Original files and failed-target evidence are preserved.
+
+## Owner verifies original bridge physics (2026-10-16 UTC)
+
+The owner independently checked the original game and confirmed: our bridge
+physics are correct. The game requires the bridge to stop bouncing completely
+before another bounce can start. This resolves the reported expectation mismatch;
+no bridge physics repair is required or authorized by that symptom. Preserve the
+original cooldown/settling behavior. The separate visible 120 FPS strobing remains
+an open rendering issue. Emulator setup captures do not supersede this owner
+original-game comparison; no further physics investigation is needed.
+
+## Bending-geometry candidate (2026-10-16 UTC)
+
+The bridge behavior (55 / hitBridgeControl) rewrites model vertex heights.
+Rigid transform matching alone does not interpolate that bending. A default-off
+candidate gives its vertices explicit actor-lifetime/model/logical-index keys.
+Identity and interpolation tests pass; initial visible capture exposes additional
+semantic history rejection and is not a completed fix. New optional per-actor
+rejection diagnostics distinguish invalid samples, cadence, duplicate conflicts,
+missing history and projected-motion cuts. A private landing fixture changes only
+the initial test player placement, then runs the original physics; this fixture
+is removed from the clean build. Evidence and failures remain under private
+route-audio-bridge-20261016. Desktop preview has not changed.
+
+## Owned-camera continuity candidate (2026-10-16 UTC)
+
+The stationary bridge capture reported zero invalid samples, duplicate conflicts,
+missing endpoints or cadence breaks in the late interval, but 2,897 projected
+motion rejections. A near-plane/edge vertex can move far in screen coordinates
+during a continuous camera move, incorrectly holding the whole bridge. The
+candidate reuses bounded owned camera/model/zoom validation for bridge vertices,
+with a separate 128-unit bound on physical vertex movement; character joint
+rules remain strict. Tests cover near-plane camera movement versus actual cuts,
+large deformation and character exclusions. The first placement fixture landed
+at the bridge anchor/end and produced an invalid visible view; it is not bridge
+rendering acceptance. A normal-input walk/jump fixture follows the exit warp.
+Private evidence: bridge-audio-factor-review.json under route-audio-bridge-20261016.
+No live owner verification or release is claimed.
+
+## Deforming bridge capture and regression checks (2026-10-16 UTC)
+
+The qualified visible walk/jump fixture reaches the bridge with ordinary
+movement/jump inputs after test-only exit warps. It records 251,856 bridge
+vertex samples, 250,668 matched endpoints and 7,968 samples with actual
+world-space deformation. The camera-continuity candidate retains over 99% of
+bridge samples; the eight captured images show all four phases at 120 FPS.
+The disabled-candidate walk/jump control reaches the same final player position
+in room 26. Its source-scene ordinals differ slightly, so do not claim identical
+frame-by-frame game state from that control. This is bounded render coverage,
+not ordinary-play performance or owner visual acceptance.
+
+The candidate now defaults on in the development build, with the private
+JFG_DIAGNOSTIC_BRIDGE_VERTICES=0 comparison override. Actor lifetime/model/range
+and camera-cut checks remain in force; behavior 55 alone gets deforming bridge
+vertex identities. Semantic, original timing and native event-batch tests pass.
+Evidence: bridge-walk-visible, bridge-walk-baseline and bridge-default-build in
+private route-audio-bridge-20261016. Desktop preview is not updated yet.
+
+
+## Qualified bridge geometry remedy (2026-10-16 UTC)
+
+The clean default-build walk/jump capture has 249,876 bridge samples, 248,688
+matched endpoints and 7,968 actually deforming samples. The visible bridge is
+present through all captured intermediate phases. Actor/model ownership and
+camera continuity tests pass. This addresses missing bending interpolation;
+the owner-confirmed settling restriction remains original game behavior.
+The final native audio tail-overflow correction does not modify renderer code.
+[Qualification](../../../evidence/high-refresh-audio-bridge.json) binds captures,
+source hashes and tests. Owner visual verification, other late objects and
+shadow cadence remain separately open.

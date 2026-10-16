@@ -408,7 +408,8 @@ hlslpp::float4x4 presentation_matrix(const PresentationMatrix& m) {
 SemanticVertexState semantic_vertex(const Context& context,std::uint32_t source,
                                    const std::array<float,3>& local,
                                    const PresentationRigidIdentity* rigid,
-                                   const PresentationBeamIdentity* beam) {
+                                   const PresentationBeamIdentity* beam,
+                                   const PresentationModelIdentity* bridge) {
     SemanticVertexState result;
     result.source = source;
     if(!context.identities || context.billboard) return result;
@@ -419,6 +420,21 @@ SemanticVertexState semantic_vertex(const Context& context,std::uint32_t source,
             (std::uint64_t(beam->actor)<<32U)|beam->control,
             (std::uint64_t(beam->header)<<16U)|beam->flags,rigid->camera,
             0x4245414dU,(source-beam->vertices)/10U};
+        result.world=rigid->pose.world;
+        result.sample.camera=presentation_matrix(hlslpp::mul(
+            presentation_matrix(rigid->pose.view),presentation_matrix(rigid->pose.projection)));
+        const auto world=hlslpp::mul(hlslpp::float4(local[0],local[1],local[2],1.0f),
+            presentation_matrix(result.world));
+        result.sample.world={world.x,world.y,world.z};
+        result.sample.valid=std::isfinite(float(world.w)) &&
+            std::abs(float(world.w)-1.0f)<0.001f;
+        return result;
+    }
+    if (bridge && rigid->camera && rigid_pose_matches_matrix(rigid->pose,
+            presentation_matrix(context.matrices[slot]))) {
+        result.sample.key={bridge->lifetime,
+            (std::uint64_t(bridge->actor)<<32U)|bridge->instance,
+            bridge->model,rigid->camera,0x42524944U,(source-bridge->vertices)/10U};
         result.world=rigid->pose.world;
         result.sample.camera=presentation_matrix(hlslpp::mul(
             presentation_matrix(rigid->pose.view),presentation_matrix(rigid->pose.projection)));
@@ -508,6 +524,21 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
     const auto* beam = rigid_owner ? presentation_beam_vertex(
         *context->identities,*rigid_owner,address) : nullptr;
     if (beam && count > (80U-(address-beam->vertices))/10U) beam=nullptr;
+    static const bool bridge_vertices_enabled=[] {
+#ifdef _MSC_VER
+        char* value=nullptr;std::size_t length=0U;
+        if(_dupenv_s(&value,&length,"JFG_DIAGNOSTIC_BRIDGE_VERTICES")!=0)return false;
+        const bool enabled=!value || (length==2U && value[0]=='1');
+        std::free(value);return enabled;
+#else
+        const char* value=std::getenv("JFG_DIAGNOSTIC_BRIDGE_VERTICES");
+        return !value || std::strcmp(value,"1")==0;
+#endif
+    }();
+    const auto* bridge=bridge_vertices_enabled && rigid_owner
+        ? presentation_bridge_vertices(*context->identities,*rigid_owner,address,
+            static_cast<std::uint32_t>(count)) : nullptr;
+
     if (context->billboard) {
         const int workload_cursor = state->ext.workloadQueue->writeCursor;
         RT64::Workload& workload =
@@ -573,7 +604,7 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
                 const auto& positions=workload.drawData.posFloats;
                 context->semantic_vertices[global]=semantic_vertex(*context,
                     address+static_cast<std::uint32_t>((index-first)*10U),
-                    {positions[global*3U],positions[global*3U+1U],positions[global*3U+2U]},rigid_owner,beam);
+                    {positions[global*3U],positions[global*3U+1U],positions[global*3U+2U]},rigid_owner,beam,bridge);
                 context->semantic_vertices[global].billboard_key =
                     billboard_key;
                 context->semantic_vertices[global].rigid_key = rigid_key;
@@ -1051,6 +1082,15 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         if (!data.modifyPosUints.empty()) sample.valid = false;
         semantic_samples.push_back(sample);
     }
+    SemanticRigidPoses semantic_rigid_poses;
+    std::set<std::uint64_t> semantic_pose_conflicts;
+    for(const auto& vertex:context.semantic_vertices) {
+        if(!vertex.sample.valid || vertex.sample.key[4]!=0x42524944U || !vertex.rigid_pose)continue;
+        const auto lifetime=vertex.sample.key[0];
+        const auto [it,inserted]=semantic_rigid_poses.emplace(lifetime,*vertex.rigid_pose);
+        if(!inserted && it->second!=*vertex.rigid_pose)semantic_pose_conflicts.insert(lifetime);
+    }
+    for(const auto lifetime:semantic_pose_conflicts)semantic_rigid_poses.erase(lifetime);
     const bool semantic_cadence = context.presentation_history.has_continuous_cadence(context.vi_tick, scene);
     std::fenv_t semantic_environment{};
     const bool semantic_parallel = scene && semantic_samples.size() >= 128 &&
@@ -1062,10 +1102,22 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     };
     auto semantic_job = std::async(semantic_parallel ? std::launch::async : std::launch::deferred,
         [&context, values = std::move(semantic_samples), tick = context.vi_tick, scene,
-         semantic_cadence, semantic_parallel, semantic_environment]() mutable {
+         semantic_cadence, semantic_parallel, semantic_environment,
+         poses=std::move(semantic_rigid_poses)]() mutable {
             const ScopedFloatingEnvironment environment(
                 semantic_parallel ? &semantic_environment : nullptr);
-            auto history = context.semantic_history.record(values, tick, scene, semantic_cadence);
+            SemanticPresentationDiagnostics reasons;
+            auto history = context.semantic_history.record(values, tick, scene, semantic_cadence,
+                interpolation_trace_enabled()?&reasons:nullptr,&poses);
+            for(const auto& [lifetime,counts]:reasons) {
+                const auto sample=std::find_if(values.begin(),values.end(),[&](const auto& s){
+                    return s.key[0]==lifetime;
+                });
+                const auto actor=sample==values.end()?0U:static_cast<unsigned>(sample->key[1]>>32U);
+                trace_interpolation("semantic-reject",tick,actor,
+                    static_cast<unsigned>(counts[0]),static_cast<unsigned>(counts[1]),
+                    static_cast<unsigned>(counts[2]),0.0f,counts[3],counts[4]);
+            }
             return SemanticResult{std::move(values), std::move(history), floating_exception_flags()};
         });
     std::vector<PresentationMesh> meshes(data.worldTransforms.size());
@@ -1309,6 +1361,15 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     if(scene) trace_interpolation("semantic",context.vi_tick,frame->source_rate,0U,0U,
         static_cast<unsigned>(semantic_count),0.0f,matched_count,moving_count);
     if (scene && interpolation_trace_enabled()) {
+        std::map<std::uint32_t,std::array<unsigned,3>> bridges;
+        for (std::size_t v=0;v<samples.size();++v) if(samples[v].key[4]==0x42524944U) {
+            auto& count=bridges[static_cast<std::uint32_t>(samples[v].key[1]>>32U)];
+            ++count[0];count[1]+=history[v].matched;
+            count[2]+=history[v].matched && samples[v].world!=history[v].world;
+        }
+        for (const auto& [actor,count]:bridges)
+            trace_interpolation("bridge-owned",context.vi_tick,actor,0U,0U,
+                count[0],0.0f,count[1],count[2]);
         std::map<std::uint32_t,std::array<unsigned,2>> beams;
         for (std::size_t v=0;v<samples.size();++v) if(samples[v].key[4]==0x4245414dU) {
             auto& count=beams[static_cast<std::uint32_t>(samples[v].key[1]>>32U)];

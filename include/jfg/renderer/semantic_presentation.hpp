@@ -1,6 +1,7 @@
 #pragma once
 #include "jfg/renderer/interpolation_history.hpp"
 #include <set>
+#include <map>
 #include <functional>
 #include <algorithm>
 #include <limits>
@@ -71,6 +72,10 @@ struct PresentationVertexHash {
     return result;
   }
 };
+// Optional per-lifetime reasons: invalid sample, cadence break, conflicting
+// duplicate, missing old endpoint, projected-motion cut, matched vertex.
+using SemanticPresentationDiagnostics=std::map<std::uint64_t,std::array<std::uint64_t,6>>;
+using SemanticRigidPoses=std::map<std::uint64_t,RigidPresentationPose>;
 class SemanticPresentationHistory {
   struct Endpoint {
     SemanticPresentationSample sample;
@@ -115,7 +120,9 @@ class SemanticPresentationHistory {
 public:
   std::vector<SemanticPresentationPrevious>
   record(const std::vector<SemanticPresentationSample> &samples,
-         std::uint64_t tick, bool scene, bool cadence) {
+         std::uint64_t tick, bool scene, bool cadence,
+         SemanticPresentationDiagnostics* diagnostics=nullptr,
+         const SemanticRigidPoses* rigid_poses=nullptr) {
     std::vector<SemanticPresentationPrevious> result(samples.size());
     if (!scene)
       return result;
@@ -124,11 +131,35 @@ public:
     const bool continuous = cadence && previous_tick_ != 0U &&
                             tick > previous_tick_ &&
                             tick - previous_tick_ <= 6U;
+    std::set<std::uint64_t> continuous_rigids;
+    if(rigid_poses)for(const auto& [lifetime,pose]:*rigid_poses) {
+      const auto old=previous_rigid_poses_.find(lifetime);
+      if(old!=previous_rigid_poses_.end() && continuous_owned_camera_motion(old->second,pose))
+        continuous_rigids.insert(lifetime);
+    }
+    const auto bridge_continuous=[&](const auto& old,const auto& current) {
+      if(current.key[4]!=0x42524944U || !continuous_rigids.contains(current.key[0]))
+        return false;
+      for(float value:old.camera)if(!std::isfinite(value))return false;
+      for(float value:current.camera)if(!std::isfinite(value))return false;
+      double distance2=0;
+      for(unsigned c=0;c<3;++c) {
+        if(!std::isfinite(old.world[c]) || !std::isfinite(current.world[c]))return false;
+        const auto delta=double(current.world[c])-old.world[c];distance2+=delta*delta;
+      }
+      // Retain a world-space bound on actual deformation. Camera/zoom/model
+      // cuts have already been checked using the immutable owned operands.
+      return distance2<=128.0*128.0;
+    };
     for (std::size_t i = 0; i < samples.size(); ++i) {
       const auto &s = samples[i];
       const auto actor = s.key[0];
       if (actor == 0U)
         continue;
+      if(diagnostics) {
+        (*diagnostics)[actor][0]+=!s.valid;
+        (*diagnostics)[actor][1]+=!continuous;
+      }
       if (!s.valid || !continuous)
         blocked.insert(actor);
       if (!s.valid) {
@@ -147,16 +178,23 @@ public:
       } else {
         blocked.insert(actor);
         corrupt.insert(actor);
+        if(diagnostics)++(*diagnostics)[actor][2];
       }
       // A unique NaN endpoint was rejected by the original duplicate audit.
       // Preserve its poison even when that vertex is culled next scene.
       for (float value:s.world) if (std::isnan(value)) corrupt.insert(actor);
       for (float value:s.camera) if (std::isnan(value)) corrupt.insert(actor);
       const auto old = previous_.find(s.key);
-      if (old == nullptr || !semantic_motion_continuous(old->sample, s))
+      if (old == nullptr) {
         blocked.insert(actor);
-      else
+        if(diagnostics)++(*diagnostics)[actor][3];
+      } else if(!semantic_motion_continuous(old->sample,s) && !bridge_continuous(old->sample,s)) {
+        blocked.insert(actor);
+        if(diagnostics)++(*diagnostics)[actor][4];
+      } else {
         result[i] = {old->sample.world, old->sample.camera, true};
+        if(diagnostics)++(*diagnostics)[actor][5];
+      }
     }
     for (std::size_t i = 0; i < samples.size(); ++i)
       if (blocked.contains(samples[i].key[0]))
@@ -166,11 +204,13 @@ public:
       if (corrupt.contains(entry.sample.key[0])) entry.sample.valid=false;
     std::swap(previous_,next_);
     previous_tick_ = tick;
+    previous_rigid_poses_=rigid_poses?*rigid_poses:SemanticRigidPoses{};
     return result;
   }
 
 private:
   Endpoints previous_, next_;
+  SemanticRigidPoses previous_rigid_poses_;
   std::uint64_t previous_tick_ = 0;
 };
 } // namespace jfg

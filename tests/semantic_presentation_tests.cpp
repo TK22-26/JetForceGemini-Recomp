@@ -40,6 +40,40 @@ int main() {
 
   const jfg::PresentationMatrix identity{1, 0, 0, 0, 0, 1, 0, 0,
                                          0, 0, 1, 0, 0, 0, 0, 1};
+  // A near-plane vertex can move a large screen distance during a tiny,
+  // valid camera move. A bending bridge uses owned camera operands, while
+  // character joints and real camera/model/deformation cuts remain strict.
+  {
+    jfg::RigidPresentationPose pose{identity,identity,identity};
+    pose.projection[11]=1;pose.projection[15]=0;
+    jfg::SemanticPresentationSample old{{90,2,3,4,0x42524944U,0},
+        {1,0,0.01f},pose.projection,true};
+    auto moved=old;moved.camera[12]=0.1f;moved.world[1]=0.05f;
+    require(!jfg::semantic_motion_continuous(old,moved));
+    jfg::SemanticRigidPoses poses{{90,pose}};
+    jfg::SemanticPresentationHistory bridge;
+    (void)bridge.record({old},10,true,true,nullptr,&poses);
+    poses[90].view[12]=0.1f;
+    require(bridge.record({moved},12,true,true,nullptr,&poses)[0].matched);
+    auto jump=moved;jump.world[1]=200;
+    require(!bridge.record({jump},14,true,true,nullptr,&poses)[0].matched);
+    jfg::SemanticPresentationHistory camera_cut;
+    (void)camera_cut.record({old},10,true,true,nullptr,&poses);
+    poses[90].view[12]=1000;
+    require(!camera_cut.record({moved},12,true,true,nullptr,&poses)[0].matched);
+    jfg::SemanticPresentationHistory invalid_camera;
+    poses[90]=pose;
+    (void)invalid_camera.record({old},10,true,true,nullptr,&poses);
+    auto nan_camera=moved;nan_camera.camera[0]=std::numeric_limits<float>::quiet_NaN();
+    poses[90].view[12]=0.1f;
+    require(!invalid_camera.record({nan_camera},12,true,true,nullptr,&poses)[0].matched);
+    old.key[4]=moved.key[4]=1;
+    jfg::SemanticPresentationHistory character;
+    poses[90]=pose;
+    (void)character.record({old},10,true,true,nullptr,&poses);
+    poses[90].view[12]=0.1f;
+    require(!character.record({moved},12,true,true,nullptr,&poses)[0].matched);
+  }
   jfg::SemanticPresentationSample a{
       {1, 2, 3, 4, 5, 6}, {0, 0, 0}, identity, true};
   auto b = a;
@@ -353,6 +387,33 @@ int main() {
   require(rigid_tracker.capture(ram,214).rigids.empty());
   rigid_tracker.rigid(ram,0x80190001U,0x80100000U,216);
   require(rigid_tracker.capture(ram,216).rigids.empty());
+  // Bending bridge geometry has stable actor/model/vertex ownership, even
+  // when its vertex buffer changes. No other behavior gets this path.
+  w8(0x80100048U,0);w8(0x80100049U,55);
+  rigid_tracker.rigid(ram,0x80190000U,0x80100000U,218);
+  auto bridge_scene=rigid_tracker.capture(ram,218);
+  require(bridge_scene.models[0].deforming_bridge && bridge_scene.rigids.size()==1);
+  const auto* bridge=jfg::presentation_bridge_vertices(
+      bridge_scene,bridge_scene.rigids[0],0x16000aU,2);
+  require(bridge && bridge->instance==0x80140000U);
+  const auto bridge_lifetime=bridge->lifetime;
+  require(!jfg::presentation_bridge_vertices(bridge_scene,bridge_scene.rigids[0],0x16000aU,3));
+  require(!jfg::presentation_bridge_vertices(bridge_scene,bridge_scene.rigids[0],0x160001U,1));
+  require(!jfg::presentation_bridge_vertices(bridge_scene,bridge_scene.rigids[0],0x160000U,0));
+  auto wrong_bridge_owner=bridge_scene.rigids[0];++wrong_bridge_owner.actor;
+  require(!jfg::presentation_bridge_vertices(bridge_scene,wrong_bridge_owner,0x160000U,1));
+  wrong_bridge_owner=bridge_scene.rigids[0];++wrong_bridge_owner.lifetime;
+  require(!jfg::presentation_bridge_vertices(bridge_scene,wrong_bridge_owner,0x160000U,1));
+  w32(0x80140004U,0x80161000U);
+  bridge_scene=rigid_tracker.capture(ram,218);
+  bridge=jfg::presentation_bridge_vertices(bridge_scene,bridge_scene.rigids[0],0x16100aU,2);
+  require(bridge && bridge->lifetime==bridge_lifetime && bridge->instance==0x80140000U);
+  require(!jfg::presentation_bridge_vertices(bridge_scene,bridge_scene.rigids[0],0x16000aU,1));
+  bridge_scene.models.push_back(bridge_scene.models[0]);
+  require(!jfg::presentation_bridge_vertices(bridge_scene,bridge_scene.rigids[0],0x16100aU,1));
+  w8(0x80100049U,54);bridge_scene=rigid_tracker.capture(ram,218);
+  require(!jfg::presentation_bridge_vertices(bridge_scene,bridge_scene.rigids[0],0x16100aU,1));
+  w32(0x80140004U,0x80160000U);
   // Procedural beam vertices retain their logical index across the two DMA
   // buffers, but never bind another owner, stale matrix or malformed state.
   w8(0x80100048U,0); w8(0x80100049U,68);

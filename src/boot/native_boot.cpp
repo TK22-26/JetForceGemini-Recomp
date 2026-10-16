@@ -61,6 +61,7 @@
 #include "jfg/boot/native_event_batch.hpp"
 #include "generated_lookup_entry.h"
 #include "jfg/boot/native_periodic_deadline.hpp"
+#include "jfg/boot/native_audio_playback.hpp"
 #include "jfg/boot/reference_flash_bus.hpp"
 #include "jfg/boot/original_timing_ai_dma.hpp"
 #include "jfg/boot/point_probe.hpp"
@@ -1508,6 +1509,7 @@ struct State : JfgOriginalTimingFast {
   bool guest_os_probe = false;
   std::uint64_t diagnostic_input_suspend_begin=0,diagnostic_input_suspend_end=0;
   bool native_audio_source = false;
+  bool native_audio_playback = false;
   std::uint64_t native_audio_source_requests = 0;
   bool timing_fixture = false;
   bool original_os_host_pacing = false;
@@ -7608,6 +7610,66 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   }
 #endif
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
+  if (target == 0x80050154U || target == 0x80001EF8U || target == 0x80001EE8U || target == 0x8008AD10U) {
+    static const bool audio_scheduler_trace = [] {
+      char value[2]{};
+      return GetEnvironmentVariableA("JFG_DIAGNOSTIC_AUDIO_SCHEDULER", value, 2U)==1U && value[0]=='1';
+    }();
+    if (audio_scheduler_trace && state.gameplay_trace && state.mmio_trace) {
+      hle::GuestMemory m({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
+      std::uint32_t countdown=0,frames=0,maximum=0,minimum=0,queued=0,mode=0;
+      if(m.read_u32(0x800A38C8U,countdown) && m.read_u32(0x800A06ECU,frames) &&
+         m.read_u32(0x800F2168U,maximum) && m.read_u32(0x800F216CU,minimum)) {
+        (void)m.read_u32(0x800F1AFCU,queued);(void)m.read_u32(0x800A06DCU,mode);
+        state.gameplay_trace.event("audio-scheduler",{
+          state.vi_retraces,state.controller_samples,target,state.cpu_count,
+          state.mmio_trace->ai_dma.read(4U,state.cpu_count).value_or(UINT32_MAX),
+          state.mmio_trace->ai_dma.deadline().value_or(0U),countdown>>24U,frames,maximum,minimum,
+          state.host_audio.queued_bytes(),state.host_audio.consumed_bytes(),
+          static_cast<std::uint32_t>(context->r7),queued,mode,
+          0U,state.guest_active_rsp_type});
+      }
+    }
+  }
+  if(state.diagnostic_host_clock && state.native_audio_playback) {
+    // Run a completed audio command list as soon as its RSP slot is free.
+    // Waiting for the next notification retrace can strand the audio thread.
+    if(target==0x80050C90U && (static_cast<std::uint32_t>(context->r7)&2U)) {
+      hle::GuestMemory m({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
+      const auto scheduler=static_cast<std::uint32_t>(context->r4);
+      std::uint32_t expected=0,head=0,active=0,kind=0,mode=0,frames=0;
+      if(m.read_u32(0x800E97A0U,expected) && scheduler==expected &&
+          m.read_u32(scheduler+0x2E4U,head) && head &&
+          m.read_u32(scheduler+0x304U,active) && active==0U &&
+          m.read_u32(head+0x10U,kind) && kind==2U &&
+          m.read_u32(0x800A06DCU,mode) && mode==0U &&
+          m.read_u32(0x800A06ECU,frames) && frames==2U) {
+        if(!m.write_u32(scheduler+0x304U,1U))
+          fail_closed_dispatch(state,"audio","ready-task-state",target);
+        if(state.gameplay_trace)state.gameplay_trace.event("audio-ready-task",{
+            state.vi_retraces,state.cpu_count,scheduler,head,state.host_audio.queued_bytes(),
+            state.host_audio.consumed_bytes()});
+      }
+    }
+    if(target==0x80050154U && state.host_audio.started()) {
+      hle::GuestMemory m({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
+      std::uint32_t countdown=0,frames=0,mode=0,queued=0;
+      const auto buffered=state.host_audio.queued_bytes()-state.host_audio.consumed_bytes();
+      if(m.read_u32(0x800A38C8U,countdown) && m.read_u32(0x800A06ECU,frames) &&
+          m.read_u32(0x800A06DCU,mode) && m.read_u32(0x800F1AFCU,queued)) {
+        const auto adjusted=native_audio_countdown(countdown,frames,mode,queued,
+            state.mmio_trace->ai_dma.read(12U,state.cpu_count).value_or(UINT32_MAX),
+            state.host_audio.frequency(),buffered);
+        if(adjusted) {
+          if(!m.write_u32(0x800A38C8U,*adjusted))
+            fail_closed_dispatch(state,"audio","demand-countdown",target);
+          if(state.gameplay_trace)state.gameplay_trace.event("audio-demand",{
+              state.vi_retraces,state.cpu_count,buffered,
+              native_audio_target_bytes(state.host_audio.frequency())});
+        }
+      }
+    }
+  }
   // Private fixture travel request; let mainChangeLevel prepare all globals.
   if (target == 0x8004665CU && state.timing_fixture) {
     if (state.timing_trace)
@@ -8158,6 +8220,13 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
 #endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        static const bool audio_buffer_trace=[] {
+          char value[2]{};
+          return GetEnvironmentVariableA("JFG_DIAGNOSTIC_AUDIO_SCHEDULER",value,2U)==1U && value[0]=='1';
+        }();
+        const bool observe_audio_buffer=audio_buffer_trace && target==0x80096DF0U;
+        const auto ai_buffer_address=observe_audio_buffer ? static_cast<std::uint32_t>(context->r4) : 0U;
+        const auto ai_buffer_length=observe_audio_buffer ? static_cast<std::uint32_t>(context->r5) : 0U;
         const bool observe_camera=state.presentation_identity_enabled && target==0x80040AA4U;
         const auto camera_output=observe_camera ? static_cast<std::uint32_t>(context->r5) : 0U;
         const auto camera_matrix=observe_camera ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(camera_output) : 0U;
@@ -8204,6 +8273,24 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           auto& cost = state.profile_function_costs[target];
           cost.self_ns += self_ns;cost.inclusive_ns += active_ns;++cost.calls;
         }
+        if(target==0x80096DF0U && state.diagnostic_host_clock && state.native_audio_playback &&
+            static_cast<std::uint32_t>(context->r2)==0U) {
+          // Deliver completed PCM before returning to guest/renderer work.
+          // SDL conversion must not alter the guest floating-point context.
+          std::fenv_t audio_environment{};
+          if(std::feholdexcept(&audio_environment)!=0)
+            fail_closed_dispatch(state,"audio","save-fenv",target);
+          const bool rounded=std::fesetround(FE_TONEAREST)==0;
+          const bool delivered=rounded && service_host_audio(state,false);
+          const bool restored=std::fesetenv(&audio_environment)==0;
+          if(!delivered || !restored)
+            fail_closed_dispatch(state,"audio","immediate-host-delivery",target);
+        }
+        if(observe_audio_buffer && state.gameplay_trace)
+          state.gameplay_trace.event("audio-ai-buffer",{state.vi_retraces,state.cpu_count,
+              ai_buffer_address,ai_buffer_length,static_cast<std::uint32_t>(context->r2),
+              state.mmio_trace->ai_dma.read(12U,state.cpu_count).value_or(UINT32_MAX),
+              state.host_audio.queued_bytes(),state.host_audio.consumed_bytes()});
         if (observe_camera && camera_matrix &&
             jfg::PresentationGuestView({rdram,kRdramSize}).u32(camera_output)==camera_matrix+64U)
           state.presentation_identities.camera_completed({rdram,kRdramSize},camera_matrix,state.vi_retraces);
@@ -8365,6 +8452,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         if (state.diagnostic_host_clock_requested) {
           state.diagnostic_host_clock = true;
           state.mmio_trace->native_elapsed_time = true;
+          if(state.native_audio_playback && !state.mmio_trace->ai_dma.native_queue_capacity(4U))
+            fail_closed_dispatch(state,"audio","native-queue-capacity",target);
           state.execution_fast_profile_ready = false;
           state.host_clock_poll_budget = 0U;
           if (!state.host_count_clock.start(state.cpu_count,std::chrono::steady_clock::now()))
@@ -8750,6 +8839,20 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       state.guest_clock_trace << "call\t" << std::hex << target << '\t' << a0 << '\t'
           << a1 << '\t' << a2 << std::dec << '\t' << state.cpu_count << '\n';
     generated(rdram, context);
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+    if(a0==0x800F1AF4U && (target==original_os_entry("osSendMesg") ||
+        target==original_os_entry("osRecvMesg"))) {
+      static const bool observe=[] {
+        char value[2]{};
+        return GetEnvironmentVariableA("JFG_DIAGNOSTIC_AUDIO_SCHEDULER",value,2U)==1U && value[0]=='1';
+      }();
+      if(observe && state.gameplay_trace) {
+        std::uint32_t queued=0;(void)memory.read_u32(a0+8U,queued);
+        state.gameplay_trace.event("audio-notify",{state.vi_retraces,state.cpu_count,target,
+            a0,a1,a2,static_cast<std::uint32_t>(context->r2),queued,state.guest_active_rsp_type});
+      }
+    }
+#endif
     if (target == 0x80097520U) state.os_initialized = true;
     if (target == original_os_entry("osContInit"))
       state.controller_initialized = static_cast<std::uint32_t>(context->r2) == 0U;
@@ -12686,6 +12789,13 @@ int run_child(const char *path, const unsigned retrace_target,
   // Switching providers over outstanding DMA descriptors is not supported.
   state.native_audio_source=audio_source_length==1U || native_preview_play;
   if(state.native_audio_source) jfg::support_event("audio=synchronous-rom-sample-cache");
+  char audio_playback_flag[2]{};
+  const auto audio_playback_length=GetEnvironmentVariableA("JFG_DIAGNOSTIC_NATIVE_AUDIO_PLAYBACK",audio_playback_flag,2U);
+  if(audio_playback_length!=0U && (audio_playback_length!=1U ||
+      (audio_playback_flag[0]!='0' && audio_playback_flag[0]!='1') ||
+      !state.diagnostic_host_clock_requested)) return 3;
+  state.native_audio_playback=audio_playback_length ? audio_playback_flag[0]=='1' : native_preview_play;
+  if(state.native_audio_playback)jfg::support_event("audio=native-demand-playback");
 
   std::string clock_record_path,clock_replay_path;
   const auto clock_path = [](const char* name,std::string& destination) {
@@ -12736,6 +12846,10 @@ int run_child(const char *path, const unsigned retrace_target,
         state.diagnostic_clock_release_vi>=state.retrace_target) return 3;
   }
   if (state.mmio_trace) state.mmio_trace->native_elapsed_time = state.diagnostic_host_clock;
+  if(state.diagnostic_host_clock && state.native_audio_playback && state.mmio_trace &&
+      !state.mmio_trace->ai_dma.native_queue_capacity(4U))
+    fail_closed_dispatch(state,"audio","native-queue-capacity",0U);
+
   if (state.diagnostic_host_clock_requested && (!state.guest_os_probe || !state.original_os_host_pacing ||
       !state.point_probe_pcs.empty() || state.device_event_stream || state.eret_transfer_stream.is_open())) return 3;
   char* model_watch_value = nullptr;

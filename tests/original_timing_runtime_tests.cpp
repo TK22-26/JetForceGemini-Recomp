@@ -41,6 +41,39 @@ int main() {
   ai.advance(end);check(ai.interrupt() && *ai.deadline()==end+(end-100),"queued AI buffer starts at original deadline");
   check(ai.write(12,0,end,4096,783520) && !ai.interrupt(),"AI interrupt acknowledgment");
   ai.advance(*ai.deadline());check(ai.interrupt() && !ai.deadline(),"AI second completion");
+  jfg::boot::OriginalTimingAiDma native_ai;
+  check(!native_ai.native_queue_capacity(1) && !native_ai.native_queue_capacity(5),
+      "native queue expansion remains bounded");
+  check(native_ai.native_queue_capacity(4),"native playback opts into catch-up slots");
+  check(native_ai.write(8,1,0,4096,783520) && native_ai.write(16,2210,0,4096,783520) &&
+      native_ai.write(20,15,0,4096,783520),"native AI format");
+  for(unsigned i=0;i<4;++i) {
+    check(native_ai.read(12,100)==(i?0x40000000U:0U),"free native AI capacity is visible");
+    check(native_ai.write(4,2944,100,4096,783520),"native catch-up retains each buffer");
+  }
+  check(native_ai.read(12,100)==0xC0000000U &&
+      !native_ai.write(4,2944,100,4096,783520),"native queue still rejects overflow");
+  check(!native_ai.native_queue_capacity(2),"capacity cannot discard queued audio");
+  for(unsigned i=1;i<=4;++i) {
+    const auto expected=100U+i*(end-100U);
+    check(native_ai.deadline()==expected,"native buffers retain exact sample duration");
+    native_ai.advance(expected);
+    check(native_ai.interrupt(),"each native completion signals interrupt");
+    check(native_ai.write(12,0,expected,4096,783520),"acknowledge native completion");
+  }
+  check(!native_ai.deadline() && native_ai.read(12,100+4*(end-100))==0U,
+      "native catch-up queue drains completely");
+  jfg::boot::OriginalTimingAiDma near_limit;
+  check(near_limit.native_queue_capacity(4) &&
+      near_limit.write(8,1,0,4096,783520) &&
+      near_limit.write(16,2210,0,4096,783520) &&
+      near_limit.write(20,15,0,4096,783520),"near-limit native AI setup");
+  const auto late=UINT64_MAX-3U*(end-100U)-100U;
+  for(unsigned i=0;i<3;++i)
+    check(near_limit.write(4,2944,late,4096,783520),"retained native deadline fits");
+  check(!near_limit.write(4,2944,late,4096,783520),"native queue tail cannot overflow Count");
+  for(unsigned i=0;i<3;++i)near_limit.advance(*near_limit.deadline());
+  check(!near_limit.deadline(),"rejected overflow preserves retained native queue");
   jfg::boot::OriginalTimingPiDma pi;
   std::vector<std::uint8_t> ram(128),rom(128);rom[0]=0x12;rom[1]=0x34;
   check(pi.write(0,0,0,ram,rom) && pi.write(4,0x10000000,0,ram,rom),"PI address setup");

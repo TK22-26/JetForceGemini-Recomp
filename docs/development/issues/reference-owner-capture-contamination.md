@@ -42,3 +42,13 @@ The setup correction is prepared, not live-verified or released. Any new capture
 
 
 On October 15 the owner clarified that the reference is useful only as a source of ideas for our implementation and explicitly declined further upstream debugging. The source build was canceled with its descendants identified and its cancellation receipt preserved; it did not complete. The prepared clean capture remains unexecuted. This closes the reference follow-up scope without claiming a clean comparison or a verified upstream fix. Further work returns to PERF-001 in our runtime.
+
+## Owner original-game shooting-assist verification (2026-10-16 UTC)
+
+The owner independently confirmed that bullets appearing to lock onto enemies
+is an original-game mechanic. Do not treat that observation alone as evidence
+of an enabled cheat or a defect in the external reference. The owner plans to
+compare our version on the next live run and does not remember whether ours
+behaves identically. **Our aiming-assist parity remains unverified.** No aiming,
+target-selection or projectile behavior was changed for this clarification.
+The owner still does not request debugging the external recomp.

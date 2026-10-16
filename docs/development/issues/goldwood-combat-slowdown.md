@@ -2371,3 +2371,11 @@ Both High Refresh Preview and Jitter Capture desktop shortcuts now select source
 The final binary also completes a muted capture-mode comparison with actor, interpolation, poll and progress logging enabled (recorded inputs replace live input recording). Its combat median active duration is 20.392 ms; extended update intervals are {'2': 1229}. No new audio-buffer errors or unsupported accesses occur. This bounded comparison does not remove the observer-cost caveat for full function profiling.
 
 The cadence analyzer now includes transition calls anywhere between consecutive update returns, including calls outside either measured root. Final normal-Play gap associations: [{"vi": 6588, "delta_vi": 64, "transition_kinds": [], "latest_transition": {"stamp_us": 109416093, "vi": 6494, "poll": 3170, "kind": "death_restart", "age_ms": 1568.366}}, {"vi": 6591, "delta_vi": 3, "transition_kinds": [], "latest_transition": {"stamp_us": 109416093, "vi": 6494, "poll": 3170, "kind": "death_restart", "age_ms": 1611.178}}]. These are actual observed transition entries, not causes inferred from a level number alone. Further owner visual review is still required for the reported late scenery/shadow jitter; a fresh route is also needed to judge combat under live inputs.
+
+## Owner review after collision preview delivery (2026-10-16 UTC)
+
+The owner reports substantially improved stability and no noticeable FPS drops
+during the latest recorded tutorial route. This is useful live evidence, not
+proof that every update met 30 FPS. Frequent audio interruptions and late bridge
+strobing remain, tracked in AUDIO-002 and RENDER-006. Do not claim complete
+smooth-play acceptance from this report.

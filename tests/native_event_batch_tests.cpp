@@ -1,5 +1,6 @@
 #include "jfg/boot/native_event_batch.hpp"
 #include "jfg/boot/native_periodic_deadline.hpp"
+#include "jfg/boot/native_audio_playback.hpp"
 #include "jfg/boot/original_timing_pi_dma.hpp"
 #include "jfg/boot/reference_si_dma.hpp"
 #include "jfg/boot/sp_status.hpp"
@@ -12,6 +13,24 @@ using namespace jfg::boot;
 static unsigned checks = 0;
 static void check(bool ok) { ++checks; if (!ok) std::abort(); }
 int main() {
+  for(const auto frequency:{8000U,22018U,96000U}) {
+    const auto target=native_audio_target_bytes(frequency);
+    check(target>0);
+    for(const auto status:{0U,0x40000000U}) {
+      check(native_audio_countdown(0x02A5C37EU,2,0,0,status,frequency,target-1)==0x01A5C37EU);
+      check(!native_audio_countdown(0x02A5C37EU,2,0,0,status,frequency,target));
+      check(!native_audio_countdown(0x02A5C37EU,2,0,0,status,frequency,UINT64_MAX));
+    }
+    check(!native_audio_countdown(0x02ABCDEFU,2,0,0,0xC0000000U,frequency,0));
+    check(!native_audio_countdown(0x02ABCDEFU,2,0,1,0,frequency,0));
+    check(!native_audio_countdown(0x02ABCDEFU,12,1,0,0,frequency,0));
+    check(!native_audio_countdown(0x02ABCDEFU,2,1,0,0,frequency,0));
+    for(const auto byte:{0U,1U,3U,127U,128U,255U})
+      check(!native_audio_countdown((byte<<24U)|0xABCDEFU,2,0,0,0,frequency,0));
+  }
+  check(native_audio_target_bytes(0)==0 && native_audio_target_bytes(UINT32_MAX)==0);
+  check(!native_audio_countdown(0x02000000U,2,0,0,0,0,0));
+  check(!native_audio_countdown(0x02000000U,2,0,0,0x20000000U,22018,0));
   check(!advance_native_periodic_deadline(1,1,0));
   check(!advance_native_periodic_deadline(UINT64_MAX,0,1));
   check(!advance_native_periodic_deadline(UINT64_MAX,UINT64_MAX,1));

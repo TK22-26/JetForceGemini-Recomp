@@ -16,6 +16,7 @@ struct PresentationModelIdentity {
   std::uint32_t actor = 0, instance = 0, model = 0;
   std::array<std::uint32_t, 2> palettes{};
   std::uint32_t vertices = 0, vertex_count = 0, bone_count = 0;
+  bool deforming_bridge = false; // US hitBridgeControl (behavior 55).
 };
 struct PresentationCameraIdentity {
   std::uint32_t matrix = 0;
@@ -108,6 +109,24 @@ inline const PresentationBeamIdentity* presentation_beam_vertex(
         (source-beam.vertices)%10U) continue;
     if (found) return nullptr;
     found=&beam;
+  }
+  return found;
+}
+// A bridge bends by changing local vertices, independently of its rigid pose.
+// Resolve a whole DMA range against one current actor/model allocation. The
+// buffer address locates samples; model instance + logical index own history.
+inline const PresentationModelIdentity* presentation_bridge_vertices(
+    const PresentationSceneIdentity& scene, const PresentationRigidIdentity& owner,
+    std::uint32_t source, std::uint32_t count) {
+  if (!owner.lifetime || !owner.camera || !count) return nullptr;
+  const PresentationModelIdentity* found = nullptr;
+  for (const auto& model:scene.models) {
+    if (model.actor!=owner.actor || model.lifetime!=owner.lifetime ||
+        source<model.vertices || (source-model.vertices)%10U) continue;
+    const auto first=(source-model.vertices)/10U;
+    if (first>=model.vertex_count || count>model.vertex_count-first) continue;
+    if (found || !model.deforming_bridge) return nullptr;
+    found=&model;
   }
   return found;
 }
@@ -378,7 +397,8 @@ public:
               palette ? PresentationGuestView::physical(p1) : 0U},
              PresentationGuestView::physical(vertex_base),
              vertices,
-             bones});
+             bones,
+             ram.u16(actor + 0x48U) == 55U});
       }
     }
     actors_ = std::move(live);
