@@ -18,3 +18,5 @@ Transferable lesson: hash logical fields rather than object padding, make equali
 
 
 Local delivery: both High Refresh Preview and Jitter Capture desktop links select source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e, runtime SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6. Manifest and launcher/profile checks pass; all 40 checked profile files and shortcut arguments are preserved. Includes native audio, bending bridge interpolation and ROM loading improvements. Owner live acceptance and broader restart/load gaps remain open. [Current qualification](../../../evidence/high-refresh-draw-key.json).
+
+Presentation limit: the default-360 combat sections averaged about 353-359 successful present returns per second, with a median interval near 2.776 ms and occasional longer presentation intervals. Stable two-VI game updates do not prove perfect output pacing or monitor scanout. This is distinct from the removed late game-update hitch.

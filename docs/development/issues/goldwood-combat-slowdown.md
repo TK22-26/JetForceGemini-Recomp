@@ -1,6 +1,6 @@
 # PERF-001: Goldwood combat slows game updates
 
-- **Severity: critical. Status: open; native ROM loading improvement qualified after collision/math/timing optimizations. Tested combat windows retain two-VI updates; later renderer and cold-load hitches plus full-route live acceptance remain open.**
+- **Severity: critical. Status: open; native ROM loading improvement qualified after collision/math/timing optimizations. Tested combat windows retain two-VI updates; the repeated renderer hitch is corrected in bounded tests; cold-load/restart hitches and full-route live acceptance remain open.**
 - Reported: 2026-10-11 UTC. Last updated: 2026-10-16 UTC.
 - Affected: modern-controls v1.1 local preview with original instruction-clock runtime;
   source capture runtime SHA-256 `de2737396c3f840291de8a9155eaed415f6076beaf4d27200be6505cde11c538`.
