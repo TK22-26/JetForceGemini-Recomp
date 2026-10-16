@@ -22,6 +22,7 @@
 #include "jfg/boot/reset_handoff.hpp"
 #include "jfg/boot/ipl_handoff.hpp"
 #include "jfg/boot/gameplay_trace.hpp"
+#include "jfg/boot/function_profile.hpp"
 #include "jfg/renderer/interpolation_bridge.hpp"
 #include "jfg/renderer/frame_diagnostics_state.hpp"
 #include "jfg/boot/host_count_clock.hpp"
@@ -1755,6 +1756,9 @@ struct State : JfgOriginalTimingFast {
   std::uint64_t profile_idle_count_ticks = 0U;
   bool diagnostic_cpu_costs = false;
   bool diagnostic_update_cycles = false;
+  unsigned diagnostic_function_profile=0;
+  bool diagnostic_gpu_costs=false;
+  std::uint64_t diagnostic_profile_first_vi=3300,diagnostic_profile_last_vi=4500;
   struct FunctionCost { std::uint64_t self_ns=0, inclusive_ns=0, calls=0; };
   std::unordered_map<std::uint32_t, FunctionCost> profile_function_costs;
   std::uint64_t profile_function_self_ns = 0;
@@ -6418,7 +6422,14 @@ void complete_pending_live_graphics_tasks(
         state.gameplay_trace_updates, submit_us, pending.descriptor[4], pending.descriptor[5],
         submission_graphics.rdram_check_microseconds, submission_graphics.full_sync_microseconds,
         submission_graphics.color_image_address});
-    if (state.diagnostic_cpu_costs) {
+    if(state.diagnostic_function_profile) {
+      const auto& stages=submission_graphics.history_stage_microseconds;
+      state.gameplay_trace.event("submit-detail",{state.vi_retraces,state.controller_samples,
+        state.gameplay_trace_updates,submission_graphics.history_prepare_microseconds,
+        submission_graphics.rdp_sync_microseconds,stages[0],stages[1],stages[2],stages[3],stages[4],
+        submission_graphics.vertices_loaded,submission_graphics.triangles_drawn});
+    }
+    if (state.diagnostic_cpu_costs || state.diagnostic_gpu_costs) {
       const auto timing = state.rt64_shell->framebuffer_gpu_timing();
       state.gameplay_trace.event("gpu-framebuffer-time", {state.vi_retraces, state.controller_samples,
           timing.submissions, timing.total_nanoseconds, timing.last_nanoseconds,
@@ -6876,6 +6887,88 @@ void note_hints_control_call(State &state, const std::uint32_t target,
   state.phase9_king_bear_callback = target;
 }
 
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+class FunctionProfileScope {
+  using Profile=jfg::boot::FunctionProfile;
+  struct ThreadData {
+    Profile profile;
+    std::uint64_t start_vi=0,start_poll=0;
+    std::uint32_t thread=0;
+    ULONG64 process_cycles=0;
+    bool process_valid=false;
+    std::uint64_t handoffs=0;
+    BatonExecutor::Timing transport{};
+  };
+  State* state_=nullptr;
+  ThreadData* data_=nullptr;
+  static Profile::Sample sample(State& state) {
+    ULONG64 cycles=0;
+    const bool valid=QueryThreadCycleTime(GetCurrentThread(),&cycles)!=0;
+    const auto wall=static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+      std::chrono::steady_clock::now().time_since_epoch()).count());
+    return {wall,cycles,state.profile_host_wait_us,state.observed_guest_instructions,
+      GetCurrentThreadId(),valid};
+  }
+public:
+  FunctionProfileScope(State& state,std::uint32_t target) {
+    if(!state.diagnostic_function_profile)return;
+    static thread_local ThreadData local;
+    const bool root=target==0x80044FACU && !local.profile.active();
+    if(root) {
+      if(state.vi_retraces<state.diagnostic_profile_first_vi ||
+         state.vi_retraces>=state.diagnostic_profile_last_vi)return;
+      local.profile.reset();local.start_vi=state.vi_retraces;
+      local.start_poll=state.controller_samples;local.thread=GetCurrentThreadId();
+      local.process_valid=QueryProcessCycleTime(GetCurrentProcess(),&local.process_cycles)!=0;
+      local.handoffs=state.guest_transport?state.guest_transport->handoffs():0U;
+      local.transport=state.guest_transport?state.guest_transport->timing():BatonExecutor::Timing{};
+    } else if(!local.profile.active())return;
+    const bool stage=target==0x80044FACU || target==0x80008FF0U ||
+      target==0x00310600U || target==0x09B02FD0U || target==0x8003D21CU ||
+      target==0x800121C0U || target==0x8004DA10U || target==0x8004DCB0U;
+    if(state.diagnostic_function_profile==1U && !stage)return;
+    state_=&state;data_=&local;local.profile.enter(target,sample(state));
+  }
+  ~FunctionProfileScope() {
+    if(!state_)return;
+    if(!data_->profile.leave(sample(*state_)))return;
+    const auto emit_started=sample(*state_);
+    ULONG64 process_cycles=0;
+    const bool process_valid=data_->process_valid &&
+      QueryProcessCycleTime(GetCurrentProcess(),&process_cycles) &&
+      process_cycles>=data_->process_cycles;
+    const auto handoffs=state_->guest_transport?state_->guest_transport->handoffs():0U;
+    const auto transport=state_->guest_transport?state_->guest_transport->timing():BatonExecutor::Timing{};
+    auto& trace=state_->gameplay_trace;
+    trace.event("function-profile-host",{state_->vi_retraces,state_->controller_samples,
+      data_->start_vi,data_->start_poll,data_->thread,process_valid,
+      process_valid?process_cycles-data_->process_cycles:0U,
+      handoffs-data_->handoffs,transport.wakes-data_->transport.wakes,
+      transport.wake_ns-data_->transport.wake_ns});
+    std::uint64_t used=0;
+    for(const auto& row:data_->profile.rows()) {
+      if(!row.calls)continue;
+      ++used;
+      trace.event("function-profile",{state_->vi_retraces,state_->controller_samples,
+        data_->start_vi,data_->start_poll,data_->thread,row.target,row.parent,row.calls,
+        row.wall,row.self_wall,row.cycles,row.self_cycles,row.wait,row.instructions,
+        row.max_wall,row.max_cycles,row.valid});
+    }
+    trace.event("function-profile-end",{state_->vi_retraces,state_->controller_samples,
+      data_->start_vi,data_->start_poll,data_->thread,state_->diagnostic_function_profile,
+      data_->profile.valid(),data_->profile.calls(),used,data_->profile.overflow()});
+    const auto emit_finished=sample(*state_);
+    const bool emit_valid=emit_started.valid && emit_finished.valid &&
+      emit_started.thread==emit_finished.thread && emit_finished.cycles>=emit_started.cycles &&
+      emit_finished.wall>=emit_started.wall;
+    trace.event("function-profile-emission",{state_->vi_retraces,state_->controller_samples,
+      data_->start_vi,data_->start_poll,data_->thread,emit_valid,
+      emit_valid?emit_finished.wall-emit_started.wall:0U,
+      emit_valid?emit_finished.cycles-emit_started.cycles:0U});
+  }
+};
+#endif
+
 int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
              recomp_context *context) {
   auto &state = *static_cast<State *>(opaque);
@@ -6884,6 +6977,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       : std::chrono::steady_clock::time_point{};
 #endif
   const auto target = static_cast<std::uint32_t>(address);
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  FunctionProfileScope function_profile_scope(state,target);
+#endif
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
   for (std::size_t watch = 0U;
        !state.progress_path.empty() &&
@@ -11212,10 +11308,13 @@ int run_child(const char *path, const unsigned retrace_target,
       if (!error) state.navigation_mod.telemetry_enabled=true;
     }
   }
+  char memory_trace_flag[2]{};
+  const auto memory_trace_length=GetEnvironmentVariableA("JFG_GAMEPLAY_TRACE_MEMORY",memory_trace_flag,2U);
+  if(memory_trace_length!=0U && (memory_trace_length!=1U || memory_trace_flag[0]!='1'))return 3;
   wchar_t gameplay_trace_path[32768]{};
   const DWORD trace_path_length = GetEnvironmentVariableW(L"JFG_GAMEPLAY_TRACE", gameplay_trace_path, 32768U);
   if (trace_path_length != 0U && (trace_path_length >= 32768U ||
-      !state.gameplay_trace.open(std::filesystem::path(gameplay_trace_path)))) {
+      !state.gameplay_trace.open(std::filesystem::path(gameplay_trace_path),256ULL*1024ULL*1024ULL,memory_trace_length==1U))) {
     std::fputs("native boot setup failed: gameplay trace path\n", stderr);
     return 3;
   }
@@ -12385,6 +12484,23 @@ int run_child(const char *path, const unsigned retrace_target,
     jfg::support_event("timing=native-elapsed/experimental-preview");
     jfg::support_event("timing=native-spans-enabled");
   }
+  char function_profile_flag[2]{};
+  const auto function_profile_length=GetEnvironmentVariableA("JFG_DIAGNOSTIC_FUNCTION_PROFILE",function_profile_flag,2U);
+  if(function_profile_length!=0U && (function_profile_length!=1U ||
+      (function_profile_flag[0]!='1' && function_profile_flag[0]!='2') ||
+      !state.gameplay_trace || memory_trace_length!=1U))return 3;
+  state.diagnostic_function_profile=function_profile_length==1U?unsigned(function_profile_flag[0]-'0'):0U;
+  for(const auto& item:std::array<std::pair<const char*,std::uint64_t*>,2>{{
+      {"JFG_DIAGNOSTIC_PROFILE_FIRST_VI",&state.diagnostic_profile_first_vi},
+      {"JFG_DIAGNOSTIC_PROFILE_LAST_VI",&state.diagnostic_profile_last_vi}}}) {
+    char text[32]{};const auto length=GetEnvironmentVariableA(item.first,text,32U);
+    if(length==0U)continue;
+    if(length>=32U || !state.diagnostic_function_profile)return 3;
+    const auto parsed=std::from_chars(text,text+length,*item.second);
+    if(parsed.ec!=std::errc{} || parsed.ptr!=text+length)return 3;
+  }
+  if(state.diagnostic_profile_last_vi<=state.diagnostic_profile_first_vi ||
+     state.diagnostic_profile_last_vi-state.diagnostic_profile_first_vi>3600U)return 3;
   char update_cycles_flag[2]{};
   const auto update_cycles_length = GetEnvironmentVariableA(
       "JFG_DIAGNOSTIC_UPDATE_CYCLES", update_cycles_flag, 2U);
@@ -12396,7 +12512,12 @@ int run_child(const char *path, const unsigned retrace_target,
   if (cost_length != 0U && (cost_length != 1U || cost_flag[0] != '1' ||
       state.play_mode || !state.gameplay_trace || !state.input_replay_loaded)) return 3;
   state.diagnostic_cpu_costs = cost_length == 1U;
-  if (state.diagnostic_cpu_costs && (!state.rt64_shell ||
+  char gpu_cost_flag[2]{};
+  const auto gpu_cost_length=GetEnvironmentVariableA("JFG_DIAGNOSTIC_GPU_COSTS",gpu_cost_flag,2U);
+  if(gpu_cost_length!=0U && (gpu_cost_length!=1U || gpu_cost_flag[0]!='1' ||
+      !state.diagnostic_function_profile))return 3;
+  state.diagnostic_gpu_costs=gpu_cost_length==1U;
+  if ((state.diagnostic_cpu_costs || state.diagnostic_gpu_costs) && (!state.rt64_shell ||
       !state.rt64_shell->enable_framebuffer_gpu_timing())) return 3;
   char boundary_text[32]{};
   const auto boundary_length = GetEnvironmentVariableA("JFG_DIAGNOSTIC_CLOCK_BOUNDARY_VI",boundary_text,32U);
@@ -12572,7 +12693,7 @@ int run_child(const char *path, const unsigned retrace_target,
               fail_closed_dispatch(state, "eret-transfer-probe", "output-or-boundary", state.guest_last_pc);
           });
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-      state.guest_transport->enable_timing(state.diagnostic_cpu_costs);
+      state.guest_transport->enable_timing(state.diagnostic_cpu_costs || state.diagnostic_function_profile!=0U);
 #endif
       try {
         state.guest_transport->run(handoff.transfer_target, context,

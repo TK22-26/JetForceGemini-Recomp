@@ -780,3 +780,9 @@ target_include_directories(jfg_floating_environment_tests PRIVATE "${PROJECT_SOU
 target_compile_features(jfg_floating_environment_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_floating_environment_tests)
 add_test(NAME jfg.floating_environment COMMAND jfg_floating_environment_tests)
+
+add_executable(jfg_function_profile_tests function_profile_tests.cpp)
+target_include_directories(jfg_function_profile_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_function_profile_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_function_profile_tests)
+add_test(NAME jfg.function_profile COMMAND jfg_function_profile_tests)

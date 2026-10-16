@@ -68,5 +68,30 @@ int main(int argc, char **argv) {
   const auto size = text.size();
   trace.event("after-limit", {1}); trace.flush();
   if (std::filesystem::file_size(argv[1]) != size) return 6;
+  const auto memory_path=std::filesystem::path(argv[1]).string()+".memory";
+  {
+    jfg::boot::GameplayTrace memory;
+    if(!memory.open(memory_path,256U,true) || memory.open(memory_path,256U))return 8;
+    memory.event("memory-row",{0x123U,0x456U});memory.flush();
+    if(std::filesystem::file_size(memory_path)!=0U)return 9;
+    for(unsigned i=0;i<100;++i)memory.event("tick",{i,9,8,7,6,5,4});
+    if(memory)return 10;
+    if(std::filesystem::file_size(memory_path)!=0U)return 11;
+    memory.finish();memory.finish();
+    if(memory.memory_write_failed() || memory)return 12;
+  }
+  std::ifstream stored(memory_path,std::ios::binary);
+  const std::string contents{std::istreambuf_iterator<char>(stored),{}};
+  if(contents.size()>256U || contents.find("\tmemory-row\t123\t456\n")==std::string::npos ||
+     contents.find("limit\tbyte-limit\n")==std::string::npos)return 13;
+  const auto destructor_path=memory_path+".destructor";
+  {
+    jfg::boot::GameplayTrace memory;
+    if(!memory.open(destructor_path,256U,true))return 14;
+    memory.event("destructor",{77U});
+  }
+  std::ifstream destructor_file(destructor_path,std::ios::binary);
+  const std::string destructor_text{std::istreambuf_iterator<char>(destructor_file),{}};
+  if(destructor_text.find("\tdestructor\t4d\n")==std::string::npos)return 15;
   return 0;
 }

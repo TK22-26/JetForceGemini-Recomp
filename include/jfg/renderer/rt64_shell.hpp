@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -164,6 +165,10 @@ struct Rt64GraphicsDiagnostics {
     std::uint64_t loaded_vertices_low = 0U;
     std::uint16_t loaded_vertices_high = 0U;
     std::uint64_t full_sync_microseconds = 0U;
+    std::uint64_t history_prepare_microseconds = 0U;
+    std::uint64_t rdp_sync_microseconds = 0U;
+    std::array<std::uint64_t,5> history_stage_microseconds{};
+
     std::uint64_t rdram_check_microseconds = 0U;
     std::size_t display_list_branches = 0U;
     std::uint32_t last_display_list_address = 0U;

@@ -15,6 +15,7 @@
 #include <bitset>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
@@ -999,6 +1000,22 @@ void run_display_list(RT64::State* state, RT64::DisplayList** dl) {
         address) - 1;
 }
 
+bool detailed_function_profile_enabled() {
+    static const bool enabled=[] {
+#ifdef _MSC_VER
+        char* value=nullptr;std::size_t length=0U;
+        if(_dupenv_s(&value,&length,"JFG_DIAGNOSTIC_FUNCTION_PROFILE")!=0)return false;
+        const bool selected=value && length==2U && (value[0]=='1' || value[0]=='2');
+        std::free(value);
+        return selected;
+#else
+        const char* value=std::getenv("JFG_DIAGNOSTIC_FUNCTION_PROFILE");
+        return value && (value[0]=='1' || value[0]=='2') && value[1]=='\0';
+#endif
+    }();
+    return enabled;
+}
+
 void prepare_interpolation(Context& context, RT64::State& state) {
     if (!context.interpolate) return;
     state.flush();
@@ -1010,16 +1027,20 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         scene = scene || (pair.colorImage.width >= 320U &&
             pair.colorImage.siz == G_IM_SIZ_16b && !pair.drawColorRect.isEmpty());
     }
-    const bool history_profile=interpolation_trace_enabled();
+    const bool history_profile=interpolation_trace_enabled() || detailed_function_profile_enabled();
     auto history_stage_started=history_profile ? std::chrono::steady_clock::now()
         : std::chrono::steady_clock::time_point{};
     const auto history_stage=[&](unsigned stage) {
         if (!history_profile) return;
         const auto now=std::chrono::steady_clock::now();
-        trace_interpolation("history-stage",context.vi_tick,stage,scene?1U:0U,0U,
-            static_cast<unsigned>(data.worldIndices.size()),0.0f,
-            std::chrono::duration_cast<std::chrono::microseconds>(now-history_stage_started).count(),
-            data.worldTransforms.size());
+        const auto elapsed=static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(now-history_stage_started).count());
+        if(stage>=1U && stage<=context.stats.history_stage_microseconds.size())
+            context.stats.history_stage_microseconds[stage-1U]+=elapsed;
+        if(interpolation_trace_enabled())
+            trace_interpolation("history-stage",context.vi_tick,stage,scene?1U:0U,0U,
+                static_cast<unsigned>(data.worldIndices.size()),0.0f,elapsed,
+                data.worldTransforms.size());
         history_stage_started=std::chrono::steady_clock::now();
     };
     context.semantic_vertices.resize(data.worldIndices.size());
@@ -1346,6 +1367,8 @@ void prepare_interpolation(Context& context, RT64::State& state) {
 void full_sync(RT64::State* state, RT64::DisplayList** dl) {
     Context* context = find_context(state);
     const auto start = std::chrono::steady_clock::now();
+    const bool detailed=detailed_function_profile_enabled();
+    auto rdp_started=std::chrono::steady_clock::time_point{};
     if (context != nullptr) {
         const auto& workload = state->ext.workloadQueue->workloads[state->ext.workloadQueue->writeCursor];
         bool scene = false;
@@ -1359,13 +1382,19 @@ void full_sync(RT64::State* state, RT64::DisplayList** dl) {
         if(scene && interpolation_trace_enabled()) trace_interpolation("history-cost",context->vi_tick,
             0U,0U,0U,0U,0.0f,std::chrono::duration_cast<std::chrono::microseconds>(
                 std::chrono::steady_clock::now()-history_start).count(),0U);
+        if(detailed) {
+            rdp_started=std::chrono::steady_clock::now();
+            context->stats.history_prepare_microseconds+=static_cast<std::uint64_t>(
+                std::chrono::duration_cast<std::chrono::microseconds>(rdp_started-history_start).count());
+        }
     }
     RT64::GBI_RDP::fullSync(state, dl);
     if (context != nullptr) {
-        context->stats.full_sync_microseconds +=
-            static_cast<std::uint64_t>(
-                std::chrono::duration_cast<std::chrono::microseconds>(
-                    std::chrono::steady_clock::now() - start).count());
+        const auto end=std::chrono::steady_clock::now();
+        context->stats.full_sync_microseconds+=static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(end-start).count());
+        if(detailed)context->stats.rdp_sync_microseconds+=static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(end-rdp_started).count());
     }
 }
 

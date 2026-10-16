@@ -1178,6 +1178,9 @@ Rt64GraphicsDiagnostics Rt64Shell::last_graphics_diagnostics()
     diagnostics.loaded_vertices_low = stats.loaded_vertices_low;
     diagnostics.loaded_vertices_high = stats.loaded_vertices_high;
     diagnostics.full_sync_microseconds = stats.full_sync_microseconds;
+    diagnostics.history_prepare_microseconds=stats.history_prepare_microseconds;
+    diagnostics.rdp_sync_microseconds=stats.rdp_sync_microseconds;
+    diagnostics.history_stage_microseconds=stats.history_stage_microseconds;
     diagnostics.rdram_check_microseconds = impl_->last_rdram_check_microseconds;
     diagnostics.display_list_branches = stats.display_list_branches;
     diagnostics.last_display_list_address = stats.last_display_list_address;

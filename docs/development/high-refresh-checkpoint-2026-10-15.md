@@ -61,3 +61,6 @@ The owner subsequently approved five hours of resumed work and explicitly author
 
 
 The resumed investigation selected the compact original-timing helper for source integration after four exact recorded comparisons, the retained Original reference, and native 120/360 checks. Median recorded combat work improves by about 3.7 ms; remaining slow native updates keep the no-20-FPS goal open. Standard runtime rebuild/package qualification remain separate from this source checkpoint. See PERF-001 for evidence and limits.
+
+
+The compact-timing standard build was subsequently qualified and delivered to both high-refresh desktop shortcuts. The expanded function/graphics profiler is now a separately qualified source change, disabled by default; it is not installed on those shortcuts. Controlled median improvement remains about 13%, while native slow updates keep PERF-001 open. Current diagnostic controls and limitations are in [function profiling](function-profiling.md).
