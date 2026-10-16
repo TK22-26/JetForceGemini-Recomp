@@ -132,7 +132,7 @@ from the browser reference. No simulated input buttons are shipped.
 | Pause | Menu | Options | Tab |
 | Menu select / contextual action | A | Cross | E |
 | Menu back | B | Circle | Q; right-click |
-| Menu navigation | Left stick / D-pad | Left stick / D-pad | WASD / arrows |
+| Menu navigation | Left stick / D-pad | Left stick / D-pad | Movement keys (WASD by default) |
 | Full keyboard movement | N/A | N/A | Shift |
 
 The action layer handles Normal/Expert internally. Modern Controls does not
@@ -359,4 +359,4 @@ visible text children, preventing RmlUi flex labels from silently collapsing.
 Retained capture profiles may keep older menu bindings despite a source merge. [INPUT-008](../development/issues/modern-capture-profile-defaults.md) records the current owner report and preference/default distinction.
 
 
-Menu bindings are now exposed in a Menus & dialogue card in both list and key-map views. Confirm advances dialogue and can share E with gameplay Interact. Existing Enter/F bindings and inversion choices are retained; clearing a menu action does not clear its gameplay counterpart. [INPUT-008](../development/issues/modern-capture-profile-defaults.md) records the reproduction and 717-check native UI validation.
+The initial Menus & dialogue card fixed hidden saved bindings but was superseded at the owner's request. Confirm, Back, Save and new keyboard inputs now appear in Keys, while Mouse/WASD remain at the left. Shared E shows Interact + Confirm and persists both actions. Modern arrow bindings are retired. The revised native UI suite passes 772 checks, and 155 core checks cover migration and context behavior. The local preview is updated; see [INPUT-008](../development/issues/modern-capture-profile-defaults.md) and [qualification](../../evidence/unified-modern-keys.json).

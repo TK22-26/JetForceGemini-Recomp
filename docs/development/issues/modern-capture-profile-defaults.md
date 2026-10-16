@@ -1,6 +1,6 @@
 # INPUT-008: Retained capture profile differs from modern defaults
 
-Status: owner-requested unified Keys revision verified in tests and screenshot review; local delivery pending. Severity: usability. Affected: draw-key preview, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e and retained route-capture profile.
+Status: owner-requested unified Keys revision verified in tests and screenshot review; delivered locally; physical owner check pending. Severity: usability. Affected: draw-key preview, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e and retained route-capture profile.
 
 During the longer owner measurement the owner reports unexpected mouse direction and E not acting as the expected A/Confirm. The attached Scooby-Doo image was accidental; the owner confirms JFG. Turning vertical inversion Off fixes the direction according to the owner.
 
@@ -48,3 +48,6 @@ Core controls checks pass (155), and the native offscreen UI suite passes 772 ch
 
 
 Screenshot review confirms separate left Mouse/WASD groups and one right Keys group, including F/Q/F5 and shared E: Interact + Confirm without truncation at the reference size. The reticle renderer source is unchanged by this revision. Current [qualification](../../../evidence/unified-modern-keys.json) pins the controls runtime and bounded checks; delivery follows. Compatibility lesson: list physical inputs across all action contexts, keep shared actions independently editable, and do not hide newly added inputs behind context filters or a second category.
+
+
+The unified layout is delivered through High Refresh Preview and Jitter Capture with source `19a2373266dc78845abddf7ea468e312e2d4b8eb`. Both shortcut profiles now use the explicitly requested shared E for Interact/Confirm and have no modern arrow bindings. Exact previous profile files and links are backed up privately. All 39 other checked files and every other field in the edited profiles are unchanged, including saves and inversion. Three copied-profile setup checks resolve the new packaged runtime. This is local delivery, not a public release or physical owner gameplay acceptance.
