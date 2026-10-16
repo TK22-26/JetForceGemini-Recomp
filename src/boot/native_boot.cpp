@@ -1754,6 +1754,7 @@ struct State : JfgOriginalTimingFast {
   std::uint64_t profile_host_wait_us = 0U;
   std::uint64_t profile_idle_count_ticks = 0U;
   bool diagnostic_cpu_costs = false;
+  bool diagnostic_update_cycles = false;
   struct FunctionCost { std::uint64_t self_ns=0, inclusive_ns=0, calls=0; };
   std::unordered_map<std::uint32_t, FunctionCost> profile_function_costs;
   std::uint64_t profile_function_self_ns = 0;
@@ -7916,6 +7917,11 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto update_idle = measure_update ? state.profile_idle_count_ticks : 0U;
         const auto update_wait = measure_update ? state.profile_host_wait_us : 0U;
         const auto update_instructions = measure_update ? state.observed_guest_instructions : 0U;
+        const bool measure_update_cycles = measure_update && state.diagnostic_update_cycles;
+        ULONG64 update_cycles_before = 0U;
+        const auto update_thread = measure_update_cycles ? GetCurrentThreadId() : 0U;
+        const bool update_cycles_valid = measure_update_cycles &&
+            QueryThreadCycleTime(GetCurrentThread(), &update_cycles_before);
         const auto callback_start = state.profile_out_of_line_instructions;
         const auto full_probe_start = state.profile_full_execution_probes;
         const auto native_handler_start = measure_update ? state.profile_native_handler_ns : 0U;
@@ -8008,6 +8014,18 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
                   std::chrono::steady_clock::now() - update_started).count()),
               state.profile_host_wait_us - update_wait});
+          if (measure_update_cycles) {
+            ULONG64 update_cycles_after = 0U;
+            const bool valid = update_cycles_valid && GetCurrentThreadId() == update_thread &&
+                QueryThreadCycleTime(GetCurrentThread(), &update_cycles_after) &&
+                update_cycles_after >= update_cycles_before;
+            // Cycles describe this host thread only; never convert them to
+            // milliseconds or include work performed by other guest threads.
+            state.gameplay_trace.event("update-thread-cycles", {state.vi_retraces,
+                state.controller_samples, valid, update_thread,
+                valid ? update_cycles_after - update_cycles_before : 0U,
+                state.observed_guest_instructions - update_instructions});
+          }
           if (state.native_spans_enabled) {
             state.gameplay_trace.event("native-span-work", {state.vi_retraces,state.controller_samples,
                 state.native_span_instructions-span_instructions_start,
@@ -12367,6 +12385,12 @@ int run_child(const char *path, const unsigned retrace_target,
     jfg::support_event("timing=native-elapsed/experimental-preview");
     jfg::support_event("timing=native-spans-enabled");
   }
+  char update_cycles_flag[2]{};
+  const auto update_cycles_length = GetEnvironmentVariableA(
+      "JFG_DIAGNOSTIC_UPDATE_CYCLES", update_cycles_flag, 2U);
+  if (update_cycles_length != 0U && (update_cycles_length != 1U ||
+      update_cycles_flag[0] != '1' || !state.gameplay_trace)) return 3;
+  state.diagnostic_update_cycles = update_cycles_length == 1U;
   char cost_flag[2]{};
   const auto cost_length = GetEnvironmentVariableA("JFG_DIAGNOSTIC_CPU_COSTS", cost_flag, 2U);
   if (cost_length != 0U && (cost_length != 1U || cost_flag[0] != '1' ||

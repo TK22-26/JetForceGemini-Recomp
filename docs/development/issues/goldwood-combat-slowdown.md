@@ -2118,3 +2118,57 @@ The compact native captures receive an encounter check that carries unchanged ac
 ### Compact timing helper selected for source integration
 
 The repeated exact combat comparison reduces median active work from 29.486/29.509 ms to 25.852/25.765 ms with matched production compiler options. The executable shrinks from 627,766,272 to 146,052,096 bytes. The retained Original-mode comparison and native 120/360 robustness checks qualify the component, while native slow updates remain. The public timing header now uses a portable noinline declaration for the original cache-model helper; native checks and algorithms remain. The generation pipeline already copies this header, and the active private generated header is refreshed from the same source. Focused timing-model and generation tests pass. This source commit is a component improvement, not a resolved PERF-001 or a preview deployment; the ordinary runtime rebuild and package qualification follow separately. Earlier NaN representation differences in synthetic matrix fixtures remain documented, and do not become a universal bit-equivalence claim.
+
+
+### Compact code and native angle review, 2026-10-15
+
+The private all-function build retains production compiler/language settings. Machine-code size is measured from executable code sections, independently of file size. The compact helper is selected for source integration separately; the native angle prototype is not selected because its repeated cost results are mixed. Live acceptance remains pending.
+
+| Build | Executable bytes | Machine-code bytes |
+|---|---:|---:|
+| baseline | 627766272 | 618275867 |
+| candidate | 146052096 | 137739115 |
+
+Recorded-clock combat cost (milliseconds); these preserve the captured workload and are not real-time FPS acceptance.
+
+| Run | Median | p95 | RAM/save, instruction and interpolation agreement |
+|---|---:|---:|---|
+| compact-all-baseline-a | 29.486 | 43.861 | True |
+| compact-all-candidate-a | 25.852 | 41.086 | True |
+| compact-all-candidate-b | 25.765 | 39.916 | True |
+| compact-all-baseline-b | 29.509 | 43.821 | True |
+| native-angle-baseline-a | 26.53 | 44.579 | True |
+| native-angle-candidate-a | 25.821 | 41.512 | True |
+| native-angle-candidate-b | 26.913 | 42.541 | True |
+| native-angle-baseline-b | 26.546 | 42.478 | True |
+
+Native 120 FPS/VSync repetitions use the same input recording but can follow different timing-dependent paths. Counts below are from the extended VI 3500-6000 window.
+
+| Run | Median active ms | Two-VI updates | Three-VI updates | Longer updates | Audio underruns |
+|---|---:|---:|---:|---:|---:|
+| compact-native120-baseline-a | 26.954 | 1192 | 38 | 0 | 0 |
+| compact-native120-candidate-a | 23.204 | 1247 | 1 | 0 | 0 |
+| compact-native120-candidate-b | 24.954 | 1220 | 19 | 0 | 0 |
+| compact-native120-baseline-b | 26.909 | 1194 | 37 | 0 | 0 |
+
+native-angle-leaf-fixture: return code 0. PASS cases=993888 maximum_instructions=37 angles_counts_lastpc_fenv_exact=1 ram_unchanged=1; COUNT 9 16; COUNT 25 124256; COUNT 27 124088; COUNT 28 124348; COUNT 30 124000; COUNT 31 124820; COUNT 32 124548; COUNT 33 123952; COUNT 34 123804; COUNT 37 56
+
+native-angle-context-fixture: return code 0. PASS cases=100000 admitted=57317 fallback=42683 full_context_timing_fenv_exact=1
+
+Evidence: compact-and-angle-evidence-review/review.json links the private fixture, recorded-cost, native cadence, Original/360 qualification and nested-job accounting results (not production budget evidence). No preview deployment or resolved no-dip status is implied. All captures were muted. The 32-entry path search is not prioritized: prior combat profiling observed about 3.6 calls/update, versus about 2,421 calls/update to Arctanf; these older instrumented counts guide target choice, not speedup acceptance.
+
+
+Four alternating native 120/VSync comparisons additionally remove actor snapshots, interpolation comparison tracing and PCM capture, retaining the basic update timeline and buffered frame timings. Both sides use the same reduced instrumentation. This checks whether slow updates persist closer to the normal FPS-logging configuration; hidden windows still do not qualify monitor scanout or visual smoothness, and native paths may differ. Evidence: compact-minimal-native120.
+
+
+A controlled Clang follow-up compiles only the 62 pinned sampled bodies against the compact header, with production precise/C11 options on both sides. The other 2,847 bodies are identical. A classified special-value matrix comparison precedes four exact recorded RAM/save/instruction/interpolation comparisons. This distinguishes compiler effects from the newly isolated inline-policy effect; no compiler or preview is selected from this private experiment alone. Evidence: compact-clang-frontend-options. The preceding compact-clang-sampled compilation refused the MSVC-only /Gm- option under warnings-as-errors; no game ran in that attempt. The retry removes that obsolete driver option and uses the Clang warning equivalents already recorded by the repository. Optimization, floating mode and C11 remain unchanged.
+
+
+Four alternating native 120/VSync comparisons additionally remove actor snapshots, interpolation comparison tracing and PCM capture, retaining the basic update timeline and buffered frame timings. Both sides use the same reduced instrumentation. This checks whether slow updates persist closer to the normal FPS-logging configuration; hidden windows still do not qualify monitor scanout or visual smoothness, and native paths may differ. Evidence: native-count-minimal120. The baseline is the compact-helper build, and the candidate changes Count publication only in the 62 pinned sampled bodies; any all-body source integration needs a coherent rebuild and qualification.
+
+
+### Narrow update-thread diagnostic for remaining hitches
+
+A reduced-instrumentation repeat still records an 83.409 ms active-wall update with about 1.54 million guest instructions, a workload count also seen in normal updates. Instruction count alone cannot distinguish slower CPU operations, renderer work, scheduling delays or contention. Host records include other graphics/build activity; no isolated performance claim follows from those runs.
+
+The optional JFG_DIAGNOSTIC_UPDATE_CYCLES=1 observation adds only two QueryThreadCycleTime queries per measured game update and one buffered update-thread-cycles row (VI, input poll, validity, host thread ID, cycle delta, guest instructions). It requires gameplay tracing and stays off by default. The same-thread validity check prevents attributing a different thread; cycles are not converted to milliseconds and exclude other guest/renderer threads. Unlike the full function profiler it does not time every dispatch. This is diagnostic source awaiting build/correspondence qualification, not a hitch remedy. Evidence: update-thread-cycle-source.

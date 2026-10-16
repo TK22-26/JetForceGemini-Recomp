@@ -876,3 +876,8 @@ thread. Exact recorded-state comparison and restoration remain mandatory.
 Evidence: pc-sampling-update-thread. Periodic RIP observations still include
 waiting and observer effects, so they are not exact CPU percentages or FPS
 acceptance. Earlier incomplete captures remain preserved.
+
+
+### Optional per-update thread-cycle observation
+
+JFG_DIAGNOSTIC_UPDATE_CYCLES=1, together with JFG_GAMEPLAY_TRACE, requests one update-thread-cycles TSV row per measured game update. Fields are VI, controller poll, valid flag, host thread ID, cycle delta and guest-instruction delta. Correlate with update-work by VI/poll. This measures only the host thread that runs the root game update; it excludes renderer/other guest threads and must not be converted to CPU milliseconds. Invalid thread/query results report valid=0 and zero cycles. Ordinary FPS logging does not enable it. Source and replay qualification are tracked with PERF-001; this diagnostic does not establish a slowdown cause by itself.
