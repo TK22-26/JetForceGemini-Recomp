@@ -775,3 +775,6 @@ The local preview now retains CPU-drawn framebuffer edits on high-refresh output
 ### Shuriken and crouch followup (2026-10-16)
 
 The high-refresh candidate now preserves CPU reticle masks before the presentation queue can discard an older VI, including both submission-time and VI-time imports. Real-weapon checks cover sustained recorded aiming and 120/360 output phases. The custom shuriken matrix builder now supplies explicit actor ownership for resting/rolling projectile interpolation. Modern crouch aiming also receives the same pitch convention as standing, without changing the saved inversion preference. Bounded checks pass; [qualification and remaining live limits](../../evidence/high-refresh-shuriken-followup.json).
+
+
+The shuriken/crouch followup above is delivered locally with source `95efb8f97b47717921aa4c29ab17245771c3ff22` through High Refresh Preview and Jitter Capture. Owner live confirmation is pending; see [qualification and delivery](../../evidence/high-refresh-shuriken-followup.json).

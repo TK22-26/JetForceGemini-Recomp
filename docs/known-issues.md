@@ -291,3 +291,6 @@ The local reticle preview also includes compact game-update/final-audio logging 
 
 
 The latest followup corrects [reticle pixels lost with skipped VI events](development/issues/shuriken-reticle-flicker.md), [missing custom shuriken matrix ownership](development/issues/ground-shuriken-jitter.md), and [state-dependent crouch pitch inversion](development/issues/crouch-mouse-inversion.md). Both mouse directions, resting-object trace coverage, real-weapon 120/360 reticle checks and bounded normal-Play audio checks pass. Owner live confirmation and broader coverage remain pending. [Qualification](../evidence/high-refresh-shuriken-followup.json).
+
+
+The shuriken/crouch followup is now delivered through both local preview shortcuts. Saved controls, inversion preference, video settings and saves are unchanged. Owner live confirmation remains pending; the finite tests do not close Unlimited, all-route performance or the Goldwood exit-cutscene audio report. [Current delivery](../evidence/high-refresh-shuriken-followup.json).

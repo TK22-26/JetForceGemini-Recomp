@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "three corrections verified within recorded test scope; local delivery and owner live confirmation pending",
+  "status": "three corrections verified within recorded scope and delivered locally; owner live confirmation pending",
   "runtime_sha256": "313a60a9b51a0aa17e5a1a9ec5c59e3cbec0de46edf9d8db22ab477057e53e95",
   "runtime_source_files": {
     "cmake/rt64_gpu_timing.cmake": "ee913eae241b0dc54f71b8541dbe7357cc58f6a20cc1517c685fe3c20c5e97e1",
@@ -373,7 +373,7 @@
       "Hidden captures do not validate physical scanout or owner live experience."
     ]
   },
-  "delivered": false,
+  "delivered": true,
   "owner_live_verified": false,
   "limits": [
     "Hidden native-clock replay is not monitor scanout or listening acceptance.",
@@ -396,5 +396,17 @@
     "The first import-time retainer used thread-local time across two threads, yielding expired tick-zero masks; changed to atomic time.",
     "The short route control screenshot happened to retain the reticle, so that image is not visual A/B proof.",
     "An initial qualification gate expected over 100 VI imports in a short route that had only 28. No mode checks ran under that failed gate; the longer run independently verifies all 796 VI masks."
-  ]
+  ],
+  "runtime_source_commit": "95efb8f97b47717921aa4c29ab17245771c3ff22",
+  "delivery": {
+    "delivered_at_utc": "2026-10-16T20:33:08.946572+00:00",
+    "shortcuts": [
+      "JFG - High Refresh Preview.lnk",
+      "JFG - Jitter Capture.lnk"
+    ],
+    "profile_files_unchanged": 41,
+    "manifest_verified": 14,
+    "launcher_sha256": "a4288ecac58356e41db77d6ea3072380ab4e567b70ebb9c45d7f04868f983921",
+    "launcher_setup_runtime_protocol_passed": true
+  }
 }
