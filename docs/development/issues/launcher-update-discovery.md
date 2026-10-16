@@ -1,7 +1,7 @@
 # LAUNCHER-001: Players cannot discover new releases in the launcher
 
 - Severity: moderate usability limitation; does not prevent gameplay.
-- Status: owner-approved amber card and browser actions verified; local preview delivery pending. No public release.
+- Status: owner-approved amber card and browser actions verified; committed and delivered in the local preview. No public release.
 - Reported: 2026-10-11 UTC; latest followup: 2026-10-16 UTC.
 - Affected: published v1.1.0 Windows x64 launcher and earlier versions.
 - Related: [launcher guide](../launcher.md), [dashboard](../../dashboard.md).
@@ -116,3 +116,8 @@ The initial top-right green menu pill was rejected: the owner wanted the larger 
 The final source passes **78 native update UI assertions**, **28 release-checker cases**, and a real packaged-helper request reporting current / v1.1.0 without touching gameplay status. Checks cover startup/manual retry, newer/current/error/timeout behavior, known-update retention, escaping, pointer actions, gameplay hiding, compact layout and 150% DPI. The imported-ROM card fits above the footer; a small first-run client can scroll. Tests explicitly verify both repository and release actions. The normal API has no newer stable release today, so positive banner behavior uses synthetic versions.
 
 The separate controls audit passes **790 native UI assertions**, including the controller vertical toggle's persistence and effect on both camera and aim. Those tests do not establish hardware-specific startup or full gameplay acceptance. See [release-readiness review](github-release-readiness-20261016.md) and [updater qualification](../../../evidence/launcher-update-button.json). No published v1.1.0 binary is changed retroactively. The owner-accepted game runtime remains unchanged in this launcher update.
+
+
+### Local delivery
+
+Launcher source `628d1ff40ff14ce44a6921e89e594050b290b766` is delivered through **JFG - High Refresh Preview**, **JFG - Jitter Capture**, and the isolated **JFG - Update Button Preview**. The latter retains the explicit sample flag; both normal links use real discovery. All 41 files in the two owner gameplay profiles remained unchanged. Three fresh/copied-profile setup checks selected the accepted runtime, all 14 package payload hashes passed, and the final packaged checker again reported current / v1.1.0. The runtime remains pinned to `95efb8f97b47717921aa4c29ab17245771c3ff22`. Older packages and shortcut backups remain available. No public update is released; the [GitHub audit](github-release-readiness-20261016.md) records outstanding qualification blockers.

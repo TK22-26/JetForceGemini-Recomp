@@ -40,5 +40,6 @@
     "No new game replay or Linux build in this launcher review.",
     "No issue closed, comment posted, tag pushed or release published.",
     "Owner live acceptance of the local game is preserved; it does not close unrelated reports or establish universal no-dips performance."
-  ]
+  ],
+  "reviewed_candidate_commit": "628d1ff40ff14ce44a6921e89e594050b290b766"
 }

@@ -296,7 +296,7 @@ The latest followup corrects [reticle pixels lost with skipped VI events](develo
 The shuriken/crouch followup is now delivered through both local preview shortcuts. Saved controls, inversion preference, video settings and saves are unchanged. The owner reports the shuriken/crouch fixes resolved in live play; the finite tests do not close Unlimited, all-route performance or the Goldwood exit-cutscene audio report. [Current delivery](../evidence/high-refresh-shuriken-followup.json).
 
 
-The owner approved the amber update card below Play. Automatic GitHub stable-release checking, the isolated forced preview, and repository/release button actions pass tests and a live API check. Local normal-shortcut delivery is pending. [Details](development/issues/launcher-update-discovery.md).
+The owner approved the amber update card below Play. Automatic GitHub stable-release checking, the isolated forced preview, and repository/release button actions pass tests and a live API check. Both normal desktop shortcuts now include the approved card and real update discovery; the forced design preview remains separate. [Details](development/issues/launcher-update-discovery.md).
 
 
 The [2026-10-16 open GitHub issue audit](development/issues/github-release-readiness-20261016.md) does **not** certify a full update as release-ready: the mouse-look startup access violation lacks a verified current-build resolution, the Linux native build still contains Windows-only code, and legacy Windows source setup retains firmware/old-WSL gaps. Controller vertical inversion is present and tested in the current modern-controls UI. No issue was closed or release published by this audit.

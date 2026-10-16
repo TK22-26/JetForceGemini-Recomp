@@ -203,3 +203,6 @@ v1.1.0 package predates this feature. See the [issue/validation record](https://
 At startup the launcher checks the project's latest stable GitHub release in a background helper. A newer version displays a large JFG-amber **Update available** card below Play. **What's new** opens the main GitHub repository page; **Update now** opens the GitHub release/download page. Help > Check for updates remains available. Current/older releases do not display the card; a failed check leaves play available and does not claim the installation is current.
 
 For UI review only, `JFG-Launcher.exe --preview-update --profile <separate-folder>` displays a sample update without network discovery or a persistent fake result. The details panel labels the sample. Ordinary launch arguments use the real checker. This preview does not implement automatic installation.
+
+
+The owner-approved card and browser actions are delivered locally from `628d1ff40ff14ce44a6921e89e594050b290b766`. Reopen High Refresh Preview or Jitter Capture for real discovery, or Update Button Preview for the forced sample. The game runtime and owner profiles are preserved. [Delivery and limits](../../evidence/launcher-update-button.json).

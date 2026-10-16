@@ -46,7 +46,7 @@ Detailed per-issue records are added as those issues receive further work.
 | INPUT-009 | Mouse pitch reverses while crouching | Corrected, tested and delivered locally; owner reports resolved in live play | [Investigation](crouch-mouse-inversion.md) |
 | RENDER-009 | Ground shurikens jitter | Corrected, tested and delivered locally; owner reports resolved in live play | [Investigation](ground-shuriken-jitter.md) |
 | INPUT-007 | Keep aiming active throughout modern jumps | Verified in tests; preview installed, live check pending | [Investigation](widescreen-pointer-and-airborne-aim.md) |
-| LAUNCHER-001 | No launcher update discovery; stale release description | Owner-approved amber card; repository/release actions verified; local delivery pending | [Cause, implementation and checks](launcher-update-discovery.md) |
+| LAUNCHER-001 | No launcher update discovery; stale release description | Owner-approved amber card and browser actions verified, committed and delivered locally | [Cause, implementation and checks](launcher-update-discovery.md) |
 | RENDER-001 | Smooth 60-360+ FPS presentation | Presentation pacing and FPS preset corrections tested; owner visual confirmation pending | [Evidence and plan](high-refresh-rendering.md) |
 | RENDER-002 | Juno joint/terrain seams and incorrect dark lighting | Owner reports thigh gaps and delayed lighting absent at 120 FPS in semantic preview; broader coverage remains | [Report and evidence](character-seams-lighting.md) |
 | RENDER-003 | Jitter despite steady 120 OUTPUT / 30 SCENES | Bounded holds corrected; finite-clock/shadow-scene queue cause captured; private ownership candidate and live verification pending | [Report and investigation](steady-fps-jitter.md) |
