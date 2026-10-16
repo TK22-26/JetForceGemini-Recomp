@@ -281,7 +281,10 @@ Both desktop links now select the qualified draw-call key correction, including 
 
 ## Shuriken reticle visibility
 
-The shuriken reticle loss is reproduced: high-refresh presentation selects a newer scene buffer while CPU-drawn strokes remain on the game-selected buffer. A retained changed-pixel mask restores the reticle in bounded 120/360 FPS tests, including VSync, movement and Aim release. Local delivery and sustained owner throwing/aiming confirmation remain pending. Unlimited stress still exposes pacing/audio limits. See [RENDER-008](development/issues/shuriken-reticle-flicker.md).
+The shuriken reticle loss is reproduced: high-refresh presentation selects a newer scene buffer while CPU-drawn strokes remain on the game-selected buffer. A retained changed-pixel mask restores the reticle in bounded 120/360 FPS tests, including VSync, movement and Aim release. The qualified remedy is delivered through both local preview shortcuts; sustained owner throwing/aiming confirmation remains pending. Unlimited stress still exposes pacing/audio limits. See [RENDER-008](development/issues/shuriken-reticle-flicker.md).
 
 
 The Modern Controls fix exposes menu-only bindings (including F assigned to Confirm) in a Menus & dialogue card. Native UI checks pass and the local preview launcher is updated; owner confirmation is pending. Confirm also advances dialogue. See [INPUT-008](development/issues/modern-capture-profile-defaults.md). The longer owner test also reports Goldwood exit cutscene choppiness/audio interruption; quantitative full-run audio acceptance remains open because the detailed trace capped before exit.
+
+
+The local reticle preview also includes compact game-update/final-audio logging and removes periodic route screenshots that caused measured stalls. The reported Goldwood exit-cutscene choppiness/audio interruptions still need a fresh capture. See [current qualification](../evidence/high-refresh-reticle.json).

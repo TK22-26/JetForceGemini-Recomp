@@ -765,3 +765,8 @@ A renderer draw-call cache defect is corrected and passes bounded qualification:
 
 
 Both desktop links now select the qualified draw-call key correction, including audio, bridge and native-ROM improvements. Profiles remain unchanged. [Current local preview](../development/renderer-draw-call-keys.md).
+
+
+### CPU reticle and capture correction (2026-10-16)
+
+The local preview now retains CPU-drawn framebuffer edits on high-refresh output. The shuriken original-drawer fixture passes 120/360 FPS, VSync, movement and Aim-release checks, while disabling the remedy reproduces missing strokes. Sustained actual shuriken gameplay still needs owner verification. Route logging now retains compact game-update/final-audio counters without periodic GPU screenshots; those screenshots caused measured 20-FPS update intervals in the controlled capture comparison. Unlimited stress and the owner exit-cutscene report remain open. [Qualification and delivery](../../evidence/high-refresh-reticle.json), [reticle issue](../development/issues/shuriken-reticle-flicker.md), [capture issue](../development/issues/frame-diagnostics.md).

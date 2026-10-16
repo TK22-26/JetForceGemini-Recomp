@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "reticle fault reproduced; finite-mode remedy qualified; local delivery and owner gameplay confirmation pending",
+  "status": "finite-mode reticle remedy qualified and delivered locally; sustained owner gameplay pending",
   "runtime_sha256": "bee0d0018bf7e2a14585107d51bb6d77bbebd88d8ba0a4c0970adbb1c9cf8315",
   "runtime_source_files": {
     "cmake/rt64_video_settings.cmake": "99d2cc6c190d94b1ff54a2c575892fe9ca88850803078234e2e63a5ae7fcb2bf",
@@ -413,7 +413,7 @@
   },
   "visual_comparison_reviewed": true,
   "owner_live_verified": false,
-  "delivered": false,
+  "delivered": true,
   "capture_overhead_comparison": {
     "without_periodic_readback": {
       "game_update_vi_intervals": {
@@ -445,5 +445,17 @@
     "shuriken-reticle-20261016/final-live-health-verified.json",
     "shuriken-reticle-20261016/capture-overhead-correlation.json",
     "shuriken-reticle-20261016/unlimited-installed-control/unlimited-health.json"
-  ]
+  ],
+  "runtime_source_commit": "26295c75dd43848f59cdd1268518d7131861dbee",
+  "delivery": {
+    "delivered_at_utc": "2026-10-16T15:32:15.765855+00:00",
+    "shortcuts": [
+      "JFG - High Refresh Preview.lnk",
+      "JFG - Jitter Capture.lnk"
+    ],
+    "profile_files_unchanged": 41,
+    "manifest_verified": 14,
+    "launcher_sha256": "86425af71aa821f426d5f6f2a86bbd5d7fe1de06243178312465aae104cd5797",
+    "launcher_setup_runtime_protocol_passed": true
+  }
 }

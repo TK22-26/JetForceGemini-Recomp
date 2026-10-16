@@ -1,6 +1,6 @@
 # RENDER-008: Shuriken reticle flickers and disappears
 
-Status: CPU buffer selection cause reproduced; retained-mask remedy verified in bounded 120/360 tests; local delivery and owner live confirmation pending. Severity: visible aiming feedback failure. Affected: local draw-key preview, 120 FPS, VSync On, modern mouse/keyboard, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e (SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6).
+Status: CPU buffer selection cause reproduced; retained-mask remedy verified in bounded 120/360 tests; delivered locally; owner live confirmation pending. Severity: visible aiming feedback failure. Affected: local draw-key preview, 120 FPS, VSync On, modern mouse/keyboard, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e (SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6).
 
 ## Symptoms and reproduction
 The owner reports that the shuriken reticle flickers and eventually disappears altogether while continuing the tutorial capture. The owner explicitly confirms this occurs both with Aim held and without Aim. Exact first affected frame, weapon ammo/state and native no-Aim visibility rules are not yet established; do not infer the original game always draws a hip-fire reticle.
@@ -43,3 +43,8 @@ The retained-mask path currently qualifies recognized 320x240 RGBA16 VI buffers 
 
 
 Final qualified runtime SHA-256: `bee0d0018bf7e2a14585107d51bb6d77bbebd88d8ba0a4c0970adbb1c9cf8315`. Five focused renderer/presentation/diagnostic/control executables pass. Normal Play mode with detailed gameplay tracing and semantic hashing both disabled records 2,070 consecutive game-update rows and matching final audio counters (zero underruns/overruns). See [qualification receipt](../../../evidence/high-refresh-reticle.json). The corrected mask path is a rendering remedy, not a change to weapon logic or the native no-Aim visibility rules. Full sustained throwing and aiming remains an owner live check.
+
+
+### Local preview delivery
+
+Source commit `26295c75dd43848f59cdd1268518d7131861dbee` is packaged in the local High Refresh Preview and Jitter Capture desktop links. The updated launcher includes the menu/dialogue binding editor and removes periodic capture screenshots. Three copied-profile setup/protocol checks select the new runtime and preserve saves, controls and settings; all 41 checked original profile files are unchanged. The previous package and both shortcut backups remain available. This is bounded test verification and local delivery, not a public release or full shuriken gameplay acceptance. Reopen the preview for sustained Aim, non-Aim throwing, movement and weapon-transition review.

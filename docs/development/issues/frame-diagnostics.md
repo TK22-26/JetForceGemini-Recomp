@@ -967,3 +967,6 @@ The controlled live-mode comparison confirms the periodic-readback cost: identic
 
 
 The final reticle runtime repeats the normal Play-mode coverage check: 2,070 consecutive compact game-update rows, final play-health counters matching the native exit record, and progress audio fields, with detailed gameplay tracing and semantic hashing disabled. Both audio counters are zero. The revised launcher passes 641 managed checks and 15 setup checks. [Qualification](../../../evidence/high-refresh-reticle.json) retains the screenshot readback A/B result; a new long exit-cutscene capture is still required.
+
+
+The compact health logging and screenshot-free route capture are delivered locally with source `26295c75dd43848f59cdd1268518d7131861dbee` through both preview shortcuts. Earlier capture evidence remains intact; this does not retroactively supply missing final counters or resolve the Goldwood exit-cutscene report.
