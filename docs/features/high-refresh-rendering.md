@@ -737,3 +737,6 @@ The optional presentation-trace analyzer now records bounded freeze/jump context
 and accepts the explicit native VI clock frequency for phase-spacing checks.
 See [RENDER-003](../development/issues/steady-fps-jitter.md). Private clock/queue
 experiments are separate from the installed, qualified history-storage preview.
+
+
+The local preview and capture shortcuts now select the compact-timing package, including the qualified native MI-mask bridge and parallel history preparation. Matched recorded-combat comparisons reduce median update work by about 3.7 ms (13%); native 20-FPS updates remain. Full Original and recorded-combat state checks, optional update-cycle logging correspondence and muted native 120/360 robustness checks pass. The launcher, shortcut arguments and profiles are preserved. See [qualification](../../evidence/high-refresh-compact-timing.json) and [PERF-001](../development/issues/goldwood-combat-slowdown.md); this is not a public release or completion of combat/visual acceptance.

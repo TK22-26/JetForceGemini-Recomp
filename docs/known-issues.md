@@ -247,3 +247,6 @@ source candidate only. [RENDER-006](development/issues/tutorial-late-object-jitt
 records the limits; native stability, combat drops, shadow cadence, Unlimited
 pacing and owner-visible full-route acceptance remain open. Desktop delivery is
 withheld under NATIVE-001.
+
+
+The local compact-timing preview reduces recorded-combat update work by about 13%, with exact tested-state correspondence, but native 20-FPS updates remain. This does not resolve the Goldwood combat cadence issue. Current qualification and delivery are recorded in [PERF-001](development/issues/goldwood-combat-slowdown.md) and [the component receipt](../evidence/high-refresh-compact-timing.json).

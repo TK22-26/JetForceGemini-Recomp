@@ -2179,3 +2179,23 @@ The optional JFG_DIAGNOSTIC_UPDATE_CYCLES=1 observation adds only two QueryThrea
 The new callable helper exposed MSVC warning C4505 in a C++ consumer that uses the native timing refresh but never calls the Original helper. A C++-only maybe_unused declaration resolves that diagnostic without disabling warnings or changing generated C execution. The W4/WX consumer compile, focused timing tests and generation tests pass after the correction. Evidence: timing-header-consumer-build (failure), timing-header-consumer-build-fixed and compact-header-consumer-fix.
 
 The sampled native Count-store reduction is not selected. Four reduced-instrumentation native 120 runs recorded extended-window median work of 24.660/22.800 ms for the compact baseline and 25.393/24.200 ms for the Count candidate; three-VI updates were 9/8 versus 21/11. The earlier recorded-clock tail improvement did not establish a real-time benefit. Its source stays private; existing native Count publication remains unchanged. Evidence: native-count-minimal120/runs.json. Clang remains unselected after consistently slower matched compact runs. The ordinary preview rebuild therefore includes only the confirmed compact helper and the opt-in update-cycle diagnostic from this round.
+
+
+### Candidate: consolidate repeated stable-base RAM guards
+
+A private generator experiment groups four or more cached-RAM checks sharing an unchanged base register inside an already admitted native span. Endpoint bounds and the widest compatible alignment prove the covered addresses. Unknown relocation forms, intervening base writes and incompatible alignment residues retain the existing checks. On preflight failure, the candidate commits the already executed prefix and resumes the unchanged original instruction sequence from the first check. All actual memory operations, timing admission/counts, callbacks and reference fallback remain. A bounded address/alignment property fixture and mutation rejection checks precede compilation. Evidence: native-span-range-certificate. This is an unselected candidate; no source/runtime or preview change is implied by the fixture.
+
+
+### Compact-timing standard build qualified and delivered locally
+
+The standard runtime build at 73b8b977b3e940728efa6c5fa0efab2ad741bfd5 passes the exact recorded combat comparison with optional update-cycle logging off and on, including RAM/save, original update-instruction counts and interpolation decisions. The retained 17,000-VI Original comparison also passes. Final muted native 120/VSync and 360/no-VSync captures complete with valid update-cycle records, no unsupported accesses and zero audio underruns. These native routes can diverge; they are robustness checks, not identical-workload performance comparisons or physical-display acceptance.
+
+| Final native case | Extended active median (ms) | Three-VI updates | Other >3-VI updates |
+|---|---:|---:|---:|
+| compact-final-native120-cycles-a | 27.279 | 79 | 17 |
+| compact-final-native120-cycles-b | 24.394 | 8 | 0 |
+| compact-final-native360-cycles | 23.708 | 1 | 0 |
+
+The High Refresh Preview and Jitter Capture desktop links now select the compact-timing local package. Runtime SHA-256: f0bf36e7be10a47504fee4444f8cc979172448430b96deb94ae3786a12039c46. Both links preserve arguments and all 40 checked profile files. Prior package/links are retained. This is a measured component improvement, not completion of the no-20-FPS goal, a public release or full-route visual acceptance. [Qualification and delivery](../../../evidence/high-refresh-compact-timing.json) records the final binary and checks.
+
+The transferable compiler lesson is to reproduce production flags and isolate one factor before attributing a speedup. Removing duplicated cold timing code produced a repeatable recorded-workload improvement; changing the compiler or reducing an isolated operation did not reliably improve real-time cadence. Use native cycle/submit observations to identify remaining long updates before another implementation change.
