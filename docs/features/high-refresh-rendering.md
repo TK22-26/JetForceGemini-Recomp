@@ -743,3 +743,7 @@ The local preview and capture shortcuts now select the compact-timing package, i
 
 
 The local preview now includes bounded resident angle/difference/sine/cosine implementations and the opt-in function/graphics profiler. Controlled recorded comparisons show about 1.1-1.5 ms lower median combat update work from this additional component; the final integrated confirmation also improves. The 400,000-case reference fixture, exact recorded/Original checks and muted native 120/360 captures pass. Occasional 20-FPS game updates remain. Detailed profiling is off during ordinary play and can itself slow the game. Both desktop links select the new package with existing profiles and arguments. See [compatibility](../development/native-resident-math.md), [capture controls](../development/function-profiling.md), and [delivery](../../evidence/high-refresh-resident-math.json).
+
+
+The latest local preview adds bounded native collision traversal and expanded profiling. Repeated combat tests show reduced CPU work, but bounded runs cannot establish all-level no-dip or visual acceptance. Every missed update remains visible in the new cadence report, including level/death transitions; present-return stalls are reported separately. Both desktop shortcuts select the qualified package and retain their profiles. Detailed function profiling remains off for normal play. See the current native-collision qualification and PERF-001/PERF-002 records.
+[Native collision and current evidence](../development/native-collision.md).

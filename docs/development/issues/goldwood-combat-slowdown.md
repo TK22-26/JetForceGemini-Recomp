@@ -2360,3 +2360,7 @@ The final normal Play run consumes all saved route inputs, admits 2,124,488 nati
 | 6591 | 3 | 18.049 / 24.755 | [] (prior []) | current=True, prior=True |
 
 The explicit level/death markers distinguish those calls from an unclassified gameplay hitch. A cold-overlay correlation alone is not assigned a cause. Late crate/light/bridge and shadow visual acceptance remain pending. The candidate is qualified for local preview packaging, not released or claimed as an all-level no-dip fix. [Compatibility and fixture](../native-collision.md); [final binary evidence](../../../evidence/high-refresh-native-collision.json).
+
+
+### Bounded collision preview delivered locally
+Both High Refresh Preview and Jitter Capture desktop shortcuts now select source commit 8f94f148ec367e4a221679a40255f12e6353af07 and runtime SHA-256 34ce90c9a11bba75a9ae47f3ae3d8a40d635b20357bf8c52391f4bd015a6bff1. Package and launcher/runtime setup checks pass; shortcut arguments and all 40 checked profile files are preserved. Previous package and links remain available for rollback. The qualified collision optimization, expanded submission diagnostics, cadence analyzer and explicit transition markers are included. Detailed function profiling remains off for ordinary play. This is a local preview, not a release or universal no-20-FPS claim. Late crate/light/bridge jitter and shadow cadence still require owner visual review. [Current evidence](../../../evidence/high-refresh-native-collision.json).

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "qualified component and expanded diagnostics; package pending; no-dip and live visual acceptance remain open",
+  "status": "qualified native collision and expanded diagnostics delivered locally; no-dip and live visual acceptance remain open",
   "runtime_sha256": "34ce90c9a11bba75a9ae47f3ae3d8a40d635b20357bf8c52391f4bd015a6bff1",
   "runtime_source_files": {
     "CMakeLists.txt": "337acd6afbbe4ea3ff463e9ddc7d352c579ff1818dedf91fb7aec71f7e25f2a1",
@@ -568,5 +568,17 @@
     "native-collision-final-profile",
     "native-collision-final-play",
     "native-collision-final-qualification"
-  ]
+  ],
+  "runtime_source_commit": "8f94f148ec367e4a221679a40255f12e6353af07",
+  "delivery": {
+    "delivered_at_utc": "2026-10-16T06:09:12.457845+00:00",
+    "shortcuts": [
+      "JFG - High Refresh Preview.lnk",
+      "JFG - Jitter Capture.lnk"
+    ],
+    "profile_files_unchanged": 40,
+    "manifest_verified": 14,
+    "launcher_sha256": "60b2696f1447101809053922a1aa5b24efc94c197875a63ad22b3fb9c4dc045c",
+    "launcher_setup_runtime_protocol_passed": true
+  }
 }

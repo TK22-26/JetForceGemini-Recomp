@@ -253,3 +253,7 @@ The local compact-timing preview reduces recorded-combat update work by about 13
 
 
 The latest local profiled-math preview adds a qualified resident-math CPU saving and detailed opt-in profiling. This does not close the Goldwood combat cadence issue: native tests still contain occasional 20-FPS updates. Full profiling has substantial observer overhead and is unsuitable for ordinary FPS acceptance. See [PERF-001](development/issues/goldwood-combat-slowdown.md), [PERF-002](development/issues/frame-diagnostics.md), and [delivery evidence](../evidence/high-refresh-resident-math.json).
+
+
+The latest local preview adds bounded native collision traversal and expanded profiling. Repeated combat tests show reduced CPU work, but bounded runs cannot establish all-level no-dip or visual acceptance. Every missed update remains visible in the new cadence report, including level/death transitions; present-return stalls are reported separately. Both desktop shortcuts select the qualified package and retain their profiles. Detailed function profiling remains off for normal play. See the current native-collision qualification and PERF-001/PERF-002 records.
+[Native collision and current evidence](development/native-collision.md).
