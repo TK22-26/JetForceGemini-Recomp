@@ -1,6 +1,6 @@
 # RENDER-008: Shuriken reticle flickers and disappears
 
-Status: recurrence reproduced; both CPU-import paths corrected and verified in bounded tests; delivered locally; owner live confirmation pending. Severity: visible aiming feedback failure. Affected: local draw-key preview, 120 FPS, VSync On, modern mouse/keyboard, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e (SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6).
+Status: recurrence reproduced; both CPU-import paths corrected and verified in bounded tests; delivered locally and accepted by owner in live play; broader coverage limits remain. Severity: visible aiming feedback failure. Affected: local draw-key preview, 120 FPS, VSync On, modern mouse/keyboard, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e (SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6).
 
 ## Symptoms and reproduction
 The owner reports that the shuriken reticle flickers and eventually disappears altogether while continuing the tutorial capture. The owner explicitly confirms this occurs both with Aim held and without Aim. Exact first affected frame, weapon ammo/state and native no-Aim visibility rules are not yet established; do not infer the original game always draws a hip-fire reticle.
@@ -78,3 +78,8 @@ The import-time retainer's initial thread-local tick failure and the padded-text
 ### Followup delivery (2026-10-16)
 
 Source `95efb8f97b47717921aa4c29ab17245771c3ff22` is delivered through both **JFG - High Refresh Preview** and **JFG - Jitter Capture** desktop shortcuts. Three setup/protocol checks selected the new runtime with fresh and copied profiles; all 41 original profile files remained unchanged. Previous packages and shortcut backups are retained. This is a local tested preview, with sustained owner visual confirmation still pending. [Qualification and limits](../../../evidence/high-refresh-shuriken-followup.json).
+
+
+### Owner live confirmation (2026-10-16)
+
+After testing the delivered followup, the owner reports no noticeable slowdowns and that all reported issues seem resolved, and authorizes committing. This closes the pending owner confirmation for this local preview within that reported play session. It is not a public release or exhaustive all-route/Unlimited acceptance. No further runtime experiments or game changes are part of the launcher update-button task.

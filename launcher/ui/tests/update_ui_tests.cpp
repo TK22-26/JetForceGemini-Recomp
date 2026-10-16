@@ -8,7 +8,8 @@ static int checks=0;
 static void demand(bool pass,const char* message) {
   ++checks;if(!pass)throw std::runtime_error(message);
 }
-static void settle() {for(int i=0;i<3;++i)FrontendUiFrame({});}
+static FrontendUiState frameState;
+static void settle() {for(int i=0;i<3;++i)FrontendUiFrame(frameState);}
 static Rml::Element* element(const std::string& id) {
   auto* e=surface->ui.el(id.c_str());demand(e!=nullptr,id.c_str());return e;
 }
@@ -79,7 +80,16 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     demand(!ui.updatePending && ui.availableUpdate=="v1.2.0","newer release accepted");
     demand(element("update-notice")->IsVisible(true),"persistent notification visible");
     demand(ui.current.empty(),"notification does not interrupt with modal");
-    capture("update-available-home.tga");click("update-notice");
+    demand(element("update-notice")->GetParentNode()->IsClassSet("content"),"update banner lives below Play");
+    auto bannerPoint=element("update-notice")->GetAbsoluteOffset(Rml::BoxArea::Border);
+    auto* play=ui.doc->QuerySelector(".play");
+    demand(bannerPoint.y>=play->GetAbsoluteOffset(Rml::BoxArea::Border).y+play->GetClientHeight(),"banner follows Play vertically");
+    demand(element("update-notice")->GetClientWidth()>=600 && element("update-notice")->GetClientHeight()>=72,"banner is a large click target");
+    demand(element("update-current")->GetInnerRML().find("1.1.0")!=std::string::npos,"banner shows installed version");
+    pointerClick("update-download");demand(lastAction=="releases","Update now opens fixed GitHub release page");
+    capture("update-available-home.tga");pointerClick("update-notes");
+    demand(lastAction=="project" && ui.current.empty(),"Whats new opens main repository without a modal");
+    ui.modal("updates");settle();
     demand(ui.current=="updates","notification opens update details");
     demand(element("dialog-body")->GetInnerRML().find("v1.2.0")!=std::string::npos,"latest version displayed");
     click("action-releases");demand(lastAction=="releases","download action routes to fixed release page");
@@ -105,11 +115,30 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     demand(!element("update-notice")->IsVisible(true),"home notice stays off gameplay");
     demand(ui.current.empty(),"background result never captures gameplay");
     // Network text is rendered as text, never interpreted as UI markup.
-    FrontendUiFrame({});ui.beginUpdateCheck();result("error\n\n<evil> & text\n");ui.modal("updates");settle();
+    FrontendUiFrame({});ui.beginUpdateCheck();result("error\n\n<evil> & text\n<evil>release notes</evil>\nsecond line");ui.modal("updates");settle();
     demand(surface->ui.doc->QuerySelector("evil")==nullptr,"release text is escaped");
     SetWindowPos(window,nullptr,-30000,-30000,850,650,SWP_NOZORDER|SWP_NOACTIVATE);FrontendUiResize();settle();
     auto* body=element("dialog-body");demand(body->GetScrollWidth()<=body->GetClientWidth()+1,"compact update panel has no horizontal overflow");
     capture("update-compact.tga");
+    ui.close();
+    const int requestsBeforePreview=requests;
+    ui.updatePreview=true;ui.beginUpdateCheck();frameState.rom=L"C:/fixture/Jet Force Gemini.z64";FrontendUiFrame(frameState);settle();
+    demand(requests==requestsBeforePreview && !ui.updatePending,"forced preview never queries GitHub");
+    demand(element("update-notice")->IsVisible(true),"forced update banner visible");
+    auto* pill=element("update-notice");auto pos=pill->GetAbsoluteOffset(Rml::BoxArea::Border);
+    demand(pos.x>=0 && pos.x+pill->GetClientWidth()<=surface->width,"compact banner stays in window");
+    pointerClick("update-notes");demand(lastAction=="project","preview Whats new uses main repository too");ui.modal("updates");settle();
+    demand(element("dialog-body")->GetInnerRML().find("sample update")!=std::string::npos,"preview clearly labels simulated update");
+    capture("forced-update-details.tga");ui.close();
+    surface->context->SetDensityIndependentPixelRatio(1.5f);settle();
+    // A physically larger client represents an ordinary 150% DPI launcher.
+    SetWindowPos(window,nullptr,-30000,-30000,1280,780,SWP_NOZORDER|SWP_NOACTIVATE);FrontendUiResize();
+    surface->context->SetDensityIndependentPixelRatio(1.5f);settle();
+    pointerClick("update-notes");demand(lastAction=="project","DPI layout preserves repository action");ui.close();capture("update-150-percent.tga");
+    auto bannerBottom=element("update-notice")->GetAbsoluteOffset(Rml::BoxArea::Border).y+element("update-notice")->GetClientHeight();
+    demand(bannerBottom<element("status")->GetAbsoluteOffset(Rml::BoxArea::Border).y,"imported-ROM banner fits above footer at 150 percent DPI");
+    ui.updatePreview=false;ui.beginUpdateCheck();result("current\nv1.1.0\nNo newer stable release is available.\n");
+    demand(!element("update-notice")->IsVisible(true),"normal result removes forced state when preview disabled");
     std::ofstream(home/"result.json")<<"{\"passed\":true,\"checks\":"<<checks<<",\"background_requests\":"<<requests<<"}";
     FrontendUiShutdown();ready=false;DestroyWindow(window);return 0;
   } catch(const std::exception& error) {

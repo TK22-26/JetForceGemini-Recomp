@@ -1,8 +1,8 @@
 # LAUNCHER-001: Players cannot discover new releases in the launcher
 
 - Severity: moderate usability limitation; does not prevent gameplay.
-- Status: verified in tests and against the live release API; awaiting packaged release.
-- Reported and updated: 2026-10-11 UTC.
+- Status: owner-approved amber card and browser actions verified; local preview delivery pending. No public release.
+- Reported: 2026-10-11 UTC; latest followup: 2026-10-16 UTC.
 - Affected: published v1.1.0 Windows x64 launcher and earlier versions.
 - Related: [launcher guide](../launcher.md), [dashboard](../../dashboard.md).
 
@@ -99,3 +99,20 @@ and formal research gates. Compare versions numerically, never treat a failed
 request as proof of being current, and keep network requests off the UI thread.
 Use the [GitHub latest-release API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release)
 without accepting remote executable paths or download instructions.
+
+
+## Owner-approved update card (2026-10-16)
+
+The owner supplied `scooby-launcher.zip` and a screenshot of its larger update card below Play. The final implementation follows that layout with JFG amber, a download icon, version badge, installed-version subtitle and two buttons. **What's new** opens the main project repository; **Update now** opens its latest release/download page. The owner approved this appearance and these destinations. Existing version comparison, background request bounds and offline behavior are retained. No automatic installer or release-note transport was added.
+
+An explicit `--preview-update` flag shows a sample v1.2.0 card without a network request, persisted fake result or installed-version change. The desktop design preview uses a separate muted profile. Normal launch arguments use real release discovery. Current or older releases hide the card. Gameplay hides the home content, including the card. Manual Help checks remain available.
+
+### Iterations and informative failures
+
+The initial top-right green menu pill was rejected: the owner wanted the larger card below Play and explicitly required JFG amber. Historical previews remain in private evidence. Explicit line height corrected label centering in the rounded buttons. Earlier cloned test wrappers summarized the original result file despite running new fixtures; their summaries are superseded by the exact-path final collector. A temporary internal release-notes view was removed after the owner chose the main repository page. Those iterations are not the delivered behavior.
+
+### Final verification and limits
+
+The final source passes **78 native update UI assertions**, **28 release-checker cases**, and a real packaged-helper request reporting current / v1.1.0 without touching gameplay status. Checks cover startup/manual retry, newer/current/error/timeout behavior, known-update retention, escaping, pointer actions, gameplay hiding, compact layout and 150% DPI. The imported-ROM card fits above the footer; a small first-run client can scroll. Tests explicitly verify both repository and release actions. The normal API has no newer stable release today, so positive banner behavior uses synthetic versions.
+
+The separate controls audit passes **790 native UI assertions**, including the controller vertical toggle's persistence and effect on both camera and aim. Those tests do not establish hardware-specific startup or full gameplay acceptance. See [release-readiness review](github-release-readiness-20261016.md) and [updater qualification](../../../evidence/launcher-update-button.json). No published v1.1.0 binary is changed retroactively. The owner-accepted game runtime remains unchanged in this launcher update.

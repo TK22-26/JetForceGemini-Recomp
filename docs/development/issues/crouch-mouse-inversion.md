@@ -1,6 +1,6 @@
 # INPUT-009: Mouse vertical direction reverses while crouching
 
-Status: reproduced and corrected in tests; delivered locally; owner live confirmation pending. Severity: visible gameplay/control regression. Affected: unified-keys high-refresh preview, source 19a2373, runtime SHA-256 93514316aada84480c437c3f6eb08dfe192b22a43fa29f678242d4143bf133d7.
+Status: reproduced and corrected in tests; delivered locally and accepted by owner in live play; broader coverage limits remain. Severity: visible gameplay/control regression. Affected: unified-keys high-refresh preview, source 19a2373, runtime SHA-256 93514316aada84480c437c3f6eb08dfe192b22a43fa29f678242d4143bf133d7.
 
 ## Symptoms and reproduction
 
@@ -27,9 +27,14 @@ The same positive-look tape produces 25 consecutive crouch steps of -30 before t
 Lesson: translate coordinate conventions at their input boundary, independently of which camera owns the current locomotion state. Do not migrate user preferences to compensate for a state-dependent sign bug.
 
 
-The shared followup runtime and bounded checks are pinned in [qualification](../../../evidence/high-refresh-shuriken-followup.json). Owner live confirmation remains pending.
+The shared followup runtime and bounded checks are pinned in [qualification](../../../evidence/high-refresh-shuriken-followup.json). Owner confirmation was subsequently received on 2026-10-16; see the final confirmation below.
 
 
 ### Followup delivery (2026-10-16)
 
 Source `95efb8f97b47717921aa4c29ab17245771c3ff22` is delivered through both **JFG - High Refresh Preview** and **JFG - Jitter Capture** desktop shortcuts. Three setup/protocol checks selected the new runtime with fresh and copied profiles; all 41 original profile files remained unchanged. Previous packages and shortcut backups are retained. This is a local tested preview, with sustained owner visual confirmation still pending. [Qualification and limits](../../../evidence/high-refresh-shuriken-followup.json).
+
+
+### Owner live confirmation (2026-10-16)
+
+After testing the delivered followup, the owner reports no noticeable slowdowns and that all reported issues seem resolved, and authorizes committing. This closes the pending owner confirmation for this local preview within that reported play session. It is not a public release or exhaustive all-route/Unlimited acceptance. No further runtime experiments or game changes are part of the launcher update-button task.

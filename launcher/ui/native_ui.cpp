@@ -356,11 +356,21 @@ struct Ui : Rml::EventListener {
   std::array<bool, jfg::kControllerDeviceCount> activated{};
   std::deque<std::string> notices;
   bool reducedMotion = false;
-  bool updatePending = false;
+  bool updatePending = false, updatePreview = false;
   double updateDeadline = 0, updatePoll = 0;
   std::string updateState, updateTag, updateMessage, availableUpdate;
   void beginUpdateCheck() {
     if (controllerWindow || updatePending) return;
+    if (updatePreview) {
+      // Explicit, process-local UI preview. Never writes an update result or
+      // changes installed-version metadata, and never requests a download.
+      updateState = "available"; updateTag = "v1.2.0"; availableUpdate = updateTag;
+      updateMessage = "Design preview: this is a sample update, not a GitHub result.";
+      label("update-current", std::string("You're on v") + jfg::frontend::version + ".");
+      label("update-version", availableUpdate);
+      doc->SetClass("has-update", true);
+      return;
+    }
     updatePending = true; updateState = "checking"; updateMessage = "Checking GitHub for the latest stable release...";
     updateDeadline = Rml::GetSystemInterface()->GetElapsedTime() + 30;
     updatePoll = 0;
@@ -381,10 +391,11 @@ struct Ui : Rml::EventListener {
       result = "error"; message = "The update check timed out. Try again later. You can keep playing offline.";
     }
     updatePending = false; updateState = result; updateTag = tag; updateMessage = message;
+    label("update-current", std::string("You're on v") + jfg::frontend::version + ".");
     if (result == "available") availableUpdate = tag;
     else if (result == "current") availableUpdate.clear();
-    label("update-notice", availableUpdate.empty() ? "" : "Update " + availableUpdate + " available - view release");
-    el("update-notice")->SetProperty("display", availableUpdate.empty() ? "none" : "block");
+    label("update-version", availableUpdate);
+    doc->SetClass("has-update", !availableUpdate.empty());
     if (current == "updates" || current == "menu-help") modal(current);
   }
   std::string current, sessionList, selectedSession;
@@ -770,8 +781,9 @@ struct Ui : Rml::EventListener {
     } else if (page == "updates") {
       html = "<div class=\"name\">" + escape(updateState == "available" ? "Update " + updateTag + " is available" : updateState == "checking" ? "Checking for updates" : updateState == "current" ? "You're up to date" : "Unable to check for updates") + "</div>";
       html += "<p>Installed launcher: v" + escape(jfg::frontend::version) + "</p>";
-      if (!updateTag.empty() && updateState != "checking") html += "<p>Latest stable release: " + escape(updateTag) + "</p>";
-      html += "<p class=\"muted\">" + escape(updateMessage) + "</p><div class=\"panel-actions\">";
+      if (!updateTag.empty() && updateState != "checking") html += std::string("<p>") + (updatePreview ? "Sample release: " : "Latest stable release: ") + escape(updateTag) + "</p>";
+      html += "<p class=\"muted\">" + escape(updateMessage) + "</p>";
+      html += "<div class=\"panel-actions\">";
       html += button("releases", "View release / download") + button("retry-updates", "Check again", updatePending) + "</div>";
       note = "Checks run at startup. Downloads open in your browser; nothing is installed automatically.";
     } else if (page == "support") {
@@ -1244,7 +1256,7 @@ void check(HRESULT r) {
 }
 } // namespace
 bool FrontendUiInit(HWND w, const fs::path &profile,
-                    std::function<void(const std::string &)> action, const std::string &tool) {
+                    std::function<void(const std::string &)> action, const std::string &tool, bool previewUpdate) {
   try {
     surface = std::make_unique<Surface>();
     auto &s = *surface;
@@ -1307,6 +1319,7 @@ bool FrontendUiInit(HWND w, const fs::path &profile,
     s.context = Rml::CreateContext("frontend", {1, 1});
     s.ui.window = w;
     s.ui.profile = profile;
+    s.ui.updatePreview = previewUpdate;
     s.ui.action = std::move(action);
     s.ui.controllerWindow=tool=="controllers";
     s.ui.doc = s.context->LoadDocument(tool=="video"?"video-settings.rml":tool.empty() || s.ui.controllerWindow?"main.rml":tool=="map"?"live-map.rml":"live-inventory.rml");

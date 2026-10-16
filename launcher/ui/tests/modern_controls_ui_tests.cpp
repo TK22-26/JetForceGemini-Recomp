@@ -124,7 +124,24 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     demand(ui.modern[0].pad[1]==0&&ui.modern[0].pad[2]==-1&&ui.modern[0].pad[4]==-1,"replace clears overlapping actions");
     demand(ui.modern[0].pad[11]==0,"replace preserves menu reuse");
     editInput(-11);click("action-mc-stick-move");demand(ui.modern[0].movement_stick==1,"stick role swaps");
-    click("action-mc-tab-settings");change("mc-range-scope",65);
+    click("action-mc-tab-settings");
+    // GitHub #13: the GUI toggle must affect camera look as well as aiming,
+    // survive reload, and leave the independent mouse preference intact.
+    jfg::StandardControllerSample inversionPad{};
+    inversionPad.axes[ui.modern[0].movement_stick==0?3:1]=-32767;
+    const auto inversionBefore=ui.modern[0].look;
+    const auto cameraBefore=jfg::pc_stick_look(inversionBefore,inversionPad,ui.modern[0].movement_stick,false);
+    const auto aimBefore=jfg::pc_stick_look(inversionBefore,inversionPad,ui.modern[0].movement_stick,true);
+    demand(cameraBefore.y!=0&&aimBefore.y!=0,"controller vertical fixture has actual look input");
+    click("action-mc-invert-y");ui.loadModern();
+    const auto& inversionAfter=ui.modern[0].look;
+    demand(inversionAfter.aim_invert_y!=inversionBefore.aim_invert_y,"controller vertical toggle persists after reload");
+    demand(inversionAfter.mouse_invert_y==inversionBefore.mouse_invert_y,"controller inversion preserves mouse preference");
+    demand(jfg::pc_stick_look(inversionAfter,inversionPad,ui.modern[0].movement_stick,false).y==-cameraBefore.y,"controller inversion reverses camera vertical look");
+    demand(jfg::pc_stick_look(inversionAfter,inversionPad,ui.modern[0].movement_stick,true).y==-aimBefore.y,"controller inversion reverses aimed vertical look");
+    click("action-mc-invert-y");ui.loadModern();
+    demand(ui.modern[0].look.aim_invert_y==inversionBefore.aim_invert_y,"controller inversion toggles back");
+    change("mc-range-scope",65);
     demand(ui.modern[0].pad_scope_sensitivity==65&&ui.modern[0].mouse_scope_sensitivity==100,"controller scope independent");
     change("mc-range-scope",999);demand(ui.modern[0].pad_scope_sensitivity==300,"scope clamp");
     change("mc-range-scope",65);

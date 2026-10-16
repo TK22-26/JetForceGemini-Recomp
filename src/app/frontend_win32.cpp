@@ -70,7 +70,7 @@ struct App {
   HBRUSH background = CreateSolidBrush(RGB(18, 27, 40));
   fs::path profile, helper;
   std::wstring inputReplay, progressOutput, diagnosticsDirectory;
-  bool quickPlay = false;
+  bool quickPlay = false, previewUpdate = false;
   Process session, dialog;
   std::vector<std::unique_ptr<Process>> tools;
   std::vector<HWND> liveModals;
@@ -709,7 +709,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     app.shield =
         CreateWindowExW(0, shieldClass.lpszClassName, L"", WS_CHILD, 0, 0, 1, 1,
                         window, nullptr, shieldClass.hInstance, nullptr);
-    if (!FrontendUiInit(window, app.profile, uiAction))
+    if (!FrontendUiInit(window, app.profile, uiAction, "", app.previewUpdate))
       return -1;
     app.uiReady = true;
     SetTimer(window, 2, 16, nullptr);
@@ -1060,6 +1060,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     const std::wstring option = argv[i];
     if (option == L"--play" && !app.quickPlay)
       app.quickPlay = true;
+    else if (option == L"--preview-update" && !app.previewUpdate)
+      app.previewUpdate = true;
     else if (option == L"--profile" && i + 1 < argc)
       app.profile = fs::absolute(fs::path(argv[++i]));
     else if (option == L"--input-replay" && i + 1 < argc && app.inputReplay.empty())
@@ -1074,7 +1076,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
   LocalFree(argv);
   if (!validArguments || (!app.quickPlay && (!app.inputReplay.empty() || !app.progressOutput.empty()))) {
     MessageBoxW(nullptr,
-                L"Use JFG-Launcher.exe [--play] [--profile <folder>] [--diagnostics <folder>]. "
+                L"Use JFG-Launcher.exe [--play] [--profile <folder>] [--diagnostics <folder>] [--preview-update]. "
                 L"Diagnostic --input-replay <file> and --progress-output <file> require --play.",
                 L"Jet Force Gemini", MB_OK | MB_ICONERROR);
     return 2;

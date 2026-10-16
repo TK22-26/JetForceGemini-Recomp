@@ -281,7 +281,7 @@ Both desktop links now select the qualified draw-call key correction, including 
 
 ## Shuriken reticle visibility
 
-The shuriken reticle loss is reproduced: high-refresh presentation selects a newer scene buffer while CPU-drawn strokes remain on the game-selected buffer. A retained changed-pixel mask restores the reticle in bounded 120/360 FPS tests, including VSync, movement and Aim release. The qualified remedy is delivered through both local preview shortcuts; sustained owner throwing/aiming confirmation remains pending. Unlimited stress still exposes pacing/audio limits. See [RENDER-008](development/issues/shuriken-reticle-flicker.md).
+The shuriken reticle loss is reproduced: high-refresh presentation selects a newer scene buffer while CPU-drawn strokes remain on the game-selected buffer. A retained changed-pixel mask restores the reticle in bounded 120/360 FPS tests, including VSync, movement and Aim release. The qualified remedy is delivered through both local preview shortcuts; the subsequent owner test reports the reticle issue resolved. Unlimited stress still exposes pacing/audio limits. See [RENDER-008](development/issues/shuriken-reticle-flicker.md).
 
 
 The owner-requested Modern Controls revision puts Confirm, Back, Save and new keyboard bindings in Keys, retains the left Mouse/WASD lists, removes arrows and supports shared E Interact/Confirm. Core and native UI checks pass; both local preview shortcuts now include the revision and requested shared E. Confirm also advances dialogue. See [INPUT-008](development/issues/modern-capture-profile-defaults.md). The longer owner test also reports Goldwood exit cutscene choppiness/audio interruption; quantitative full-run audio acceptance remains open because the detailed trace capped before exit.
@@ -290,7 +290,13 @@ The owner-requested Modern Controls revision puts Confirm, Back, Save and new ke
 The local reticle preview also includes compact game-update/final-audio logging and removes periodic route screenshots that caused measured stalls. The reported Goldwood exit-cutscene choppiness/audio interruptions still need a fresh capture. See [current qualification](../evidence/high-refresh-reticle.json).
 
 
-The latest followup corrects [reticle pixels lost with skipped VI events](development/issues/shuriken-reticle-flicker.md), [missing custom shuriken matrix ownership](development/issues/ground-shuriken-jitter.md), and [state-dependent crouch pitch inversion](development/issues/crouch-mouse-inversion.md). Both mouse directions, resting-object trace coverage, real-weapon 120/360 reticle checks and bounded normal-Play audio checks pass. Owner live confirmation and broader coverage remain pending. [Qualification](../evidence/high-refresh-shuriken-followup.json).
+The latest followup corrects [reticle pixels lost with skipped VI events](development/issues/shuriken-reticle-flicker.md), [missing custom shuriken matrix ownership](development/issues/ground-shuriken-jitter.md), and [state-dependent crouch pitch inversion](development/issues/crouch-mouse-inversion.md). Both mouse directions, resting-object trace coverage, real-weapon 120/360 reticle checks and bounded normal-Play audio checks pass. The owner subsequently reports these issues resolved in live play; broader coverage remains limited. [Qualification](../evidence/high-refresh-shuriken-followup.json).
 
 
-The shuriken/crouch followup is now delivered through both local preview shortcuts. Saved controls, inversion preference, video settings and saves are unchanged. Owner live confirmation remains pending; the finite tests do not close Unlimited, all-route performance or the Goldwood exit-cutscene audio report. [Current delivery](../evidence/high-refresh-shuriken-followup.json).
+The shuriken/crouch followup is now delivered through both local preview shortcuts. Saved controls, inversion preference, video settings and saves are unchanged. The owner reports the shuriken/crouch fixes resolved in live play; the finite tests do not close Unlimited, all-route performance or the Goldwood exit-cutscene audio report. [Current delivery](../evidence/high-refresh-shuriken-followup.json).
+
+
+The owner approved the amber update card below Play. Automatic GitHub stable-release checking, the isolated forced preview, and repository/release button actions pass tests and a live API check. Local normal-shortcut delivery is pending. [Details](development/issues/launcher-update-discovery.md).
+
+
+The [2026-10-16 open GitHub issue audit](development/issues/github-release-readiness-20261016.md) does **not** certify a full update as release-ready: the mouse-look startup access violation lacks a verified current-build resolution, the Linux native build still contains Windows-only code, and legacy Windows source setup retains firmware/old-WSL gaps. Controller vertical inversion is present and tested in the current modern-controls UI. No issue was closed or release published by this audit.

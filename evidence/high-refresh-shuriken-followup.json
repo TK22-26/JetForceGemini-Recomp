@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "three corrections verified within recorded scope and delivered locally; owner live confirmation pending",
+  "status": "delivered corrections accepted by owner in live play; broader coverage limits remain",
   "runtime_sha256": "313a60a9b51a0aa17e5a1a9ec5c59e3cbec0de46edf9d8db22ab477057e53e95",
   "runtime_source_files": {
     "cmake/rt64_gpu_timing.cmake": "ee913eae241b0dc54f71b8541dbe7357cc58f6a20cc1517c685fe3c20c5e97e1",
@@ -374,7 +374,7 @@
     ]
   },
   "delivered": true,
-  "owner_live_verified": false,
+  "owner_live_verified": true,
   "limits": [
     "Hidden native-clock replay is not monitor scanout or listening acceptance.",
     "Recorded owner inputs reproduce weapon use but diverge from the exact complete owner route; no full tutorial or exit-cutscene acceptance is claimed.",
@@ -408,5 +408,6 @@
     "manifest_verified": 14,
     "launcher_sha256": "a4288ecac58356e41db77d6ea3072380ab4e567b70ebb9c45d7f04868f983921",
     "launcher_setup_runtime_protocol_passed": true
-  }
+  },
+  "owner_confirmation": "2026-10-16: owner reports no noticeable slowdowns and all reported issues seem resolved; authorizes commit."
 }

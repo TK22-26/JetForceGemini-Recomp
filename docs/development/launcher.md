@@ -196,3 +196,10 @@ Checks need no GitHub account. Only a public metadata request is sent, with no R
 saves or settings. Drafts and prereleases are excluded; version components are
 compared numerically. Requests time out and response sizes are bounded. The existing
 v1.1.0 package predates this feature. See the [issue/validation record](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/development/issues/launcher-update-discovery.md).
+
+
+### Release notification and design preview
+
+At startup the launcher checks the project's latest stable GitHub release in a background helper. A newer version displays a large JFG-amber **Update available** card below Play. **What's new** opens the main GitHub repository page; **Update now** opens the GitHub release/download page. Help > Check for updates remains available. Current/older releases do not display the card; a failed check leaves play available and does not claim the installation is current.
+
+For UI review only, `JFG-Launcher.exe --preview-update --profile <separate-folder>` displays a sample update without network discovery or a persistent fake result. The details panel labels the sample. Ordinary launch arguments use the real checker. This preview does not implement automatic installation.
