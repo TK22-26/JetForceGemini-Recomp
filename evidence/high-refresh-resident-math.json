@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "qualified native component and profiler; pending local package delivery; no-20-FPS goal open",
+  "status": "qualified component and detailed profiler delivered locally; no-20-FPS goal remains open",
   "runtime_sha256": "3e898fc20e96d4c189e4645807f5a439bf01c0d84f684ea3bd1dc1f7d02186ec",
   "runtime_source_files": {
     "include/jfg/boot/native_resident_math.h": "4e19fd1cddb246c949fd0feab7919a35246048dbb7d6c8da9bbb8ad9dceb09ea",
@@ -481,5 +481,17 @@
     "resident-math-source-build-fixed",
     "resident-math-final-recorded",
     "resident-math-final-native"
-  ]
+  ],
+  "runtime_source_commit": "4a54d903853471bfd248cfd2da12ac97f14df1cb",
+  "delivery": {
+    "delivered_at_utc": "2026-10-16T02:46:16.590652+00:00",
+    "shortcuts": [
+      "JFG - High Refresh Preview.lnk",
+      "JFG - Jitter Capture.lnk"
+    ],
+    "profile_files_unchanged": 40,
+    "manifest_verified": 14,
+    "launcher_sha256": "60b2696f1447101809053922a1aa5b24efc94c197875a63ad22b3fb9c4dc045c",
+    "launcher_setup_runtime_protocol_passed": true
+  }
 }

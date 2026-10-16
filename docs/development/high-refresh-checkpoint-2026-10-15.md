@@ -67,3 +67,6 @@ The compact-timing standard build was subsequently qualified and delivered to bo
 
 
 The detailed profiler led to qualified bounded resident-math dispatch. Exact recorded comparisons show about 1.1-1.5 ms lower median combat work in the two controlled pairs, with a separate integrated confirmation and preserved tested state. The final combined binary passes the Original reference, full diagnostic correspondence and native 120/360 captures; local package delivery is separate. Remaining occasional three-VI updates keep PERF-001 open. The production guard and existing counters remain authoritative; this checkpoint grants no new budget.
+
+
+The combined profiled-math package has now been qualified and delivered to both desktop links, retaining profiles, arguments and the previous package. Detailed profiling is off by default. PERF-001 remains open; subsequent work should use the new per-update attribution to target collision/pathfinding and CPU-side graphics submission, retaining reference fallbacks and uninstrumented checks. No new investigation root, counter reset or budget extension follows from delivery.

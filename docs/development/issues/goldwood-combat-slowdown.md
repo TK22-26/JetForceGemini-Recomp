@@ -2259,3 +2259,8 @@ Four shared-prefix tests begin from exactly equal recorded state, then run in re
 | resident-final-native360 | 24.802 | 8 | 0 |
 
 The full-profile row includes substantial observer overhead; it must not be read as ordinary gameplay FPS. Default profiling is off. Source and reproducible fixtures are integrated, with package delivery tracked separately. The no-20-FPS goal, late-route visual acceptance and shadow cadence remain open. See [native math notes](../native-resident-math.md) and [combined qualification](../../../evidence/high-refresh-resident-math.json).
+
+
+### Combined preview delivered locally
+
+Both High Refresh Preview and Jitter Capture desktop shortcuts now select the profiled-math package, runtime source commit 4a54d903853471bfd248cfd2da12ac97f14df1cb and SHA-256 3e898fc20e96d4c189e4645807f5a439bf01c0d84f684ea3bd1dc1f7d02186ec. Manifest and launcher/runtime setup protocol checks pass; both shortcut arguments and all 40 checked profile files are preserved, and the previous package/links remain available for rollback. Full profiling stays off in ordinary play. This is an additional measured component improvement with diagnostic tooling; occasional three-VI game updates and the no-20-FPS goal remain open. See [combined qualification and delivery](../../../evidence/high-refresh-resident-math.json).

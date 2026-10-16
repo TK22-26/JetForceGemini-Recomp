@@ -898,3 +898,6 @@ Owner-requested full function/caller profiling is implemented with a lower-overh
 
 
 The combined resident-math/profiler runtime also passes the full instrumented recorded comparison and profiler-disabled Original/native checks. Detailed logging remains opt-in and its overhead remains explicit. The final binary and captures are linked in [combined qualification](../../../evidence/high-refresh-resident-math.json); this does not mark the underlying combat slowdown resolved.
+
+
+The combined profiled-math binary is now installed on both high-refresh desktop links. Detailed profiling remains an explicit developer-runtime option; ordinary F8 FPS logging does not activate per-function queries. Logs and captures remain private on D:. The delivered binary and source commit are in [the combined receipt](../../../evidence/high-refresh-resident-math.json).
