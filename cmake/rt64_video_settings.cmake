@@ -144,6 +144,25 @@ function(jfg_video_patch_workload)
 endfunction()
 
 function(jfg_video_patch_present)
+    jfg_video_replace([=[#include "rt64_present_queue.h"]=] [=[#include "rt64_present_queue.h"
+#include "rt64_cpu_overlay.hpp"]=])
+    jfg_video_replace([=[        RenderTarget *colorTarget = nullptr;]=] [=[        RenderTarget *colorTarget = nullptr;
+        std::shared_ptr<const jfg::CpuOverlayFrame> jfgCpuOverlay;]=])
+
+    jfg_video_replace([=[                commandList->begin();
+                commandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(swapChainTexture, RenderTextureLayout::COLOR_WRITE));]=] [=[                commandList->begin();
+                if (jfgCpuOverlay && colorTarget && !colorTarget->isEmpty()) {
+                    const auto* changes = jfgCpuOverlay->pool.get(jfgCpuOverlay->id);
+                    if (changes) {
+                        colorTarget->copyFromChanges(ext.presentGraphicsWorker, *changes,
+                            jfgCpuOverlay->width, jfgCpuOverlay->height, 0U, ext.shaderLibrary);
+                        jfg::trace_interpolation("cpu-overlay-presented", jfgOutputSample.tick,
+                            present.screenVI.fbAddress(), jfgCpuOverlay->address, unsigned(i),
+                            frameCounters.count, jfgOutputSample.alpha, jfgCpuOverlay->tick, 0U);
+                    }
+                }
+                commandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(swapChainTexture, RenderTextureLayout::COLOR_WRITE));]=])
+
     jfg_video_replace([=[        bool lockedWorkloadMutex = false;
         InterpolatedFrameCounters &frameCounters = ext.sharedResources->interpolatedFrames[ext.sharedResources->interpolatedFramesIndex];]=] [=[        bool lockedWorkloadMutex = false;
         const uint32_t jfgTargetBank = ext.sharedResources->interpolatedFramesIndex;
@@ -258,6 +277,7 @@ function(jfg_video_patch_present)
                         (unsigned(i) - unsigned(!usingMSAA)) % jfg::kPresentationRingSize :
                         (unsigned(i) - unsigned(!usingMSAA)) * 2U + jfgTargetBank));
             const auto jfgOutputSample = jfg::presentation_output_sample(&frameCounters, jfgSampleIndex);
+            jfg::current_capture_output() = jfgOutputSample;
             uint32_t swapChainIndex = 0;]=])
     jfg_video_replace([=[                if (swapChainValid) jfg::frame_diagnostic_state().presented();]=] [=[                if (swapChainValid) {
                     jfg::frame_diagnostic_state().presented();
@@ -265,5 +285,10 @@ function(jfg_video_patch_present)
                         targetRate, jfgOutputSample.frame, jfgOutputSample.count,
                         jfgOutputSample.alpha, present.presentId, jfgSampleIndex);
                 }]=])
+
+    jfg_video_replace([=[            jfg::current_capture_output() = jfgOutputSample;]=] [=[            jfg::current_capture_output() = jfgOutputSample;
+            if (i == 0 && presentationMode == EnhancementConfiguration::Presentation::Mode::SkipBuffering &&
+                !jfg::diagnostic_cpu_write_baseline())
+                jfgCpuOverlay = jfg::cpu_overlay_for(present.screenVI.fbAddress(), jfgOutputSample.tick);]=])
     set(contents "${contents}" PARENT_SCOPE)
 endfunction()

@@ -1,6 +1,6 @@
 # INPUT-008: Retained capture profile differs from modern defaults
 
-Status: cause identified; owner's inversion choice corrected live; menu-binding UI verified in tests; local delivery/live confirmation pending. Severity: usability. Affected: draw-key preview, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e and retained route-capture profile.
+Status: cause identified; owner's inversion choice corrected live; menu-binding UI verified in tests; delivered in local preview; live confirmation pending. Severity: usability. Affected: draw-key preview, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e and retained route-capture profile.
 
 During the longer owner measurement the owner reports unexpected mouse direction and E not acting as the expected A/Confirm. The attached Scooby-Doo image was accidental; the owner confirms JFG. Turning vertical inversion Off fixes the direction according to the owner.
 
@@ -31,3 +31,6 @@ Added a Menus & dialogue card to list and diagram views for keyboard and control
 ## Verification
 
 The native offscreen RmlUi suite passes 717 checks, including the owner reproduction (old Enter profile; add F as Confirm; visible after reload), E shared with Interact, clearing and rebinding only Confirm, diagram visibility and unique IDs, controller menu editors and existing DPI/clear-button checks. The captured F layout was visually reviewed. This validates the editor; it does not prove every in-game dialogue branch. No desktop input was injected. Local launcher delivery follows; live owner confirmation is pending. Runtime controls and owner profile remain unchanged. Compatibility lesson: separate input contexts may share keys, but every stored action needs a visible editor and per-action clear semantics.
+
+
+The local High Refresh Preview launcher was updated after native UI validation and launcher/setup checks. Runtime remains unchanged. Commit 95b084a contains the editor fix. The first combined packaging test could not find source fixtures from the external D: staging directory; running the same compiled C# suite from inside the checkout passed, followed by packaging. All failed output is retained. Live owner confirmation remains pending.

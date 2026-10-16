@@ -518,6 +518,7 @@ namespace JfgLauncher
                     Path.GetDirectoryName(diagnosticStart.EnvironmentVariables["JFG_PHASE8_PROGRESS"]) == diagnosticSession &&
                     Path.GetDirectoryName(diagnosticStart.EnvironmentVariables["JFG_PHASE95_NATIVE_POLL_TRACE"]) == diagnosticSession, "capture streams split");
                 Check(diagnosticStart.EnvironmentVariables["JFG_RT64_INTERPOLATION_TRACE"] == Path.Combine(diagnosticSession, "interpolation.tsv"), "capture missing interpolation stream");
+                Check(!diagnosticStart.EnvironmentVariables.ContainsKey("JFG_PHASE8_FRAME_CAPTURE"), "route timing capture enabled blocking GPU screenshots");
                 var conflictingTrace = LocalSetup.StartInfo(game, wrongRom, directory);
                 conflictingTrace.EnvironmentVariables["JFG_RT64_INTERPOLATION_TRACE"] = "existing.tsv";
                 Reject(delegate { FrontendBridge.ConfigureDiagnostics(conflictingTrace, diagnosticRoot); }, "duplicate interpolation capture accepted");

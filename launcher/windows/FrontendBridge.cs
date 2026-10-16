@@ -180,7 +180,8 @@ internal static class FrontendBridge
         start.EnvironmentVariables["JFG_PHASE9_ACTOR_TRACE"] = "1";
         start.EnvironmentVariables["JFG_RT64_INTERPOLATION_TRACE"] = Path.Combine(directory, "interpolation.tsv");
         start.EnvironmentVariables["JFG_PHASE95_NATIVE_POLL_TRACE"] = Path.Combine(directory, "polls.tsv");
-        start.EnvironmentVariables["JFG_PHASE8_FRAME_CAPTURE"] = Path.Combine(directory, "last-frame.ppm");
+        // Periodic GPU screenshots stall the game thread and contaminate FPS capture.
+        // Keep explicit developer framebuffer probes separate from route logging.
         start.EnvironmentVariables["JFG_PHASE8_RDRAM_CAPTURE"] = Path.Combine(directory, "final-rdram.bin");
         return directory;
     }

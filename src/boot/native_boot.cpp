@@ -1719,6 +1719,7 @@ struct State : JfgOriginalTimingFast {
   std::size_t event_range_count = 0U;
   std::uint64_t event_trace_rows = 0U;
   std::uint64_t completed_game_updates = 0U;
+  std::uint64_t timing_game_updates = 0U;
   std::uint64_t focus_update_start = 0U;
   std::uint64_t focus_update_end = 0U;
   std::uint32_t watch_word_address = 0U;
@@ -2582,6 +2583,36 @@ void modern_shoulder_aim_camera(State &state,std::uint32_t target,
   ram.put16(camera,static_cast<std::uint16_t>(jfg::pc_shoulder_camera_yaw(view.yaw)));
   ram.put16(camera+2U,static_cast<std::uint16_t>(view.pitch));
 }
+
+// Rendering-only private fixture. Exercise the original shuriken reticle
+// drawer on a copied replay without granting a weapon or editing a save.
+// The current weapon is restored before this draw call returns.
+class DiagnosticReticleDrawScope {
+  jfg::mod::Memory ram_;
+  std::uint8_t *bytes_;
+  std::uint32_t address_ = 0;
+  std::uint8_t saved_ = 0;
+public:
+  DiagnosticReticleDrawScope(State &state,std::uint32_t target,const recomp_context &context):
+      ram_({state.rdram,kRdramSize}), bytes_(state.rdram) {
+    if (target != 0x00D004A8U || state.play_mode || !state.input_replay_loaded ||
+        jfg::requested_capture_phase() < 0) return;
+    static const bool enabled = [] {
+      char value[2]{};
+      return GetEnvironmentVariableA("JFG_DIAGNOSTIC_SHURIKEN_DRAW",value,2U)==1U && value[0]=='1';
+    }();
+    if (!enabled) return;
+    const auto control=static_cast<std::uint32_t>(context.r4);
+    const auto game=ram_.u32(0x800FD7D4U);
+    if (!ram_.valid(control,0x5C4U) || !ram_.valid(game,0x538U) || ram_.u8(control)!=0) return;
+    const auto character=ram_.u8(control+1U)&3U;
+    if (character>=3U) return;
+    address_=game+0x15CU+character*0x76U+0x70U;
+    saved_=ram_.u8(address_);bytes_[(address_ & 0x1FFFFFFFU) ^ 3U]=9U;
+    state.gameplay_trace.event("reticle-draw-fixture",{state.vi_retraces,control,address_,saved_,9U});
+  }
+  ~DiagnosticReticleDrawScope() { if(address_)bytes_[(address_ & 0x1FFFFFFFU) ^ 3U]=saved_; }
+};
 
 // Temporarily supply a canonical action table to the original player update.
 // Both stock tables are restored before returning; menus and original mapping
@@ -3864,6 +3895,9 @@ void write_private_progress(State &state,
          << ",\"generated_calls\":" << state.generated_calls
          << ",\"sync_print_sink_calls\":" << state.sync_print_sink_calls
          << ",\"sound_queue_recoveries\":" << state.sound_queue_recoveries
+         << ",\"timing_game_updates\":" << state.timing_game_updates
+         << ",\"audio_device_underruns\":" << state.audio_device_underruns
+         << ",\"audio_device_overruns\":" << state.audio_device_overruns
          << ",\"mapped_calls\":" << state.mapped_calls
          << ",\"interrupt_timeslices\":" << state.interrupt_timeslices
          << ",\"receive_successes\":" << state.receive_successes
@@ -6297,6 +6331,15 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
     fail_closed_dispatch(state, "renderer", "frame-capture", 0U);
   if (!write_private_rdram_capture(state))
     fail_closed_dispatch(state, "runtime", "rdram-capture", 0U);
+  // Retain final counters even if the detailed trace capped and the launcher
+  // filtered the long stdout record.
+  if (state.timing_trace.is_open())
+    state.timing_trace << "play-health\t" << state.vi_frames << '\t'
+                       << state.vi_retraces << "\t0\t"
+                       << state.audio_device_underruns << '\t'
+                       << state.audio_device_overruns << '\t'
+                       << state.timing_game_updates << '\t'
+                       << state.controller_samples << '\n';
   const unsigned front_mode = state.rdram[0x000A51B0U ^ 3U];
   std::fprintf(
       stdout,
@@ -8135,6 +8178,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         modern_shoulder_physics(state,target,*context);
         ModernAirPhysicsScope modern_air_physics(state,target,*context);
         ModernAirAimPresentationScope modern_air_aim(state,target,*context);
+        DiagnosticReticleDrawScope diagnostic_reticle(state,target,*context);
         ModernAnimationScope modern_animation(state,target,*context);
         ModernGuestTableScope modern_table(state,target,static_cast<std::uint32_t>(context->r4));
 #endif
@@ -8501,7 +8545,13 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           fail_closed_dispatch(state,"native-clock-tape","release-clock-start",target);
         state.diagnostic_clock_released=true;
       }
-      if (target == 0x80044FACU) trace_gameplay_state(state, true);
+      if (target == 0x80044FACU) {
+        trace_gameplay_state(state, true);
+        if (state.timing_trace.is_open())
+          state.timing_trace << "game-update\t" << state.vi_frames << '\t'
+                             << state.vi_retraces << "\t0\t"
+                             << ++state.timing_game_updates << "\t0\t0\t0\n";
+      }
       if (target == 0x80044FACU && state.update_hash_trace.is_open()) {
         ++state.completed_game_updates;
         trace_phase9_event(state, "update-end", state.controller_samples);
@@ -8530,10 +8580,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             state.exit_requested = true;
           }
         }
-        if (state.timing_trace.is_open())
-          state.timing_trace << "game-update\t" << state.vi_frames << '\t'
-                             << state.vi_retraces << "\t0\t"
-                             << state.completed_game_updates << "\t0\t0\t0\n";
+
       }
       if (target == 0x8004A57CU && state.actor_timing_trace &&
           state.vi_retraces <= 100U && state.timing_trace.is_open()) {

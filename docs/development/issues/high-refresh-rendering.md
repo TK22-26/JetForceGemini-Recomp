@@ -676,3 +676,7 @@ delivery. Combat/damage drops, a few camera holds, exact late-room visuals,
 shadow cadence and Unlimited pacing remain open. The production guard and
 same investigation/counters remain intact; this checkpoint does not authorize
 another attempt or extend the owner's deadline.
+
+
+### Unlimited stress limit during reticle qualification (2026-10-16)
+The candidate native-clock Unlimited probe reached about 1,007 output FPS but only about 23 scene updates/s in the measured late window, with 265 audio underruns overall. This failed the qualification gate; it is not counted as a clean pass. The installed pre-reticle runtime comparison (pistol Aim, same recorded inputs/profile) reports 281 underruns; its measurements are preserved in shuriken-reticle-20261016/unlimited-installed-control. This comparison uses the native-clock probe, not normal live playback-demand audio, and different reticle drawing prevents an exact cost comparison. The 120/360 reticle tests remain separate, with zero measured underruns and two-VI updates. Unlimited pacing remains open; do not present high output FPS as proof of healthy simulation/audio.

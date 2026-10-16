@@ -1,6 +1,6 @@
 # RENDER-008: Shuriken reticle flickers and disappears
 
-Status: owner reported during longer acceptance capture; cause and remedy unverified. Severity: visible aiming feedback failure. Affected: local draw-key preview, 120 FPS, VSync On, modern mouse/keyboard, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e (SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6).
+Status: CPU buffer selection cause reproduced; retained-mask remedy verified in bounded 120/360 tests; local delivery and owner live confirmation pending. Severity: visible aiming feedback failure. Affected: local draw-key preview, 120 FPS, VSync On, modern mouse/keyboard, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e (SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6).
 
 ## Symptoms and reproduction
 The owner reports that the shuriken reticle flickers and eventually disappears altogether while continuing the tutorial capture. The owner explicitly confirms this occurs both with Aim held and without Aim. Exact first affected frame, weapon ammo/state and native no-Aim visibility rules are not yet established; do not infer the original game always draws a hip-fire reticle.
@@ -16,3 +16,30 @@ No experiment, rebuild, runtime change or claimed fix accompanies this initial s
 
 ## Compatibility and acceptance
 Reticle pixels may be CPU framebuffer edits rather than ordinary graphics batches. Verify real final presentation and the selected guest buffer; smooth actor interpolation does not prove software effects survive. Require stable shuriken visibility across sustained aim, throws, movement and mode transitions, with native visibility expectations checked. See [continuous airborne aim](widescreen-pointer-and-airborne-aim.md) and [high-refresh rendering](high-refresh-rendering.md).
+
+
+## Candidate: CPU edits on fresh interpolated targets
+
+VI framebuffer WriteChanges update the base target and the existing completed-scene endpoint, but not fresh interpolated targets. The candidate applies matching framebuffer color-change masks after each fresh target becomes available, outside the interpolation mutex. Untouched pixels, base/depth/unrelated buffers and the separate repeated-endpoint path are preserved. This is a plausible cause, not yet a proven explanation of the shuriken report. The first recorded-gameplay-time replay stopped at gameplay-landmark-mismatch during startup and is excluded from acceptance. A plain recorded-poll replay checks route reproduction before visual comparison.
+
+The first plain-poll replay completed at VI 21,500 but remained on pistol, diverging from the owner route. Its screenshot and metrics are retained and excluded from shuriken acceptance. A native-clock baseline is being compared instead. The candidate builds and renderer interpolation tests pass; no visual reticle fix is claimed yet.
+
+
+Added private phase-selective framebuffer capture because ordinary snapshots can repeatedly sample only the base frame. With interpolation tracing enabled, JFG_DIAGNOSTIC_CAPTURE_PHASE selects a numbered output phase and logs capture-copy. A capture-only CPU_WRITE_BASELINE switch disables only the candidate fresh-target mask path for controlled A/B evidence; normal rendering defaults to the candidate. This is diagnostic scaffolding, not visual acceptance. Planned fixture holds native Aim on a copied save after a recorded startup, avoiding unrecorded settings changes and route navigation.
+
+
+The held-pistol phase fixture produced no CPU framebuffer write operations, so it does not qualify the suspected shuriken path. Pinned symbols identify module 13 frontDrawTarget, which selects a weapon-specific target table and calls the software line drawer. A private, replay-only draw fixture temporarily selects the shuriken table only inside that original drawing function and restores the weapon byte before return. It requires phase capture plus JFG_DIAGNOSTIC_SHURIKEN_DRAW; live play cannot enable it. This does not grant inventory or modify saves and must not be described as a successful replay of the owner route. It isolates software reticle pixels for phase A/B validation.
+
+
+### Isolated rendering fault established
+The original shuriken drawer produces visible green reticle strokes in Original mode, while the same stationary fixture loses them in 120 FPS output phases 0, 1 and 3. Both the initial matching-present-mask candidate and its control lose the reticle. Workload tracing shows 661 alternating 320x240 RGBA16 CPU framebuffer updates; the writes enter checkRDRAM/startFbOperations, so the later VI present.fbOperations list is empty. SkipBuffering displays a newer scene buffer instead of the game-selected buffer with those strokes. The first candidate was insufficient and is replaced.
+
+New candidate retains the CPU changed-pixel textures for recognized VI buffers, with a bounded three-slot pool and per-presentation shared ownership. It composites that mask into every fresh output in the existing GPU command list, while Original mode stays on its existing path. Masks must match the selected VI address and scene age, and are released before device destruction. This is not yet qualified or delivered; exact native visibility, aim transitions, different refresh rates, performance and later owner play remain acceptance requirements. Private evidence: shuri-original, shuri-base-0/1, shuri-fixed-1/3 and shuri-workload-observe under shuriken-reticle-20261016.
+
+
+The retained-mask candidate passes bounded original-drawer tests at 120 FPS (base and final output, including VSync On), 360 FPS final output, movement while aiming, and releasing Aim. Unlimited is explicitly excluded from clean qualification because the native-clock stress probe records audio underruns and slower game updates. The same binary with compositing disabled is the visual control. All captures verify their requested output phase, original weapon selection is restored, no retained mask is applied beyond its tested scene age, and audio counters stay zero. The fixture temporarily selects only the drawing table; it does not validate a full shuriken gameplay route or alter owner inventory. Visual review of the comparison panel confirms the original strokes, their absence in both controls, restored strokes at 120/360 and during movement, and clean disappearance after Aim release. Owner sustained throwing/aiming remains pending. The tested application copies pixel masks using a bounded three-slot cache, holds an immutable reference through the complete presentation sequence, and records composition into the existing GPU submission.
+
+The retained-mask path currently qualifies recognized 320x240 RGBA16 VI buffers of the supported US game. Other buffer formats and dimensions are left on their existing path. The final test invocation initially named an obsolete presentation-schedule target retained only as an old build artifact; it failed before running that target. Rebuilding the current semantic-presentation target plus shell/interpolation/async-writer/modern-control targets passes; the old executable is not used for acceptance.
+
+
+Final qualified runtime SHA-256: `bee0d0018bf7e2a14585107d51bb6d77bbebd88d8ba0a4c0970adbb1c9cf8315`. Five focused renderer/presentation/diagnostic/control executables pass. Normal Play mode with detailed gameplay tracing and semantic hashing both disabled records 2,070 consecutive game-update rows and matching final audio counters (zero underruns/overruns). See [qualification receipt](../../../evidence/high-refresh-reticle.json). The corrected mask path is a rendering remedy, not a change to weapon logic or the native no-Aim visibility rules. Full sustained throwing and aiming remains an owner live check.

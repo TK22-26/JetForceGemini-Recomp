@@ -37,8 +37,8 @@ Detailed per-issue records are added as those issues receive further work.
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
 | DISPLAY-001 | Widescreen viewport and pointer alignment | Verified in tests; preview installed, live check pending | [Investigation](widescreen-pointer-and-airborne-aim.md) |
-| INPUT-008 | Menu bindings save but are hidden; retained mouse preference | Menu/dialogue card passes native UI regressions; local delivery/live confirmation pending | [Profile/default review](modern-capture-profile-defaults.md) |
-| RENDER-008 | Shuriken reticle flickers and disappears | Owner reports both Aim and non-Aim; framebuffer/weapon-state cause unverified | [Report and investigation](shuriken-reticle-flicker.md) |
+| INPUT-008 | Menu bindings save but are hidden; retained mouse preference | Menu/dialogue card delivered locally after native UI regressions; owner confirmation pending | [Profile/default review](modern-capture-profile-defaults.md) |
+| RENDER-008 | Shuriken reticle flickers and disappears | CPU reticle edits lost when showing newer scene buffers; bounded 120/360 remedy verified, delivery and live confirmation pending | [Report and investigation](shuriken-reticle-flicker.md) |
 | INPUT-007 | Keep aiming active throughout modern jumps | Verified in tests; preview installed, live check pending | [Investigation](widescreen-pointer-and-airborne-aim.md) |
 | LAUNCHER-001 | No launcher update discovery; stale release description | Verified in tests and live API; awaiting release | [Cause, implementation and checks](launcher-update-discovery.md) |
 | RENDER-001 | Smooth 60-360+ FPS presentation | Presentation pacing and FPS preset corrections tested; owner visual confirmation pending | [Evidence and plan](high-refresh-rendering.md) |
@@ -50,7 +50,7 @@ Detailed per-issue records are added as those issues receive further work.
 | RENDER-007 | Ground shadow appears less smooth than Juno | Clipped receiver/mask gap investigated; no qualified shadow fix | [Shadow cadence](shadow-cadence.md) |
 | PERF-003 | Late renderer cache-key hitch | Stable keys and empty-cache fast path delivered after tests/native replays; live acceptance pending | [Cause and checks](renderer-cache-key-instability.md) |
 | PERF-001 | Goldwood drone-combat update slowdown | Native ROM loading improvement delivered; tested combat holds two-VI updates; later renderer/load gaps and owner acceptance remain open | [Evidence and attempts](goldwood-combat-slowdown.md) |
-| PERF-002 | Frame diagnostics and attribution | Expanded function/submission profiling, cadence analysis and explicit transition markers delivered; full profiling opt-in | [Evidence and limits](frame-diagnostics.md) |
+| PERF-002 | Frame diagnostics and attribution | Long-capture coverage and screenshot-induced hitches corrected in tests; updated runtime delivery pending | [Evidence and limits](frame-diagnostics.md) |
 | AUTO-001 | Pending request withdrawal aborts a worker | Cached withdrawals survive live recovery; successor resume handling passes isolated corruption/cancellation fixtures | [Cause and recovery](high-refresh-queue-cancellation.md) |
 | NATIVE-001 | Access violation during extended native Play replay | Fresh overlay reset fixes captured stale path-cache write; targeted return/native respawn tests pass; local preview installed, live verification pending | [Crash evidence](native-play-access-violation.md) |
 | BUILD-001 | Restored source and stale generated renderer disagree | Coherent rebuild qualified in exact-state replay with sane renderer rates; desktop baseline unaffected | [Cause and safeguards](stale-generated-renderer.md) |

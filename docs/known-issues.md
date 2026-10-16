@@ -281,7 +281,7 @@ Both desktop links now select the qualified draw-call key correction, including 
 
 ## Shuriken reticle visibility
 
-The owner reports shuriken reticle flickering followed by disappearance in the latest high-refresh capture, both holding Aim and without Aim. The earlier CPU-framebuffer reticle fix is present; the current cause and remedy remain unverified. See [RENDER-008](development/issues/shuriken-reticle-flicker.md).
+The shuriken reticle loss is reproduced: high-refresh presentation selects a newer scene buffer while CPU-drawn strokes remain on the game-selected buffer. A retained changed-pixel mask restores the reticle in bounded 120/360 FPS tests, including VSync, movement and Aim release. Local delivery and sustained owner throwing/aiming confirmation remain pending. Unlimited stress still exposes pacing/audio limits. See [RENDER-008](development/issues/shuriken-reticle-flicker.md).
 
 
-The Modern Controls fix exposes menu-only bindings (including F assigned to Confirm) in a Menus & dialogue card. Native UI checks pass; local delivery and owner confirmation are pending. Confirm also advances dialogue. See [INPUT-008](development/issues/modern-capture-profile-defaults.md). The longer owner test also reports Goldwood exit cutscene choppiness/audio interruption; quantitative full-run audio acceptance remains open because the detailed trace capped before exit.
+The Modern Controls fix exposes menu-only bindings (including F assigned to Confirm) in a Menus & dialogue card. Native UI checks pass and the local preview launcher is updated; owner confirmation is pending. Confirm also advances dialogue. See [INPUT-008](development/issues/modern-capture-profile-defaults.md). The longer owner test also reports Goldwood exit cutscene choppiness/audio interruption; quantitative full-run audio acceptance remains open because the detailed trace capped before exit.

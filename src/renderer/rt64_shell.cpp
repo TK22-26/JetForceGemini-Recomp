@@ -4,9 +4,11 @@
 #include "jfg/renderer/rt64_shell.hpp"
 #include "jfg/renderer/presentation_policy.hpp"
 #include "jfg/renderer/vi_presentation.hpp"
+#include "jfg/renderer/interpolation_bridge.hpp"
 
 #include "rt64_f3ddkr.hpp"
 #include "frame_diagnostics.hpp"
+#include "rt64_cpu_overlay.hpp"
 
 #include "hle/rt64_application.h"
 #include "hle/rt64_vi.h"
@@ -202,6 +204,7 @@ void capture_deinit() {
     }
     const std::scoped_lock lock(context->mutex);
     context->diagnostics.release_graphics();
+    release_cpu_overlays();
     auto* timing_hook = &context->framebuffer_gpu_hook;
     (void)rt64_gpu_timing_hook.compare_exchange_strong(timing_hook, nullptr);
     context->framebuffer_gpu_queries.reset();
@@ -300,6 +303,10 @@ void CaptureContext::draw(
     if (application && application->swapChain) {
         try { diagnostics.draw(list, application->swapChain->getWidth(), application->swapChain->getHeight(), device, application->shaderLibrary.get()); } catch (...) {}
     }
+    const int requestedPhase = requested_capture_phase();
+    const auto outputSample = current_capture_output();
+    if (requestedPhase >= 0 && outputSample.frame != static_cast<unsigned>(requestedPhase))
+        return;
     if (!armed || scheduled || failed || application == nullptr ||
         application->swapChain == nullptr ||
         application->presentQueue == nullptr || device == nullptr ||
@@ -357,6 +364,10 @@ void CaptureContext::draw(
             RenderTextureCopyLocation::Subresource(texture));
         list->barriers(RenderBarrierStage::ALL,
             RenderTextureBarrier(texture, RenderTextureLayout::COLOR_WRITE));
+        if (requestedPhase >= 0)
+            trace_interpolation("capture-copy", outputSample.tick, outputSample.source,
+                0U, outputSample.frame, outputSample.count, outputSample.alpha,
+                width, height);
         scheduled = true;
     }
     catch (...) {
@@ -1004,6 +1015,16 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
             }
         }
         application.state->checkRDRAM();
+        preserve_cpu_overlay(*application.state, task.vi_tick);
+        if (jfg::interpolation_trace_enabled()) {
+            for (const auto &op : application.state->drawFbOperations) {
+                if (op.type != RT64::FramebufferOperation::Type::WriteChanges) continue;
+                const auto *fb = application.state->framebufferManager.find(op.writeChanges.address);
+                if (fb) jfg::trace_interpolation("cpu-draw-write", task.vi_tick,
+                    op.writeChanges.address, application.state->lastScreenVI.fbAddress(),
+                    fb->lastWriteFmt, fb->siz, 0.0f, fb->width, fb->height);
+            }
+        }
         impl_->last_rdram_check_microseconds =
             static_cast<std::uint64_t>(
                 std::chrono::duration_cast<std::chrono::microseconds>(

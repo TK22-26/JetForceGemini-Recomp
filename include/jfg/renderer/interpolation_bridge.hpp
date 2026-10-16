@@ -54,6 +54,50 @@ struct PresentationOutputSample {
     unsigned source = 0, frame = 0, count = 0;
     float alpha = 1.0f;
 };
+// Private capture qualification: select an actual output phase, rather than
+// repeatedly capturing only the base image. Requires interpolation tracing.
+inline PresentationOutputSample& current_capture_output() {
+    static thread_local PresentationOutputSample sample; return sample;
+}
+inline int requested_capture_phase() {
+    static const int phase = [] {
+        int result = -1;
+#if defined(_MSC_VER)
+        char* value = nullptr; std::size_t size = 0;
+        (void)_dupenv_s(&value, &size, "JFG_DIAGNOSTIC_CAPTURE_PHASE");
+#else
+        const char* value = std::getenv("JFG_DIAGNOSTIC_CAPTURE_PHASE");
+#endif
+        if (value && *value && interpolation_trace_enabled()) {
+            const char* end = value + std::strlen(value); int parsed = -1;
+            const auto conversion = std::from_chars(value, end, parsed);
+            if (conversion.ec == std::errc{} && conversion.ptr == end &&
+                parsed >= 0 && parsed < 64) result = parsed;
+        }
+#if defined(_MSC_VER)
+        std::free(value);
+#endif
+        return result;
+    }();
+    return phase;
+}
+inline bool diagnostic_cpu_write_baseline() {
+    static const bool baseline = [] {
+#if defined(_MSC_VER)
+        char* value = nullptr; std::size_t size = 0;
+        (void)_dupenv_s(&value, &size, "JFG_DIAGNOSTIC_CPU_WRITE_BASELINE");
+#else
+        const char* value = std::getenv("JFG_DIAGNOSTIC_CPU_WRITE_BASELINE");
+#endif
+        const bool result = requested_capture_phase() >= 0 &&
+            value && value[0] == '1' && value[1] == '\0';
+#if defined(_MSC_VER)
+        std::free(value);
+#endif
+        return result;
+    }();
+    return baseline;
+}
 struct PresentationOutputDiagnostics {
     std::mutex mutex;
     std::map<std::pair<const void*, unsigned>, PresentationOutputSample> samples;
