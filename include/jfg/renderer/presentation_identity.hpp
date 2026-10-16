@@ -253,8 +253,9 @@ public:
     sprites_[PresentationGuestView::physical(address)] = {
         actor, asset, ram.u32(actor + 0x40U), ram.u32(actor + 0x6CU), tick};
   }
-  // US camPushModelMtx (0x80041CA0) consumes ObjectTransform* in a2 and
-  // writes a combined model/camera matrix at the entry value of *a1. Observe
+  // US camPushModelMtx (0x80041CA0), and module 122 ShirukenPushMtx
+  // (0x07A00F38), consume ObjectTransform* in a2 and
+  // write a combined model/camera matrix at the entry value of *a1. Observe
   // after it returns. capture() accepts only an exact live actor and unchanged
   // emitted matrix bytes, so unrelated transforms/buffer reuse cannot bind.
   void rigid(std::span<const std::uint8_t> data, std::uint32_t matrix,

@@ -2584,6 +2584,37 @@ void modern_shoulder_aim_camera(State &state,std::uint32_t target,
   ram.put16(camera+2U,static_cast<std::uint16_t>(view.pitch));
 }
 
+bool diagnostic_reticle_lines() {
+  static const bool enabled=[] {
+    char value[2]{};
+    return GetEnvironmentVariableA("JFG_DIAGNOSTIC_RETICLE_LINES",value,2U)==1U && value[0]=='1';
+  }();
+  return enabled;
+}
+// Optional bounded trace of the original deferred software-line writer.
+class DiagnosticLineOutputScope {
+  State& state_; std::uint32_t address_=0;
+  std::vector<std::uint8_t> before_;
+public:
+  DiagnosticLineOutputScope(State& state,std::uint32_t target):state_(state) {
+    if(target!=0x8006E188U || !state.gameplay_trace || !diagnostic_reticle_lines())return;
+    jfg::mod::Memory ram({state.rdram,kRdramSize});
+    const auto address=ram.u32(0x800FECB0U);
+    if(!ram.valid(address,320U*240U*2U))return;
+    address_=address&0x1FFFFFFFU;
+    before_.assign(state.rdram+address_,state.rdram+address_+320U*240U*2U);
+    state.gameplay_trace.event("reticle-line-queue",{state.vi_retraces,address,
+        ram.u32(0x80103B90U),ram.u32(0x80103B80U),ram.u32(0x80103B84U)});
+  }
+  ~DiagnosticLineOutputScope() {
+    if(before_.empty())return;
+    unsigned changed=0;
+    for(std::size_t i=0;i<before_.size();i+=2U)
+      changed+=before_[i]!=state_.rdram[address_+i] || before_[i+1U]!=state_.rdram[address_+i+1U];
+    state_.gameplay_trace.event("reticle-line-output",{state_.vi_retraces,address_,changed});
+  }
+};
+
 // Rendering-only private fixture. Exercise the original shuriken reticle
 // drawer on a copied replay without granting a weapon or editing a save.
 // The current weapon is restored before this draw call returns.
@@ -7597,8 +7628,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
                     static_cast<std::uint32_t>(raw_look.y),static_cast<std::uint32_t>(look.x),static_cast<std::uint32_t>(look.y)});
                 // The guest aim pitch is positive up; the normal camera's
                 // world pitch is positive down. Keep one mouse convention.
-                const bool shoulder=modern_shoulder_current(state,port,actor);
-                const auto aim_look=shoulder?jfg::PcLookDelta{look.x,-look.y}:look;
+                const auto aim_look=jfg::pc_guest_aim_look(look,
+                    (frame.modern_flags&jfg::kModernActionsFlag)!=0);
                 const auto after=jfg::pc_direct_aim(before.x,before.y,aim_look,minimum,maximum);
                 pc_memory.put16(control+0x11CU,static_cast<std::uint16_t>(after.x));
                 pc_memory.put16(control+0x1E2U,static_cast<std::uint16_t>(after.y));
@@ -8179,6 +8210,32 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         ModernAirPhysicsScope modern_air_physics(state,target,*context);
         ModernAirAimPresentationScope modern_air_aim(state,target,*context);
         DiagnosticReticleDrawScope diagnostic_reticle(state,target,*context);
+        DiagnosticLineOutputScope diagnostic_lines(state,target);
+        // Diagnostic observation only: distinguish missing native reticle
+        // draws, off-screen coordinates, and lost framebuffer presentation.
+        if(state.gameplay_trace && (target==0x00D00008U || target==0x00D004A8U ||
+                                   (target==0x8006D390U && diagnostic_reticle_lines()))) {
+          jfg::mod::Memory ram({rdram,kRdramSize});
+          const auto a=static_cast<std::uint32_t>(context->r4);
+          const auto b=static_cast<std::uint32_t>(context->r5);
+          const auto c=static_cast<std::uint32_t>(context->r6);
+          const auto d=static_cast<std::uint32_t>(context->r7);
+          const auto control=target==0x00D00008U?b:target==0x00D004A8U?a:0U;
+          if(control && ram.valid(control,0x5C4U)) {
+            const auto game=ram.u32(0x800FD7D4U);
+            const auto character=ram.u8(control+1U)&3U;
+            const auto weapon=character<3U && ram.valid(game,0x538U)?
+                ram.u8(game+0x15CU+character*0x76U+0x70U):255U;
+            state.gameplay_trace.event(target==0x00D00008U?"reticle-player":"reticle-draw",
+                {state.vi_retraces,control,weapon,a,b,c,d,ram.u8(control+0x568U),
+                 ram.u16(control+0x1CAU),ram.u16(control+0x1CCU),ram.u32(control+0x540U),
+                 ram.u16(control+0x11CU),ram.u16(control+0x1E2U)});
+          } else if(target==0x8006D390U) {
+            const auto stack=static_cast<std::uint32_t>(context->r29);
+            state.gameplay_trace.event("reticle-line-append",{state.vi_retraces,a,b,c,d,
+                ram.u32(stack+0x10U),ram.u32(stack+0x14U)});
+          }
+        }
         ModernAnimationScope modern_animation(state,target,*context);
         ModernGuestTableScope modern_table(state,target,static_cast<std::uint32_t>(context->r4));
 #endif
@@ -8279,10 +8336,16 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const bool observe_camera=state.presentation_identity_enabled && target==0x80040AA4U;
         const auto camera_output=observe_camera ? static_cast<std::uint32_t>(context->r5) : 0U;
         const auto camera_matrix=observe_camera ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(camera_output) : 0U;
-        const bool observe_rigid = state.presentation_identity_enabled && target == 0x80041CA0U;
+        // US ShirukenPushMtx has the same output/actor ABI as camPushModelMtx,
+        // but builds its rolling/attached world matrix through camPushFloatModelMtx.
+        // That call also publishes world at 0x800FAAB0. Bind after the complete
+        // custom draw transform, before another actor reuses the scratch matrix.
+        const bool observe_shuriken = state.presentation_identity_enabled && target == 0x07A00F38U;
+        const bool observe_rigid = state.presentation_identity_enabled &&
+            (target == 0x80041CA0U || observe_shuriken);
         const auto rigid_actor = observe_rigid ? static_cast<std::uint32_t>(context->r6) : 0U;
-        const auto rigid_matrix = observe_rigid ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(
-            static_cast<std::uint32_t>(context->r5)) : 0U;
+        const auto rigid_output = observe_rigid ? static_cast<std::uint32_t>(context->r5) : 0U;
+        const auto rigid_matrix = observe_rigid ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(rigid_output) : 0U;
 #endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
         const auto function_started = state.diagnostic_cpu_costs ? std::chrono::steady_clock::now()
@@ -8343,8 +8406,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         if (observe_camera && camera_matrix &&
             jfg::PresentationGuestView({rdram,kRdramSize}).u32(camera_output)==camera_matrix+64U)
           state.presentation_identities.camera_completed({rdram,kRdramSize},camera_matrix,state.vi_retraces);
-        if (observe_rigid)
+        if (observe_rigid && (!observe_shuriken ||
+            jfg::PresentationGuestView({rdram,kRdramSize}).u32(rigid_output)==rigid_matrix+64U)) {
           state.presentation_identities.rigid({rdram,kRdramSize},rigid_matrix,rigid_actor,state.vi_retraces);
+          if(observe_shuriken)
+            state.gameplay_trace.event("shuriken-matrix",{state.vi_retraces,rigid_actor,rigid_matrix});
+        }
         if (state.presentation_identity_enabled && target == 0x80060EC4U)
           state.presentation_identities.particle_allocate({rdram,kRdramSize},
               static_cast<std::uint32_t>(context->r2));

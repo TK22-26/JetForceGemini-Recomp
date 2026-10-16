@@ -91,6 +91,18 @@ int main() {
   config={};mouse.add(10,-5);auto angular=mouse.take_angles(config);
   check(angular==jfg::PcLookDelta{180,90},"mouse displacement maps directly to angles");
   check(mouse.take_angles(config)==jfg::PcLookDelta{},"direct mouse motion consumed once");
+  for(bool inverted:{false,true}) {
+    jfg::PcInputConfig pitch_config;
+    pitch_config.mouse_invert_y=inverted;
+    jfg::PcMouseMotion pitch_mouse;pitch_mouse.add(3,-4);
+    const auto look=pitch_mouse.take_angles(pitch_config);
+    const auto standing=jfg::pc_direct_aim(0,0,look,-8192,8192);
+    const auto guest=jfg::pc_direct_aim(0,0,jfg::pc_guest_aim_look(look,true),-8192,8192);
+    check(standing.y==-guest.y && standing.x==guest.x && standing.y!=0,
+      "modern crouch and aim camera pitch matches standing for both inversion settings");
+    check(jfg::pc_guest_aim_look(look,false)==look,
+      "legacy replay aim retains its original pitch convention");
+  }
   auto direct=jfg::pc_direct_aim(-32760,0,{100,200},-100,100);
   check(direct.x==32676 && direct.y==-100,"direct aim wraps yaw and clamps pitch");
   check(jfg::pc_direct_aim(20,30,{},-100,100)==jfg::PcLookDelta{20,30},"stationary direct aim remains still");

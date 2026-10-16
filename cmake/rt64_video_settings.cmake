@@ -144,6 +144,13 @@ function(jfg_video_patch_workload)
 endfunction()
 
 function(jfg_video_patch_present)
+    jfg_video_replace([=[                if (skipPresent) {
+                    skipInterpolation();]=] [=[                if (skipPresent) {
+                    jfg::trace_interpolation("cpu-present-skipped", present.presentId,
+                        present.screenVI.fbAddress(), present.fbOperations.size(), 0U, 0U, 0.0f,
+                        present.workloadId, 0U);
+                    skipInterpolation();]=])
+
     jfg_video_replace([=[#include "rt64_present_queue.h"]=] [=[#include "rt64_present_queue.h"
 #include "rt64_cpu_overlay.hpp"]=])
     jfg_video_replace([=[        RenderTarget *colorTarget = nullptr;]=] [=[        RenderTarget *colorTarget = nullptr;
@@ -151,7 +158,34 @@ function(jfg_video_patch_present)
 
     jfg_video_replace([=[                commandList->begin();
                 commandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(swapChainTexture, RenderTextureLayout::COLOR_WRITE));]=] [=[                commandList->begin();
-                if (jfgCpuOverlay && colorTarget && !colorTarget->isEmpty()) {
+                bool jfgPresentOverlayApplied = false;
+                // Texture allocations are padded to 32 pixels; the visible
+                // framebuffer dimensions remain 320x240.
+                // VI-time CPU writes use a different pool than submit-time
+                // writes. Its entries remain owned by this Present until this
+                // entire sequence finishes, including the GPU fence per output.
+                if (presentationMode == EnhancementConfiguration::Presentation::Mode::SkipBuffering &&
+                    !jfg::diagnostic_present_overlay_baseline() && colorTarget && !colorTarget->isEmpty() &&
+                    present.screenVI.fbSiz() == G_IM_SIZ_16b &&
+                    present.screenVI.fbSize().x == 320U && present.screenVI.fbSize().y == 240U) {
+                    const std::scoped_lock changesLock(screenFbChangePoolMutex);
+                    for (const auto& operation : present.fbOperations) {
+                        if (operation.type != FramebufferOperation::Type::WriteChanges ||
+                            operation.writeChanges.address != present.screenVI.fbAddress()) continue;
+                        const auto* changes = screenFbChangePool.get(operation.writeChanges.id);
+                        if (!changes || !changes->used || changes->type != FramebufferChange::Type::Color ||
+                            changes->width < 320U || changes->height < 240U) continue;
+                        colorTarget->copyFromChanges(ext.presentGraphicsWorker, *changes,
+                            320U, 240U, 0U, ext.shaderLibrary);
+                        jfgPresentOverlayApplied = true;
+                        jfg::trace_interpolation("cpu-present-overlay", jfgOutputSample.tick,
+                            present.screenVI.fbAddress(), operation.writeChanges.address, unsigned(i),
+                            frameCounters.count, jfgOutputSample.alpha, present.presentId, operation.writeChanges.id);
+                    }
+                }
+                // A fresh VI mask supersedes an older cached mask; do not
+                // leave two reticles when the cursor moves between updates.
+                if (!jfgPresentOverlayApplied && jfgCpuOverlay && colorTarget && !colorTarget->isEmpty()) {
                     const auto* changes = jfgCpuOverlay->pool.get(jfgCpuOverlay->id);
                     if (changes) {
                         colorTarget->copyFromChanges(ext.presentGraphicsWorker, *changes,
@@ -239,7 +273,11 @@ function(jfg_video_patch_present)
                     // A completed scene displays its retained endpoint instead.
                     // Apply the same changed-pixel mask to that endpoint, keeping
                     // all untouched interpolated pixels and the original phase.
-                    if (colorTarget && !colorTarget->isEmpty() && !present.fbOperations.empty()) {
+                    if (colorTarget && !colorTarget->isEmpty() && !present.fbOperations.empty() &&
+                        (presentationMode != EnhancementConfiguration::Presentation::Mode::SkipBuffering ||
+                            jfg::diagnostic_present_overlay_baseline() ||
+                            present.screenVI.fbSiz() != G_IM_SIZ_16b ||
+                            present.screenVI.fbSize().x != 320U || present.screenVI.fbSize().y != 240U)) {
                         const std::scoped_lock changesLock(screenFbChangePoolMutex);
                         RenderWorkerExecution workerExecution(ext.presentGraphicsWorker);
                         for (const auto& operation : present.fbOperations) {

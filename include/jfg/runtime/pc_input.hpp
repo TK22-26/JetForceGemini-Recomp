@@ -221,6 +221,12 @@ inline PcLookDelta pc_direct_aim(int yaw,int pitch,PcLookDelta delta,int minimum
   if(minimum>maximum || minimum < -32768 || maximum>32767)return {yaw,pitch};
   return {pc_wrap_angle(yaw-delta.x),std::clamp(pitch-delta.y,minimum,maximum)};
 }
+// Modern look is expressed in camera pitch space, even when crouching or
+// swimming uses the guest aim camera. Camera ownership must not change its sign.
+// Older non-action-table replay modes keep their original aim convention.
+inline PcLookDelta pc_guest_aim_look(PcLookDelta look, bool modern_actions) {
+  return modern_actions ? PcLookDelta{look.x,-look.y} : look;
+}
 struct PcMoveVelocity { float side=0,forward=0; };
 inline PcMoveVelocity pc_aim_movement(int x,int y) {
   // Aim walking stays within the guest's slow ground movement speeds.

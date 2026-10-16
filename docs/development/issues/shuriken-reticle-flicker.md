@@ -1,6 +1,6 @@
 # RENDER-008: Shuriken reticle flickers and disappears
 
-Status: CPU buffer selection cause reproduced; retained-mask remedy verified in bounded 120/360 tests; delivered locally; owner live confirmation pending. Severity: visible aiming feedback failure. Affected: local draw-key preview, 120 FPS, VSync On, modern mouse/keyboard, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e (SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6).
+Status: recurrence reproduced; both CPU-import paths corrected and verified in bounded tests; local delivery and owner live confirmation pending. Severity: visible aiming feedback failure. Affected: local draw-key preview, 120 FPS, VSync On, modern mouse/keyboard, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e (SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6).
 
 ## Symptoms and reproduction
 The owner reports that the shuriken reticle flickers and eventually disappears altogether while continuing the tutorial capture. The owner explicitly confirms this occurs both with Aim held and without Aim. Exact first affected frame, weapon ammo/state and native no-Aim visibility rules are not yet established; do not infer the original game always draws a hip-fire reticle.
@@ -48,3 +48,28 @@ Final qualified runtime SHA-256: `bee0d0018bf7e2a14585107d51bb6d77bbebd88d8ba0a4
 ### Local preview delivery
 
 Source commit `26295c75dd43848f59cdd1268518d7131861dbee` is packaged in the local High Refresh Preview and Jitter Capture desktop links. The updated launcher includes the menu/dialogue binding editor and removes periodic capture screenshots. Three copied-profile setup/protocol checks select the new runtime and preserve saves, controls and settings; all 41 checked original profile files are unchanged. The previous package and both shortcut backups remain available. This is bounded test verification and local delivery, not a public release or full shuriken gameplay acceptance. Reopen the preview for sustained Aim, non-Aim throwing, movement and weapon-transition review.
+
+
+## Owner recurrence after local qualification (2026-10-16)
+
+On the unified-keys preview (source 19a2373, runtime SHA-256 93514316aada84480c437c3f6eb08dfe192b22a43fa29f678242d4143bf133d7), the owner reports the shuriken reticle initially worked, disappeared completely, and returned after death. The owner otherwise reports the game looks good except occasional ground-shuriken jitter and crouch mouse inversion. Death recovery provides a state-reset comparison, not a proven cause. The prior isolated original-drawer fixture did not cover this sustained gameplay transition; do not mark the issue resolved. The completed capture started 19:29:48 UTC and was preserved with hashes under private shuriken-followup-20261016/owner-capture. Compare actual weapon/aim state, CPU draw/import activity, framebuffer address, and mask age before loss and after death.
+
+
+Latest owner trace analysis: 2,418 CPU write operations were all retained and presented. Shuriken aiming has no CPU framebuffer writes around 140–169 seconds (322 updates), then resumes after respawn. This narrows the sustained disappearance upstream of retained-mask composition but does not yet distinguish native drawing from write detection. Private evidence: `D:/JFG-private/high-refresh-20261011/shuriken-followup-20261016/coverage-report.json`. New trace observations record original reticle entry points and software line coordinates; no forced reticle is enabled.
+
+
+The real-weapon replay confirms that frontDrawTarget and the deferred software-line writer continue producing on-screen pixels during the gap. VI updateScreen can consume these edits into present.fbOperations and update RAMHash before submit-time checkRDRAM sees them. The previous cache captured only submit-time operations. The first combined-path trial mistakenly compared visible height 240 with RT64's 32-pixel-aligned texture allocation height 256, rejecting every VI mask. This failed trial is retained as owner-present-overlay; it does not qualify a fix. The corrected candidate checks the logical VI dimensions and draws only that extent, uses each Present's pool ownership through its last GPU fence, and lets a fresh mask supersede a cached mask to avoid stale cursor strokes.
+
+
+Further runtime evidence identifies skipped Present events that own CPU writes: the queue deliberately drops stale VIs while newer interpolated scenes continue. Applying writes only inside threadPresent misses those events. The new candidate retains the VI mask at import, before enqueueing. Its first trial used a thread-local submission timestamp; graphics submission and frontend VI import run on different threads, so every VI mask received tick zero and expired. The retained-vi-age trace proves this failure. The corrected timestamp is atomic across those threads; the existing framebuffer/age limits remain strict. The first short-route screenshot happened to show a reticle even in the control, so it is not proof of a visual A/B fix. Qualification stays pending.
+
+
+## Recurrence cause and verified correction
+
+The missing CPU write records in the owner trace covered only submit-time imports, not every CPU write. The original software-line writer still produced reticle pixels. Some edits entered RT64 at VI time; a stale VI event could then be skipped before threadPresent, discarding its only presentation-side mask. The first reticle cache did not retain that path.
+
+Both import paths now retain immutable pixel/boolean textures before a Present event can be discarded. The producer and renderer share an atomic submission timestamp; framebuffer address and two-VI age checks still bound reuse. Fresh VI masks supersede older cached masks. The original line drawing, weapon visibility rules and game state are unchanged. Non-SkipBuffering modes and other screen dimensions keep their prior behavior.
+
+The longer real-weapon replay retains and presents all 796 VI-time masks; all 423 observed shuriken-aim samples have overlay coverage within the recorded two-before/four-after VI correlation window. This checks long disappearances, not sub-frame visual perfection. The original-drawer-only fixture is no longer the sole acceptance evidence. Real shuriken tests cover 120 FPS with VSync, the final 360 FPS phase, and native Aim release. All sampled masks stay within the existing two-VI age limit; the bounded mode tests and normal Play health check report zero audio underruns/overruns. Four focused suites pass, including 363 PC input checks. Source and precise limits are pinned in [qualification](../../../evidence/high-refresh-shuriken-followup.json).
+
+The import-time retainer's initial thread-local tick failure and the padded-texture trial are retained as informative failures. Lesson: protect CPU effects at the point of import, before a skippable queue; preserve source time across real worker threads, and distinguish texture allocation dimensions from visible framebuffer dimensions. Sustained owner play, all weapon transitions, Unlimited, full-route performance and physical display acceptance remain open.

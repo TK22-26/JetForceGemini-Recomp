@@ -288,3 +288,6 @@ The owner-requested Modern Controls revision puts Confirm, Back, Save and new ke
 
 
 The local reticle preview also includes compact game-update/final-audio logging and removes periodic route screenshots that caused measured stalls. The reported Goldwood exit-cutscene choppiness/audio interruptions still need a fresh capture. See [current qualification](../evidence/high-refresh-reticle.json).
+
+
+The latest followup corrects [reticle pixels lost with skipped VI events](development/issues/shuriken-reticle-flicker.md), [missing custom shuriken matrix ownership](development/issues/ground-shuriken-jitter.md), and [state-dependent crouch pitch inversion](development/issues/crouch-mouse-inversion.md). Both mouse directions, resting-object trace coverage, real-weapon 120/360 reticle checks and bounded normal-Play audio checks pass. Owner live confirmation and broader coverage remain pending. [Qualification](../evidence/high-refresh-shuriken-followup.json).

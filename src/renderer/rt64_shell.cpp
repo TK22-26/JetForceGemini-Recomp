@@ -962,6 +962,7 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
         // loads. GPU framebuffer reuse can otherwise bypass those RAM writes.
         if (impl_->cpu_writeback)
             impl_->application->emulatorConfig.framebuffer.copyWithGPU = false;
+        cpu_overlay_capture_tick().store(task.vi_tick, std::memory_order_release);
         impl_->f3ddkr->begin(impl_->task_rdram, task.vi_tick, task.presentation_scene);
         impl_->f3ddkr->install();
         const auto rdram_check_start = std::chrono::steady_clock::now();

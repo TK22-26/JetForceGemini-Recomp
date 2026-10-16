@@ -98,6 +98,23 @@ inline bool diagnostic_cpu_write_baseline() {
     }();
     return baseline;
 }
+inline bool diagnostic_present_overlay_baseline() {
+    static const bool baseline = [] {
+#if defined(_MSC_VER)
+        char* value = nullptr; std::size_t size = 0;
+        (void)_dupenv_s(&value, &size, "JFG_DIAGNOSTIC_PRESENT_OVERLAY_BASELINE");
+#else
+        const char* value = std::getenv("JFG_DIAGNOSTIC_PRESENT_OVERLAY_BASELINE");
+#endif
+        const bool result = requested_capture_phase() >= 0 &&
+            value && value[0] == '1' && value[1] == '\0';
+#if defined(_MSC_VER)
+        std::free(value);
+#endif
+        return result;
+    }();
+    return baseline;
+}
 struct PresentationOutputDiagnostics {
     std::mutex mutex;
     std::map<std::pair<const void*, unsigned>, PresentationOutputSample> samples;

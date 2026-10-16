@@ -1,0 +1,30 @@
+# INPUT-009: Mouse vertical direction reverses while crouching
+
+Status: reproduced and corrected in tests; local delivery and owner live confirmation pending. Severity: visible gameplay/control regression. Affected: unified-keys high-refresh preview, source 19a2373, runtime SHA-256 93514316aada84480c437c3f6eb08dfe192b22a43fa29f678242d4143bf133d7.
+
+## Symptoms and reproduction
+
+The owner reports mouse controls seem to become inverted again when crouching, despite their saved vertical inversion preference. Exact crouch/roll/aim movement state and whether the preference value itself changes are unverified.
+
+Private evidence: shuriken-followup-20261016/owner-capture, copied and SHA-256 verified from owner session 20261016-192948-9c8c9b5ded9b427682d6affeda20b3bc. Raw timing and initial profile are retained; no owner settings are changed for investigation.
+
+## Hypotheses and acceptance
+
+Compare signed input and camera pitch through locomotion transitions before changing profile settings. Ordinary and aiming camera ownership may encode pitch differently; this is a hypothesis. Test inversion Off and On, crouch entry/exit, and scope/airborne behavior.
+
+Record candidate changes, informative failures, exact checks and remaining live acceptance here. Preserve game timing, saves and other preferences. See [shuriken reticle recurrence](shuriken-reticle-flicker.md).
+
+
+Candidate cause: movement state 5 uses controlGetManualAim outside shoulder ownership. The old hook negated camera-space pitch only while shoulder ownership was active, making crouch consume the opposite sign. Candidate converts modern action-table look independently of shoulder ownership; legacy modes retain their established convention. Baseline and candidate runtime tapes are being compared before delivery.
+
+
+## Established cause and checks
+
+The saved inversion option is unchanged. Modern look arrives in camera-pitch space, but native controlGetManualAim consumes the opposite vertical convention. The old conversion depended on shoulder ownership; native crouch state 5 excludes shoulder ownership and therefore reversed the same input. Modern action-table input now uses one conversion for the guest aim path regardless of camera owner. Legacy replay conventions remain unchanged.
+
+The same positive-look tape produces 25 consecutive crouch steps of -30 before the change and +30 afterward. A negative-look tape verifies the opposite direction. The 363 PC input checks include both saved inversion polarities and legacy behavior. Renderer, semantic presentation and shell suites also pass. These checks do not establish every swimming/scope/character combination or owner hardware acceptance. Private evidence: shuriken-followup-20261016/crouch-comparison.json, negative-pitch-result.json and focused-tests.json.
+
+Lesson: translate coordinate conventions at their input boundary, independently of which camera owns the current locomotion state. Do not migrate user preferences to compensate for a state-dependent sign bug.
+
+
+The shared followup runtime and bounded checks are pinned in [qualification](../../../evidence/high-refresh-shuriken-followup.json). Owner live confirmation remains pending.
