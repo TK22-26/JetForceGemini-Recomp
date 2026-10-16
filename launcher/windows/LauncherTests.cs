@@ -548,7 +548,8 @@ namespace JfgLauncher
                     Check(child.ExitCode == 0, "echo process failed");
                 }
                 ControllerProfile controller = new ControllerProfile();
-                string repo = LocalSetup.FindSourceRoot(AppDomain.CurrentDomain.BaseDirectory);
+                string repo = LocalSetup.FindSourceRoot(AppDomain.CurrentDomain.BaseDirectory) ?? LocalSetup.FindSourceRoot(Directory.GetCurrentDirectory());
+                Check(repo != null, "Launcher tests need a source checkout");
                 Check(controller.Encode() == File.ReadAllText(Path.Combine(repo, "tests", "fixtures", "controller-default.ini")).Replace("\r\n", "\n"), "C# and native mapping schema differ");
                 controller.Device = 2; controller.Bindings[3] = 3; controller.Deadzone = 18000;
                 controller.Save(directory);
@@ -826,7 +827,7 @@ namespace JfgLauncher
                     mapWindow.ShowInTaskbar = false; mapWindow.Show(); Application.DoEvents();
                     using (Bitmap preview = new Bitmap(mapWindow.Width, mapWindow.Height)) {
                         mapWindow.DrawToBitmap(preview, new Rectangle(Point.Empty, preview.Size));
-                        preview.Save(Path.Combine(repo, "build", "launcher", "map-preview.png"));
+                        preview.Save(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "map-preview.png"));
                     }
                     mapWindow.Close(); checks++;
                 }

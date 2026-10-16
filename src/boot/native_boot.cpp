@@ -1526,7 +1526,8 @@ struct State : JfgOriginalTimingFast {
   std::uint32_t guest_active_rsp_task = 0U, guest_active_rsp_type = 0U;
   std::uint64_t guest_exceptions = 0U;
   jfg::AsyncDiagnosticFile guest_clock_trace;
-  std::unique_ptr<FILE, decltype(&std::fclose)> device_event_stream{nullptr, &std::fclose};
+  struct FileCloser { void operator()(FILE* file) const noexcept { std::fclose(file); } };
+  std::unique_ptr<FILE, FileCloser> device_event_stream;
   jfg_device_event_probe device_event_probe{};
   std::ofstream eret_transfer_stream;
   EretTransferProbe eret_transfer_probe;
@@ -5738,7 +5739,20 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
                mmio_trace.c_str(), state.journal.count, state_digest.c_str(),
                journal_digest.c_str());
   std::fflush(stdout);
-  jfg::frame_diagnostic_state().finish(); jfg::finish_interpolation_trace(); state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
+  jfg::frame_diagnostic_state().finish();
+  jfg::finish_interpolation_trace();
+#if defined(JFG_PHASE8_LIVE_RUNTIME)
+  state.host_audio.finish_capture();
+  state.timing_trace.finish();
+  state.input_record.finish();
+  state.gameplay_trace.finish();
+#endif
+  state.guest_clock_trace.finish();
+  state.snapshot_writer.finish();
+  state.movement_trace.finish();
+  state.jump_trace.finish();
+  stop_pc_rumble(state);
+  std::_Exit(0);
 }
 
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
@@ -6343,7 +6357,20 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
       state.journal.count, state.journal.overflow ? "true" : "false",
       state_digest.c_str(), journal_digest.c_str());
   std::fflush(stdout);
-  jfg::frame_diagnostic_state().finish(); jfg::finish_interpolation_trace(); state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
+  jfg::frame_diagnostic_state().finish();
+  jfg::finish_interpolation_trace();
+#if defined(JFG_PHASE8_LIVE_RUNTIME)
+  state.host_audio.finish_capture();
+  state.timing_trace.finish();
+  state.input_record.finish();
+  state.gameplay_trace.finish();
+#endif
+  state.guest_clock_trace.finish();
+  state.snapshot_writer.finish();
+  state.movement_trace.finish();
+  state.jump_trace.finish();
+  stop_pc_rumble(state);
+  std::_Exit(0);
 }
 #endif
 
@@ -6424,7 +6451,20 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
       front_mode,
       state.journal.overflow ? "true" : "false");
   std::fflush(stdout);
-  jfg::frame_diagnostic_state().finish(); jfg::finish_interpolation_trace(); state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
+  jfg::frame_diagnostic_state().finish();
+  jfg::finish_interpolation_trace();
+#if defined(JFG_PHASE8_LIVE_RUNTIME)
+  state.host_audio.finish_capture();
+  state.timing_trace.finish();
+  state.input_record.finish();
+  state.gameplay_trace.finish();
+#endif
+  state.guest_clock_trace.finish();
+  state.snapshot_writer.finish();
+  state.movement_trace.finish();
+  state.jump_trace.finish();
+  stop_pc_rumble(state);
+  std::_Exit(0);
 }
 #endif
 
@@ -7007,7 +7047,7 @@ void service_vi_frame(State &state, const std::uint32_t target) {
 // Bear hint callback. Three dispatch paths reach it (direct, generated
 // overlay lookup, runlink-resolved lookup) and must record identical route
 // diagnostics.
-void note_hints_control_call(State &state, const std::uint32_t target,
+[[maybe_unused]] void note_hints_control_call(State &state, const std::uint32_t target,
                              const recomp_context &context) {
   ++state.phase9_hints_control_calls;
   state.phase9_hints_actor = static_cast<std::uint32_t>(context.r4);
@@ -7940,8 +7980,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   }
   const auto mapping = std::lower_bound(
       std::begin(kMappings), std::end(kMappings), target,
-      [](const Mapping &candidate, const std::uint32_t address) {
-        return candidate.vram < address;
+      [](const Mapping &candidate, const std::uint32_t lookup_address) {
+        return candidate.vram < lookup_address;
       });
   // Normalized overlay imports (including original CIC routines) must use
   // the same checked publication/lease path as other generated overlays.
@@ -8948,7 +8988,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     // Original code still builds/reads every PIF packet and delivers messages.
     if (target == original_os_entry("osContStartReadData")) {
       ++state.controller_read_start_calls;
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
       sample_live_controller(state);
+#endif
       state.mmio_trace->si_dma.sample(state.controller_ports.samples);
     }
     if (target == original_os_entry("osContGetReadData"))
@@ -10882,7 +10924,15 @@ extern "C" void jfg_phase9_instruction_effect(unsigned section, unsigned pc,
 // entered instruction sites, including loop iterations and executed slots.
 // The default is observation-only. The separate guest-OS diagnostic executes
 // original OS bodies, with the bounded reference CPU/device profile below.
-extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(
+// Keep the execution probe out of hot instruction sites on every compiler.
+#if defined(_MSC_VER)
+#define JFG_EXECUTION_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__) || defined(__clang__)
+#define JFG_EXECUTION_NOINLINE __attribute__((noinline))
+#else
+#define JFG_EXECUTION_NOINLINE
+#endif
+extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(
     unsigned section, unsigned pc, unsigned word, void* context);
 
 // Keep the common instruction path independent of the rare device/exception
@@ -10942,8 +10992,8 @@ extern "C" void jfg_phase9_execution_probe(unsigned section, unsigned pc,
 
 extern "C" void jfg_phase9_execution_probe_predecoded(unsigned metadata, unsigned pc,
                                           unsigned word, void* context) {
-#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   const unsigned section=metadata&255U;
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   if (g_active_child_state != nullptr && context != nullptr) {
     auto& state = *g_active_child_state;
     if (state.diagnostic_cpu_costs) ++state.profile_out_of_line_instructions;
@@ -10987,7 +11037,7 @@ extern "C" void jfg_phase9_execution_probe_predecoded(unsigned metadata, unsigne
   jfg_phase9_execution_probe_slow(section,pc,word,context);
 }
 
-extern "C" __declspec(noinline) void jfg_phase9_execution_probe_slow(unsigned section, unsigned pc,
+extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned section, unsigned pc,
                                           unsigned word, void *context) {
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   if (g_active_child_state != nullptr && context != nullptr) {
@@ -12709,6 +12759,7 @@ int run_child(const char *path, const unsigned retrace_target,
 #endif
   state.io_revision = &state.mmio_trace->execution_io_revision;
   state.io_guest_count = &state.mmio_trace->guest_count;
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   if (state.guest_os_probe) {
     // Read-only, ROM-pinned corrected-Mupen IPL hardware observation. This
     // initializes platform registers only, not game actors, RNG or save RAM.
@@ -12759,6 +12810,7 @@ int run_child(const char *path, const unsigned retrace_target,
     }
 
   }
+#endif
   if (state.guest_leaf_probe) {
     // Explicitly observed reference boot state, not a hardware-reset claim.
     if (!state.mmio_trace->mi_mask.initialize(0U)) return 3;
@@ -12802,6 +12854,7 @@ int run_child(const char *path, const unsigned retrace_target,
     std::fputs("native boot setup failed: generated runtime\n", stderr);
     return 3;
   }
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   // Clock policy is fixed for play. A bounded replay may request one measured
   // policy boundary so two clocks can begin from identical guest memory.
   // Avoid inspecting stream/vector internals at every guest instruction.
@@ -13023,6 +13076,7 @@ int run_child(const char *path, const unsigned retrace_target,
   state.execution_fast_profile_ready = !state.diagnostic_host_clock && state.guest_os_probe &&
       state.mmio_trace != nullptr && state.point_probe_pcs.empty() &&
       !state.device_event_stream && !state.eret_transfer_stream.is_open();
+#endif
   jfg::support_event("native=running");
   DispatchBinding binding{state, true};
   if (state.guest_leaf_probe) {
@@ -13071,6 +13125,7 @@ int run_child(const char *path, const unsigned retrace_target,
             set_cop1_cs(cpu.fcr31);
           }, [&state](const GuestThreadTransport<recomp_context>::EretBoundary& edge,
                       const recomp_context& cpu) {
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
             if (!state.eret_transfer_stream.is_open() && !state.instruction_effect_stream.is_open()) return;
             if (!state.guest_eret_boundary || state.guest_epc != edge.target_pc)
               fail_closed_dispatch(state, "eret-transfer-probe", "uncommitted-return", state.guest_last_pc);
@@ -13087,6 +13142,9 @@ int run_child(const char *path, const unsigned retrace_target,
                cpu.r24, cpu.r25, cpu.r26, cpu.r27, cpu.r28, cpu.r29, cpu.r30, cpu.r31}};
             if (!state.eret_transfer_probe.emit(row))
               fail_closed_dispatch(state, "eret-transfer-probe", "output-or-boundary", state.guest_last_pc);
+#else
+            (void)state; (void)edge; (void)cpu;
+#endif
           });
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
       state.guest_transport->enable_timing(state.diagnostic_cpu_costs || state.diagnostic_function_profile!=0U);
@@ -13577,6 +13635,8 @@ int run(const char *executable_path, const char *rom_path, unsigned timeout_ms,
 #else
   (void)executable_path;
   (void)timeout_ms;
+  (void)child_token;
+  (void)marker_handle;
   std::fputs(
       "native boot setup failed: process isolation unavailable on this host\n",
       stderr);

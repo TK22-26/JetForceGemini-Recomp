@@ -816,3 +816,10 @@ target_include_directories(jfg_submission_profile_tests PRIVATE "${PROJECT_SOURC
 target_compile_features(jfg_submission_profile_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_submission_profile_tests)
 add_test(NAME jfg.submission_profile COMMAND jfg_submission_profile_tests)
+
+add_executable(jfg_async_volume_file_tests async_volume_file_tests.cpp)
+target_include_directories(jfg_async_volume_file_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_async_volume_file_tests PRIVATE cxx_std_20)
+target_link_libraries(jfg_async_volume_file_tests PRIVATE Threads::Threads)
+jfg_set_project_warnings(jfg_async_volume_file_tests)
+add_test(NAME jfg.async_volume_file COMMAND jfg_async_volume_file_tests)

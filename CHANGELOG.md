@@ -1,6 +1,30 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 - 2026-10-16
+
+- Added smooth high-refresh rendering with VSync, Custom FPS and Unlimited in
+  native Video Settings. Game timing remains independent of presentation rate.
+  Character, camera, scenery, pickup and bridge interpolation are improved.
+- Reduced combat CPU work and renderer cache stalls; improved audio delivery and
+  ROM sample loading. Owner playtesting reports stable gameplay. Unlimited pacing,
+  exhaustive no-dip coverage and the reported Goldwood exit-cutscene audio hitch
+  remain under investigation; a high output counter is not a game-update guarantee.
+- Added the full Modern Controls editor, mouse look and dual-stick aiming, shared
+  action bindings, visible menu/dialogue bindings and independent inversion settings.
+  Corrected crouch mouse inversion, shuriken reticle loss and resting shuriken jitter.
+- Fixed the experimental keyboard/mouse startup crash by initializing game memory
+  before controller discovery. The v1.1.0 crash is reproduced with keyboard selected.
+- Made native execution-probe declarations and volume-file reads portable to GCC.
+- Improved legacy Windows source setup: detect disabled firmware virtualization,
+  refresh old WSL distribution support, and distinguish installer failures from
+  actual restart requests. Normal ZIP installation still requires no build tools.
+- Added an amber update banner below Play when GitHub has a newer stable release.
+  **What's new** opens the project page; **Update now** opens the release/download
+  page. Checks run in the background and never install updates automatically.
+
+Extract the complete Windows x64 ZIP into a new folder. Existing saves and settings
+remain in your profile. Modern gameplay and high-refresh rendering remain opt-in.
+See [known issues](docs/known-issues.md) for compatibility and qualification limits.
 
 - Added background stable-release checks, a persistent home-screen update notice,
   and **Help > Check for updates…** with installed/latest versions and a release link.

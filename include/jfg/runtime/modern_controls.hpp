@@ -108,7 +108,8 @@ inline bool parse_modern_controls(std::string_view text,ModernControlsConfig &re
             if(number < -1 || number>26 || (!kModernActions[slot-kModernSettings.size()].gamepad && number!=-1))return false;
             c.pad[slot-kModernSettings.size()]=number;
         } else {
-            if(number<0 || number>kPcWheelDown)return false;c.keys[slot-kModernSettings.size()-kModernActionCount]=number;
+            if(number<0 || number>kPcWheelDown) return false;
+            c.keys[slot-kModernSettings.size()-kModernActionCount]=number;
         }
     }
     // Version 1 predates independent scope tuning. Its exact fields remain accepted.

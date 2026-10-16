@@ -364,7 +364,7 @@ struct Ui : Rml::EventListener {
     if (updatePreview) {
       // Explicit, process-local UI preview. Never writes an update result or
       // changes installed-version metadata, and never requests a download.
-      updateState = "available"; updateTag = "v1.2.0"; availableUpdate = updateTag;
+      updateState = "available"; updateTag = "v1.3.0"; availableUpdate = updateTag;
       updateMessage = "Design preview: this is a sample update, not a GitHub result.";
       label("update-current", std::string("You're on v") + jfg::frontend::version + ".");
       label("update-version", availableUpdate);

@@ -46,7 +46,7 @@ int main(){
   check(menu_pointer_target(start,{88,160,true})==-1,"above start icons");
   start.enabled=7;check(menu_pointer_target(start,{160,190,true})==1,"available Multi");
   GuestMenuState saves{GuestMenuKind::saves,0,63,true,45};
-  for(int i=0;i<6;++i)check(menu_pointer_target(saves,{87.f+29*i,186,true})==i,"six slot targets");
+  for(int i=0;i<6;++i)check(menu_pointer_target(saves,{87.f+29.f*static_cast<float>(i),186,true})==i,"six slot targets");
   check(menu_pointer_target(saves,{102,186,true})==-1,"slot gap");
   check(menu_pointer_target(saves,{150,120,true})==0,"current game card");
   saves.selected=5;check(menu_pointer_target(saves,{150,120,true})==5,"card follows selected slot");
@@ -147,7 +147,7 @@ int main(){
   packet=cp.sample(character,{160,185,true},false,true,false,true,false);
   check(packet.buttons==0x4000,"character label confirms and returns");
   GuestMenuState options{GuestMenuKind::options,0,255,true,789,8};
-  for(int i=0;i<8;++i)check(menu_pointer_target(options,{(i&1)?238.f:84.f,70.f+35*(i/2),true})==i,"Options icon target");
+  for(int i=0;i<8;++i)check(menu_pointer_target(options,{(i&1)?238.f:84.f,70.f+35.f*static_cast<float>(i/2),true})==i,"Options icon target");
   options.enabled&=~8U;
   check(menu_pointer_target(options,{238,105,true})==-1,"disabled Options icon excluded");
   GuestMenuPointer op;op.sample(options,{84,140,true},false,false,false,true,false);

@@ -1,6 +1,6 @@
 # Open GitHub issue review before a full update (2026-10-16)
 
-**Not all open reports are resolved. A full update is not yet release-qualified.** The owner accepted the current local game and amber updater design. That acceptance does not close independent GitHub reports.
+**Initial audit (before the 1.2.0 fixes below): not all reports were resolved.** The owner accepted the current local game and amber updater design. That acceptance does not close independent GitHub reports.
 
 Used `gh issue list --state open` and `gh issue view` with comments for all four open issues. The supplied startup support ZIP was read privately. Source and existing evidence were compared; no issue was closed, comment posted or release published.
 
@@ -16,3 +16,32 @@ The updater passes 78 UI assertions, 28 checker cases and a live packaged-helper
 Before a broad release: reproduce and qualify #14, validate #15 on the actual Linux target if Linux is included, and resolve or explicitly scope the remaining legacy source-setup limitations. Obtain the reporter's controller confirmation when practical. Preserve the separate all-route/Unlimited/exit-cutscene limits in existing records; owner-reported smooth play does not certify every environment.
 
 [Machine-readable audit](../../../evidence/github-release-readiness-20261016.json) and [updater qualification](../../../evidence/launcher-update-button.json). These results concern the local candidate, not retroactive changes to v1.1.0.
+
+## 1.2.0 release-candidate qualification
+
+The four-report review now has concrete remedies and bounded verification:
+
+| Report | Remedy and validation | Remaining scope |
+|---|---|---|
+| #14 startup | Exact v1.1.0 runtime crashes with experimental keyboard input before game-memory assignment; current early assignment passes enabled startup, including a 1,200-retrace muted run | Reporter hardware is not reproduced; broad gameplay acceptance is separate |
+| #15 GCC build | Portable noinline and volume reader; guarded Windows-only diagnostics, portable predecoded section and strict-warning corrections. Actual native translation unit compiles under GCC with all project warnings as errors; Linux volume/input tests pass | Windows package only; no new Linux AppImage or GCC 16.2.1 runtime qualification |
+| #13 inversion | Existing controller vertical inversion persists and reverses camera/aim deltas; 790 native controls checks pass | Reporter physical-controller confirmation remains useful |
+| #4 setup | Firmware virtualization diagnosis, old WSL catalog refresh, distinct failure/restart handling; 28 setup checks pass | Fresh Windows 10 installation and unrelated optional-tool comments remain unverified |
+
+The launcher passes 642 managed checks, 790 modern-controls checks and 78 update
+banner checks. Windows native build and input/menu/volume checks pass. Exact-body
+source policy, package verification and release validation tests pass. A full local
+Python run executed 1,790 tests with 48 skips and three failures in the pinned WSL
+trust/sanitizer harness on this host; those failures are retained, not relabeled as
+passes or fixed by changing trust pins. CI qualification is still required.
+
+Initial direct Linux probes exposed missing build-harness include/link settings,
+then genuine platform-boundary and strict-warning defects. The retries preserve
+SYSTEM treatment for generated headers and warnings-as-errors for project source.
+Launcher tests also assumed their output was inside the repository; source lookup
+now supports the configured external output, and test screenshots stay beside it.
+
+Private receipts: release-1.2.0-20261016. Game/input source fixes preserve the owner-
+accepted Windows behavior. No clean all-route/Unlimited/audio guarantee is claimed.
+This record describes a committed release candidate once the following commit is
+created; publication is tracked separately. Initial audit findings above are history.

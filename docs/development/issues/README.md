@@ -36,10 +36,10 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
-| NATIVE-002 | GitHub #14 mouse-look startup access violation | Report logs confirm crash; current-build resolution unverified | [Startup report](github-mouse-look-startup.md) |
-| BUILD-002 | GitHub #15 GCC native build failure | Compiler-specific declarations and Windows header remain; open | [Linux build review](github-linux-native-build.md) |
+| NATIVE-002 | GitHub #14 mouse-look startup access violation | Exact v1.1.0 crash reproduced; early-memory remedy verified in current enabled startup | [Startup report](github-mouse-look-startup.md) |
+| BUILD-002 | GitHub #15 GCC native build failure | Portable source and actual GCC translation unit verified; AppImage runtime not qualified | [Linux build review](github-linux-native-build.md) |
 | INPUT-010 | GitHub #13 controller camera inversion | GUI toggle verified with persistence and camera/aim deltas; reporter retest pending | [Controls review](github-controller-vertical-inversion.md) |
-| SETUP-001 | GitHub #4 Windows 10 source setup | Partial fixes verified; firmware and old-WSL cases open | [Setup review](github-windows-source-setup.md) |
+| SETUP-001 | GitHub #4 Windows 10 source setup | Firmware/WSL/failure handling fixed; 28 checks pass, fresh Windows 10 retest pending | [Setup review](github-windows-source-setup.md) |
 | DISPLAY-001 | Widescreen viewport and pointer alignment | Verified in tests; preview installed, live check pending | [Investigation](widescreen-pointer-and-airborne-aim.md) |
 | INPUT-008 | Menu bindings save but are hidden; retained mouse preference | Unified Keys, no arrows and shared E verified and delivered locally; owner check pending | [Profile/default review](modern-capture-profile-defaults.md) |
 | RENDER-008 | Shuriken reticle flickers and disappears | Corrected, tested and delivered locally; owner reports resolved in live play | [Report and investigation](shuriken-reticle-flicker.md) |
@@ -88,3 +88,5 @@ Other currently reported limitations remain in [known issues](../../known-issues
 
 
 [2026-10-16 GitHub release-readiness audit](github-release-readiness-20261016.md): four open reports reviewed; a full update is not yet qualified.
+
+- [BUILD-003: Release source validation](release-source-validation.md) - candidate remediation and qualification for 1.2.0.

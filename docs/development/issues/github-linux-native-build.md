@@ -12,3 +12,28 @@ The reporter proposes a compiler-selected noinline macro and reports a successfu
 No patch, upstream merge or Linux build was performed in this launcher review. A follow-up must use portable noinline declarations, provide or gate the volume-file implementation appropriately, and build the actual native/AppImage target on GCC with warnings-as-errors. Host-shell tests alone do not qualify the generated game runtime. This is a Linux release blocker; it is not evidence of a Windows runtime regression. Private report: `launcher-update-button-20261016/issue-15.json`.
 
 Lesson: fix the first compiler error and assess the complete platform path; do not claim whole-platform support from a two-line compiler workaround.
+
+
+## 1.2.0 candidate work
+
+Owner authorized a two-hour release continuation. The source changes address the recorded portability/setup failures; focused regression tests and platform qualification are in progress. This candidate is not yet a verified or published resolution. Existing guard state and counters remain preserved.
+
+## Additional actual-source compiler findings
+
+Direct GCC compilation confirmed additional defects hidden by Windows-only builds:
+an unguarded block of Windows live-runner diagnostic setup, a predecoded section
+variable declared inside the platform guard but used outside it, non-live shutdown
+touching live-only streams, and warning failures in a FILE deleter and control parser.
+The candidate gives platform-only diagnostics their existing Windows/live boundary,
+keeps the section decode portable, uses a callable FILE closer and clarifies parser
+indentation. The non-Windows native runner still explicitly reports unsupported
+process isolation at runtime; a playable Linux/AppImage product requires its Linux
+frontend branch. These source fixes do not represent a new Linux game release.
+
+The first direct compile also omitted SYSTEM treatment for private generated headers;
+the retry restores the CMake policy rather than suppress handwritten-code warnings.
+Linux bounded volume-file tests already pass. Full source retry remains pending.
+
+## Verified candidate scope
+
+The actual native translation unit now compiles under GCC 13 with -Wall/-Wextra/-Wpedantic/-Wconversion/-Wshadow/-Werror. Windows native, Linux volume and Linux input checks pass. The separate Linux frontend/AppImage branch and reporter GCC 16.2.1 runtime remain outside this Windows release qualification.

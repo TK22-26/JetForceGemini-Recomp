@@ -14,8 +14,8 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("JFG Launcher")]
 [assembly: AssemblyDescription("Jet Force Gemini Recomp; import your own ROM once")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyInformationalVersion("1.1.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyInformationalVersion("1.2.0")]
 
 namespace JfgLauncher
 {

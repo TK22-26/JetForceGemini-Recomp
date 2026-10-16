@@ -42,8 +42,8 @@ public:
             (translated_ || menu_confirm_dismisses(s) || menu_confirm_dismisses(origin_)))
       swallowed_=true;
     held_=true;
-    if(swallowed_)buttons&=~0x8000U;
-    else if(translated_)buttons=(buttons&~0x8000U)|0x4000U;
+    if(swallowed_)buttons=static_cast<std::uint16_t>(buttons&0x7FFFU);
+    else if(translated_)buttons=static_cast<std::uint16_t>((buttons&0x7FFFU)|0x4000U);
     return buttons;
   }
 };
@@ -64,16 +64,16 @@ inline int menu_pointer_target(const GuestMenuState& s, MenuPointerPoint p) {
   const auto rect=[&](float l,float t,float r,float b){return p.x>=l&&p.x<r&&p.y>=t&&p.y<b;};
   if (s.kind==GuestMenuKind::title) return 0;
   if (s.kind==GuestMenuKind::start) {
-    for (int i=0;i<3;++i) if ((s.enabled&(1U<<i)) && rect(64.f+72*i,170,112.f+72*i,231)) return i;
+    for (int i=0;i<3;++i) if ((s.enabled&(1U<<i)) && rect(64.f+72.f*static_cast<float>(i),170,112.f+72.f*static_cast<float>(i),231)) return i;
   }
   if (s.kind==GuestMenuKind::saves) {
-    for (int i=0;i<6;++i) if (rect(76.f+29*i,174,100.f+29*i,198)) return i;
+    for (int i=0;i<6;++i) if (rect(76.f+29.f*static_cast<float>(i),174,100.f+29.f*static_cast<float>(i),198)) return i;
     if (rect(90,95,230,149)) return s.selected;
   }
   if (s.kind==GuestMenuKind::save_actions && (rect(93,174,117,198)||(s.selected==0 && rect(90,95,230,149)))) return 0;
   if(s.kind==GuestMenuKind::options) {
     for(int i=0;i<8;++i) {
-      const float x=(i&1)?218.0F:70.0F,y=54.0F+34.0F*(i/2);
+      const float x=(i&1)?218.0F:70.0F,y=54.0F+34.0F*static_cast<float>(i/2);
       if((s.enabled&(1U<<i)) && rect(x,y,x+32,y+32))return i;
     }
   }
@@ -84,7 +84,7 @@ inline int menu_pointer_target(const GuestMenuState& s, MenuPointerPoint p) {
   }
   if(s.kind==GuestMenuKind::pause_root) {
     for(int i=0;i<8;++i) {
-      const float x=(i&1)?227.0F:63.0F,y=43.0F+32.0F*(i/2);
+      const float x=(i&1)?227.0F:63.0F,y=43.0F+32.0F*static_cast<float>(i/2);
       if((s.enabled&(1U<<i)) && rect(x,y,x+31,y+30))return i;
     }
     if((s.enabled&256U) && rect(118,189,211,207))return 8;

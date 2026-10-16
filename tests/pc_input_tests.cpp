@@ -175,7 +175,7 @@ int main() {
     jfg::PcCameraBoom boom;
     boom.solve(pivot,flat_view,flat_view,0,open);
     boom.solve(pivot,flat_view,wall(flat_view),0,wall);
-    for(int n=0;n<hz;++n)boom.solve(pivot,flat_view,flat_view,1.0F/hz,open);
+    for(int n=0;n<hz;++n)boom.solve(pivot,flat_view,flat_view,1.0F/static_cast<float>(hz),open);
     return boom.distance;
   };
   check(std::abs(recovery(30)-recovery(60))<0.001F &&

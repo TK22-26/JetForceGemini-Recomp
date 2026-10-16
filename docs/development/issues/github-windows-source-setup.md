@@ -16,3 +16,19 @@
 Private fresh fixture receipt: `launcher-update-button-20261016/issue-4-setup-tests.log`. No tools, distributions, BIOS options or machine-level settings were installed or changed by the fixture. The report's later optional shadow work and inspector/pipeline failure observations are distinct from the four setup items; this audit does not certify them resolved. Existing shadow/rendering records retain their own scope. The request for public oracle tooling is a maintainer/distribution question, not a setup fix.
 
 No new setup remedy was attempted in this launcher review. [Known issues](../../known-issues.md) already distinguishes legacy source setup from prebuilt ROM import. The issue must not be marked wholly resolved based only on the stderr helper or because the normal package no longer needs WSL. Compatibility lesson: a negative prerequisite probe, a failed installer and a required reboot are separate outcomes.
+
+
+## 1.2.0 candidate work
+
+Owner authorized a two-hour release continuation. The source changes address the recorded portability/setup failures; focused regression tests and platform qualification are in progress. This candidate is not yet a verified or published resolution. Existing guard state and counters remain preserved.
+
+## Candidate qualification
+
+The implementation now detects disabled firmware virtualization before setup,
+refreshes Microsoft WSL when Ubuntu-24.04 is absent from its distribution catalog,
+and treats only explicit reboot exit codes as a restart requirement. A successful
+installer without registration produces an actionable error. Existing distributions
+are preserved. All 28 mocked setup assertions pass, including old-WSL, firmware,
+failed-install and missing-registration cases. No BIOS, WSL or system settings were
+changed by tests. Full fresh Windows 10 installation and unrelated optional tooling
+comments remain outside this verified scope.
