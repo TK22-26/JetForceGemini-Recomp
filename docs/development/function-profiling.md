@@ -82,3 +82,6 @@ Each update also carries the most recent transition call and its age. This prese
 
 
 ROM loading observations are available without full function profiling. The rare rom-dma record reports per-update reads, copied bytes, reference bus ticks, scheduled ticks and native-read count after VI/poll. It distinguishes synchronous host copying from deferred emulated cartridge completion; durations are scheduling counters, not thread CPU measurements. See [native ROM policy](native-rom-loading.md).
+
+
+Private RT64 stage instrumentation altered a padding-dependent cache defect and hid its hitch. A clean rebuild restored the event; external thread sampling located hash-table growth without modifying the function. Treat instrumentation-induced disappearance as an observer effect until an independently failing regression and unprofiled corrected run support a remedy. See [PERF-003](issues/renderer-cache-key-instability.md).

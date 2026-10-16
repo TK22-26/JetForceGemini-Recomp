@@ -944,3 +944,9 @@ The cadence analyzer now includes transition calls anywhere between consecutive 
 
 
 A private full-function capture timed out because its stop monitor waited for VI rows in a trace intentionally buffered until shutdown. The forced stop lost that buffer; no measurements from that attempt are accepted. The corrected helper monitors the independent FPS CSV, requests normal window closure at its VI target, then analyzes the flushed trace. The recovery and narrower explosion capture pass profiler accounting checks. Evidence: residual-goldwood-profile-recovery and residual-goldwood-profile-late. This is a capture orchestration correction, not a runtime FPS fix.
+
+The first private RT64 stage replay exited before window creation with STATUS_DLL_NOT_FOUND because only the executable had been copied to its isolated evidence directory. It produced no performance evidence. The recovery uses the original build runtime directory and checks the executable hash against the candidate; the failed capture is retained. Evidence: late-renderer-stages and late-renderer-stages-v2.
+
+The runtime-directory stage replay reached normal window closure and flushed its memory trace, but the parent rejected extra private stderr output. Treat the diagnostic protocol failure separately from gameplay timing; do not promote this as a clean qualification run. Subsequent private stage output must use a dedicated file. Evidence: private-stage-protocol-review.
+
+The first unprofiled draw-key replay supplied FUNCTION_PROFILE=0 and retained dependent profile flags; the parser rejected that unsupported configuration before gameplay. The recovery unsets the profiler, window and GPU-profile variables together. A nested-string setup was withdrawn before execution and replaced with direct setup. Failed setup is excluded from acceptance. Evidence: draw-key-native-late and draw-key-native-late-v2.

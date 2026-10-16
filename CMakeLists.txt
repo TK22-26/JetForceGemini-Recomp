@@ -273,6 +273,7 @@ if(JFG_ENABLE_RT64)
 
     include(cmake/rt64_vi_presentation.cmake)
     include(cmake/rt64_gpu_timing.cmake)
+    include(cmake/rt64_draw_call_key.cmake)
     include(cmake/rt64_depth_bounds.cmake)
     include(cmake/rt64_interpolation.cmake)
 

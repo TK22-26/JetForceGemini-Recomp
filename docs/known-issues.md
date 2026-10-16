@@ -271,3 +271,6 @@ The native ROM loading improvement is qualified for local packaging: the tested 
 
 
 Both desktop shortcuts now select the qualified native-ROM loading package, including audio/bridge remedies. Profiles and launcher arguments are preserved. Later hitches and owner listening/visual acceptance remain open. [Current local preview](development/native-rom-loading.md).
+
+
+A renderer draw-call cache defect is corrected and passes bounded qualification: the repeated late renderer hitch is absent in the unprofiled candidate replay. Restart/load gaps, exact owner-route coverage and listening/visual acceptance remain open. [Cause and qualification](development/issues/renderer-cache-key-instability.md).
