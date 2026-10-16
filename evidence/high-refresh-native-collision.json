@@ -580,5 +580,75 @@
     "manifest_verified": 14,
     "launcher_sha256": "60b2696f1447101809053922a1aa5b24efc94c197875a63ad22b3fb9c4dc045c",
     "launcher_setup_runtime_protocol_passed": true
+  },
+  "expanded_capture_check": {
+    "runtime_sha256": "34ce90c9a11bba75a9ae47f3ae3d8a40d635b20357bf8c52391f4bd015a6bff1",
+    "case": "collision-final-expanded-capture-on-a",
+    "costs": {
+      "combat": {
+        "active_ms": {
+          "n": 480,
+          "median": 20.3925,
+          "p95": 24.25,
+          "max": 27.242,
+          "mean": 20.732339583333335
+        },
+        "thread_cycles": {
+          "n": 480,
+          "median": 31429040.0,
+          "p95": 36185120,
+          "max": 41242540,
+          "mean": 30942275.833333332
+        },
+        "vi_deltas": {
+          "2": 479
+        }
+      },
+      "extended": {
+        "active_ms": {
+          "n": 1230,
+          "median": 18.4365,
+          "p95": 23.019,
+          "max": 27.242,
+          "mean": 18.820833333333333
+        },
+        "thread_cycles": {
+          "n": 1230,
+          "median": 25065560.0,
+          "p95": 34875260,
+          "max": 41242540,
+          "mean": 26241743.723577235
+        },
+        "vi_deltas": {
+          "2": 1229
+        }
+      }
+    },
+    "checks": {
+      "unsupported_accesses": 0,
+      "audio_underruns_after_release": 0,
+      "audio_overruns_after_release": 0
+    },
+    "flags": "Actor, interpolation, poll and progress streams enabled; replay inputs substitute for live-input recording.",
+    "limits": "A bounded capture-mode overhead check; full per-function profiler stays off."
+  },
+  "final_cadence_tests": 10,
+  "copied_profile_migration": {
+    "passed": true,
+    "profiles": [
+      {
+        "profile": 0,
+        "stale_runtime_record_replaced": true,
+        "source_profile_untouched": true,
+        "save_controls_video_performance_preserved": true
+      },
+      {
+        "profile": 1,
+        "stale_runtime_record_replaced": true,
+        "source_profile_untouched": true,
+        "save_controls_video_performance_preserved": true
+      }
+    ],
+    "runtime_sha256": "34ce90c9a11bba75a9ae47f3ae3d8a40d635b20357bf8c52391f4bd015a6bff1"
   }
 }

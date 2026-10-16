@@ -934,3 +934,10 @@ The final collision preview integrates and qualifies the expanded submission pro
 
 ### Bounded collision preview delivered locally
 Both High Refresh Preview and Jitter Capture desktop shortcuts now select source commit 8f94f148ec367e4a221679a40255f12e6353af07 and runtime SHA-256 34ce90c9a11bba75a9ae47f3ae3d8a40d635b20357bf8c52391f4bd015a6bff1. Package and launcher/runtime setup checks pass; shortcut arguments and all 40 checked profile files are preserved. Previous package and links remain available for rollback. The qualified collision optimization, expanded submission diagnostics, cadence analyzer and explicit transition markers are included. Detailed function profiling remains off for ordinary play. This is a local preview, not a release or universal no-20-FPS claim. Late crate/light/bridge jitter and shadow cadence still require owner visual review. [Current evidence](../../../evidence/high-refresh-native-collision.json).
+
+
+### Final delivery audit
+
+The final binary also completes a muted capture-mode comparison with actor, interpolation, poll and progress logging enabled (recorded inputs replace live input recording). Its combat median active duration is 20.392 ms; extended update intervals are {'2': 1229}. No new audio-buffer errors or unsupported accesses occur. This bounded comparison does not remove the observer-cost caveat for full function profiling.
+
+The cadence analyzer now includes transition calls anywhere between consecutive update returns, including calls outside either measured root. Final normal-Play gap associations: [{"vi": 6588, "delta_vi": 64, "transition_kinds": [], "latest_transition": {"stamp_us": 109416093, "vi": 6494, "poll": 3170, "kind": "death_restart", "age_ms": 1568.366}}, {"vi": 6591, "delta_vi": 3, "transition_kinds": [], "latest_transition": {"stamp_us": 109416093, "vi": 6494, "poll": 3170, "kind": "death_restart", "age_ms": 1611.178}}]. These are actual observed transition entries, not causes inferred from a level number alone. Further owner visual review is still required for the reported late scenery/shadow jitter; a fresh route is also needed to judge combat under live inputs.
