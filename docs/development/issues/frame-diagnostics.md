@@ -901,3 +901,22 @@ The combined resident-math/profiler runtime also passes the full instrumented re
 
 
 The combined profiled-math binary is now installed on both high-refresh desktop links. Detailed profiling remains an explicit developer-runtime option; ordinary F8 FPS logging does not activate per-function queries. Logs and captures remain private on D:. The delivered binary and source commit are in [the combined receipt](../../../evidence/high-refresh-resident-math.json).
+
+
+The first private synchronization patch rejected its single-site assertion because framebuffer fence waits occur at more than one pinned site. It changed no source/runtime and its dependent capture refused to run. The corrected patch accounts for every occurrence, retains all waits, and records per-kind call counts alongside durations. Snapshot, display-list submission and CPU-writeback timings accompany the six wait kinds without enabling broad interpolation tracing. Exact-state validation remains required. Evidence: submit-sync-breakdown-build (refused) and submit-sync-breakdown-build-fixed.
+
+
+The submission-owner diagnostic also preserves exact recorded RAM/save/instructions/interpolation. Native collection records valid same-thread cycles and OS CPU-time deltas for snapshot/decode/writeback, correlated by event order with six wait kinds. CPU-time tick quantization makes individual tiny substage deltas noisy; aggregate counters and wall/cycle patterns must be interpreted together. Evidence: submit-thread-attribution-captures and submit-thread-attribution-review.
+
+
+### Submission profiler source integration
+The private six-wait and submission-owner diagnostics are now integrated as an opt-in, thread-local collector. The analyzer joins repeated submission keys in order, distinguishes root/other CPU owners, excludes boundary-crossing work, and reports unpaired, missing or invalid records. Nested collector scopes and exception restoration retain the previous state; worker counters remain separate. All waits and ordinary default behavior remain unchanged. Fixtures, rebuild, exact recorded correspondence and disabled runtime checks are required before delivery. Evidence: submission-profile-source.
+
+
+### Private Windows thread-scheduling attribution
+An owned-thread fixture successfully enables Windows dispatch profiling without hardware counters or driver/system changes. It records context-switch counts, wait-reason bits and cycles excluding interruptions, and disables profiling before thread exit. A private runtime experiment samples only root-update and synchronous submission intervals. Actual thread identities remain explicit; wait-reason bits are since the last read, so any nested reader would make them incomplete and must be rejected in analysis. No hardware PMU access is claimed. Exact recorded validation and native correlation remain pending. Evidence: windows-thread-dispatch-fixture and thread-dispatch-profile-build-fixed. The first runtime build placed its private header before Windows declarations; it failed at compile time and restored source/runtime. Its dependent captures refused execution.
+API contracts: [EnableThreadProfiling](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-enablethreadprofiling), [ReadThreadProfilingData](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readthreadprofilingdata), [PERFORMANCE_DATA](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-performance_data).
+
+
+### Submission profiler qualification checkpoint
+The integrated runtime passes all 13 analyzer fixtures, the nested/exception/thread-isolation C++ collector fixture, exact recorded combat with profiling disabled/enabled, and the retained 17,000-VI Original comparison. All final native 120/360 captures have valid submission-owner joins and zero audio under/overruns or unsupported accesses. The observed source cadence is zero three-VI intervals in the 120 stage capture and one in the 360 stage capture; different native paths and observer cost prevent a no-dip claim. Runtime SHA-256: 699502f5f4118366b9af349056ddc5eaa7d78f5e1986eb67e70674947280cb67. The desktop package remains the earlier profiled-math build. [Qualification receipt](../../../evidence/high-refresh-submission-profile.json).

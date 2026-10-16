@@ -27,6 +27,7 @@ foreach(jfg_gpu_stage IN ITEMS begin end complete)
     string(REPLACE "${jfg_gpu_old}" "${jfg_gpu_new}" jfg_gpu_contents "${jfg_gpu_contents}")
 endforeach()
 # Optional CPU-side synchronization timings. Keep every original wait in place.
+set(jfg_wait_index 0)
 foreach(jfg_wait_stage IN ITEMS draw transform render fence texture queue)
     if(jfg_wait_stage STREQUAL "draw")
         set(jfg_wait_site "ext.drawDataUploader->wait();")
@@ -46,8 +47,10 @@ foreach(jfg_wait_stage IN ITEMS draw transform render fence texture queue)
         message(FATAL_ERROR "Pinned RT64 synchronization timing site is missing")
     endif()
     set(jfg_wait_replacement "[&] { const bool trace=jfg::interpolation_trace_enabled();
-        const auto begin=trace ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        const bool detailed=jfg::submission_wait_profile_active;
+        const auto begin=(trace || detailed) ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
         ${jfg_wait_site}
+        if(detailed) jfg::record_submission_wait(${jfg_wait_index}U,begin);
         if(trace) {
             const auto snapshot=jfg::presentation_snapshot(&workload);
             jfg::trace_interpolation(\"sync-${jfg_wait_stage}-wait\", snapshot ? snapshot->tick : 0U,
@@ -57,10 +60,11 @@ foreach(jfg_wait_stage IN ITEMS draw transform render fence texture queue)
         }
     }();")
     string(REPLACE "${jfg_wait_site}" "${jfg_wait_replacement}" jfg_gpu_contents "${jfg_gpu_contents}")
+    math(EXPR jfg_wait_index "${jfg_wait_index}+1")
 endforeach()
 set(jfg_gpu_generated "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64/hle/rt64_state.cpp")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64/hle")
-file(WRITE "${jfg_gpu_generated}" "#include \"jfg/renderer/interpolation_bridge.hpp\"\n#include \"jfg/renderer/rt64_gpu_timing_hooks.hpp\"\n${jfg_gpu_contents}")
+file(WRITE "${jfg_gpu_generated}" "#include \"jfg/renderer/interpolation_bridge.hpp\"\n#include \"jfg/renderer/rt64_gpu_timing_hooks.hpp\"\n#include \"jfg/renderer/submission_profile.hpp\"\n${jfg_gpu_contents}")
 get_target_property(jfg_gpu_sources rt64 SOURCES)
 set(jfg_gpu_patched_sources)
 set(jfg_gpu_replaced FALSE)

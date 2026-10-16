@@ -53,4 +53,43 @@ class FunctionProfileTests(unittest.TestCase):
  def test_truncated_or_malformed_rows(self):
   self.assertEqual(analyze([fixture()[1].rstrip()])["diagnostics"]["partial_record"],1)
   with self.assertRaises(ValueError):analyze(["0\tfunction-profile\txyz\n"])
+
+ def test_submission_host_wait_and_thread_ownership(self):
+  records=[]
+  for stamp,owner,m in [(200,7,1),(500,11,2)]:
+   records.append(row("submit",[100,20,1,100,0,0,0,50,0]).replace("1000\t",f"{stamp}\t",1))
+   records.append(row("submit-host",[100,20,1,1000*m,2000*m,3000*m]))
+   records.append(row("submit-sync",[100,20,1]+[1000*m]*6+[m]*6))
+   records.append(row("submit-thread",[100,20,1,owner,1]+[10*m]*3+[20*m]*3))
+  report=analyze(records+fixture());g=report["slowest_updates"][0]["graphics"]
+  self.assertEqual(g["host_stages_ms"],dict(snapshot=.003,decode=.006,writeback=.009))
+  self.assertEqual(g["synchronization_waits"]["fence"],dict(wall_ms=.003,calls=3))
+  owners=g["submission_threads"]
+  self.assertEqual(owners[0]["thread"],7);self.assertTrue(owners[0]["is_root_thread"])
+  self.assertEqual(owners[0]["cycles"],30);self.assertEqual(owners[0]["os_cpu_ms"],.006)
+  self.assertEqual(owners[1]["thread"],11);self.assertFalse(owners[1]["is_root_thread"])
+  self.assertEqual(owners[1]["cycles"],60)
+  self.assertFalse(any(report["diagnostics"].values()))
+ def test_unpaired_and_missing_submission_observations(self):
+  host=row("submit-host",[100,20,1,1,2,3])
+  a=row("submit",[100,20,1,100,0,0,0,50,0]).replace("1000\t","200\t",1)
+  b=a.replace("200\t","500\t",1)
+  result=analyze([host,a,host,host,b]+fixture())
+  self.assertEqual(result["diagnostics"]["unpaired_submit_host"],2)
+  self.assertEqual(result["diagnostics"]["missing_submit_host"],1)
+ def test_invalid_submission_thread_is_not_cpu_work(self):
+  a=row("submit",[100,20,1,100,0,0,0,50,0]).replace("1000\t","200\t",1)
+  cpu=row("submit-thread",[100,20,1,7,0]+[99]*6)
+  report=analyze([a,cpu]+fixture())
+  self.assertEqual(report["diagnostics"]["invalid_submission_thread"],1)
+  self.assertEqual(report["slowest_updates"][0]["graphics"]["submission_threads"],[])
+  with self.assertRaisesRegex(ValueError,"invalid submission thread validity"):
+   analyze([a,row("submit-thread",[100,20,1,7,2]+[0]*6)]+fixture())
+ def test_submission_extra_boundary_exclusion(self):
+  a=row("submit",[100,20,1,500,0,0,0,50,0]).replace("1000\t","200\t",1)
+  host=row("submit-host",[100,20,1,100000,200000,300000])
+  g=analyze([a,host]+fixture())["slowest_updates"][0]["graphics"]
+  self.assertEqual(g["boundary_crossing_submissions"],1)
+  self.assertEqual(g["complete_submissions"],0)
+  self.assertNotIn("host_stages_ms",g)
 if __name__=="__main__":unittest.main()

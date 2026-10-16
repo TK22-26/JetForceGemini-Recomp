@@ -30,7 +30,7 @@ def analyze(lines, *, first_vi=0, last_vi=None, names=None):
     labels={**NAMES,**(names or {})}
     pending=defaultdict(list); work={}; updates=[]; errors=Counter();totals=defaultdict(Counter)
     auxiliary=defaultdict(list);timestamps_by_update={};hosts={};emissions={}
-    latest_submit=None;submit_details={}
+    latest_submit=None;submit_details={};submission_extra=defaultdict(dict)
     def named(row):
         return {**row,"target":f"0x{row['target']:08x}","parent":f"0x{row['parent']:08x}",
                 "name":labels.get(row["target"],"unresolved"),"parent_name":labels.get(row["parent"],"root" if not row["parent"] else "unresolved")}
@@ -38,18 +38,25 @@ def analyze(lines, *, first_vi=0, last_vi=None, names=None):
         f=line.rstrip("\r\n").split("\t")
         if line.startswith("limit\t"):
             errors["trace_limit"]+=1;continue
-        if len(f)<2 or f[1] not in {"function-profile","function-profile-end","update-work","function-profile-host","function-profile-emission","submit","submit-detail","gpu-framebuffer-time","gpu-workload-time"}:continue
+        if len(f)<2 or f[1] not in {"function-profile","function-profile-end","update-work","function-profile-host","function-profile-emission","submit","submit-detail","submit-host","submit-sync","submit-thread","gpu-framebuffer-time","gpu-workload-time"}:continue
         if not line.endswith("\n"):
             errors["partial_record"]+=1;continue
         try:
             values=[int(x,16) for x in f[2:]]
             if any(x<0 for x in values):raise ValueError("negative value")
-            expected={"function-profile":17,"function-profile-end":10,"update-work":7,"function-profile-host":10,"function-profile-emission":8,"submit":9,"submit-detail":12,"gpu-framebuffer-time":7,"gpu-workload-time":7}[f[1]]
+            expected={"function-profile":17,"function-profile-end":10,"update-work":7,"function-profile-host":10,"function-profile-emission":8,"submit":9,"submit-detail":12,"submit-host":6,"submit-sync":15,"submit-thread":11,"gpu-framebuffer-time":7,"gpu-workload-time":7}[f[1]]
             if len(values)!=expected:raise ValueError("wrong field count")
         except ValueError as error:
             raise ValueError(f"invalid record on line {number}: {error}") from error
         stamp=int(f[0])
         if stamp<0:raise ValueError("negative timestamp")
+        if f[1] in {"submit-host","submit-sync","submit-thread"}:
+            if f[1]=="submit-thread" and (values[4] not in (0,1) or (values[4]==1 and values[3]==0)):
+                raise ValueError("invalid submission thread validity")
+            if latest_submit is None or values[:3]!=latest_submit[:3] or id(latest_submit) in submission_extra[f[1]]:
+                errors["unpaired_"+f[1].replace("-","_")]+=1
+            else:submission_extra[f[1]][id(latest_submit)]=values
+            continue
         if f[1]=="submit-detail":
             if latest_submit is None or values[:3]!=latest_submit[:3] or id(latest_submit) in submit_details:
                 errors["unpaired_submit_detail"]+=1
@@ -132,6 +139,35 @@ def analyze(lines, *, first_vi=0, last_vi=None, names=None):
                  (8,"world_endpoint_conversion"),(9,"coverage_diagnostics")]}
             row["graphics"]["vertices_loaded"]=sum(v[10] for v in details)
             row["graphics"]["triangles_drawn"]=sum(v[11] for v in details)
+        for kind in ("submit-host","submit-sync","submit-thread"):
+            if submission_extra[kind]:
+                errors["missing_"+kind.replace("-","_")]+=sum(id(v) not in submission_extra[kind] for v in complete)
+        stages=[submission_extra["submit-host"][id(v)] for v in complete if id(v) in submission_extra["submit-host"]]
+        if stages:
+            row["graphics"]["host_profiled_submissions"]=len(stages)
+            row["graphics"]["host_stages_ms"]={
+                name:sum(v[index] for v in stages)/1e6 for index,name in [(3,"snapshot"),(4,"decode"),(5,"writeback")]}
+        waits=[submission_extra["submit-sync"][id(v)] for v in complete if id(v) in submission_extra["submit-sync"]]
+        if waits:
+            row["graphics"]["wait_profiled_submissions"]=len(waits)
+            row["graphics"]["synchronization_waits"]={
+                name:{"wall_ms":sum(v[3+index] for v in waits)/1e6,"calls":sum(v[9+index] for v in waits)}
+                for index,name in enumerate(("draw","transform","render","fence","texture","queue"))}
+        cpu=[submission_extra["submit-thread"][id(v)] for v in complete if id(v) in submission_extra["submit-thread"]]
+        if cpu:
+            owners=defaultdict(lambda:{"submissions":0,"cycles":0,"os_cpu_ms":0.0,
+                                      "stage_cycles":[0,0,0],"stage_os_cpu_ms":[0.0,0.0,0.0]})
+            for v in cpu:
+                if v[4]!=1:
+                    errors["invalid_submission_thread"]+=1
+                    continue
+                owner=owners[v[3]];owner["submissions"]+=1
+                owner["cycles"]+=sum(v[5:8]);owner["os_cpu_ms"]+=sum(v[8:11])/1e4
+                for index in range(3):
+                    owner["stage_cycles"][index]+=v[5+index]
+                    owner["stage_os_cpu_ms"][index]+=v[8+index]/1e4
+            row["graphics"]["submission_threads"]=[
+                {"thread":thread,"is_root_thread":thread==row["thread"],**owner} for thread,owner in sorted(owners.items())]
         row["gpu_completed_observations"]={}
         for kind in ("gpu-framebuffer-time","gpu-workload-time"):
             observations=auxiliary[kind];times=auxiliary_times.get(kind,[])

@@ -52,3 +52,15 @@ Fixtures cover nested/recursive scopes, repeated calls, counter validity, thread
 
 
 The qualified native preview also has bounded resident-math dispatch. Function scopes include this path, and resident-math rows count angle/difference/trig admissions per update. The final combined build passes recorded correspondence with full profiling enabled and disabled, plus native 120/360 observations. See [native math compatibility and validation](native-resident-math.md). The earlier profiler-only receipt remains historical; the [combined-build receipt](../../evidence/high-refresh-resident-math.json) identifies the newer binary.
+
+
+## Submission cost breakdown
+Function-profile modes also emit three records for every graphics submission, without enabling the broad interpolation-comparison trace. Repeated VI/poll/scene keys are correlated in event order.
+
+- submit-host: VI/poll/scene sequence, snapshot-import, display-list submission, and CPU-writeback nanoseconds.
+- submit-sync: VI/poll/scene sequence, six wait nanosecond totals followed by their six call counts. Order: draw upload, transform upload, render upload, framebuffer fence, texture upload, workload queue.
+- submit-thread: VI/poll/scene sequence, owning host thread, validity, three stage cycle totals, and three OS CPU-time deltas in 100-nanosecond units. Stage order matches submit-host. Invalid observations carry zero counters.
+
+The analyzer groups submission CPU observations by actual host thread and marks when that thread is also the root update owner. Those costs then overlap the root's CPU totals. Other thread totals are separate observations, not extra wall time. OS CPU-time accounting can be coarse for individual short stages; aggregate it across several updates and retain cycle counts as cycles. The six waits are subsets of submission/RDP synchronization and must not be added to enclosing time. All original waits remain in place. Collection is off in ordinary FPS logging.
+
+Source integration and its final qualification are tracked in PERF-002; earlier private-capture evidence does not automatically qualify a rebuilt executable.

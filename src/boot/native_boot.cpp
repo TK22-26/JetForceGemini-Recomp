@@ -23,6 +23,7 @@
 #include "jfg/boot/ipl_handoff.hpp"
 #include "jfg/boot/gameplay_trace.hpp"
 #include "jfg/boot/function_profile.hpp"
+#include "jfg/renderer/submission_profile.hpp"
 #include "jfg/boot/native_resident_math.h"
 #include "jfg/renderer/interpolation_bridge.hpp"
 #include "jfg/renderer/frame_diagnostics_state.hpp"
@@ -6402,16 +6403,40 @@ void complete_pending_live_graphics_tasks(
         !write_private_rt64_snapshot(state, pending.rdram))
       fail_closed_dispatch(state, "renderer", "rt64-rdram-capture", target);
     write_private_progress(state, "graphics-submit-begin");
+    struct SubmitThreadSample {std::uint64_t cycles=0,cpu100ns=0;DWORD thread=0;bool valid=false;};
+    const auto sample_submit_thread=[&] {
+      SubmitThreadSample sample{};
+      if(!state.diagnostic_function_profile)return sample;
+      ULONG64 cycles=0;FILETIME created{},exited{},kernel{},user{};
+      sample.thread=GetCurrentThreadId();
+      sample.valid=QueryThreadCycleTime(GetCurrentThread(),&cycles)!=0 &&
+          GetThreadTimes(GetCurrentThread(),&created,&exited,&kernel,&user)!=0;
+      if(sample.valid) {
+        sample.cycles=cycles;
+        sample.cpu100ns=(std::uint64_t(kernel.dwHighDateTime)<<32U)+kernel.dwLowDateTime+
+            (std::uint64_t(user.dwHighDateTime)<<32U)+user.dwLowDateTime;
+      }
+      return sample;
+    };
+    const auto submit_thread_start=sample_submit_thread();
     const auto submit_start = std::chrono::steady_clock::now();
+    jfg::SubmissionProfileScope sync_scope(state.diagnostic_function_profile!=0U);
+    const auto sync_stamp=[&]{return sync_scope.enabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};};
     state.last_rt64_error = state.rt64_shell->replace_rdram_snapshot(
         pending.rdram, jfg::Rt64MemoryLayout::host_word_swapped);
+    const auto snapshot_done=sync_stamp();
+    const auto snapshot_thread=sample_submit_thread();
     if (state.last_rt64_error == jfg::Rt64ShellError::none)
       state.last_rt64_error = state.rt64_shell->submit(pending.task);
+    const auto decode_done=sync_stamp();
+    const auto decode_thread=sample_submit_thread();
     // Return completed intensity masks before delivering DP/SP completion:
     // the guest blurs and attenuates its shadow mask on the CPU.
     if (state.last_rt64_error == jfg::Rt64ShellError::none)
       state.last_rt64_error = state.rt64_shell->commit_cpu_writeback(pending.rdram,
           std::as_writable_bytes(std::span(state.rdram, kRdramSize)));
+    const auto writeback_done=sync_stamp();
+    const auto writeback_thread=sample_submit_thread();
     const jfg::Rt64GraphicsDiagnostics submission_graphics =
         state.rt64_shell->last_graphics_diagnostics();
     if (state.last_rt64_error == jfg::Rt64ShellError::none)
@@ -6426,6 +6451,25 @@ void complete_pending_live_graphics_tasks(
         submission_graphics.rdram_check_microseconds, submission_graphics.full_sync_microseconds,
         submission_graphics.color_image_address});
     if(state.diagnostic_function_profile) {
+      const auto timing=sync_scope.delta();
+      const std::array<SubmitThreadSample,4> cpu{submit_thread_start,snapshot_thread,decode_thread,writeback_thread};
+      bool cpu_valid=true;std::array<std::uint64_t,3> cycles{},ticks{};
+      for(unsigned i=0;i<3;++i) {
+        cpu_valid=cpu_valid && cpu[i].valid && cpu[i+1].valid && cpu[i].thread==cpu[i+1].thread &&
+            cpu[i+1].cycles>=cpu[i].cycles && cpu[i+1].cpu100ns>=cpu[i].cpu100ns;
+        if(cpu_valid){cycles[i]=cpu[i+1].cycles-cpu[i].cycles;ticks[i]=cpu[i+1].cpu100ns-cpu[i].cpu100ns;}
+      }
+      if(!cpu_valid){cycles={};ticks={};}
+      state.gameplay_trace.event("submit-thread",{state.vi_retraces,state.controller_samples,state.gameplay_trace_updates,
+        cpu[0].thread,cpu_valid?1U:0U,cycles[0],cycles[1],cycles[2],ticks[0],ticks[1],ticks[2]});
+      const auto ns=[](auto a,auto z){return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(z-a).count());};
+      state.gameplay_trace.event("submit-host",{
+        state.vi_retraces,state.controller_samples,state.gameplay_trace_updates,
+        ns(submit_start,snapshot_done),ns(snapshot_done,decode_done),ns(decode_done,writeback_done)});
+      state.gameplay_trace.event("submit-sync",{
+        state.vi_retraces,state.controller_samples,state.gameplay_trace_updates,
+        timing.ns[0],timing.ns[1],timing.ns[2],timing.ns[3],timing.ns[4],timing.ns[5],
+        timing.calls[0],timing.calls[1],timing.calls[2],timing.calls[3],timing.calls[4],timing.calls[5]});
       const auto& stages=submission_graphics.history_stage_microseconds;
       state.gameplay_trace.event("submit-detail",{state.vi_retraces,state.controller_samples,
         state.gameplay_trace_updates,submission_graphics.history_prepare_microseconds,
