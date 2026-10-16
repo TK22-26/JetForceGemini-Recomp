@@ -213,7 +213,7 @@ first preserves a separate unreadable-file backup.
 | Mouse/keyboard | Aim sensitivity | look.mouse_aim_sensitivity | 10..500; default 100 |
 | Mouse/keyboard | Scope sensitivity | mouse_scope_sensitivity | 10..300; default 100 |
 | Mouse/keyboard | Vertical sensitivity | look.mouse_vertical_sensitivity | 10..300; default 100 |
-| Mouse/keyboard | Invert X / Y | look.mouse_invert_x / look.mouse_invert_y | 0 or 1; default 0 |
+| Mouse/keyboard | Invert X / Y | look.mouse_invert_x / look.mouse_invert_y | 0 or 1; current defaults X=0, Y=1; saved choices retained |
 
 Deadzone/threshold values use a normalized 32767 axis scale; the UI displays
 percentages but persists the underlying scale. Vertical tuning is shared between
@@ -354,3 +354,9 @@ window with injected devices. It verifies original keyboard/mouse/gamepad
 capture, saved settings, available-device filtering, reconnection, mode
 preservation and layout at the owner's 125% scale. Both fixtures measure the
 visible text children, preventing RmlUi flex labels from silently collapsing.
+
+
+Retained capture profiles may keep older menu bindings despite a source merge. [INPUT-008](../development/issues/modern-capture-profile-defaults.md) records the current owner report and preference/default distinction.
+
+
+Menu bindings are now exposed in a Menus & dialogue card in both list and key-map views. Confirm advances dialogue and can share E with gameplay Interact. Existing Enter/F bindings and inversion choices are retained; clearing a menu action does not clear its gameplay counterpart. [INPUT-008](../development/issues/modern-capture-profile-defaults.md) records the reproduction and 717-check native UI validation.

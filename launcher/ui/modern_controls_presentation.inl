@@ -166,7 +166,7 @@
       if(b>6 && b<256 && std::find(moves.begin(),moves.end(),b)==moves.end())moves.push_back(b);
     }
     // The list shows bindings for the displayed gameplay/scope actions.
-    // Menu-only bindings remain editable in the action picker, not as "Free" keys.
+    // Menu-only actions are shown separately by modernMenuBindingsHtml().
     for(std::size_t i=0;i<modern[player].keys.size();++i) {
       const int b=modern[player].keys[i];
       if(b>6 && b<256 && (jfg::kModernActions[i].contexts&modernShownContext()) &&
@@ -190,7 +190,7 @@
     return count || binding<0?"":"Bind an action";
   }
   std::string modernGroupHtml(const ModernGroup& group,bool diagram=false) {
-    std::string html="<section class=\"mc-binding-group"+std::string(pcKeyboard() && group.title!="MOUSE"?" mc-key-group":"")+"\"><div class=\"mc-section-title\">"+escape(group.title)+"</div>";
+    std::string html="<section"+std::string(group.title=="KEYS"?" id=\"mc-gameplay-keys\"":"")+" class=\"mc-binding-group"+std::string(pcKeyboard() && group.title!="MOUSE"?" mc-key-group":"")+"\"><div class=\"mc-section-title\">"+escape(group.title)+"</div>";
     for(int binding:group.inputs) {
       const std::string number=std::to_string(binding),actions=modernShownActions(binding),note=modernInputNote(binding);
       const bool free=actions=="Free",selected=modernSelectedInput()==binding;
@@ -207,6 +207,28 @@
     if(group.add)html+=mcControl("mc-add-key","+ Add a key or button","mc-add-key",false,!modernOnline());
     return html+"</section>";
   }
+
+  std::string modernMenuBindingsHtml() {
+    const auto& binds=pcKeyboard()?modern[player].keys:modern[player].pad;
+    std::string html="<section id=\"mc-menu-bindings\" class=\"mc-binding-group mc-menu-group"+
+      std::string(pcKeyboard()?" mc-key-group":"")+"\"><div class=\"mc-section-title\">MENUS &amp; DIALOGUE</div>";
+    for(auto action:{jfg::ModernAction::menu_confirm,jfg::ModernAction::menu_back,
+        jfg::ModernAction::menu_up,jfg::ModernAction::menu_down,jfg::ModernAction::menu_left,
+        jfg::ModernAction::menu_right,jfg::ModernAction::menu_save}) {
+      const auto index=std::size_t(action);const auto number=std::to_string(index);
+      const int binding=binds[index];const bool unbound=binding==(pcKeyboard()?0:-1);
+      const std::string name=action==jfg::ModernAction::menu_confirm?"Confirm / dialogue":std::string(jfg::kModernActions[index].label);
+      // IDs and clear operations use the action, because E can also be Interact.
+      html+="<div id=\"mc-menu-row-"+number+"\" class=\"mc-binding-row\"><span class=\"mc-chip-space\">"+
+        (unbound?"<span class=\"muted\">—</span>":modernChip(binding))+
+        "</span><span class=\"mc-physical-name\">"+escape(unbound?"Unbound":modernInputDescription(binding))+"</span>";
+      html+="<button id=\"mc-menu-binding-"+number+"\" data-action=\"mc-capture-"+number+
+        "\" class=\"mc-binding-value\""+std::string(modernOnline()?"":" disabled=\"disabled\"")+"><span>"+escape(name)+
+        "</span></button>"+mcControl("mc-clear-"+number,"","mc-row-clear"+std::string(unbound?" invisible":""),false,unbound)+"</div>";
+    }
+    return html+"<div class=\"mc-hint\">Confirm advances dialogue and selects menu options. Click an action to change its key or button.</div></section>";
+  }
+
   std::string modernHowHtml() {
     const auto& c=modern[player];const auto& binds=pcKeyboard()?c.keys:c.pad;
     const auto key=[&](jfg::ModernAction a){
@@ -234,17 +256,17 @@
       instruction(jfg::ModernAction::weapon_previous,"select the previous weapon")+" "+instruction(jfg::ModernAction::weapon_next,"select the next weapon"))+"</p>";
     html+="<p>"+(bound(jfg::ModernAction::pause)?escape(key(jfg::ModernAction::pause))+" pauses the game.":instruction(jfg::ModernAction::pause,"pause the game"))+"</p>";
     if(modernContext==jfg::kModernScoped)html+="<p class=\"mc-hint\">Jump keeps your aim and sights active. Leave aim before crouching.</p>";
-    html+="<div class=\"mc-how-menus\">In menus, "+escape(key(jfg::ModernAction::menu_confirm))+" selects or closes an information page and "+escape(key(jfg::ModernAction::menu_back))+" goes back. Save from the pause menu with "+escape(key(jfg::ModernAction::menu_save))+". "+std::string(pcKeyboard()?"Movement keys also navigate menus; right-click goes back. ":"")+"Menu inputs can share with gameplay.</div></section>";
+    html+="<div class=\"mc-how-menus\">In menus and dialogue, "+escape(key(jfg::ModernAction::menu_confirm))+" confirms, advances speech or closes an information page, and "+escape(key(jfg::ModernAction::menu_back))+" goes back. Save from the pause menu with "+escape(key(jfg::ModernAction::menu_save))+". "+std::string(pcKeyboard()?"Movement keys also navigate menus; right-click goes back. ":"")+"Menu inputs can share with gameplay.</div></section>";
     return html;
   }
   std::string modernRowsHtml() {
     const auto groups=modernGroups();std::string html="<div class=\"mc-columns\">";
     if(pcKeyboard()) {
-      html+="<div id=\"mc-column-0\" class=\"mc-column\">"+modernGroupHtml(groups[0])+modernGroupHtml(groups[1])+"</div><div id=\"mc-column-1\" class=\"mc-column\">"+modernGroupHtml(groups[2])+"</div><div id=\"mc-column-2\" class=\"mc-column\">"+modernHowHtml()+"</div>";
+      html+="<div id=\"mc-column-0\" class=\"mc-column\">"+modernGroupHtml(groups[0])+modernGroupHtml(groups[1])+"</div><div id=\"mc-column-1\" class=\"mc-column\">"+modernGroupHtml(groups[2])+modernMenuBindingsHtml()+"</div><div id=\"mc-column-2\" class=\"mc-column\">"+modernHowHtml()+"</div>";
     } else {
       html+="<div id=\"mc-column-0\" class=\"mc-column\">"+modernGroupHtml(groups[0])+modernGroupHtml(groups[1])+"</div><div id=\"mc-column-1\" class=\"mc-column\">"+modernGroupHtml(groups[2])+modernGroupHtml(groups[3]);
       if(groups.size()>5)html+=modernGroupHtml(groups[5]);
-      html+="</div><div id=\"mc-column-2\" class=\"mc-column\">"+modernGroupHtml(groups[4])+modernHowHtml()+"</div>";
+      html+="</div><div id=\"mc-column-2\" class=\"mc-column\">"+modernGroupHtml(groups[4])+modernMenuBindingsHtml()+modernHowHtml()+"</div>";
     }
     return html+"</div>";
   }
@@ -300,6 +322,7 @@
     const int selected=modernSelectedInput();
     std::string html="<div class=\"mc-diagram-layout\"><div id=\"mc-diagram-list\" class=\"mc-diagram-list\">";
     for(const auto& group:modernGroups())html+=modernGroupHtml(group,true);
+    html+=modernMenuBindingsHtml();
     html+="</div><div class=\"mc-diagram-stage\"><div class=\"mc-art-area\">"+(pcKeyboard()?modernKeyboardArt():modernPadArt())+"</div>";
     html+="<div class=\"mc-current\">"+modernChip(selected,true,44)+"<span class=\"mc-current-copy\"><strong>"+escape(modernShownActions(selected))+"</strong><span>"+escape(modernInputDescription(selected))+" · "+escape(modernContextName(modernContext))+"</span></span>";
     const auto& binds=pcKeyboard()?modern[player].keys:modern[player].pad;int first=-1;
@@ -380,10 +403,10 @@
     static constexpr const char* descriptions[]{
       "Bring up precision aiming and the sniper scope.", "Fire the equipped weapon.",
       "Jump outside the sniper aiming stance.", "Crouch outside the sniper aiming stance.",
-      "Interact with objects and confirm in-game prompts.", "Equip the previous weapon.",
+      "Interact with objects or start a conversation. Use Confirm to advance dialogue.", "Equip the previous weapon.",
       "Equip the next weapon.", "Step through sniper magnification levels, then wrap to the lowest.",
       "Increase magnification while scoped.", "Decrease magnification while scoped.",
-      "Open or close the pause menu.", "Confirm the selected menu option.", "Go back in menus.",
+      "Open or close the pause menu.", "Advance dialogue, confirm a menu option or close an information page.", "Go back in menus.",
       "Move forward.", "Move backward.", "Strafe left.", "Strafe right.",
       "Hold for full movement speed.", "Move up in menus.", "Move down in menus.",
       "Move left in menus.", "Move right in menus.", "Save from the pause menu when Save Game is available."

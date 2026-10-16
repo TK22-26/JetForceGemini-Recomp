@@ -86,6 +86,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     demand(ui.el("modern-content")&&!ui.el("mapping-content"),"modern content replaces mapping content only");
     demand(!ui.el("action-mc-experimental")&&!ui.el("action-pc-experimental"),"obsolete experimental switch removed");
     demand(ui.modern[0].pad[2]==0,"Xbox A defaults to Jump");
+    demand(ui.el("mc-menu-binding-11")&&ui.el("mc-menu-binding-22"),"controller Confirm and Save are visible");
     demand(!ui.el("mc-context-select")&&!ui.el("action-mc-bind-menu"),"redundant context and rebinding controls removed");
     editInput(8);demand(ui.el("action-mc-assign-8")&&ui.el("action-mc-assign-9"),"row picker retains separate zoom actions");click("action-mc-cancel");
     click("action-mc-free-0");
@@ -327,7 +328,36 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     click("action-mc-tab-settings");capture("review-dualsense-settings.tga");
     ui.assignDevice(-3);click("action-mc-tab-buttons");
     demand(!ui.el("mc-row-13")&&!ui.el("mc-row-8")&&!ui.el("mc-row-38"),"menu-only keys do not appear as free gameplay rows");
-    demand(ui.modern[0].keys[11]=='E'&&ui.modern[0].keys[12]=='Q',"hidden menu bindings remain saved");
+    demand(ui.modern[0].keys[11]=='E'&&ui.modern[0].keys[12]=='Q',"menu bindings remain saved");
+    for(int action:{11,12,18,19,20,21,22})demand(ui.el(("mc-menu-binding-"+std::to_string(action)).c_str())!=nullptr,"menu actions have explicit editors");
+    const auto savedMenuProfile=ui.modern[0];
+    // Reproduce the owner's old Enter profile and Add F -> Confirm report.
+    auto retained=savedMenuProfile;retained.keys[11]=VK_RETURN;retained.look.mouse_invert_y=0;
+    demand(ui.saveModern(retained),"retained profile fixture saved");ui.loadModern();ui.modal("controllers");settle();
+    demand(element("mc-menu-row-11")->GetInnerRML().find("Enter")!=std::string::npos,"old Enter Confirm is visible");
+    click("action-mc-add-key");settle();FrontendUiMessage(WM_KEYDOWN,'F',0);settle();
+    click("action-mc-assign-11");
+    demand(ui.modern[0].keys[11]=='F'&&element("mc-menu-row-11")->GetInnerRML().find(">F<")!=std::string::npos,"added F appears with Confirm");
+    ui.loadModern();ui.modal("controllers");settle();
+    demand(ui.modern[0].keys[11]=='F'&&ui.modern[0].keys[4]=='E'&&!ui.modern[0].look.mouse_invert_y,"reload preserves custom Confirm, Interact and inversion");
+    demand(element("mc-menu-row-11")->GetInnerRML().find(">F<")!=std::string::npos,"reloaded F stays visible");
+    capture("menu-confirm-f.tga");
+    click("mc-menu-binding-11");settle();demand(ui.modernCapture==11,"Confirm row starts capture");
+    FrontendUiMessage(WM_KEYDOWN,'E',0);settle();
+    demand(ui.modernPanel.empty()&&ui.modern[0].keys[11]=='E'&&ui.modern[0].keys[4]=='E',"Confirm shares E with gameplay Interact");
+    click("action-mc-clear-11");
+    demand(ui.modern[0].keys[11]==0&&ui.modern[0].keys[4]=='E',"clearing Confirm retains Interact");
+    demand(element("mc-menu-row-11")->GetInnerRML().find("Unbound")!=std::string::npos,"unbound Confirm remains visible");
+    click("mc-menu-binding-11");settle();FrontendUiMessage(WM_KEYDOWN,'F',0);settle();
+    demand(ui.modern[0].keys[11]=='F',"unbound Confirm can be rebound");
+    click("action-mc-view-diagram");
+    demand(element("mc-menu-row-11")->GetInnerRML().find(">F<")!=std::string::npos,"diagram also exposes custom Confirm");
+    {
+      Rml::ElementList ids;ui.doc->QuerySelectorAll(ids,"[id]");std::vector<std::string> unique;
+      for(auto* e:ids){demand(std::find(unique.begin(),unique.end(),e->GetId())==unique.end(),"menu diagram IDs remain unique");unique.push_back(e->GetId());}
+    }
+    click("action-mc-view-list");
+    demand(ui.saveModern(savedMenuProfile),"restore only test profile");ui.modal("controllers");settle();
     demand(!ui.doc->QuerySelector(".mc-key-group .mc-binding-value.free"),"Keys contains only bound gameplay actions");
     editInput(VK_SPACE);
     demand(ui.el("action-mc-assign-11")&&ui.el("action-mc-assign-18"),"menu bindings remain accessible in the action picker");
@@ -347,7 +377,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     for(float dpi:{1.f,1.25f,1.5f}) {
       surface->context->SetDensityIndependentPixelRatio(dpi);settle();
       float labelX=-1;
-      Rml::ElementList rows;ui.doc->QuerySelectorAll(rows,"#mc-column-1 .mc-binding-row");
+      Rml::ElementList rows;ui.doc->QuerySelectorAll(rows,"#mc-gameplay-keys .mc-binding-row");
       demand(rows.size()==5,"default Keys list has five gameplay bindings");
       for(auto* row:rows) {
         auto* chip=row->QuerySelector(".mc-chip");auto* name=row->QuerySelector(".mc-physical-name");

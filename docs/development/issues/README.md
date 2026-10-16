@@ -37,6 +37,8 @@ Detailed per-issue records are added as those issues receive further work.
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
 | DISPLAY-001 | Widescreen viewport and pointer alignment | Verified in tests; preview installed, live check pending | [Investigation](widescreen-pointer-and-airborne-aim.md) |
+| INPUT-008 | Menu bindings save but are hidden; retained mouse preference | Menu/dialogue card passes native UI regressions; local delivery/live confirmation pending | [Profile/default review](modern-capture-profile-defaults.md) |
+| RENDER-008 | Shuriken reticle flickers and disappears | Owner reports both Aim and non-Aim; framebuffer/weapon-state cause unverified | [Report and investigation](shuriken-reticle-flicker.md) |
 | INPUT-007 | Keep aiming active throughout modern jumps | Verified in tests; preview installed, live check pending | [Investigation](widescreen-pointer-and-airborne-aim.md) |
 | LAUNCHER-001 | No launcher update discovery; stale release description | Verified in tests and live API; awaiting release | [Cause, implementation and checks](launcher-update-discovery.md) |
 | RENDER-001 | Smooth 60-360+ FPS presentation | Presentation pacing and FPS preset corrections tested; owner visual confirmation pending | [Evidence and plan](high-refresh-rendering.md) |

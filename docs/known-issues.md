@@ -277,3 +277,11 @@ A renderer draw-call cache defect is corrected and passes bounded qualification:
 
 
 Both desktop links now select the qualified draw-call key correction, including audio, bridge and native-ROM improvements. Profiles remain unchanged. [Current local preview](development/renderer-draw-call-keys.md).
+
+
+## Shuriken reticle visibility
+
+The owner reports shuriken reticle flickering followed by disappearance in the latest high-refresh capture, both holding Aim and without Aim. The earlier CPU-framebuffer reticle fix is present; the current cause and remedy remain unverified. See [RENDER-008](development/issues/shuriken-reticle-flicker.md).
+
+
+The Modern Controls fix exposes menu-only bindings (including F assigned to Confirm) in a Menus & dialogue card. Native UI checks pass; local delivery and owner confirmation are pending. Confirm also advances dialogue. See [INPUT-008](development/issues/modern-capture-profile-defaults.md). The longer owner test also reports Goldwood exit cutscene choppiness/audio interruption; quantitative full-run audio acceptance remains open because the detailed trace capped before exit.

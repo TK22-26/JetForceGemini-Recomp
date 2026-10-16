@@ -2411,3 +2411,13 @@ The deterministic draw-call key correction passes failing-then-passing regressio
 
 
 Local delivery: both High Refresh Preview and Jitter Capture desktop links select source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e, runtime SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6. Manifest and launcher/profile checks pass; all 40 checked profile files and shortcut arguments are preserved. Includes native audio, bending bridge interpolation and ROM loading improvements. Owner live acceptance and broader restart/load gaps remain open. [Current qualification](../../../evidence/high-refresh-draw-key.json).
+
+
+## Longer owner acceptance capture (2026-10-16 UTC)
+
+The owner reports that dips are no longer visually apparent in the draw-key preview and requests a longer recorded measurement. This is subjective improvement, not a clean quantitative result. A fresh owner-driven capture uses the delivered runtime unchanged (SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6), 120 FPS with VSync, existing controls/save, and asynchronous frame/VI/update/audio diagnostics. Full function profiling remains off. Startup/idle, loading/death transitions and active gameplay will be reported separately; every observed gap remains in the evidence. The detailed gameplay stream has an existing 256 MiB ceiling; unbounded game-update timing, final counters and rotating frame CSVs must be checked for full-run coverage before any clean result is claimed. Private evidence: final-measurement-20261016. Recording/review pending; no release claim.
+
+
+## Longer owner capture completed (2026-10-16 UTC)
+
+The owner reports no perceptible gameplay slowdown, with choppiness and audible interruptions during the Goldwood exit cutscene. This is not a full clean acceptance. The 21-minute recording retains all 131,288 presentation records with no queue drops, but the detailed gameplay/audio trace reached its 256 MiB cap at about 18:27. No unbounded game-update rows or final audio-health totals were written in the live path. The earlier expectation of full-run update/audio coverage was incorrect. Thus later cutscene audio cannot be cleared using the earlier zero counters. Preserve the final report as open; review timing and reproduce the exit under bounded muted tests. Private evidence: final-measurement-20261016, measurement-review.json. The native cutscene/bridge physics conclusions are unchanged.
