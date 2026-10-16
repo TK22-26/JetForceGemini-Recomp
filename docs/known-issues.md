@@ -274,3 +274,6 @@ Both desktop shortcuts now select the qualified native-ROM loading package, incl
 
 
 A renderer draw-call cache defect is corrected and passes bounded qualification: the repeated late renderer hitch is absent in the unprofiled candidate replay. Restart/load gaps, exact owner-route coverage and listening/visual acceptance remain open. [Cause and qualification](development/issues/renderer-cache-key-instability.md).
+
+
+Both desktop links now select the qualified draw-call key correction, including audio, bridge and native-ROM improvements. Profiles remain unchanged. [Current local preview](development/renderer-draw-call-keys.md).

@@ -2408,3 +2408,6 @@ External CPU sampling reproduced the renderer hitch without source instrumentati
 
 
 The deterministic draw-call key correction passes failing-then-passing regression checks, renderer interpolation tests, exact Original/recorded comparisons and final 120/360 native checks. The previously repeated poll-7620 renderer hitch is absent in the unprofiled corrected replay; restart/load gaps and full-route acceptance remain open. [PERF-003](renderer-cache-key-instability.md) records the cache defect, observer effects and bounded remedy.
+
+
+Local delivery: both High Refresh Preview and Jitter Capture desktop links select source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e, runtime SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6. Manifest and launcher/profile checks pass; all 40 checked profile files and shortcut arguments are preserved. Includes native audio, bending bridge interpolation and ROM loading improvements. Owner live acceptance and broader restart/load gaps remain open. [Current qualification](../../../evidence/high-refresh-draw-key.json).

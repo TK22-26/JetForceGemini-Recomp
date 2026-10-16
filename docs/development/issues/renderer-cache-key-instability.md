@@ -1,6 +1,6 @@
 # PERF-003: Renderer draw-call key instability and late hitch
 
-Severity: high. Status: verified in regression/reference tests and bounded native replays; local delivery pending; owner full-route acceptance pending (2026-10-16 UTC).
+Severity: high. Status: verified in regression/reference tests and bounded native replays; delivered locally; owner full-route acceptance pending (2026-10-16 UTC).
 
 Symptoms: a repeated late Goldwood update at input poll 7620 takes about 65-67 ms. Graphics submission accounts for 39-42 ms, with only 0.37-0.46 ms interpolation preparation and under 1 ms in the six measured renderer waits. The event has no ROM reads or cold overlay loads and is separate from the earlier combat asset-loading hitch.
 
@@ -15,3 +15,6 @@ Remaining native gaps are recorded in the qualification receipt; restart/cold lo
 Evidence retained privately under route-audio-bridge-20261016: late-renderer-attribution, late-renderer-cross-capture-review, clean-renderer-rebuild, external-renderer-sampling-review, sampled-hitch-time-correlation, draw-key-fix, draw-key-native-late-v2, draw-key-original-reference, draw-key-recorded-reference and draw-key-default360. Diagnostic failures remain in PERF-002: missing DLLs, extra stderr rejected by the parent, and an invalid profiler-disable configuration. None count as clean acceptance.
 
 Transferable lesson: hash logical fields rather than object padding, make equality agree with hashing, and do not retain negative-cache entries for an empty configuration. Instrumentation can alter uninitialized stack bytes and hide a defect; retain an unchanged executable control and use external sampling when necessary.
+
+
+Local delivery: both High Refresh Preview and Jitter Capture desktop links select source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e, runtime SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6. Manifest and launcher/profile checks pass; all 40 checked profile files and shortcut arguments are preserved. Includes native audio, bending bridge interpolation and ROM loading improvements. Owner live acceptance and broader restart/load gaps remain open. [Current qualification](../../../evidence/high-refresh-draw-key.json).
