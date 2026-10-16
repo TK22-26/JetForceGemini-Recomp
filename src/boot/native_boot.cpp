@@ -25,6 +25,7 @@
 #include "jfg/boot/function_profile.hpp"
 #include "jfg/renderer/submission_profile.hpp"
 #include "jfg/boot/native_resident_math.h"
+#include "jfg/boot/native_collision.hpp"
 #include "jfg/renderer/interpolation_bridge.hpp"
 #include "jfg/renderer/frame_diagnostics_state.hpp"
 #include "jfg/boot/host_count_clock.hpp"
@@ -1758,6 +1759,8 @@ struct State : JfgOriginalTimingFast {
   std::uint64_t profile_idle_count_ticks = 0U;
   bool diagnostic_cpu_costs = false;
   bool resident_math_enabled=false;
+  bool diagnostic_bsp_enabled=false;
+  std::uint64_t bsp_native_calls=0,bsp_clock_refreshes=0;
   std::uint64_t pure_angle_calls=0,pure_diff_calls=0,pure_trig_calls=0;
   bool diagnostic_update_cycles = false;
   unsigned diagnostic_function_profile=0;
@@ -7709,9 +7712,17 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     break;
   case 0x8004665CU: // mainChangeLevel
     ++state.phase9_level_change_calls;
+    if(state.gameplay_trace)state.gameplay_trace.event("route-transition", {
+      state.vi_retraces,state.controller_samples,target,
+      static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r5),
+      state.phase9_level_change_calls});
     break;
   case 0x80046378U: // mainRestartAfterDeath
     ++state.phase9_death_restart_calls;
+    if(state.gameplay_trace)state.gameplay_trace.event("route-transition", {
+      state.vi_retraces,state.controller_samples,target,
+      static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r5),
+      state.phase9_death_restart_calls});
     break;
   case 0x80079890U: // animseqCamera
     ++state.phase9_cutscene_camera_calls;
@@ -8079,6 +8090,11 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
         const bool measure_update = target == 0x80044FACU && state.gameplay_trace;
         const auto pure_angle_before=state.pure_angle_calls,pure_diff_before=state.pure_diff_calls,pure_trig_before=state.pure_trig_calls;
+        const auto bsp_before=measure_update && state.diagnostic_bsp_enabled ?
+            jfg::boot::native_collision_counters() : jfg::boot::NativeCollisionCounters{};
+        const auto bsp_calls_before=state.bsp_native_calls,bsp_refresh_before=state.bsp_clock_refreshes;
+        if(measure_update && state.diagnostic_bsp_enabled)jfg::boot::native_collision_reset_max();
+
 
         if (measure_update && state.diagnostic_cpu_costs) state.profile_function_costs.clear();
         const auto update_started = measure_update ? std::chrono::steady_clock::now()
@@ -8156,7 +8172,26 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto function_children = state.profile_function_self_ns;
         const auto function_wait = state.profile_host_wait_us;
 #endif
-        generated(rdram, context);
+
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        if(target==0x00317174U && target_section==3U && target_metadata.is_overlay==1U &&
+           state.diagnostic_bsp_enabled && !jfg::boot::native_collision_in_fallback() && state.diagnostic_host_clock &&
+           state.native_spans_enabled && !state.native_clock_sample_input.is_open() &&
+           state.native_fast_ready && state.native_fast_status==context->status_reg &&
+           state.execution_fast_revision==*state.io_revision &&
+           !state.diagnostic_cpu_costs && state.focus_update_start==0U &&
+           !state.guest_clock_trace.is_open() && state.point_probe_pcs.empty() &&
+           !state.device_event_stream && !state.eret_transfer_stream.is_open() &&
+           !state.instruction_effect_stream.is_open()) {
+          ++state.bsp_native_calls;
+          if(jfg::boot::native_collision_execute(generated,rdram,context)) {
+            state.native_fast_ready=false;state.host_clock_poll_budget=0U;
+            ++state.bsp_clock_refreshes;
+          }
+        } else
+#endif
+          generated(rdram, context);
+
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
         if (state.diagnostic_cpu_costs) {
           const auto wall_ns = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -8178,6 +8213,17 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           state.presentation_identities.particle_allocate({rdram,kRdramSize},
               static_cast<std::uint32_t>(context->r2));
         if (measure_update) {
+          if(state.diagnostic_bsp_enabled) {
+            const auto bsp_after=jfg::boot::native_collision_counters();
+            state.gameplay_trace.event("bsp-execution",{
+            state.vi_retraces,state.controller_samples,state.bsp_native_calls-bsp_calls_before,
+            bsp_after.native_nodes-bsp_before.native_nodes,
+            bsp_after.native_edges-bsp_before.native_edges,
+            bsp_after.fallbacks-bsp_before.fallbacks,
+            bsp_after.expired-bsp_before.expired,
+            bsp_after.invalid-bsp_before.invalid,
+            bsp_after.max_nanoseconds,state.bsp_clock_refreshes-bsp_refresh_before});
+          }
           if(state.resident_math_enabled)state.gameplay_trace.event("resident-math",{
             state.vi_retraces,state.controller_samples,state.pure_angle_calls-pure_angle_before,
             state.pure_diff_calls-pure_diff_before,state.pure_trig_calls-pure_trig_before});
@@ -12562,6 +12608,13 @@ int run_child(const char *path, const unsigned retrace_target,
   const auto pure_length=GetEnvironmentVariableA("JFG_DIAGNOSTIC_RESIDENT_MATH",pure_math,2U);
   if(pure_length && (pure_length!=1U || (pure_math[0]!='0' && pure_math[0]!='1') || (pure_math[0]=='1' && !state.native_spans_enabled)))return 3;
   state.resident_math_enabled=pure_length==1U ? pure_math[0]=='1' : native_preview_play;
+  char bsp_flag[2]{};
+  const auto bsp_length=GetEnvironmentVariableA("JFG_DIAGNOSTIC_BSP_NATIVE",bsp_flag,2U);
+  if(bsp_length && (bsp_length!=1U || (bsp_flag[0]!='0' && bsp_flag[0]!='1')))return 3;
+  if(bsp_length==1U && bsp_flag[0]=='1' && !jfg::boot::native_collision_available())return 3;
+  state.diagnostic_bsp_enabled=jfg::boot::native_collision_available() &&
+      (bsp_length==1U ? bsp_flag[0]=='1' : native_preview_play);
+
 
   if (native_preview_play) {
     jfg::support_event("timing=native-elapsed/experimental-preview");

@@ -920,3 +920,13 @@ API contracts: [EnableThreadProfiling](https://learn.microsoft.com/en-us/windows
 
 ### Submission profiler qualification checkpoint
 The integrated runtime passes all 13 analyzer fixtures, the nested/exception/thread-isolation C++ collector fixture, exact recorded combat with profiling disabled/enabled, and the retained 17,000-VI Original comparison. All final native 120/360 captures have valid submission-owner joins and zero audio under/overruns or unsupported accesses. The observed source cadence is zero three-VI intervals in the 120 stage capture and one in the 360 stage capture; different native paths and observer cost prevent a no-dip claim. Runtime SHA-256: 699502f5f4118366b9af349056ddc5eaa7d78f5e1986eb67e70674947280cb67. The desktop package remains the earlier profiled-math build. [Qualification receipt](../../../evidence/high-refresh-submission-profile.json).
+
+
+### Nested scheduling readers corrected in private experiment
+The first runtime dispatch capture passed execution/state checks but rejected attribution: root and submission readers can share a thread. Windows resets the wait bitmap on each read. The corrected private collector accumulates every read into all enclosing scopes, while retaining cumulative cycle/context-switch deltas and RAII cleanup. Analysis keeps nested CPU cost inclusive and avoids adding same-thread submission cycles to root cycles. The failed capture and refusal remain preserved; this is not a gameplay regression. Evidence: thread-dispatch-profile-captures-fixed and thread-dispatch-profile-build-nested.
+
+
+A separate cadence analyzer now retains every missed update interval from ordinary route traces and separately reports rendered present-return stalls. It correlates root work/waits/cycles, native collision counters, level state and cold overlays without classifying correlations as proven causes. Missing, partial and queue-dropped evidence stays explicit. Synthetic tests and private route analyses are recorded under native-collision-cadence-analysis; full profiler overhead remains unnecessary for this report.
+
+
+The final collision preview integrates and qualifies the expanded submission profiler, update/present cadence analyzer and rare level/death transition markers. The analyzer retains every missed interval and flags partial evidence. Exact recorded, native profiled and default-Play captures are identified by binary hash in [combined qualification](../../../evidence/high-refresh-native-collision.json); delivery is a separate step.

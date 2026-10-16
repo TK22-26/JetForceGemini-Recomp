@@ -64,3 +64,18 @@ Function-profile modes also emit three records for every graphics submission, wi
 The analyzer groups submission CPU observations by actual host thread and marks when that thread is also the root update owner. Those costs then overlap the root's CPU totals. Other thread totals are separate observations, not extra wall time. OS CPU-time accounting can be coarse for individual short stages; aggregate it across several updates and retain cycle counts as cycles. The six waits are subsets of submission/RDP synchronization and must not be added to enclosing time. All original waits remain in place. Collection is off in ordinary FPS logging.
 
 Source integration and its final qualification are tracked in PERF-002; earlier private-capture evidence does not automatically qualify a rebuilt executable.
+
+
+## Update and presentation cadence report
+The lightweight route trace can be reviewed without full per-function profiling:
+
+    python scripts/analyze_update_cadence.py trace.tsv --first-vi 3540 --frames frames.csv --target-fps 120 --output cadence.json
+
+The report retains every observed interval above the selected update period (two VIs by default), with active/wait time, root thread cycles when available, nearby level/state and cold-overlay activity, plus native collision counters. Loading evidence is a correlation, not an automatic exemption or cause. Missing counters remain unknown. Frame CSV segments report present-return intervals, scene age, queue drops and missing rows separately; they do not substitute for game-update timing or verify monitor scanout. Repeat --frames for rotated segments. Partial or limited traces cannot prove that no slowdown occurred.
+
+
+Route traces also emit route-transition at the existing mainChangeLevel and mainRestartAfterDeath dispatch observations: VI, controller poll, target function, first two raw argument words, and that transition's cumulative call count. The cadence report correlates these explicit calls with long updates. A death-restart entry identifies reload work more directly than cold overlays alone; it is not a per-hit or damage-severity log. Collection is conditional on an existing gameplay trace.
+
+Transition correlation covers the complete interval between consecutive update returns as well as the measured root body. A transition dispatched between roots therefore remains visible. These calls are recorded separately rather than assigned to a root that did not execute them.
+
+Each update also carries the most recent transition call and its age. This preserves delayed restart context without claiming that a prior call occurred inside the measured update or caused every later stall.

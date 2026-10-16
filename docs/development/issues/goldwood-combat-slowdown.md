@@ -2310,3 +2310,53 @@ The newer submission-owner capture confirms the renderer executes on a different
 
 ### Broader collision closure, isolated feasibility fixture
 The two standalone predicate replacements produced insufficient repeatable benefit. A private next experiment translates the collision BSP helper and its two arithmetic callees as one closed CPU-only operation, retaining the generated arithmetic/register/memory behavior while removing per-instruction timing from the isolated fixture. The owner explicitly allows native implementations that preserve observable AI behavior rather than original instruction accounting. This is not runtime admission: bounded traversal, memory ownership, clock-poll responsiveness and actual-call differential checks still need proof before enabling it. The original fallback implementation is retained. Synthetic checks compare complete CPU context, touched stack/globals, host floating environment and periodic full RAM, with generated sources kept private. Evidence: native-bsp-closure-fixture.
+
+
+
+### Collision shadow runtime rejection
+The raw closed collision operation passes 50,000 isolated inputs but its first sampled game run fails a live comparison. Native execution remains unselected; the original routine still supplies every gameplay result. The first trace was buffered and lost at fail-closed exit, so a bounded diagnostic follow-up drains it and retains private entry state and detailed original/candidate differences. Generated C's unreachable paths initially triggered the host C++ warnings-as-errors policy; the diagnostic build confines suppression to its private translation unit and restores normal source/runtime after execution. The exact mismatch and remedy remain under investigation. Evidence: bsp-shadow-recorded-fixed, bsp-shadow-recorded-diagnostic, dispatch-and-bsp-shadow-review.
+
+
+### Live shadow qualification and bounded traversal fixture
+The live rejection was an overbroad test range: CPU context, collision globals and floating environment matched, while 244 changed bytes lay above the helper's stack arguments. The first difference was 1,925 bytes above entry SP, outside its write footprint. Source analysis bounds the helper/callee stack below SP with at most 16 argument bytes above it; a 4,112-byte comparison preserves all of that space for the already bounded 32-level shadow tree. The corrected capture passes all 256 sampled game calls, zero skips/mismatches, and exact final RAM/save/instructions/interpolation.
+A separate private mixed-execution fixture now constrains native work to 32 nodes, 128 edges, 16 edges per leaf and 24 recursion levels, with a 50-microsecond admission deadline checked at node entry. It falls back at the current node, never restarts a partly executed parent, and retains every original arithmetic/register/stack effect. Tests deliberately exhaust different budgets and compare full CPU, floating environment, stack/globals and periodic full RAM. This is not a delivered optimization; runtime clock refresh and live performance still require qualification. Evidence: native-bsp-shadow-recorded-footprint and native-bsp-bounded-fixture.
+
+
+The bounded BSP runtime candidate preserves the 4,000-VI recorded route and 17,000-VI Original reference, including RAM/save/instructions/interpolation and Original probe/renderer hashes. Live alternating comparisons retain the same verified release state; results and limitations are in native-bsp-bounded-review. It remains private and opt-in pending the comparison decision. Native instruction accounting is intentionally not 1:1 under the owner authorization, while Original and observers retain the reference path.
+
+
+A second private collision variant annotates only the generated CPU-context parameter as non-aliasing and permits the two arithmetic leaves to inline. Guest RAM remains unrestricted because timing/fallback callbacks also access it through runtime state. The CPU context is distinct from mapped guest memory, and child calls receive the same derived context pointer. Full mixed-fallback differential checks are required before runtime comparison; this is an optimization candidate, not a selected change. Evidence: native-bsp-restrict-fixture.
+
+
+### Source integration candidate
+Repeated private native-collision comparisons reduce combat update medians from 21.743/22.174 ms to 20.468/20.045 ms, with all measured 120 FPS update intervals at two VIs and no audio or unsupported-access errors. The paired 360 target captures also keep two-VI game updates; rendered output is about 356-359 FPS in the sampled candidate bins. These captures share a verified release state but their later timing-dependent paths can diverge.
+Identical synthetic workloads show roughly 69-70 ms native collision execution versus 114-119 ms reference execution over 50,000 cases with full runtime budgets. Reference timing callbacks are inert in that fixture, so this is a component result, not an absolute gameplay saving. Extra inlining/non-alias annotations do not show a material independent benefit; source integration retains the ordinary generated context parameter and leaf attributes.
+The candidate moves bounded traversal into a separate host module, generates its three qualified bodies only inside the private build tree, rejects unqualified source digests/callees, and preserves complete reference fallback. It is a rebuild/qualification candidate until the integrated executable passes its own checks. Evidence: native-bsp-restrict-prefix120, native-bsp-restrict-prefix360, native-bsp-full-budget-benchmark, native-bsp-restrict-full-route and native-collision-source.
+
+
+Both long private comparison runs consume all 7,276 saved input samples by 17,000 VIs with zero new audio errors and unsupported accesses. The native candidate has two isolated three-VI update intervals later in the route, plus two long gaps of 67 and 37 VIs. These are being correlated with game state, level changes, cold overlays and graphics submission before classifying them as gameplay drops or loading transitions. The combat window remains at two VIs per update. Evidence: native-bsp-restrict-full-route and native-bsp-full-route-review. Input consumption alone does not prove identical navigation after timing-dependent AI diverges.
+
+
+The longer native route exposed two cold-overlay stalls, including a same-level reload that cannot be identified as damage versus death from generic state alone. Added rare trace markers at the existing level-change and death-restart counters so the next full route can establish whether a stall contains an explicit transition call. Historical captures without these markers remain ambiguous; they are not retroactively labeled.
+
+
+### Integrated bounded collision and cadence diagnostics qualified
+
+The separate production module passes 50,000 mixed-budget original-C comparisons, 18 admission rejections and cancellation cleanup. The final executable passes exact recorded combat and the 17,000-VI Original comparison. Detailed profiling passes on both recorded and native execution, with submission owner/wait records present and valid; full profiling remains off during ordinary play.
+
+| Final native comparison | Combat median active work (ms) | Combat p95 (ms) | Extended VI intervals |
+|---|---:|---:|---|
+| collision-final-prefix120-off-a | 20.349 | 24.367 | {'2': 1229} |
+| collision-final-prefix120-on-a | 19.892 | 24.233 | {'2': 1229} |
+| collision-final-prefix360-on-a | 19.931 | 23.883 | {'2': 1229} |
+
+The repeated integration comparisons used the same compiled arithmetic before rare transition markers were added. Enabled 120 medians were 19.796, 19.713 ms; controls were 20.467, 20.797 ms. These are component observations, not universal or identical-path native acceptance.
+
+The final normal Play run consumes all saved route inputs, admits 2,124,488 native nodes and reports no unsupported memory accesses or audio under/overruns. Its post-prefix update intervals are {'2': 6700, '64': 1, '3': 1}. The following gaps are all retained, including transition-adjacent ones:
+
+| VI | Delta VIs | Active / known wait (ms) | Explicit transition calls | Cold overlay activity |
+|---:|---:|---|---|---|
+| 6588 | 64 | 811.905 / 264.957 | [] (prior []) | current=True, prior=False |
+| 6591 | 3 | 18.049 / 24.755 | [] (prior []) | current=True, prior=True |
+
+The explicit level/death markers distinguish those calls from an unclassified gameplay hitch. A cold-overlay correlation alone is not assigned a cause. Late crate/light/bridge and shadow visual acceptance remain pending. The candidate is qualified for local preview packaging, not released or claimed as an all-level no-dip fix. [Compatibility and fixture](../native-collision.md); [final binary evidence](../../../evidence/high-refresh-native-collision.json).

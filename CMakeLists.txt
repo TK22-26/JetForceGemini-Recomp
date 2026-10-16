@@ -27,6 +27,7 @@ option(JFG_BUILD_PHASE5_CAPTURE
     "Build the private Phase 5 boundary-capture producer" OFF)
 option(JFG_BUILD_PHASE6_NATIVE_BOOT "Build the private Phase 6 native M2 runner" OFF)
 option(JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING "Use qualified native elapsed timing in a private interactive preview" OFF)
+option(JFG_EXPERIMENTAL_NATIVE_COLLISION "Build qualified private native collision helpers" OFF)
 option(JFG_ENABLE_RT64 "Build the pinned RT64 renderer shell" OFF)
 option(JFG_BUILD_PHASE7_RT64_RUNNER
     "Build the private-input Phase 7 RT64 captured-task runner" OFF)
@@ -546,6 +547,28 @@ if(JFG_ENABLE_GENERATED_CODE)
             "JFG_PHASE6_BUILD_IDENTITY=\"${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}-$<CONFIG>${jfg_phase6_build_suffix}\""
             "JFG_PHASE6_SANITIZER_ID=\"${jfg_phase6_sanitizer_id}\"")
         target_link_libraries(jfg-native-boot PRIVATE jfg_boot jfg_runtime jfg_generated_link)
+        if(JFG_EXPERIMENTAL_NATIVE_COLLISION)
+            if(NOT WIN32 OR NOT MSVC OR NOT JFG_BUILD_PHASE8_LIVE OR
+               NOT JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING)
+                message(FATAL_ERROR "Native collision requires the MSVC Windows native timing preview")
+            endif()
+            set(jfg_native_collision_body "${CMAKE_CURRENT_BINARY_DIR}/phase6-private/native-collision.inc")
+            add_custom_command(OUTPUT "${jfg_native_collision_body}"
+                COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_native_collision.py"
+                    --generated-root "${JFG_GENERATED_ROOT}" --output "${jfg_native_collision_body}"
+                DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_native_collision.py"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_003_0168_recomp.c"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_003_0167_recomp.c"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_003_0054_recomp.c"
+                VERBATIM)
+            set_source_files_properties("${jfg_native_collision_body}" PROPERTIES HEADER_FILE_ONLY TRUE)
+            target_sources(jfg-native-boot PRIVATE src/boot/native_collision.cpp "${jfg_native_collision_body}")
+            target_compile_definitions(jfg-native-boot PRIVATE JFG_NATIVE_COLLISION_ENABLED=1
+                "JFG_NATIVE_COLLISION_BODY=\"${jfg_native_collision_body}\"")
+            # MSVC emits this generated-code warning during deferred code generation.
+            set_property(SOURCE src/boot/native_collision.cpp APPEND PROPERTY COMPILE_OPTIONS /wd4702)
+        endif()
+
         if(JFG_BUILD_PHASE8_LIVE)
             jfg_resolve_private_root(jfg_phase8_private_audio_adapter_root
                 "${JFG_PHASE8_PRIVATE_AUDIO_ADAPTER_ROOT}"
