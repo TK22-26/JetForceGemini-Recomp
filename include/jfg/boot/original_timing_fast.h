@@ -179,6 +179,9 @@ static JFG_CLOCK_INLINE void jfg_native_timing_step(unsigned metadata,unsigned p
 // Forced inlining of the cache model substantially expands generated code
 // under MSVC. Keep one callable copy per translation unit; native instruction
 // and span checks stay inline, and all modeled costs and fallbacks remain.
+#ifdef __cplusplus
+[[maybe_unused]]
+#endif
 static JFG_CLOCK_NOINLINE void jfg_original_timing_step(unsigned metadata,unsigned pc,unsigned word,void* context) {
  JfgOriginalTimingFast* s=jfg_original_timing_state;
  unsigned kind=(metadata>>12U)&3U;
