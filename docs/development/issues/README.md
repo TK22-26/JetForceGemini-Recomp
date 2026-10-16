@@ -36,6 +36,7 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
+| BUILD-003 | Release source policy and compiler portability | Exact-body provenance and GCC/Clang/sanitizer corrections verified; final CI/publication pending | [Release validation](release-source-validation.md) |
 | NATIVE-002 | GitHub #14 mouse-look startup access violation | Exact v1.1.0 crash reproduced; early-memory remedy verified in current enabled startup | [Startup report](github-mouse-look-startup.md) |
 | BUILD-002 | GitHub #15 GCC native build failure | Portable source and actual GCC translation unit verified; AppImage runtime not qualified | [Linux build review](github-linux-native-build.md) |
 | INPUT-010 | GitHub #13 controller camera inversion | GUI toggle verified with persistence and camera/aim deltas; reporter retest pending | [Controls review](github-controller-vertical-inversion.md) |

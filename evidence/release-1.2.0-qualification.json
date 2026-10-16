@@ -21,7 +21,10 @@
       "errors": 1,
       "skipped": 48,
       "limitation": "pinned local WSL trust/sanitizer harness"
-    }
+    },
+    "clang_18_host_tests": 100,
+    "asan_ubsan_host_tests": 84,
+    "gcc_host_tests": 99
   },
   "limits": [
     "No Linux AppImage release qualification",

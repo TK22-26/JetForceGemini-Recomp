@@ -36,3 +36,18 @@ in the CI scope (the existing isolated trap-probe quarantine is unchanged).
 Clang is not installed in this WSL distribution, so its configuration failed
 before compilation. Clang validation remains a required GitHub CI job; no compiler
 warning, required check or production guard is disabled to work around that absence.
+
+The next CI run (38979091192) passed policy, both Windows builds, RT64,
+launcher and sanitizers; Clang found three further signed controller-fixture
+indices. The test already asserts the slot equals 5 before indexing, and now
+casts that checked value explicitly. The complete local build then found one
+unsigned iterator distance in billboard history; its existing bounds check
+remains intact and the distance now uses the vector iterator difference type. A private official Ubuntu Clang 18.1.3
+toolchain, downloaded and extracted without installing system packages, then
+built the complete host target set with warnings as errors: **100/100 tests
+passed** locally. The complete ASan/UBSan scope passed 84/84. No warning or CI
+gate was disabled. Final CI and publication remain independent release gates.
+
+Transferable lesson: GCC, Clang and MSVC differ in aggregate and signedness
+diagnostics. Run each supported compiler over all fixtures before publication;
+checking only the native game translation unit cannot validate the host suite.

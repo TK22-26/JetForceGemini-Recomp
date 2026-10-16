@@ -61,7 +61,8 @@ inline void bind_presentation_billboard(PresentationMesh &mesh,
         mesh.key.size() < coordinate_words + 2U ||
         mesh.key[coordinate_words] != 0xFFFFFFFFU)
         return;
-    mesh.key.erase(mesh.key.begin(), mesh.key.begin() + coordinate_words);
+    mesh.key.erase(mesh.key.begin(), mesh.key.begin() +
+        static_cast<std::vector<std::uint32_t>::difference_type>(coordinate_words));
     mesh.key.insert(mesh.key.begin(), 0x42494C4CU);
     for (auto value : owner) {
         mesh.key.push_back(static_cast<std::uint32_t>(value));
