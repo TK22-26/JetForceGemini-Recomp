@@ -150,6 +150,23 @@ int main(int argc,char **argv) {
     auto sample=sample_modern_pad(config,pad);
     check(map_modern_actions(sample,false).buttons==8,"A/Cross jumps");
     check(map_modern_actions(sample,true).buttons==0x8000,"A/Cross confirms without jumping in menus");
+    // Boss combat keeps the configured actions and separates strafe from aim.
+    pad={};pad.axes[0]=-32767;pad.axes[1]=-32767;pad.axes[5]=32767;
+    auto boss_input=sample_modern_pad(config,pad);
+    auto boss=map_modern_boss_actions(boss_input);
+    check(boss.buttons==0x2002 && boss.x==0 && boss.y==0,"boss left stick strafes without moving the reticle; RT fires");
+    check(map_modern_actions(boss_input,false).x<0 && !(map_modern_actions(boss_input,false).buttons&3),"ordinary movement remains analog");
+    pad={};pad.axes[0]=32767;pad.buttons[0]=true;
+    boss=map_modern_boss_actions(sample_modern_pad(config,pad));
+    check(boss.buttons==9 && boss.x==0 && boss.y==0,"boss right strafe combines with configured Jump");
+    pad={};pad.axes[0]=config.movement_deadzone-1;
+    check(map_modern_boss_actions(sample_modern_pad(config,pad)).buttons==0,"boss movement retains the configured physical deadzone");
+    auto boss_keys=config;boss_keys.keys[index(ModernAction::move_left)]='J';
+    boss_keys.keys[index(ModernAction::fire)]='F';boss_keys.keys[index(ModernAction::jump)]='K';
+    boss=map_modern_boss_actions(sample_modern_keyboard(boss_keys,[](int key){return key=='J'||key=='F'||key=='K';}));
+    check(boss.buttons==0x200A && boss.x==0 && boss.y==0,"remapped keyboard boss movement, fire and jump compose");
+    boss=map_modern_boss_actions(sample_modern_keyboard(config,[](int key){return key=='A'||key=='D';}));
+    check(boss.buttons==0,"opposing keyboard movement cancels boss strafe");
     pad={};pad.buttons[1]=true;sample=sample_modern_pad(config,pad);
     check(map_modern_actions(sample,false).buttons==4 && map_modern_actions(sample,true).buttons==0x4000,"B/Circle crouch or back by context");
     pad={};pad.buttons[2]=true;

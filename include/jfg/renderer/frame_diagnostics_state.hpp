@@ -27,7 +27,12 @@ struct FrameDiagnosticState {
 
     std::atomic<std::uint64_t> scenes{0}, scene_time{0}, vi{0};
     void scene(std::uint64_t tick) noexcept {
-        vi.store(tick, std::memory_order_relaxed);
+        // A source scene may submit multiple full-screen tasks (for example,
+        // the boss motion-blur pass). Count the VI once; presentation remains
+        // independently measured by the present observer. Scene submission is
+        // serialized by the renderer, and initialization precedes that thread.
+        const auto previous = vi.exchange(tick, std::memory_order_relaxed);
+        if (scenes.load(std::memory_order_relaxed) != 0 && previous == tick) return;
         scene_time.store(frame_clock_us(), std::memory_order_relaxed);
         scenes.fetch_add(1, std::memory_order_relaxed);
     }

@@ -2660,7 +2660,7 @@ public:
     jfg::mod::Memory ram({state.rdram,kRdramSize});
     const auto control=ram.valid(actor,0xA4U)?ram.u32(actor+0x68U):0U;
     if(!ram.valid(actor,0xA4U) || !ram.valid(control,0x5C4U) || ram.u8(control)!=0 ||
-       !jfg::mod::pc_gameplay_active(ram,actor) || ram.u8(0x800FD7BDU)!=0 ||
+       !jfg::mod::pc_actions_active(ram,actor) || ram.u8(0x800FD7BDU)!=0 ||
        jfg::mod::scripted_camera_active(ram,actor) ||
        ram.u32(target)!=0x27BDFF70U || ram.u32(target+4U)!=0xAFBF002CU)return;
     for(std::size_t i=0;i<9;++i)
@@ -2784,13 +2784,15 @@ void sample_controller_ports(State &state,bool discover_sdl=true) {
           return key>=256?state.pc_wheel_key==key:host_key_down(state,key);
         }):jfg::sample_modern_pad(config,hardware[static_cast<std::size_t>(device)]);
       state.modern_physical_neutral[p]=input.physically_neutral;
+      const bool boss=jfg::mod::pc_boss_gameplay_active(pc_memory,state.phase9_player_actor);
       const bool menu=pc_memory.u8(0x800FD7BDU)!=0 ||
-        !jfg::mod::pc_gameplay_active(pc_memory,state.phase9_player_actor) ||
+        !(boss || jfg::mod::pc_gameplay_active(pc_memory,state.phase9_player_actor)) ||
         jfg::mod::scripted_camera_active(pc_memory,state.phase9_player_actor);
       state.modern_aim_latch[p].apply(input,config.aim_toggle,
         !menu && !state.pc_input_blocked && state.pc_device_ready[p]);
-      sample=jfg::map_modern_actions(input,menu,state.guest_menu.kind==jfg::GuestMenuKind::pause_root &&
-        state.guest_menu.ready && (state.guest_menu.enabled&0x100U)!=0);
+      sample=boss && !menu ? jfg::map_modern_boss_actions(input) :
+        jfg::map_modern_actions(input,menu,state.guest_menu.kind==jfg::GuestMenuKind::pause_root &&
+          state.guest_menu.ready && (state.guest_menu.enabled&0x100U)!=0);
       sample.buttons=state.menu_confirm[p].apply(menu?state.guest_menu:jfg::GuestMenuState{},sample.buttons);
       state.modern_live_flags[p]=jfg::modern_scope_flags(menu?0:input.held);
       if(device>=0 && !menu)state.pc_aim[p]=jfg::pc_stick_look(config.look,
@@ -3103,7 +3105,7 @@ void sample_live_controller(State &state) noexcept {
     want_mouse|=state.pc_devices[p]==-3 && active_pc_input(state,p).mouse_aim && state.controller_ports.samples[p].connected &&
       (active_pc_input(state,p).modern || (state.controller_ports.samples[p].buttons&0x10)!=0);
   want_mouse=want_mouse && state.modern_controls_active && state.pc_raw_available && !block_physical && !state.input_replay_loaded && (state.input_record_path.empty() || state.pc_record_extended) &&
-    jfg::mod::pc_gameplay_active(pc_memory,state.phase9_player_actor) && pc_memory.u8(0x800FD7BDU)==0 &&
+    jfg::mod::pc_actions_active(pc_memory,state.phase9_player_actor) && pc_memory.u8(0x800FD7BDU)==0 &&
     !jfg::mod::scripted_camera_active(pc_memory,state.phase9_player_actor);
   if(want_mouse && state.native_window) {
     const HWND window=static_cast<HWND>(state.native_window);RECT rect{};GetClientRect(window,&rect);
@@ -3114,9 +3116,13 @@ void sample_live_controller(State &state) noexcept {
   }
   state.pc_mouse_captured=want_mouse;
   if(state.pc_input_blocked){state.pc_aim.fill({});state.pc_wheel.clear();state.pc_mouse.clear();for(auto &motion:state.pc_stick_motion)motion.clear();for(auto &motion:state.pc_scope_motion)motion.clear();for(auto &motion:state.modern_scope_sensitivity)motion.clear();}
-  if(!state.modern_controls_active || pc_memory.u8(0x800FD7BDU)!=0 || !jfg::mod::pc_gameplay_active(pc_memory,state.phase9_player_actor) ||
+  if(!state.modern_controls_active || pc_memory.u8(0x800FD7BDU)!=0 || !jfg::mod::pc_actions_active(pc_memory,state.phase9_player_actor) ||
      jfg::mod::scripted_camera_active(pc_memory,state.phase9_player_actor)) {
     state.pc_orbits.fill({});state.pc_shoulders.fill({});for(auto &motion:state.pc_stick_motion)motion.clear();for(auto &motion:state.pc_scope_motion)motion.clear();for(auto &motion:state.modern_scope_sensitivity)motion.clear();
+  } else if(!jfg::mod::pc_gameplay_active(pc_memory,state.phase9_player_actor)) {
+    // Boss aiming still needs its fractional look accumulator. Relinquish
+    // only free-camera ownership while its native fixed camera is in control.
+    state.pc_orbits.fill({});state.pc_shoulders.fill({});
   }
   if(state.modern_controls_active && !state.input_replay_loaded &&
      (state.input_record_path.empty() || state.pc_record_extended)) {
@@ -3243,7 +3249,7 @@ void sample_live_controller(State &state) noexcept {
     const auto character=pc_memory.valid(control,0x5C4U)?pc_memory.u8(control+1U)&3U:3U;
     const bool scoped=p==0 && state.controller_ports.samples[p].connected &&
       (state.controller_ports.samples[p].buttons&0x10)!=0 &&
-      jfg::mod::pc_gameplay_active(pc_memory,actor) && pc_memory.u8(0x800FD7BDU)==0 &&
+      jfg::mod::pc_actions_active(pc_memory,actor) && pc_memory.u8(0x800FD7BDU)==0 &&
       !jfg::mod::scripted_camera_active(pc_memory,actor) &&
       character<3U && pc_memory.valid(game,0x538U) &&
       pc_memory.u8(game+0x15CU+character*0x76U+0x70U)==7U;
@@ -3572,7 +3578,10 @@ void update_navigation_mod(State &state) {
       if (warp && warp.tellg() <= 256) {
         warp.seekg(0);
         const auto stamp=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-        (void)mod.warp_to_exit(warp, memory, list, stamp);
+        if(mod.warp_to_exit(warp,memory,list,stamp) && state.gameplay_trace)
+          state.gameplay_trace.event("exit-warp",{state.vi_retraces,mod.generation,
+            mod.warp_nonce,memory.u32(0x800FB114U),mod.player,
+            memory.u32(memory.u32(mod.player+0x68U)+0xF4U)});
       }
     }
     bool player_present=false;
@@ -7606,7 +7615,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     if(pc_memory.valid(control,0x5C4U) && pc_memory.valid(actor,0xA4U) &&
        pc_memory.u32(actor+0x68U)==control && pc_memory.u32(target)==0x27BDFFA8U &&
        pc_memory.u32(target+4)==0xAFB00018U &&
-       jfg::mod::pc_gameplay_active(pc_memory,actor) && pc_memory.u8(0x800FD7BDU)==0 && !jfg::mod::scripted_camera_active(pc_memory,actor)) {
+       jfg::mod::pc_actions_active(pc_memory,actor) && pc_memory.u8(0x800FD7BDU)==0 && !jfg::mod::scripted_camera_active(pc_memory,actor)) {
       const auto port=pc_memory.u8(control);
       if(port<4U && state.controller_ports.samples[port].connected) {
         const auto &frame=state.pc_frames[port];

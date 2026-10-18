@@ -970,3 +970,35 @@ The final reticle runtime repeats the normal Play-mode coverage check: 2,070 con
 
 
 The compact health logging and screenshot-free route capture are delivered locally with source `26295c75dd43848f59cdd1268518d7131861dbee` through both preview shortcuts. Earlier capture evidence remains intact; this does not retroactively supply missing final counters or resolve the Goldwood exit-cutscene report.
+
+
+### Ichor route live-prefix coverage (2026-10-18)
+
+The official v1.2.0 owner route reaches the existing detailed gameplay/actor
+trace limit at 949.097411 seconds (VI 55915, update 27461), after the complete
+Vela rescue sequence. Compact timing, FPS/output, input and renderer streams
+continue independently; the earlier compact-coverage remedy remains in force.
+A read-only existing-live-export observer retains subsequent room/control-lock
+context for the boss report. It cannot restore the truncated detailed actor
+records. Keep this coverage limit explicit in later replay qualification.
+On Windows, file directory metadata for these active writers can report zero
+or stale length while the files are readable: use an opened handle's end offset
+for live prefix bounds and reject incomplete last rows. No game restart or
+change to the active capture was made. Private evidence:
+issue20-ichor-controls-20261018/live-rescue-review-01 and live-rescue-sync-03.
+
+
+## Multipass scene counter correction (candidate)
+
+The closed Ichor boss capture contains two screen-sized tasks for every game
+update: world rendering and motion blur. The old SCENES counter increments on
+both, yielding about 60 while compact simulation timing remains 30 updates/s.
+The candidate counts distinct source VI ticks, including a valid first tick of
+zero, and leaves output FPS independently measured at presentation. Additional
+passes no longer reset the age of that source scene. This corrects the counter;
+it does not increase output FPS or repair interpolation/compositing.
+
+A regression check replays the observed two-pass/two-VI pattern and checks
+duplicate scene age. Native scene/output verification remains pending.
+
+The unique-VI counter check passes in the focused preview, and the CSV header now describes that counting rule. This diagnostic correction does not qualify blur-scene output pacing.

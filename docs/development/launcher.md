@@ -142,8 +142,9 @@ explains every view, marker and export.
 all off by default:
 
 - **Warp to exits:** double-click a loaded exit marker, or an exit in the
-  inspector, to move your character to it. The game's normal exit requirements
-  apply. Warping stops autopilot and rejects stale rooms and scripted scenes.
+  inspector, to activate that exit and enter the next room. The game's normal
+  exit requirements and area-clear prompts apply. Warping stops autopilot and
+  rejects stale rooms, scripted scenes and already pending transitions.
 - **Infinite health:** keeps your current character at full health.
 - **Instant kill enemies:** defeats loaded ordinary squad enemies; Tribals and
   friendly NPCs are spared. Switching off does not revive enemies.

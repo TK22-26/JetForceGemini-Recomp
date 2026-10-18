@@ -319,6 +319,16 @@ inline ControllerPortSample map_modern_actions(const ModernActionSample &input,b
     }
     return out;
 }
+// Boss arenas move laterally with native C-left/C-right while their analog
+// stick controls the reticle. Modern look already has a separate recorded
+// channel, so consume movement here without also steering the aiming stick.
+inline ControllerPortSample map_modern_boss_actions(const ModernActionSample &input) {
+    auto out=map_modern_actions(input,false);
+    if(input.move.x<0)out.buttons|=0x2;
+    if(input.move.x>0)out.buttons|=0x1;
+    out.x=out.y=0;
+    return out;
+}
 // Toggle aim resets on context/focus/device changes. Re-entry while held needs
 // a release before another press; menus always use their own bindings.
 class ModernAimLatch {
