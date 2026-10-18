@@ -36,9 +36,9 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
-| MOD-001 | Exit warp stops at the door | Ten native transitions and focused tests pass; 1.2.1 preview click acceptance pending | [Report and source review](map-exit-warp-transition.md) |
+| MOD-001 | Exit warp stops at the door | Native contact fix released in v1.2.1; ten transitions verified; ungated explicit warps requested for 1.3 | [Report and source review](map-exit-warp-transition.md) |
 | RENDER-011 | Vela rescue cutscene stalls / appears low resolution | Official 1.2.0 stalls / interpolation loss confirmed; queue and same-tick screen passes localized, remedy pending | [Report and evidence](vela-rescue-cutscene-stutter-resolution.md) |
-| INPUT-011 | GitHub #20 Ichor boss-room controls stop responding | Mouse/pad effective-input routes and original-mode compatibility pass; 1.2.1 preview physical verification pending | Owner confirms Vela/Ichor, Juno and Lupus; native mouse/pad/original checks pass; 1.2.1 publication pending |
+| INPUT-011 | GitHub #20 Ichor boss-room controls stop responding | Released in v1.2.1; owner confirms three bosses; reporter retest pending | [Cause and verification](github-ichor-boss-controls.md) |
 | BUILD-003 | Release source policy and compiler portability | Resolved for released v1.2.0; full CI and published bundle verification pass | [Release validation](release-source-validation.md) |
 | NATIVE-002 | GitHub #14 mouse-look startup access violation | Reproduced startup cause resolved in v1.2.0; current enabled startup passes | [Startup report](github-mouse-look-startup.md) |
 | BUILD-002 | GitHub #15 GCC native build failure | Portable source released in v1.2.0; actual GCC source verified, AppImage not qualified | [Linux build review](github-linux-native-build.md) |

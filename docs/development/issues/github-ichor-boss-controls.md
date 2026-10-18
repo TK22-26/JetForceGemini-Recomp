@@ -2,7 +2,7 @@
 
 - ID: INPUT-011
 - Severity: critical progression blocker; modern keyboard/mouse failure reproduced by owner.
-- Status: owner confirms Vela/Ichor, Juno and Lupus controls; native effective-input and regression checks pass; qualified for focused 1.2.1 release, publication pending.
+- Status: released in v1.2.1 after owner acceptance in Vela/Ichor, Juno and Lupus; original reporter retest requested and pending.
 - Report: https://github.com/TK22-26/JetForceGemini-Recomp/issues/20
 - Affected build: reporter's v1.2.0, Windows 11 25H2, Radeon 9070 XT,
   driver 26.9.2, Xbox/XInput modern controls. Alternate input modes reportedly
@@ -329,3 +329,31 @@ Retain that runtime's original clean support identity and hash when packaging;
 do not relabel its source revision. Remaining visual/audio issues are tracked in
 https://github.com/TK22-26/JetForceGemini-Recomp/issues/21, together with the ongoing general 1.3 performance work.
 Publication and final source/release identities will be recorded after release.
+
+
+## Published v1.2.1 and reporter follow-up (2026-10-18 UTC)
+
+The stable [v1.2.1 release](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.2.1)
+was published at 14:34:32 UTC from main merge commit
+40dad7f4ef69d127ebd2aebd6504ac44336204e4 ([PR #22](https://github.com/TK22-26/JetForceGemini-Recomp/pull/22)).
+All tagged-source CI checks and the prebuilt publication job passed.
+The public assets were downloaded, their hashes compared with the staged assets,
+and the bundle manifest revalidated. GitHub identifies v1.2.1 as the latest release.
+
+The runtime is the exact owner-tested executable (source 8485b04938ceb57058bc5bbb6add83eb702d7aa0;
+SHA-256 fac87d3be47a55e2be1c64068cd4a57ef95f319d7997f379fa6383a3495c45f4).
+The final launcher carries the release merge identity. The public ZIP SHA-256 is
+35741a57baa17c862957505fa9ccd46f76e3a3ddbbb0618e18f30a57bd45132c.
+
+Main and develop include the hotfix. It was also merged into the ongoing 1.3
+branch at fad8d54d392222165a3f126976bb8a06eea89a80, preserving its separate
+unreleased rendering candidates and qualification limits. Local documentation
+and investigation state were backed up and retained.
+
+GitHub #20 closed when PR #22 merged. The owner-authorized
+[reply to the reporter](https://github.com/TK22-26/JetForceGemini-Recomp/issues/20#issuecomment-6251147711)
+thanks them for the reproduction and support ZIP, links v1.2.1, and asks them to
+retest Ichor with their Xbox controller. Their confirmation remains pending;
+do not treat our three-fight acceptance as their device-specific retest.
+Private receipts: release-1.2.1-20261018/published-release.json,
+develop-integration.json and issue20-release-reply.json.

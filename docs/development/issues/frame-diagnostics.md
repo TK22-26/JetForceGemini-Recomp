@@ -1002,3 +1002,5 @@ A regression check replays the observed two-pass/two-VI pattern and checks
 duplicate scene age. Native scene/output verification remains pending.
 
 The unique-VI counter check passes in the focused preview, and the CSV header now describes that counting rule. This diagnostic correction does not qualify blur-scene output pacing.
+
+The distinct-source scene counter is released in v1.2.1. It prevents a same-tick blur submission from falsely doubling the displayed game-scene rate; it does not correct the unresolved blur presentation itself.
