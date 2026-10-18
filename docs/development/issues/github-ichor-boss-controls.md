@@ -2,7 +2,7 @@
 
 - ID: INPUT-011
 - Severity: critical progression blocker; modern keyboard/mouse failure reproduced by owner.
-- Status: focused 1.2.1-beta.1 candidate passes unit/captured-memory and native effective-input checks; physical owner verification pending; unreleased.
+- Status: owner confirms Vela/Ichor, Juno and Lupus controls; native effective-input and regression checks pass; qualified for focused 1.2.1 release, publication pending.
 - Report: https://github.com/TK22-26/JetForceGemini-Recomp/issues/20
 - Affected build: reporter's v1.2.0, Windows 11 25H2, Radeon 9070 XT,
   driver 26.9.2, Xbox/XInput modern controls. Alternate input modes reportedly
@@ -261,3 +261,71 @@ candidate. No release/tag, push, merge or GitHub issue closure is performed.
 Blur rendering and the long capture's audio events remain open.
 
 Private receipt: hotfix-preview-delivery.json; packaged-hotfix-bootstrap-01.
+
+
+## 2026-10-18 owner check and direct boss fixtures
+
+The owner reports that controls now work in the 1.2.1-beta.1 Ichor preview.
+This is a scoped Vela/Ichor confirmation, not acceptance of rendering or
+performance. Those issues still reproduce and remain 1.3 work.
+
+The owner requests direct Juno and Lupus mantis-twin checkpoints, then accepts
+moving forward if all three controls checks pass. Mizar 1 and Mizar 2 become
+additional controls checks only if Juno or Lupus fails. Fixture preparation
+failures are not evidence that a boss-controls fix failed.
+
+Private evidence: issue20-ichor-controls-20261018/juno-boss-warp. The exact
+packaged preview runtime is unchanged (SHA-256
+fac87d3be47a55e2be1c64068cd4a57ef95f319d7997f379fa6383a3495c45f4).
+Copies of slot 0 preserve the owner source save and use normal entrance
+transitions. Juno entrance 194 transitions through introduction 193 to active
+boss 195, character 1, combat state 32 and a nonzero boss actor (bootstrap-04).
+This verifies fight initialization, not physical input acceptance.
+
+Informative fixture attempts: retaining all characters selected Vela instead
+of Juno; separate test saves now select only their target character. A direct
+fight checkpoint is normalized by native resume logic to an entrance.
+Lupus 351 is not the pre-fight entrance: its selected exit returns to 249.
+Direct 352 probes remained in the introduction within the initial observation
+window. These observations invalidate the corresponding shortcut candidates;
+no failed fixture is labelled a gameplay regression. The corrected entrance
+probe uses 249 and retains its observed outcome separately below.
+
+Lessons: derive room names and entry transitions from concrete game state;
+a boss-like room name and a patched save alone do not establish an active
+fight. Keep checkpoint generation private, preserve the original save, and
+verify nonzero native boss state before claiming fixture acceptance.
+
+Latest Lupus bounded fixture result: level 352, character None, boss actor None. See private lupus-bootstrap-05-summary.json; physical controls remain pending.
+
+Local shortcut delivery: Juno, Lupus. Separate disposable saves, muted audio, retained input settings, diagnostics on the private evidence drive; resets test checkpoint on launch. Original owner save SHA-256 remains 4bb245c34fbc5c1468f21af84c1651a5b7173ec6b426eab1cdf76a90da55a497.
+
+Lupus native fixture verified: lupus-bootstrap-06, level 210, character 2, nonzero boss actor. Seed lupus-boss-intro-seen.flash. Physical owner verification remains pending.
+
+
+The delivered Lupus fixture sets only its private intro-seen flag (22) in
+addition to the selected-character/checkpoint changes. Its native entrance 249,
+condition 24, reaches boss 210 with character 2 and combat state 32. The normal
+introduction remained active through a 169-second probe and is not qualified
+by this fixture; skipping it is test setup, not a runtime fix. Juno's shortcut
+keeps the verified normal introduction. Both delivered profiles have health
+and instant-kill mods off and use the unchanged hotfix executable. The failed
+first launcher setup referenced a setup executable absent from the packaged
+runtime; resuming with the existing built frontend setup tool succeeded and
+preserved the original profile.
+
+
+## Stable hotfix acceptance (2026-10-18)
+
+The owner reports that both direct Juno and Lupus fights work perfectly,
+following the earlier Vela/Ichor confirmation, and requests publication of 1.2.1.
+This is the requested three-fight physical controls acceptance. No Mizar tests
+were triggered. It does not imply a new all-device matrix, unassisted campaign,
+Lupus-introduction check or performance acceptance.
+
+The final release changes only launcher version and documentation relative to
+the owner-tested runtime source 8485b04938ceb57058bc5bbb6add83eb702d7aa0.
+Retain that runtime's original clean support identity and hash when packaging;
+do not relabel its source revision. Remaining visual/audio issues are tracked in
+https://github.com/TK22-26/JetForceGemini-Recomp/issues/21, together with the ongoing general 1.3 performance work.
+Publication and final source/release identities will be recorded after release.

@@ -1,11 +1,11 @@
 # Changelog
 
-## 1.2.1-beta.1 - local preview, 2026-10-18
+## 1.2.1 - 2026-10-18
 
-- Corrected modern boss input eligibility: keep strafing and separate mouse/controller aiming active in playable boss combat and jumps. Physical fight verification remains pending.
-- Exit warps request the native eligible room transition instead of stopping on the exit plane. Native progression requirements still apply.
-- Count each screen-scene VI once when blur submits another full-screen pass. OUTPUT remains measured separately.
-- Boss/cutscene blur quality and presentation pacing remain open; no experimental blur changes are included.
+- Fixed modern boss controls losing movement, strafing and separate mouse/controller aiming. Playable boss combat and jumps now retain their configured actions; actual cutscene, pause and death ownership remain intact. Owner playtests passed Vela/Ichor, Juno and Lupus.
+- Fixed map exit warps stopping at a door: eligible warps now enter the next room through the native transition, preserving progression requirements.
+- Corrected the scene FPS counter counting a second full-screen blur pass at the same source tick. Output FPS is still measured separately.
+- Cutscene/boss motion-blur resolution loss, presentation stalls and the earlier long-route audio underruns remain open for 1.3. The controls hotfix includes no experimental rendering changes. See [the 1.3 follow-up](https://github.com/TK22-26/JetForceGemini-Recomp/issues/21).
 
 ## 1.2.0 - 2026-10-16
 

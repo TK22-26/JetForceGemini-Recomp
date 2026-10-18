@@ -89,3 +89,9 @@ location and reproduction steps using the [playtesting guide](playtesting.md).
 The Ichor hotfix preview remains local until physical input and fight verification.
 The failed experimental GPU-blur change is excluded; cutscene/boss blur quality
 and output pacing remain under investigation.
+
+### Boss-controls preview verification (2026-10-18)
+
+The owner confirms Vela/Ichor, Juno and Lupus controls in 1.2.1-beta.1; the focused stable 1.2.1 release is approved. This preview does not resolve [Vela cutscene stalls/resolution](development/issues/vela-rescue-cutscene-stutter-resolution.md). See [INPUT-011](development/issues/github-ichor-boss-controls.md).
+
+The remaining session findings and ongoing general performance work are tracked for 1.3 in [issue #21](https://github.com/TK22-26/JetForceGemini-Recomp/issues/21). Controls acceptance does not close the blur, presentation or audio reports.

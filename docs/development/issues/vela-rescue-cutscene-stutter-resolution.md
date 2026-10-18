@@ -1,5 +1,6 @@
 # RENDER-011: Vela rescue cutscene stalls and changes apparent resolution
 
+- Follow-up: https://github.com/TK22-26/JetForceGemini-Recomp/issues/21 (1.3, including general performance work).
 - Severity: significant visual interruption.
 - Status: stalls and interpolation loss confirmed in official v1.2.0; queue
   blocking and same-tick screen passes localized; no qualified remedy yet.
@@ -177,3 +178,12 @@ failed. Queue-slot lifetime and compositing still require independent validation
 The focused 1.2.1 preview contains the controls/exit-contact/scene-counter changes,
 not GPU-copy or composite-queue experiments. Rendering resolution, 120 FPS
 presentation in blur scenes, and the remaining audio events are still open.
+
+
+## 2026-10-18 hotfix preview follow-up
+
+The owner reports that Vela's selection scene still appears slow and lower
+resolution in 1.2.1-beta.1, while boss controls now work. The supplied screenshot
+shows output 27.9 FPS, scenes 25.9 FPS, 35.9 ms and a 76.3 ms maximum. This is
+reported visual/counter evidence, not a newly qualified timing experiment.
+The controls hotfix does not resolve this issue; it remains open for 1.3.
