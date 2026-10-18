@@ -67,3 +67,8 @@ string. The native launcher correctly reports `1.2.0`; its numeric PE fields are
 1, 2, 0, 0. The check now verifies those fields and the preserved shortcut
 arguments, without changing the published package. Original failure retained
 in the private publication receipts.
+
+
+## v1.2.1 publication record
+
+Tagged-source CI and the prebuilt publication workflow pass; the downloaded public assets match the staged hashes and bundle manifest. The issue index accidentally replaced INPUT-011's link cell with a status sentence during release preparation. This documentation-only follow-up restores the link and records actual publication/reporter-retest status; the published tag and binaries remain unchanged. See [boss-control release evidence](github-ichor-boss-controls.md).

@@ -1,7 +1,7 @@
 # MOD-001: Exit warp stops at the door instead of entering the next room
 
 - Severity: navigation tool malfunction; blocks convenient travel for the boss reproduction.
-- Status: native-contact candidate and focused tests pass; ten actual exit transitions verified; launcher click acceptance pending in 1.2.1-beta.1.
+- Status: native-contact correction released in v1.2.1; ten transitions verified; progression-independent explicit map warps requested for 1.3.
 - Reported: 2026-10-18 UTC, during the official v1.2.0 Ichor capture.
 - Affected profile: Windows official release v1.2.0, Live Map Warp to exits enabled.
 - Related source: include/jfg/mod/navigation_mod.hpp (NavigationMod::warp_to_exit).
@@ -77,3 +77,19 @@ No specific introducing commit has been established.
 The focused navigation tests pass. The copied-save route now crosses the actual exits from levels 43, 42, 44, 248, 146, 185, 153, 151 and 119 using the candidate contact request. The first fixture then chose an inactive overlapping exit at level 19, which was correctly refused. The revised fixture selects the open progression alternative. No quest state is overwritten. Physical launcher click and final visual acceptance remain pending.
 
 The revised active-exit fixture also crosses level 19 into introduction 230 and then reaches the boss at 181. Both effective-input runs accept all ten native exit requests. Launcher click acceptance is still pending.
+
+
+## Released scope and 1.3 progression bypass
+
+The native-contact correction ships in v1.2.1 (main 40dad7f4). Its ten recorded
+room transitions and separate Juno/Lupus fixture entries are retained evidence;
+this is not manual coverage of every map exit.
+
+The owner explicitly requests that 1.3 map exit warps enter the selected
+destination even when normal progression requirements are unmet. This is a
+change to the explicit warp mod only. Ordinary walking contacts must retain
+their progression rules. Preserve valid current player/exit/session checks,
+request freshness and nonce handling, and native destination/spawn semantics.
+Do not grant inventory items or permanently unlock quest flags to implement it.
+Locked/overlapping exits require focused and native transition verification.
+This follow-up is open under GitHub #21; no 1.3 bypass is released yet.
