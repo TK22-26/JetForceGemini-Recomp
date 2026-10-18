@@ -85,7 +85,7 @@ class FrameDiagnostics : public FramePresentationObserver {
                         file.open(directory/(stem+"-"+std::to_string(segment%4)+".csv"),std::ios::binary|std::ios::trunc);
                         if (!file) { failed.store(true); return; }
                         file << "# JFG frame diagnostics schema 2; successful present-return intervals, not monitor scanout\n"
-                             << "# SCENES counts screen-scene submissions, not simulation ticks; excludes 64x64 shadows\n"
+                             << "# SCENES counts distinct screen-scene VI ticks; extra passes share one tick; excludes 64x64 shadows\n"
                              << "# " << settings << "\n"
                              << "# Four rotating 16 MiB segments; queue overflow counted, never blocks rendering\n"
                              << "elapsed_us,render_frame,interval_us,scene_frames,scene_age_us,vi,queue_dropped\n";

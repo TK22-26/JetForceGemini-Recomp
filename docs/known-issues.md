@@ -1,10 +1,15 @@
 # Known issues
 
-Current status for 1.2.0. The [issue register](development/issues/README.md)
+Current status for the local 1.2.1-beta.1 preview, based on released 1.2.0. The [issue register](development/issues/README.md)
 contains causes, attempted remedies and evidence. Earlier candidate statuses are
 preserved in the [historical notes](development/known-issues-before-1.2.0.md).
 
 ## High-refresh rendering and performance
+
+The [Vela rescue cutscene](development/issues/vela-rescue-cutscene-stutter-resolution.md)
+has confirmed update stalls and shot-specific interpolation loss in v1.2.0.
+Presentation queue waits and repeated screen passes are localized; the reported
+low-resolution appearance and remedy still need targeted validation.
 
 Owner testing reports no perceptible gameplay slowdown and resolution of the
 reported shuriken reticle, resting-shuriken jitter and crouch-inversion problems.
@@ -25,6 +30,12 @@ See [performance](development/issues/goldwood-combat-slowdown.md),
 [diagnostic coverage](development/issues/frame-diagnostics.md).
 
 ## Controls and camera
+
+[GitHub #20: Ichor boss controls](development/issues/github-ichor-boss-controls.md)
+is an open progression blocker in v1.2.0. The owner reproduces lost modern
+mouse/strafe input. The focused preview passes unit/captured-state tests and
+native effective-input routes for mouse, controller and original mapping.
+Physical-device and full fight acceptance remain pending; this is not a released fix.
 
 Modern Controls is opt-in for player 1 in single-player. Original multiplayer uses
 Controller Mapping. Compatible SDL controllers and Xbox/PlayStation layouts are
@@ -55,6 +66,11 @@ and [Linux build](development/issues/github-linux-native-build.md).
 
 ## Gameplay, tools and support
 
+[Exit warp](development/issues/map-exit-warp-transition.md) can stop at a door
+instead of changing rooms. The owner confirms this worked previously; an
+preview queues the native eligible-exit contact and passes ten actual room
+transitions. Launcher click verification remains pending.
+
 The maintainer confirms the campaign, original multiplayer and optional content
 are playable. The retained completion run used optional infinite-health/enemy
 auto-kill mods and an unlocked save; it is not an exhaustive unassisted hardware
@@ -68,3 +84,8 @@ traversal still need manual play. Normal gameplay leaves the mod off.
 Support capture is best effort and may be partial after forced termination or
 early crashes. Nothing uploads automatically. Include the launcher/game version,
 location and reproduction steps using the [playtesting guide](playtesting.md).
+
+
+The Ichor hotfix preview remains local until physical input and fight verification.
+The failed experimental GPU-blur change is excluded; cutscene/boss blur quality
+and output pacing remain under investigation.

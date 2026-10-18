@@ -12,7 +12,7 @@ endif()
 
 project(
     jfg_recomp
-    VERSION 1.2.0
+    VERSION 1.2.1
     DESCRIPTION "ROM-free host scaffolding for a Jet Force Gemini native recompilation"
     LANGUAGES C CXX
 )
