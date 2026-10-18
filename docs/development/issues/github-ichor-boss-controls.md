@@ -244,3 +244,20 @@ warping, and the distinct-source scene counter. It excludes all unfinished 1.3
 performance work and the failed blur experiment. Owner verification must cover
 physical strafing, aiming, firing, jumping, pause/resume and death/re-entry before
 stable release or closing GitHub #20. No GitHub message has been posted.
+
+
+## Local preview delivery
+
+The 1.2.1-beta.1 package is built from clean hotfix source
+`8485b04938ceb57058bc5bbb6add83eb702d7aa0`. Native and launcher/setup tests pass, package inventory
+and checksums verify, and the exact packaged SSD runtime boots the copied Vela
+save successfully. Runtime SHA-256: `fac87d3be47a55e2be1c64068cd4a57ef95f319d7997f379fa6383a3495c45f4`.
+The original owner profile/save and official 1.2.0 package are unchanged.
+
+Desktop shortcut: **JFG - Ichor Hotfix Preview**. It uses an isolated copied
+profile, starts muted, and records on Play. Runtime/ROM are on the SSD; map,
+frame and diagnostic evidence are on D:. This is a physical input/fight review
+candidate. No release/tag, push, merge or GitHub issue closure is performed.
+Blur rendering and the long capture's audio events remain open.
+
+Private receipt: hotfix-preview-delivery.json; packaged-hotfix-bootstrap-01.
