@@ -1,6 +1,6 @@
 # Known issues
 
-Current status for the local 1.2.1-beta.1 preview, based on released 1.2.0. The [issue register](development/issues/README.md)
+Known issues and qualification limits for 1.2.1. The [issue register](development/issues/README.md)
 contains causes, attempted remedies and evidence. Earlier candidate statuses are
 preserved in the [historical notes](development/known-issues-before-1.2.0.md).
 
@@ -32,10 +32,10 @@ See [performance](development/issues/goldwood-combat-slowdown.md),
 ## Controls and camera
 
 [GitHub #20: Ichor boss controls](development/issues/github-ichor-boss-controls.md)
-is an open progression blocker in v1.2.0. The owner reproduces lost modern
-mouse/strafe input. The focused preview passes unit/captured-state tests and
-native effective-input routes for mouse, controller and original mapping.
-Physical-device and full fight acceptance remain pending; this is not a released fix.
+is corrected in 1.2.1. The native boss actor was mistaken for an input lock.
+Unit/captured-state tests and native effective-input routes cover mouse,
+controller and original mapping. The owner confirms controls in Vela/Ichor,
+Juno and Lupus fights. Mizar and a full physical-device matrix were not tested.
 
 Modern Controls is opt-in for player 1 in single-player. Original multiplayer uses
 Controller Mapping. Compatible SDL controllers and Xbox/PlayStation layouts are
@@ -66,10 +66,10 @@ and [Linux build](development/issues/github-linux-native-build.md).
 
 ## Gameplay, tools and support
 
-[Exit warp](development/issues/map-exit-warp-transition.md) can stop at a door
-instead of changing rooms. The owner confirms this worked previously; an
-preview queues the native eligible-exit contact and passes ten actual room
-transitions. Launcher click verification remains pending.
+[Exit warp](development/issues/map-exit-warp-transition.md) now requests the
+eligible native transition instead of stopping at the door. Ten native room
+transitions and the separate Juno/Lupus boss entries pass. Normal progression
+requirements still apply; manual coverage of every launcher exit is incomplete.
 
 The maintainer confirms the campaign, original multiplayer and optional content
 are playable. The retained completion run used optional infinite-health/enemy
@@ -86,11 +86,10 @@ early crashes. Nothing uploads automatically. Include the launcher/game version,
 location and reproduction steps using the [playtesting guide](playtesting.md).
 
 
-The Ichor hotfix preview remains local until physical input and fight verification.
 The failed experimental GPU-blur change is excluded; cutscene/boss blur quality
 and output pacing remain under investigation.
 
-### Boss-controls preview verification (2026-10-18)
+### Boss-controls verification (2026-10-18)
 
 The owner confirms Vela/Ichor, Juno and Lupus controls in 1.2.1-beta.1; the focused stable 1.2.1 release is approved. This preview does not resolve [Vela cutscene stalls/resolution](development/issues/vela-rescue-cutscene-stutter-resolution.md). See [INPUT-011](development/issues/github-ichor-boss-controls.md).
 
