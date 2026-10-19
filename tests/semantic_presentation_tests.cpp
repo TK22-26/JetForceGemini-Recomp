@@ -107,6 +107,8 @@ int main() {
   // including overlaps, palette ambiguity, LOD ownership and wrapped ranges.
   {
     std::mt19937 random(0x4a464742U);
+    // mt19937 emits 32-bit values; result_type is wider on LP64 hosts.
+    const auto random32 = [&]() { return static_cast<std::uint32_t>(random()); };
     jfg::PresentationSceneIdentity scene;
     std::array<jfg::PresentationVertexIdentity,33> batch;
     std::size_t geometry_cases=0;
@@ -125,23 +127,23 @@ int main() {
       scene.models.clear();
       for(unsigned i=0;i<32;++i) {
         jfg::PresentationModelIdentity model;
-        model.actor=random()%4U;model.lifetime=random()%3U;
-        model.palettes={0x1000U+(random()%8U)*64U,random()%2U?0U:0x1000U+(random()%8U)*64U};
-        model.bone_count=random()%16U;
-        model.vertices=0x4000U+(random()%64U)*10U+(trial%7U==0?1U:0U);
-        model.vertex_count=random()%64U;
+        model.actor=random32()%4U;model.lifetime=random32()%3U;
+        model.palettes={0x1000U+(random32()%8U)*64U,random32()%2U?0U:0x1000U+(random32()%8U)*64U};
+        model.bone_count=random32()%16U;
+        model.vertices=0x4000U+(random32()%64U)*10U+(trial%7U==0?1U:0U);
+        model.vertex_count=random32()%64U;
         if(trial%2U==0) {
           model.actor=i%4U;model.lifetime=1;
           model.palettes={i<4U?0x1000U+i*1024U:0U,0U};model.bone_count=8U;
         }
-        if(trial%11U==0)model.vertex_count=0x80000000U+random()%64U;
-        if(trial%13U==0)model.bone_count=0x80000000U+random()%16U;
+        if(trial%11U==0)model.vertex_count=0x80000000U+random32()%64U;
+        if(trial%13U==0)model.bone_count=0x80000000U+random32()%16U;
         scene.models.push_back(model);
       }
       for(unsigned pass=0;pass<2;++pass) {
         for(const auto& model:scene.models)
           for(unsigned count:{0U,1U,16U,32U,33U})
-            check(model.palettes[0]+(random()%8U)*64U,model.vertices-(random()%8U)*10U,count);
+            check(model.palettes[0]+(random32()%8U)*64U,model.vertices-(random32()%8U)*10U,count);
         check(0x1000U,0xfffffff0U,32);
         check(0x1001U,0x4000U,32);
         std::reverse(scene.models.begin(),scene.models.end());

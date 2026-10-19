@@ -1,11 +1,12 @@
 # Preserve the pinned timer and replace only its build-tree translation unit.
 set(jfg_timer_source "${jfg_rt64_root}/src/common/rt64_timer.cpp")
-file(SHA256 "${jfg_timer_source}" jfg_timer_hash)
+# Validate canonical text: Git may convert this pinned source to CRLF.
+file(READ "${jfg_timer_source}" jfg_timer_contents)
+string(REPLACE "\r\n" "\n" jfg_timer_contents "${jfg_timer_contents}")
+string(SHA256 jfg_timer_hash "${jfg_timer_contents}")
 if(NOT jfg_timer_hash STREQUAL "26acd31fb9236219441f4d5044060a041147ff6aebd445a671c6f4743cadc7cd")
     message(FATAL_ERROR "Pinned RT64 presentation timer differs")
 endif()
-file(READ "${jfg_timer_source}" jfg_timer_contents)
-string(REPLACE "\r\n" "\n" jfg_timer_contents "${jfg_timer_contents}")
 set(jfg_timer_site "    void Timer::preciseSleepUntil(const Timestamp endTime) {")
 string(FIND "${jfg_timer_contents}" "${jfg_timer_site}" jfg_timer_at)
 if(jfg_timer_at EQUAL -1)

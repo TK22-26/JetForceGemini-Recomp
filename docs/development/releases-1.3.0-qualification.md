@@ -135,3 +135,13 @@ not close them or substitute for reporter-specific reproduction.
 
 The owner requires reading and approving each proposed comment before posting.
 Draft replies will link the actual published release only after it exists.
+
+## Local develop working-tree reconciliation
+
+All seven uncommitted files in the owner's develop checkout were compared
+before publication. The issue18 handoff, PC-controls historical measurement
+section and sanitized JSON evidence already match the release source exactly.
+The issue record, index and known-issues intent is retained with newer v1.3
+status/evidence; old no-fix/undiagnosed statements are not restored over the
+verified corrections. Additional community credits were missing and are now
+included. Original local files remain preserved until branch integration.
