@@ -22,7 +22,8 @@
 - Retain the v1.2.1 boss-controls and source-scene FPS counter corrections.
 
 Owner route and targeted visual review are complete; exact seeded parity is not
-claimed. Release-package qualification is required before publication.
+claimed. See the [release qualification](docs/development/releases-1.3.0-qualification.md)
+for validation evidence and limits.
 Reporter-specific reticle/hut behavior and the exact invasion-replay report
 await v1.3 retests; see [known issues](docs/known-issues.md).
 

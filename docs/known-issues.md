@@ -1,6 +1,6 @@
 # Known issues
 
-Current status for released v1.2.1 and the unreleased v1.3 candidate.
+Current v1.3 status and remaining qualification limits.
 The [issue register](development/issues/README.md) links detailed evidence.
 Earlier investigation states are preserved in the
 [pre-v1.3 notes](development/known-issues-before-1.3.0.md); they are historical,
@@ -16,11 +16,11 @@ frame timing distributions and limits are recorded in the release checklist. An 
 or noticeable stutter, audio gaps and lost input still require attention.
 No campaign-wide, every-device or zero-stall guarantee is claimed.
 
-The v1.3 candidate includes the owner-accepted ship-cutscene improvements,
+v1.3 includes the owner-accepted ship-cutscene improvements,
 high-refresh glass correction, boss camera-sweep interpolation, Reduced blur,
 high-drop/ledge camera retention, storage settings and live fog strength.
 Native standing-aim movement matches the measured original Expert values
-in the qualified owner capture. These changes are local and unreleased.
+in the qualified owner capture. See the release checklist for build and publication evidence.
 
 A brief Vela-to-first-cut transition dip was previously reported. Ground-shadow
 cadence, broader scene/camera coverage and Unlimited/360+ Hz behavior retain
@@ -41,7 +41,7 @@ reports resolved. See [performance follow-up](development/issues/1.2.1-session-1
   King Jeff replay and reporter settings remain independently unverified.
 - [#18: targeting controls](development/issues/github-held-aim-and-diagonal-movement.md):
   the reporter confirms firing no longer cancels held aim in v1.2.0. The separate
-  standing-aim diagonal-speed correction is included locally for v1.3.
+  standing-aim diagonal-speed correction is included in v1.3.
 - [#4: Windows source setup](development/issues/github-windows-source-setup.md)
   and [#15: Linux source build](development/issues/github-linux-native-build.md):
   prior source remedies are released, while reporter-platform qualification

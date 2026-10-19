@@ -7,14 +7,15 @@ to check a problem, see [known issues](known-issues.md).
 
 ## Completed v1 release
 
-**v1.1.0 is fully playable from beginning to end**, with original local multiplayer
+**The v1 game is fully playable from beginning to end**, with original local multiplayer
 and optional content confirmed working by the maintainer. The Windows x64 ZIP
 contains the prebuilt program and runtime libraries: import your supported US
 ROM once and play. No ROMs or game assets are included, and no first-run build or
 developer tools are required. See the [project dashboard](dashboard.md).
 
-The latest development build adds the major controller/keyboard/mouse overhaul;
-the new update checker is also in current source, awaiting release. See the
+The v1.3 release includes modern controller/keyboard/mouse controls, the update
+checker, high-refresh rendering improvements, adjustable blur/fog and portable
+storage settings. See the
 [controls guide](features/pc-controls.md) and [update-checker record](development/issues/launcher-update-discovery.md).
 
 The retained campaign run used infinite-health/enemy auto-kill testing mods and
