@@ -88,6 +88,13 @@ public:
     stream_.finish();
   }
   bool memory_write_failed() const noexcept { return memory_write_failed_; }
+  // Correlate relative gameplay rows with renderer timestamps without guessing
+  // from buffered file writes. This does not add clock reads to the event path.
+  std::uint64_t steady_origin_us() const noexcept {
+    return static_cast<std::uint64_t>(std::chrono::duration_cast<
+        std::chrono::microseconds>(start_.time_since_epoch()).count());
+  }
+
   void flush() { if (stream_.is_open()) stream_.flush(); }
   void event(const char *kind, std::span<const std::uint64_t> values) {
     if (!*this) return;

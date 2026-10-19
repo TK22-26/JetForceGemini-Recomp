@@ -1598,3 +1598,21 @@ collision, momentum, steering, animation and landing. Continuing aim also retain
 pitch through the native landing-to-aim transition. Original Controller Mapping
 keeps the original restrictions. See the [issue record](../development/issues/widescreen-pointer-and-airborne-aim.md)
 for test results and remaining live verification.
+
+### 2026-10-17: Native aimed movement comparison for issue 18
+
+Guarded EmuHawk measurements of original North American Juno/Expert targeting
+show independent forward and strafe components of 4.0625 and 2.5 units/native
+tick. Their combined speed is 4.77010548, a 17.4% advantage over aimed forward
+movement. The v1.2.0 modern aim helper's forward scale of 3.0 and radial
+normalization do not preserve that native baseline. Earlier normalization notes
+record implementation behavior; the native analog radial cap alone does not
+establish the maximum speed of combined native movement actions.
+
+Original Normal targeting allowed lateral movement but no forward movement
+with the inputs tested. Held aim survived stationary and moving pistol fire in
+both presets. These results support a movement compatibility correction for 1.3;
+no candidate has been implemented and the reported keyboard/mouse aim
+cancellation still needs diagnosis. See [GH-018](../development/issues/github-held-aim-and-diagonal-movement.md)
+and its [detailed handoff](../development/issue18-native-controls-handoff-2026-10-17.md)
+for measurement scope, evidence and continuation constraints.

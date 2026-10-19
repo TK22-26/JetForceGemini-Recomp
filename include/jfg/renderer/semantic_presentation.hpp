@@ -1,4 +1,5 @@
 #pragma once
+#include <span>
 #include "jfg/renderer/interpolation_history.hpp"
 #include <set>
 #include <map>
@@ -12,10 +13,61 @@ using PresentationVertexKey = std::array<std::uint64_t, 6>;
 struct SemanticPresentationSample {
   // Lifetime, actor/instance, model, camera identity, joint, logical vertex.
   PresentationVertexKey key{};
+
   std::array<float, 3> world{};
   PresentationMatrix camera{};
   bool valid = false;
+  // Decoder proved the affine bone matrix collapses every local vertex to
+  // one finite world point. Topology must still prove it is non-rendering.
+  bool point_collapsed = false;
 };
+
+// Native death animations hide bones by scaling them exactly to zero.
+// Do not treat an almost-zero, non-affine or nonfinite matrix as hidden.
+inline bool semantic_point_collapse(const PresentationMatrix& matrix) {
+  for (std::size_t i=0;i<12U;++i)
+    if (matrix[i]!=0.0F) return false;
+  return matrix[15]==1.0F && std::isfinite(matrix[12]) &&
+      std::isfinite(matrix[13]) && std::isfinite(matrix[14]);
+}
+
+// Exclude only collapsed vertices whose incident triangles all collapse to
+// the same owned world point. They have no rasterized area. A connection to
+// visible geometry keeps the original invalid-actor safeguard. GPU geometry
+// is untouched, and the caller must hold excluded matrices at the endpoint.
+inline std::size_t exclude_collapsed_semantic_samples(
+    std::span<SemanticPresentationSample> samples,
+    std::span<const std::uint32_t> indices) {
+  if (indices.size()%3U || std::none_of(samples.begin(),samples.end(),
+      [](const auto& s){return s.point_collapsed && s.key[0] && !s.valid;}))
+    return 0U;
+  std::vector<std::uint8_t> excluded(samples.size());
+  for(std::size_t i=0;i<samples.size();++i) {
+    const auto& s=samples[i];
+    excluded[i]=s.point_collapsed && s.key[0] && !s.valid &&
+        std::all_of(s.world.begin(),s.world.end(),[](float v){return std::isfinite(v);});
+  }
+  for(const auto index:indices) if(index>=samples.size())return 0U;
+  for(std::size_t t=0;t<indices.size();t+=3U) {
+    const auto a=indices[t],b=indices[t+1U],c=indices[t+2U];
+    const auto& x=samples[a];const auto& y=samples[b];const auto& z=samples[c];
+    const auto same_owner=[](const auto& p,const auto& q) {
+      return std::equal(p.key.begin(),p.key.begin()+4,q.key.begin());
+    };
+    // Eligibility is not propagated between triangles: any visible use
+    // permanently vetoes exclusion for that vertex.
+    if(!x.point_collapsed || !y.point_collapsed || !z.point_collapsed ||
+       x.world!=y.world || x.world!=z.world ||
+       !same_owner(x,y) || !same_owner(x,z))
+      excluded[a]=excluded[b]=excluded[c]=0U;
+  }
+  std::size_t count=0;
+  for(std::size_t i=0;i<samples.size();++i) if(excluded[i]) {
+    samples[i].key={}; // No inverse or history entry for a hidden point.
+    ++count;
+  }
+  return count;
+}
 struct SemanticPresentationPrevious {
   std::array<float, 3> world{};
   PresentationMatrix camera{};
@@ -74,8 +126,27 @@ struct PresentationVertexHash {
 };
 // Optional per-lifetime reasons: invalid sample, cadence break, conflicting
 // duplicate, missing old endpoint, projected-motion cut, matched vertex.
-using SemanticPresentationDiagnostics=std::map<std::uint64_t,std::array<std::uint64_t,6>>;
+using SemanticPresentationDiagnostics=std::map<std::uint64_t,std::array<std::uint64_t,7>>;
 using SemanticRigidPoses=std::map<std::uint64_t,RigidPresentationPose>;
+// Captured camera operands must have matched the actual emitted fixed matrix.
+// Generation separates rooms; the key identifies the camera mode/player.
+struct SemanticCameraFrame {
+  std::uint64_t generation = 0;
+  RigidPresentationPose pose{};
+  PresentationMatrix matrix{};
+};
+using SemanticCameraFrames=std::map<std::uint64_t,SemanticCameraFrame>;
+inline bool semantic_world_motion_continuous(const SemanticPresentationSample& old,
+                                             const SemanticPresentationSample& current) {
+  double distance2=0;
+  for(unsigned c=0;c<3;++c) {
+    if(!std::isfinite(old.world[c]) || !std::isfinite(current.world[c]))return false;
+    const auto delta=double(current.world[c])-old.world[c];distance2+=delta*delta;
+  }
+  // Same guest-world bound as the owned bridge path. Real relocations must
+  // not trail across a source interval, even if their projected size is small.
+  return distance2<=128.0*128.0;
+}
 class SemanticPresentationHistory {
   struct Endpoint {
     SemanticPresentationSample sample;
@@ -122,10 +193,23 @@ public:
   record(const std::vector<SemanticPresentationSample> &samples,
          std::uint64_t tick, bool scene, bool cadence,
          SemanticPresentationDiagnostics* diagnostics=nullptr,
-         const SemanticRigidPoses* rigid_poses=nullptr) {
-    std::vector<SemanticPresentationPrevious> result(samples.size());
-    if (!scene)
-      return result;
+         const SemanticRigidPoses* rigid_poses=nullptr,
+         const SemanticCameraFrames* camera_frames=nullptr) {
+    std::vector<SemanticPresentationPrevious> result;
+    record_into(samples, tick, scene, cadence, result, diagnostics, rigid_poses, camera_frames);
+    return result;
+  }
+  // The caller owns this scratch output, which is consumed before its next
+  // use. Reset every element even when size is unchanged: a held/offscreen
+  // scene must never retain the preceding scene's matched endpoints.
+  void record_into(const std::vector<SemanticPresentationSample>& samples,
+      std::uint64_t tick, bool scene, bool cadence,
+      std::vector<SemanticPresentationPrevious>& result,
+      SemanticPresentationDiagnostics* diagnostics=nullptr,
+      const SemanticRigidPoses* rigid_poses=nullptr,
+         const SemanticCameraFrames* camera_frames=nullptr) {
+    result.assign(samples.size(), SemanticPresentationPrevious{});
+    if (!scene) return;
     next_.clear(samples.size());
     std::set<std::uint64_t> blocked, corrupt;
     const bool continuous = cadence && previous_tick_ != 0U &&
@@ -137,6 +221,25 @@ public:
       if(old!=previous_rigid_poses_.end() && continuous_owned_camera_motion(old->second,pose))
         continuous_rigids.insert(lifetime);
     }
+    std::set<std::uint64_t> continuous_cameras;
+    if(camera_frames)for(const auto& [identity,camera]:*camera_frames) {
+      const auto old=previous_camera_frames_.find(identity);
+      if(old!=previous_camera_frames_.end() && camera.generation!=0U &&
+         old->second.generation==camera.generation &&
+         continuous_owned_camera_motion(old->second.pose,camera.pose))
+        continuous_cameras.insert(identity);
+    }
+    const auto owned_camera_motion=[&](const auto& old,const auto& current)
+        -> std::optional<bool> {
+      if(!camera_frames)return std::nullopt;
+      const auto camera=camera_frames->find(current.key[3]);
+      const auto prior=previous_camera_frames_.find(old.key[3]);
+      if(camera==camera_frames->end() || prior==previous_camera_frames_.end() ||
+         camera->second.matrix!=current.camera || prior->second.matrix!=old.camera)
+        return std::nullopt;
+      return continuous_cameras.contains(current.key[3]) &&
+             semantic_world_motion_continuous(old,current);
+    };
     const auto bridge_continuous=[&](const auto& old,const auto& current) {
       if(current.key[4]!=0x42524944U || !continuous_rigids.contains(current.key[0]))
         return false;
@@ -188,12 +291,24 @@ public:
       if (old == nullptr) {
         blocked.insert(actor);
         if(diagnostics)++(*diagnostics)[actor][3];
-      } else if(!semantic_motion_continuous(old->sample,s) && !bridge_continuous(old->sample,s)) {
-        blocked.insert(actor);
-        if(diagnostics)++(*diagnostics)[actor][4];
       } else {
-        result[i] = {old->sample.world, old->sample.camera, true};
-        if(diagnostics)++(*diagnostics)[actor][5];
+        // Screen-space speed combines the camera and actor. A close/offscreen
+        // vertex can exceed that threshold during a valid camera sweep and
+        // otherwise freeze every visible joint at a different camera phase.
+        const bool projected=semantic_motion_continuous(old->sample,s);
+        const auto owned=owned_camera_motion(old->sample,s);
+        const bool motion=owned.has_value()?*owned:
+            (projected || bridge_continuous(old->sample,s));
+        if(!motion) {
+          blocked.insert(actor);
+          if(diagnostics)++(*diagnostics)[actor][4];
+        } else {
+          result[i] = {old->sample.world, old->sample.camera, true};
+          if(diagnostics) {
+            ++(*diagnostics)[actor][5];
+            (*diagnostics)[actor][6]+=!projected && owned.value_or(false);
+          }
+        }
       }
     }
     for (std::size_t i = 0; i < samples.size(); ++i)
@@ -205,12 +320,13 @@ public:
     std::swap(previous_,next_);
     previous_tick_ = tick;
     previous_rigid_poses_=rigid_poses?*rigid_poses:SemanticRigidPoses{};
-    return result;
+    previous_camera_frames_=camera_frames?*camera_frames:SemanticCameraFrames{};
   }
 
 private:
   Endpoints previous_, next_;
   SemanticRigidPoses previous_rigid_poses_;
+  SemanticCameraFrames previous_camera_frames_;
   std::uint64_t previous_tick_ = 0;
 };
 } // namespace jfg

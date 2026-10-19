@@ -1,22 +1,17 @@
 #pragma once
 
-// Deterministic stackful thread executor (Phase 6 native boot).
+// Deterministic stackful guest-thread executor.
 //
-// Recompiled game threads are imperative C that calls libultra (e.g.
-// osRecvMesg) mid-function and expects to block there until woken. To run
-// that real code we need genuine stacks. This executor gives each guest
-// thread a real OS thread but enforces that **exactly one participant runs at
-// a time**, handing a single "baton" back and forth. The scheduler decides
-// who runs next, so the interleaving is fully determined by scheduler choices,
-// not by host thread timing — deterministic, while preserving real stacks.
+// Recompiled game code can block in libultra calls deep within a C stack.
+// Each guest participant owns a stack; exactly one participant runs at a time.
+// The scheduler selects every handoff, independently of host thread timing.
 //
-// Why real threads and not fibers: real stacks are natively understood by
-// AddressSanitizer (no fiber switch annotations), and the baton guarantees no
-// concurrent access, so there are no data races to reason about.
-//
-// This is the execution substrate; binding it to osCreateThread/osStartThread
-// and the message-queue HLE is a later brick.
+// OS threads remain the default and sanitizer-compatible backend. The opt-in
+// Windows fiber backend preserves the same handoffs on one host thread, with
+// per-stack state and floating-point preservation. Neither backend runs guest
+// participants concurrently.
 
+#include <atomic>
 #include <condition_variable>
 #include <chrono>
 #include <cstdint>
@@ -44,16 +39,26 @@ public:
     // Diagnostic only; configured before participants exist. Measures baton
     // publication-to-receipt latency, never time executing a guest slice.
     void enable_timing(bool enabled);
+    // Optional bounded polling before the existing parked wait; configure before spawn.
+    void set_spin_budget(unsigned microseconds);
     [[nodiscard]] Timing timing();
+    struct CycleSample { std::uint64_t cycles=0;std::uint32_t participant=0;bool valid=false; };
+    [[nodiscard]] static CycleSample host_cycles() noexcept;
+    // When diagnostic timing is enabled, exclude cycles spent on other fibers.
+    [[nodiscard]] CycleSample execution_cycles() const noexcept;
 
-    BatonExecutor() = default;
+    // Optional same-thread Windows stacks. Guest scheduling remains unchanged.
+    // Unavailable under ASan until sanitizer stack-switch support is qualified.
+    void set_fiber_mode(bool enabled);
+    [[nodiscard]] static bool fibers_supported() noexcept;
+    BatonExecutor();
     ~BatonExecutor();
 
     BatonExecutor(const BatonExecutor&) = delete;
     BatonExecutor& operator=(const BatonExecutor&) = delete;
 
-    // Registers a participant and starts its OS thread parked (waiting for the
-    // baton). Returns its id. Must be called from the scheduler side only.
+    // Registers a participant with its own parked stack. Returns its id.
+    // Must be called from the scheduler side only.
     [[nodiscard]] int spawn(Body body);
 
     // Scheduler hands the baton to participant `id`, blocks until the baton
@@ -65,8 +70,8 @@ public:
     // resumed again. Participant-side only.
     void yield_to_scheduler();
 
-    // Joins all participant threads. Any still-parked participant is released
-    // and allowed to run to completion. Scheduler-side only.
+    // Unwinds parked participants, then joins threads or deletes fiber stacks.
+    // Scheduler-side only; repeated shutdown calls are harmless.
     void shutdown();
 
     [[nodiscard]] std::size_t participant_count() const noexcept {
@@ -74,6 +79,8 @@ public:
     }
 
 private:
+    struct FiberState;
+    std::unique_ptr<FiberState> fibers_;
     struct Participant final {
         std::thread thread;
         std::unique_ptr<std::condition_variable> ready = std::make_unique<std::condition_variable>();
@@ -92,7 +99,8 @@ private:
     std::chrono::steady_clock::time_point handoff_started_{};
     std::mutex mutex_;
     std::condition_variable cv_;
-    int holder_ = kSchedulerParticipant;
+    std::atomic<int> holder_{kSchedulerParticipant};
+    unsigned spin_microseconds_ = 0;
     bool shutting_down_ = false;
     std::vector<Participant> participants_;
 };

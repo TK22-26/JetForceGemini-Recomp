@@ -93,3 +93,50 @@ request freshness and nonce handling, and native destination/spawn semantics.
 Do not grant inventory items or permanently unlock quest flags to implement it.
 Locked/overlapping exits require focused and native transition verification.
 This follow-up is open under GitHub #21; no 1.3 bypass is released yet.
+
+## 1.3 explicit warp progression bypass candidate
+
+The owner requests unrestricted explicit map exit warps. The 1.3 candidate
+removes the host progression predicate from that command only, while retaining
+loaded-exit identity, current room/generation, nonce/age, active player,
+instruction-layout and pending-transition checks. It still queues the native
+contact and does not grant items, alter quest flags or patch ordinary exit logic.
+The launcher help now describes the bypass.
+
+The new focused regression fails against the 1.2.1 eligibility restriction,
+then passes with the candidate in both memory byte orders. It covers missing
+and unknown progression, exact selection between overlapping exits, unchanged
+progression queries/flags, duplicate/stale commands and invalid gameplay states.
+The first build wrapper could not locate CMake on PATH; no test ran in that
+attempt. Using the retained qualified tool path completed both comparisons.
+Launcher command checks and an actual locked-exit native transition are pending.
+Private evidence: goldwood-exit-1.3-20261017/ungated-warps.
+
+The first locked native fixture accepts Lupus's condition-24 exit but enters
+introduction 352 instead of its selected fight 210; the Ichor fixture similarly
+enters introduction 230 instead of 181. These are failures, despite passing
+focused tests and reaching a different room. The first candidate can lose its
+selected contact to an overlapping native exit before controlPlayer consumes it.
+A follow-up retains the exact selection and reasserts it once at the native
+player-update boundary, revalidating room/generation, player, live exit descriptor,
+age and health. No progression flags change. Focused interleaving/removal/expiry
+tests and a diagnostic of the replaced contact are added; native verification
+is pending. Preserve the failed fixture evidence.
+
+The boundary diagnostic confirms the race: Lupus's ordinary contact changed to
+0x801ba170; the explicit selection restores 0x801bbcf0 and the native transition
+receives destination 210. Ichor likewise receives selected destination 181.
+Both untouched first-visit states subsequently request their native introduction
+(352 / 230). The fixture assertion expecting an already-active boss therefore
+still failed; this later native introduction is separate from the corrected
+contact race. It is not evidence of reaching active combat or bypassing all
+scripts inside a destination. The explicit warp bypasses door/exit progression,
+while native first-visit scene handling remains intact.
+
+Focused handoff checks pass, including a replaced contact, a removed exit,
+expiry and generation changes. Both memory byte orders are exercised. The
+launcher command tests/build pass; the merged runtime also passes navigation,
+modern/PC input and unique-VI presentation checks. Both native probes were
+muted/hidden and retained their original source saves. This verifies native
+locked-exit handoff, not manual coverage of every launcher exit.
+Private proof: ungated-warps/native-contact-verification.json.

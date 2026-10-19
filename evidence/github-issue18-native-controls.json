@@ -1,0 +1,290 @@
+{
+  "schema": 1,
+  "issue": 18,
+  "status": "native behavior measured; modern movement source mismatch identified; no fix implemented",
+  "date_utc": "2026-10-17",
+  "original_game": {
+    "region": "USA",
+    "rom_sha256": "159dde164c475976a3e527fbb20978431d4765f2c63019b3530c3aa8772595aa",
+    "emulator": "BizHawk 2.11.1 / Mupen64Plus cached interpreter",
+    "emulator_sha256": "f8cdb93551a544f680bf3876d9d8d72643859e7a44a23b04e1a25b92e48f80cd",
+    "character": "Juno",
+    "weapon": "starting pistol",
+    "save": "fresh isolated save created with ordinary controller inputs",
+    "gameplay_memory_writes": false
+  },
+  "method": "Restore identical RDRAM checkpoint per trial; record controller polls, position, native movement state, velocity, and A1 update timestep. Use level-ground, fixed-heading, post-acceleration intervals; independently compare displacement/timestep with native velocity magnitude. Two repeats of each Expert critical case. Normal selected through native pause menus.",
+  "expert_aim_measurements": [
+    {
+      "input": "aim_forward",
+      "units_per_native_tick": 4.0625,
+      "repetitions": 2,
+      "qualified_samples": 54
+    },
+    {
+      "input": "aim_right",
+      "units_per_native_tick": 2.5,
+      "repetitions": 2,
+      "qualified_samples": 54
+    },
+    {
+      "input": "aim_left",
+      "units_per_native_tick": 2.5,
+      "repetitions": 2,
+      "qualified_samples": 44
+    },
+    {
+      "input": "aim_forward_right",
+      "units_per_native_tick": 4.770105475773046,
+      "repetitions": 2,
+      "qualified_samples": 54
+    },
+    {
+      "input": "aim_forward_left",
+      "units_per_native_tick": 4.770105475773046,
+      "repetitions": 2,
+      "qualified_samples": 48
+    }
+  ],
+  "diagonal_bonus_percent": 17.417980942105736,
+  "firing": {
+    "prior_trials": [
+      {
+        "preset": "expert",
+        "input": "aim_fire",
+        "repeat": 0,
+        "shots": 8,
+        "observed_movement": 0.0
+      },
+      {
+        "preset": "expert",
+        "input": "aim_move_fire",
+        "repeat": 0,
+        "shots": 8,
+        "observed_movement": 4.0625
+      },
+      {
+        "preset": "expert",
+        "input": "aim_fire",
+        "repeat": 1,
+        "shots": 8,
+        "observed_movement": 0.0
+      },
+      {
+        "preset": "expert",
+        "input": "aim_move_fire",
+        "repeat": 1,
+        "shots": 8,
+        "observed_movement": 4.0625
+      },
+      {
+        "preset": "normal",
+        "input": "aim_fire",
+        "repeat": 0,
+        "shots": 8,
+        "observed_movement": 0.0
+      },
+      {
+        "preset": "normal",
+        "input": "aim_move_fire",
+        "repeat": 0,
+        "shots": 8,
+        "observed_movement": 0.0
+      },
+      {
+        "preset": "normal",
+        "input": "aim_fire",
+        "repeat": 1,
+        "shots": 8,
+        "observed_movement": 0.0
+      },
+      {
+        "preset": "normal",
+        "input": "aim_move_fire",
+        "repeat": 1,
+        "shots": 8,
+        "observed_movement": 0.0
+      }
+    ],
+    "normal_strafe_firing": {
+      "input": "R_CRight_Z",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 2.5,
+      "displacement": 202.6999969482422,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 8
+    },
+    "aim_remained_active": true
+  },
+  "normal_input_checks": [
+    {
+      "input": "R_only",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 0.0,
+      "displacement": 0.0,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 0
+    },
+    {
+      "input": "R_A",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 0.0,
+      "displacement": 0.0,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 0
+    },
+    {
+      "input": "R_B",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 0.0,
+      "displacement": 0.0,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 0
+    },
+    {
+      "input": "R_CUp",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 0.0,
+      "displacement": 0.0,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 0
+    },
+    {
+      "input": "R_CDown",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 0.0,
+      "displacement": 0.0,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 0
+    },
+    {
+      "input": "R_stick_up",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 0.0,
+      "displacement": 0.0,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 0
+    },
+    {
+      "input": "R_stick_down",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 0.0,
+      "displacement": 0.0,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 0
+    },
+    {
+      "input": "R_CRight",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 2.5,
+      "displacement": 206.8000030517578,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 0
+    },
+    {
+      "input": "R_CUp_CRight",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 2.5,
+      "displacement": 206.8000030517578,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 0
+    },
+    {
+      "input": "R_CDown_CRight",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 2.5,
+      "displacement": 206.8000030517578,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 0
+    },
+    {
+      "input": "R_CRight_Z",
+      "median_forward_velocity": 0.0,
+      "median_side_velocity": 2.5,
+      "displacement": 202.6999969482422,
+      "aim_values": [
+        1
+      ],
+      "states": [
+        11
+      ],
+      "shots": 8
+    }
+  ],
+  "published_modern_source": {
+    "tag": "v1.2.0",
+    "commit": "f56cd94c4bd7583bceee201eb3f229f744216bc1",
+    "function": "pc_aim_movement",
+    "file": "include/jfg/runtime/pc_input.hpp",
+    "finding": "Normalizes combined axes and uses forward magnitude 3.0; original Expert forward is 4.0625 and forward/strafe components combine without that normalization. Source comparison, not a current-build physical-input reproduction."
+  },
+  "limitations": [
+    "Only Juno/starting pistol and this Goldwood area were qualified.",
+    "Normal R+A trials were mislabeled aim_forward in the raw first Normal matrix; they produced no forward movement and are not Expert-equivalent forward tests.",
+    "Initial spawn ramp, backward boundary contacts, turning and variable update-timestep samples must not be used as speed baselines.",
+    "Exact reporter runtime and binding/profile remain unknown; aim-cancellation cause remains open.",
+    "No modified recomp executable, fix verification, commit, release or GitHub reply."
+  ],
+  "private_evidence_id": "issue18-native-controls-20261017",
+  "evidence_sha256": {
+    "qualify/analysis.json": "1041759d7a71478c2d7c511ddd64ad7fa18898f025e97d0b3386a6d38d13588c",
+    "qualify/session/frames.tsv": "dc628197a4102a4e5718b8c9e0affb368f73af327155b43676f5a99d5a9bbc1a",
+    "normal/analysis.json": "c7a8834bafef9114e2b1f6acec0695552aac345e8020c1df999004d7cddf5196",
+    "normal/session/frames.tsv": "9433a03b8d6dd062c36dc0826ac319df4c06dc4ec0dfba529e86746935016e34"
+  }
+}

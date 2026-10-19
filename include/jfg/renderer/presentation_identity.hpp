@@ -1,6 +1,9 @@
 #pragma once
 #include "jfg/renderer/rigid_camera.hpp"
 #include <array>
+#include <algorithm>
+#include <bitset>
+#include <limits>
 #include <bit>
 #include <cstdint>
 #include <cstring>
@@ -43,12 +46,30 @@ struct PresentationBeamIdentity {
   std::uint64_t lifetime = 0;
   std::uint32_t actor = 0, control = 0, header = 0, vertices = 0, flags = 0;
 };
+// US behavior 78 / glassDraw: intact panes use a shared four-vertex quad,
+// outside the actor's model vertex allocations. The control allocation and
+// actor lifetime own this custom draw; the vertex address only locates it.
+struct PresentationGlassIdentity {
+  std::uint64_t lifetime = 0;
+  std::uint32_t actor = 0, control = 0, header = 0, vertices = 0;
+  std::array<float,2> texture_period{};
+};
+// US behavior 64 / objPrintSeveredLimb draws baked body-part vertices with
+// no model instances. The live actor/control allocation owns the geometry;
+// display-list DMA ranges delimit it without guessing allocation sizes.
+struct PresentationLimbIdentity {
+  std::uint64_t lifetime = 0;
+  std::uint32_t actor = 0, control = 0, header = 0, vertices = 0;
+  std::vector<std::array<std::uint32_t,2>> ranges;
+};
 struct PresentationSceneIdentity {
   std::vector<PresentationModelIdentity> models;
   std::vector<PresentationCameraIdentity> cameras;
   std::vector<PresentationSpriteIdentity> sprites;
   std::vector<PresentationRigidIdentity> rigids;
   std::vector<PresentationBeamIdentity> beams;
+  std::vector<PresentationGlassIdentity> glass;
+  std::vector<PresentationLimbIdentity> limbs;
 };
 // A reduced-detail mesh can use the main model's bone palette. Resolve
 // palette ownership first, then the vertex stream within that same actor.
@@ -89,6 +110,52 @@ presentation_vertex_identity(const PresentationSceneIdentity &scene,
     result.vertex = (source - model.vertices) / 10U;
   }
   return result;
+}
+// F3DDKR DMA supplies at most 32 consecutive ten-byte vertices with one
+// palette matrix. Resolve palette ownership once, then intersect model ranges
+// with the batch. Preserve first-owner/first-vertex and ambiguous provenance
+// exactly as the scalar lookup; a third overlap cannot revive a rejected key.
+inline void presentation_vertex_identities(const PresentationSceneIdentity& scene,
+    std::uint32_t matrix, std::uint32_t source,
+    std::span<PresentationVertexIdentity> result) {
+  if(result.empty())return;
+  if(result.size()>32U || std::uint64_t(source)+(result.size()-1U)*10U>
+      (std::numeric_limits<std::uint32_t>::max)()) {
+    for(std::size_t i=0;i<result.size();++i)
+      result[i]=presentation_vertex_identity(scene,matrix,
+          source+static_cast<std::uint32_t>(i*10U));
+    return;
+  }
+  PresentationVertexIdentity owner;
+  for(const auto& model:scene.models)for(const auto palette:model.palettes) {
+    if(!palette || matrix<palette || matrix-palette>=model.bone_count*64U ||
+       (matrix-palette)%64U)continue;
+    if(owner.owner && owner.owner!=&model) {
+      std::fill(result.begin(),result.end(),owner);return;
+    }
+    owner.owner=&model;owner.joint=(matrix-palette)/64U;
+  }
+  std::fill(result.begin(),result.end(),owner);
+  if(!owner.owner)return;
+  std::bitset<32> ambiguous;
+  for(const auto& model:scene.models) {
+    if(model.actor!=owner.owner->actor || model.lifetime!=owner.owner->lifetime)continue;
+    const auto first=source<model.vertices
+        ? (std::uint64_t(model.vertices)-source+9U)/10U : 0U;
+    if(first>=result.size())continue;
+    const auto offset=std::uint64_t(source)+first*10U-model.vertices;
+    // Keep the scalar contract's uint32 multiplication, including overflow.
+    const auto bytes=model.vertex_count*10U;
+    if(offset>=bytes || offset%10U)continue;
+    const auto end=(std::min)(std::uint64_t(result.size()),first+(bytes-offset+9U)/10U);
+    for(auto i=first;i<end;++i) {
+      if(ambiguous[i])continue;
+      auto& vertex=result[i];
+      if(vertex.geometry) {vertex.geometry=nullptr;ambiguous.set(i);continue;}
+      vertex.geometry=&model;
+      vertex.vertex=static_cast<std::uint32_t>(offset/10U+i-first);
+    }
+  }
 }
 inline const PresentationRigidIdentity* presentation_rigid_owner(
     const PresentationSceneIdentity& scene, std::uint32_t matrix) {
@@ -135,6 +202,43 @@ inline std::array<std::uint64_t, 4> presentation_rigid_key(
     std::uint32_t source, std::uint32_t count) {
   const auto* owner = presentation_rigid_owner(scene, matrix);
   if (!owner || !owner->lifetime || !owner->camera || !count) return {};
+  // Identical intact glass quads cannot anchor shape-only history: every
+  // pane has the same local geometry. Bind only a proven live custom range,
+  // retaining exact geometry/topology in the eventual rigid history key.
+  const PresentationGlassIdentity* pane = nullptr;
+  for (const auto& candidate : scene.glass) {
+    if (candidate.actor != owner->actor ||
+        candidate.lifetime != owner->lifetime || source < candidate.vertices ||
+        (source - candidate.vertices) % 10U) continue;
+    const auto first = (source - candidate.vertices) / 10U;
+    if (first >= 4U || count > 4U - first) continue;
+    if (pane) return {};
+    pane = &candidate;
+  }
+  if (pane)
+    return {owner->lifetime,
+            (std::uint64_t(owner->actor) << 32U) | pane->control,
+            (std::uint64_t(pane->header) << 32U) | 0x474C4153U,
+            owner->camera};
+  const PresentationLimbIdentity* limb = nullptr;
+  for (const auto& candidate : scene.limbs) {
+    if (candidate.actor != owner->actor || candidate.lifetime != owner->lifetime)
+      continue;
+    const bool contains = std::any_of(candidate.ranges.begin(),candidate.ranges.end(),
+        [&](const auto& range) {
+          return source >= range[0] && (source-range[0])%10U == 0U &&
+              (source-range[0])/10U < range[1] &&
+              count <= range[1]-(source-range[0])/10U;
+        });
+    if (!contains) continue;
+    if (limb) return {};
+    limb = &candidate;
+  }
+  if (limb)
+    return {owner->lifetime,
+            (std::uint64_t(owner->actor)<<32U) | limb->control,
+            (std::uint64_t(limb->header)<<32U) | limb->vertices,
+            owner->camera};
   const PresentationModelIdentity *geometry = nullptr;
   for (const auto &model : scene.models) {
     if (model.actor != owner->actor || model.lifetime != owner->lifetime ||
@@ -182,6 +286,39 @@ public:
 private:
   std::span<const std::uint8_t> data_;
 };
+// modMakeLimbModel emits two linear lists with absolute vertex DMA addresses.
+// Reject malformed/unterminated lists, branches, matrix/segment/offset changes,
+// and vertices outside the bounded baked stream. Material counted calls (07)
+// do not contain geometry. Opaque/transparent lists may name the same ranges.
+inline std::vector<std::array<std::uint32_t,2>> presentation_limb_ranges(
+    const PresentationGuestView& ram, std::uint32_t vertices,
+    const std::array<std::uint32_t,2>& lists) {
+  std::vector<std::array<std::uint32_t,2>> ranges;
+  if (!ram.valid(vertices,10U)) return {};
+  const auto base = PresentationGuestView::physical(vertices);
+  for (const auto list : lists) {
+    if ((list&7U) || !ram.valid(list,8U)) return {};
+    bool ended=false;
+    for (std::uint32_t i=0;i<1024U;++i) {
+      if (list>UINT32_MAX-i*8U || !ram.valid(list+i*8U,8U)) return {};
+      const auto word=ram.u32(list+i*8U), address=ram.u32(list+i*8U+4U);
+      const auto op=word>>24U;
+      if (op==0xB8U) {ended=true;break;}
+      if (op==0x06U || op==0x02U || op==0xBFU || op==0xBCU) return {};
+      if (op!=0x04U) continue;
+      const auto count=(word>>19U)&0x1FU;
+      const auto source=PresentationGuestView::physical(address);
+      if (!count || !ram.valid(address,count*10U) || source<base ||
+          (source-base)%10U || source-base>81920U-count*10U) return {};
+      ranges.push_back({source,count});
+      if (ranges.size()>512U) return {};
+    }
+    if (!ended) return {};
+  }
+  std::sort(ranges.begin(),ranges.end());
+  ranges.erase(std::unique(ranges.begin(),ranges.end()),ranges.end());
+  return ranges;
+}
 class PresentationIdentityTracker {
 public:
   void retire(std::uint32_t actor) {
@@ -316,6 +453,12 @@ public:
   }
   PresentationSceneIdentity capture(std::span<const std::uint8_t> data,
                                     std::uint64_t tick) {
+    return capture(data,tick,[](std::uint32_t address) { return address; });
+  }
+  template<class ResolveGraphicsAddress>
+  PresentationSceneIdentity capture(std::span<const std::uint8_t> data,
+                                    std::uint64_t tick,
+                                    ResolveGraphicsAddress&& resolve_graphics_address) {
     const PresentationGuestView ram(data);
     level(ram.u32(0x800FB114U));
     PresentationSceneIdentity result;
@@ -359,6 +502,15 @@ public:
       // allocation contains 2 * 80 vertex bytes followed by state at +0xCC.
       // A malformed/disabled beam gets no procedural interpolation identity.
       const auto control=ram.u32(actor+0x68U);
+      if (ram.u16(actor+0x48U)==64U && model_count==0U &&
+          !(control&3U) && ram.valid(control,0x20U)) {
+        const auto vertices=ram.u32(control+4U);
+        auto ranges=presentation_limb_ranges(ram,vertices,
+            {ram.u32(control+0x0CU),ram.u32(control+0x10U)});
+        if (!ranges.empty())
+          result.limbs.push_back({serial,actor,control,header,
+              PresentationGuestView::physical(vertices),std::move(ranges)});
+      }
       if (ram.u16(actor+0x48U)==68U && ram.valid(control,0xD0U) &&
           (control&3U)==0U && ram.u8(control+0xCCU)!=0U &&
           ram.u8(control+0xCDU)<=1U) {
@@ -366,6 +518,37 @@ public:
         if (flags && !(flags&~7U))
           result.beams.push_back({serial,actor,control,header,
               PresentationGuestView::physical(control)+ram.u8(control+0xCDU)*80U,flags});
+      }
+      // The US transparent-object dispatcher binds behavior 78 to glassDraw
+      // (0x06500DCC). Positive +0x88 selects the intact shared quad at
+      // control+0x0C; after shattering it uses a different 120-vertex stream.
+      // Restrict this identity to intact glass. Do not interpolate between
+      // the pane and shards or across a control/lifetime replacement.
+      if (ram.u16(actor + 0x48U) == 78U && ram.valid(control, 0x60U) &&
+          (control & 3U) == 0U &&
+          std::bit_cast<std::int32_t>(ram.u32(actor + 0x88U)) > 0 &&
+          ram.u32(actor + 0x8CU) <= 1U) {
+        // Intact quad vertices are a linked overlay constant. Resolve through
+        // the renderer's exact overlay materialization map before validation;
+        // masking the guest pointer does not locate the copied GPU vertices.
+        const auto resolve_block=[&](std::uint32_t address,std::uint32_t bytes) {
+          if(address>UINT32_MAX-(bytes-1U))return std::uint32_t{0};
+          const auto first=resolve_graphics_address(address);
+          const auto last=resolve_graphics_address(address+bytes-1U);
+          return first<=UINT32_MAX-(bytes-1U) && last==first+bytes-1U ?
+              first : std::uint32_t{0};
+        };
+        const auto vertices = resolve_block(ram.u32(control + 0x0CU),40U);
+        const auto triangles = resolve_block(
+            ram.u32(control + 4U + ram.u32(actor + 0x8CU) * 4U),32U);
+        if (ram.valid(vertices, 40U) && ram.valid(triangles, 32U)) {
+          const auto texture=ram.u32(control);
+          const std::array<float,2> period=ram.valid(texture,2U) ?
+            std::array<float,2>{float(ram.u8(texture)),float(ram.u8(texture+1U))} :
+            std::array<float,2>{};
+          result.glass.push_back({serial, actor, control, header,
+                                 PresentationGuestView::physical(vertices),period});
+        }
       }
       for (std::uint32_t j = 0; j < model_count; ++j) {
         const auto instance = ram.u32(models + j * 4U),

@@ -101,8 +101,11 @@ public:
   }
   [[nodiscard]] std::uint32_t current() const { return current_; }
   [[nodiscard]] std::uint64_t handoffs() const { return handoffs_; }
+  void set_fiber_mode(bool enabled) { executor_.set_fiber_mode(enabled); }
   void enable_timing(bool enabled) { executor_.enable_timing(enabled); }
+  void set_spin_budget(unsigned microseconds) { executor_.set_spin_budget(microseconds); }
   [[nodiscard]] BatonExecutor::Timing timing() { return executor_.timing(); }
+  [[nodiscard]] BatonExecutor::CycleSample execution_cycles() const noexcept { return executor_.execution_cycles(); }
 private:
   static void require(bool valid, const char* reason) {
     if (!valid) throw std::logic_error(reason);

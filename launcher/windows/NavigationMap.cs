@@ -210,6 +210,8 @@ namespace JfgLauncher
     }
     [DataContract] internal sealed class MapLive
     {
+        [DataMember] public bool give_weapons_available = false;
+
         [DataMember] public int schema = 0;
         [DataMember] public uint level = 0;
         [DataMember] public long generation = 0;
@@ -236,7 +238,7 @@ namespace JfgLauncher
     }
     internal sealed class MapMods {
         internal bool Warp, Health, Kill;
-        internal const string WarpHelp = "Double-click an exit marker on the map or an exit in the inspector to enter the next room. Normal exit requirements still apply.";
+        internal const string WarpHelp = "Double-click an exit marker on the map or an exit in the inspector to enter the next room. Bypasses normal progression requirements.";
         internal const string HealthHelp = "Keep your current character at full health and prevent damage during gameplay.";
         internal const string KillHelp = "Automatically defeat loaded ordinary enemies during gameplay. Tribals and friendly NPCs are spared; defeated enemies stay defeated when switched off.";
         internal static MapMods Load(string directory, MapLive live) {
@@ -255,6 +257,13 @@ namespace JfgLauncher
             if(File.Exists(path))File.Replace(temp,path,null);else File.Move(temp,path);
         }
         internal void Save(string directory) { Write(directory,"mods.txt","JFGMODS1 "+(Warp?"1":"0")+" "+(Health?"1":"0")+" "+(Kill?"1":"0")); }
+        internal static void GiveWeapons(string directory,MapSnapshot map,long nonce,bool paused) {
+            if(map==null||(!map.IsLive&&!paused)||!map.Live.give_weapons_available||
+                !map.Live.gameplay_active||map.Live.scripted_camera)
+                throw new InvalidDataException("Give all weapons requires active gameplay.");
+            Write(directory,"give-weapons.txt",String.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "JFGWEAPONS1 {0} {1} {2} {3}",map.Live.level,map.Live.generation,nonce,NavigationExplorer.Clock));
+        }
         internal void WarpTo(string directory,MapSnapshot map,uint address,long nonce,bool paused) {
             if(!Warp||map==null||(!map.IsLive&&!paused)||!map.Live.mods_available||
                 !map.Live.gameplay_active||map.Live.scripted_camera||map.Live.exits==null||
@@ -939,6 +948,12 @@ namespace JfgLauncher
             healthMod=new ToolStripMenuItem("Infinite health"){CheckOnClick=true,ToolTipText=MapMods.HealthHelp};
             killMod=new ToolStripMenuItem("Instant kill enemies"){CheckOnClick=true,ToolTipText=MapMods.KillHelp};
             modsMenu.DropDownItems.AddRange(new ToolStripItem[]{warpMod,healthMod,killMod});
+            var giveWeapons=new ToolStripMenuItem("Give all weapons"){ToolTipText="Give the current character every weapon and refill ammo. Saving keeps these inventory changes."};
+            giveWeapons.Click+=delegate {
+                try {MapMods.GiveWeapons(directory,aiSnapshot,DateTime.UtcNow.Ticks,false);status.Text="All-weapons grant requested.";}
+                catch(Exception error){status.Text=error.Message;}
+            };
+            modsMenu.DropDownItems.Add(giveWeapons);
             foreach(var mod in new[]{warpMod,healthMod,killMod})mod.CheckedChanged+=delegate{SaveMods();};
             canvas.ExitActivated+=WarpToExit;
             interactionList.MouseDoubleClick+=delegate(object sender,MouseEventArgs e){

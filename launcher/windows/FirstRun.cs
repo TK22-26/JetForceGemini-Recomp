@@ -9,7 +9,22 @@ namespace JfgLauncher
     {
         internal static string Root
         {
-            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JFGRecomp"); }
+            get {
+                string forwarded = Environment.GetEnvironmentVariable("JFG_DATA_ROOT");
+                if (!String.IsNullOrWhiteSpace(forwarded)) return LocalSetup.FullPath(forwarded);
+                string launcher = Environment.GetEnvironmentVariable("JFG_LAUNCHER_EXE");
+                if (String.IsNullOrWhiteSpace(launcher)) launcher = Assembly.GetExecutingAssembly().Location;
+                string directory = Path.GetDirectoryName(LocalSetup.FullPath(launcher));
+                string location = Path.Combine(directory, "storage-location.txt");
+                if (File.Exists(location)) {
+                    string selected = File.ReadAllText(location).TrimEnd('\r', '\n');
+                    if (String.IsNullOrWhiteSpace(selected)) throw new InvalidDataException("The data folder setting is empty.");
+                    return LocalSetup.FullPath(Path.IsPathRooted(selected) ? selected : Path.Combine(directory, selected));
+                }
+                return File.Exists(Path.Combine(directory, "portable.txt"))
+                    ? Path.Combine(directory, "userdata")
+                    : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JFGRecomp");
+            }
         }
 
         internal static byte[] SetupScript()
@@ -36,6 +51,7 @@ namespace JfgLauncher
                 " -SourceCommit " + LocalSetup.Quote(BuildInfo.SourceCommit) + " -RomPath " + LocalSetup.Quote(selectedRom);
             info.WorkingDirectory = setupRoot;
             info.UseShellExecute = false;
+            info.EnvironmentVariables["JFG_DATA_ROOT"] = Root;
             info.CreateNoWindow = true;
             info.RedirectStandardOutput = true;
             info.RedirectStandardError = true;

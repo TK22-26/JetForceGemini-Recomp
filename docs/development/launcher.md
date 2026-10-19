@@ -207,3 +207,43 @@ For UI review only, `JFG-Launcher.exe --preview-update --profile <separate-folde
 
 
 The owner-approved card and browser actions are delivered locally from `628d1ff40ff14ce44a6921e89e594050b290b766`. Reopen High Refresh Preview or Jitter Capture for real discovery, or Update Button Preview for the forced sample. The game runtime and owner profiles are preserved. [Delivery and limits](../../evidence/launcher-update-button.json).
+
+## Data folder (v1.3 candidate)
+
+Open **Game > Settings...** to see the current data folder. **Change directory...**
+opens the Windows folder picker at that location. Cancel leaves everything alone.
+Choosing a different folder copies saved profiles, settings and imported ROMs,
+then restarts the launcher. Existing destination files are kept; only missing
+files are added. Original files remain in place.
+
+Choose a folder inside the game folder (for example, **userdata**) for a portable
+installation. The location is stored relatively in **storage-location.txt**;
+move that file and the data folder with the complete package. A chosen folder
+outside the package is stored as an absolute path.
+
+Without a saved directory choice, the default is LocalAppData/JFGRecomp.
+An adjacent **portable.txt** still selects **userdata** when there is no saved
+choice; **--portable** overrides the choice for a single launch. These manual
+overrides do not migrate existing profiles automatically.
+
+Stop the game before changing folders. An explicit **--profile** shortcut
+retains its custom profile; open the launcher normally to change the default.
+The launcher folder must be writable to remember the selection. Failed changes
+leave the current location selected. Helper files, asset caches and support
+reports follow the chosen root.
+
+The native launcher and tool windows use Windows dark title bars, matching
+the Scooby launcher. Windows retains its own caption buttons, snap layouts
+and Windows 11 corner styling.
+
+## Video Settings sidebar (v1.3 candidate)
+
+Video Settings uses **Display**, **Rendering**, **Frame rate** and
+**Enhancements** sections. Search finds settings across all four sections.
+Switching sections retains pending edits; Cancel discards them and Apply saves
+and closes. Rendering changes apply when the game is next launched.
+
+**Enhancements > Fog strength** ranges from 0% (removed) to 100% (original, default).
+Apply updates the running game immediately; fog does not require a restart.
+It does not extend the game's draw distance. [Implementation and validation
+status](issues/optional-fog-removal.md).

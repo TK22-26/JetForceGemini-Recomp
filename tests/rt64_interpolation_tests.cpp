@@ -7,6 +7,44 @@ static void require(bool value) {
     std::abort();
 }
 int main() {
+  // A real N64 scene starts by binding its depth image as a color target
+  // for a fill, then draws the scene into a different RGBA16 target.
+  // The clear must not make the source ambiguous; two drawn scenes must.
+  {
+    RT64::Workload scene;
+    scene.fbPairs.resize(4);
+    scene.fbPairCount = 2;
+    auto setup = [](RT64::FramebufferPair& pair, std::uint32_t address) {
+      pair.reset();
+      pair.colorImage.address = address;
+      pair.colorImage.width = 320U;
+      pair.colorImage.siz = G_IM_SIZ_16b;
+      pair.colorImage.fmt = G_IM_FMT_RGBA;
+      pair.drawColorRect = RT64::FixedRect(0, 0, 320 * 4, 240 * 4);
+      pair.fillRectOnly = false;
+    };
+    setup(scene.fbPairs[0], 0x180000U);
+    scene.fbPairs[0].fillRectOnly = true;
+    scene.fbPairs[0].fastPaths.clearDepthOnly = true;
+    setup(scene.fbPairs[1], 0x110000U);
+    require(jfg::blur_world_source(scene) == 0x110000U);
+    scene.fbPairs[0].fastPaths.clearDepthOnly = false;
+    require(jfg::blur_world_source(scene) == 0x110000U);
+    scene.fbPairs[0].fillRectOnly = false;
+    require(jfg::blur_world_source(scene) == 0U);
+    scene.fbPairs[0].fillRectOnly = true;
+    scene.fbPairs[1].fillRectOnly = true;
+    require(jfg::blur_world_source(scene) == 0U);
+    scene.fbPairs[1].fillRectOnly = false;
+    scene.fbPairCount = 3;
+    setup(scene.fbPairs[2], 0x110000U); // More draws to the same scene are valid.
+    require(jfg::blur_world_source(scene) == 0x110000U);
+    scene.fbPairs[2].colorImage.address = 0x200000U;
+    scene.fbPairs[2].colorImage.width = 64U; // Offscreen masks do not compete.
+    require(jfg::blur_world_source(scene) == 0x110000U);
+    scene.fbPairs[1].drawColorRect.reset();
+    require(jfg::blur_world_source(scene) == 0U);
+  }
   RT64::Workload workload;
   const hlslpp::float4x4 endpoint(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 0, 0,
                                   1);
@@ -95,5 +133,38 @@ int main() {
     }
   }
   jfg::publish_presentation_snapshot(&workload, nullptr);
+  // New scene timing, rather than the previous long interval, releases a
+  // finite output sequence. This must work without interpolation logging.
+  int owner1 = 0, owner2 = 0, shadow = 0, counters = 0;
+  auto publish = [](const void* owner, std::uint64_t tick, bool scene) {
+    auto value = std::make_shared<jfg::PresentationHistoryFrame>();
+    value->tick = tick; value->scene = scene;
+    jfg::publish_presentation_snapshot(owner, value);
+  };
+  publish(&owner1, 100, true);
+  publish(&shadow, 101, false);
+  jfg::record_presentation_sequence(&counters, 100);
+  require(jfg::presentation_sequence_tick(&counters) == 100);
+  require(!jfg::presentation_next_scene_due(100, 12, 120));
+  publish(&owner2, 103, true);
+  require(!jfg::presentation_next_scene_due(100, 5, 120));
+  require(jfg::presentation_next_scene_due(100, 6, 120) == 103);
+  require(!jfg::presentation_next_scene_due(100, 17, 360));
+  require(jfg::presentation_next_scene_due(100, 18, 360) == 103);
+  require(!jfg::presentation_next_scene_due(100, 0, 120));
+  require(!jfg::presentation_next_scene_due(0, 12, 120));
+  require(!jfg::presentation_next_scene_due(100, 12, 0));
+  require(!jfg::presentation_next_scene_due(100, 12, jfg::kUnlimitedPresentation));
+  publish(&owner2, 102, true);
+  require(!jfg::presentation_next_scene_due(100, 3, 120));
+  require(jfg::presentation_next_scene_due(100, 4, 120) == 102);
+  publish(&owner2, 100, true);
+  require(!jfg::presentation_next_scene_due(100, 12, 120));
+  publish(&owner2, 90, true);
+  require(!jfg::presentation_next_scene_due(100, 12, 120));
+  jfg::publish_presentation_snapshot(&owner1, nullptr);
+  jfg::publish_presentation_snapshot(&owner2, nullptr);
+  jfg::publish_presentation_snapshot(&shadow, nullptr);
+  require(!jfg::presentation_sequence_tick(&counters));
   return 0;
 }

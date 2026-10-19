@@ -6,7 +6,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-$script:SetupRoot = Join-Path $env:LOCALAPPDATA 'JFGRecomp'
+$script:SetupRoot = if ($env:JFG_DATA_ROOT) { [IO.Path]::GetFullPath($env:JFG_DATA_ROOT) } else { Join-Path $env:LOCALAPPDATA 'JFGRecomp' }
 $script:Distro = 'Ubuntu-24.04'
 $script:LinuxPackages = @('build-essential', 'gcc-multilib', 'binutils-mips-linux-gnu',
     'python3-venv', 'python3-pip', 'pkg-config', 'cmake', 'ninja-build', 'git', 'wget')

@@ -1,0 +1,8 @@
+<rml><head><title>Settings</title><link type="text/rcss" href="video-settings.rcss"/><link type="text/rcss" href="settings.rcss"/></head>
+<body><div id="video-shell"><div id="video-content">
+<div id="settings-error"/>
+<div class="section"><div class="section-heading"><span>STORAGE</span></div>
+<div class="storage-location"><span class="small">Data folder</span><div id="settings-location"/></div>
+<button id="settings-change"><span>Change directory...</span></button>
+<div id="settings-note" class="small"/>
+</div></div><div class="footer"><button id="settings-done" class="primary"><span>Done</span></button></div></div></body></rml>

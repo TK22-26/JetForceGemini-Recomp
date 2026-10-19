@@ -37,3 +37,27 @@ Windows bundle and published it. The public download was downloaded again and
 its ZIP, per-member hashes, package inventory and clean runtime identity verified.
 This release includes the remedy and finite verification described above; it
 does not expand the recorded hardware, Linux, campaign or fresh-install coverage.
+
+## Historical v1.1 comparison setup recurrence, 2026-10-18
+
+While preparing an unmodified v1.1 baseline for the Vela blur investigation,
+the copied profile retained keyboard device -3 and experimental=1. Three owner
+launches stop after ROM-ready with native_exit=0xc0000005, matching the exact
+published binary/configuration and previously reproduced NATIVE-002 startup
+failure. No fresh stack is available; attribution relies on that exact prior
+reproduction plus the current matching trigger, not the exit code alone.
+
+The setup is corrected by disabling experimental controls only in the isolated
+v1.1 comparison profile. The owner may enable them after the title screen; the
+old runtime/renderer stays unchanged to retain a valid historical baseline.
+Private evidence: v110-owner-startup-failure and v110-startup-workaround.json.
+Owner retry remains pending; no gameplay or visual test was run by the agent.
+Current v1.2/v1.3 profiles, original save and runtime are untouched. Lesson:
+historical-build setup must account for known historical startup defects when
+copying newer profiles; a file-integrity/protocol check does not prove Play.
+
+Owner subsequently reaches the v1.1 visual comparison and reports its image
+is softer than the current preview. The isolated startup workaround enabled
+that owner test; the historical renderer remains unmodified. See the linked
+Vela investigation for the visual result. This does not expand current-release
+startup coverage.

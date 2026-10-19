@@ -28,3 +28,13 @@ allowlisted compiled program, host libraries, documentation, and licenses.
 The local build retains the game's compiled program but supplies no ROM or
 extracted asset files. See `THIRD_PARTY_NOTICES.md` and the bundled notices for
 the separate project, runtime, and redistributable license scopes.
+
+
+## v1.3 qualification
+
+Use the [v1.3 release checklist](releases-1.3.0-qualification.md). The explicit
+cmake/native_release.cmake initial cache selects the owner-tested optimization
+policy and disables automatic private capture. Supply private generated-code
+and dependency paths separately. Rebuild from clean source after the owner run;
+do not reuse a dirty preview support identity. Pass --version 1.3.0 explicitly
+to package_beta.py. Keep the release's ZIP, inventory and checksum together.

@@ -6,12 +6,16 @@
 #include "jfg/mod/navigation_pilot.hpp"
 #include "jfg/mod/navigation_confirmation.hpp"
 #include "jfg/mod/navigation_dialogue.hpp"
+#include <algorithm>
 #include <array>
+#include <charconv>
+#include <type_traits>
 #include <bit>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <ostream>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -1161,30 +1165,50 @@ inline Mesh decode_mesh(const Memory &m, std::uint32_t track) {
   return result;
 }
 
+// Locale-free formatting avoids thousands of iostream numeric facet calls
+// while retaining the existing default six-significant-digit mesh JSON values.
 inline void write_mesh(std::ostream &out, const Mesh &mesh, std::uint32_t level,
                        std::uint64_t generation) {
-  out << "{\"schema\":1,\"level\":" << level << ",\"generation\":" << generation
-      << ",\"blocks\":" << mesh.blocks << ",\"vertices\":[";
+  std::string text;
+  text.reserve(128U + (std::min)(mesh.vertices.size(), std::size_t{131072}) * 28U
+      + (std::min)(mesh.triangles.size(), std::size_t{262144}) * 100U);
+  const auto number = [&text](auto value) {
+    std::array<char, 64> buffer{};
+    const auto converted = [&] {
+      if constexpr (std::is_floating_point_v<decltype(value)>)
+        return std::to_chars(buffer.data(), buffer.data()+buffer.size(),
+            value, std::chars_format::general, 6);
+      else
+        return std::to_chars(buffer.data(), buffer.data()+buffer.size(), value);
+    }();
+    if (converted.ec != std::errc{}) throw std::runtime_error("mod mesh JSON number");
+    text.append(buffer.data(), converted.ptr);
+  };
+  const auto vector = [&text,&number](Vec3 value) {
+    text += '[';number(value.x);text += ',';number(value.y);
+    text += ',';number(value.z);text += ']';
+  };
+  text += "{\"schema\":1,\"level\":";number(level);
+  text += ",\"generation\":";number(generation);
+  text += ",\"blocks\":";number(mesh.blocks);
+  text += ",\"vertices\":[";
   bool first = true;
   for (const auto &v : mesh.vertices) {
-    if (!first)
-      out << ',';
-    first = false;
-    json_vec(out, v);
+    if (!first) text += ',';
+    first = false;vector(v);
   }
-  out << "],\"triangles\":[";
+  text += "],\"triangles\":[";
   first = true;
   for (const auto &t : mesh.triangles) {
-    if (!first)
-      out << ',';
+    if (!first) text += ',';
     first = false;
-    out << "{\"v\":[" << t.vertices[0] << ',' << t.vertices[1] << ','
-        << t.vertices[2] << "],\"flags\":" << t.flags
-        << ",\"block\":" << t.block << ",\"normal\":";
-    json_vec(out, t.normal);
-    out << '}';
+    text += "{\"v\":[";number(t.vertices[0]);text += ',';number(t.vertices[1]);
+    text += ',';number(t.vertices[2]);text += "],\"flags\":";number(t.flags);
+    text += ",\"block\":";number(t.block);text += ",\"normal\":";vector(t.normal);
+    text += '}';
   }
-  out << "]}\n";
+  text += "]}\n";
+  out.write(text.data(), static_cast<std::streamsize>(text.size()));
 }
 
 // Read-only steering observation for the supported US camera layout. The
@@ -1243,6 +1267,37 @@ inline bool pc_gameplay_active(const Memory &m, std::uint32_t player) {
   // Shared by Vela, Juno and Lupus before their native read-input call.
   for(auto offset:{0x56BU,0x577U,0x1F9U,0x1FAU,0x186U,0x198U,0x5EEU,0x10DU,0x19FU})
     if(m.u8(control+offset)!=0U)return false;
+  return true;
+}
+
+// Native ledge attachment/climb handlers own body heading and movement.
+// Keep only the mouse view; never admit these states into modern locomotion.
+inline bool pc_ledge_view_active(const Memory& m,std::uint32_t player) {
+  if(!pc_gameplay_active(m,player) || m.u8(0x800FD7BDU))return false;
+  const auto control=m.u32(player+0x68U);
+  if((m.u8(control+1U)&3U)>1U)return false;
+  const auto movement=m.u8(control+0x568U);
+  return movement==6U || movement==7U || movement==8U || movement==12U;
+}
+
+// High-land recovery locks locomotion, not the chosen mouse view. Juno's
+// landing clip is 0x1A, Vela's is 0x19; both start a 30-tick +0x56B timer.
+// A just-expired timer can leave the prior global input lock until the next
+// native read-input call. Do not admit dialogue, damage or scripted cameras.
+inline bool pc_landing_view_active(const Memory& m,std::uint32_t player,bool finishing=false) {
+  if(!m.valid(player,0xA4U))return false;
+  const auto control=m.u32(player+0x68U);
+  if(!m.valid(control,0x5F0U) || m.u32(control+0xFCU) ||
+     m.u32(control+0x5C0U) || m.u8(control+0x568U)!=0U)return false;
+  const auto character=m.u8(control+1U)&3U;
+  const auto timer=m.u8(control+0x56BU),clip=m.u8(player+0x3BU);
+  const bool settling=finishing && timer==0U && m.u32(0x800F6DBCU)!=0U;
+  if(character>1U || (!settling && clip!=(character==0U?0x1AU:0x19U)) ||
+     (timer==0U && m.u32(0x800F6DBCU)==0U))return false;
+  if(m.u8(0x800A4FC4U) || m.u32(0x800FD7C4U) || m.u8(0x800FD7BDU) ||
+     scripted_camera_active(m,player))return false;
+  for(auto offset:{0x577U,0x1F9U,0x1FAU,0x186U,0x198U,0x5EEU,0x10DU,0x19FU})
+    if(m.u8(control+offset))return false;
   return true;
 }
 
@@ -1307,7 +1362,7 @@ public:
   // Explicit map settings override the legacy all-in-one debug defaults.
   bool mods_configured = false, warp_exits = false, infinite_health = false,
        instant_kill = false;
-  std::uint64_t warp_nonce = 0;
+  std::uint64_t warp_nonce = 0, weapons_nonce = 0, weapon_grants = 0;
   bool health_enabled() const noexcept { return mods_configured ? infinite_health : enabled; }
   bool kill_enabled() const noexcept { return mods_configured ? instant_kill : enabled; }
   bool configure_mods(std::istream &in) {
@@ -1318,6 +1373,54 @@ public:
     warp_exits = warp != 0; infinite_health = health != 0; instant_kill = kill != 0;
     mods_configured = true;
     return true;
+  }
+private:
+  struct ExitWarpSelection {
+    std::uint32_t actor, control, exit, exit_control, exit_data, level;
+    std::uint16_t destination;
+    std::uint64_t generation;
+    std::int64_t stamp;
+  };
+  std::optional<ExitWarpSelection> exit_warp_selection_;
+public:
+  bool has_exit_warp_selection() const noexcept { return exit_warp_selection_.has_value(); }
+  // Exit actors can overlap and overwrite the contact during actor updates.
+  // Reassert the owner's exact selection once, at controlPlayer entry, before
+  // the original transition consumer runs. Ordinary contacts have no selection.
+  bool apply_exit_warp_selection(Memory &m, const std::vector<Actor> &list,
+      std::uint32_t actor, std::int64_t now, std::uint32_t &replaced) {
+    if (!exit_warp_selection_ || actor != exit_warp_selection_->actor) return false;
+    const auto selected=*exit_warp_selection_;
+    exit_warp_selection_.reset();
+    try {
+      if (!observing() || !warp_exits || player!=actor ||
+          generation!=selected.generation || selected.stamp<0 ||
+          now<selected.stamp || now-selected.stamp>5000 ||
+          m.u32(0x800FB114U)!=selected.level || !gameplay_active(m,actor) ||
+          scripted_camera_active(m,actor) || m.u8(0x800FD7BDU)!=0U ||
+          !m.valid(actor,0x6CU) || m.u32(actor+0x68U)!=selected.control ||
+          !m.valid(selected.control,0x198U) ||
+          !m.valid(m.u32(actor+0x4CU),8U) ||
+          m.s16(m.u32(actor+0x4CU)+6U)<0x100 ||
+          m.u32(0x80032B94U)!=0x8E0200F4U ||
+          m.u32(0x80032DACU)!=0xAE0000F4U) return false;
+      bool present=false;
+      for(const auto &entry:list)if(entry.address==actor)present=true;
+      if(!present)return false;
+      for(const auto &exit:exits(m,list)) {
+        if(exit.address!=selected.exit)continue;
+        if(exit.destination!=selected.destination ||
+            m.u32(exit.address+0x68U)!=selected.exit_control ||
+            m.u32(exit.address+0x3CU)!=selected.exit_data)return false;
+        replaced=m.u32(selected.control+0xF4U);
+        m.put16(selected.control+0xF4U,static_cast<std::uint16_t>(selected.exit>>16U));
+        m.put16(selected.control+0xF6U,static_cast<std::uint16_t>(selected.exit));
+        m.put16(selected.control+0x196U,
+            static_cast<std::uint16_t>(0x8800U|m.u8(selected.control+0x197U)));
+        return true;
+      }
+    } catch(const std::runtime_error &) { ++invalid; }
+    return false;
   }
   bool warp_to_exit(std::istream &in, Memory &m, const std::vector<Actor> &list,
                     std::int64_t now) {
@@ -1350,8 +1453,8 @@ public:
       if (!present) return false;
       for (const auto &exit : exits(m, list)) {
         if (exit.address != address) continue;
-        if(exit_condition(m,exit,npc_facts(m,inventory(m,player),player),player)!=Fact::met)
-          return false;
+        // This explicit mod request may cross locked progression exits. Leave
+        // quest/inventory flags and ordinary exitControl eligibility untouched.
         const auto p = exit.position;
         if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z) ||
             std::abs(p.x)>1000000 || std::abs(p.y)>1000000 || std::abs(p.z)>1000000)
@@ -1368,10 +1471,50 @@ public:
         m.put16(control+0xF6U,static_cast<std::uint16_t>(address));
         // The original writes a single signed byte (-120); preserve +0x197.
         m.put16(control+0x196U,static_cast<std::uint16_t>(0x8800U|m.u8(control+0x197U)));
+        exit_warp_selection_=ExitWarpSelection{player,control,address,
+            m.u32(address+0x68U),m.u32(address+0x3CU),level,
+            static_cast<std::uint16_t>(exit.destination),generation,stamp};
         return true;
       }
     } catch (const std::runtime_error &) { ++invalid; }
     return false;
+  }
+  // One explicit action, not an ammo freeze. Native saved-player layout:
+  // owned mask +0x0a, ammo +0x14, capacities +0x34, weapon count +0x6f.
+  bool give_weapons(std::istream &in, Memory &m, const std::vector<Actor> &list,
+                    std::int64_t now) {
+    std::string magic,extra;
+    std::uint32_t level{};std::uint64_t gen{},nonce{};std::int64_t stamp{};
+    if(!(in>>magic>>level>>gen>>nonce>>stamp) || magic!="JFGWEAPONS1" ||
+       (in>>extra) || nonce<=weapons_nonce)return false;
+    weapons_nonce=nonce; // A rejected or consumed click must never fire later.
+    if(!observing() || gen!=generation || stamp<0 || now<stamp || now-stamp>5000 ||
+       !player)return false;
+    try {
+      if(level!=m.u32(0x800FB114U) || !gameplay_active(m,player) ||
+         scripted_camera_active(m,player) || m.u8(0x800FD7BDU)!=0U)return false;
+      bool present=false;for(const auto& actor:list)if(actor.address==player)present=true;
+      if(!present)return false;
+      const auto inv=inventory(m,player);
+      const auto properties=m.u32(player+0x4CU);
+      if(!inv.known || !m.valid(properties,8U) || m.s16(properties+6U)<0x100)return false;
+      const auto saved=m.u32(0x800FD7D4U)+0x15CU+inv.character*0x76U;
+      m.require(saved,0x76U);
+      std::array<std::uint16_t,15> ammo{};
+      // Native new-game initialization supplies capacities even before pickup.
+      // Validate the entire grant before writing, preserve collected upgrades.
+      for(unsigned i=0;i<ammo.size();++i) {
+        ammo[i]=m.u16(saved+0x34U+i*2U);
+        if(!ammo[i] || ammo[i]>0x7FFFU)return false;
+      }
+      const auto mask=static_cast<std::uint16_t>(inv.weapons|0x7FFFU);
+      m.put16(saved+0xAU,mask);
+      for(unsigned i=0;i<ammo.size();++i)m.put16(saved+0x14U+i*2U,ammo[i]);
+      m.put16(saved+0x6EU,static_cast<std::uint16_t>((m.u8(saved+0x6EU)<<8U)|
+          std::popcount(mask)));
+      ++weapon_grants;
+      return true;
+    } catch(const std::runtime_error&) {++invalid;return false;}
   }
   bool juno_double_run = false;
   std::uint64_t juno_run_boosts = 0;
@@ -1381,6 +1524,7 @@ public:
   std::uint32_t first_clear_level = UINT32_MAX;
   std::uint64_t first_clear_update = 0;
   void transition() noexcept {
+    exit_warp_selection_.reset();
     pilot.reset();
     player = 0;
     last_track = 0;
@@ -1493,6 +1637,8 @@ public:
         << ",\"mesh_ready\":" << (mesh_ready ? "true" : "false")
         << ",\"scripted_camera\":" << (scripted_camera_active(m,player) ? "true" : "false")
         << ",\"mods_available\":true"
+        << ",\"give_weapons_available\":true"
+        << ",\"weapon_grants\":" << weapon_grants
         << ",\"mod_warp_exits\":" << (warp_exits ? "true" : "false")
         << ",\"mod_infinite_health\":" << (health_enabled() ? "true" : "false")
         << ",\"mod_instant_kill\":" << (kill_enabled() ? "true" : "false")

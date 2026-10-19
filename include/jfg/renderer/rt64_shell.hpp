@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <vector>
 
 namespace jfg {
 struct PresentationSceneIdentity;
@@ -80,6 +81,12 @@ struct Rt64RdramRange {
     std::size_t begin;
     std::size_t end;
 };
+
+// Import a host-word-swapped VI consumer range and retain ownership until
+// the next task import. Same-value CPU reversions must overwrite VI imports too.
+[[nodiscard]] Rt64ShellError import_rt64_vi_range(
+    std::span<const std::byte> source, std::span<std::byte> destination,
+    Rt64RdramRange range, std::vector<Rt64RdramRange>& restore) noexcept;
 
 // Commit completed device-owned ranges, never an old whole-memory snapshot.
 // All spans are host-word-swapped. Validate every range and CPU ownership
@@ -203,6 +210,14 @@ struct Rt64GraphicsDiagnostics {
     std::size_t rdram_size,
     Rt64FramebufferInfo& framebuffer) noexcept;
 
+// A delta is valid only against the exact preceding imported snapshot.
+// GPU-written extents are always restored, including same-value CPU writes.
+[[nodiscard]] Rt64ShellError copy_rt64_rdram_snapshot_delta(
+    std::span<const std::byte> source, std::span<std::byte> destination,
+    std::uint64_t base_generation, std::uint64_t current_generation,
+    std::span<const Rt64RdramRange> changed,
+    std::span<const Rt64RdramRange> gpu_written) noexcept;
+
 class Rt64Shell final {
 public:
     ~Rt64Shell();
@@ -220,6 +235,11 @@ public:
     [[nodiscard]] Rt64ShellError replace_rdram_snapshot(
         std::span<const std::byte> rdram,
         Rt64MemoryLayout layout) noexcept;
+    [[nodiscard]] std::uint64_t rdram_snapshot_generation() const noexcept;
+    [[nodiscard]] Rt64ShellError replace_rdram_snapshot_delta(
+        std::span<const std::byte> rdram, Rt64MemoryLayout layout,
+        std::uint64_t base_generation,
+        std::span<const Rt64RdramRange> changed) noexcept;
     [[nodiscard]] Rt64ShellError copy_private_rdram_snapshot(
         std::span<std::byte> rdram,
         Rt64MemoryLayout layout) const noexcept;
@@ -228,7 +248,9 @@ public:
     // Query on the same frontend thread as submit/present. This follows RT64's
     // resident framebuffer registry, independently of host snapshot lifetimes.
     [[nodiscard]] bool has_color_framebuffer(std::uint32_t address) const noexcept;
-    [[nodiscard]] Rt64ShellError present(bool capture_frame = true) noexcept;
+    // Optional live CPU memory is imported only for this VI's framebuffer.
+    [[nodiscard]] Rt64ShellError present(bool capture_frame = true,
+        std::span<const std::byte> cpu_rdram = {}) noexcept;
     [[nodiscard]] bool developer_debugger_available() const noexcept;
     [[nodiscard]] std::size_t last_command_count() const noexcept;
     [[nodiscard]] Rt64GraphicsDiagnostics last_graphics_diagnostics()

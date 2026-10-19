@@ -72,3 +72,7 @@ in the private publication receipts.
 ## v1.2.1 publication record
 
 Tagged-source CI and the prebuilt publication workflow pass; the downloaded public assets match the staged hashes and bundle manifest. The issue index accidentally replaced INPUT-011's link cell with a status sentence during release preparation. This documentation-only follow-up restores the link and records actual publication/reporter-retest status; the published tag and binaries remain unchanged. See [boss-control release evidence](github-ichor-boss-controls.md).
+
+## v1.3 preparation
+
+The current source-policy preflight found two owner-specific paths in new issue notes, a new unregistered project UI icon atlas, and generated-marker matches in three small handwritten synthetic compiler fixtures. Public notes now use private artifact names; exact-body reviews cover the atlas/fixtures with mutation rejection intact. No generated game body, ROM, save or capture is added. Final current-tree/history, compiler, package and CI qualification remain pending in [the v1.3 checklist](../releases-1.3.0-qualification.md).

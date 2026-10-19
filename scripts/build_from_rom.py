@@ -187,7 +187,8 @@ def main() -> int:
     print("Built: " + str(executable), flush=True)
     print("Keep this build local. It contains code generated from your ROM.", flush=True)
     if args.play:
-        profile = Path(os.environ["LOCALAPPDATA"]) / "JFGRecomp/profiles/default"
+        data_root = Path(os.environ["JFG_DATA_ROOT"]) if os.environ.get("JFG_DATA_ROOT") else Path(os.environ["LOCALAPPDATA"]) / "JFGRecomp"
+        profile = data_root / "profiles/default"
         profile.mkdir(parents=True, exist_ok=True)
         environment = {k: v for k, v in os.environ.items() if not k.startswith("JFG_")}
         return subprocess.call([str(executable), "--rom", str(rom), "--save",

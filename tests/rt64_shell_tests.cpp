@@ -1,3 +1,4 @@
+#include "jfg/runtime/snapshot_copy.hpp"
 #include "jfg/renderer/rt64_shell.hpp"
 #include "jfg/renderer/rt64_f3ddkr_address.hpp"
 
@@ -18,6 +19,51 @@ void require(const bool condition) {
 }  // namespace
 
 int main() {
+    {
+        const auto bytes=jfg::kRt64RequiredRdramBytes;
+        std::vector<std::byte> cached(bytes),live(bytes),resident(bytes);
+        live[8]=std::byte{1};live[64]=std::byte{3};
+        std::vector<jfg::Rt64RdramRange> imported;
+        require(jfg::import_rt64_vi_range(std::span<const std::byte>(live).first(bytes/2),resident,{8,16},imported)==jfg::Rt64ShellError::none);
+        require(resident[8]==std::byte{1} && resident[64]==std::byte{0});
+        require(jfg::import_rt64_vi_range(std::span<const std::byte>(live).first(bytes/2),resident,{12,24},imported)==jfg::Rt64ShellError::none);
+        require(imported.size()==1 && imported[0].begin==8 && imported[0].end==24);
+        // CPU changes back to the cached byte after VI. A byte-delta list is
+        // empty, but the complete VI-owned extent still must be overwritten.
+        live[8]=std::byte{0};
+        require(jfg::copy_rt64_rdram_snapshot_delta(cached,resident,7,7,{},imported)==jfg::Rt64ShellError::none);
+        require(resident[8]==std::byte{0});
+        const auto old=resident;const auto old_count=imported.size();
+        require(jfg::import_rt64_vi_range(std::span<const std::byte>(live).first(bytes/2),resident,{bytes/2-1,bytes/2+1},imported)==jfg::Rt64ShellError::invalid_memory);
+        require(resident==old && imported.size()==old_count);
+    }
+
+    {
+        using Range=jfg::Rt64RdramRange;
+        std::array<std::byte,64> initial{};std::array<std::byte,80> snapshot{};
+        snapshot[20]=std::byte{3};snapshot[40]=std::byte{7};
+        std::vector<Range> dirty{{20,21},{40,41}},retained,changed;
+        auto record=[&](std::size_t begin,std::size_t count){changed.push_back({begin,begin+count});};
+        require(jfg::restore_overlay_snapshot_ranges(std::span<const std::byte>(initial),std::span<std::byte>(snapshot),16,16,32,64,
+            std::span<const Range>(dirty),retained,record));
+        require(snapshot[20]==std::byte{0} && snapshot[40]==std::byte{7});
+        require(retained.size()==1 && retained[0].begin==40 && retained[0].end==41);
+        dirty=retained;retained.clear();changed.clear();
+        // An unchanged active DATA byte must retain its ownership next task.
+        require(jfg::restore_overlay_snapshot_ranges(std::span<const std::byte>(initial),std::span<std::byte>(snapshot),16,16,32,64,
+            std::span<const Range>(dirty),retained,record));
+        require(snapshot[40]==std::byte{7} && retained.size()==1 && changed.empty());
+        dirty=retained;retained.clear();
+        // Module unload restores that same byte to its original baseline.
+        require(jfg::restore_overlay_snapshot_ranges(std::span<const std::byte>(initial),std::span<std::byte>(snapshot),16,16,64,64,
+            std::span<const Range>(dirty),retained,record));
+        require(snapshot[40]==std::byte{0} && retained.empty());
+        snapshot[20]=std::byte{9};dirty={{20,21},{79,81}};
+        require(!jfg::restore_overlay_snapshot_ranges(std::span<const std::byte>(initial),std::span<std::byte>(snapshot),16,16,32,64,
+            std::span<const Range>(dirty),retained,record));
+        require(snapshot[20]==std::byte{9});
+    }
+
     static_assert(jfg::kRt64RequiredRdramBytes == 8U * 1024U * 1024U);
     require(jfg::kPinnedRt64Revision[0] == '5');
     require(jfg::detail::resolve_f3ddkr_dma_base(
@@ -119,6 +165,37 @@ int main() {
         jfg::Rt64ShellError::none);
     require(converted[0U] == std::byte{0x01});
     require(converted[3U] == std::byte{0x04});
+    {
+        std::vector<std::byte> source(jfg::kRt64RequiredRdramBytes, std::byte{0x11});
+        auto old = source;
+        source[4095] = std::byte{0x33}; source[8192] = std::byte{0x44};
+        std::vector<jfg::Rt64RdramRange> changed;
+        jfg::copy_changed_snapshot_bytes(source, old, [&](std::size_t begin, std::size_t count) {
+            changed.push_back({begin, begin + count});
+        });
+        require(old == source && changed.size() == 2U);
+        auto gpu = std::vector<std::byte>(source.size(), std::byte{0x11});
+        gpu[12345] = std::byte{0xEE}; // GPU result; CPU rewrote its old value.
+        const std::array<jfg::Rt64RdramRange, 1> written{{{12340, 12350}}};
+        require(jfg::copy_rt64_rdram_snapshot_delta(source,gpu,7,7,changed,written) == jfg::Rt64ShellError::none);
+        require(gpu == source);
+        // A VI import or a different pooled snapshot invalidates the delta.
+        source[65536] = std::byte{0x55};
+        require(jfg::copy_rt64_rdram_snapshot_delta(source,gpu,7,8,{}, {}) == jfg::Rt64ShellError::none);
+        require(gpu == source);
+        source.back() = std::byte{0x66};
+        require(jfg::copy_rt64_rdram_snapshot_delta(source,gpu,0,8,{}, {}) == jfg::Rt64ShellError::none);
+        require(gpu == source);
+        const auto before = gpu;
+        source[0] = std::byte{0x77};
+        const std::array<jfg::Rt64RdramRange, 1> valid{{{0,1}}};
+        const std::array<jfg::Rt64RdramRange, 1> invalid{{{source.size()-1,source.size()+1}}};
+        require(jfg::copy_rt64_rdram_snapshot_delta(source,gpu,9,9,valid,invalid) == jfg::Rt64ShellError::invalid_memory);
+        require(gpu == before);
+        const std::array<jfg::Rt64RdramRange, 1> empty{{{0,0}}};
+        require(jfg::copy_rt64_rdram_snapshot_delta(source,gpu,9,9,empty,{}) == jfg::Rt64ShellError::invalid_memory);
+        require(gpu == before);
+    }
     std::vector<std::byte> previous = converted;
     converted[4U] = std::byte{0xA5};
     converted[5U] = std::byte{0xA5};

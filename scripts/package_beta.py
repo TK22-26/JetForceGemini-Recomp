@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create the owner-requested prebuilt beta; never include a ROM or asset files."""
+"""Create a prebuilt Windows release; never include a ROM or extracted asset files."""
 from __future__ import annotations
 import argparse, hashlib, json, re, shutil, subprocess, zipfile
 from pathlib import Path
@@ -83,7 +83,9 @@ def package(launcher: Path, runtime: Path, output: Path, version: str, vc_runtim
         'Playing requires a compatible hardware graphics device. Software-only\n'
         'virtual machines can verify installation, but cannot run the game.\n'
         'Keep all files together when moving or updating the application.\n'
-        'Saves remain in your existing JFG profile.\n\n'
+        'Saves use your existing AppData profile by default.\n'
+        'Game > Settings... > Change directory... chooses where saves and settings live.\n'
+        'Choose a folder inside the game folder for portable storage; keep it and storage-location.txt when moving or updating.\n\n'
         'This package includes the\n'
         'compiled game program. Original project and third-party license scopes\n'
         'remain separate; see LICENSE and RUNTIME-NOTICES.md.\n',encoding='utf-8')
@@ -110,6 +112,6 @@ if __name__=='__main__':
     parser.add_argument('--runtime',required=True,type=Path)
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--vc-runtime',required=True,type=Path,help='x64 Microsoft.VC143.CRT from the maintainer Visual Studio redist directory')
-    parser.add_argument('--version',default='1.2.0')
+    parser.add_argument('--version',required=True)
     args=parser.parse_args()
     print(package(args.launcher.resolve(),args.runtime.resolve(),args.output.resolve(),args.version,args.vc_runtime.resolve()))

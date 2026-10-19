@@ -1,7 +1,56 @@
 #pragma once
+#include "rt64_blur_pairing.hpp"
+#include "jfg/renderer/native_blur_mode.hpp"
 #include "jfg/renderer/interpolation_bridge.hpp"
 #include "hle/rt64_workload.h"
 namespace jfg {
+// A small shadow target does not consume the displayed image. Keep every
+// rendering/resource fence, but do not make its production wait for a later
+// CPU VI to finish presenting an older interpolated screen sequence.
+inline bool independent_shadow_workload(const RT64::Workload& workload) {
+    const auto snapshot = presentation_snapshot(&workload);
+    if (!snapshot || snapshot->scene || workload.paused || workload.fbPairCount == 0 ||
+        workload.fbPairCount > workload.fbPairs.size()) return false;
+    for (unsigned f = 0; f < workload.fbPairCount; ++f) {
+        const auto& pair = workload.fbPairs[f];
+        if (pair.colorImage.width != 64 || pair.colorImage.fmt != G_IM_FMT_I ||
+            pair.colorImage.siz != G_IM_SIZ_8b || pair.depthRead || pair.depthWrite ||
+            !pair.startFbDiscards.empty()) return false;
+        const auto independent = [&](const auto& operations) {
+            for (const auto& operation : operations) {
+                if (operation.type == RT64::FramebufferOperation::Type::WriteChanges &&
+                    operation.writeChanges.address != pair.colorImage.address) return false;
+                if (operation.type == RT64::FramebufferOperation::Type::CreateTileCopy &&
+                    operation.createTileCopy.address != pair.colorImage.address) return false;
+                if (operation.type != RT64::FramebufferOperation::Type::None &&
+                    operation.type != RT64::FramebufferOperation::Type::WriteChanges &&
+                    operation.type != RT64::FramebufferOperation::Type::CreateTileCopy) return false;
+            }
+            return true;
+        };
+        if (!independent(pair.startFbOperations) || !independent(pair.endFbOperations)) return false;
+    }
+    return true;
+}
+// After a synchronous native render/readback, this CPU-owned mask has no
+// remaining display work. Texture loads use the CPU-postprocessed RDRAM bytes
+// when GPU copies are disabled. Never elide unknown or externally consumed work.
+inline bool cpu_only_shadow_workload(const RT64::Workload& workload,
+        bool render_to_ram, bool copy_with_gpu) {
+    if (!render_to_ram || copy_with_gpu || workload.fbPairCount != 1 ||
+        !independent_shadow_workload(workload)) return false;
+    const auto& pair = workload.fbPairs[0];
+    if (pair.colorImage.address > 0x800000U - 4096U ||
+        pair.drawColorRect.isEmpty() || pair.drawColorRect.left(true) < 0 ||
+        pair.drawColorRect.top(true) < 0 || pair.drawColorRect.right(true) > 64 ||
+        pair.drawColorRect.bottom(true) > 64) return false;
+    for (const auto* operations : {&pair.startFbOperations, &pair.endFbOperations})
+        for (const auto& operation : *operations)
+            if (operation.type != RT64::FramebufferOperation::Type::None &&
+                operation.type != RT64::FramebufferOperation::Type::WriteChanges)
+                return false;
+    return true;
+}
 // This queue slot owns copied history. Never reference an older queue slot.
 inline bool apply_presentation_interpolation(RT64::Workload& workload,
         float previous_weight, float current_weight) {

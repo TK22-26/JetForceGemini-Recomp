@@ -28,6 +28,15 @@ struct ViPresentationSize {
     }
 };
 
+// frontGetScreenMode (supported US ROM, 0x8005A804) reads bit 30 of
+// the persistent frontend options word at 0x800FF384. Bit 29 selects higher
+// source resolution, not a different display aspect. sResolutionIndex is a
+// transient VI mode: cinematics can force its wide bit with this option off.
+[[nodiscard]] constexpr ViPresentationSize game_display_canvas(
+    std::uint32_t frontend_options) noexcept {
+    return {320U, (frontend_options & 0x40000000U) != 0U ? 180U : 240U};
+}
+
 // The supported NTSC game keeps a 320x240 source buffer in its widescreen
 // mode and scans it into 180 display lines. Source dimensions therefore
 // cannot determine the displayed aspect. Account for the VI filtering rows

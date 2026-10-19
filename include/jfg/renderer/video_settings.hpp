@@ -1,4 +1,5 @@
 #pragma once
+#include "blur_settings.hpp"
 #include <charconv>
 #include <filesystem>
 #include <fstream>
@@ -12,12 +13,14 @@ struct VideoSettings {
   FrameRateMode mode = FrameRateMode::original;
   unsigned fps = 60;
   bool vsync = true;
+  BlurMode blur = BlurMode::reduced;
+  unsigned fog_percent = 100;
 };
 inline bool valid_video_settings(const VideoSettings &settings) {
   return (settings.mode == FrameRateMode::original ||
           settings.mode == FrameRateMode::custom ||
           settings.mode == FrameRateMode::unlimited) &&
-         settings.fps >= 60 && settings.fps <= 1000;
+         settings.fps >= 60 && settings.fps <= 1000 && valid_blur_mode(settings.blur) && settings.fog_percent <= 100;
 }
 inline std::optional<unsigned> parse_video_fps(std::string_view text) {
   if (text.empty())
@@ -75,21 +78,39 @@ parse_video_settings(std::string_view text) {
       if (value != "0" && value != "1")
         return std::nullopt;
       result.vsync = value == "1";
+    } else if (key == "blur") {
+      bit = 16;
+      if (value == "off") result.blur = BlurMode::off;
+      else if (value == "reduced") result.blur = BlurMode::reduced;
+      else if (value == "original") result.blur = BlurMode::original;
+      else return std::nullopt;
+    } else if (key == "remove_fog") {
+      bit = 32;
+      if (value != "0" && value != "1") return std::nullopt;
+      result.fog_percent = value == "1" ? 0 : 100;
+    } else if (key == "fog_percent") {
+      bit = 32;
+      unsigned n=0; const auto parsed=std::from_chars(value.data(),value.data()+value.size(),n);
+      if(value.empty() || parsed.ec!=std::errc{} || parsed.ptr!=value.data()+value.size() || n>100) return std::nullopt;
+      result.fog_percent=n;
     } else
       return std::nullopt;
     if (seen & bit)
       return std::nullopt;
     seen |= bit;
   }
-  return seen == 15 ? std::optional<VideoSettings>(result) : std::nullopt;
+  // Existing v1 files omit blur and migrate to the owner-selected Reduced default.
+  return ((seen & 15U) == 15U) ? std::optional<VideoSettings>(result) : std::nullopt;
 }
 inline std::string serialize_video_settings(const VideoSettings &settings) {
   const char *mode = settings.mode == FrameRateMode::custom      ? "custom"
                      : settings.mode == FrameRateMode::unlimited ? "unlimited"
                                                                  : "original";
+  const char *blur = settings.blur == BlurMode::off ? "off" :
+                     settings.blur == BlurMode::original ? "original" : "reduced";
   return std::string("version=1\nmode=") + mode +
          "\nfps=" + std::to_string(settings.fps) +
-         "\nvsync=" + (settings.vsync ? "1\n" : "0\n");
+         "\nvsync=" + (settings.vsync ? "1\n" : "0\n") + "blur=" + blur + "\nfog_percent=" + std::to_string(settings.fog_percent) + "\n";
 }
 // Missing configuration uses the original rendering mode. Corrupt or unreadable
 // configuration is reported to the caller rather than silently changing modes.

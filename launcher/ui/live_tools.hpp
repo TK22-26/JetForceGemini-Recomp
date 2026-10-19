@@ -603,9 +603,11 @@ class ToolUi : public Rml::EventListener {
     }
     if (tab == "mods") {
       html = "<div class=\"section-label\">MODS</div><p class=\"muted\">Optional gameplay changes.</p>";
-      html += toggle("toggle-warp-mod", "Warp to exits", "Double-click an exit marker on the map or an exit in the inspector to warp to it. Normal exit requirements still apply.", (data.mods & 2) != 0);
+      html += toggle("toggle-warp-mod", "Warp to exits", "Double-click an exit marker on the map or an exit in the inspector to enter the next room. Bypasses normal progression requirements.", (data.mods & 2) != 0);
       html += toggle("toggle-health-mod", "Infinite health", "Keep your current character at full health and prevent damage during gameplay.", (data.mods & 4) != 0);
       html += toggle("toggle-kill-mod", "Instant kill enemies", "Automatically defeat loaded ordinary enemies during gameplay. Tribals and friendly NPCs are spared; defeated enemies stay defeated when switched off.", (data.mods & 8) != 0);
+      html += "<div class=\"ai-actions\">" + button("give-weapons", "Give all weapons") +
+              "</div><p class=\"muted\">Give the current character every weapon and refill ammo. Saving keeps these inventory changes.</p>";
       html += "<p id=\"mods-help\" class=\"muted\"/>";
     }
     el("settings-content")->SetInnerRML(html);
@@ -616,6 +618,7 @@ class ToolUi : public Rml::EventListener {
   }
   void refreshAi() {
     bool failed=modsWriteFailed || (data.mods & 16)!=0;
+    enable("give-weapons", (data.mods & 32)!=0);
     for (auto id : {"toggle-warp-mod", "toggle-health-mod", "toggle-kill-mod"}) enable(id, !failed);
     label("mods-help", failed ? "Mods could not be loaded. Reopen the map or start a new game to try again."
                              : "Your choices are saved and apply when you play.");
@@ -1166,6 +1169,9 @@ public:
       tab = id.substr(4);
       settings();
       return;
+    }
+    if (id == "give-weapons") {
+      command("give-weapons");return;
     }
     if (id == "restore-defaults") {
       mode = 0;

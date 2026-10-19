@@ -17,6 +17,21 @@ int main() {
         check(vi_apply_special_features(control, 0x320EU, feature) == control);
         check(vi_apply_special_features(control, 0x320EU, 0x80000000U) == control);
     }
+    // The saved option owns the canvas. Hi-res and every unrelated option
+    // bit must leave its aspect unchanged, even while the VI is cinematic.
+    for (unsigned bit = 0; bit < 32; ++bit) {
+        const auto canvas = jfg::game_display_canvas(1U << bit);
+        check(canvas.width == 320);
+        check(canvas.height == (bit == 30 ? 180U : 240U));
+        check(jfg::game_display_canvas((1U << bit) | 0x40000000U).height == 180);
+    }
+    check(jfg::game_display_canvas(0).height == 240);
+    check(jfg::game_display_canvas(0xBFFFFFFFU).height == 240);
+    check(jfg::game_display_canvas(0xFFFFFFFFU).height == 180);
+    const auto cinematic = jfg::vi_presentation_size(0x006C02ECU, 0x006101C3U);
+    check(cinematic.width == 320 && cinematic.height == 180);
+    // Preserve a 4:3 container around the naturally letterboxed cinematic.
+    check(jfg::game_display_canvas(0).height > cinematic.height);
     const auto normal = jfg::vi_presentation_size(0x006C02ECU, 0x002501FFU);
     check(normal.width == 320 && normal.height == 240);
     const auto wide = jfg::vi_presentation_size(0x006C02ECU, 0x00330195U);

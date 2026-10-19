@@ -2,6 +2,8 @@
 #include "jfg/renderer/presentation_policy.hpp"
 #include "jfg/renderer/video_settings.hpp"
 #include <iostream>
+#include "jfg/renderer/native_blur_mode.hpp"
+#include "jfg/renderer/fog_settings.hpp"
 int main() {
   unsigned failures = 0;
   auto check = [&](bool ok) {
@@ -35,6 +37,49 @@ int main() {
   auto original = jfg::load_video_settings({});
   check(original && original->mode == jfg::FrameRateMode::original &&
         original->vsync);
+  check(original && original->blur == jfg::BlurMode::reduced);
+  const std::string legacy = "version=1\nmode=custom\nfps=120\nvsync=1\n";
+  auto migrated = jfg::parse_video_settings(legacy);
+  check(migrated && migrated->blur == jfg::BlurMode::reduced);
+  for (auto blur : {jfg::BlurMode::off, jfg::BlurMode::reduced, jfg::BlurMode::original}) {
+    jfg::VideoSettings choice{jfg::FrameRateMode::custom, 120, true, blur};
+    auto restored = jfg::parse_video_settings(jfg::serialize_video_settings(choice));
+    check(restored && restored->blur == blur && restored->fps == 120);
+    jfg::configure_native_blur(blur);
+    check(jfg::native_blur_render_mode() == (blur == jfg::BlurMode::off ? 5U : 4U));
+    check(jfg::configured_blur_color(0xffffff80U) == jfg::blur_color_word(blur, 0xffffff80U));
+  }
+  check(!jfg::parse_video_settings(legacy + "blur=unknown\n"));
+  check(!jfg::parse_video_settings(legacy + "blur=off\nblur=original\n"));
+  check(!jfg::valid_video_settings({jfg::FrameRateMode::custom, 120, true, static_cast<jfg::BlurMode>(3)}));
+  for (unsigned alpha = 0; alpha < 256; ++alpha) {
+    const auto byte = static_cast<std::uint8_t>(alpha);
+    check(jfg::blur_source_alpha(jfg::BlurMode::off, byte) == 255);
+    check(jfg::blur_source_alpha(jfg::BlurMode::original, byte) == alpha);
+    const auto reduced = jfg::blur_source_alpha(jfg::BlurMode::reduced, byte);
+    check(reduced >= alpha && reduced >= 191);
+    check((jfg::blur_color_word(jfg::BlurMode::reduced, 0x12345600U | alpha) & 0xffffff00U) == 0x12345600U);
+    if (alpha) check(reduced >= jfg::blur_source_alpha(jfg::BlurMode::reduced, static_cast<std::uint8_t>(alpha-1)));
+  }
+  check(jfg::blur_source_alpha(jfg::BlurMode::reduced, 128) == 223);
+  check(jfg::blur_source_alpha(jfg::BlurMode::reduced, 255) == 255);
+  check(migrated && migrated->fog_percent==100);
+  for(unsigned percent:{0U,25U,50U,75U,100U}) {
+    jfg::VideoSettings choice{};choice.fog_percent=percent;
+    const auto restored=jfg::parse_video_settings(jfg::serialize_video_settings(choice));
+    check(restored&&restored->fog_percent==percent);
+    jfg::configure_fog_strength(percent);
+    check(jfg::fog_strength_preference().load()==percent);
+    check(jfg::fog_coefficients(0x03e8fc18U,percent)==
+      ((std::uint32_t(10*percent)<<16)|std::uint16_t(-int(10*percent))));
+  }
+  check(jfg::fog_coefficients(0x81234567U,100)==0x81234567U);
+  check(jfg::parse_video_settings(legacy+"remove_fog=1\n")->fog_percent==0);
+  check(jfg::parse_video_settings(legacy+"remove_fog=0\n")->fog_percent==100);
+  for(const auto* bad:{"fog_percent=101\n","fog_percent=-1\n","fog_percent=50x\n","remove_fog=1\nfog_percent=50\n"})
+    check(!jfg::parse_video_settings(legacy+bad));
+  jfg::configure_fog_strength(100);
+  jfg::configure_native_blur(jfg::BlurMode::reduced);
   jfg::configure_presentation_policy(true, false);
   check(jfg::presentation_target(360, 240) == 240);
   jfg::configure_presentation_policy(false, false);

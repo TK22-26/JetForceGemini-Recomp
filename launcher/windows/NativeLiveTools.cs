@@ -238,6 +238,12 @@ internal sealed class NativeLiveTools {
           modPreferences.Choose(mods);
           modPreferences.Sync(directory,map==null?null:map.Live,active);
         }
+        else if (command == "give-weapons") {
+          if(fields.Length!=1 || !active)throw new InvalidDataException("Start gameplay before giving weapons.");
+          MapMods.GiveWeapons(directory,map,DateTime.UtcNow.Ticks,Paused);
+          notice="All-weapons grant requested.";
+          noticeUntil=NavigationExplorer.Clock+5000;
+        }
         else if (command == "warp") {
           uint address;
           if (fields.Length != 2 || !UInt32.TryParse(fields[1], out address) || !active)
@@ -245,7 +251,7 @@ internal sealed class NativeLiveTools {
           var mods = MapMods.Load(directory, map == null ? null : map.Live);
           Stop();
           mods.WarpTo(directory, map, address, ++nonce, Paused);
-          notice = "Room transition requested. Normal exit requirements still apply.";
+          notice = "Room transition requested.";
           noticeUntil = NavigationExplorer.Clock + 5000;
         }
         else if (command == "jump")
@@ -660,7 +666,8 @@ internal sealed class NativeLiveTools {
       }
       var mods = modPreferences.Values;
       w.Write(1 | (modPreferences.Failed ? 16 : 0) |
-              (mods.Warp ? 2 : 0) | (mods.Health ? 4 : 0) | (mods.Kill ? 8 : 0));
+              (mods.Warp ? 2 : 0) | (mods.Health ? 4 : 0) | (mods.Kill ? 8 : 0) |
+              (active && map!=null && map.Live.give_weapons_available && map.Live.gameplay_active && !map.Live.scripted_camera ? 32 : 0));
       w.Write(modPreferences.ErrorVersion);
     }
     if (File.Exists(file))
