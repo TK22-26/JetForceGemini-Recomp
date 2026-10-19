@@ -288,6 +288,21 @@ int main() {
   const auto diagonal=jfg::pc_aim_movement(80,80);
   check(std::abs(diagonal.side/2.5F*diagonal.side/2.5F+diagonal.forward/3.0F*diagonal.forward/3.0F-1.0F)<0.001F,"aim diagonal stays normalized");
   check(jfg::pc_aim_movement(0,0).side==0 && jfg::pc_aim_movement(0,0).forward==0,"neutral aim movement");
+  // Independent original-US Expert measurements, not a restatement of
+  // normalization: both strafe directions retain the full forward channel.
+  for(int x:{-80,80}) {
+    const auto native=jfg::pc_aim_movement(x,80,true);
+    check(std::abs(native.side)==2.5F && native.forward==-4.0625F,
+      "standing aim preserves native forward and strafe components");
+    check(std::abs(std::hypot(native.side,native.forward)-4.770105475773046)<0.00001,
+      "standing aimed diagonal matches the EmuHawk measured speed");
+  }
+  check(jfg::pc_aim_movement(0,80,true).forward==-4.0625F,"native standing forward speed");
+  check(jfg::pc_aim_movement(0,-80,true).forward==3.0F,"native backward cap is separate");
+  check(jfg::pc_aim_movement(40,40,true).side==1.25F &&
+        jfg::pc_aim_movement(40,40,true).forward==-2.03125F,"analog components remain proportional");
+  check(jfg::pc_aim_movement(127,127,true).side==2.5F &&
+        jfg::pc_aim_movement(127,127,true).forward==-4.0625F,"full movement cannot exceed native caps");
   const auto clear=jfg::pc_camera_clearance({0,0,0},{0,0,100},{0,0,50});
   check(clear.x==0 && clear.y==0 && clear.z==38,"wall hit retreats toward focus for camera clearance");
   check(jfg::pc_camera_clearance({0,0,0},{0,0,100},{0,0,100}).z==100,"unblocked camera is unchanged");

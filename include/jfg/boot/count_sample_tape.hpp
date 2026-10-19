@@ -36,6 +36,10 @@ public:
   bool active() const { return input_ || output_; }
   bool replaying() const { return input_!=nullptr; }
   std::uint64_t samples() const { return samples_; }
+  bool boundary_mismatch() const { return boundary_mismatch_; }
+  const std::array<std::uint64_t,4>& mismatch_expected() const { return mismatch_expected_; }
+  const std::array<std::uint64_t,4>& mismatch_observed() const { return mismatch_observed_; }
+
   std::optional<std::uint64_t> sample(std::uint64_t instruction,std::uint32_t pc,
       std::uint32_t word,std::uint64_t idle_deadline,std::optional<std::uint64_t> actual) {
     if (!active()) return actual;
@@ -45,7 +49,10 @@ public:
     if (input_) {
       std::array<std::uint64_t,4> saved{};
       input_->read(reinterpret_cast<char*>(saved.data()),sizeof(saved));
-      if (!*input_ || saved[0]!=row[0] || saved[1]!=row[1] || saved[2]!=row[2]) {
+      if (!*input_) { failed_=true;return std::nullopt; }
+      if (saved[0]!=row[0] || saved[1]!=row[1] || saved[2]!=row[2]) {
+        // Failure-only evidence: do not change sampling, limits or acceptance.
+        boundary_mismatch_=true;mismatch_expected_=saved;mismatch_observed_=row;
         failed_=true;return std::nullopt;
       }
       row=saved;
@@ -80,6 +87,8 @@ private:
   std::ostream* output_=nullptr;
   std::uint64_t samples_=0,last_count_=0,last_instruction_=0;
   std::uint64_t sample_limit_=16000000U;
+  std::array<std::uint64_t,4> mismatch_expected_{},mismatch_observed_{};
+  bool boundary_mismatch_=false;
   bool failed_=false,finished_=false;
 };
 }

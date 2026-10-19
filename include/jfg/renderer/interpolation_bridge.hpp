@@ -17,6 +17,7 @@ namespace jfg {
 struct PresentationSnapshots {
     std::mutex mutex;
     std::unordered_map<const void*, std::shared_ptr<const PresentationHistoryFrame>> frames;
+    std::unordered_map<const void*, std::uint64_t> sequence_ticks;
 };
 inline PresentationSnapshots& presentation_snapshots() {
     static PresentationSnapshots snapshots;
@@ -27,13 +28,46 @@ inline void publish_presentation_snapshot(const void* owner,
     auto& storage = presentation_snapshots();
     const std::scoped_lock lock(storage.mutex);
     if (frame) storage.frames[owner] = std::move(frame);
-    else storage.frames.erase(owner);
+    else {
+        storage.frames.erase(owner);
+        if (storage.frames.empty()) storage.sequence_ticks.clear();
+    }
 }
 inline std::shared_ptr<const PresentationHistoryFrame> presentation_snapshot(const void* owner) {
     auto& storage = presentation_snapshots();
     const std::scoped_lock lock(storage.mutex);
     const auto found = storage.frames.find(owner);
     return found == storage.frames.end() ? nullptr : found->second;
+}
+// Production sequence ownership is independent of optional diagnostics.
+inline void record_presentation_sequence(const void* counters, std::uint64_t tick) {
+    auto& storage = presentation_snapshots();
+    const std::scoped_lock lock(storage.mutex);
+    storage.sequence_ticks[counters] = tick;
+}
+inline std::uint64_t presentation_sequence_tick(const void* counters) {
+    auto& storage = presentation_snapshots();
+    const std::scoped_lock lock(storage.mutex);
+    const auto found = storage.sequence_ticks.find(counters);
+    return found == storage.sequence_ticks.end() ? 0U : found->second;
+}
+// A previous long interval is only an estimate of this sequence's duration.
+// When the next authored scene arrives sooner, end at its actual VI boundary.
+// Ignore offscreen passes and never release the first output or the uncapped
+// ring this way. All game workloads still execute in their original order.
+inline std::uint64_t presentation_next_scene_due(std::uint64_t tick,
+        unsigned outputs, unsigned target) {
+    if (!tick || !outputs || !target || target == kUnlimitedPresentation) return 0U;
+    const auto elapsed_vi = std::uint64_t(outputs) * 60U / target;
+    auto& storage = presentation_snapshots();
+    const std::scoped_lock lock(storage.mutex);
+    std::uint64_t next = 0;
+    for (const auto& entry : storage.frames) {
+        const auto& frame = *entry.second;
+        if (frame.scene && frame.tick > tick && frame.tick - tick <= elapsed_vi &&
+            (!next || frame.tick < next)) next = frame.tick;
+    }
+    return next;
 }
 inline bool interpolation_trace_enabled() {
     static const bool enabled = [] {

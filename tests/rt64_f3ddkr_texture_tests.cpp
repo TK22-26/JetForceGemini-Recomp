@@ -20,6 +20,97 @@ void require(const bool condition, const char* message) {
 }
 void interrupt() {}
 
+void shadow_vertex_reuse_case(bool flat_mask = false) {
+    const bool interpolate = true;
+    const std::uint32_t width = 64;
+    std::vector<std::uint8_t> rdram(8U * 1024U * 1024U), guest(rdram.size());
+    std::uint32_t mi_interrupt = 0;
+    RT64::Application::Core core{};
+    core.RDRAM = rdram.data();
+    core.MI_INTR_REG = &mi_interrupt;
+    core.checkInterrupts = &interrupt;
+    RT64::ApplicationConfiguration config{};
+    config.detectDataPath = false;
+    config.useConfigurationFile = false;
+    RT64::Application application(core, config);
+    application.state =
+        std::make_unique<RT64::State>(rdram.data(), &mi_interrupt, &interrupt);
+    application.interpreter = std::make_unique<RT64::Interpreter>();
+    application.interpreter->setup(application.state.get());
+    application.workloadQueue = std::make_unique<RT64::WorkloadQueue>();
+    RT64::EmulatorConfiguration emulator{};
+    auto &state = *application.state;
+    state.ext.workloadQueue = application.workloadQueue.get();
+    state.ext.interpreter = application.interpreter.get();
+    state.ext.emulatorConfig = &emulator;
+    auto &workload = application.workloadQueue->workloads[0];
+    workload.addFramebufferPair(0x10000, 0, 2, width, 0x20000);
+    jfg::Rt64F3ddkr renderer(application, interpolate);
+    renderer.install();
+    renderer.begin(guest);
+    const auto command = [&](std::uint32_t w0, std::uint32_t w1) {
+        RT64::DisplayList dl{};
+        dl.w0 = w0;
+        dl.w1 = w1;
+        auto *cursor = &dl;
+        application.interpreter->hleGBI->map[w0 >> 24U](&state, &cursor);
+    };
+    const auto byte = [&](std::uint32_t at, std::uint8_t value) {
+        guest[at ^ 3U] = value;
+    };
+    auto *matrix = reinterpret_cast<RT64::FixedMatrix *>(guest.data() + 0x1000);
+    for (unsigned i = 0; i < 4; ++i)
+        matrix->integer[i][i ^ 1U] = 1;
+    command(0x01000040, 0x1000);
+    command((flat_mask ? 0xFF880000 : 0xFF100000) | (width - 1), 0x10000);
+    if (flat_mask) command(0xFCFFFFFF, 0xFFFDF6FB); // Primitive color and alpha.
+
+    // This fixture owns a CPU framebuffer pair; no submission or GPU exists.
+    state.rdp->colorImage.changed = state.rdp->depthImage.changed = false;
+    for (unsigned i = 0; i < 3; ++i) {
+        byte(0x2000 + i * 10 + 1, static_cast<std::uint8_t>(i == 1));
+        byte(0x2000 + i * 10 + 3, static_cast<std::uint8_t>(i == 2));
+        for (unsigned c = 6; c < 10; ++c)
+            byte(0x2000 + i * 10 + c, 255);
+    }
+    command(0x04000000 | (3U << 19U), 0x2000);
+    require(renderer.complete(), "visibility fixture vertex load failed");
+    byte(0x3000, 0x40);
+    byte(0x3001, 0);
+    byte(0x3002, 1);
+    byte(0x3003, 2);
+    command(0x05000000, 0x3000);
+    for (unsigned i = 0; i < 100; ++i) command(0x05000000, 0x3000);
+    require(renderer.complete() && workload.drawData.faceIndices.size() == 303U,
+            "identical offscreen UV commands must retain every triangle");
+    require(workload.drawData.vertexCount() == 3U,
+            "identical offscreen UVs must not clone used vertices");
+    byte(0x3005, 32); // Change only the first corner's S to 1.0.
+    command(0x05000000, 0x3000);
+    if (flat_mask) {
+        require(renderer.complete() && workload.drawData.vertexCount() == 3U,
+                "flat I8 masks must not duplicate vertices for unused UVs");
+        // Switching the same target to a textured combiner restores UV writes.
+        command(0xFCFFFFFF, 0xFFFCF279); // Decal RGBA.
+        command(0x05010000, 0x3000);
+        require(renderer.complete() && workload.drawData.vertexCount() == 4U,
+                "textured I8 draws must restore per-triangle UV ownership");
+        require(workload.drawData.tcFloats[6] == 1.0f,
+                "textured mask must use the requested texture coordinate");
+        return;
+    }
+    require(renderer.complete() && workload.drawData.vertexCount() == 4U,
+            "changed UV must clone a previously drawn vertex");
+    require(workload.drawData.tcFloats[0] == 0.0f &&
+            workload.drawData.tcFloats[6] == 1.0f,
+            "new UV must not alter the earlier triangles");
+    state.rsp->used[0] = true;
+    workload.drawData.lookAtIndices[state.rsp->indices[0]] = 1;
+    command(0x05000000, 0x3000);
+    require(renderer.complete() && workload.drawData.vertexCount() == 5U,
+            "disabling generated coordinates must still clone a used vertex");
+}
+
 void visibility_case(bool interpolate, std::uint32_t width) {
     std::vector<std::uint8_t> rdram(8U * 1024U * 1024U), guest(rdram.size());
     std::uint32_t mi_interrupt = 0;
@@ -99,6 +190,8 @@ void visibility_case(bool interpolate, std::uint32_t width) {
 }
 
 int main() {
+    shadow_vertex_reuse_case();
+    shadow_vertex_reuse_case(true);
     visibility_case(false, 320);
     visibility_case(true, 320);
     visibility_case(true, 16);

@@ -3,12 +3,12 @@
 [![Build status](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml)
 
 A native PC recompilation of Jet Force Gemini for Windows x64.
-**v1.2.0** includes a prebuilt game: extract the ZIP, import your supported
+**v1.3.0** includes a prebuilt game: extract the ZIP, import your supported
 North American ROM once, and click **Play**. No developer tools or compilation
 are required.
 
 **A complete, fully playable v1 release:** play the campaign from start to finish.
-Original local multiplayer and optional content also work. v1.2.0 is a released
+Original local multiplayer and optional content also work. v1.3.0 is a released
 game, ready to play with your own supported ROM. See the playtesting notes below
 for the recorded campaign run and [known issues](docs/known-issues.md) for ongoing fixes.
 
@@ -21,8 +21,8 @@ review, and playtesting.
 
 ## Installation
 
-Download **JFG-1.2.0-windows-x64.zip** from the
-[v1.2.0 release](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.2.0),
+Download the **Windows x64 ZIP** from the
+[latest stable release](https://github.com/TK22-26/JetForceGemini-Recomp/releases/latest),
 extract the entire ZIP, and open `JFG-Launcher.exe`. Use **Select ROM…** to import
 your supported US `.z64` ROM. Once import finishes, the original file can be
 moved or deleted; the launcher uses its private local copy. Existing saves
@@ -43,8 +43,15 @@ program and runtime libraries. Textures, models, audio, and other game data are
 read from your locally imported ROM, which is never uploaded. Original game
 content remains the property of its respective owners.
 
-Version 1.2.0 retains a centered 4:3 game area so cutscene bars remain
-correct inside a wide launcher window. See the [changelog](CHANGELOG.md).
+Version 1.3.0 improves cutscene and boss presentation, adds adjustable motion
+blur and live fog strength, and supports portable data storage. Gameplay and
+cutscene framing follow the saved widescreen option. See the [changelog](CHANGELOG.md).
+
+For a portable installation, open **Game > Settings > Change directory** and
+choose a folder inside the game folder. The launcher copies existing saves,
+settings and imported ROM data, preserving files already at the destination,
+then restarts. Move the complete game folder, including your selected data
+folder and storage-location.txt, to keep that installation self-contained.
 
 ## What works
 
@@ -86,7 +93,8 @@ gameplay is opt-in for player 1 in single-player; original mappings support the
 other players. XInput rumble is available; native SDL/DualSense rumble, gyro and
 adaptive triggers remain future work.
 
-**Release availability:** the complete overhaul described here is included in v1.2.0. Modern gameplay remains
+**Release availability:** the controls introduced in v1.2.0 are included in v1.3.0,
+with boss, camera and standing-aim movement fixes. Modern gameplay remains
 experimental while camera, pointer coverage and physical-device feel are refined.
 See the [controls guide and validation notes](docs/features/pc-controls.md).
 
@@ -102,6 +110,9 @@ See the [controls guide and validation notes](docs/features/pc-controls.md).
 
 Open **Video > Video settings** for VSync, a Custom FPS target or Unlimited.
 Rendering interpolates between game updates without speeding up gameplay.
+The Enhancements tab includes **Off / Reduced / Original** motion blur (Reduced
+by default) and **0–100% fog strength**, which applies live. Frame-rate changes
+apply the next time the game starts.
 High-refresh presentation and Modern Controls remain opt-in; see
 [qualification and limits](docs/known-issues.md).
 
@@ -113,7 +124,7 @@ at startup and shows **Update available** on the home screen. Use
 shows your installed version and the latest stable release, with a button to
 open its download page. Offline checks never prevent playing.
 
-The checker is included in v1.2.0. It reads public GitHub release metadata without sending
+The checker reads public GitHub release metadata without sending
 your ROM, saves or settings. Downloads and installation remain your choice.
 
 ## Playtesting notes
@@ -174,8 +185,8 @@ The complete v1 game is here. Future work focuses on additional PC enhancements:
 
 - **Ultrawide support:** wider aspect ratios with correct gameplay presentation,
   menus, and HUD layout.
-- **Higher frame-rate presentation:** smoother visuals while preserving the
-  original gameplay timing.
+- **Broader high-refresh qualification:** refine pacing and interpolation across
+  additional scenes, hardware and output rates.
 - **Mod support:** documented interfaces and tools for community modifications.
 - **Controller extras:** native SDL/DualSense rumble, gyro aiming and adaptive triggers.
 - **Further polish:** performance fixes, camera refinement, remaining mouse-menu

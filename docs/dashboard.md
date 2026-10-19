@@ -1,14 +1,14 @@
 # Project dashboard
 
-Updated 2026-10-16. Jet Force Gemini Recomp is a **complete, fully playable v1
+Updated 2026-10-19. Jet Force Gemini Recomp is a **complete, fully playable v1
 game for Windows x64**. The campaign can be played from beginning to end;
 original local multiplayer and optional content work. Development now adds PC
 quality-of-life features and addresses specific bugs and compatibility issues.
 
 ## Download and play
 
-The published stable release is **v1.2.0**:
-[download JFG-1.2.0-windows-x64.zip](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.2.0).
+The published stable release is **v1.3.0**:
+[download the latest Windows x64 ZIP](https://github.com/TK22-26/JetForceGemini-Recomp/releases/latest).
 Extract the whole ZIP, open `JFG-Launcher.exe`, import your supported North
 American `.z64` ROM once, and click **Play**. No compiler, WSL or developer tools
 are needed. Saves and settings stay in your local profile when you update.
@@ -26,7 +26,9 @@ ROM. Follow the [installation guide](getting-started.md).
 | Prebuilt Windows x64 bundle and one-time ROM import | Released in v1.1.0 |
 | Correct centered 4:3 game viewport in wide windows | Released in v1.1.0 |
 | Unified launcher, original input mappings, live map and inventory | Available in the stable release |
-| Major controller and keyboard/mouse overhaul | Included in v1.2.0; opt-in |
+| Major controller and keyboard/mouse overhaul | Included; v1.3 adds boss/camera and standing-aim movement fixes; opt-in |
+| High-refresh cutscenes, boss/glass/body interpolation and adjustable blur | Improved in v1.3; finite scene/hardware qualification |
+| Portable storage directory and live fog strength | Available in v1.3 |
 | Automatic release notifications and Help > Check for updates… | Included in v1.2.0; validation status in the [issue record](development/issues/launcher-update-discovery.md) |
 
 ## Controls: the major quality-of-life addition
@@ -54,7 +56,7 @@ Included in v1.2.0; the download button opens GitHub in your browser.
 
 ## What remains
 
-- Extend [performance qualification](development/issues/goldwood-combat-slowdown.md) beyond the improved owner-tested route and investigate the exit-cutscene report.
+- Extend [performance qualification](development/issues/goldwood-combat-slowdown.md) beyond the accepted v1.3 owner route; obtain reporter retests for invasion replay and Ally X behavior.
 - Refine modern camera behavior and finish mouse targets on remaining menu pages.
 - Continue physical-device and hardware compatibility checks.
 - Extend high-refresh and ultrawide qualification, community mod

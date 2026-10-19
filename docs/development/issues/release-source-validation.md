@@ -72,3 +72,27 @@ in the private publication receipts.
 ## v1.2.1 publication record
 
 Tagged-source CI and the prebuilt publication workflow pass; the downloaded public assets match the staged hashes and bundle manifest. The issue index accidentally replaced INPUT-011's link cell with a status sentence during release preparation. This documentation-only follow-up restores the link and records actual publication/reporter-retest status; the published tag and binaries remain unchanged. See [boss-control release evidence](github-ichor-boss-controls.md).
+
+## v1.3 preparation
+
+The current source-policy preflight found two owner-specific paths in new issue notes, a new unregistered project UI icon atlas, and generated-marker matches in three small handwritten synthetic compiler fixtures. Public notes now use private artifact names; exact-body reviews cover the atlas/fixtures with mutation rejection intact. No generated game body, ROM, save or capture is added. Final current-tree/history, compiler, package and CI qualification remain pending in [the v1.3 checklist](../releases-1.3.0-qualification.md).
+
+## v1.3 release CI: randomized fixture width
+
+The first v1.3 PR run fails Linux compilation in semantic_presentation_tests:
+mt19937::result_type is unsigned long on LP64, so randomized fixture addresses
+narrow implicitly to uint32_t under warnings-as-errors. Windows uses a 32-bit
+unsigned long and did not expose the problem. Explicitly convert the generator's
+specified 32-bit output at the fixture boundary; retain its seed, sequence,
+assertions and all warnings. No runtime/game code changes. GCC/Clang checks and
+fresh CI are required before publication. Original failed CI is retained in PR #27.
+
+The corrected randomized fixture compiles and passes under host GCC and Clang.
+The Windows renderer CI also rejected the pinned timer source because its hash
+was taken before CRLF normalization. Hash the canonical LF text, as the other
+strict dependency patches do. LF and CRLF copies produce identical patched units;
+a changed source is still rejected. The dependency revision and timer behavior
+are unchanged. An initial fixture configure could not locate Ninja; the standard
+Visual Studio generator completed all three checks. The authenticated fatal-bridge
+test passes locally with Clang; its initial CI failure remains recorded and
+requires a fresh full CI result. No authentication assertion or CI gate is relaxed.

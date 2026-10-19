@@ -93,6 +93,11 @@ struct PresentationHistoryFrame {
     std::uint64_t tick = 0;
     unsigned source_rate = 0;
     bool scene = false;
+    bool defer_to_blur = false;
+    std::uint32_t blur_source = 0, blur_target = 0;
+    // Submission identity owns a world/effect pair; the VI clock can advance
+    // between their two display lists without creating a different game frame.
+    std::uint64_t presentation_serial = 0, blur_parent_serial = 0;
     // Populated only by the explicit private matching observer.
     std::vector<unsigned> debug_reasons;
     std::vector<PresentationMatrix> debug_previous;
@@ -155,6 +160,7 @@ class PresentationHistory {
         static constexpr std::size_t empty=std::size_t(-1);
         std::vector<ShapeEntry> entries;
         std::vector<std::size_t> slots;
+        std::size_t used = 0;
         static std::uint64_t hash_key(const std::vector<std::uint32_t>& key) {
             std::uint64_t value=0xcbf29ce484222325ULL;
             for(auto word:key){value^=word;value*=0x100000001b3ULL;}
@@ -164,7 +170,10 @@ class PresentationHistory {
             if(maximum>empty/4U)throw std::length_error("shape history capacity");
             std::size_t capacity=16U;while(capacity<maximum*2U)capacity*=2U;
             if(capacity>slots.size())slots.resize(capacity);
-            std::fill(slots.begin(),slots.end(),empty);entries.clear();entries.reserve(maximum);
+            std::fill(slots.begin(),slots.end(),empty);
+            // Retain each key's allocation too. Only freshly rebuilt slots
+            // expose entries; unused high-water storage cannot match a shape.
+            used=0;entries.reserve(maximum);
         }
         std::size_t insert(const PresentationMesh& mesh) {
             const auto hash=hash_key(mesh.key);auto slot=hash&(slots.size()-1U);
@@ -172,8 +181,11 @@ class PresentationHistory {
                 if(entry.hash==hash && entry.key==mesh.key){++entry.count;return slots[slot];}
                 slot=(slot+1U)&(slots.size()-1U);
             }
-            const auto index=entries.size();slots[slot]=index;
-            entries.push_back({mesh.key,{mesh.matrix,mesh.rigid_pose},hash,1U});return index;
+            const auto index=used++;slots[slot]=index;
+            if(index==entries.size())entries.emplace_back();
+            auto& entry=entries[index];entry.key=mesh.key;
+            entry.endpoint={mesh.matrix,mesh.rigid_pose};entry.hash=hash;entry.count=1U;
+            return index;
         }
         const HistoryEndpoint* find(const ShapeEntry& key) const {
             if(slots.empty())return nullptr;

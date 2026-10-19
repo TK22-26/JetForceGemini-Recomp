@@ -2,6 +2,7 @@
 #include <stdexcept>
 static fs::path home;
 static unsigned checks = 0;
+static bool capture_images = true;
 static void demand(bool value, const char *why) {
   ++checks;
   if (!value)
@@ -24,6 +25,17 @@ static void click(const char *id) {
 }
 static void pointer(const char *id) {
   auto *e = element(id);
+  for(auto* parent=e;parent;parent=parent->GetParentNode()) {
+    const auto card=parent->GetId();
+    const char* tab=nullptr;
+    if(card=="video-card-mode"||card=="video-card-size"||card=="video-card-pause")tab="video-tab-display";
+    else if(card=="video-card-vsync"||card=="video-card-blur")tab="video-tab-rendering";
+    else if(card=="video-card-fps"||card=="video-card-cap")tab="video-tab-framerate";
+    else if(card=="video-card-fog")tab="video-tab-enhance";
+    if(tab&&!parent->IsVisible(true)){click(tab);break;}
+  }
+  e->ScrollIntoView();
+  settle();
   auto point = e->GetAbsoluteOffset(Rml::BoxArea::Border) +
                Rml::Vector2f(e->GetClientWidth() / 2, e->GetClientHeight() / 2);
   auto *hit = surface->context->GetElementAtPoint(point);
@@ -44,6 +56,7 @@ static void type(const std::string &value) {
   settle();
 }
 static void capture(const char *name) {
+  if (!capture_images) return;
   auto &s = *surface;
   settle();
   ComPtr<ID3D11Resource> resource;
@@ -83,11 +96,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
   try {
     int argc = 0;
     auto **argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (argc != 2) {
+    if (argc != 2 && argc != 3) {
       LocalFree(argv);
       return 2;
     }
     home = argv[1];
+    if (argc == 3) {
+      if (std::wstring(argv[2]) != L"--no-captures") { LocalFree(argv); return 2; }
+      capture_images = false;
+    }
     LocalFree(argv);
     if (fs::exists(home))
       return 3;
@@ -132,6 +149,22 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     surface->context->SetDensityIndependentPixelRatio(1);
     settle();
     auto &ui = *surface->video;
+    demand(element("video-card-mode")->IsVisible(true)&&!element("video-card-fog")->IsVisible(true),"Display is initial tab");
+    pointer("video-tab-enhance");
+    demand(element("video-card-fog")->IsVisible(true)&&!element("video-card-mode")->IsVisible(true),"Enhancements switches the page");
+    auto fog=[&](float v){Rml::Dictionary event;event["value"]=v;element("video-fog")->DispatchEvent("change",event);settle();};
+    fog(35);demand(ui.draft.rendering.fog_percent==35&&ui.dirty(),"fog percentage modifies draft");
+    pointer("video-tab-display");demand(ui.draft.rendering.fog_percent==35,"tab switch retains unsaved fog");
+    pointer("video-tab-enhance");fog(100);demand(!ui.dirty(),"original fog restored");
+    ui.running=true;fog(50);demand(!element("video-restart")->IsVisible(true),"fog requires no restart");
+    fog(100);ui.running=false;
+    auto* search=static_cast<Rml::ElementFormControlInput*>(element("video-search"));
+    search->SetValue("mist");Rml::Dictionary query;query["value"]=std::string("mist");search->DispatchEvent("change",query);settle();
+    demand(element("video-card-fog")->IsVisible(true)&&!element("video-card-mode")->IsVisible(true),"search matches fog synonym across tabs");
+    search->SetValue("zzzz");search->DispatchEvent("change",query);settle();
+    demand(element("video-empty")->IsVisible(true),"search empty state");
+    pointer("video-clear");pointer("video-tab-display");
+
     {
       std::ofstream coordinates(home / "controls.tsv");
       Rml::ElementList buttons;
@@ -146,6 +179,26 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
     demand(!element("video-restart")->IsVisible(true),
            "no restart chip when no game is running");
+    demand(ui.draft.rendering.blur == jfg::BlurMode::reduced, "old file defaults to Reduced");
+    demand(element("video-blur-reduced")->IsClassSet("selected"), "Reduced selected initially");
+    demand(!element("video-blur-warning")->IsVisible(false), "Reduced has no Original warning");
+    pointer("video-blur-original");
+    demand(ui.draft.rendering.blur == jfg::BlurMode::original && ui.dirty(), "Original changes saved preference");
+    demand(element("video-blur-warning")->IsVisible(false), "high-FPS Original comfort warning");
+    pointer("video-original");
+    demand(!element("video-blur-warning")->IsVisible(false), "native-rate Original hides high-FPS warning");
+    pointer("video-custom");
+    demand(element("video-blur-warning")->IsVisible(false), "custom restores warning");
+    pointer("video-blur-off");
+    demand(ui.draft.rendering.blur == jfg::BlurMode::off && !element("video-blur-warning")->IsVisible(false), "Off hides warning");
+    pointer("video-blur-reduced");
+    demand(!ui.dirty(), "return to initial Reduced clears dirty state");
+    jfg::frontend::VideoRequest request;
+    demand(jfg::frontend::valid_video_request(request), "default blur protocol valid");
+    request.blur = 3;
+    demand(!jfg::frontend::valid_video_request(request), "reject invalid blur protocol");
+    request.blur = 1; request.version = 1;
+    demand(!jfg::frontend::valid_video_request(request), "reject old protocol layout");
     MSG close{};
     auto accepted = [&] {
       demand(PeekMessageW(&close, window, WM_CLOSE, WM_CLOSE, PM_REMOVE) != 0,
@@ -167,8 +220,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     ui.running = true;
     ui.refresh();
     settle();
-    demand(element("video-restart")->IsVisible(true),
-           "game-running restart notice");
+    demand(!element("video-restart")->IsVisible(true),
+           "unchanged settings need no restart notice");
     type("59");
     demand(ui.invalid() && element("video-apply")->HasAttribute("disabled"),
            "reject underflow");
@@ -201,12 +254,14 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
            "real text widget edits cap");
     pointer("video-preset-165");
     capture("custom.tga");
+    pointer("video-blur-off");
     pointer("video-unlimited");
-    demand(!element("video-custom-controls")->IsVisible(true),
+    demand(!element("video-card-cap")->IsVisible(true),
            "Unlimited hides cap controls");
     pointer("video-apply");
     accepted();
     demand(ui.pendingRestart, "saved rendering needs next game session");
+    demand(jfg::load_video_settings(profile / "video.ini")->blur == jfg::BlurMode::off, "Off persists");
     capture("unlimited.tga");
     pointer("video-original");
     demand(ui.draft.rendering.mode == jfg::FrameRateMode::original,

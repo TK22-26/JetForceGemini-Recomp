@@ -17,6 +17,8 @@
 #include "../../launcher/native/game_viewport.hpp"
 #include "../../launcher/native/video_settings_dialog.hpp"
 #include "../../launcher/native/video_settings_protocol.hpp"
+#include "../../launcher/native/storage_settings.hpp"
+#include "../../launcher/native/window_chrome.hpp"
 #ifdef JFG_RML_UI
 #include "native_ui.hpp"
 #endif
@@ -43,7 +45,8 @@ enum : UINT {
   Guide,
   Quit,
   Mods,
-  Video
+  Video,
+  Settings
 };
 struct Process {
   HANDLE handle = nullptr, job = nullptr;
@@ -68,8 +71,10 @@ struct App {
   HMENU menu = nullptr;
   HFONT font = nullptr, titleFont = nullptr;
   HBRUSH background = CreateSolidBrush(RGB(18, 27, 40));
-  fs::path profile, helper;
+  fs::path profile, helper, dataRoot, localRoot, executable;
+  bool portable = false, customProfile = false, restartStorage = false, settingsDialogOpen = false;
   std::wstring inputReplay, progressOutput, diagnosticsDirectory;
+  bool weatherDiagnostics = false;
   bool quickPlay = false, previewUpdate = false;
   Process session, dialog;
   std::vector<std::unique_ptr<Process>> tools;
@@ -169,11 +174,11 @@ bool launch(Process &process, const wchar_t *action, HWND owner) {
     if (!app.progressOutput.empty())
       command += L" --progress-output " + quote(app.progressOutput);
     if (!app.diagnosticsDirectory.empty())
-      command += L" --diagnostics " + quote(app.diagnosticsDirectory);
+      command += (app.weatherDiagnostics ? L" --weather-diagnostics " : L" --diagnostics ") + quote(app.diagnosticsDirectory);
   }
   fs::path executable=app.helper;
 #ifdef JFG_RML_UI
-  if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory" || std::wstring(action)==L"controllers" || std::wstring(action)==L"video") {
+  if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory" || std::wstring(action)==L"controllers" || std::wstring(action)==L"video" || std::wstring(action)==L"settings") {
     wchar_t module[32768]{};GetModuleFileNameW(nullptr,module,32768);executable=module;
     command=quote(executable.wstring())+L" --live-tool "+action+L" --profile "+quote(app.profile.wstring())+L" --helper "+quote(app.helper.wstring())+L" --owner "+std::to_wstring(reinterpret_cast<std::uintptr_t>(owner));
   }
@@ -427,6 +432,8 @@ bool applyVideo(const jfg::frontend::VideoDialogSettings &settings,
     error = L"Could not save video settings. Check access to your save folder.";
     return false;
   }
+  if(app.render && IsWindow(app.render))
+    PostMessageW(app.render, WM_APP+26, settings.rendering.fog_percent, reinterpret_cast<LPARAM>(app.window));
   app.pauseInactive = settings.pause_inactive;
   if (app.fullscreen != settings.fullscreen)
     fullscreen();
@@ -478,6 +485,7 @@ void menus() {
                  {Stop, L"&Stop / return home"},
                  {Setup, L"&Verify game files"},
                  {Cancel, L"Cancel setup"},
+                 {Settings, L"Settings..."},
                  {0, nullptr},
                  {Quit, L"&Quit"}});
   add(L"&Controllers",
@@ -541,6 +549,8 @@ void uiAction(const std::string &a) {
     command = Fullscreen;
   else if (a == "video")
     command = Video;
+  else if (a == "settings")
+    command = Settings;
   else if (a == "controllers")
     command = Controllers;
   else if (a == "map")
@@ -629,18 +639,47 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
                            LPARAM lparam) {
   if(message==WM_APP+22) {HWND tool=reinterpret_cast<HWND>(wparam);if(IsWindow(tool)&&GetPropW(tool,L"JfgLiveModal")&&std::find(app.liveModals.begin(),app.liveModals.end(),tool)==app.liveModals.end())app.liveModals.push_back(tool);return 0;}
   if(message==WM_APP+23) {PostMessageW(window,WM_COMMAND,Inventory,0);return 0;}
+  if(message==jfg::frontend::kStorageState)
+    return (app.portable?1:0)|(app.session.running()?2:0)|(app.customProfile?4:0);
   if(message==jfg::frontend::kVideoState)
     return (app.fullscreen?1:0)|(app.pauseInactive?2:0)|((app.render&&IsWindow(app.render))?4:0);
   if(message==WM_COPYDATA) {
     const auto* packet=reinterpret_cast<const COPYDATASTRUCT*>(lparam);
     HWND sender=reinterpret_cast<HWND>(wparam);DWORD pid=0;GetWindowThreadProcessId(sender,&pid);
+    if(app.settingsDialogOpen && app.dialog.running() && pid==GetProcessId(app.dialog.handle) &&
+       GetWindow(sender,GW_OWNER)==window && packet && packet->dwData==jfg::frontend::kStorageApply &&
+       packet->cbData==sizeof(jfg::frontend::StorageRequest) && packet->lpData) {
+      const auto request=*static_cast<const jfg::frontend::StorageRequest*>(packet->lpData);
+      if(request.directory[0]==0 || request.directory[32767]!=0 || app.session.running() || app.customProfile)return 0;
+      try {
+        persist();
+        const fs::path requested(request.directory);
+        if(!requested.is_absolute() || !fs::is_directory(requested) || jfg::frontend::linked_path(requested))return 0;
+        const auto root=fs::weakly_canonical(requested);
+        if(root==fs::weakly_canonical(app.dataRoot))return 2;
+        // Never nest a new root inside source profiles while enumerating them.
+        const auto nested=root.lexically_relative(fs::weakly_canonical(app.dataRoot/L"profiles"));
+        if(!nested.empty() && *nested.begin()!=L"..")return 0;
+        if(jfg::frontend::linked_path(root/L"profiles"))return 0;
+        for(const auto& profile:fs::directory_iterator(app.dataRoot/L"profiles")) {
+          if(profile.is_directory() && !profile.path().filename().wstring().starts_with(L".")) {
+            if(jfg::frontend::linked_path(profile.path()))throw std::runtime_error("Linked profile.");
+            jfg::frontend::copy_profile_preserving_existing(profile.path(),root/L"profiles"/profile.path().filename());
+          }
+        }
+        jfg::frontend::set_storage_root(app.executable,root);
+        app.restartStorage=true;
+        PostMessageW(window,WM_CLOSE,0,0);
+        return 1;
+      } catch(const std::exception&) {return 0;}
+    }
     if(!app.videoDialogOpen || !app.dialog.running() || pid!=GetProcessId(app.dialog.handle) ||
        GetWindow(sender,GW_OWNER)!=window || !packet || packet->dwData!=jfg::frontend::kVideoApply ||
        packet->cbData!=sizeof(jfg::frontend::VideoRequest) || !packet->lpData)return 0;
     const auto request=*static_cast<const jfg::frontend::VideoRequest*>(packet->lpData);
     if(!jfg::frontend::valid_video_request(request))return 0;
     jfg::frontend::VideoDialogSettings settings;
-    settings.rendering={static_cast<jfg::FrameRateMode>(request.mode),request.fps,request.vsync!=0};
+    settings.rendering={static_cast<jfg::FrameRateMode>(request.mode),request.fps,request.vsync!=0,static_cast<jfg::BlurMode>(request.blur),request.fog_percent};
     settings.fullscreen=request.fullscreen!=0;settings.window_size=request.window_size;settings.pause_inactive=request.pause_inactive!=0;
     std::wstring error;return applyVideo(settings,error)?1:0;
   }
@@ -843,7 +882,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
         PostMessageW(window, WM_COMMAND, Play, 0);
     }
     if (app.dialog.handle && !app.dialog.running()) {
-      if(app.videoDialogOpen){app.videoDialogOpen=false;EnableWindow(window,TRUE);}
+      if(app.videoDialogOpen || app.settingsDialogOpen){app.videoDialogOpen=false;app.settingsDialogOpen=false;EnableWindow(window,TRUE);}
       app.dialog.release();
       capture(false);
     }
@@ -895,6 +934,14 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
         status(L"Setup cancelled.");
         write(L"frontend-status.txt", L"Setup cancelled. You can retry.");
       }
+      break;
+    case Settings:
+#ifdef JFG_RML_UI
+      if(!app.dialog.running()) {
+        app.settingsDialogOpen=true;settings(L"settings");
+        if(!app.dialog.running())app.settingsDialogOpen=false;
+      }
+#endif
       break;
     case Video: {
 #ifdef JFG_RML_UI
@@ -1024,7 +1071,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
 #ifdef JFG_RML_UI
   int liveResult=FrontendLiveToolEntry(instance,show);if(liveResult>=0)return liveResult;
 #endif
-#ifdef JFG_VIDEO_DIALOG_TEST
+#if defined(JFG_VIDEO_DIALOG_TEST) || defined(JFG_STORAGE_TEST)
   // Integration fixtures must coexist with the owner's normal launcher.
   const std::wstring instanceName=L"Local\\JFGVideoDialogTest-"+std::to_wstring(GetCurrentProcessId());
   HANDLE singleton = CreateMutexW(nullptr, TRUE, instanceName.c_str());
@@ -1047,12 +1094,20 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
 #ifdef JFG_RML_UI
   SetEnvironmentVariableW(L"JFG_LAUNCHER_EXE",module);
 #endif
-  app.helper = fs::path(module).parent_path() / L"JFG-Setup.exe";
+  app.executable = fs::path(module);
+  app.helper = app.executable.parent_path() / L"JFG-Setup.exe";
   PWSTR local = nullptr;
   if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &local)))
     return 1;
-  app.profile = fs::path(local) / L"JFGRecomp" / L"profiles" / L"default";
+  app.localRoot = fs::path(local) / L"JFGRecomp";
   CoTaskMemFree(local);
+#ifdef JFG_STORAGE_TEST
+  // ROM-free integration target only; never compiled into the public launcher.
+  wchar_t isolatedRoot[32768]{};
+  const auto isolatedLength=GetEnvironmentVariableW(L"JFG_TEST_STORAGE_ROOT",isolatedRoot,32768);
+  if(isolatedLength==0 || isolatedLength>=32768)return 2;
+  app.localRoot=fs::absolute(isolatedRoot)/L"JFGRecomp";
+#endif
   int argc = 0;
   LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(), &argc);
   bool validArguments = argv != nullptr;
@@ -1062,24 +1117,41 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
       app.quickPlay = true;
     else if (option == L"--preview-update" && !app.previewUpdate)
       app.previewUpdate = true;
-    else if (option == L"--profile" && i + 1 < argc)
+    else if (option == L"--portable")
+      app.portable = true;
+    else if (option == L"--profile" && i + 1 < argc) {
       app.profile = fs::absolute(fs::path(argv[++i]));
+      app.customProfile = true;
+    }
     else if (option == L"--input-replay" && i + 1 < argc && app.inputReplay.empty())
       app.inputReplay = fs::absolute(fs::path(argv[++i])).wstring();
     else if (option == L"--progress-output" && i + 1 < argc && app.progressOutput.empty())
       app.progressOutput = fs::absolute(fs::path(argv[++i])).wstring();
-    else if (option == L"--diagnostics" && i + 1 < argc && app.diagnosticsDirectory.empty())
+    else if ((option == L"--diagnostics" || option == L"--weather-diagnostics") &&
+             i + 1 < argc && app.diagnosticsDirectory.empty()) {
+      app.weatherDiagnostics = option == L"--weather-diagnostics";
       app.diagnosticsDirectory = fs::absolute(fs::path(argv[++i])).wstring();
+    }
     else
       validArguments = false;
   }
   LocalFree(argv);
   if (!validArguments || (!app.quickPlay && (!app.inputReplay.empty() || !app.progressOutput.empty()))) {
     MessageBoxW(nullptr,
-                L"Use JFG-Launcher.exe [--play] [--profile <folder>] [--diagnostics <folder>] [--preview-update]. "
+                L"Use JFG-Launcher.exe [--play] [--profile <folder>] [--portable] [--diagnostics <folder>] [--preview-update]. "
                 L"Diagnostic --input-replay <file> and --progress-output <file> require --play.",
                 L"Jet Force Gemini", MB_OK | MB_ICONERROR);
     return 2;
+  }
+  try {
+    app.dataRoot = app.portable ? jfg::frontend::portable_root(app.executable)
+        : jfg::frontend::configured_storage_root(app.executable,app.localRoot);
+    app.portable = app.dataRoot == jfg::frontend::portable_root(app.executable);
+    if (!app.customProfile) app.profile = jfg::frontend::default_profile(app.dataRoot);
+    if (!SetEnvironmentVariableW(L"JFG_DATA_ROOT", app.dataRoot.c_str())) return 1;
+  } catch (const std::exception&) {
+    MessageBoxW(nullptr, L"Cannot read the data folder setting.", L"Jet Force Gemini", MB_OK|MB_ICONERROR);
+    return 1;
   }
   HRSRC resource = FindResourceW(instance, MAKEINTRESOURCEW(101), RT_RCDATA);
   if (resource) {
@@ -1097,8 +1169,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
         app.profile / L"frontend-helper" / std::to_wstring(hash);
     std::error_code helperError;
     fs::create_directories(helperFolder, helperError);
-    if (helperError)
+    if (helperError) {
+      MessageBoxW(nullptr,L"Cannot write launcher data. Use a writable game folder for portable mode, or check access to your save folder.",L"Jet Force Gemini",MB_OK|MB_ICONERROR);
       return 1;
+    }
     app.helper = helperFolder / L"JFG-Setup.exe";
     std::ifstream existing(app.helper, std::ios::binary | std::ios::ate);
     std::string previous;
@@ -1142,6 +1216,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
       instance, nullptr);
   if (!window)
     return 1;
+  jfg::frontend::apply_window_chrome(window);
   int x = 0, y = 0, w = 0, h = 0, full = 0;
   if (swscanf_s(read(L"frontend-window.txt").c_str(), L"%d %d %d %d %d", &x, &y,
                 &w, &h, &full) == 5 &&
@@ -1181,5 +1256,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
   DestroyMenu(app.menu);
   ReleaseMutex(singleton);
   CloseHandle(singleton);
+  if(app.restartStorage) {
+    std::wstring command=quote(app.executable.wstring());
+    STARTUPINFOW start{};start.cb=sizeof(start);PROCESS_INFORMATION child{};
+    if(CreateProcessW(app.executable.c_str(),command.data(),nullptr,nullptr,FALSE,0,nullptr,
+                      app.executable.parent_path().c_str(),&start,&child)) {
+      CloseHandle(child.hThread);CloseHandle(child.hProcess);
+    } else MessageBoxW(nullptr,L"Storage was saved. Reopen the launcher to continue.",L"Jet Force Gemini",MB_OK);
+  }
   return 0;
 }

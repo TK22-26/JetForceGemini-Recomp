@@ -880,7 +880,7 @@ acceptance. Earlier incomplete captures remain preserved.
 
 ### Optional per-update thread-cycle observation
 
-JFG_DIAGNOSTIC_UPDATE_CYCLES=1, together with JFG_GAMEPLAY_TRACE, requests one update-thread-cycles TSV row per measured game update. Fields are VI, controller poll, valid flag, host thread ID, cycle delta and guest-instruction delta. Correlate with update-work by VI/poll. This measures only the host thread that runs the root game update; it excludes renderer/other guest threads and must not be converted to CPU milliseconds. Invalid thread/query results report valid=0 and zero cycles. Ordinary FPS logging does not enable it. Source and replay qualification are tracked with PERF-001; this diagnostic does not establish a slowdown cause by itself.
+JFG_DIAGNOSTIC_UPDATE_CYCLES=1, together with JFG_GAMEPLAY_TRACE, requests one update-thread-cycles TSV row per measured game update. Fields are VI, controller poll, valid flag, execution participant ID, cycle delta and guest-instruction delta. Correlate with update-work by VI/poll. With the ordinary transport this measures the host thread running the root update. With the opt-in Windows fiber transport, participant IDs have the high bit set and the remaining bits identify the guest stack; cycles accumulate only while that stack executes. Parked time and other guest stacks are excluded. Function-profile rows use the same logical IDs. Submission-owner rows retain actual OS thread IDs and must not be joined to fiber IDs by numeric equality. Cycle counts must not be converted to CPU milliseconds. Invalid thread/query results report valid=0 and zero cycles. Ordinary FPS logging does not enable it. Source and replay qualification are tracked with PERF-001; this diagnostic does not establish a slowdown cause by itself.
 
 
 The repository analyzer scripts/analyze_update_cycle_trace.py reads the optional update-cycle timeline and reports the slowest updates with known wait, thread cycles, instruction counts, enclosed graphics submissions and time outside the measured root update. Outside-update time may contain both work and waits, so it is not automatically attributed to CPU execution. Example: python scripts/analyze_update_cycle_trace.py trace.tsv --first-vi 3500 --last-vi 6000 --output update-costs.json. It handles repeated VI/poll keys in event order, rejects invalid cycle joins, reports missing/truncated observations, and excludes boundary-crossing submissions from nested cost totals. Focused fixtures cover those cases; the final native capture has complete valid observations. Wall time is not CPU time; nested submission/full-sync costs are never added together. Evidence: update-cycle-analyzer. Hidden-window capture remains distinct from physical-display acceptance.
@@ -972,6 +972,18 @@ The final reticle runtime repeats the normal Play-mode coverage check: 2,070 con
 The compact health logging and screenshot-free route capture are delivered locally with source `26295c75dd43848f59cdd1268518d7131861dbee` through both preview shortcuts. Earlier capture evidence remains intact; this does not retroactively supply missing final counters or resolve the Goldwood exit-cutscene report.
 
 
+### Route replay coverage (2026-10-17)
+
+The fresh v1.2.0 capture retains compact timing and final audio health through
+the exit even after detailed actor logging reaches its cap. Both final audio
+counters are zero. An 18-minute candidate native replay is also audio-clean,
+but misses the owner's later scene transition; duration and clean counters
+cannot prove the exit was exercised. Scene coverage is now checked explicitly
+for the [ship-cutscene candidate](goldwood-exit-audio.md), alongside deterministic
+Original/Custom comparisons. The exact cause of native-route divergence remains
+unisolated; do not silently promote an input replay to complete route acceptance.
+
+
 ### Ichor route live-prefix coverage (2026-10-18)
 
 The official v1.2.0 owner route reaches the existing detailed gameplay/actor
@@ -1004,3 +1016,7 @@ duplicate scene age. Native scene/output verification remains pending.
 The unique-VI counter check passes in the focused preview, and the CSV header now describes that counting rule. This diagnostic correction does not qualify blur-scene output pacing.
 
 The distinct-source scene counter is released in v1.2.1. It prevents a same-tick blur submission from falsely doubling the displayed game-scene rate; it does not correct the unresolved blur presentation itself.
+
+## Combined v1.3 owner route (2026-10-19)
+
+The owner plans a fresh New Game through Vela rescue review. Closed the weather-probe session and reopened the identical runtime 09ca8091d720bb2c3f73d935536fc8a2d72df9b0d7bb6288a26b34c2bf1d6ad8 using standard --diagnostics. The extra weather-state/pixel and reticle-line probes are disabled; standard gameplay/input/interpolation, compact timing/output and audio-health evidence remain. No periodic screenshot readback is enabled. Save/profile and compiled code are unchanged; launch starts muted. Evidence: v13-tawfret-rain-20261019/owner-full-run and owner-full-run-launch.json. Gameplay begins only when the owner presses Play; route completion and final counters are pending. Standard diagnostic overhead remains a measurement limit. The owner now prioritizes visibly smooth, responsive play and clean audio over a blanket zero-timing-outlier requirement.

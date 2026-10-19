@@ -36,14 +36,22 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
-| MOD-001 | Exit warp stops at the door | Native contact fix released in v1.2.1; ten transitions verified; ungated explicit warps requested for 1.3 | [Report and source review](map-exit-warp-transition.md) |
-| RENDER-011 | Vela rescue cutscene stalls / appears low resolution | Official 1.2.0 stalls / interpolation loss confirmed; queue and same-tick screen passes localized, remedy pending | [Report and evidence](vela-rescue-cutscene-stutter-resolution.md) |
+| RENDER-018 | Dead drone bodies jitter with camera movement | Owner visual pass and capture validation; exact seed/cutscene coverage unverified; not released | [Investigation and validation](dead-drone-camera-jitter.md) |
+| NATIVE-003 | Ichor detached-head flight locations after body destruction | EmuHawk plus idle/moving Vela comparison: no sampled out-of-bounds flight; broader parity unconfirmed | [Report and comparison plan](ichor-head-flight-locations.md) |
+| MOD-001 | Exit warp stops at the door | Native contact fix in 1.2.1; 1.3 progression bypass and exact overlapping-exit handoff pass focused/native checks | [Report and source review](map-exit-warp-transition.md) |
+| RENDER-012 | Breakable glass before Vela shakes at high refresh | Fixed in candidate: production overlay translation, component checks and owner live verification passed; unreleased | [Report](high-refresh-glass-shaking.md) |
+| RENDER-015 | Boss motion blur causes discomfort despite 120/30 | Off bypass and Reduced appearance owner-accepted; three-mode preference component-tested, unreleased | [Report](boss-motion-blur-discomfort.md) |
+| RENDER-016 | GitHub #25 Ally X cutscenes, homing reticle and rain | Awaiting reporter v1.3 retest and input-mode details; owner confirms rain and smooth hut scene, cannot reproduce reticle failure with mouse/Modern Controls | [Report](github-ally-x-rendering.md) |
+| RENDER-014 | Enemy-clear door indicator darkens with distance | ORIGINAL-GAME BUG confirmed in EmuHawk; further investigation deferred by owner; accepted visibility workaround retained, unreleased | [Report](door-enemy-lock-distance-darkening.md) |
+| RENDER-013 | Original appears to follow VSync/display refresh | Not reproduced after restart; owner confirms 30 FPS motion, earlier session unlogged | [Investigation](original-vsync-rate-selection.md) |
+| RENDER-011 | Vela rescue cutscene stalls / appears low resolution | Tentatively accepted by owner at 120/30 after N64 footage confirms soft shots; brief Vela-to-first-cut dip and broader review remain | [Report and evidence](vela-rescue-cutscene-stutter-resolution.md) |
 | INPUT-011 | GitHub #20 Ichor boss-room controls stop responding | Released in v1.2.1; owner confirms three bosses; reporter retest pending | [Cause and verification](github-ichor-boss-controls.md) |
 | BUILD-003 | Release source policy and compiler portability | Resolved for released v1.2.0; full CI and published bundle verification pass | [Release validation](release-source-validation.md) |
 | NATIVE-002 | GitHub #14 mouse-look startup access violation | Reproduced startup cause resolved in v1.2.0; current enabled startup passes | [Startup report](github-mouse-look-startup.md) |
 | BUILD-002 | GitHub #15 GCC native build failure | Portable source released in v1.2.0; actual GCC source verified, AppImage not qualified | [Linux build review](github-linux-native-build.md) |
 | INPUT-010 | GitHub #13 controller camera inversion | GUI toggle released in v1.2.0; persistence/deltas verified, reporter retest pending | [Controls review](github-controller-vertical-inversion.md) |
 | SETUP-001 | GitHub #4 Windows 10 source setup | Fixes released in v1.2.0; 28 checks pass, fresh Windows 10 retest pending | [Setup review](github-windows-source-setup.md) |
+| GH-018 | Held aim cancels on firing; diagonal movement differs while aiming | Owner relays reporter acknowledgement: held aim fixed in v1.2. Standing-aim speed correction matches native measurements in captured gameplay; unreleased v1.3 | [Investigation](github-held-aim-and-diagonal-movement.md), [handoff](../issue18-native-controls-handoff-2026-10-17.md) |
 | DISPLAY-001 | Widescreen viewport and pointer alignment | Verified in tests; preview installed, live check pending | [Investigation](widescreen-pointer-and-airborne-aim.md) |
 | INPUT-008 | Menu bindings save but are hidden; retained mouse preference | Unified Keys, no arrows and shared E verified and delivered locally; owner check pending | [Profile/default review](modern-capture-profile-defaults.md) |
 | RENDER-008 | Shuriken reticle flickers and disappears | Released in v1.2.0 after tests and owner live acceptance | [Report and investigation](shuriken-reticle-flicker.md) |
@@ -58,6 +66,8 @@ Detailed per-issue records are added as those issues receive further work.
 | RENDER-005 | Pickup particles desynchronize from gems | Lifetime/shape correction tested and delivered locally; owner live confirmation pending | [Report and investigation](pickup-particle-desync.md) |
 | RENDER-006 | Late tutorial crates, exit light and bridge jitter | Deforming bridge correction delivered locally after tests; original physics correct; owner visual and broader object acceptance pending | [Live capture review](tutorial-late-object-jitter.md) |
 | RENDER-007 | Ground shadow appears less smooth than Juno | Clipped receiver/mask gap investigated; no qualified shadow fix | [Shadow cadence](shadow-cadence.md) |
+| PERF-007 | Live-map JSON preparation stalls gameplay | Faster serialization and background command reads verified in scoped normal Play; unreleased 1.3 | [Cause and checks](live-map-export-hitch.md) |
+| PERF-006 | Synchronous controller settings polling stalls input/game update | Background snapshot reader verified in focused and normal Play checks; unreleased 1.3 | [Cause and limits](controller-settings-io-hitch.md) |
 | PERF-003 | Late renderer cache-key hitch | Stable keys and empty-cache fast path delivered after tests/native replays; live acceptance pending | [Cause and checks](renderer-cache-key-instability.md) |
 | PERF-001 | Goldwood drone-combat update slowdown | Native ROM loading improvement delivered; tested combat holds two-VI updates; later renderer/load gaps and owner acceptance remain open | [Evidence and attempts](goldwood-combat-slowdown.md) |
 | PERF-002 | Frame diagnostics and attribution | Long-capture coverage and screenshot-induced hitches corrected and delivered locally; new route verification pending | [Evidence and limits](frame-diagnostics.md) |
@@ -65,10 +75,14 @@ Detailed per-issue records are added as those issues receive further work.
 | NATIVE-001 | Access violation during extended native Play replay | Fresh overlay reset fixes captured stale path-cache write; targeted return/native respawn tests pass; local preview installed, live verification pending | [Crash evidence](native-play-access-violation.md) |
 | BUILD-001 | Restored source and stale generated renderer disagree | Coherent rebuild qualified in exact-state replay with sane renderer rates; desktop baseline unaffected | [Cause and safeguards](stale-generated-renderer.md) |
 | STORAGE-001 | Historical diagnostics fill the working volume | Local recovery; retention policy open | [Cause and verified archive](diagnostic-storage-exhaustion.md) |
+| PERF-005 | GitHub #19 invasion replay at 1-2 FPS | Open; owner traversal reviewed, clean audio but no invasion replay; final combined opening cadence passes separately | [Report and comparisons](github-invasion-replay-stutter.md) |
+| PERF-004 / DISPLAY-002 | Opening village cadence / cutscenes ignore 4:3 option | Combined private candidate passes active-shot cadence at 120/360; aspect checks pass; loading, presentation and live review remain separate | [Evidence and progress](opening-village-and-cutscene-aspect.md) |
+| AUDIO-003 | Ship-cutscene stutter and Goldwood exit audio | No-op draw matching verified in tests and beta.1 owner pass for both ship scenes; local preview, not stable release | [Exit investigation](goldwood-exit-audio.md) |
 | AUDIO-002 | Frequent audio interruptions during walking/combat | Native playback remedy delivered; final default replays clean; one long-stall control underrun and owner listening check remain open | [Report and investigation](walking-audio-interruptions.md) |
 | AUDIO-001 | Intermittent background-music crackle | Verified in tests and owner live verification; local preview only | [Investigation](intermittent-music-crackle.md) |
 | DIAG-002 | Reference owner capture inherited debug gameplay overrides and classic controls | Setup defect confirmed; correction prepared; further reference testing stopped at owner request | [Audit and correction](reference-owner-capture-contamination.md) |
 | DIAG-001 | Bounded replay misses final image capture | Verified in hidden replays; unchanged final reference RAM | [Cause and verification](final-probe-frame-capture.md) |
+| CAMERA-006 | Mouse camera resets after landing or ledge climb | Fixed in local candidate; component checks and owner confirmation cover high-drop landing and ledge climb; unreleased | [Report](mouse-camera-high-landing-reset.md) |
 | CAMERA-005 | Modern camera jumps upward over terrain / apparent pond-lip contact | Actual pond regression reproduced and corrected in tests; revised preview installed, owner live check pending | [Report and investigation](camera-collision-bounce.md) |
 | CAMERA-003 | Modern area entry faces the exit | Verified in focused tests and owner live play; local preview | [Reproduction and work](modern-controller-state-transitions.md) |
 | MOVE-003 | Dual-stick jump loses direction and air steering | Verified in focused tests and owner live play; local preview | [Reproduction and work](modern-controller-state-transitions.md) |
@@ -80,6 +94,9 @@ Detailed per-issue records are added as those issues receive further work.
 | INPUT-003 | Fire drops mouse aim; aim entry snaps view | Corrected and tested; broader live coverage remains | [Capture ownership and camera handoff](../../features/pc-controls.md#modern-shoulder-camera-and-mouse-audit-2026-10-10) |
 | INPUT-004 | Missing pause mouse targets / modern Save | Submenu navigation, contextual Back and sounds verified in tests; live check pending | [Current report and investigation](modern-pause-navigation.md) |
 | INPUT-006 | Modern aiming prevents jumping | Native jump-from-aim verified for all characters; live check pending | [Investigation](modern-pause-navigation.md) |
+| LAUNCHER-004 | GitHub #24 portable user data | Directory picker and migration tests passed; owner accepted local preview, unreleased | [Report](portable-user-data.md) |
+| LAUNCHER-005 | Native windows use light title bars unlike Scooby | Native dark caption checks passed; owner accepted settings preview, unreleased | [Report](native-window-chrome.md) |
+| RENDER-017 | GitHub #26 optional distance-fog removal | Live 0-100% strength and real tab icons tested; owner accepted, unreleased | [Report](optional-fog-removal.md) |
 | LAUNCHER-002 | Controller window opens off-center | Owner-centered placement verified in hidden windows; live check pending | [Investigation](modern-pause-navigation.md) |
 | MOVE-001 | Upward view moves idle character | Reproduced; corrected and zero-displacement replay verified | [Camera translation cause](../../features/pc-controls.md#upward-camera-running-speed-and-scripted-input-follow-up-2026-10-10) |
 | MOVE-002 | Modern movement 23.08% too fast | Native axis scaling/cap restored and tested | [Movement cap cause and fix](../../features/pc-controls.md#upward-camera-running-speed-and-scripted-input-follow-up-2026-10-10) |
@@ -96,3 +113,9 @@ Other currently reported limitations remain in [known issues](../../known-issues
 - [BUILD-003: Release source validation](release-source-validation.md) - candidate remediation and qualification for 1.2.0.
 
 [1.2.1 session findings targeted for 1.3](1.2.1-session-1.3-followup.md) collects the unresolved blur, slowdown and audio evidence with the general performance backlog.
+
+- [Boss camera sweep pop](boss-camera-sweep-pop.md): camera-aware correction component-tested and owner-verified in Boss Camera Review; completed audit confirms 140 old projected-motion rejections avoided. Isolated shared-camera fallbacks and broader performance qualification remain documented; unreleased.
+
+- [Live frame-rate settings](live-frame-rate-settings.md): queued enhancement; FPS mode/cap/VSync currently require game restart.
+
+[v1.3.0 release qualification](../releases-1.3.0-qualification.md) tracks the combined owner pass, source/package checks and reporter retests; publication is pending.

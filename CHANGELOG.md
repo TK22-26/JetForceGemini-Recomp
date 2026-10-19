@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.3.0 - 2026-10-19
+
+- Improve ship, village and Vela-rescue cutscene presentation and boss motion.
+  Reduce redundant draw matching, upload allocation work, synchronous settings
+  reads and live-map serialization stalls. Preserve the original game timing.
+- Retain high-resolution scene images and interpolation through native blur
+  effects. Add Off / Reduced / Original blur; Reduced is the default.
+- Fix breakable-glass shaking and boss animation stepping during camera sweeps.
+  Keep cutscene framing aligned with the game's saved widescreen option.
+- Improve camera-relative interpolation of detached drone bodies and death
+  animations with intentionally hidden bones.
+- Preserve the mouse camera angle after high landings and ledge climbs.
+  Restore the measured native standing-aim forward/strafe/diagonal speeds.
+- Add Game > Settings > Change directory for portable saves, settings and
+  imported ROM storage. Paths inside the game folder remain valid when it moves.
+- Refresh Video Settings with tabs and add live fog strength from 0% to 100%.
+  Update native window title bars to follow the Windows dark appearance.
+- Let the exit-warp mod enter the next room regardless of progression gates.
+  Add Map > Settings > Mods > Give all weapons as a one-click inventory/ammo grant.
+- Retain the v1.2.1 boss-controls and source-scene FPS counter corrections.
+
+Owner route and targeted visual review are complete; exact seeded parity is not
+claimed. See the [release qualification](docs/development/releases-1.3.0-qualification.md)
+for validation evidence and limits.
+Reporter-specific reticle/hut behavior and the exact invasion-replay report
+await v1.3 retests; see [known issues](docs/known-issues.md).
+
 ## 1.2.1 - 2026-10-18
 
 - Fixed modern boss controls losing movement, strafing and separate mouse/controller aiming. Playable boss combat and jumps now retain their configured actions; actual cutscene, pause and death ownership remain intact. Owner playtests passed Vela/Ichor, Juno and Lupus.

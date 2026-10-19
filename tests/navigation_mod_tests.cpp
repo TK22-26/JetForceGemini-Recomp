@@ -197,6 +197,49 @@ int main(int argc, char **argv) {
     }
     put32(control+0xFCU,0x8010C000U);check(!pc_gameplay_active(m,player));
     put32(control+0xFCU,0);check(pc_gameplay_active(m,player));
+    // Landing recovery keeps only the camera. It must never unlock actions,
+    // movement, dialogue, damage or scripted shots, including the final tick.
+    for(unsigned character:{0U,1U}) {
+      put8(control+1U,static_cast<std::uint8_t>(character));
+      put8(player+0x3BU,character==0?0x1A:0x19);put8(control+0x568U,0);
+      for(unsigned timer:{30U,2U,1U}) {
+        put8(control+0x56BU,static_cast<std::uint8_t>(timer));
+        check(pc_landing_view_active(m,player));
+        check(!pc_gameplay_active(m,player) && !pc_actions_active(m,player));
+      }
+      put32(0x800F6DBCU,1);put8(control+0x56BU,0);
+      check(pc_landing_view_active(m,player) && !pc_actions_active(m,player));
+      put8(player+0x3BU,0);
+      check(!pc_landing_view_active(m,player) && pc_landing_view_active(m,player,true));
+      put32(0x800F6DBCU,0);check(!pc_landing_view_active(m,player,true));
+      put8(player+0x3BU,character==0?0x1A:0x19);put8(control+0x56BU,30);
+      for(auto offset:{0x577U,0x1F9U,0x1FAU,0x186U,0x198U,0x5EEU,0x10DU,0x19FU}) {
+        put8(control+offset,1);check(!pc_landing_view_active(m,player));put8(control+offset,0);
+      }
+      for(auto gate:{0x800FD7C4U,0x801045B8U,control+0xFCU,control+0x5C0U}) {
+        put32(gate,1);check(!pc_landing_view_active(m,player));put32(gate,0);
+      }
+      put8(0x800FD7BDU,1);check(!pc_landing_view_active(m,player));put8(0x800FD7BDU,0);
+      put8(control+0x568U,7);check(!pc_landing_view_active(m,player));put8(control+0x568U,0);
+    }
+    put8(control+1U,2);check(!pc_landing_view_active(m,player));
+    put8(control+1U,0);put8(player+0x3BU,0);put8(control+0x56BU,0);
+    // Ledge attachment/climb retains view only. Body/locomotion ownership
+    // stays native, and every ordinary action/script lock still rejects it.
+    for(unsigned character:{0U,1U}) {
+      put8(control+1U,static_cast<std::uint8_t>(character));
+      for(unsigned movement:{6U,7U,8U,12U}) {
+        put8(control+0x568U,static_cast<std::uint8_t>(movement));
+        check(pc_ledge_view_active(m,player));
+        for(auto offset:{0x56BU,0x577U,0x1F9U,0x1FAU,0x186U,0x198U,0x5EEU,0x10DU,0x19FU}) {
+          put8(control+offset,1);check(!pc_ledge_view_active(m,player));put8(control+offset,0);
+        }
+        put32(control+0xFCU,1);check(!pc_ledge_view_active(m,player));put32(control+0xFCU,0);
+        put32(control+0x5C0U,1);check(!pc_ledge_view_active(m,player));put32(control+0x5C0U,0);
+      }
+    }
+    put8(control+1U,2);check(!pc_ledge_view_active(m,player));
+    put8(control+1U,0);put8(control+0x568U,0);check(!pc_ledge_view_active(m,player));
     // A real boss update selects a different controller, not a menu. Its
     // fixed camera remains outside the ordinary shoulder/locomotion adapter.
     check(pc_actions_active(m,player) && !pc_boss_gameplay_active(m,player));
@@ -514,6 +557,58 @@ int main(int argc, char **argv) {
     const auto doors = exits(m, {{exit, 8U, {1, 2, 3}}});
     check(doors.size() == 1U && doors[0].destination == 0x1234U &&
           doors[0].radius == 30U && doors[0].condition == -1);
+    // Explicit all-weapons clicks are one-shot, current-character-only, and
+    // cannot cross a room transition, repeat from stale files, or run in menus.
+    {
+      const auto preserved=bytes;
+      NavigationMod grant;grant.telemetry_enabled=true;grant.player=player;
+      const auto room=m.u32(0x800FB114U);
+      std::uint64_t request_nonce=0;
+      auto send=[&](std::uint64_t nonce,std::uint64_t gen,std::int64_t stamp=1000,
+                    bool present=true) {
+        std::ostringstream text;text<<"JFGWEAPONS1 "<<room<<' '<<gen<<' '<<nonce<<' '<<stamp;
+        std::istringstream in(text.str());
+        return grant.give_weapons(in,m,present?std::vector<Actor>{{player,1U,{}}}:std::vector<Actor>{},1000);
+      };
+      m.put16(props+6U,512U);
+      for(unsigned character=0;character<3;++character) {
+        put8(control+1U,static_cast<std::uint8_t>(character));
+        const auto saved=game+0x15CU+character*0x76U;
+        m.put16(saved+0xAU,5U);put8(saved+0x6EU,0xA5U);put8(saved+0x6FU,2U);
+        put8(saved+0x70U,2U);
+        for(unsigned i=0;i<15;++i) {
+          m.put16(saved+0x14U+2U*i,0U);m.put16(saved+0x34U+2U*i,static_cast<std::uint16_t>(20U+i));
+        }
+        const auto before=bytes;
+        check(send(++request_nonce,grant.generation));
+        check(m.u16(saved+0xAU)==0x7FFFU && m.u8(saved+0x6FU)==15U &&
+              m.u8(saved+0x6EU)==0xA5U && m.u8(saved+0x70U)==2U);
+        for(unsigned i=0;i<15;++i)check(m.u16(saved+0x14U+2U*i)==20U+i &&
+                                       m.u16(saved+0x34U+2U*i)==20U+i);
+        for(std::size_t i=0;i<bytes.size();++i) {
+          const auto address=static_cast<std::uint32_t>(i^(swapped?3U:0U))|0x80000000U;
+          const bool expected=(address>=saved+0xAU&&address<saved+0xCU) ||
+            (address>=saved+0x14U&&address<saved+0x32U) || address==saved+0x6FU;
+          if(!expected)check(bytes[i]==before[i]);
+        }
+        m.put16(saved+0x14U,1U);
+        check(!send(request_nonce,grant.generation)&&m.u16(saved+0x14U)==1U);
+        check(send(++request_nonce,grant.generation)&&m.u16(saved+0x14U)==20U);
+      }
+      auto before=bytes;
+      check(!send(++request_nonce,grant.generation+1U)&&bytes==before);
+      check(!send(++request_nonce,grant.generation,-1)&&bytes==before);
+      check(!send(++request_nonce,grant.generation,1001)&&bytes==before);
+      check(!send(++request_nonce,grant.generation,1000,false)&&bytes==before);
+      put8(0x800FD7BDU,1U);before=bytes;
+      check(!send(++request_nonce,grant.generation)&&bytes==before);
+      put8(0x800FD7BDU,0U);put8(control+1U,3U);before=bytes;
+      check(!send(++request_nonce,grant.generation)&&bytes==before);
+      put8(control+1U,0U);m.put16(game+0x15CU+0x34U+28U,0U);before=bytes;
+      check(!send(++request_nonce,grant.generation)&&bytes==before); // no partial grant
+      std::istringstream bad("JFGWEAPONS1 0 extra");check(!grant.give_weapons(bad,m,{},1000));
+      bytes=preserved;
+    }
     // The three map Mods work independently in ordinary telemetry sessions.
     {
       NavigationMod mods; mods.telemetry_enabled=true;
@@ -567,17 +662,69 @@ int main(int argc, char **argv) {
       check(!send(12,1,room,exit)&&bytes==unchanged_mods);m.put16(props+6U,512);
       put32(0x800257F4U,0);unchanged_mods=bytes;
       check(!send(13,1,room,exit)&&bytes==unchanged_mods);put32(0x800257F4U,0xACF000F4U);
-      // Missing progression must not queue a contact or move the character.
+      // Explicit map warps bypass progression without granting the missing flag.
+      // Ordinary exit-condition queries must still describe the locked route.
       m.put16(xc+0x14U,7);
       put8(0x800A113CU,23);put8(0x800A113DU,1);put8(0x800A113EU,255);
       put8(game+0x32U,static_cast<std::uint8_t>(m.u8(game+0x32U)&0x7FU));
+      auto condition=[&] {
+        return exit_condition(m,exits(m,{{exit,8U,{101,202,303}}})[0],
+                              npc_facts(m,inventory(m,player),player),player);
+      };
+      const auto progress=m.u8(game+0x32U);
+      check(condition()==Fact::missing);
+      check(send(14,1,room,exit)&&m.u32(control+0xF4U)==exit);
+      check(m.u8(game+0x32U)==progress&&condition()==Fact::missing);
       unchanged_mods=bytes;
       check(!send(14,1,room,exit)&&bytes==unchanged_mods);
-      put8(game+0x32U,static_cast<std::uint8_t>(m.u8(game+0x32U)|0x80U));
+      put32(control+0xF4U,0);put8(control+0x196U,0);
+      // Unavailable progression facts also cannot block this explicit request.
+      put8(0x800A113DU,2);
+      check(condition()==Fact::unknown);
       check(send(15,1,room,exit)&&m.u32(control+0xF4U)==exit);
+      check(condition()==Fact::unknown&&m.u8(game+0x32U)==progress);
+      put32(control+0xF4U,0);put8(control+0x196U,0);put8(0x800A113DU,1);
+      // Co-located exits can have different progression/destination choices.
+      // Queue the exact selected address, even if a different exit is open.
+      const auto alternate=exit+0x400U,ac=xc+0x400U,ad=xd+0x400U;
+      put32(alternate+0x68U,ac);put32(alternate+0x3CU,ad);
+      put32(ac+0x10U,30U);m.put16(ac+0x14U,0xFFFFU);
+      put8(ad+0xAU,0x78U);put8(ad+0xBU,0x56U);
+      const std::vector<Actor> overlapping{{player,1U,{}},
+        {alternate,8U,{101,202,303}},{exit,8U,{101,202,303}}};
+      auto select=[&](unsigned nonce,unsigned address) {
+        std::ostringstream text;text<<"JFGWARP1 "<<room<<" 1 "<<nonce<<" 1000 "<<address;
+        std::istringstream in(text.str());
+        return mods.warp_to_exit(in,m,overlapping,1000);
+      };
+      check(select(16,exit)&&m.u32(control+0xF4U)==exit);
+      check(condition()==Fact::missing&&m.u8(game+0x32U)==progress);
+      put32(control+0xF4U,0);put8(control+0x196U,0);
+      check(select(17,alternate)&&m.u32(control+0xF4U)==alternate);
+      check(m.u8(ad+0xAU)==0x78U&&m.u8(xd+0xAU)==0x34U);
+      // Simulate an ordinary overlapping trigger replacing the queued contact.
+      put32(control+0xF4U,exit);
+      std::uint32_t replaced=0;
+      check(mods.has_exit_warp_selection());
+      check(mods.apply_exit_warp_selection(m,overlapping,player,1000,replaced));
+      check(replaced==exit&&m.u32(control+0xF4U)==alternate);
+      unchanged_mods=bytes;
+      check(!mods.apply_exit_warp_selection(m,overlapping,player,1000,replaced)&&bytes==unchanged_mods);
+      // An exit disappearing before consumption cannot redirect stale memory.
+      put32(control+0xF4U,0);put8(control+0x196U,0);
+      check(select(18,alternate));put32(control+0xF4U,exit);unchanged_mods=bytes;
+      check(!mods.apply_exit_warp_selection(m,{{player,1U,{}},{exit,8U,{101,202,303}}},
+          player,1000,replaced)&&bytes==unchanged_mods);
+      put32(control+0xF4U,0);put8(control+0x196U,0);
+      check(select(19,exit));unchanged_mods=bytes;
+      check(!mods.apply_exit_warp_selection(m,overlapping,player,7001,replaced)&&bytes==unchanged_mods);
+      put32(control+0xF4U,0);put8(control+0x196U,0);
+      check(select(20,alternate));mods.transition();unchanged_mods=bytes;
+      check(!mods.has_exit_warp_selection());
+      check(!mods.apply_exit_warp_selection(m,overlapping,player,1000,replaced)&&bytes==unchanged_mods);
       put32(control+0xF4U,0);put8(control+0x196U,0);m.put16(xc+0x14U,0xFFFFU);
-      mods.transition();unchanged_mods=bytes;
-      check(!send(16,1,room,exit)&&bytes==unchanged_mods);
+      unchanged_mods=bytes;
+      check(!send(21,1,room,exit)&&bytes==unchanged_mods);
     }
     // Inventory and dialogue completion are separate, character-scoped facts.
     put8(control + 1U, 1U);

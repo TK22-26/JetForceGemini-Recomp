@@ -2,6 +2,9 @@
 #include <cstdio>
 #include "jfg/runtime/snapshot_copy.hpp"
 #include "jfg/renderer/rt64_shell.hpp"
+#include "jfg/renderer/native_blur.hpp"
+#include "jfg/renderer/native_blur_mode.hpp"
+#include "jfg/renderer/blur_source_audit.hpp"
 #include "jfg/renderer/presentation_policy.hpp"
 #include "jfg/renderer/vi_presentation.hpp"
 #include "jfg/renderer/interpolation_bridge.hpp"
@@ -431,6 +434,8 @@ struct Rt64Shell::Impl {
     bool cpu_mask_writeback = false;
     bool writeback_pending = false;
     std::vector<Rt64RdramRange> writeback_ranges;
+    std::vector<Rt64RdramRange> last_writeback_ranges;
+    std::uint64_t snapshot_generation = 0U;
     std::uint64_t last_rdram_check_microseconds = 0U;
 
     ~Impl() {
@@ -438,6 +443,7 @@ struct Rt64Shell::Impl {
         if (setup_started && application != nullptr) {
             application->end();
         }
+        finish_blur_source_audit();
         if (capture != nullptr) {
             capture->deactivate();
         }
@@ -480,6 +486,52 @@ Rt64ShellError copy_rt64_rdram_snapshot(
         destination[index + 2U] = source[index + 1U];
         destination[index + 3U] = source[index];
     }
+    return Rt64ShellError::none;
+}
+
+Rt64ShellError import_rt64_vi_range(
+    const std::span<const std::byte> source, const std::span<std::byte> destination,
+    const Rt64RdramRange range, std::vector<Rt64RdramRange>& restore) noexcept {
+    if (destination.size() != kRt64RequiredRdramBytes || source.size() > destination.size() ||
+        range.begin >= range.end || range.end > source.size()) return Rt64ShellError::invalid_memory;
+    for (const auto previous : restore)
+        if (previous.begin >= previous.end || previous.end > destination.size()) return Rt64ShellError::invalid_memory;
+    try {
+        restore.push_back(range);
+        std::sort(restore.begin(),restore.end(),[](auto a,auto b){return a.begin<b.begin;});
+        std::size_t count=0;
+        for (const auto entry : restore) {
+            if (count && entry.begin<=restore[count-1U].end)
+                restore[count-1U].end=(std::max)(restore[count-1U].end,entry.end);
+            else restore[count++]=entry;
+        }
+        restore.resize(count);
+        if (source.data()!=destination.data())
+            std::memcpy(destination.data()+range.begin,source.data()+range.begin,range.end-range.begin);
+        return Rt64ShellError::none;
+    }
+    catch (...) { return Rt64ShellError::renderer_exception; }
+}
+
+Rt64ShellError copy_rt64_rdram_snapshot_delta(
+    const std::span<const std::byte> source, const std::span<std::byte> destination,
+    const std::uint64_t base_generation, const std::uint64_t current_generation,
+    const std::span<const Rt64RdramRange> changed,
+    const std::span<const Rt64RdramRange> gpu_written) noexcept {
+    if (!base_generation || base_generation != current_generation)
+        return copy_rt64_rdram_snapshot(source, destination, Rt64MemoryLayout::host_word_swapped);
+    if (source.size() != kRt64RequiredRdramBytes || destination.size() != source.size())
+        return Rt64ShellError::invalid_memory;
+    // Validate both sets before touching any destination byte.
+    for (const auto ranges : {changed, gpu_written})
+        for (const auto range : ranges)
+            if (range.begin >= range.end || range.end > source.size())
+                return Rt64ShellError::invalid_memory;
+    if (source.data() != destination.data())
+        for (const auto ranges : {changed, gpu_written})
+            for (const auto range : ranges)
+                std::memcpy(destination.data() + range.begin, source.data() + range.begin,
+                            range.end - range.begin);
     return Rt64ShellError::none;
 }
 
@@ -782,6 +834,9 @@ Rt64ShellError Rt64Shell::replace_rdram_snapshot(
         std::as_writable_bytes(std::span(impl_->rdram)), gpu_ranges, layout);
     if (refresh_error != Rt64ShellError::none) return refresh_error;
     }
+    ++impl_->snapshot_generation;
+    if (!impl_->snapshot_generation) ++impl_->snapshot_generation;
+    impl_->last_writeback_ranges.clear();
     if (layout == Rt64MemoryLayout::host_word_swapped) {
         impl_->task_rdram = {
             reinterpret_cast<const std::uint8_t*>(rdram.data()),
@@ -797,6 +852,29 @@ Rt64ShellError Rt64Shell::replace_rdram_snapshot(
         impl_->task_rdram = impl_->task_rdram_copy;
     }
     return task_copy_error;
+}
+
+std::uint64_t Rt64Shell::rdram_snapshot_generation() const noexcept {
+    return impl_ ? impl_->snapshot_generation : 0U;
+}
+
+Rt64ShellError Rt64Shell::replace_rdram_snapshot_delta(
+    const std::span<const std::byte> rdram, const Rt64MemoryLayout layout,
+    const std::uint64_t base_generation,
+    const std::span<const Rt64RdramRange> changed) noexcept {
+    if (!impl_ || !impl_->initialized || !impl_->application || !impl_->cpu_writeback ||
+        layout != Rt64MemoryLayout::host_word_swapped)
+        return replace_rdram_snapshot(rdram, layout);
+    if (impl_->writeback_pending) return Rt64ShellError::conflicting_cpu_write;
+    const auto copied = copy_rt64_rdram_snapshot_delta(rdram,
+        std::as_writable_bytes(std::span(impl_->rdram)), base_generation,
+        impl_->snapshot_generation, changed, impl_->last_writeback_ranges);
+    if (copied != Rt64ShellError::none) return copied;
+    impl_->last_writeback_ranges.clear();
+    ++impl_->snapshot_generation;
+    if (!impl_->snapshot_generation) ++impl_->snapshot_generation;
+    impl_->task_rdram = {reinterpret_cast<const std::uint8_t*>(rdram.data()), rdram.size()};
+    return Rt64ShellError::none;
 }
 
 Rt64ShellError Rt64Shell::copy_private_rdram_snapshot(
@@ -901,6 +979,9 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
         impl->application->enhancementConfig.presentation.mode =
             RT64::EnhancementConfiguration::Presentation::Mode::Console;
         jfg::configure_presentation_policy(configuration.vsync, configuration.unlimited_presentation);
+        if (blur_source_audit_enabled())
+            blur_source_audit().configure(configuration.experimental_refresh_rate,
+                configuration.unlimited_presentation, configuration.vsync);
         if (configuration.unlimited_presentation || (configuration.experimental_refresh_rate >= 60U &&
             configuration.experimental_refresh_rate <= 1000U)) {
             impl->application->userConfig.refreshRate =
@@ -960,8 +1041,17 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
         }
         // CPU post-processing of offscreen results must be visible to texture
         // loads. GPU framebuffer reuse can otherwise bypass those RAM writes.
+        const auto blur = native_blur_pass(impl_->task_rdram, task.command_address);
+        const auto blurMode = native_blur_render_mode();
+        const bool gpuBlur = blur && (blurMode == 1U || blurMode >= 3U);
+        if (blur && blurMode == 5U)
+            record_blur_source_audit({task.vi_tick, 0U, 1U, blur->source, blur->target,
+                320U, 240U, 320U, 240U, gpuBlur ? 0U : 1U});
         if (impl_->cpu_writeback)
-            impl_->application->emulatorConfig.framebuffer.copyWithGPU = false;
+            impl_->application->emulatorConfig.framebuffer.copyWithGPU = gpuBlur;
+        if (blur && interpolation_trace_enabled())
+            trace_interpolation("native-blur",task.vi_tick,blur->source,blur->target,
+                gpuBlur?1U:0U,blurMode,0.0f,0U,0U);
         cpu_overlay_capture_tick().store(task.vi_tick, std::memory_order_release);
         impl_->f3ddkr->begin(impl_->task_rdram, task.vi_tick, task.presentation_scene);
         impl_->f3ddkr->install();
@@ -972,15 +1062,21 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
         if (impl_->cpu_writeback && application.state->rdramCheckPending &&
             !application.emulatorConfig.framebuffer.copyWithGPU) {
             auto &manager = application.state->framebufferManager;
-            std::vector<RT64::Framebuffer *> changed;
-            manager.checkRAM(application.state->RDRAM, changed, false);
-            for (auto *fb : changed) {
-                if (fb->lastWriteType == RT64::Framebuffer::Type::Color &&
-                    fb->lastWriteFmt == G_IM_FMT_I && fb->siz == G_IM_SIZ_8b) {
-                    fb->RAMHash = XXH3_64bits(application.state->RDRAM + fb->addressStart, fb->RAMBytes);
-                    fb->rdramChanged = true;
-                    fb->readHeight = 0U;
-                }
+            // This preliminary pass only owns intensity masks. checkRDRAM()
+            // below still checks every framebuffer, so hashing screen/depth
+            // targets here repeated that whole scan without using its result.
+            for (auto& [address, fb] : manager.framebuffers) {
+                if (fb.lastWriteType != RT64::Framebuffer::Type::Color ||
+                    fb.lastWriteFmt != G_IM_FMT_I || fb.siz != G_IM_SIZ_8b)
+                    continue;
+                const auto hash = XXH3_64bits(application.state->RDRAM + address, fb.RAMBytes);
+                if (hash == fb.RAMHash) continue;
+                // Map keys normally equal addressStart; retain the original
+                // hash/update semantics even for an inconsistent descriptor.
+                fb.RAMHash = address == fb.addressStart ? hash :
+                    XXH3_64bits(application.state->RDRAM + fb.addressStart, fb.RAMBytes);
+                fb.rdramChanged = true;
+                fb.readHeight = 0U;
             }
         }
         // Full-clear elision: only this exact self-contained
@@ -1082,6 +1178,7 @@ Rt64ShellError Rt64Shell::commit_cpu_writeback(
             : std::as_writable_bytes(std::span(impl_->simulation_rdram)));
     if (result == Rt64ShellError::none) {
         impl_->writeback_pending = false;
+        impl_->last_writeback_ranges.swap(impl_->writeback_ranges);
         impl_->writeback_ranges.clear();
     }
     return result;
@@ -1097,7 +1194,8 @@ bool Rt64Shell::has_color_framebuffer(const std::uint32_t address) const noexcep
         framebuffer->lastWriteType == RT64::Framebuffer::Type::Color;
 }
 
-Rt64ShellError Rt64Shell::present(const bool capture_frame) noexcept {
+Rt64ShellError Rt64Shell::present(const bool capture_frame,
+    const std::span<const std::byte> cpu_rdram) noexcept {
     if (impl_ == nullptr || !impl_->initialized ||
         impl_->application == nullptr) {
         return Rt64ShellError::not_initialized;
@@ -1125,9 +1223,42 @@ Rt64ShellError Rt64Shell::present(const bool capture_frame) noexcept {
         return framebuffer_error;
     }
     try {
-        if (capture_frame)
-            impl_->capture->arm();
         const auto previous_present_id = impl_->application->state->presentId;
+        bool tracked_vi_import = false;
+        if (!cpu_rdram.empty()) {
+            if (!impl_->cpu_writeback || impl_->writeback_pending)
+                return Rt64ShellError::conflicting_cpu_write;
+            const auto vi=impl_->application->core.decodeVI();
+            const auto size=vi.fbSize();
+            const auto siz=vi.fbSiz();
+            if (siz<G_IM_SIZ_16b || siz>G_IM_SIZ_32b) return Rt64ShellError::invalid_framebuffer;
+            const std::uint64_t vi_bytes=(std::uint64_t(size.x)*size.y)<<(siz-1U);
+            const auto address=std::size_t(vi.fbAddress());
+            if (!vi_bytes || address>cpu_rdram.size() || vi_bytes>cpu_rdram.size()-address)
+                return Rt64ShellError::invalid_framebuffer;
+            const auto* fb=impl_->application->state->framebufferManager.find(static_cast<uint32_t>(address));
+            tracked_vi_import=fb && fb->addressStart==address && fb->width==size.x && fb->siz==siz &&
+                fb->RAMBytes && fb->RAMBytes<=cpu_rdram.size()-address && !impl_->developer_mode &&
+                !impl_->application->state->debuggerInspector.paused && !impl_->application->presentQueue->viewRDRAM;
+            const Rt64RdramRange range=tracked_vi_import
+                ? Rt64RdramRange{address,address+(std::max)(std::size_t(vi_bytes),std::size_t(fb->RAMBytes))}
+                : Rt64RdramRange{0U,cpu_rdram.size()};
+            const auto imported=import_rt64_vi_range(cpu_rdram,std::as_writable_bytes(std::span(impl_->rdram)),
+                range,impl_->last_writeback_ranges);
+            if (imported!=Rt64ShellError::none) return imported;
+            if (jfg::interpolation_trace_enabled()) jfg::trace_interpolation("vi-import-range",
+                jfg::cpu_overlay_capture_tick().load(std::memory_order_acquire),
+                static_cast<std::uint32_t>(range.begin),static_cast<std::uint32_t>(range.end),
+                tracked_vi_import?1U:0U,0U,0.0f,impl_->snapshot_generation,impl_->last_writeback_ranges.size());
+        }
+        // A tracked VI changes only recorded CPU-owned ranges. Keep the pooled
+        // task's generation, and force those entire ranges into its next import.
+        // Unknown consumers retain the conservative generation invalidation.
+        if (!tracked_vi_import) {
+            ++impl_->snapshot_generation;
+            if (!impl_->snapshot_generation) ++impl_->snapshot_generation;
+        }
+        if (capture_frame) impl_->capture->arm();
         impl_->application->updateScreen();
         if (capture_frame && previous_present_id != 0U &&
             impl_->application->state->presentId == previous_present_id) {

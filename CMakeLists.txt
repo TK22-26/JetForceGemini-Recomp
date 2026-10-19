@@ -12,7 +12,7 @@ endif()
 
 project(
     jfg_recomp
-    VERSION 1.2.1
+    VERSION 1.3.0
     DESCRIPTION "ROM-free host scaffolding for a Jet Force Gemini native recompilation"
     LANGUAGES C CXX
 )
@@ -51,12 +51,29 @@ set(JFG_PHASE6_EMULATOR_CHECKPOINT "" CACHE FILEPATH "Explicit private emulator 
 set(JFG_PHASE6_BIZHAWK_EXECUTABLE "" CACHE FILEPATH "Explicit pinned BizHawk executable used for the Phase 6 oracle")
 set(JFG_PHASE6_EMULATOR_PROBE "" CACHE FILEPATH "Explicit private Lua probe used for the Phase 6 oracle")
 set(JFG_RT64_ROOT "" CACHE PATH "Explicit source root for the pinned RT64 checkout")
+set(JFG_RT64_WORKLOAD_CAPACITY "4" CACHE STRING
+    "Private composite queue qualification: pinned default 4 or bounded candidates 5/6")
+set_property(CACHE JFG_RT64_WORKLOAD_CAPACITY PROPERTY STRINGS 4 5 6)
+option(JFG_RT64_PERSISTENT_UPLOAD_MAPPING "Build private persistent D3D12 upload mapping candidate" OFF)
+option(JFG_RT64_BUFFER_RESERVATION "Build bounded typed rendering-buffer reservation candidate" OFF)
+option(JFG_NATIVE_PLAY_OPTIMIZATIONS "Enable the reviewed native Play and renderer optimization policy" OFF)
+option(JFG_V13_PREVIEW_DEFAULTS "Compatibility alias for the earlier 1.3 owner-preview optimization policy" OFF)
+if(JFG_V13_PREVIEW_DEFAULTS)
+    set(JFG_NATIVE_PLAY_OPTIMIZATIONS ON)
+endif()
+option(JFG_V13_BLUR_SOURCE_REVIEW "Private diagnostic: show the rendered source before native blur compositing" OFF)
+option(JFG_V13_CONTROLS_REVIEW "Private owner preview: memory-buffered control/camera trace" OFF)
+if((JFG_V13_BLUR_SOURCE_REVIEW OR JFG_V13_CONTROLS_REVIEW) AND NOT JFG_NATIVE_PLAY_OPTIMIZATIONS)
+    message(FATAL_ERROR "Private review diagnostics require the native Play optimization policy")
+endif()
+
 set(JFG_PHASE8_PRIVATE_AUDIO_ADAPTER_ROOT "" CACHE PATH
     "Ignored root containing the reviewed generated Phase 8 audio adapter")
 set(JFG_PHASE8_PRIVATE_AUDIO_RUNTIME_INCLUDE "" CACHE PATH
     "Ignored include root required by the generated Phase 8 audio adapter")
 
 if(JFG_ENABLE_ADDRESS_SANITIZER)
+    add_compile_definitions(JFG_ADDRESS_SANITIZER=1)
     if(MSVC)
         add_compile_options(/fsanitize=address /Zi)
         add_link_options(/DEBUG /INCREMENTAL:NO)
@@ -104,7 +121,7 @@ if(WIN32)
         "1 ICON \"${CMAKE_CURRENT_SOURCE_DIR}/launcher/ui/assets/app.ico\"\n")
     add_executable(jfg-frontend WIN32 src/app/frontend_win32.cpp src/app/video_settings_dialog.cpp launcher/native/video_settings.rc "${jfg_application_icon}")
     target_compile_features(jfg-frontend PRIVATE cxx_std_20)
-    target_link_libraries(jfg-frontend PRIVATE user32 gdi32 shell32 ole32 comdlg32 comctl32 dxgi)
+    target_link_libraries(jfg-frontend PRIVATE user32 gdi32 shell32 ole32 comdlg32 comctl32 dxgi dwmapi)
     target_compile_definitions(jfg-frontend PRIVATE UNICODE _UNICODE)
     jfg_set_project_warnings(jfg-frontend)
     add_executable(jfg-support-capture src/app/support_capture.cpp)
@@ -192,6 +209,8 @@ if(JFG_ENABLE_RT64)
             "found ${jfg_rt64_revision}")
     endif()
 
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/rt64_workload_capacity.cmake")
+
     set(RT64_STATIC ON CACHE BOOL "Build RT64 as a static library" FORCE)
     set(ZSTD_BUILD_TESTS OFF CACHE BOOL
         "Do not register dependency-owned Zstd tests" FORCE)
@@ -273,7 +292,15 @@ if(JFG_ENABLE_RT64)
 
     include(cmake/rt64_vi_presentation.cmake)
     include(cmake/rt64_gpu_timing.cmake)
+    include(cmake/rt64_texture_profile.cmake)
+    include(cmake/rt64_buffer_profile.cmake)
+    if(JFG_RT64_BUFFER_RESERVATION)
+        jfg_patch_buffer_reservation_sources()
+    endif()
+    include(cmake/rt64_noise_fixture.cmake)
     include(cmake/rt64_draw_call_key.cmake)
+    include(cmake/rt64_call_matching.cmake)
+    include(cmake/rt64_presentation_timer.cmake)
     include(cmake/rt64_depth_bounds.cmake)
     include(cmake/rt64_interpolation.cmake)
 
@@ -291,7 +318,9 @@ if(JFG_ENABLE_RT64)
         if(NOT jfg_rt64_plume_d3d12_sha256 STREQUAL
            "b8c45f82da26295b40771e53c200d0e7d60989587324ecaddce1fefeb4c7b4ba" AND
            NOT jfg_rt64_plume_d3d12_sha256 STREQUAL
-           "795f1e7d75c450106b7154f4089ea4549fff111e13d6a078b81114c3e0dea317")
+           "795f1e7d75c450106b7154f4089ea4549fff111e13d6a078b81114c3e0dea317" AND
+           NOT jfg_rt64_plume_d3d12_sha256 STREQUAL
+           "${jfg_rt64_plume_upload_sha256}")
             message(FATAL_ERROR
                 "Pinned RT64 Plume D3D12 source does not match the audited "
                 "readback compatibility patch input")
@@ -544,6 +573,21 @@ if(JFG_ENABLE_GENERATED_CODE)
             target_compile_definitions(jfg-native-boot PRIVATE JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING=1)
             string(APPEND jfg_phase6_build_suffix "-NativeTimingPreview")
         endif()
+        if(JFG_NATIVE_PLAY_OPTIMIZATIONS)
+            if(NOT WIN32 OR NOT MSVC OR NOT JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING OR
+               NOT JFG_RT64_WORKLOAD_CAPACITY STREQUAL "5" OR
+               NOT JFG_RT64_PERSISTENT_UPLOAD_MAPPING OR NOT JFG_RT64_BUFFER_RESERVATION)
+                message(FATAL_ERROR "Native Play optimizations require Windows native timing, five workload slots, persistent upload support and reservation support")
+            endif()
+            target_compile_definitions(jfg-native-boot PRIVATE JFG_NATIVE_PLAY_OPTIMIZATIONS=1)
+            if(JFG_V13_CONTROLS_REVIEW)
+                target_compile_definitions(jfg-native-boot PRIVATE JFG_V13_CONTROLS_REVIEW=1)
+            endif()
+            if(JFG_V13_BLUR_SOURCE_REVIEW)
+                target_compile_definitions(jfg-native-boot PRIVATE JFG_V13_BLUR_SOURCE_REVIEW=1)
+            endif()
+            string(APPEND jfg_phase6_build_suffix "-NativePlayOptimized")
+        endif()
         target_compile_definitions(jfg-native-boot PRIVATE
             "JFG_PHASE6_BUILD_IDENTITY=\"${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}-$<CONFIG>${jfg_phase6_build_suffix}\""
             "JFG_PHASE6_SANITIZER_ID=\"${jfg_phase6_sanitizer_id}\"")
@@ -568,6 +612,67 @@ if(JFG_ENABLE_GENERATED_CODE)
                 "JFG_NATIVE_COLLISION_BODY=\"${jfg_native_collision_body}\"")
             # MSVC emits this generated-code warning during deferred code generation.
             set_property(SOURCE src/boot/native_collision.cpp APPEND PROPERTY COMPILE_OPTIONS /wd4702)
+        endif()
+
+        if(WIN32 AND MSVC AND JFG_BUILD_PHASE8_LIVE AND JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING)
+            set(jfg_direct_mi_mask_body "${CMAKE_CURRENT_BINARY_DIR}/phase6-private/direct-mi-mask-access.inc")
+            add_custom_command(OUTPUT "${jfg_direct_mi_mask_body}"
+                COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_direct_mi_mask_access.py"
+                    --generated-root "${JFG_GENERATED_ROOT}" --output "${jfg_direct_mi_mask_body}"
+                DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_direct_mi_mask_access.py"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_direct_sp_access.py"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1226_recomp.c"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1231_recomp.c"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1235_recomp.c"
+                VERBATIM)
+            set_source_files_properties("${jfg_direct_mi_mask_body}" PROPERTIES HEADER_FILE_ONLY TRUE)
+            target_sources(jfg-native-boot PRIVATE src/boot/direct_mi_mask_access.cpp "${jfg_direct_mi_mask_body}")
+            target_compile_definitions(jfg-native-boot PRIVATE JFG_DIRECT_MI_MASK_ACCESS_ENABLED=1
+                "JFG_DIRECT_MI_MASK_ACCESS_BODY=\"${jfg_direct_mi_mask_body}\"")
+            set_property(SOURCE src/boot/direct_mi_mask_access.cpp APPEND PROPERTY COMPILE_OPTIONS /wd4702)
+            set(jfg_direct_sp_body "${CMAKE_CURRENT_BINARY_DIR}/phase6-private/direct-sp-access.inc")
+            add_custom_command(OUTPUT "${jfg_direct_sp_body}"
+                COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_direct_sp_access.py"
+                    --generated-root "${JFG_GENERATED_ROOT}" --output "${jfg_direct_sp_body}"
+                DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_direct_sp_access.py"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1226_recomp.c"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1558_recomp.c"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1643_recomp.c"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1644_recomp.c"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1645_recomp.c"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1646_recomp.c"
+                VERBATIM)
+            set_source_files_properties("${jfg_direct_sp_body}" PROPERTIES HEADER_FILE_ONLY TRUE)
+            target_sources(jfg-native-boot PRIVATE src/boot/direct_sp_access.cpp "${jfg_direct_sp_body}")
+            target_compile_definitions(jfg-native-boot PRIVATE JFG_DIRECT_SP_ACCESS_ENABLED=1
+                "JFG_DIRECT_SP_ACCESS_BODY=\"${jfg_direct_sp_body}\"")
+            set_property(SOURCE src/boot/direct_sp_access.cpp APPEND PROPERTY COMPILE_OPTIONS /wd4702)
+            set(jfg_native_shadow_body "${CMAKE_CURRENT_BINARY_DIR}/phase6-private/native-shadow-filter.inc")
+            add_custom_command(OUTPUT "${jfg_native_shadow_body}"
+                COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_native_shadow_filter.py"
+                    --generated-root "${JFG_GENERATED_ROOT}" --output "${jfg_native_shadow_body}"
+                DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_native_shadow_filter.py"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_native_collision.py"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_004_0008_recomp.c"
+                VERBATIM)
+            set_source_files_properties("${jfg_native_shadow_body}" PROPERTIES HEADER_FILE_ONLY TRUE)
+            target_sources(jfg-native-boot PRIVATE src/boot/native_shadow_filter.cpp "${jfg_native_shadow_body}")
+            target_compile_definitions(jfg-native-boot PRIVATE JFG_NATIVE_SHADOW_FILTER_ENABLED=1
+                "JFG_NATIVE_SHADOW_FILTER_BODY=\"${jfg_native_shadow_body}\"")
+            set_property(SOURCE src/boot/native_shadow_filter.cpp APPEND PROPERTY COMPILE_OPTIONS /wd4702)
+            set(jfg_native_cache_all_body "${CMAKE_CURRENT_BINARY_DIR}/phase6-private/native-cache-all.inc")
+            add_custom_command(OUTPUT "${jfg_native_cache_all_body}"
+                COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_native_cache_all.py"
+                    --generated-root "${JFG_GENERATED_ROOT}" --output "${jfg_native_cache_all_body}"
+                DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_native_cache_all.py"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/prepare_native_collision.py"
+                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1568_recomp.c"
+                VERBATIM)
+            set_source_files_properties("${jfg_native_cache_all_body}" PROPERTIES HEADER_FILE_ONLY TRUE)
+            target_sources(jfg-native-boot PRIVATE src/boot/native_cache_all.cpp "${jfg_native_cache_all_body}")
+            target_compile_definitions(jfg-native-boot PRIVATE JFG_NATIVE_CACHE_ALL_ENABLED=1
+                "JFG_NATIVE_CACHE_ALL_BODY=\"${jfg_native_cache_all_body}\"")
+            set_property(SOURCE src/boot/native_cache_all.cpp APPEND PROPERTY COMPILE_OPTIONS /wd4702)
         endif()
 
         if(JFG_BUILD_PHASE8_LIVE)

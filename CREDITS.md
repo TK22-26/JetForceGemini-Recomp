@@ -1,11 +1,15 @@
 # Community credits
 
 Git history retains authorship of contributed code. This list also acknowledges
-reports and investigations that informed independently implemented fixes.
+issue reports, playtesting, and investigations that help improve the project,
+including work on unresolved issues.
 Dependency attribution remains in [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ## Luke Deardoff (@lukedeardoff)
 
+- Reported Windows 10 setup failures involving firmware virtualization, WSL,
+  PowerShell 5.1, and long submodule paths, with working recovery steps in
+  [issue #4](https://github.com/TK22-26/JetForceGemini-Recomp/issues/4).
 - Reported and investigated the opening asteroid texture corruption, including
   the stale texture-offset addresses reproduced in [PR #9](https://github.com/TK22-26/JetForceGemini-Recomp/pull/9).
   His trace identified the incorrect texture addresses and guided the correction.
@@ -19,3 +23,45 @@ Dependency attribution remains in [third-party notices](THIRD_PARTY_NOTICES.md).
   adaptation helped identify missing CPU-visible depth data in the opening
   cinematic; the effective-RDP-state correction was implemented independently.
   See [depth findings](docs/development/boot-gameplay-fix.md#opening-lens-flare-occlusion).
+
+## @ghettowario
+
+- Reported the right-stick camera inversion usability problem and requested a
+  configurable vertical direction in
+  [issue #13](https://github.com/TK22-26/JetForceGemini-Recomp/issues/13).
+- Reported severe slowdown during the opening invasion replay, including the
+  affected scene, hardware, and frame-rate settings, in
+  [issue #19](https://github.com/TK22-26/JetForceGemini-Recomp/issues/19).
+
+## @GigaWerts
+
+- Reported the Windows 11 startup failure when experimental mouse look was
+  enabled before launch, identified a workaround, and supplied a support report
+  in [issue #14](https://github.com/TK22-26/JetForceGemini-Recomp/issues/14).
+
+## @Mabec-games
+
+- Reported the Linux AppImage's GCC compilation failure caused by MSVC-only
+  `__declspec(noinline)` declarations and supplied a portable correction tested
+  on the Linux branch in
+  [issue #15](https://github.com/TK22-26/JetForceGemini-Recomp/issues/15).
+
+## @jd002065-del
+
+- Reported held targeting cancelling on fire and the missing aimed diagonal
+  movement advantage with keyboard/mouse in
+  [issue #18](https://github.com/TK22-26/JetForceGemini-Recomp/issues/18).
+  Retested v1.2.0, confirming that targeting cancellation was gone while the
+  movement issue remained, and offered further playthrough testing.
+
+## @KongBongo
+
+- Reported controls failing on entry to the Ichor Military Base boss room,
+  provided reproduction details across input modes, and attached a support
+  report in [issue #20](https://github.com/TK22-26/JetForceGemini-Recomp/issues/20).
+
+## @TK22-26 (maintainer)
+
+- Reported and consolidated cutscene and boss stutter, motion-blur resolution
+  loss, and audio interruptions, with captured evidence and follow-up criteria,
+  in [issue #21](https://github.com/TK22-26/JetForceGemini-Recomp/issues/21).

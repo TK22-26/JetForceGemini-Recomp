@@ -43,6 +43,17 @@ python scripts/navigation_map.py "C:\path\to\maps\run"
 python scripts/navigation_map.py "C:\path\to\maps\run" --allow-stale --obj map.obj --svg map.svg
 ```
 
+## Explicit exit warps (1.3 candidate)
+
+Enable **Warp to exits** and double-click a loaded exit on the map or in the
+inspector to request its native room transition. This explicit mod bypasses
+normal progression requirements without granting keys or quest completion.
+Overlapping exits retain their individual destinations: the selected marker is
+used. Ordinary walking/navigation continues to respect locked doors and exits.
+Requests require the current room/session and active gameplay; stale commands
+and existing transitions are rejected. Locked-exit handoff is verified; native entrance scenes still run. See
+[MOD-001](../development/issues/map-exit-warp-transition.md).
+
 ## Gameplay changes made by the mod
 
 - Health is restored before and after player updates and the damage-immunity

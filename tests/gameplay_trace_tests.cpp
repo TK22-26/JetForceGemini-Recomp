@@ -57,7 +57,14 @@ int main(int argc, char **argv) {
   jfg::boot::GameplayTrace trace;
   trace.event("disabled", {1, 2});
   if (trace || trace.open(argv[1], 64U)) return 2;
+  const auto before_open = std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::steady_clock::now().time_since_epoch()).count();
   if (!trace.open(argv[1], 256U)) return 3;
+  const auto after_open = std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::steady_clock::now().time_since_epoch()).count();
+  if (trace.steady_origin_us() < static_cast<std::uint64_t>(before_open) ||
+      trace.steady_origin_us() > static_cast<std::uint64_t>(after_open)) return 16;
+
   trace.event("actor", {1, 2, 0x80100000U});
   for (unsigned i = 0; i < 100; ++i) trace.event("tick", {i, 9, 8, 7, 6, 5, 4});
   trace.finish();
@@ -72,6 +79,7 @@ int main(int argc, char **argv) {
   {
     jfg::boot::GameplayTrace memory;
     if(!memory.open(memory_path,256U,true) || memory.open(memory_path,256U))return 8;
+    if (memory.steady_origin_us() < trace.steady_origin_us()) return 17;
     memory.event("memory-row",{0x123U,0x456U});memory.flush();
     if(std::filesystem::file_size(memory_path)!=0U)return 9;
     for(unsigned i=0;i<100;++i)memory.event("tick",{i,9,8,7,6,5,4});

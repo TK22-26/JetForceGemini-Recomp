@@ -192,6 +192,12 @@ internal static class FrontendBridge
         {
             if (args[1] != "play" || i + 1 >= args.Length)
                 throw new InvalidDataException("Replay options require a play action and a file path.");
+            if (args[i] == "--weather-diagnostics") {
+                ConfigureDiagnostics(start, args[i + 1]);
+                start.EnvironmentVariables["JFG_DIAGNOSTIC_WEATHER"] = "1";
+                start.EnvironmentVariables["JFG_DIAGNOSTIC_RETICLE_LINES"] = "1";
+                continue;
+            }
             if (args[i] == "--diagnostics") { ConfigureDiagnostics(start, args[i + 1]); continue; }
             if (args[i] == "--input-replay" && start.EnvironmentVariables.ContainsKey("JFG_PHASE9_INPUT_RECORD"))
                 throw new InvalidDataException("A live diagnostic capture cannot replay inputs.");

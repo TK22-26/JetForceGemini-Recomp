@@ -14,8 +14,8 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("JFG Launcher")]
 [assembly: AssemblyDescription("Jet Force Gemini Recomp; import your own ROM once")]
-[assembly: AssemblyVersion("1.2.1.0")]
-[assembly: AssemblyInformationalVersion("1.2.1")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyInformationalVersion("1.3.0")]
 
 namespace JfgLauncher
 {
@@ -47,8 +47,7 @@ namespace JfgLauncher
 
         internal static string ProfileRoot
         {
-            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "JFGRecomp", "profiles", "default"); }
+            get { return Path.Combine(FirstRun.Root, "profiles", "default"); }
         }
 
         internal static string PreferredRuntime(string directory, string savedRuntime)

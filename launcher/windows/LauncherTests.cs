@@ -20,6 +20,47 @@ namespace JfgLauncher
             try { action(); } catch (InvalidDataException) { checks++; return; }
             throw new Exception(description);
         }
+        private static void PortableStorageTests(string directory) {
+            string oldRoot=Environment.GetEnvironmentVariable("JFG_DATA_ROOT");
+            string oldLauncher=Environment.GetEnvironmentVariable("JFG_LAUNCHER_EXE");
+            try {
+                string package=Path.Combine(directory,"portable package");
+                Directory.CreateDirectory(package);
+                Environment.SetEnvironmentVariable("JFG_LAUNCHER_EXE",Path.Combine(package,"JFG-Launcher.exe"));
+                Environment.SetEnvironmentVariable("JFG_DATA_ROOT",null);
+                string local=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"JFGRecomp");
+                Check(FirstRun.Root==local,"normal storage changed");
+                File.WriteAllText(Path.Combine(package,"portable.txt"),"");
+                string data=Path.Combine(package,"userdata");
+                Check(FirstRun.Root==data,"helper ignored portable marker");
+                Check(LocalSetup.ProfileRoot==Path.Combine(data,"profiles","default"),"portable profile root differs");
+                Check(InventoryImages.CacheDirectory.StartsWith(data+Path.DirectorySeparatorChar),"art cache escapes portable root");
+                Check(SupportSession.Root==Path.Combine(data,"reports"),"support reports escape portable root");
+                string forwarded=Path.Combine(directory,"forwarded data");
+                Environment.SetEnvironmentVariable("JFG_DATA_ROOT",forwarded);
+                Check(FirstRun.Root==forwarded,"extracted helper ignored forwarded root");
+                Check(ImportedRom.FileName(LocalSetup.ProfileRoot)==Path.Combine(forwarded,"profiles","default","roms","jfg-us.z64"),"imported ROM escapes selected root");
+                string moved=Path.Combine(directory,"moved package");Directory.Move(package,moved);
+                Environment.SetEnvironmentVariable("JFG_DATA_ROOT",null);
+                Environment.SetEnvironmentVariable("JFG_LAUNCHER_EXE",Path.Combine(moved,"JFG-Launcher.exe"));
+                Check(FirstRun.Root==Path.Combine(moved,"userdata"),"moved portable package retained old data root");
+                string location=Path.Combine(moved,"storage-location.txt");
+                File.WriteAllText(location,"custom & donn\u00e9es\n",new System.Text.UTF8Encoding(false));
+                Check(FirstRun.Root==Path.Combine(moved,"custom & donn\u00e9es"),"selected UTF-8 folder ignored");
+                Check(SupportSession.Root==Path.Combine(moved,"custom & donn\u00e9es","reports"),"reports ignored directory choice");
+                string movedAgain=Path.Combine(directory,"moved again");Directory.Move(moved,movedAgain);
+                Environment.SetEnvironmentVariable("JFG_LAUNCHER_EXE",Path.Combine(movedAgain,"JFG-Launcher.exe"));
+                Check(FirstRun.Root==Path.Combine(movedAgain,"custom & donn\u00e9es"),"relative selection failed after package move");
+                location=Path.Combine(movedAgain,"storage-location.txt");
+                File.WriteAllText(location,forwarded,new System.Text.UTF8Encoding(false));
+                Check(FirstRun.Root==forwarded,"absolute external storage selection ignored");
+                File.WriteAllText(location,"",new System.Text.UTF8Encoding(false));
+                Reject(delegate { string invalid=FirstRun.Root; },"invalid empty storage setting silently accepted");
+            } finally {
+                Environment.SetEnvironmentVariable("JFG_DATA_ROOT",oldRoot);
+                Environment.SetEnvironmentVariable("JFG_LAUNCHER_EXE",oldLauncher);
+            }
+        }
         private static byte[] Fixture()
         {
             byte[] data = new byte[32];
@@ -199,6 +240,10 @@ namespace JfgLauncher
             Check(mods.Health&&!mods.Warp&&!mods.Kill,"Health toggle enabled unrelated Mods");
             mods.Warp=true;mods.Kill=true;mods.Save(root);mods=MapMods.Load(root,live);
             Check(mods.Warp&&mods.Health&&mods.Kill,"Mods did not survive reopening");
+            // Explicit warp remains available for locked progression markers.
+            live.progression=new MapProgression { nodes=new[]{new MapInteraction {
+                address=exit.address,kind="exit",condition_known=true,condition_met=false,
+                access_known=true,access_allowed=false,status="condition_missing" }} };
             mods.WarpTo(root,map,exit.address,17,false);
             string text=File.ReadAllText(Path.Combine(root,"warp-exit.txt"));
             Check(text.StartsWith("JFGWARP1 27 3 17 ")&&text.TrimEnd().EndsWith(exit.address.ToString()),"Warp did not bind to current room and exit");
@@ -221,6 +266,20 @@ namespace JfgLauncher
             string before=File.ReadAllText(Path.Combine(root,"warp-exit.txt"));send("warp-mod 0");send("warp "+exit.address);
             Check(File.ReadAllText(Path.Combine(root,"warp-exit.txt"))==before,"Bridge dispatched disabled warp");
             send("mods-off");Check(File.ReadAllText(Path.Combine(root,"mods.txt")).Trim()=="JFGMODS1 0 0 0","Defaults not persisted");
+            Reject(delegate{MapMods.GiveWeapons(root,map,101,false);},"Old runtime accepted weapon grant");
+            live.give_weapons_available=true;
+            MapMods.GiveWeapons(root,map,102,false);
+            string grant=File.ReadAllText(Path.Combine(root,"give-weapons.txt"));
+            Check(grant.StartsWith("JFGWEAPONS1 27 3 102 "),"Weapon grant not bound to room and generation");
+            live.scripted_camera=true;
+            Reject(delegate{MapMods.GiveWeapons(root,map,103,false);},"Cutscene accepted weapon grant");
+            live.scripted_camera=false;live.timestamp_ms=NavigationExplorer.Clock-6000;
+            Reject(delegate{MapMods.GiveWeapons(root,map,104,false);},"Stale map accepted weapon grant");
+            live.timestamp_ms=NavigationExplorer.Clock;
+            send("give-weapons");
+            Check(File.ReadAllText(Path.Combine(root,"give-weapons.txt"))!=grant,"Native bridge failed weapon action");
+            Check(File.ReadAllText(Path.Combine(root,"mods.txt")).Trim()=="JFGMODS1 0 0 0","Weapon grant changed persistent mod toggles");
+
         }
         private static void EnemyMarkerTests(string directory) {
             var enemy=new MapActor {address=0x80001000,behavior=24,name="Squad member",position=new float[]{20,0,40},hostile_known=true,hostile=true,health=200};
@@ -354,6 +413,7 @@ namespace JfgLauncher
             }
             string directory = Path.Combine(Path.GetTempPath(), "jfg-launcher-fixture-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
+                PortableStorageTests(directory);
             try
             {
                 byte[] fixture = Fixture();
@@ -523,6 +583,13 @@ namespace JfgLauncher
                 conflictingTrace.EnvironmentVariables["JFG_RT64_INTERPOLATION_TRACE"] = "existing.tsv";
                 Reject(delegate { FrontendBridge.ConfigureDiagnostics(conflictingTrace, diagnosticRoot); }, "duplicate interpolation capture accepted");
                 File.WriteAllText(Path.Combine(diagnosticSession, "sentinel.txt"), "retained");
+                Check(!diagnosticStart.EnvironmentVariables.ContainsKey("JFG_DIAGNOSTIC_WEATHER"), "ordinary diagnostics enabled weather probe");
+                ProcessStartInfo weatherStart = LocalSetup.StartInfo(game, wrongRom, directory);
+                FrontendBridge.ApplyReplayOptions(weatherStart, new[] {"--frontend-worker", "play", directory, "0", "--weather-diagnostics", diagnosticRoot});
+                Check(weatherStart.EnvironmentVariables["JFG_DIAGNOSTIC_WEATHER"] == "1" &&
+                    weatherStart.EnvironmentVariables["JFG_DIAGNOSTIC_RETICLE_LINES"] == "1" &&
+                    weatherStart.EnvironmentVariables.ContainsKey("JFG_RT64_INTERPOLATION_TRACE"), "weather capture missing probes");
+                Reject(delegate { FrontendBridge.ApplyReplayOptions(weatherStart, new[] {"--frontend-worker", "play", directory, "0", "--weather-diagnostics", diagnosticRoot}); }, "duplicate weather capture accepted");
                 string diagnosticSecond = FrontendBridge.ConfigureDiagnostics(LocalSetup.StartInfo(game, wrongRom, directory), diagnosticRoot);
                 Check(diagnosticSecond != diagnosticSession && File.ReadAllText(Path.Combine(diagnosticSession, "sentinel.txt")) == "retained", "repeat capture overwrote evidence");
                 Reject(delegate { FrontendBridge.ConfigureDiagnostics(diagnosticStart, diagnosticRoot); }, "duplicate capture accepted");

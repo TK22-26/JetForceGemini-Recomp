@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "review": "1.2.0 release qualification; exact bodies only; credential/ROM/archive checks remain active",
+  "review": "1.2.0 and 1.3.0 release qualification; exact reviewed bodies only; credential/ROM/archive checks remain active",
   "bodies": [
     {
       "git_blob": "f4765bee58991ce081160b787ce3c07af23a003e",
@@ -674,6 +674,46 @@
         "size"
       ],
       "reason": "Project launcher/settings screenshot; no extracted game assets"
+    },
+    {
+      "git_blob": "69b8629ee0ef73465ca2a6cfef1e71d03f80c288",
+      "sha256": "fcbc356eaec73dab959d81d26864488dbbfbd93407a6788176a3aa33e6841b40",
+      "bytes": 131116,
+      "path": "launcher/ui/assets/video-icons.tga",
+      "exceptions": [
+        "binary"
+      ],
+      "reason": "Raster atlas of the four adjacent project-authored video-icon SVG line drawings for the RmlUi video tabs; no game art or extracted assets"
+    },
+    {
+      "git_blob": "05445523962b600c542875d09699c1dcfa924947",
+      "sha256": "2fa6f37892d707be2264deacf3f32189d6b294a970e3baecb99265c59f1b10d7",
+      "bytes": 1711,
+      "path": "tests/test_direct_sp_access.py",
+      "exceptions": [
+        "contains a generated-recompilation marker"
+      ],
+      "reason": "Handwritten synthetic SP load/store compiler fixture using a function named synthetic; no generated game body"
+    },
+    {
+      "git_blob": "d9a87f36b2ce9c83c883acf4ca148530fcb41ec2",
+      "sha256": "c754d9f8eff54a0ddf71f6515576549a00f880658cd63c3db54ac8a0d7c14281",
+      "bytes": 1832,
+      "path": "tests/test_native_cache_all.py",
+      "exceptions": [
+        "contains a generated-recompilation marker"
+      ],
+      "reason": "Handwritten synthetic four-increment/cache compiler fixture using a function named synthetic; no generated game body"
+    },
+    {
+      "git_blob": "83e0b1365547b3b9bcd5bd1bba877aaa44f2d6c6",
+      "sha256": "7cf6f2269be479fd8b610388339c6726c67c15ec0d23500af381e579709494f2",
+      "bytes": 1798,
+      "path": "tests/test_native_shadow_filter.py",
+      "exceptions": [
+        "contains a generated-recompilation marker"
+      ],
+      "reason": "Handwritten synthetic four-increment compiler fixture using a function named synthetic; no generated game body"
     }
   ]
 }

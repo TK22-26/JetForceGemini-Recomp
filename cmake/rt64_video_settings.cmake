@@ -8,9 +8,73 @@ function(jfg_video_replace needle replacement)
     set(contents "${contents}" PARENT_SCOPE)
 endfunction()
 
+
+# Queue producers must release the cursor mutex while blocked. The pinned
+# implementation repeatedly acquired it in a busy loop, competing with the
+# consumer that needs the same lock to release the occupied slot.
+function(jfg_video_patch_cursor queue suffix ring running)
+    set(old "    void ${queue}::advanceToNext${suffix}() {
+        int nextWriteCursor = (writeCursor + 1) % ${ring}.size();
+
+        // Stall the thread until the barrier is lifted if we're trying to write on a")
+    # Match the complete pinned function, including its explanatory sentence.
+    if(suffix STREQUAL "Workload")
+        string(APPEND old " workload being used by the GPU.")
+    else()
+        string(APPEND old " present being used by the GPU.")
+    endif()
+    string(APPEND old "
+        bool waitForBarrier;
+        do {
+            const std::scoped_lock lock(cursorMutex);
+            waitForBarrier = (nextWriteCursor == barrierCursor);
+        } while (waitForBarrier);
+
+        // Modify the cursor and notify anything waiting on the queue.
+        {
+            const std::scoped_lock lock(cursorMutex);
+            writeCursor = nextWriteCursor;
+        }
+
+        cursorCondition.notify_all();
+    }")
+    set(replacement "    void ${queue}::advanceToNext${suffix}() {
+        std::unique_lock<std::mutex> lock(cursorMutex);
+        const int nextWriteCursor = (writeCursor + 1) % ${ring}.size();
+        cursorCondition.wait(lock, [&]() {
+            return nextWriteCursor != barrierCursor || !${running};
+        });
+        if (!${running}) return;
+        writeCursor = nextWriteCursor;
+        lock.unlock();
+        cursorCondition.notify_all();
+    }")
+    jfg_video_replace("${old}" "${replacement}")
+    jfg_video_replace("    void ${queue}::threadAdvanceBarrier() {
+        std::scoped_lock<std::mutex> cursorLock(cursorMutex);
+        barrierCursor = (barrierCursor + 1) % ${ring}.size();
+    }" "    void ${queue}::threadAdvanceBarrier() {
+        {
+            std::scoped_lock<std::mutex> cursorLock(cursorMutex);
+            barrierCursor = (barrierCursor + 1) % ${ring}.size();
+        }
+        cursorCondition.notify_all();
+    }")
+    set(contents "${contents}" PARENT_SCOPE)
+endfunction()
+
 function(jfg_video_patch_workload)
+    jfg_video_patch_cursor(WorkloadQueue Workload workloads threadsRunning)
+    jfg_video_replace([=[                curFrameCounters.count = displayFrames;]=] [=[                curFrameCounters.count = displayFrames;
+                if (!jfgOffscreen) jfg::record_presentation_sequence(&curFrameCounters,
+                    jfgSnapshot ? jfgSnapshot->tick : 0U);]=])
+
     jfg_video_replace([=[                ext.presentQueue->waitForPresentId(workload.presentId);]=] [=[                const auto jfgWaitStart = std::chrono::steady_clock::now();
-                ext.presentQueue->waitForPresentId(workload.presentId);
+                const bool jfgIndependentShadow = jfg::independent_shadow_workload(workload);
+                if (!jfgIndependentShadow) ext.presentQueue->waitForPresentId(workload.presentId);
+                if (jfgIndependentShadow) jfg::trace_interpolation("shadow-independent",
+                    jfg::presentation_snapshot(&workload)->tick, workload.presentId,
+                    workload.workloadId, workload.fbPairCount, 0U, 0.0f, 0U, 0U);
                 if (jfg::interpolation_trace_enabled()) {
                     const auto snapshot = jfg::presentation_snapshot(&workload);
                     jfg::trace_interpolation("workload-wait", snapshot ? snapshot->tick : 0U,
@@ -144,6 +208,26 @@ function(jfg_video_patch_workload)
 endfunction()
 
 function(jfg_video_patch_present)
+    jfg_video_patch_cursor(PresentQueue Present presents presentThreadRunning)
+    jfg_video_replace([=[        for (int32_t i = 0; i < framesToPresent; i++) {]=] [=[        for (int32_t i = 0; i < framesToPresent; i++) {
+            const auto nextTick = !present.paused && !jfgRepeatCompleted && framesToPresent > 1 &&
+                !jfg::presentation_capture_pending().load(std::memory_order_acquire)
+                ? jfg::presentation_next_scene_due(jfgSequenceTick, unsigned(i), targetRate) : 0U;
+            if (nextTick) {
+                // A queued newer scene owns this part of the timeline. Holding
+                // the old estimate blocks its shadow passes and feeds a slow
+                // interval back into the following interpolation window.
+                {
+                    std::scoped_lock<std::mutex> lock(ext.sharedResources->interpolatedMutex);
+                    frameCounters.presented = frameCounters.count;
+                }
+                ext.sharedResources->interpolatedCondition.notify_all();
+                jfg::trace_interpolation("sequence-superseded", jfgSequenceTick,
+                    viOriginalRate, targetRate, unsigned(i), unsigned(framesToPresent),
+                    0.0f, nextTick, present.presentId);
+                break;
+            }]=])
+
     jfg_video_replace([=[                if (skipPresent) {
                     skipInterpolation();]=] [=[                if (skipPresent) {
                     jfg::trace_interpolation("cpu-present-skipped", present.presentId,
@@ -200,7 +284,8 @@ function(jfg_video_patch_present)
     jfg_video_replace([=[        bool lockedWorkloadMutex = false;
         InterpolatedFrameCounters &frameCounters = ext.sharedResources->interpolatedFrames[ext.sharedResources->interpolatedFramesIndex];]=] [=[        bool lockedWorkloadMutex = false;
         const uint32_t jfgTargetBank = ext.sharedResources->interpolatedFramesIndex;
-        InterpolatedFrameCounters &frameCounters = ext.sharedResources->interpolatedFrames[jfgTargetBank];]=])
+        InterpolatedFrameCounters &frameCounters = ext.sharedResources->interpolatedFrames[jfgTargetBank];
+        const auto jfgSequenceTick = jfg::presentation_sequence_tick(&frameCounters);]=])
     jfg_video_replace([=[        int32_t framesToPresent = 1;]=] [=[        int32_t framesToPresent = 1;
         bool jfgRepeatCompleted = false;
         bool jfgRepeatHasTarget = false;

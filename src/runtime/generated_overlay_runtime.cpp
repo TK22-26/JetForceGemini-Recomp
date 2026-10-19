@@ -1,3 +1,4 @@
+#include "jfg/runtime/execution_local.hpp"
 #include "jfg/runtime/generated_overlay_runtime.hpp"
 
 #include <algorithm>
@@ -38,7 +39,10 @@ struct InvocationLeaseContext {
     InvocationLeaseContext* previous = nullptr;
 };
 
-thread_local InvocationLeaseContext* active_invocation = nullptr;
+InvocationLeaseContext*& active_invocation() {
+    struct Tag;
+    return jfg::runtime::execution_local<InvocationLeaseContext*,Tag>();
+}
 
 void release_gate(
     const std::shared_ptr<GeneratedOverlayDispatchGate>& gate) noexcept {
@@ -176,13 +180,13 @@ GeneratedOverlayError GeneratedOverlayFunctionHandle::invoke(
 
     InvocationLeaseContext invocation{};
     invocation.runtime = runtime;
-    invocation.previous = active_invocation;
-    active_invocation = &invocation;
+    invocation.previous = active_invocation();
+    active_invocation() = &invocation;
     try {
         target(rdram, context);
     }
     catch (...) {
-        active_invocation = invocation.previous;
+        active_invocation() = invocation.previous;
         release_gate(gate_);
         const std::lock_guard admission_lock(admission->mutex);
         --admission->active_invocations;
@@ -191,7 +195,7 @@ GeneratedOverlayError GeneratedOverlayFunctionHandle::invoke(
         }
         return GeneratedOverlayError::callback_exception;
     }
-    active_invocation = invocation.previous;
+    active_invocation() = invocation.previous;
     release_gate(gate_);
     {
         const std::lock_guard admission_lock(admission->mutex);
@@ -1941,8 +1945,8 @@ GeneratedOverlayError GeneratedOverlayRuntime::unload(
     const GeneratedOverlayToken lifetime,
     GeneratedInstructionCacheInvalidator& cache) noexcept {
     std::unique_lock lock(mutex_);
-    if (busy_ || (active_invocation != nullptr &&
-                  active_invocation->runtime == this)) {
+    if (busy_ || (active_invocation() != nullptr &&
+                  active_invocation()->runtime == this)) {
         return GeneratedOverlayError::busy;
     }
     if (poisoned_) {
@@ -2303,8 +2307,8 @@ GeneratedOverlayRuntime::lookup_function_by_guest_address(
     const std::uint32_t guest_address) noexcept {
     const std::lock_guard lock(mutex_);
     GeneratedOverlayFunctionResult result{};
-    const bool invocation_reentry = active_invocation != nullptr &&
-        active_invocation->runtime == this;
+    const bool invocation_reentry = active_invocation() != nullptr &&
+        active_invocation()->runtime == this;
     if (busy_ && !invocation_reentry) {
         result.error = GeneratedOverlayError::busy;
         return result;
@@ -2429,7 +2433,7 @@ GeneratedOverlayRuntime::invoke_leased_function_by_guest_address(
     std::uint8_t* const rdram,
     ::recomp_context* const context) noexcept {
     const std::lock_guard lock(mutex_);
-    if (active_invocation == nullptr || active_invocation->runtime != this) {
+    if (active_invocation() == nullptr || active_invocation()->runtime != this) {
         return GeneratedOverlayError::stale_token;
     }
     if (rdram == nullptr || context == nullptr ||

@@ -228,10 +228,14 @@ inline PcLookDelta pc_guest_aim_look(PcLookDelta look, bool modern_actions) {
   return modern_actions ? PcLookDelta{look.x,-look.y} : look;
 }
 struct PcMoveVelocity { float side=0,forward=0; };
-inline PcMoveVelocity pc_aim_movement(int x,int y) {
-  // Aim walking stays within the guest's slow ground movement speeds.
+inline PcMoveVelocity pc_aim_movement(int x,int y,bool standing=false) {
   float sx=static_cast<float>(std::clamp(x,-80,80))/80.0F;
   float sy=static_cast<float>(std::clamp(y,-80,80))/80.0F;
+  // Standing Expert aim combines independent forward and strafe channels.
+  // Original-US measurements: 4.0625 forward, 2.5 sideways, 4.770105 diagonal.
+  // The native handlers cap backward movement at 3. Crouch keeps its existing
+  // policy; the standing qualification does not authorize faster crouching.
+  if(standing)return {sx*2.5F,-sy*(sy>0.0F?4.0625F:3.0F)};
   const float length=std::sqrt(sx*sx+sy*sy);
   if(length>1.0F){sx/=length;sy/=length;}
   return {sx*2.5F,-sy*3.0F};
@@ -413,7 +417,7 @@ struct PcShoulder {
   PcMoveVelocity movement_before_update{};
   unsigned movement_before_state=0;
   int movement_before_yaw=0;
-  bool active=false,aiming=false,air_aim=false;
+  bool active=false,aiming=false,air_aim=false,landing_recovery=false;
   std::uint32_t actor=0,control=0;
   std::uint64_t retrace=0;
   int yaw=0,pitch=0;

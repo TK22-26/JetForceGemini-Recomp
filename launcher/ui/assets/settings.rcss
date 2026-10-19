@@ -1,0 +1,7 @@
+#video-content { padding: 24dp; }
+.storage-location { padding: 10dp 0 16dp; border-top: 1dp #1a2133; }
+#settings-location { padding-top: 5dp; color: #ffb637; font-size: 14dp; word-break: break-all; }
+#settings-change { display: inline-flex; }
+#settings-note { line-height: 1.4; padding: 10dp 0 8dp; }
+#settings-error { color: #ff9c91; padding-bottom: 12dp; }
+.footer #settings-done { min-width: 76dp; height: 36dp; padding: 0 16dp; }

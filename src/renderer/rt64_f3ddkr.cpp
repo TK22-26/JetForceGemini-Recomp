@@ -1,4 +1,10 @@
+#include "jfg/renderer/glass_uv_history.hpp"
 #include "rt64_f3ddkr.hpp"
+#include "rt64_blur_pairing.hpp"
+#include "jfg/renderer/blur_source_audit.hpp"
+#include "jfg/renderer/native_blur.hpp"
+#include "jfg/renderer/native_blur_mode.hpp"
+#include "jfg/renderer/fog_settings.hpp"
 #include "jfg/renderer/frame_diagnostics_state.hpp"
 #include "jfg/renderer/interpolation_bridge.hpp"
 #include "jfg/renderer/presentation_identity.hpp"
@@ -64,6 +70,7 @@ struct SemanticVertexState {
     // Points into this task's immutable identities; consumed before begin()
     // replaces that shared snapshot or clears the per-task vertex metadata.
     const RigidPresentationPose* rigid_pose = nullptr;
+    const PresentationCameraIdentity* camera_owner = nullptr;
 };
 struct Context {
     RT64::Application* application = nullptr;
@@ -86,16 +93,35 @@ struct Context {
     bool interpolate = false;
     std::uint64_t vi_tick = 0U;
     PresentationHistory presentation_history;
+    std::optional<NativeBlurPass> blur_pass;
+    std::uint32_t blur_list_address = 0;
+    struct PendingBlurWorld {
+        std::uint64_t serial = 0, tick = 0;
+        std::uint32_t source = 0;
+        unsigned rate = 0;
+    } pending_blur_world;
+    std::uint64_t presentation_serial = 0;
     PresentationHistory rigid_baseline_history; // Used only by explicit diagnostics.
     PresentationHistory shared_matrix_baseline_history; // Same-input old-policy diagnostic.
     PresentationHistory camera_shape_baseline_history; // Explicit comparison only.
     SemanticPresentationHistory semantic_history;
+    GlassUvHistory glass_uv_history;
     std::shared_ptr<const PresentationSceneIdentity> identities;
     std::array<hlslpp::float4x4,kMatrixCount> model_matrices{}, camera_matrices{};
     std::array<std::uint64_t,kMatrixCount> camera_ids{};
+    std::array<const PresentationCameraIdentity*,kMatrixCount> camera_owners{};
     std::array<bool,kMatrixCount> model_finite{};
     bool semantic_target = false;
     std::vector<SemanticVertexState> semantic_vertices;
+    // Synchronous interpreter scratch only. Published frames own their data;
+    // the semantic worker is joined before any of this storage is reused.
+    std::vector<SemanticPresentationSample> semantic_samples;
+    std::vector<SemanticPresentationPrevious> semantic_previous;
+    std::vector<PresentationMesh> meshes;
+    std::vector<std::uint32_t> local_indices;
+    std::vector<std::size_t> vertex_counts;
+    std::vector<hlslpp::float4x4> inverse_worlds;
+    std::vector<bool> inverse_ready;
     bool billboard = false;
     bool failed = false;
 };
@@ -229,6 +255,8 @@ void unsupported(RT64::State* state, RT64::DisplayList** dl) {
 void no_op(RT64::State*, RT64::DisplayList**) {
 }
 
+PresentationMatrix presentation_matrix(const hlslpp::float4x4& value);
+
 void dma_matrix(RT64::State* state, RT64::DisplayList** dl) {
     Context* context = find_context(state);
     if (context == nullptr) {
@@ -270,10 +298,12 @@ void dma_matrix(RT64::State* state, RT64::DisplayList** dl) {
         decoded = hlslpp::mul(decoded, context->matrices[0U]);
     }
     context->camera_ids[index] = 0U;
+    context->camera_owners[index] = nullptr;
     if (multiply && index != 0U && context->interpolate && context->identities) {
         context->model_matrices[index] = model_matrix;
         context->camera_matrices[index] = context->matrices[0U];
         context->camera_ids[index] = context->camera_ids[0U];
+        context->camera_owners[index] = context->camera_owners[0U];
         const auto inverse = hlslpp::inverse(model_matrix);
         bool finite = true;
         for(int r=0;r<4;++r) for(int c=0;c<4;++c)
@@ -281,8 +311,15 @@ void dma_matrix(RT64::State* state, RT64::DisplayList** dl) {
         context->model_finite[index] = finite;
     }
     else if (!multiply && index == 0U && context->identities) {
+        bool ambiguous=false;
         for (const auto& camera : context->identities->cameras)
-            if (camera.matrix == address) context->camera_ids[index] = camera.identity;
+            if (camera.matrix == address) {
+                if(context->camera_ids[index])ambiguous=true;
+                context->camera_ids[index] = camera.identity;
+                if(camera.pose_valid && rigid_pose_matches_matrix(camera.pose,presentation_matrix(decoded)))
+                    context->camera_owners[index] = &camera;
+            }
+        if(ambiguous)context->camera_owners[index]=nullptr;
     }
     context->matrices[index] = decoded;
     context->loaded_matrices.set(index);
@@ -409,7 +446,8 @@ SemanticVertexState semantic_vertex(const Context& context,std::uint32_t source,
                                    const std::array<float,3>& local,
                                    const PresentationRigidIdentity* rigid,
                                    const PresentationBeamIdentity* beam,
-                                   const PresentationModelIdentity* bridge) {
+                                   const PresentationModelIdentity* bridge,
+                                   const PresentationVertexIdentity& identity) {
     SemanticVertexState result;
     result.source = source;
     if(!context.identities || context.billboard) return result;
@@ -446,8 +484,6 @@ SemanticVertexState semantic_vertex(const Context& context,std::uint32_t source,
         return result;
     }
     if(context.camera_ids[slot]==0U) return result;
-    const auto identity = presentation_vertex_identity(
-        *context.identities, context.matrix_physical_addresses[slot], source);
     if (!identity.owner)
         return result;
     const auto &owner = *identity.owner;
@@ -458,6 +494,7 @@ SemanticVertexState semantic_vertex(const Context& context,std::uint32_t source,
         identity.joint, identity.vertex};
     result.world = presentation_matrix(context.model_matrices[slot]);
     result.sample.camera = presentation_matrix(context.camera_matrices[slot]);
+    result.camera_owner = context.camera_owners[slot];
     if (!identity.geometry)
         return result;
     const auto world =
@@ -467,6 +504,7 @@ SemanticVertexState semantic_vertex(const Context& context,std::uint32_t source,
     result.sample.valid = context.model_finite[slot] &&
                           std::isfinite(float(world.w)) &&
                           std::abs(float(world.w) - 1.0f) < 0.001f;
+    result.sample.point_collapsed = !result.sample.valid && semantic_point_collapse(result.world);
     return result;
 }
 
@@ -594,6 +632,12 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
         const int workload_cursor = state->ext.workloadQueue->writeCursor;
         RT64::Workload& workload =
             state->ext.workloadQueue->workloads[workload_cursor];
+        std::array<PresentationVertexIdentity,32> vertex_identities{};
+        if(context->interpolate && context->identities && context->semantic_target &&
+           !context->billboard && context->camera_ids[context->selected_matrix]!=0U)
+            presentation_vertex_identities(*context->identities,
+                context->matrix_physical_addresses[context->selected_matrix],address,
+                std::span<PresentationVertexIdentity>(vertex_identities).first(count));
         for (std::size_t index = first; index < first + count; ++index) {
             const std::uint32_t global = state->rsp->indices[index];
             if (global >= workload.drawData.posTransformed.size()) {
@@ -604,7 +648,7 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
                 const auto& positions=workload.drawData.posFloats;
                 context->semantic_vertices[global]=semantic_vertex(*context,
                     address+static_cast<std::uint32_t>((index-first)*10U),
-                    {positions[global*3U],positions[global*3U+1U],positions[global*3U+2U]},rigid_owner,beam,bridge);
+                    {positions[global*3U],positions[global*3U+1U],positions[global*3U+2U]},rigid_owner,beam,bridge,vertex_identities[index-first]);
                 context->semantic_vertices[global].billboard_key =
                     billboard_key;
                 context->semantic_vertices[global].rigid_key = rigid_key;
@@ -643,7 +687,7 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
     Context& context, RT64::State& state,
     RT64::RSP& rsp,
     const std::uint8_t vertex,
-    const std::uint32_t coordinate) {
+    const std::uint32_t coordinate, const bool unused_coordinates) {
     const int workload_cursor = state.ext.workloadQueue->writeCursor;
     RT64::Workload& workload =
         state.ext.workloadQueue->workloads[workload_cursor];
@@ -666,6 +710,20 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
         global >= draw.posTransformed.size() || global >= draw.posScreen.size()) {
         return false;
     }
+
+    // The validated I8 mask combiner consumes neither textures nor LOD.
+    // Retain the vertex and every triangle; only omit unused UV writes.
+    if (unused_coordinates) return true;
+
+    // Repeating an identical UV on an offscreen pass does not modify a
+    // previously submitted vertex. Keep scene topology unchanged: its stable
+    // per-triangle vertices are also interpolation identities.
+    if (!context.semantic_target && draw.lookAtIndices[global] == 0U &&
+        draw.tcFloats[global * 2U] ==
+            static_cast<float>(static_cast<std::int16_t>(coordinate >> 16U)) / 32.0F &&
+        draw.tcFloats[global * 2U + 1U] ==
+            static_cast<float>(static_cast<std::int16_t>(coordinate)) / 32.0F)
+        return true;
 
     // RT64's pinned modifyVertex implementation appends directly from its
     // own vectors. A growth reallocation can invalidate the source reference,
@@ -787,6 +845,17 @@ void dma_triangles(RT64::State* state, RT64::DisplayList** dl) {
     // setTexture() would incorrectly increment an unrelated field on every
     // DMA triangle batch.
     state->rsp->textureState.on = texture;
+    const auto& color = state->rdp->colorImage;
+    const auto& combiner = state->rdp->colorCombinerStack[state->rdp->colorCombinerStackSize - 1];
+    const auto mode = state->rsp->otherModeStack[state->rsp->otherModeStackSize - 1];
+    bool unused_coordinates = !context->semantic_target && color.width == 64U &&
+        color.fmt == G_IM_FMT_I && color.siz == G_IM_SIZ_8b &&
+        !combiner.usesTexture(mode, 0U, true) && !combiner.usesTexture(mode, 1U, true);
+    for (unsigned cycle = 0; unused_coordinates && cycle < 2; ++cycle)
+        for (unsigned input = 0; input < 4; ++input)
+            if (combiner.decodeColorInput(input, cycle != 0) == interop::ColorCombiner::C_LOD_FRACTION ||
+                combiner.decodeAlphaInput(input, cycle != 0) == interop::ColorCombiner::A_LOD_FRACTION)
+                unused_coordinates = false;
     for (std::size_t triangle = 0U; triangle < count; ++triangle) {
         const std::uint32_t source =
             address + static_cast<std::uint32_t>(triangle * 16U);
@@ -847,7 +916,7 @@ void dma_triangles(RT64::State* state, RT64::DisplayList** dl) {
                     *context, *state, source + 6U +
                         static_cast<std::uint32_t>(corner * 4U)));
             if (!set_vertex_texture_coordinates(
-                    *context, *state, *state->rsp, vertices[corner], coordinate)) {
+                    *context, *state, *state->rsp, vertices[corner], coordinate, unused_coordinates)) {
                 context->stats.rejection_reason = 4U;
                 context->stats.rejection_detail = vertices[corner];
                 reject(state, dl);
@@ -962,7 +1031,12 @@ void move_word(RT64::State* state, RT64::DisplayList** dl) {
         select_matrix(*context);
         return;
     }
-    RT64::GBI_F3D::moveWord(state, dl);
+    if ((*dl)->p0(0U,8U) == G_MW_FOG) {
+        const auto coefficients=jfg::fog_coefficients((*dl)->w1,
+            jfg::fog_strength_preference().load(std::memory_order_relaxed));
+        state->rsp->setFog(static_cast<std::int16_t>(coefficients >> 16U),
+                          static_cast<std::int16_t>(coefficients & 0xffffU));
+    } else RT64::GBI_F3D::moveWord(state, dl);
 }
 
 void dma_offsets(RT64::State* state, RT64::DisplayList** dl) {
@@ -1049,14 +1123,59 @@ bool detailed_function_profile_enabled() {
 
 void prepare_interpolation(Context& context, RT64::State& state) {
     if (!context.interpolate) return;
+    // Every synchronization consumes the preceding offer, including offscreen
+    // or unrecognized work. A later effect cannot revive stale world history.
+    const auto previous_world = context.pending_blur_world;
+    context.pending_blur_world = {};
+    const auto serial = ++context.presentation_serial;
     state.flush();
     auto& workload = state.ext.workloadQueue->workloads[state.ext.workloadQueue->writeCursor];
     auto& data = workload.drawData;
+    if (context.blur_pass && native_blur_render_mode() >= 2U) {
+        auto frame = std::make_shared<PresentationHistoryFrame>();
+        frame->tick = context.vi_tick;
+        frame->scene = true;
+        frame->blur_source = context.blur_pass->source;
+        frame->blur_target = context.blur_pass->target;
+        frame->presentation_serial = serial;
+        if (previous_world.serial && previous_world.serial + 1U == serial &&
+            previous_world.source == context.blur_pass->source &&
+            previous_world.tick <= context.vi_tick) {
+            frame->blur_parent_serial = previous_world.serial;
+            frame->tick = previous_world.tick;
+            frame->source_rate = previous_world.rate;
+        }
+        if (native_blur_render_mode() == 5U)
+            record_blur_source_audit({context.vi_tick, serial, 6U,
+                previous_world.source, context.blur_pass->source,
+                static_cast<unsigned>(previous_world.serial),
+                static_cast<unsigned>(frame->blur_parent_serial),
+                static_cast<unsigned>(previous_world.tick),
+                static_cast<unsigned>(frame->tick),
+                frame->blur_parent_serial ? 0U : 1U, previous_world.rate, frame->source_rate});
+        frame->transforms.resize(data.worldTransforms.size());
+        state.setRefreshRate(static_cast<std::uint16_t>(frame->source_rate));
+        publish_presentation_snapshot(&workload, std::move(frame));
+        context.semantic_vertices.clear();
+        return;
+    }
     bool scene = false;
     for (std::uint32_t f = 0; f < workload.fbPairCount; ++f) {
         const auto& pair = workload.fbPairs[f];
         scene = scene || (pair.colorImage.width >= 320U &&
             pair.colorImage.siz == G_IM_SIZ_16b && !pair.drawColorRect.isEmpty());
+    }
+    // Offscreen masks never enter either scene history. Publish the same
+    // unmatched transform metadata without constructing mesh keys, semantic
+    // samples, and temporary ownership maps that are discarded by record().
+    if (!scene) {
+        auto frame = std::make_shared<PresentationHistoryFrame>();
+        frame->tick = context.vi_tick;
+        frame->transforms.resize(data.worldTransforms.size());
+        state.setRefreshRate(0U);
+        publish_presentation_snapshot(&workload, std::move(frame));
+        context.semantic_vertices.clear();
+        return;
     }
     const bool history_profile=interpolation_trace_enabled() || detailed_function_profile_enabled();
     auto history_stage_started=history_profile ? std::chrono::steady_clock::now()
@@ -1075,12 +1194,26 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         history_stage_started=std::chrono::steady_clock::now();
     };
     context.semantic_vertices.resize(data.worldIndices.size());
-    std::vector<SemanticPresentationSample> semantic_samples;
+    auto& semantic_samples=context.semantic_samples;
+    semantic_samples.clear();
     semantic_samples.reserve(context.semantic_vertices.size());
     for (const auto& vertex : context.semantic_vertices) {
         auto sample = vertex.sample;
-        if (!data.modifyPosUints.empty()) sample.valid = false;
+        if (!data.modifyPosUints.empty()) {
+            sample.valid = false;
+            sample.point_collapsed = false;
+        }
         semantic_samples.push_back(sample);
+    }
+    const auto collapsed_count=exclude_collapsed_semantic_samples(semantic_samples,data.faceIndices);
+    if(collapsed_count && interpolation_trace_enabled()) {
+        std::map<std::uint32_t,unsigned> actors;
+        for(std::size_t v=0;v<semantic_samples.size();++v)
+            if(context.semantic_vertices[v].sample.point_collapsed &&
+               context.semantic_vertices[v].sample.key[0] && !semantic_samples[v].key[0])
+                ++actors[static_cast<unsigned>(context.semantic_vertices[v].sample.key[1]>>32U)];
+        for(const auto& [actor,count]:actors)
+            trace_interpolation("semantic-collapsed",context.vi_tick,actor,0,0,count,0,0,0);
     }
     SemanticRigidPoses semantic_rigid_poses;
     std::set<std::uint64_t> semantic_pose_conflicts;
@@ -1091,25 +1224,73 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         if(!inserted && it->second!=*vertex.rigid_pose)semantic_pose_conflicts.insert(lifetime);
     }
     for(const auto lifetime:semantic_pose_conflicts)semantic_rigid_poses.erase(lifetime);
+    SemanticCameraFrames semantic_cameras;
+    std::set<std::uint64_t> semantic_camera_conflicts;
+    for(const auto& vertex:context.semantic_vertices) {
+        const auto* camera=vertex.camera_owner;
+        if(!vertex.sample.valid || !camera || !camera->pose_valid ||
+           camera->identity!=vertex.sample.key[3])continue;
+        const auto [it,inserted]=semantic_cameras.emplace(camera->identity,
+            SemanticCameraFrame{camera->generation,camera->pose,vertex.sample.camera});
+        if(!inserted && (it->second.generation!=camera->generation ||
+           it->second.pose!=camera->pose || it->second.matrix!=vertex.sample.camera))
+            semantic_camera_conflicts.insert(camera->identity);
+    }
+    for(const auto identity:semantic_camera_conflicts)semantic_cameras.erase(identity);
     const bool semantic_cadence = context.presentation_history.has_continuous_cadence(context.vi_tick, scene);
     std::fenv_t semantic_environment{};
     const bool semantic_parallel = scene && semantic_samples.size() >= 128 &&
         capture_floating_environment(semantic_environment);
-    struct SemanticResult {
-        std::vector<SemanticPresentationSample> samples;
-        std::vector<SemanticPresentationPrevious> history;
-        int flags = 0;
-    };
     auto semantic_job = std::async(semantic_parallel ? std::launch::async : std::launch::deferred,
-        [&context, values = std::move(semantic_samples), tick = context.vi_tick, scene,
+        [&context, tick = context.vi_tick, scene,
          semantic_cadence, semantic_parallel, semantic_environment,
-         poses=std::move(semantic_rigid_poses)]() mutable {
+         poses=std::move(semantic_rigid_poses),cameras=std::move(semantic_cameras)]() mutable {
             const ScopedFloatingEnvironment environment(
                 semantic_parallel ? &semantic_environment : nullptr);
+            const auto& values=context.semantic_samples;
             SemanticPresentationDiagnostics reasons;
-            auto history = context.semantic_history.record(values, tick, scene, semantic_cadence,
-                interpolation_trace_enabled()?&reasons:nullptr,&poses);
-            for(const auto& [lifetime,counts]:reasons) {
+            const bool audit=blur_source_audit_enabled();
+            context.semantic_history.record_into(values, tick, scene, semantic_cadence,
+                context.semantic_previous, (interpolation_trace_enabled() || audit)?&reasons:nullptr,&poses,&cameras);
+            if(audit) {
+                // Private fixed-buffer evidence: distinguish native geometry
+                // absence from an all-or-nothing interpolation history rejection.
+                struct ActorAudit { unsigned actor=0,model=0,samples=0,matched=0; };
+                std::map<std::uint64_t,ActorAudit> actors;
+                if(context.identities)for(const auto& model:context.identities->models) {
+                    auto& row=actors[model.lifetime];
+                    row.actor=model.actor;row.model=model.model;
+                }
+                for(std::size_t i=0;i<values.size();++i) {
+                    const auto& sample=values[i];
+                    if(!sample.key[0])continue;
+                    auto& row=actors[sample.key[0]];
+                    row.actor=static_cast<unsigned>(sample.key[1]>>32U);
+                    row.model=static_cast<unsigned>(sample.key[2]);
+                    ++row.samples;
+                    row.matched+=context.semantic_previous[i].matched;
+                }
+                for(const auto& [lifetime,row]:actors) {
+                    const auto it=reasons.find(lifetime);
+                    const std::array<std::uint64_t,7> zero{};
+                    const auto& counts=it==reasons.end()?zero:it->second;
+                    record_blur_source_audit({tick,lifetime,9U,row.actor,row.model,
+                        static_cast<unsigned>(counts[0]),static_cast<unsigned>(counts[1]),
+                        static_cast<unsigned>(counts[2]),static_cast<unsigned>(counts[3]),
+                        static_cast<unsigned>(counts[4]),row.matched,row.samples});
+                    if(counts[6])record_blur_source_audit({tick,lifetime,11U,row.actor,row.model,
+                        static_cast<unsigned>(counts[6]),row.matched,row.samples,0U,0U,0U,0U});
+                }
+                if(context.identities)for(const auto& camera:context.identities->cameras)
+                    record_blur_source_audit({tick,camera.identity,10U,camera.matrix,
+                        static_cast<unsigned>(camera.generation),
+                        std::bit_cast<unsigned>(camera.pose.view[0]),
+                        std::bit_cast<unsigned>(camera.pose.view[2]),
+                        std::bit_cast<unsigned>(camera.pose.view[12]),
+                        std::bit_cast<unsigned>(camera.pose.view[14]),
+                        camera.pose_valid?1U:0U,0U,0U});
+            }
+            if(interpolation_trace_enabled())for(const auto& [lifetime,counts]:reasons) {
                 const auto sample=std::find_if(values.begin(),values.end(),[&](const auto& s){
                     return s.key[0]==lifetime;
                 });
@@ -1118,11 +1299,19 @@ void prepare_interpolation(Context& context, RT64::State& state) {
                     static_cast<unsigned>(counts[0]),static_cast<unsigned>(counts[1]),
                     static_cast<unsigned>(counts[2]),0.0f,counts[3],counts[4]);
             }
-            return SemanticResult{std::move(values), std::move(history), floating_exception_flags()};
+            return floating_exception_flags();
         });
-    std::vector<PresentationMesh> meshes(data.worldTransforms.size());
-    std::vector<std::uint32_t> local_indices(data.worldIndices.size());
-    std::vector<std::size_t> vertex_counts(meshes.size());
+    auto& meshes=context.meshes;
+    meshes.resize(data.worldTransforms.size());
+    for(auto& mesh:meshes) {
+        mesh.key.clear();mesh.positions.clear();mesh.matrix={};
+        mesh.eligible=true;mesh.complete_local_topology=true;
+        mesh.rigid_pose.reset();mesh.camera_owner.reset();mesh.camera_pose.reset();
+    }
+    auto& local_indices=context.local_indices;
+    local_indices.assign(data.worldIndices.size(),0U);
+    auto& vertex_counts=context.vertex_counts;
+    vertex_counts.assign(meshes.size(),0U);
     for (std::size_t v=0;v<data.worldIndices.size();++v)
         if (data.worldIndices[v]<meshes.size() && v*3U+2U<data.posFloats.size())
             ++vertex_counts[data.worldIndices[v]];
@@ -1315,10 +1504,10 @@ void prepare_interpolation(Context& context, RT64::State& state) {
                 static_cast<unsigned>(key[1]),static_cast<unsigned>(key[2]),
                 static_cast<unsigned>(meshes[matrix].positions.size()),0.0f,
                 frame->transforms[matrix].matched,0U);
-    auto semantic_result = semantic_job.get();
-    if (semantic_parallel) merge_floating_exceptions(semantic_result.flags);
-    const auto& samples = semantic_result.samples;
-    const auto& history = semantic_result.history;
+    const auto semantic_flags = semantic_job.get();
+    if (semantic_parallel) merge_floating_exceptions(semantic_flags);
+    const auto& samples = context.semantic_samples;
+    const auto& history = context.semantic_previous;
     history_stage(3U); // Semantic history and ownership diagnostics.
     std::size_t semantic_count=0,matched_count=0,moving_count=0;
     if (scene && interpolation_trace_enabled()) {
@@ -1330,8 +1519,10 @@ void prepare_interpolation(Context& context, RT64::State& state) {
                             0, static_cast<unsigned>(billboard_owners.size()),
                             0, matched, 0);
     }
-    std::vector<hlslpp::float4x4> inverse_worlds(frame->transforms.size());
-    std::vector<bool> inverse_ready(frame->transforms.size(),false);
+    auto& inverse_worlds=context.inverse_worlds;
+    inverse_worlds.resize(frame->transforms.size());
+    auto& inverse_ready=context.inverse_ready;
+    inverse_ready.assign(frame->transforms.size(),false);
     for(std::size_t v=0;v<samples.size();++v) {
         if(samples[v].key[0]==0U) continue;
         ++semantic_count;
@@ -1357,6 +1548,49 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         ++matched_count;
         if(samples[v].world!=history[v].world) ++moving_count;
     }
+    // A hidden point has no inverse. Keep its native collapsed endpoint;
+    // generic matrix history must not grow it back toward a previous pose.
+    if(collapsed_count) for(std::size_t v=0;v<samples.size();++v) {
+        const auto& original=context.semantic_vertices[v].sample;
+        if(original.point_collapsed && original.key[0] && !samples[v].key[0] &&
+           data.worldIndices[v]<frame->transforms.size())
+            frame->transforms[data.worldIndices[v]].matched=false;
+    }
+    // Camera-driven glass reflections must use the same interpolation
+    // phase as the pane. Only intact, lifetime-owned quads qualify.
+    std::vector<GlassUvSample> glass_uv;
+    std::vector<std::size_t> glass_vertices;
+    for(std::size_t v=0;v<context.semantic_vertices.size();++v) {
+        const auto& vertex=context.semantic_vertices[v];
+        const auto& key=vertex.rigid_key;
+        if(!key[0] || (key[2]&0xFFFFFFFFU)!=0x474C4153U ||
+           v*2U+1U>=data.tcFloats.size() || !context.identities)continue;
+        const auto actor=static_cast<std::uint32_t>(key[1]>>32U);
+        for(const auto& pane:context.identities->glass) {
+            if(pane.actor!=actor || pane.lifetime!=key[0] ||
+               pane.control!=static_cast<std::uint32_t>(key[1]))continue;
+            glass_uv.push_back({{key[0],key[1],key[2],key[3],vertex.source},
+                {data.tcFloats[v*2U],data.tcFloats[v*2U+1U]},pane.texture_period});
+            glass_vertices.push_back(v);
+            break;
+        }
+    }
+    const auto glass_velocity=context.glass_uv_history.record(glass_uv,context.vi_tick);
+    unsigned glass_matched=0,glass_uv_moving=0;
+    for(std::size_t i=0;i<glass_vertices.size();++i) {
+        const auto v=glass_vertices[i];const auto m=data.worldIndices[v];
+        if(m>=frame->transforms.size() || !frame->transforms[m].matched ||
+           v*2U+1U>=data.tcVelFloats.size())continue;
+        data.tcVelFloats[v*2U]=glass_velocity[i][0];
+        data.tcVelFloats[v*2U+1U]=glass_velocity[i][1];
+        ++glass_matched;
+        glass_uv_moving+=glass_velocity[i][0]!=0.0f || glass_velocity[i][1]!=0.0f;
+    }
+    if(native_blur_render_mode()==5U && context.identities && !context.identities->glass.empty())
+        record_blur_source_audit({context.vi_tick,serial,7U,
+            static_cast<unsigned>(context.identities->glass.size()),
+            static_cast<unsigned>(glass_vertices.size()),
+            glass_matched,glass_uv_moving,0U,0U,0U,0U,0U});
     history_stage(4U); // Previous-world endpoint conversion.
     if(scene) trace_interpolation("semantic",context.vi_tick,frame->source_rate,0U,0U,
         static_cast<unsigned>(semantic_count),0.0f,matched_count,moving_count);
@@ -1420,9 +1654,75 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             0.0f,camera_matched,all_matched);
     }
     history_stage(5U); // Coverage diagnostics.
-    state.setRefreshRate(static_cast<std::uint16_t>(frame->source_rate));
+    if (scene && !data.worldIndices.empty()) {
+        // The pinned native flag requests a blur task after this world task.
+        // Keep its geometry/history, but let the completed composite own output.
+        if (native_blur_render_mode() >= 2U && context.simulation_rdram.size() > 0xfeca5U) {
+            const auto word=[&](unsigned address) {
+                std::uint32_t value;std::memcpy(&value,context.simulation_rdram.data()+address,4);return value;
+            };
+            frame->defer_to_blur = context.simulation_rdram[0xfeca5U ^ 3U] != 0U &&
+                word(0x551f8U)==0x3c028010U && word(0x551fcU)==0x8042eca5U &&
+                word(0x55200U)==0x03e00008U && word(0x55204U)==0U;
+        }
+    }
+    frame->presentation_serial = serial;
+    if (frame->defer_to_blur) {
+        const auto source = blur_world_source(workload);
+        if (source)
+            context.pending_blur_world = {serial, context.vi_tick, source, frame->source_rate};
+        if (native_blur_render_mode() == 5U) {
+            for (std::uint32_t f = 0; f < workload.fbPairCount; ++f) {
+                const auto& pair = workload.fbPairs[f];
+                record_blur_source_audit({context.vi_tick, serial, 5U,
+                    pair.colorImage.address, pair.depthImage.address,
+                    pair.colorImage.width, pair.colorImage.siz, pair.colorImage.fmt,
+                    pair.gameCallCount, (pair.fillRectOnly ? 1U : 0U) |
+                    (pair.fastPaths.clearDepthOnly ? 2U : 0U) |
+                    (pair.drawColorRect.isEmpty() ? 4U : 0U) |
+                    (source && source == pair.colorImage.address ? 8U : 0U),
+                    frame->source_rate, 0U});
+            }
+        }
+    }
+    state.setRefreshRate(static_cast<std::uint16_t>(frame->defer_to_blur ? 0U : frame->source_rate));
     publish_presentation_snapshot(&workload, std::move(frame));
     context.semantic_vertices.clear();
+}
+
+bool native_blur_color_command(Context* context, RT64::State* state,
+                               RT64::DisplayList** dl, std::size_t index) {
+    if (!context || !context->blur_pass || !dl || !*dl) return false;
+    const auto address = context->blur_list_address + index * sizeof(RT64::DisplayList);
+    const auto cursor = reinterpret_cast<std::uintptr_t>(*dl);
+    return cursor == reinterpret_cast<std::uintptr_t>(context->simulation_rdram.data()) + address ||
+           cursor == reinterpret_cast<std::uintptr_t>(state->RDRAM) + address;
+}
+void set_blur_blend_color(RT64::State* state, RT64::DisplayList** dl) {
+    auto color = (**dl).w1;
+    auto* context = find_context(state);
+    if (native_blur_color_command(context, state, dl, 11U)) {
+        const auto original = color;
+        color = configured_blur_color(color);
+        if (blur_source_audit_enabled())
+            record_blur_source_audit({context->vi_tick, 0U, 8U, 11U,
+                static_cast<unsigned>(native_blur_preference().load(std::memory_order_relaxed)),
+                original & 255U, color & 255U, 0U, 0U, diagnostic_blur_mode()});
+    }
+    state->rdp->setBlendColor(color);
+}
+void set_blur_env_color(RT64::State* state, RT64::DisplayList** dl) {
+    auto color = (**dl).w1;
+    auto* context = find_context(state);
+    if (native_blur_color_command(context, state, dl, 13U)) {
+        const auto original = color;
+        color = configured_blur_color(color);
+        if (blur_source_audit_enabled())
+            record_blur_source_audit({context->vi_tick, 0U, 8U, 13U,
+                static_cast<unsigned>(native_blur_preference().load(std::memory_order_relaxed)),
+                original & 255U, color & 255U, 0U, 0U, diagnostic_blur_mode()});
+    }
+    state->rdp->setEnvColor(color);
 }
 
 void full_sync(RT64::State* state, RT64::DisplayList** dl) {
@@ -1543,6 +1843,7 @@ void reset(RT64::State* state) {
         context->matrix_physical_addresses.fill(0U);
         context->loaded_matrices.reset();
         context->camera_ids.fill(0U);
+        context->camera_owners.fill(nullptr);
         context->model_finite.fill(false);
         context->semantic_target=false;
         context->billboard = false;
@@ -1591,6 +1892,9 @@ void Rt64F3ddkr::begin(
 
 void Rt64F3ddkr::process_display_list(std::uint32_t address) {
     auto& context=impl_->context;
+    context.blur_list_address = address & 0x00ffffffU;
+    context.blur_pass = native_blur_render_mode() >= 2U
+        ? native_blur_pass(context.simulation_rdram,address) : std::nullopt;
     struct RestoreBinding {
         Context* previous;
         ~RestoreBinding() { dispatch_context=previous; }
@@ -1618,6 +1922,8 @@ void Rt64F3ddkr::install() noexcept {
     context.gbi.map[kOpDisplayList] = &run_display_list;
     context.gbi.map[kOpDmaDisplayList] = &dma_display_list;
     context.gbi.map[G_RDPFULLSYNC] = &full_sync;
+    context.gbi.map[G_SETBLENDCOLOR] = &set_blur_blend_color;
+    context.gbi.map[G_SETENVCOLOR] = &set_blur_env_color;
     context.gbi.map[kOpSetPerspNorm] = &set_perspective_normalization;
     context.gbi.map[kOpCullDisplayList] = &cull_display_list;
     context.gbi.map[kOpPopMatrix] = &no_op;

@@ -358,6 +358,55 @@ int wmain(int argc, wchar_t **argv) {
     std::fputs("native boot setup failed: persistent profile\n", stderr);
     return 2;
   }
+#if defined(JFG_NATIVE_PLAY_OPTIMIZATIONS)
+  // Reviewed normal-Play policy selected by the release build profile.
+  // Launcher sanitization remains intact; probes do not opt in and explicit
+  // private A/B overrides win. Diagnostic capture requires a separate flag.
+  if (play_mode) {
+    struct NativePlaySetting { const char *name; const char *value; };
+    constexpr NativePlaySetting settings[] = {
+#if defined(JFG_V13_BLUR_SOURCE_REVIEW)
+      {"JFG_DIAGNOSTIC_BLUR", "5"},
+#endif
+#if defined(JFG_V13_CONTROLS_REVIEW)
+      {"JFG_GAMEPLAY_TRACE_MEMORY", "1"},
+      {"JFG_GAMEPLAY_TRACE_ACTORS", "0"},
+      {"JFG_DIAGNOSTIC_BLUR_AUDIT", "1"},
+#endif
+      {"JFG_DIAGNOSTIC_NATIVE_SHADOW_FILTER", "1"},
+      {"JFG_DIAGNOSTIC_NATIVE_CACHE_ALL", "1"},
+      {"JFG_DIAGNOSTIC_DIRECT_SP_ACCESS", "1"},
+      {"JFG_DIAGNOSTIC_TEXTURE_RECYCLING", "1"},
+      {"JFG_DIAGNOSTIC_WRITE_ONLY_UPLOAD_MAP", "1"},
+      {"JFG_DIAGNOSTIC_PERSISTENT_UPLOAD_MAP", "1"},
+      {"JFG_DIAGNOSTIC_BUFFER_RESERVATION", "1"},
+      {"JFG_DIAGNOSTIC_TEXTURE_UPLOAD_RESERVE", "1"},
+    };
+    for (const auto &setting : settings) {
+      char *existing = nullptr;
+      std::size_t length = 0;
+      if (_dupenv_s(&existing, &length, setting.name) != 0) return 2;
+      const bool supplied = existing != nullptr;
+      std::free(existing);
+      if (!supplied && _putenv_s(setting.name, setting.value) != 0) return 2;
+    }
+#if defined(JFG_V13_CONTROLS_REVIEW)
+    // Private owner capture is configured after launcher sanitization.
+    // Never make the normal launcher inherit arbitrary JFG_ diagnostics.
+    wchar_t video_path[32768]{},existing_trace[32768]{};
+    const auto video_length=GetEnvironmentVariableW(L"JFG_VIDEO_CONFIG",video_path,32768);
+    if(GetEnvironmentVariableW(L"JFG_GAMEPLAY_TRACE",existing_trace,32768)==0 &&
+       video_length>0 && video_length<32768) {
+      auto folder=std::filesystem::path(video_path).parent_path()/L"performance";
+      std::error_code error;std::filesystem::create_directories(folder,error);
+      if(error)return 2;
+      auto trace=folder/(L"controls-"+std::to_wstring(GetCurrentProcessId())+L"-"+
+        std::to_wstring(GetTickCount64())+L".tsv");
+      if(_wputenv_s(L"JFG_GAMEPLAY_TRACE",trace.c_str())!=0)return 2;
+    }
+#endif
+  }
+#endif
   if (!timeout_explicit)
     timeout = default_watchdog_for_retraces(
         poll_target_explicit ? poll_target : retrace_target);

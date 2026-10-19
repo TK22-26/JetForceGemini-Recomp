@@ -384,6 +384,30 @@ if(TARGET jfg_rt64_renderer)
             VERBATIM)
     endif()
     add_test(NAME jfg.rt64_draw_call_key COMMAND jfg_rt64_draw_call_key_tests)
+
+    add_executable(jfg_rt64_call_matching_tests rt64_call_matching_tests.cpp)
+    target_link_libraries(jfg_rt64_call_matching_tests PRIVATE jfg_rt64_renderer)
+    target_include_directories(jfg_rt64_call_matching_tests PRIVATE
+        "${PROJECT_SOURCE_DIR}/src/renderer"
+        $<TARGET_PROPERTY:jfg_rt64_renderer,INCLUDE_DIRECTORIES>)
+    target_compile_definitions(jfg_rt64_call_matching_tests PRIVATE
+        $<TARGET_PROPERTY:jfg_rt64_renderer,COMPILE_DEFINITIONS>)
+    target_compile_features(jfg_rt64_call_matching_tests PRIVATE cxx_std_20)
+    jfg_set_project_warnings(jfg_rt64_call_matching_tests)
+    if(MSVC)
+        target_compile_options(jfg_rt64_call_matching_tests PRIVATE
+            /wd4201 /wd4244 /wd4324)
+    endif()
+    if(WIN32)
+        add_custom_command(TARGET jfg_rt64_call_matching_tests POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${jfg_rt64_root}/src/contrib/mupen64plus-win32-deps/SDL2-2.26.3/lib/x64/SDL2.dll"
+                "${jfg_rt64_root}/src/contrib/dxc/bin/x64/dxcompiler.dll"
+                "${jfg_rt64_root}/src/contrib/dxc/bin/x64/dxil.dll"
+                "$<TARGET_FILE_DIR:jfg_rt64_call_matching_tests>"
+            VERBATIM)
+    endif()
+    add_test(NAME jfg.rt64_call_matching COMMAND jfg_rt64_call_matching_tests)
 endif()
 
 add_executable(jfg_bounded_custom_graphics_tests
@@ -742,6 +766,11 @@ if(WIN32)
   target_compile_features(jfg_host_deadline_wait_tests PRIVATE cxx_std_20)
   jfg_set_project_warnings(jfg_host_deadline_wait_tests)
   add_test(NAME jfg.host_deadline_wait COMMAND jfg_host_deadline_wait_tests)
+  add_executable(jfg_presentation_deadline_wait_tests presentation_deadline_wait_tests.cpp)
+  target_include_directories(jfg_presentation_deadline_wait_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+  target_compile_features(jfg_presentation_deadline_wait_tests PRIVATE cxx_std_20)
+  jfg_set_project_warnings(jfg_presentation_deadline_wait_tests)
+  add_test(NAME jfg.presentation_deadline_wait COMMAND jfg_presentation_deadline_wait_tests)
 endif()
 
 add_executable(jfg_interpolation_history_tests interpolation_history_tests.cpp)
@@ -775,6 +804,7 @@ if(WIN32)
 endif()
 
 add_executable(jfg_semantic_presentation_tests semantic_presentation_tests.cpp)
+target_link_libraries(jfg_semantic_presentation_tests PRIVATE jfg_runtime)
 target_include_directories(jfg_semantic_presentation_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
 target_compile_features(jfg_semantic_presentation_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_semantic_presentation_tests)
@@ -823,3 +853,16 @@ target_compile_features(jfg_async_volume_file_tests PRIVATE cxx_std_20)
 target_link_libraries(jfg_async_volume_file_tests PRIVATE Threads::Threads)
 jfg_set_project_warnings(jfg_async_volume_file_tests)
 add_test(NAME jfg.async_volume_file COMMAND jfg_async_volume_file_tests)
+
+add_executable(jfg_async_config_files_tests async_config_files_tests.cpp)
+target_include_directories(jfg_async_config_files_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_async_config_files_tests PRIVATE cxx_std_20)
+target_link_libraries(jfg_async_config_files_tests PRIVATE Threads::Threads)
+jfg_set_project_warnings(jfg_async_config_files_tests)
+add_test(NAME jfg.async_config_files COMMAND jfg_async_config_files_tests)
+
+add_executable(jfg_navigation_mesh_json_tests navigation_mesh_json_tests.cpp)
+target_include_directories(jfg_navigation_mesh_json_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_navigation_mesh_json_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_navigation_mesh_json_tests)
+add_test(NAME jfg.navigation_mesh_json COMMAND jfg_navigation_mesh_json_tests)

@@ -1,26 +1,16 @@
-<rml>
-<head><title>Video Settings</title><link type="text/rcss" href="video-settings.rcss"/></head>
-<body>
-<div id="video-shell">
- <div id="video-content">
-  <div id="video-error"/>
-  <div class="section">
-   <div class="section-heading"><span>DISPLAY</span><span class="hint">Applies when saved</span></div>
-   <div class="row"><span class="field-label">Window mode</span><div class="segments"><button id="video-windowed"><span>Windowed</span></button><button id="video-fullscreen"><span>Borderless fullscreen</span></button></div></div>
-   <div class="row"><div class="field-label"><span>Window size</span><span id="video-size-hint" class="small">Windowed mode only</span></div><select id="video-size"><option value="0">Keep current size</option><option value="1">1280 x 720</option><option value="3">1600 x 900</option><option value="2">1920 x 1080</option><option value="4">2560 x 1440</option></select></div>
-   <div class="row"><div class="description"><span>Pause when inactive</span><span class="small">Pause the game when you click away from the window.</span></div><button id="video-pause" class="switch" aria-label="Pause when inactive"><span class="knob"/></button></div>
-  </div>
-  <div class="section rendering">
-   <div class="section-heading"><span>RENDERING</span><span id="video-restart" class="chip">Applies next game launch</span></div>
-   <div class="row"><div class="description"><span>VSync</span><span class="small">Synchronize with your display to stop tearing.<br/>Caps output at its refresh rate.</span></div><button id="video-vsync" class="switch" aria-label="VSync"><span class="knob"/></button></div>
-   <div class="rate-row"><div class="row"><span class="field-label">Frame rate</span><div class="segments"><button id="video-original"><span>Original</span></button><button id="video-custom"><span>Custom </span><span class="exp">EXP</span></button><button id="video-unlimited"><span>Unlimited </span><span class="exp">EXP</span></button></div></div><div id="video-fps-hint" class="rate-hint"/></div>
-   <div id="video-custom-controls">
-    <div class="row"><label for="video-fps" class="field-label">Frame-rate cap</label><input id="video-slider" type="range" min="60" max="1000" step="1" value="60"/><input id="video-fps" type="text" maxlength="4" value="60"/><span class="fps-unit">FPS</span></div>
+<rml><head><title>Video Settings</title><link type="text/rcss" href="video-settings.rcss"/></head><body class="video-tabs">
+<div id="video-shell"><div id="video-layout"><div id="video-nav">
+<input id="video-search" type="text" maxlength="100" placeholder="Search settings" aria-label="Search video settings"/>
+<div id="video-tabs" role="tablist"><button id="video-tab-display" class="video-tab" role="tab"><span class="tab-icon screen"><span/></span><span class="tab-label">Display</span><span id="video-count-display" class="tab-count"/><span id="video-dirty-display" class="tab-dirty"/></button><button id="video-tab-rendering" class="video-tab" role="tab"><span class="tab-icon layers"><span/></span><span class="tab-label">Rendering</span><span id="video-count-rendering" class="tab-count"/><span id="video-dirty-rendering" class="tab-dirty"/></button><button id="video-tab-framerate" class="video-tab" role="tab"><span class="tab-icon gauge"><span/></span><span class="tab-label">Frame rate</span><span id="video-count-framerate" class="tab-count"/><span id="video-dirty-framerate" class="tab-dirty"/></button><button id="video-tab-enhance" class="video-tab" role="tab"><span class="tab-icon spark"><span/></span><span class="tab-label">Enhancements</span><span id="video-count-enhance" class="tab-count"/><span id="video-dirty-enhance" class="tab-dirty"/></button></div></div><div id="video-content"><div id="video-error"/>
+<div id="video-heading"><div><div id="video-title"/><div id="video-subtitle" class="small"/></div><span id="video-restart" class="chip"/></div><div id="video-card-mode" class="video-card">   <div class="row"><span class="field-label">Window mode</span><div class="segments"><button id="video-windowed"><span>Windowed</span></button><button id="video-fullscreen"><span>Borderless fullscreen</span></button></div></div></div>
+<div id="video-card-size" class="video-card">   <div class="row"><div class="field-label"><span>Window size</span><span id="video-size-hint" class="small">Windowed mode only</span></div><select id="video-size"><option value="0">Keep current size</option><option value="1">1280 x 720</option><option value="3">1600 x 900</option><option value="2">1920 x 1080</option><option value="4">2560 x 1440</option></select></div></div>
+<div id="video-card-pause" class="video-card">   <div class="row"><div class="description"><span>Pause when inactive</span><span class="small">Pause the game when you click away from the window.</span></div><button id="video-pause" class="switch" aria-label="Pause when inactive"><span class="knob"/></button></div></div>
+<div id="video-card-vsync" class="video-card">   <div class="row"><div class="description"><span>VSync</span><span class="small">Synchronize with your display to stop tearing.<br/>Caps output at its refresh rate.</span></div><button id="video-vsync" class="switch" aria-label="VSync"><span class="knob"/></button></div></div>
+<div id="video-card-blur" class="video-card">   <div class="rate-row"><div class="row"><span class="field-label">Motion blur</span><div class="segments"><button id="video-blur-off"><span>Off</span></button><button id="video-blur-reduced"><span>Reduced</span></button><button id="video-blur-original"><span>Original</span></button></div></div><div id="video-blur-hint" class="rate-hint"/><div id="video-blur-warning" class="rate-hint">Original blur creates strong motion trails and may cause motion sickness at high frame rates. Try Reduced or Off if it feels uncomfortable.</div></div></div>
+<div id="video-card-fps" class="video-card">   <div class="rate-row"><div class="row"><span class="field-label">Frame rate</span><div class="segments"><button id="video-original"><span>Original</span></button><button id="video-custom"><span>Custom </span><span class="exp">EXP</span></button><button id="video-unlimited"><span>Unlimited </span><span class="exp">EXP</span></button></div></div><div id="video-fps-hint" class="rate-hint"/></div></div>
+<div id="video-card-cap" class="video-card">    <div class="row"><label for="video-fps" class="field-label">Frame-rate cap</label><input id="video-slider" type="range" min="60" max="1000" step="1" value="60"/><input id="video-fps" type="text" maxlength="4" value="60"/><span class="fps-unit">FPS</span></div>
     <div class="quick-row"><button id="video-preset-60"><span>60</span></button><button id="video-preset-120"><span>120</span></button><button id="video-preset-144"><span>144</span></button><button id="video-preset-165"><span>165</span></button><button id="video-preset-240"><span>240</span></button><button id="video-preset-360"><span>360</span></button></div>
-    <div id="video-range" class="range-hint">Range 60 to 1000 FPS</div>
-   </div>
-  </div>
- </div>
- <div class="footer"><button id="video-cancel"><span>Cancel</span></button><button id="video-apply" class="primary"><span>Apply</span></button></div>
-</div>
-</body></rml>
+    <div id="video-range" class="range-hint">Range 60 to 1000 FPS</div></div>
+<div id="video-card-fog" class="video-card"><div class="row"><label for="video-fog" class="field-label">Fog strength</label><input id="video-fog" type="range" min="0" max="100" step="1" value="100"/><span id="video-fog-value">100%</span></div><div class="small">0% removes fog. 100% preserves the original look.<br/>Applies to the running game when saved. Draw distance stays the same.</div></div>
+<div id="video-empty"><div>No settings match your search.</div><div class="small">Try fps, tearing, blur or fog.</div><button id="video-clear"><span>Clear search</span></button></div>
+</div></div><div class="footer"><button id="video-cancel"><span>Cancel</span></button><button id="video-apply" class="primary"><span>Apply</span></button></div></div></body></rml>

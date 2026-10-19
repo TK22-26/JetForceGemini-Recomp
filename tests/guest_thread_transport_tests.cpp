@@ -7,7 +7,7 @@ namespace {
 struct Context { unsigned value = 0; unsigned* self = nullptr; };
 void check(bool valid) { if (!valid) std::abort(); }
 }
-int main() {
+void run_transport(bool fibers) {
   using Transport = jfg::boot::GuestThreadTransport<Context>;
   std::unique_ptr<Transport> transport;
   unsigned visits = 0, repairs = 0;
@@ -41,6 +41,7 @@ int main() {
       transport->stop();
     }
   }, [&](Context& context) { context.self = &context.value; ++repairs; });
+  transport->set_fiber_mode(fibers);
   bool rejected = false;
   try { transport->park_at(0x100); } catch (const std::logic_error&) { rejected = true; }
   check(rejected);
@@ -49,5 +50,9 @@ int main() {
   rejected = false;
   try { transport->run(0x400, Context{}, 10); } catch (const std::logic_error&) { rejected = true; }
   check(rejected);
+}
+int main() {
+  run_transport(false);
+  if (jfg::boot::BatonExecutor::fibers_supported()) run_transport(true);
   return 0;
 }

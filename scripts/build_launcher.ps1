@@ -48,17 +48,19 @@ if ($LASTEXITCODE -ne 0) { throw 'Native frontend configuration failed.' }
 & $frontendCmake --build $frontendBuild --config Release --target JFG-Launcher --parallel 4
 if ($LASTEXITCODE -ne 0) { throw 'Native frontend compilation failed.' }
 if ($Test) {
-    & $frontendCmake --build $frontendBuild --config Release --target jfg-graphics-policy-tests jfg-game-viewport-tests --parallel 2
+    & $frontendCmake --build $frontendBuild --config Release --target jfg-graphics-policy-tests jfg-game-viewport-tests jfg-storage-settings-tests --parallel 2
     if ($LASTEXITCODE -ne 0) { throw 'Graphics preflight test compilation failed.' }
     & (Join-Path $frontendBuild 'Release/jfg-graphics-policy-tests.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Graphics preflight tests failed.' }
     & (Join-Path $frontendBuild 'Release/jfg-game-viewport-tests.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Game viewport tests failed.' }
+    & (Join-Path $frontendBuild 'Release/jfg-storage-settings-tests.exe')
+    if ($LASTEXITCODE -ne 0) { throw 'Portable storage tests failed.' }
 }
 Copy-Item -LiteralPath (Join-Path $frontendBuild 'Release/JFG-Launcher.exe') -Destination $launcherExe -Force
 
 $launcherInputs = [ordered]@{}
-foreach ($relative in @('launcher/windows/Launcher.cs', 'launcher/windows/UpdateChecker.cs', 'launcher/native/game_viewport.hpp', 'launcher/native/graphics_check.hpp', 'launcher/native/video_settings_dialog.hpp', 'launcher/native/video_settings_protocol.hpp', 'launcher/native/video_settings_resource.h', 'launcher/native/video_settings.rc', 'src/app/video_settings_dialog.cpp', 'include/jfg/renderer/video_settings.hpp', 'launcher/windows/ImportedRom.cs', 'launcher/windows/PortablePackage.cs', 'launcher/windows/FrontendBridge.cs', 'src/app/frontend_win32.cpp', 'launcher/native/CMakeLists.txt', 'launcher/windows/FirstRun.cs',
+foreach ($relative in @('launcher/windows/Launcher.cs', 'launcher/windows/UpdateChecker.cs', 'launcher/native/game_viewport.hpp', 'launcher/native/storage_settings.hpp', 'launcher/native/window_chrome.hpp', 'launcher/native/graphics_check.hpp', 'launcher/native/video_settings_dialog.hpp', 'launcher/native/video_settings_protocol.hpp', 'launcher/native/video_settings_resource.h', 'launcher/native/video_settings.rc', 'src/app/video_settings_dialog.cpp', 'include/jfg/renderer/video_settings.hpp', 'launcher/windows/ImportedRom.cs', 'launcher/windows/PortablePackage.cs', 'launcher/windows/FrontendBridge.cs', 'src/app/frontend_win32.cpp', 'launcher/native/CMakeLists.txt', 'launcher/windows/FirstRun.cs',
         'launcher/windows/Setup.ps1', 'launcher/windows/Support.cs', 'launcher/windows/Diagnostics.cs', 'launcher/windows/Controller.cs', 'launcher/windows/NavigationMap.cs', 'launcher/windows/Audio.cs', 'launcher/windows/MapLayers.cs', 'launcher/windows/NavigationRoute.cs', 'launcher/windows/NavigationExplorer.cs', 'launcher/windows/NavigationCollision.cs', 'launcher/windows/BoxJump.cs', 'launcher/windows/ChestRoute.cs', 'launcher/windows/NavigationRunner.cs', 'launcher/windows/AutonomousExplorer.cs', 'launcher/windows/InventoryWindow.cs', 'launcher/windows/InventoryImages.cs', 'launcher/windows/InventoryModel.cs', 'launcher/windows/NativeLiveTools.cs', 'scripts/build_launcher.ps1', 'cmake/ControllerSdk.cmake', 'include/jfg/runtime/controller_device_key.hpp', 'include/jfg/runtime/controller_catalog.hpp', 'include/jfg/runtime/controller_mapping.hpp', 'include/jfg/runtime/controller_ports.hpp', 'include/jfg/runtime/sdl_controller_backend.hpp', 'include/jfg/runtime/pc_input.hpp', 'include/jfg/runtime/modern_controls.hpp', 'include/jfg/runtime/input_stick.hpp', 'include/jfg/audio/master_volume.hpp')) {
     $launcherInputs[$relative] = (Get-FileHash -LiteralPath (Join-Path $launcherRepoRoot $relative) -Algorithm SHA256).Hash.ToLowerInvariant()
 }

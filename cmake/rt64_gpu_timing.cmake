@@ -26,6 +26,35 @@ foreach(jfg_gpu_stage IN ITEMS begin end complete)
     endif()
     string(REPLACE "${jfg_gpu_old}" "${jfg_gpu_new}" jfg_gpu_contents "${jfg_gpu_contents}")
 endforeach()
+# A known CPU-owned I8 shadow has already completed its native GPU readback.
+# Do not submit a redundant high-resolution copy that textures cannot consume.
+# Retain the original full-sync cleanup and reuse only the unpublished write slot.
+set(jfg_shadow_old [=[        // Advance the workload queue at the end of a full synchronization.
+        advanceWorkload(workload, false);
+        ext.workloadQueue->advanceToNextWorkload();]=])
+set(jfg_shadow_new [=[        const bool cpuOnlyShadow = !ext.userConfig->developerMode &&
+            !debuggerInspector.paused && jfg::cpu_only_shadow_workload(workload,
+                renderToRDRAM, ext.emulatorConfig->framebuffer.copyWithGPU);
+        if (!cpuOnlyShadow) {
+            advanceWorkload(workload, false);
+            ext.workloadQueue->advanceToNextWorkload();
+        }
+        else if (jfg::interpolation_trace_enabled()) {
+            const auto snapshot = jfg::presentation_snapshot(&workload);
+            jfg::trace_interpolation("cpu-shadow-complete", snapshot ? snapshot->tick : 0U,
+                workloadId, workload.fbPairs[0].colorImage.address, 0U, 0U, 0.0f, 0U, 1U);
+        }]=])
+string(FIND "${jfg_gpu_contents}" "${jfg_shadow_old}" jfg_shadow_at)
+if(jfg_shadow_at EQUAL -1)
+    message(FATAL_ERROR "Pinned RT64 CPU shadow completion site is missing")
+endif()
+string(REPLACE "${jfg_shadow_old}" "${jfg_shadow_new}" jfg_gpu_contents "${jfg_gpu_contents}")
+string(REPLACE "if (presentEarly && (workload.fbPairCount > 0))"
+    "if (!cpuOnlyShadow && presentEarly && (workload.fbPairCount > 0))"
+    jfg_gpu_contents "${jfg_gpu_contents}")
+string(REPLACE "        // Reset the next workload."
+    "        if (cpuOnlyShadow) jfg::publish_presentation_snapshot(&workload, nullptr);\n        // Reset the next workload."
+    jfg_gpu_contents "${jfg_gpu_contents}")
 # Optional CPU-side synchronization timings. Keep every original wait in place.
 set(jfg_wait_index 0)
 foreach(jfg_wait_stage IN ITEMS draw transform render fence texture queue)
@@ -71,7 +100,7 @@ endif()
 string(REPLACE "${jfg_vi_mask_site}" "jfg::preserve_vi_cpu_overlay(*this, present);\n                            ${jfg_vi_mask_site}" jfg_gpu_contents "${jfg_gpu_contents}")
 set(jfg_gpu_generated "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64/hle/rt64_state.cpp")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64/hle")
-file(WRITE "${jfg_gpu_generated}" "#include \"rt64_cpu_overlay.hpp\"\n#include \"jfg/renderer/interpolation_bridge.hpp\"\n#include \"jfg/renderer/rt64_gpu_timing_hooks.hpp\"\n#include \"jfg/renderer/submission_profile.hpp\"\n${jfg_gpu_contents}")
+file(WRITE "${jfg_gpu_generated}" "#include \"rt64_interpolation_adapter.hpp\"\n#include \"rt64_cpu_overlay.hpp\"\n#include \"jfg/renderer/interpolation_bridge.hpp\"\n#include \"jfg/renderer/rt64_gpu_timing_hooks.hpp\"\n#include \"jfg/renderer/submission_profile.hpp\"\n${jfg_gpu_contents}")
 get_target_property(jfg_gpu_sources rt64 SOURCES)
 set(jfg_gpu_patched_sources)
 set(jfg_gpu_replaced FALSE)
