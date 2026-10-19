@@ -247,3 +247,13 @@ game's widescreen option being off. Gameplay remains 4:3. These follow-ups are
 tracked in [DISPLAY-002 / PERF-004](opening-village-and-cutscene-aspect.md).
 The completed beta.1 capture is retained in private evidence under
 `goldwood-exit-1.3-20261017/beta1-capture-review`. No stable release is claimed.
+
+## v1.3.0 source availability
+
+The documented change is included in tag v1.3.0 (launcher/source
+02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
+665596482a7395593e85dbe73f1bd4b016d183d9). See the
+[combined release qualification](../releases-1.3.0-qualification.md) for owner
+acceptance, source CI, package and publication evidence. Earlier failed attempts
+and the scene/device/seed limits above remain part of this record; inclusion
+does not turn an unverified broader report into a confirmed resolution.

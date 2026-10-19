@@ -63,3 +63,13 @@ command. Slow storage can delay the command, but cannot stall a game update.
 The optimized normal-Play route completed with 2194 measured boss intervals, VI deltas {'2': 2194}, maximum boss wall interval 36.682 ms, 0 audio error events and 0 same-room gaps above 42 ms after VI 3000. These are scoped route results; all-campaign qualification remains open.
 
 Retained route summaries: vela-composite/optimized-play-navigation-costs.json and split-play-navigation-costs.json. Navigation cost counts above the one-millisecond diagnostic threshold changed from {'host-profile-navigation-read': 13, 'host-profile-navigation': 33, 'host-profile-navigation-json': 20, 'host-profile-navigation-mesh': 20} to {'host-profile-navigation-mesh': 4, 'host-profile-navigation': 8, 'host-profile-navigation-json': 1}. Detailed nested spans are not additive percentages.
+
+## v1.3.0 source availability
+
+The documented change is included in tag v1.3.0 (launcher/source
+02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
+665596482a7395593e85dbe73f1bd4b016d183d9). See the
+[combined release qualification](../releases-1.3.0-qualification.md) for owner
+acceptance, source CI, package and publication evidence. Earlier failed attempts
+and the scene/device/seed limits above remain part of this record; inclusion
+does not turn an unverified broader report into a confirmed resolution.

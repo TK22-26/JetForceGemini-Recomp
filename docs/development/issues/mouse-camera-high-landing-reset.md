@@ -119,3 +119,13 @@ Owner confirms on 2026-10-18: "jumping from ledge grab is now fixed" in Motion C
 ## Owner high-drop acceptance (2026-10-19)
 
 The owner explicitly confirms the high-drop mouse-camera reset is fixed. This supplements the earlier ledge-climb acceptance and closes the pending live check for the reported mouse/Modern Controls transitions. Component and source evidence above remain the recorded cause/remedy; other characters and unusual states retain their stated coverage limits. No new gameplay change or stable release is claimed.
+
+## v1.3.0 source availability
+
+The documented change is included in tag v1.3.0 (launcher/source
+02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
+665596482a7395593e85dbe73f1bd4b016d183d9). See the
+[combined release qualification](../releases-1.3.0-qualification.md) for owner
+acceptance, source CI, package and publication evidence. Earlier failed attempts
+and the scene/device/seed limits above remain part of this record; inclusion
+does not turn an unverified broader report into a confirmed resolution.

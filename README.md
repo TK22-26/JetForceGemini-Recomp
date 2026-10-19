@@ -110,8 +110,8 @@ See the [controls guide and validation notes](docs/features/pc-controls.md).
 
 Open **Video > Video settings** for VSync, a Custom FPS target or Unlimited.
 Rendering interpolates between game updates without speeding up gameplay.
-The Enhancements tab includes **Off / Reduced / Original** motion blur (Reduced
-by default) and **0–100% fog strength**, which applies live. Frame-rate changes
+The Rendering tab includes **Off / Reduced / Original** motion blur (Reduced
+by default). Enhancements includes **0–100% fog strength**, which applies live. Frame-rate changes
 apply the next time the game starts.
 High-refresh presentation and Modern Controls remain opt-in; see
 [qualification and limits](docs/known-issues.md).
