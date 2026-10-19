@@ -64,3 +64,13 @@ must not be represented as normal Play qualification unless their defaults match
 
 Related: [1.3 backlog](1.2.1-session-1.3-followup.md),
 [Vela rendering investigation](vela-rescue-cutscene-stutter-resolution.md).
+
+## v1.3.0 source availability
+
+The documented change is included in tag v1.3.0 (launcher/source
+02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
+665596482a7395593e85dbe73f1bd4b016d183d9). See the
+[combined release qualification](../releases-1.3.0-qualification.md) for owner
+acceptance, source CI, package and publication evidence. Earlier failed attempts
+and the scene/device/seed limits above remain part of this record; inclusion
+does not turn an unverified broader report into a confirmed resolution.

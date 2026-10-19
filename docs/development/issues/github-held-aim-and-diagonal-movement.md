@@ -229,3 +229,13 @@ Private receipt: D:/JFG-private/v13-owner-controls-20261018/owner-movement-quali
 The owner states that the reporter acknowledged held aim cancelling when firing is fixed in v1.2. Treat that symptom as reporter-confirmed resolved for the reported case, rather than an outstanding v1.3 diagnosis. This is owner-relayed acknowledgement; no new GitHub fetch, post or closure occurred in this continuation, and no additional cause/commit attribution is invented. The separate standing-aim movement correction remains included for v1.3 with the measured runtime evidence above.
 
 Release-preparation readback verifies the reporter acknowledgement directly: [comment 6244055488](https://github.com/TK22-26/JetForceGemini-Recomp/issues/18#issuecomment-6244055488), 2026-10-18. They had accidentally launched the older game and confirm targeting cancellation is gone in v1.2.0. The subsequent maintainer comment separately confirms the movement remedy is targeted for v1.3. No new reply or closure was posted.
+
+## v1.3.0 source availability
+
+The documented change is included in tag v1.3.0 (launcher/source
+02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
+665596482a7395593e85dbe73f1bd4b016d183d9). See the
+[combined release qualification](../releases-1.3.0-qualification.md) for owner
+acceptance, source CI, package and publication evidence. Earlier failed attempts
+and the scene/device/seed limits above remain part of this record; inclusion
+does not turn an unverified broader report into a confirmed resolution.

@@ -123,3 +123,13 @@ The overlay-address candidate compiled and passed the semantic presentation and 
 Owner reports: "glass is fixed. capture closed". This accepts the rebuilt overlay-address candidate in the previously failing pre-Vela breakable-glass room. The actual cause was rejected shared overlay vertex addresses, preventing glass identity and UV interpolation from activating. The remedy resolves and bounds-checks those addresses through the renderer production translator. Component regression checks pass, and owner live verification is now positive. Not yet released. Other glass types/levels are not implied verified by this room-specific result.
 
 Closed owner audit blur-source-audit-17923699591324738.csv saved 8664 rows and reports zero overflow. It now contains 724 glass-identity events, whereas both rejected builds had none. See the private glass-overlay-audit-summary.json for matching counts; owner acceptance remains the visual evidence.
+
+## v1.3.0 source availability
+
+The documented change is included in tag v1.3.0 (launcher/source
+02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
+665596482a7395593e85dbe73f1bd4b016d183d9). See the
+[combined release qualification](../releases-1.3.0-qualification.md) for owner
+acceptance, source CI, package and publication evidence. Earlier failed attempts
+and the scene/device/seed limits above remain part of this record; inclusion
+does not turn an unverified broader report into a confirmed resolution.

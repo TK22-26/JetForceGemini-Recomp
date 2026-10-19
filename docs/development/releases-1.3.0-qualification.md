@@ -1,9 +1,11 @@
-# v1.3.0 release preparation
+# v1.3.0 release qualification
 
-Status: PREPARING; not committed, packaged, published or release-qualified.
+Status: clean source, runtime, launcher and package qualified. Source CI passes
+all six jobs. The tagged publication workflow and verified public download are
+required before merging this final qualification record.
 
-The owner authorizes release preparation while running New Game through Vela's
-rescue. Do not rebuild/replace the running preview or run competing game tests.
+The owner completed New Game through Vela's rescue and the targeted corpse
+follow-up, then authorized release and integration.
 The owner changed acceptance from absolute zero outliers to visibly smooth,
 responsive play with clean audio. Preserve and explain material timing failures.
 
@@ -45,13 +47,15 @@ remain required. The tested owner binary is not relabelled as a clean release.
 ## Required before publication
 
 - [x] Completed owner New Game-to-Vela capture and visual/audio feedback; corpse follow-up accepted with coverage limits.
-- [ ] Review final audio, output/update timing, scene coverage and log-loss counters.
-- [ ] Full combined ROM-free/native component and launcher checks.
-- [ ] Clean source/history policy, including exact UI asset provenance.
-- [ ] Commit reviewed source with the required maintainer identity.
-- [ ] Build clean stable runtime/launcher with private diagnostic defaults off.
-- [ ] Verify allowed ZIP members, hashes, versions and source identities.
-- [ ] Required CI, branch integration and final release authorization/publication.
+- [x] Review final audio, output/update timing, scene coverage and log-loss counters.
+- [x] Full combined ROM-free/native component and launcher checks.
+- [x] Clean source/history policy, including exact UI asset provenance.
+- [x] Commit reviewed source with the required maintainer identity.
+- [x] Build clean stable runtime/launcher with private diagnostic defaults off.
+- [x] Verify allowed ZIP members, hashes, versions and source identities.
+- [x] Required source CI, main integration and owner release authorization.
+- Publication and public-download verification: enforced before this record merges;
+  see the tagged workflow below.
 - [ ] Reporter retest requests with the actual v1.3 download link after availability.
 
 A reporter retest is not a confirmed fix. No reply or issue closure is sent
@@ -145,3 +149,25 @@ The issue record, index and known-issues intent is retained with newer v1.3
 status/evidence; old no-fix/undiagnosed statements are not restored over the
 verified corrections. Additional community credits were missing and are now
 included. Original local files remain preserved until branch integration.
+
+## v1.3.0 build and release identities
+
+Release tag / launcher source: 02be6fa9a4c50f4056f778c5148ca8ac70b0e92b.
+Clean runtime source: 665596482a7395593e85dbe73f1bd4b016d183d9. Only release documentation
+changed between these revisions; the clean game build is not relabelled.
+Both normal-release builds pass, with diagnostic defaults disabled. The standard
+package validator verifies ZIP membership, per-file hashes, version and runtime/
+launcher source identities. Public symbols, ROMs, saves and generated source are
+excluded from the package.
+
+[Source CI](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/39205989097)
+passes all six jobs, including GCC/Clang, Windows, sanitizers, renderer and launcher.
+[Tagged publication](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/39207005122)
+repeats required checks and independently verifies the uploaded draft before
+making [v1.3.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.3.0)
+public. Merging this record additionally requires downloading the public assets
+and verifying their hashes, inventory and identities against the staged package.
+
+Issue comments remain drafted and unposted pending the owner reading and
+approving them. Source inclusion does not close reporter-specific #19/#25 or
+platform-specific #4/#15 validation, or expand the bounded owner evidence.

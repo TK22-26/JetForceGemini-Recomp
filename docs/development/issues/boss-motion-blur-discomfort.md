@@ -134,3 +134,13 @@ This is an unreleased candidate, not owner acceptance of Reduced's strength.
 ### Owner review, 2026-10-18 evening
 
 Owner reports that blur visually looks good in Blur Options Review. Reduced is accepted visually in the tested scene; Off / Reduced / Original persistence and UI have component coverage. A separate one-frame boss pop during left/right camera sweeps remains open, including while the boss remains on screen; see boss-camera-sweep-pop.md. Do not treat that pop as resolved by the blur preference.
+
+## v1.3.0 source availability
+
+The documented change is included in tag v1.3.0 (launcher/source
+02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
+665596482a7395593e85dbe73f1bd4b016d183d9). See the
+[combined release qualification](../releases-1.3.0-qualification.md) for owner
+acceptance, source CI, package and publication evidence. Earlier failed attempts
+and the scene/device/seed limits above remain part of this record; inclusion
+does not turn an unverified broader report into a confirmed resolution.

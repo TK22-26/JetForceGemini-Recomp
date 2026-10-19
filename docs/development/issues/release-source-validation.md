@@ -96,3 +96,10 @@ are unchanged. An initial fixture configure could not locate Ninja; the standard
 Visual Studio generator completed all three checks. The authenticated fatal-bridge
 test passes locally with Clang; its initial CI failure remains recorded and
 requires a fresh full CI result. No authentication assertion or CI gate is relaxed.
+
+The final v1.3 source CI run 39205989097 passes all six jobs. The unchanged
+authenticated fatal-bridge test passes in the complete CI suite as well as the
+focused host Clang run; no root cause was established for its first-run failure.
+That failure remains an intermittent validation observation, not a claimed game
+fix. Canonical timer hashing and explicit random-output widths are verified on
+both supported host platforms without relaxing compiler warnings or source pins.
