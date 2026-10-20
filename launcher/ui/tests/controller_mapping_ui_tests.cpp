@@ -43,6 +43,35 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   auto change=[&](const char* selector,int value){auto e=ui.doc->QuerySelector(selector);demand(e!=nullptr,selector);Rml::Dictionary d;d["value"]=value;e->DispatchEvent("change",d);wait();};
   auto option=[&](int value){auto e=dynamic_cast<Rml::ElementFormControlSelect*>(ui.el("available-device"));if(!e)return false;for(int i=0;i<e->GetNumOptions();++i)if(e->GetOption(i)->GetAttribute<int>("value",-99)==value)return true;return false;};
   auto choose=[&](int device){if(device==-2){click("action-device-remove");return;}click("action-device-open");change("#input-type",device<0?device:0);if(device>=0){demand(option(device),"requested device is selectable");change("#available-device",device);}click("action-device-apply");};
+  // Real default downstream ports: Remove must free a pad, not cascade P2 -> P3 -> P4.
+  hardware={true,false,false,false};
+  ui.connected.fill(false);ui.connected[0]=true;
+  for(int p=0;p<4;++p){ui.player=p;ui.mappings[p].device=p==0?-3:-1;demand(ui.saveController(),"seed default automatic ports");}
+  ui.player=1;ui.assignments=jfg::ControllerPorts{};ui.loadControllers();ui.discoverDevices();ui.modal("controllers");wait();
+  demand(ui.devices[0]==-3&&ui.devices[1]==0&&ui.devices[2]==-2,"P2 automatically owns Xbox before removal");
+  const auto untouchedP3=ui.read("controller-3.ini"),untouchedP4=ui.read("controller-4.ini");
+  choose(-2);
+  demand(ui.devices[1]==-2&&ui.devices[2]==-2&&ui.devices[3]==-2,"Remove must not move Xbox to another automatic player");
+  demand(ui.read("controller-3.ini")==untouchedP3&&ui.read("controller-4.ini")==untouchedP4,"Remove preserves other players' automatic settings");
+  ui.assignments=jfg::ControllerPorts{};ui.loadControllers();ui.discoverDevices();wait();
+  demand(ui.devices[2]==-2&&ui.devices[3]==-2,"removed device stays free after profile reload");
+  hardware[0]=false;wait();hardware[0]=true;wait();
+  demand(ui.devices[2]==-2&&ui.devices[3]==-2,"removed device stays free after reconnect");
+  click("action-player2");choose(0);
+  demand(ui.devices[2]==0&&ui.devices[3]==-2,"explicit Add assigns removed controller to intended player");
+  const auto assignedBeforeFailure=ui.read("controller-3.ini"),policyBeforeFailure=ui.read("controller-auto.ini");
+  fs::create_directory(profile/"controller-auto.ini.ui.tmp");
+  demand(!ui.assignDevice(-2),"failed policy write reports failure");
+  demand(ui.devices[2]==0&&ui.read("controller-3.ini")==assignedBeforeFailure&&ui.read("controller-auto.ini")==policyBeforeFailure,"failed policy write preserves controller");
+  fs::remove(profile/"controller-auto.ini.ui.tmp");
+  fs::create_directory(profile/"controller-3.ini.ui.tmp");
+  demand(!ui.assignDevice(-2),"failed mapping write reports failure");
+  demand(ui.devices[2]==0&&ui.read("controller-3.ini")==assignedBeforeFailure&&ui.read("controller-auto.ini")==policyBeforeFailure,"failed mapping write restores removal policy");
+  fs::remove(profile/"controller-3.ini.ui.tmp");
+  choose(-2);
+  // Keep the remaining layout/binding fixture isolated.
+  for(int p=0;p<4;++p){ui.player=p;ui.mappings[p].device=-2;demand(ui.saveController(),"reset fixture players");}
+  hardware={true,true,false,false};ui.player=0;ui.assignments=jfg::ControllerPorts{};ui.loadControllers();ui.discoverDevices();ui.modal("controllers");wait();
   demand(!exists("#action-pc-experimental") && !exists("#action-learn0"),"disconnected player has no binding controls");
   const auto initial=ui.read("controller.ini");click("action-device-open");
   demand(option(0)&&option(1)&&!option(2)&&!option(3),"picker only lists connected controllers");

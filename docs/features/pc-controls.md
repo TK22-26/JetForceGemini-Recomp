@@ -36,6 +36,7 @@ of the game's Normal/Expert option.
 | Aim / fire | Right mouse / left mouse | LT / RT; L2 / R2 |
 | Jump | Space | A / Cross |
 | Crouch | Ctrl | B / Circle |
+| Roll from crouch/crawl (local candidate) | A or D alone | Movement stick left/right |
 | Interact | E | X / Square |
 | Previous / next weapon | Wheel down / up | LB / RB; L1 / R1 |
 | Cycle sniper magnification | Middle mouse while scoped | Right-stick click while scoped |
@@ -61,6 +62,27 @@ and Normal/Expert presets. Both modes retain capture and clear controls. Release
 held controls before capture; Escape cancels. Focus/device loss cancels capture.
 Five mouse buttons, both wheel directions, keys, gamepad buttons, triggers and
 stick directions can be assigned. Escape and F11 retain launcher shortcuts.
+
+## Local roll candidate (unreleased)
+
+The GH-033 candidate adds lateral rolling for Juno and Vela from both crouch
+and crawl. Press Crouch to enter a low posture, then move sideways; Crouch does
+not need to stay held. The keyboard uses the assigned movement actions, so an
+unopposed A/D or its remap requests a roll only when neither forward nor back is
+held. Controller lateral input uses the ordinary movement deadzone and the
+left/right sector within 22.5 degrees of horizontal. Diagonals and forward/back
+remain crawl input. No extra stick-strength threshold preserves sideways crawl
+in this first version. Holding sideways repeats according to the native game.
+
+Simultaneous Crouch and lateral movement may first enter crawl, then roll on the
+next eligible native update. Aim and Jump keep their native priority; Lupus
+cannot roll. Native animation, motion and collision remain in charge. No bumper
+or D-pad binding changes are required. Existing Original Controls are unchanged.
+
+This is a tested local candidate awaiting owner gameplay/feel verification,
+not a released resolution. The independent GH-032 mouse capture/inversion report
+is unchanged. See the [roll issue record](../development/issues/github-modern-controls-side-roll.md)
+for evidence, replay behavior and remaining limits.
 
 ## Mouse navigation in the native menus
 

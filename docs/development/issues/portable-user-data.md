@@ -1,9 +1,17 @@
 # LAUNCHER-004: GitHub #24 portable user data
 
-- Status: local implementation qualified, desktop preview prepared; owner visual review and v1.3 release pending.
+- Status: released in v1.3.0; GitHub #24 closed; user confirms the feature works. Earlier pending statuses below are historical.
 - Report: https://github.com/TK22-26/JetForceGemini-Recomp/issues/24
 - Reported: 2026-10-18; current public launcher, release unspecified.
 - Severity: portability/data-location limitation; no reported save corruption.
+
+## Public follow-up reviewed (2026-10-20 UTC)
+
+GitHub #24 is closed. A user confirms the released storage feature works in
+[the 2026-10-19 follow-up](https://github.com/TK22-26/JetForceGemini-Recomp/issues/24#issuecomment-6269981459).
+This adds user confirmation to the release/owner evidence below; it is not a
+new migration test or a claim about every storage device. The owner's
+instruction not to reply remains in force. No public action was taken.
 
 ## Reproduction and cause
 

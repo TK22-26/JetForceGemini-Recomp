@@ -29,16 +29,60 @@ reports resolved. See [performance follow-up](development/issues/1.2.1-session-1
 
 ## Reporter retests
 
+- [#32: intermittent mouse look and vertical inversion](development/issues/github-mouse-look-and-inversion.md):
+  reported on v1.3.0, Windows 11, RTX 5070 Ti and mouse/keyboard. Buttons and menus
+  work while camera/aim motion intermittently fails. Inversion reportedly stays
+  active with Off selected, including after restart. The reporter withdrew the
+  proposed focus-only cause. Neither symptom is reproduced or fixed locally;
+  the accepted focus-loss camera reset is not proof of capture recovery here.
+- [#33: sideways roll in Modern Controls](development/issues/github-modern-controls-side-roll.md):
+  owner reproduces crawling instead of rolling and confirms Original Controls can
+  roll. Reviewed Modern mappings omit native lateral actions; unchanged native
+  checks confirm analog-to-crawl behavior and a separate simultaneous-entry
+  limitation. Original manual/guide identify a shot-evading roll from crouch
+  or crawl; Lupus is excluded. Owner selects movement-based rolling without a
+  gentle sideways-crawl band for v1, and additionally reports sideways input
+  currently produces forward crawling. Roll-only implementation is now authorized
+  and in progress; candidate and owner live verification are pending.
+  The original report is v1.2.0; owner build is unspecified.
 - [#25: Ally X cutscene, reticle and rain](development/issues/github-ally-x-rendering.md):
-  the owner sees rain in the appropriate Tawfret rooms and opening cutscene,
-  reports a smooth hut scene, and cannot reproduce missing weapon reticles using
-  mouse/Modern Controls. Ask the reporter to retest v1.3 and identify device,
-  Modern Controls versus Original Mapping, weapon and aim/fire bindings.
-  Deliberately dry landing/maze rooms match the original data. No rain or reticle
-  patch was justified by this owner reproduction.
+  reporter confirms missing falling rain and homing/tri-rocket/throwable reticles
+  in v1.3 at 1080p/60 with Modern Controls. The earlier desktop mouse/120 FPS
+  pass did not resolve this report. The owner reproduced both symptoms on the
+  desktop; widescreen and the 60 FPS cap were excluded as sole causes. An
+  unreleased output-timestamp correction restores rain/reticles in the owner's
+  candidate test. Five archived room entries show a 427-435 ms delay before
+  native rain writes, explained by the original fade gate and one initialization
+  update. The owner still saw late rain in the first private fade preview. Its
+  recording showed no activation: the first candidate supports type-0 opacity
+  fades, while the black entry uses type-3 moving geometry. The actual native
+  routine reproduces this missed case. A replacement spatial-fade preview now
+  passes 1,049 tracked and 30,912 native integration checks plus deployed-launcher
+  validation. The owner subsequently approves this replacement as fixing the
+  rain delay locally. It remains unreleased; exact onset measurements,
+  accumulated streak rounding and pixel-exact original-game comparison are
+  unverified. Alternate transitions/projections, dimensions and intervening
+  text/window output retain native gating. Reporter/Ally X retest is pending.
+  Hardware/driver dependence is unproved.
+- [#29: crackling followed by lasting audio delay](development/issues/audio-crackle-persistent-latency.md):
+  reported every attempt after several minutes; resetting through the launcher
+  reportedly restores sync. Detailed settings or an affected-session support ZIP
+  are needed. No new fix is qualified.
+- [#30: dual-stick ledge-camera reset](development/issues/controller-ledge-camera-reset.md):
+  an unreleased candidate extends retained camera ownership to Modern controller
+  ledge climbs. Source regression and native checks pass; owner confirms the ledge fix locally.
+  Reporter retest and release remain pending.
+- [#31: cutscene skipping](development/issues/optional-cutscene-skipping.md):
+  opening story skipping now passes owner review. A further candidate adds
+  King Jeff invasion completion after an owner-reported partial skip, and a generated native blue-A button.
+  Native/focused checks pass. Owner verified the SS Anubis flashback, Vela rescue,
+  Juno departure and Tawfret intro. Broader cutscene coverage remains open;
+  unsupported scripts retain normal playback.
 - [#19: invasion replay stutter](development/issues/github-invasion-replay-stutter.md):
-  related opening scenes improve in measured comparisons, but the exact reported
-  King Jeff replay and reporter settings remain independently unverified.
+  the original reporter confirms the latest update resolves the problem and
+  requests closure; another affected user also confirms improvement. GitHub
+  remains open with an explicit closeout TODO. Exact independent severity/cause
+  attribution remains limited; this does not resolve the separate Ally X report.
 - [#18: targeting controls](development/issues/github-held-aim-and-diagonal-movement.md):
   the reporter confirms firing no longer cancels held aim in v1.2.0. The separate
   standing-aim diagonal-speed correction is included in v1.3.
@@ -46,6 +90,16 @@ reports resolved. See [performance follow-up](development/issues/1.2.1-session-1
   and [#15: Linux source build](development/issues/github-linux-native-build.md):
   prior source remedies are released, while reporter-platform qualification
   remains limited. A packaged Linux AppImage is not qualified.
+
+## Unreleased visual and controller candidates
+
+- [Tawfret sky brightness/fog](development/issues/tawfret-brightness-fog-fidelity.md):
+  EmuHawk confirms the old gamma-off correction is intact. A signed fog-gradient
+  candidate closely matches complete original graphics tasks at four views;
+  owner approved the lighting/fog correction locally; unreleased.
+- [Removed controllers moving to later players](development/issues/controller-remove-auto-reassignment.md):
+  persistent automatic-assignment exclusions pass core and real UI checks;
+  owner approved the removal correction locally; unreleased.
 
 ## Original behavior and optional enhancements
 
@@ -98,3 +152,43 @@ using the [playtesting guide](playtesting.md).
 ## Grounded drone bodies
 
 Detached-body ownership and hidden-bone validation corrections pass focused checks and the latest owner visual review. The latest capture has no invalid-sample rejections or audio underruns; the exact seeded route and earlier cutscene groups remain unverified. See the [issue record](development/issues/dead-drone-camera-jitter.md). Not yet released.
+
+- [SS Anubis ledge-testing stutter](development/issues/tawfret-lighting-preview-stutter.md):
+  a short 60 FPS owner run records a several-second delivery slowdown, then
+  recovery. The repeat capture has no gameplay presentation intervals over 25 ms
+  after loading. Intermittent cause remains unlocalized; unrelated to #30 acceptance.
+
+- [Modern controller high-drop camera reset](development/issues/controller-high-landing-camera-reset.md):
+  separate from accepted ledge-climb correction; candidate passes the scoped
+  source regression and the owner confirms the landing fix locally; unreleased.
+
+- [Camera reset on window focus loss](development/issues/focus-loss-camera-reset.md):
+  late input cleanup loses Modern view identity; candidate passes source regression
+  for controller and mouse, with Original exclusion checked. Owner confirms
+  fixed in all tested modes; unreleased.
+
+Cutscene-skip preview follow-up: native A sprite draw corrected and styled SKIP label prepared; owner visual review and King Jeff invasion completion remain pending. See [the cutscene-skip record](development/issues/optional-cutscene-skipping.md).
+
+Cutscene skip preview6 now has a candidate for the missing Goldwood forest prompt (native no-control scenery object48). The 25% smaller prompt uses a textured ring. Live verification remains pending; other unsupported scenes are still gated.
+
+Cutscene skip: preview6 did not fix the reported forest sequence. Preview7 targets the captured A holds in the Magnus tutorial (scene199), completing its original399/group1 ->21 return. Health/ammo object classification was blocking eligibility. Candidate passed build and production-function/renderer checks; live verification remains pending.
+
+SS Anubis flashback skip: preview8 candidate admits its native no-control glowing light while retaining movement/event checks. Original route and prompt alignment checks pass; live verification pending.
+
+Owner live verification (2026-10-20): preview8 SS Anubis flashback skip and A-button/ring alignment both confirmed fixed. Owner is continuing the route. This confirms these two fixes only; other untested cutscenes remain open coverage. Not yet released.
+
+Preview8 follow-up: owner cannot skip the Vela rescue cutscene (corrected "can" to "cant"); still playing. Exact scene, eligibility and completion cause under investigation. Preserve active session; no replacement until closed.
+
+Owner confirmed preview8 SS Anubis flashback skip and A-button/ring alignment fixed on2026-10-20; other cutscenes remain under review, unreleased.
+
+New preview8 reports: Vela rescue cannot skip; Juno SS Anubis fly-away cannot skip; brief white flicker on return from SS Anubis to character selection. Owner continues playing; inspect current capture, do not replace active package.
+
+Cutscene skipping preview9 awaits live review of Juno departure. Vela rescue no-prompt and brief white flash after natural SS Anubis departure remain unresolved; targeted input/fade/presentation logging added.
+
+Cutscene skip status, preview10: owner confirms Vela rescue now skips. Juno SS Anubis departure requires retest of revised door eligibility. The repeatable white flash returning to character selection remains under investigation; this preview records a short image window, which adds capture overhead during that transition.
+
+The [character-selection rainbow/white flash](development/issues/character-selection-depth-flash.md) is fixed in the local candidate and owner-confirmed. Workload-aware depth/readback exclusion prevents encoded depth from becoming interpolated output. Vela rescue, Juno departure and Tawfret intro skipping are also owner-confirmed. These changes are not released yet.
+
+A Modern-controller camera snap was reported again on focus return and after a room transition. The room-entry cause is delayed Modern-camera acquisition while input is blocked. The correction passes actual-source regression and owner verification with Modern controller and mouse/keyboard; unreleased. See [CAMERA-009](development/issues/focus-loss-camera-reset.md).
+
+- **Vela rescue skip audio (unreleased preview):** owner reports a brief stutter when completing the skip; cause and remedy are under investigation. See [native cutscene skipping](development/issues/optional-cutscene-skipping.md).

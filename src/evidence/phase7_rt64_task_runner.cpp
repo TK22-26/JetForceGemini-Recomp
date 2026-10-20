@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include "jfg/renderer/rt64_shell.hpp"
 #include "jfg/renderer/rt64_callbacks.hpp"
 #include "jfg/testkernel/sha256.hpp"
@@ -301,6 +302,8 @@ int replay_live_snapshot(const int argc, const char* const* argv) {
     std::uint32_t vi_origin = 0U;
     std::uint32_t vi_width = 320U;
     const std::string vi_spec(argv[6]);
+    const std::filesystem::path vi_register_path(vi_spec);
+    const bool has_vi_registers = std::filesystem::is_regular_file(vi_register_path);
     const std::size_t vi_separator = vi_spec.find(':');
     const std::string vi_origin_text = vi_spec.substr(0U, vi_separator);
     const std::string vi_width_text = vi_separator == std::string::npos
@@ -310,8 +313,8 @@ int replay_live_snapshot(const int argc, const char* const* argv) {
         !parse_hex_u32(argv[3], ucode) ||
         !parse_hex_u32(argv[4], ucode_data) ||
         !parse_hex_u32_list(argv[5], command_addresses) ||
-        !parse_hex_u32(vi_origin_text.c_str(), vi_origin) ||
-        (!vi_width_text.empty() &&
+        (!has_vi_registers && !parse_hex_u32(vi_origin_text.c_str(), vi_origin)) ||
+        (!has_vi_registers && !vi_width_text.empty() &&
          !parse_hex_u32(vi_width_text.c_str(), vi_width)) ||
         vi_width == 0U || vi_width > 4096U) {
         std::cerr << "snapshot or hexadecimal argument is invalid\n";
@@ -333,6 +336,12 @@ int replay_live_snapshot(const int argc, const char* const* argv) {
         525U, 0x0000'0C15U, 0x0C15'0C15U, 0x006C'02ECU,
         0x0025'01FFU, 0x000E'0204U, 0x0000'0200U, 0x0000'0400U,
     };
+    // Color-fidelity comparisons must preserve the captured VI gamma and
+    // scanout state. The legacy origin-only form keeps its historical defaults.
+    if (has_vi_registers && !read_vi_registers(vi_register_path, vi)) {
+        std::cerr << "VI register body must contain fourteen big-endian words\n";
+        return 3;
+    }
     jfg::Rt64ShellError error = jfg::Rt64ShellError::none;
     std::unique_ptr<jfg::Rt64Shell> shell = jfg::Rt64Shell::create(
         {window.get(), GetCurrentThreadId(), header, rdram, &vi, true,
@@ -352,7 +361,12 @@ int replay_live_snapshot(const int argc, const char* const* argv) {
             }
         }
         const std::uint32_t commands = command_addresses[index];
-        error = shell->submit({ucode, ucode_data, commands});
+        jfg::Rt64GraphicsTask task{ucode, ucode_data, commands};
+        char prompt[32]{};
+        if (GetEnvironmentVariableA("JFG_EVIDENCE_CUTSCENE_PROMPT", prompt, sizeof(prompt))) {
+            task.cutscene_prompt = {true, false, std::strtof(prompt, nullptr), vi.width, 240};
+        }
+        error = shell->submit(task);
         if (error != jfg::Rt64ShellError::none) {
             break;
         }
@@ -408,7 +422,7 @@ int main(const int argc, const char* const* argv) {
                      "[vi-registers.bin-or-origin-hex output.ppm]\n"
                      "       jfg-phase7-rt64-task --snapshot "
                      "<rdram.bin> <ucode-hex> <ucode-data-hex> "
-                     "<commands-hex-list> <vi-origin[:width]-hex> <output.ppm> "
+                     "<commands-hex-list> <vi-registers.bin-or-origin[:width]-hex> <output.ppm> "
                      "[address=word,...] [private-rdram-output]\n";
         return 2;
     }

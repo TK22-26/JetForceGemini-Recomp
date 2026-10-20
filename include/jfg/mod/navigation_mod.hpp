@@ -1271,7 +1271,7 @@ inline bool pc_gameplay_active(const Memory &m, std::uint32_t player) {
 }
 
 // Native ledge attachment/climb handlers own body heading and movement.
-// Keep only the mouse view; never admit these states into modern locomotion.
+// Keep only the Modern view; never admit these states into modern locomotion.
 inline bool pc_ledge_view_active(const Memory& m,std::uint32_t player) {
   if(!pc_gameplay_active(m,player) || m.u8(0x800FD7BDU))return false;
   const auto control=m.u32(player+0x68U);
@@ -1280,7 +1280,7 @@ inline bool pc_ledge_view_active(const Memory& m,std::uint32_t player) {
   return movement==6U || movement==7U || movement==8U || movement==12U;
 }
 
-// High-land recovery locks locomotion, not the chosen mouse view. Juno's
+// High-land recovery locks locomotion, not the chosen Modern view. Juno's
 // landing clip is 0x1A, Vela's is 0x19; both start a 30-tick +0x56B timer.
 // A just-expired timer can leave the prior global input lock until the next
 // native read-input call. Do not admit dialogue, damage or scripted cameras.

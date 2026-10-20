@@ -55,4 +55,11 @@ public:
 private:
   std::array<ControllerDeviceInfo,kControllerDeviceCount> entries_{};
 };
+// The view remains valid until the catalog entry is updated.
+inline std::string_view controller_assignment_key(int device, const ControllerCatalog* catalog = nullptr) {
+  constexpr std::array<std::string_view,4> xinput{"xinput:0","xinput:1","xinput:2","xinput:3"};
+  if (device >= 0 && device < 4) return xinput[static_cast<std::size_t>(device)];
+  const auto* info = catalog ? catalog->get(device) : nullptr;
+  return info ? std::string_view(info->key) : std::string_view{};
+}
 } // namespace jfg

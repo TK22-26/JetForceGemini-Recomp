@@ -149,24 +149,24 @@ inline bool diagnostic_present_overlay_baseline() {
     }();
     return baseline;
 }
-struct PresentationOutputDiagnostics {
+// CPU overlay selection consumes these timestamps in normal Play. Keep this
+// bounded per-output state independent of optional diagnostic file logging.
+struct PresentationOutputState {
     std::mutex mutex;
     std::map<std::pair<const void*, unsigned>, PresentationOutputSample> samples;
 };
-inline PresentationOutputDiagnostics& presentation_output_diagnostics() {
-    static PresentationOutputDiagnostics state; return state;
+inline PresentationOutputState& presentation_output_state() {
+    static PresentationOutputState state; return state;
 }
 inline void record_presentation_output(const void* counters, unsigned index,
         PresentationOutputSample sample) {
-    if (!interpolation_trace_enabled()) return;
-    auto& state = presentation_output_diagnostics();
+    auto& state = presentation_output_state();
     const std::scoped_lock lock(state.mutex);
     state.samples[{counters,index}] = sample;
 }
 inline PresentationOutputSample presentation_output_sample(const void* counters,
         unsigned index) {
-    if (!interpolation_trace_enabled()) return {};
-    auto& state = presentation_output_diagnostics();
+    auto& state = presentation_output_state();
     const std::scoped_lock lock(state.mutex);
     const auto it = state.samples.find({counters,index});
     return it == state.samples.end() ? PresentationOutputSample{} : it->second;

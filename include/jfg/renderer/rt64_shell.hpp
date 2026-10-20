@@ -98,6 +98,13 @@ struct Rt64RdramRange {
     std::span<std::byte> live, std::span<const Rt64RdramRange> ranges,
     std::span<std::byte> previous_source = {}) noexcept;
 
+struct NativeCutscenePrompt {
+    bool visible = false;
+    bool transition = false;
+    float progress = 0.0f;
+    unsigned width = 320U, height = 240U;
+};
+
 struct Rt64GraphicsTask {
     std::uint32_t ucode_address = 0U;
     std::uint32_t ucode_data_address = 0U;
@@ -105,6 +112,7 @@ struct Rt64GraphicsTask {
     // Immutable guest submission time, independent of renderer output rate.
     std::uint64_t vi_tick = 0U;
     std::shared_ptr<const PresentationSceneIdentity> presentation_scene{};
+    NativeCutscenePrompt cutscene_prompt{};
 };
 
 struct Rt64FramebufferInfo {

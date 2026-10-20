@@ -208,12 +208,17 @@ struct Ui : Rml::EventListener {
              : "controller.ini";
   }
   void loadControllers() {
+    const auto policyText=read("controller-auto.ini");
+    if(policyText.empty()) {
+      std::error_code error;
+      if(!fs::exists(profile/"controller-auto.ini",error) && !error)assignments.auto_assignment={};
+    } else (void)jfg::parse_controller_auto_assignment(policyText,assignments.auto_assignment);
     for (int p = 0; p < 4; p++) {
       jfg::parse_controller_mapping(read(controllerFile(p).c_str()),
                                     mappings[p]);
       assignments.configure(p, resolvedMapping(mappings[p]));
     }
-    devices=assignments.devices(connected);
+    devices=assignments.devices(connected,&controllerCatalog);
     loadModern();
   }
   bool saveController() {
@@ -231,7 +236,7 @@ struct Ui : Rml::EventListener {
   void discoverDevices() {
     pollSdl();
     for(DWORD d=0;d<jfg::kControllerDeviceCount;++d){XINPUT_STATE sample{};connected[d]=readController(d,&sample)==ERROR_SUCCESS;}
-    devices=assignments.devices(connected);
+    devices=assignments.devices(connected,&controllerCatalog);
   }
   void normalizePicker() {
     if(pickerType==-3 || pickerType==-1){pickerDevice=pickerType;return;}
@@ -247,10 +252,30 @@ struct Ui : Rml::EventListener {
       return false;
     }
     const auto previous=mappings[player];
+    const auto previousPolicy=assignments.auto_assignment;
+    auto policy=previousPolicy;
+    // Explicit removal is different from unplugging a sticky automatic pad.
+    const int affected=d==-2?devices[player]:d;
+    const auto key=jfg::controller_assignment_key(affected,&controllerCatalog);
+    if(!key.empty() && !policy.set_excluded(key,d==-2)) {
+      label("dialog-note","Could not save the controller removal preference.");return false;
+    }
+    const bool policyChanged=policy.excluded!=previousPolicy.excluded;
+    if(policyChanged && !writeFile("controller-auto.ini",jfg::serialize_controller_auto_assignment(policy)))
+      return false;
     mappings[player].device=d>=4?-4:d;
     mappings[player].device_key=d>=4?controllerCatalog.get(d)->key:std::string{};
-    if(!saveController()){mappings[player]=previous;label("dialog-note","Could not save the device assignment.");return false;}
-    devices=assignments.devices(connected);learning=keyLearning=-1;
+    if(!saveController()){
+      mappings[player]=previous;
+      const bool restored=!policyChanged || writeFile("controller-auto.ini",jfg::serialize_controller_auto_assignment(previousPolicy));
+      // If storage also rejects rollback, retain the policy actually on disk.
+      assignments.auto_assignment=restored?previousPolicy:policy;
+      devices=assignments.devices(connected,&controllerCatalog);
+      label("dialog-note",restored?"Could not save the device assignment.":"Could not save the device assignment or restore its removal preference.");
+      return false;
+    }
+    assignments.auto_assignment=std::move(policy);
+    devices=assignments.devices(connected,&controllerCatalog);learning=keyLearning=-1;
     devicePicker=false;controllerSettings=false;modernSelected=-100;modernNavReady=false;
     if(pcKeyboard() && modernAdvanced){modernAdvanced=false;modernSettings=true;}
     modal("controllers");el("dialog-body")->SetScrollTop(0);return true;
@@ -489,7 +514,7 @@ struct Ui : Rml::EventListener {
       if (on != connected[i]) {
         connected[i] = on;
         activated[i] = false;
-        devices = assignments.devices(connected);
+        devices = assignments.devices(connected,&controllerCatalog);
         std::string port;
         for (int p = 0; p < 4; p++)
           if (devices[p] == int(i))
@@ -543,7 +568,7 @@ struct Ui : Rml::EventListener {
       buttons[i] = on ? s.Gamepad.wButtons : 0;
     }
 
-    devices = assignments.devices(connected);
+    devices = assignments.devices(connected,&controllerCatalog);
     if(current=="controllers" && (wasConnected!=connected || wasDevices!=devices || wasKeyboard!=pcKeyboard())) {
       learning=keyLearning=-1;
       if(wasDevices[player]!=devices[player] || wasKeyboard!=pcKeyboard())modernSelected=-100;
@@ -1410,7 +1435,7 @@ void FrontendUiFrame(const FrontendUiState &state) {
     if (state.playing) {
       ui.assignments = jfg::ControllerPorts{};
       ui.loadControllers();
-      ui.devices = ui.assignments.devices(ui.connected);
+      ui.devices = ui.assignments.devices(ui.connected,&ui.controllerCatalog);
     }
     ui.doc->SetClass("playing", state.playing);
     if (state.playing)

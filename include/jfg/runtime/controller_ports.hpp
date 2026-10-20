@@ -1,5 +1,7 @@
 #pragma once
 #include "jfg/runtime/controller_mapping.hpp"
+#include "jfg/runtime/controller_auto_assignment.hpp"
+#include "jfg/runtime/controller_catalog.hpp"
 #include <array>
 #include <cstdint>
 namespace jfg {
@@ -52,6 +54,7 @@ private:
 };
 class ControllerPorts {
 public:
+  ControllerAutoAssignmentPolicy auto_assignment;
   std::array<ControllerMapping, 4> mappings{};
   std::array<ControllerPortSample, 4> samples{};
   void configure(std::size_t p, const ControllerMapping &m) {
@@ -60,7 +63,11 @@ public:
     mappings[p] = m;
   }
   template<std::size_t N=4>
-  std::array<int, 4> devices(const std::array<bool, N> &connected) {
+  std::array<int, 4> devices(const std::array<bool, N> &connected,
+                             const ControllerCatalog* catalog = nullptr) {
+    const auto excluded = [&](int d) {
+      return auto_assignment.excluded.contains(controller_assignment_key(d, catalog));
+    };
     std::array<int, 4> result{-2, -2, -2, -2};
     std::array<bool, N> used{};
     bool keyboard = false;
@@ -77,12 +84,12 @@ public:
     for (std::size_t p = 0; p < 4; ++p)
       if (mappings[p].device == -1) {
         int &d = assigned_[p];
-        if (d >= static_cast<int>(N) || (d >= 0 && used[static_cast<std::size_t>(d)]))
+        if (d >= static_cast<int>(N) || (d >= 0 && (excluded(d) || used[static_cast<std::size_t>(d)])))
           d = -1;
         if (d < 0)
           for (int c = 0; c < static_cast<int>(N); ++c)
             if (connected[static_cast<std::size_t>(c)] &&
-                !used[static_cast<std::size_t>(c)]) {
+                !used[static_cast<std::size_t>(c)] && !excluded(c)) {
               d = c;
               break;
             }

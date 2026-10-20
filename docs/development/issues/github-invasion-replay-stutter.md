@@ -5,10 +5,30 @@
 - Severity: high; a cinematic reportedly becomes almost unwatchable every time.
 - Affected: released v1.2.0, Windows 11, RTX 5090, Xbox 360 controller,
   Unlimited frame rate with VSync enabled.
-- Status: open, reporter reproduction not yet independently confirmed. No fix
-  or release claimed. No external comment posted.
+- Status: reporter-confirmed resolved after the latest release; original
+  reporter requests closure on 2026-10-20. GitHub remains open with an explicit closeout TODO for the next
+  owner-approved public closeout. Exact independent severity/cause attribution remains limited.
 - Related: [PERF-004 opening village](opening-village-and-cutscene-aspect.md),
   [AUDIO-003 ship cutscenes](goldwood-exit-audio.md).
+
+## Reporter confirmation (2026-10-20 UTC)
+
+Original reporter ghettowario confirms the latest update resolves the problem
+and requests closure in [their 2026-10-20 comment](https://github.com/TK22-26/JetForceGemini-Recomp/issues/19#issuecomment-6281481686).
+Another affected user, GsxRoarK4, had already confirmed improvement in
+[their 2026-10-19 comment](https://github.com/TK22-26/JetForceGemini-Recomp/issues/19#issuecomment-6269060097).
+These follow the maintainer's v1.3.0 retest request. They do not provide a new
+runtime hash, frame-time capture or attribution to one specific code change.
+
+Record the reported symptom as resolved by reporter confirmation, superseding
+the earlier pending reporter status. The GitHub issue was still open when
+reviewed on 2026-10-20. The owner's hold on public replies/closures remains in
+force; this triage did not post, close, reproduce, benchmark or modify runtime
+code. Earlier independent comparison limits remain historical evidence.
+
+Private API snapshot: `issue-triage-20261020/123300`. This confirmation applies
+to #19; it does not resolve the separate Ally X hut-performance report in #25
+or every cutscene-skipping case.
 
 ## Symptoms and reproduction
 

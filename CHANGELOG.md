@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+- Show rain through supported room-entry fades instead of waiting for the fade
+  to finish. Preserve fade masking and native gating for unsupported cases.
+  Native/regression checks and owner visual review passed; reporter retest remains.
+
+- Prevent depth-buffer readback from appearing as white/rainbow geometry in
+  interpolated character-selection frames after the Vela/SS Anubis cinematics.
+  Renderer regression checks and owner visual verification passed.
+- Add an in-game cutscene skip prompt: A, B or Start reveals it; hold A for one
+  second to confirm. Reviewed cinematics use explicit native completion and
+  scene transitions, preserving progression and required music changes.
+  Owner verified the SS Anubis flashback, Vela rescue, Juno departure and
+  Tawfret introduction; unsupported scripts remain ineligible.
+- Retain the Modern controller camera angle during ledge grabs, climbs and
+  high-drop landing recovery, extending the existing mouse corrections.
+  Automated checks and owner verification passed (#30).
+- Preserve Modern view identity while neutralizing input during focus loss.
+  The earlier correction passed owner testing. A follow-up initializes the new
+  room camera while the map has focus, avoiding delayed takeover on clicking
+  back. Controller/mouse regression checks and owner verification passed.
+- Correct rain and software-drawn reticles disappearing during normal high-refresh
+  Play because required output-frame timestamps depended on diagnostic logging.
+  Regression checks pass with logging disabled; owner verified both effects.
+- Keep removed controllers unassigned instead of automatically moving them to
+  later player slots. Automated mapping/UI checks and owner review passed.
+- Correct the fog gradient on large sky polygons, bringing Tawfret's sky and haze
+  closer to matched original-game rendering. Preserve the gamma correction and
+  fog percentage controls. Original-task comparisons and owner review passed.
+
 ## 1.3.0 - 2026-10-19
 
 - Improve ship, village and Vela-rescue cutscene presentation and boss motion.

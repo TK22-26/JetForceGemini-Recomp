@@ -866,3 +866,15 @@ target_include_directories(jfg_navigation_mesh_json_tests PRIVATE "${PROJECT_SOU
 target_compile_features(jfg_navigation_mesh_json_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_navigation_mesh_json_tests)
 add_test(NAME jfg.navigation_mesh_json COMMAND jfg_navigation_mesh_json_tests)
+
+add_executable(jfg_cutscene_skip_tests cutscene_skip_tests.cpp)
+target_include_directories(jfg_cutscene_skip_tests PRIVATE "../include")
+target_compile_features(jfg_cutscene_skip_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_cutscene_skip_tests)
+add_test(NAME jfg.cutscene_skip COMMAND jfg_cutscene_skip_tests)
+
+add_executable(jfg_rain_fade_tests rain_fade_tests.cpp)
+target_include_directories(jfg_rain_fade_tests PRIVATE "../include")
+target_compile_features(jfg_rain_fade_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_rain_fade_tests)
+add_test(NAME jfg.rain_fade COMMAND jfg_rain_fade_tests)

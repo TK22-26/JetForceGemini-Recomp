@@ -52,7 +52,8 @@ if(offset EQUAL -1)
 endif()
 string(REPLACE "${before}" "${after}" contents "${contents}")
 set(before [=[bool interpolationCandidate = fbPair.earlyPresentCandidate();]=])
-set(after [=[bool interpolationCandidate = fbPair.earlyPresentCandidate() || (jfgSnapshot && jfgSnapshot->scene && fbPair.colorImage.width >= 320 && fbPair.colorImage.siz == G_IM_SIZ_16b);]=])
+set(after [=[bool interpolationCandidate = jfg::early_present_workload_candidate(fbPair, jfgSnapshot && jfgSnapshot->scene,
+                            workload.fbPairs.data(), workload.fbPairCount);]=])
 string(FIND "${contents}" "${before}" offset)
 if(offset EQUAL -1)
  message(FATAL_ERROR "Missing RT64 interpolation patch site")
@@ -346,6 +347,33 @@ if(offset EQUAL -1)
 endif()
 string(REPLACE "${before}" "${after}" contents "${contents}")
 jfg_video_patch_present()
+# A color allocation can become depth after a room/cinematic change. Previous
+# VI history cannot authorize displaying that new role as early color output.
+jfg_video_replace([=[                            if ((colorFb->addressStart == entry.vi.fbAddress()) && (colorFb->width == entry.fbWidth) && (colorFb->siz == entry.vi.fbSiz()) && entry.vi.compatibleWith(present.screenVI)) {]=]
+[=[                            if (colorFb->lastWriteType == Framebuffer::Type::Depth &&
+                                colorFb->addressStart == entry.vi.fbAddress() &&
+                                colorFb->width == entry.fbWidth && colorFb->siz == entry.vi.fbSiz() &&
+                                entry.vi.compatibleWith(present.screenVI)) {
+                                jfg::trace_interpolation("present-depth-history-rejected", jfgSequenceTick,
+                                    present.screenVI.fbAddress(), colorFb->addressStart,
+                                    static_cast<unsigned>(colorFb->lastWriteType), 0U, 0.0f,
+                                    present.presentId, h);
+                            }
+                            if (jfg::early_present_history_match(*colorFb, entry, present.screenVI)) {]=])
+jfg_video_replace([=[                RenderTargetKey colorTargetKey(presentFb->addressStart, presentFb->width, presentFb->siz, Framebuffer::Type::Color);]=]
+[=[                jfg::trace_interpolation("present-source", jfgSequenceTick,
+                    present.screenVI.fbAddress(), presentFb->addressStart,
+                    static_cast<unsigned>(presentFb->lastWriteType),
+                    static_cast<unsigned>(framesToPresent), 0.0f,
+                    present.presentId, presentFb->interpolationEnabled ? 1U : 0U);
+                RenderTargetKey colorTargetKey(presentFb->addressStart, presentFb->width, presentFb->siz, Framebuffer::Type::Color);]=])
+jfg_video_replace([=[                    if (presentFb->isLastWriteDifferent(Framebuffer::Type::Color)) {]=]
+[=[                    if (presentFb->isLastWriteDifferent(Framebuffer::Type::Color)) {
+                        jfg::trace_interpolation("present-depth-conversion", jfgSequenceTick,
+                            present.screenVI.fbAddress(), presentFb->addressStart,
+                            static_cast<unsigned>(presentFb->lastWriteType),
+                            static_cast<unsigned>(framesToPresent), 0.0f,
+                            present.presentId, present.debuggerFramebuffer.view ? 1U : 0U);]=])
 # Capture selected target metadata while this frame still owns its target.
 # Do not dereference it after notifying the producer/presenting.
 jfg_video_replace([=[                commandList->begin();]=] [=[                if (jfg::native_blur_render_mode() == 5U && colorTarget)
@@ -358,6 +386,7 @@ set(generated "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64/rt64_present_queue.cpp
 file(WRITE "${generated}" [=[#include "jfg/renderer/frame_diagnostics_state.hpp"
 #include "jfg/renderer/blur_source_audit.hpp"
 #include "rt64_interpolation_capture.hpp"
+#include "rt64_present_source.hpp"
 ]=] "${contents}")
 jfg_interpolation_replace_source("rt64_present_queue.cpp" "${generated}")
 
@@ -395,3 +424,5 @@ if(WIN32)
  jfg_build_blur_history_shader()
  target_include_directories(rt64 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64")
 endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/rt64_framebuffer_diagnostics.cmake")
