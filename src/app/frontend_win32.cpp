@@ -619,6 +619,16 @@ void syncUiCapture() {
     RemovePropW(app.window, L"JfgFrontendPause");
 }
 LRESULT CALLBACK shieldProcedure(HWND window, UINT m, WPARAM w, LPARAM l) {
+  if (app.uiReady && (m == WM_MOUSEMOVE || m == WM_MOUSELEAVE)) {
+    if (m == WM_MOUSEMOVE) {
+      POINT point{static_cast<short>(LOWORD(l)), static_cast<short>(HIWORD(l))};
+      MapWindowPoints(window, app.window, &point, 1);
+      l = MAKELPARAM(point.x, point.y);
+    }
+    FrontendUiMessage(m, w, l, window);
+    syncUiCapture();
+    return 0;
+  }
   if ((m >= WM_MOUSEFIRST && m <= WM_MOUSELAST) || m == WM_KEYDOWN ||
       m == WM_KEYUP || m == WM_CHAR || m == WM_SYSKEYDOWN || m == WM_SYSKEYUP) {
     if (m >= WM_MOUSEFIRST && m <= WM_MOUSELAST && m != WM_MOUSEWHEEL &&
@@ -687,6 +697,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
 #ifdef JFG_RML_UI
   if (app.uiReady &&
       ((message >= WM_MOUSEFIRST && message <= WM_MOUSELAST) ||
+       message == WM_MOUSELEAVE ||
        message == WM_KEYDOWN || message == WM_KEYUP || message == WM_CHAR ||
        message == WM_SYSKEYDOWN || message == WM_SYSKEYUP || message == WM_ACTIVATEAPP ||
        message == WM_SETFOCUS || message == WM_KILLFOCUS)) {
@@ -750,6 +761,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
                         window, nullptr, shieldClass.hInstance, nullptr);
     if (!FrontendUiInit(window, app.profile, uiAction, "", app.previewUpdate))
       return -1;
+    FrontendUiInputChild(app.shield);
     app.uiReady = true;
     SetTimer(window, 2, 16, nullptr);
 #endif

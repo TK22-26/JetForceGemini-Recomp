@@ -36,6 +36,7 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
+| UI-008 | Launcher menu hover remains highlighted over game | Initial hover fix regressed dropdown selection; corrected routing passes 55 menu and 790 controls checks; owner confirms fixed; unreleased | [Report](launcher-menu-hover-stuck.md) |
 | GH-032 | Intermittent mouse look and ineffective vertical inversion (#32) | Reported on v1.3; focus-only explanation withdrawn; capture and inversion tracked separately, unreproduced | [Report and proposed verification](github-mouse-look-and-inversion.md) |
 | GH-033 | Modern Controls missing sideways roll (#33) | Owner-authorized roll-only implementation in progress; native crouch/crawl coverage planned; live verification pending | [Cause, evidence and selected policy](github-modern-controls-side-roll.md) |
 | PERF-005 | SS Anubis ledge-testing stutter in Lighting Preview | Earlier gaps measured; repeat Anubis capture steady, intermittent cause open | [Report](tawfret-lighting-preview-stutter.md) |
@@ -45,7 +46,7 @@ Detailed per-issue records are added as those issues receive further work.
 | CAMERA-009 | Focus-loss camera reset | Room-entry/focus-return correction passes actual-source tests and owner review with Modern controller and mouse/keyboard; unreleased | [Report](focus-loss-camera-reset.md) |
 | CAMERA-008 | Modern controller high-drop camera reset | Owner confirmed locally; 486 scoped assertions and native checks pass; unreleased | [Report](controller-high-landing-camera-reset.md) |
 | CAMERA-007 | Modern dual-stick ledge climb snaps camera (#30) | Owner confirms fixed locally; source regression/native checks pass; unreleased | [Report](controller-ledge-camera-reset.md) |
-| ENHANCE-001 | Optional cutscene skipping (#31) | Owner confirms reviewed story/travel routes; broader inventory and Vela skip audio stutter remain open; unreleased | [Scope](optional-cutscene-skipping.md) |
+| ENHANCE-001 | Optional cutscene skipping (#31) | Owner confirms reviewed story/travel routes; Vela skipped-effect audio fix owner-confirmed; broader inventory/route review remains open; unreleased | [Scope](optional-cutscene-skipping.md) |
 | RENDER-018 | Dead drone bodies jitter with camera movement | Included in v1.3; owner visual pass and capture validation, exact seed/cutscene coverage unverified | [Investigation and validation](dead-drone-camera-jitter.md) |
 | NATIVE-003 | Ichor detached-head flight locations after body destruction | EmuHawk plus idle/moving Vela comparison: no sampled out-of-bounds flight; broader parity unconfirmed | [Report and comparison plan](ichor-head-flight-locations.md) |
 | MOD-001 | Exit warp stops at the door | Native contact fix in 1.2.1; 1.3 progression bypass and exact overlapping-exit handoff pass focused/native checks | [Report and source review](map-exit-warp-transition.md) |

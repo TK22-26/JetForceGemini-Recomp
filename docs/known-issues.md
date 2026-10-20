@@ -191,4 +191,6 @@ The [character-selection rainbow/white flash](development/issues/character-selec
 
 A Modern-controller camera snap was reported again on focus return and after a room transition. The room-entry cause is delayed Modern-camera acquisition while input is blocked. The correction passes actual-source regression and owner verification with Modern controller and mouse/keyboard; unreleased. See [CAMERA-009](development/issues/focus-loss-camera-reset.md).
 
-- **Vela rescue skip audio (unreleased preview):** owner reports a brief stutter when completing the skip; cause and remedy are under investigation. See [native cutscene skipping](development/issues/optional-cutscene-skipping.md).
+- **Vela rescue skip audio (unreleased):** owner confirms the chopped rumble is fixed. Intermediate skipped shots no longer start effects that would immediately be stopped; ordinary playback and music are preserved. See [native cutscene skipping](development/issues/optional-cutscene-skipping.md).
+
+Minor launcher follow-up: [menu hover and dropdown routing](development/issues/launcher-menu-hover-stuck.md). The first hover candidate broke dropdown selection; the revised input routing passes native UI checks and is owner-confirmed fixed; unreleased.

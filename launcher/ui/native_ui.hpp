@@ -14,7 +14,9 @@ int FrontendLiveToolEntry(HINSTANCE, int);
 void FrontendUiShutdown();
 void FrontendUiFrame(const FrontendUiState &);
 void FrontendUiResize();
-void FrontendUiMessage(UINT, WPARAM, LPARAM);
+// Mouse coordinates stay relative to the UI root; source identifies its input child.
+void FrontendUiMessage(UINT, WPARAM, LPARAM, HWND source = nullptr);
+void FrontendUiInputChild(HWND);
 void FrontendUiPanel(const std::string &);
 bool FrontendUiCapturing();
 void FrontendUiToggleMute();

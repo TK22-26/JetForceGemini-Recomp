@@ -43,6 +43,7 @@ void notifyModal() {
 }
 LRESULT CALLBACK liveProcedure(HWND w, UINT m, WPARAM p, LPARAM l) {
   if (live.ready && ((m >= WM_MOUSEFIRST && m <= WM_MOUSELAST) ||
+                     m == WM_MOUSELEAVE ||
                      m == WM_KEYDOWN || m == WM_KEYUP || m == WM_SYSKEYDOWN ||
                      m == WM_SYSKEYUP || m == WM_CHAR || m == WM_ACTIVATEAPP || m == WM_KILLFOCUS))
     FrontendUiMessage(m, p, l);

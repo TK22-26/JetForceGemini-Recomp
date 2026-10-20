@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Prevent chopped sound-effect fragments while skipping Vela's rescue by omitting
+  effect starts from intermediate shots in a confirmed skip chain. Preserve
+  native cleanup, music and normal playback. Owner listening review passed.
+- Clear launcher menu hover when entering the game while preserving dropdown
+  selection across the child input window. Native UI checks and owner review passed.
+
 - Show rain through supported room-entry fades instead of waiting for the fade
   to finish. Preserve fade masking and native gating for unsupported cases.
   Native/regression checks and owner visual review passed; reporter retest remains.

@@ -1244,7 +1244,7 @@ struct Resources : Rml::FileInterface {
   }
 };
 struct Surface {
-  HWND window = nullptr;
+  HWND window = nullptr, inputChild = nullptr, mouseWindow = nullptr;
   ComPtr<ID3D11Device> device;
   ComPtr<ID3D11DeviceContext> gpu;
   ComPtr<IDXGISwapChain1> swap;
@@ -1266,7 +1266,44 @@ struct Surface {
   Ui ui;
   bool initialized = false;
   int width = 0, height = 0;
+  void cancelMouseTracking() {
+    if (mouseWindow) {
+      TRACKMOUSEEVENT tracking{sizeof(TRACKMOUSEEVENT), TME_CANCEL | TME_LEAVE, mouseWindow, 0};
+      TrackMouseEvent(&tracking);
+      mouseWindow = nullptr;
+    }
+  }
+  void mouseMove(HWND source, LPARAM position) {
+    if (mouseWindow != source) cancelMouseTracking();
+    mouseWindow = source;
+    TRACKMOUSEEVENT tracking{sizeof(TRACKMOUSEEVENT), TME_LEAVE, source, 0};
+    TrackMouseEvent(&tracking);
+    context->ProcessMouseMove(int(short(LOWORD(position))), int(short(HIWORD(position))),
+                              RmlWin32::GetKeyModifierState());
+  }
+  void mouseLeave(HWND source) {
+    // A queued leave from the old HWND must not erase a newer child/root hover.
+    if (mouseWindow != source) return;
+    cancelMouseTracking();
+    POINT cursor{};
+    if (GetCursorPos(&cursor)) {
+      const HWND next = WindowFromPoint(cursor);
+      // The hosted game is deliberately excluded: it is not part of this UI.
+      if (next == window || (inputChild && next == inputChild)) {
+        POINT local = cursor;
+        ScreenToClient(window, &local);
+        RECT client{};
+        GetClientRect(window, &client);
+        if (PtInRect(&client, local)) {
+          mouseMove(next, MAKELPARAM(local.x, local.y));
+          return;
+        }
+      }
+    }
+    context->ProcessMouseLeave();
+  }
   ~Surface() {
+    cancelMouseTracking();
     if (initialized) {
       if (ui.doc) {
         ui.doc->RemoveEventListener("click", &ui);
@@ -1498,7 +1535,16 @@ void FrontendUiFrame(const FrontendUiState &state) {
   s.renderer->EndFrame(s.target.Get());
   s.swap->Present(1, 0);
 }
-void FrontendUiMessage(UINT m, WPARAM w, LPARAM l) {
+void FrontendUiInputChild(HWND child) { if (surface) surface->inputChild = child; }
+void FrontendUiMessage(UINT m, WPARAM w, LPARAM l, HWND source) {
+  if (surface && surface->context && (m == WM_MOUSEMOVE || m == WM_MOUSELEAVE)) {
+    // RmlUi's generic Win32 backend assumes one input HWND. Our launcher also
+    // receives pointer events through a child shield over the embedded game.
+    if (!source) source = surface->window;
+    if (m == WM_MOUSEMOVE) surface->mouseMove(source, l);
+    else surface->mouseLeave(source);
+    return;
+  }
   if(surface && surface->storage) {
     if(surface->storage->keyboard(m,w))return;
     RmlWin32::WindowProcedure(surface->context,surface->ime,surface->window,m,w,l);return;

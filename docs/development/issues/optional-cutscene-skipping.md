@@ -587,3 +587,72 @@ skipping without playing the full campaign. Build a source-derived checklist,
 distinguish script/room variants and prepared state requirements, and identify
 safe direct entry routes. A room warp alone is not evidence that a story scene
 has been tested. Completeness of the inventory and untested routes remain open.
+
+### Vela skip audio investigation
+
+The two preview14 owner captures (20261020-141612 and 20261020-141738) each
+record zero audio-device underruns/overruns. Both skip six Vela chain segments
+in about three seconds. Buffered audio continues through that interval.
+This excludes device starvation as an observed cause in these runs, not an
+audible source discontinuity. Source inspection finds time-zero sound starts
+in intermediate shots that are allowed their initial native update before
+automatic completion; normal sequence cleanup stops their tracked handles.
+Music restarts are not yet established: the chain largely shares tune66.
+
+Added sparse native music/start/stop/volume and sequence-sound diagnostics to
+the existing gameplay trace, including room/group/skip-chain identity, native
+fade state and host queue health. No audio behavior or queue sizing changes.
+A listening/capture comparison is still needed to identify the reported sound.
+
+Owner clarifies the Vela skip symptom is interrupted music. Native build and four focused suites passed with sparse audio-call tracing. Separate desktop Cutscene Audio Review package prepared using a copied profile; no listening result or audio fix is claimed.
+
+Owner correction after the dedicated audio run: the interrupted sound is a
+low continuous effect (spaceship/vent rumble), not music. Closed capture
+20261020-171422 is available with music/effect call tracing and final RAM.
+Reassess the sound identity from that evidence; the earlier "interrupted music"
+description is superseded. No fix is claimed.
+
+### Skipped-shot effect fragments (2026-10-20)
+
+The dedicated 20261020-171422 recording confirms tune66 is not restarted or
+stopped during the intermediate Vela skip shots. It changes to gameplay tune5
+after completion. The device underrun counter does not increase during the skip.
+There was an earlier underrun in this run; this is not a zero-underrun capture.
+
+Original scripts start sound24 at time zero in rooms379/group1 and344/group0,
+and start both tracked and actor-bound sounds in345/group0. Native sequence
+cleanup stops those handles roughly 0.2?0.3 seconds later during the skip.
+This is a concrete source for the repeated short fragments described by the
+owner. Exact audible acceptance still needs the new preview.
+
+The completion path intentionally permits each loaded shot's first ordinary
+update. The candidate now omits presentation-only effect starts from that
+update only while the current shot belongs to a confirmed, qualified skip
+chain. It recognizes the original command-interpreter call sites for opcodes20,
+27 and29 and validates native instruction signatures, current scene/group,
+qualification and already-cleared handle storage. It does not alter memory or
+invent handles. Native cleanup, game state, music and ambient-channel state
+continue normally. Gameplay and unskipped/unqualified scene callers are unchanged.
+
+Source: runtime/cutscene_audio.hpp and native_boot.cpp dispatch. Native sound
+APIs return void; their original unavailable-sound path uses a null handle.
+The interpreter already stops and clears a previous handle before the reviewed
+start calls. This is not global muting or an audio-buffer workaround.
+
+The candidate passes the native build and five focused suites, including
+sound-boundary, skip-completion, scene-review and input regressions. Actual
+call-site signatures were verified against the owner capture. Desktop
+Cutscene Audio Fix Preview contains the candidate plus the menu-hover fix,
+with a copied pre-audio-review save. No live audio pass or released fix claimed.
+Private receipts: skip-sound-source-receipt.json, skip-sound-tests.log and
+audio-fix-preview-receipt.json. Earlier trace omitted effect-start calls; the
+candidate includes those plus explicit cutscene-skip-sound-omitted events.
+
+## Owner audio confirmation (2026-10-20)
+
+Owner reports "audio fix works" in Cutscene Audio Fix Preview. The scoped
+suppression of intermediate skipped-shot effect starts is now live verified
+for the Vela rescue rumble. This is not a release claim or verification of all
+cutscenes. The accompanying menu-hover change failed review separately.
+
+The subsequent corrected menu candidate is also owner-confirmed; see UI-008.

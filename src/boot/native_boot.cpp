@@ -96,6 +96,7 @@
 #include "jfg/runtime/cutscene_skip.hpp"
 #include "jfg/runtime/cutscene_script.hpp"
 #include "jfg/runtime/cutscene_completion.hpp"
+#include "jfg/runtime/cutscene_audio.hpp"
 #include "jfg/runtime/pc_rumble.hpp"
 #include "jfg/runtime/pc_rumble_output.hpp"
 #include "jfg/runtime/pc_camera_visibility.hpp"
@@ -7865,6 +7866,47 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   const auto target = static_cast<std::uint32_t>(address);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   FunctionProfileScope function_profile_scope(state,target);
+  // Record sparse native audio state changes during cinematic handoff. This
+  // observes the original calls without changing the sample queue or music.
+  if(state.gameplay_trace && (target==0x80000510U || target==0x80000F2CU ||
+      target==0x800005F8U || target==0x80000FE4U || target==0x80000798U ||
+      target==0x800008D0U || target==0x80001228U || target==0x80077004U ||
+      target==0x80001248U || target==0x80003410U || target==0x80003614U ||
+      target==0x80000E6CU)) {
+    jfg::mod::Memory audio_ram({state.rdram,kRdramSize});
+    const auto audio_header=audio_ram.u32(0x800FB118U);
+    if(audio_ram.valid(audio_header,0x75U) &&
+       (audio_ram.u8(audio_header+0x6CU)==1U || audio_ram.u8(audio_header+0x6CU)==2U ||
+        state.cutscene_chain)) {
+      state.gameplay_trace.event("cutscene-audio-call",{state.vi_retraces,
+        audio_ram.u32(0x800FB114U),audio_ram.u32(0x800A74C0U),target,
+        static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r5),
+        static_cast<std::uint32_t>(context->r6),context->f12.u32l,
+        state.cutscene_chain?1U:0U,state.cutscene_chain_count,
+        audio_ram.u8(audio_header+0x72U),audio_ram.u8(0x800A0668U),
+        audio_ram.u32(0x800A0680U),state.host_audio.queued_bytes(),
+        state.host_audio.underruns(),state.host_audio.overruns()});
+    }
+  }
+  if(state.cutscene_chain && (target==0x80001248U || target==0x80003410U)) {
+    jfg::mod::Memory sound_ram({state.rdram,kRdramSize});
+    const auto stack=static_cast<std::uint32_t>(context->r29);
+    if(target==0x80001248U || (stack<=0xFFFFFFEBU && sound_ram.valid(stack+0x14U,4U))) {
+      const auto handle=target==0x80001248U?static_cast<std::uint32_t>(context->r5):
+          sound_ram.u32(stack+0x14U);
+      const jfg::CutsceneSoundCall sound_call{state.cutscene_chain,
+          state.cutscene_skip_scene.load(std::memory_order_acquire),
+          state.cutscene_chain_level,state.cutscene_chain_group,target,
+          static_cast<std::uint32_t>(context->r31),handle,
+          static_cast<std::uint32_t>(context->r16)};
+      if(jfg::omit_skipped_cutscene_sound(sound_ram,sound_call)) {
+        state.gameplay_trace.event("cutscene-skip-sound-omitted",{state.vi_retraces,
+          sound_call.destination,sound_call.group,target,
+          static_cast<std::uint32_t>(context->r4),sound_call.return_address,handle});
+        return 1;
+      }
+    }
+  }
   if(target==0x80077158U) {
     state.cutscene_skip_scene=0;state.cutscene_cached_scene=0;
     state.cutscene_skip_request=0;state.cutscene_skip_gesture=0;
