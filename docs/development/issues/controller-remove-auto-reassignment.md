@@ -1,7 +1,51 @@
 # INPUT-012: Removed controller immediately moves to another player
 
+## Owner follow-up: remove all, reopen, then change input type (2026-10-20)
+
+Owner confirmed the input-type replacement follow-up fixed on 2026-10-20;
+unreleased. Prior automated evidence and earlier pending status are retained below. Starting
+inputs: keyboard/mouse plus one controller. Remove both, save, close, reopen,
+re-add the pad, then switch that player to keyboard/mouse: the released pad moved
+to a later Automatic player. No save-loss report. Earlier explicit-Remove
+approval does not close this new sequence.
+
+Cause: `assignDevice` excluded the pad for explicit Remove, but changing input
+type released it without retaining that exclusion. The shared UI now records the
+released identity for every explicit replacement. Explicit Add re-enables only
+the selected pad; Automatic retains normal discovery. The core resolver and
+custom bindings remain unchanged, with transactional policy/mapping rollback.
+
+The exact regression fails before and passes after. Real Controller Mapping UI:
+282 checks; Modern UI: 790 checks. Coverage includes remove-all/save/reload/type
+change, another reload/reconnect, replacing an Automatic pad, explicit Add and
+Automatic, unchanged downstream players, and policy/mapping write-failure
+rollback. Discovery is injected in an isolated offscreen UI; physical acceptance
+is pending. Persistent regression:
+`launcher/ui/tests/controller_mapping_ui_tests.cpp`; implementation:
+`launcher/ui/native_ui.cpp`.
+
+Desktop: **JFG - Modern Input Fix Preview**.
+Package: `C:\JFG-previews\modern-input-followup-20261020`.
+Launcher SHA-256: `25710daa68b3d66b53b4e8d5e0a824f53735b24a139a901a0b8689040bb24697`.
+Actual resource101 helper extracted from the deployed launcher matches the
+accepted preview and passes init/setup. Runtime protocol passes. Source and
+copied settings/controller files/save are hash-verified unchanged. Ctrl remains
+crouch. No gameplay was launched. The previous preview remains available.
+
+Evidence: `D:/JFG-private/modern-crawl-reversal-20261020`, especially
+`controller/assignment/final-handoff.json`, baseline/candidate receipts, frozen
+build-input manifest, helper identity and root `delivery.json`. The launcher
+build is private; shared build output is untouched. Same enabled production
+investigation/root/counters, deadline 18:09:13 UTC; no public action or release.
+
+Lesson: input-type replacement is also a device release. Preserve release policy
+across every UI/persistence path, while distinguishing explicit selection or
+Automatic from unplugging a sticky assigned controller.
+
 ## Status and severity
-Unreleased candidate implemented on 2026-10-19; core and real UI regression checks pass. Owner approved locally; unreleased.
+The original explicit-Remove fix was implemented and owner-approved locally on
+2026-10-19; unreleased. That approval does not cover the input-type replacement
+follow-up above, which awaits owner verification.
 Affects v1.3.0 launcher automatic controller assignment and the rain/reticle preview
 using that launcher. Moderate: assigning a controller to the intended player becomes
 confusing and requires removing it from each subsequent port.

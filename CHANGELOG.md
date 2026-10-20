@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Restore Modern crouch/prone side rolls and correct backward-crawl reversal
+  and diagonal motion during prone rolls. Preserve native roll speed and easing.
+- Add bindable Roll Left/Right actions for Modern keyboard/mouse and controllers,
+  plus an Advanced automatic movement rolling switch shared per player.
+  New roll bindings default to unbound; automatic rolling remains enabled.
+- Preserve removed-controller exclusions when changing input type and refresh
+  idle P1-P4 indicators after saved controller changes. Owner preview review passed.
+  Newly saved Modern profiles use schema 6; older versions require separate profiles.
+
+
 - Prevent chopped sound-effect fragments while skipping Vela's rescue by omitting
   effect starts from intermediate shots in a confirmed skip chain. Preserve
   native cleanup, music and normal playback. Owner listening review passed.

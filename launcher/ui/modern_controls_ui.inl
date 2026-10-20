@@ -459,6 +459,7 @@
     auto c=modern[player];const jfg::ModernControlsConfig defaults;
     if(a=="mc-reset-confirm") {
       c.aim_toggle=defaults.aim_toggle;
+      c.automatic_roll=defaults.automatic_roll;
       if(pcKeyboard()) {
         c.mouse_original_acceleration=defaults.mouse_original_acceleration;
         if(!modernResetTuning)c.keys=defaults.keys;c.mouse_scope_sensitivity=100;c.look.mouse_sensitivity=defaults.look.mouse_sensitivity;
@@ -477,6 +478,7 @@
     else if(a=="mc-invert-x"){auto& value=pcKeyboard()?c.look.mouse_invert_x:c.look.aim_invert_x;value=!value;}
     else if(a=="mc-invert-y"){auto& value=pcKeyboard()?c.look.mouse_invert_y:c.look.aim_invert_y;value=!value;}
     else if(a=="mc-original-acceleration" && pcKeyboard())c.mouse_original_acceleration=!c.mouse_original_acceleration;
+    else if(a=="mc-automatic-roll")c.automatic_roll=!c.automatic_roll;
     else if(a.rfind("mc-curve-",0)==0)c.look.aim_curve=std::clamp(std::stoi(a.substr(9)),0,2);
     // Select clicks open its popup; only its change event changes glyphs.
     else return true;

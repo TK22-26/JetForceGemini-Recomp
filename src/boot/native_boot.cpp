@@ -93,6 +93,7 @@
 #endif
 #include "jfg/runtime/pc_input.hpp"
 #include "jfg/runtime/modern_controls.hpp"
+#include "jfg/runtime/modern_roll.hpp"
 #include "jfg/runtime/cutscene_skip.hpp"
 #include "jfg/runtime/cutscene_script.hpp"
 #include "jfg/runtime/cutscene_completion.hpp"
@@ -1696,6 +1697,13 @@ struct State : JfgOriginalTimingFast {
   bool realtime_replay = false;
   bool exit_requested = false;
   bool modern_controls_active = false;
+  // Input intent belongs to this native player update, never the last observed actor.
+  struct ModernRollUpdate {
+    std::uint32_t actor=0,control=0;
+    std::uint8_t flags=0,mode=0;
+    bool connected=false;
+  };
+  ModernRollUpdate modern_roll_update{};
   jfg::CutsceneSkipHold cutscene_skip_hold;
   std::atomic<std::uint64_t> cutscene_skip_scene{0}, cutscene_skip_request{0};
   std::atomic<unsigned> cutscene_skip_gesture{0};
@@ -2885,11 +2893,13 @@ public:
 // Both stock tables are restored before returning; menus and original mapping
 // never see the override, and the saved Normal/Expert option is left intact.
 class ModernGuestTableScope {
+  State& state_;
+  State::ModernRollUpdate saved_roll_{};
   hle::GuestMemory memory_;
   bool active_=false;
 public:
   ModernGuestTableScope(State &state,std::uint32_t target,std::uint32_t actor):
-      memory_({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian) {
+      state_(state),memory_({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian) {
     if(target!=0x80032A48U || !state.modern_controls_active || state.pc_input_blocked ||
        !(state.pc_frames[0].modern_flags&jfg::kModernActionsFlag))return;
     jfg::mod::Memory ram({state.rdram,kRdramSize});
@@ -2902,6 +2912,9 @@ public:
       if(ram.u32(0x800A18B4U+static_cast<std::uint32_t>(i*4))!=jfg::kNormalGuestTable[i] ||
          ram.u32(0x800A18D8U+static_cast<std::uint32_t>(i*4))!=jfg::kExpertGuestTable[i])return;
     active_=true;
+    saved_roll_=state.modern_roll_update;
+    const auto& frame=state.pc_frames[0];
+    state.modern_roll_update={actor,control,frame.modern_flags,frame.pc_mode,frame.connected};
     for(std::size_t i=0;i<9;++i) {
       (void)memory_.write_u32(0x800A18B4U+static_cast<std::uint32_t>(i*4),jfg::kModernGuestTable[i]);
       (void)memory_.write_u32(0x800A18D8U+static_cast<std::uint32_t>(i*4),jfg::kModernGuestTable[i]);
@@ -2910,10 +2923,132 @@ public:
   }
   ~ModernGuestTableScope() {
     if(!active_)return;
+    state_.modern_roll_update=saved_roll_;
     for(std::size_t i=0;i<9;++i) {
       (void)memory_.write_u32(0x800A18B4U+static_cast<std::uint32_t>(i*4),jfg::kNormalGuestTable[i]);
       (void)memory_.write_u32(0x800A18D8U+static_cast<std::uint32_t>(i*4),jfg::kExpertGuestTable[i]);
     }
+  }
+};
+
+// The native crouch/prone helper owns roll animation, collision and held-repeat.
+// Supply only its missing held side action, after native input/stance checks.
+class ModernRollScope {
+  hle::GuestMemory memory_;
+  std::uint32_t saved_keys_=0;
+  bool active_=false;
+public:
+  ModernRollScope(State& state,std::uint32_t target,const recomp_context& context):
+      memory_({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian) {
+    if(target!=0x00F04B4CU && target!=0x01004934U)return;
+    const auto& update=state.modern_roll_update;
+    const auto side=jfg::modern_roll_side_buttons(update.flags);
+    if(!side || !state.rdram || !state.modern_controls_active ||
+       !state.modern_controls[0].enabled || state.pc_input_blocked ||
+       !update.connected || !state.controller_ports.samples[0].connected ||
+       !(update.flags&jfg::kModernActionsFlag) ||
+       (update.mode!=0U && update.mode!=3U && update.mode!=5U))return;
+    const auto actor=static_cast<std::uint32_t>(context.r4);
+    const auto control=static_cast<std::uint32_t>(context.r5);
+    const auto mode=static_cast<std::uint32_t>(context.r6);
+    if(!actor || actor!=update.actor || control!=update.control)return;
+    jfg::mod::Memory ram({state.rdram,kRdramSize});
+    if(!ram.valid(actor,0xA4U) || !ram.valid(control,0x5F0U) ||
+       ram.u32(actor+0x68U)!=control || ram.u8(control)!=0U ||
+       !jfg::mod::pc_gameplay_active(ram,actor) || ram.u8(0x800FD7BDU)!=0U)return;
+    const auto character=ram.u8(control+1U)&3U;
+    if(!jfg::modern_roll_stance(character,mode) || ram.u8(control+0x568U)!=mode)return;
+    const auto table=ram.u32(0x800A18B0U);
+    if(table!=0x800A18B4U && table!=0x800A18D8U)return;
+    for(std::size_t i=0;i<jfg::kModernGuestTable.size();++i)
+      if(ram.u32(table+static_cast<std::uint32_t>(i*4U))!=jfg::kModernGuestTable[i])return;
+    saved_keys_=ram.u32(0x800F6DA0U);
+    active_=memory_.write_u32(0x800F6DA0U,saved_keys_|side);
+  }
+  ~ModernRollScope() {
+    if(active_)(void)memory_.write_u32(0x800F6DA0U,saved_keys_);
+  }
+};
+// Modern keeps the crawl heading at the view yaw. Retain a matching native
+// forward/backward direction after the stock lock-on timeout is evaluated.
+class ModernCrawlDirectionScope {
+  State& state_;std::uint32_t actor_=0,control_=0;std::uint8_t direction_=0;
+public:
+  ModernCrawlDirectionScope(State& state,std::uint32_t target,const recomp_context& context):state_(state) {
+    if(target!=0x80033D74U || !state.rdram || !state.modern_controls_active ||
+       !state.modern_controls[0].enabled || state.pc_input_blocked ||
+       !state.controller_ports.samples[0].connected)return;
+    const auto& frame=state.pc_frames[0];
+    if(!frame.connected || !(frame.modern_flags&jfg::kModernActionsFlag) ||
+       (frame.pc_mode!=3U && frame.pc_mode!=5U))return;
+    const auto actor=static_cast<std::uint32_t>(context.r4);
+    const auto control=static_cast<std::uint32_t>(context.r5);
+    jfg::mod::Memory ram({state.rdram,kRdramSize});
+    if(!ram.valid(actor,0xA4U) || !ram.valid(control,0x5F0U) ||
+       ram.u32(actor+0x68U)!=control || ram.u8(control)!=0U ||
+       (ram.u8(control+1U)&3U)>=2U || ram.u8(control+0x568U)!=2U ||
+       ram.u8(control+0x584U)!=0U || ram.u8(0x800FD7BDU)!=0U ||
+       !modern_shoulder_current(state,0U,actor))return;
+    const auto forward=static_cast<std::int32_t>(ram.u32(0x800F6DB0U));
+    direction_=forward<0?1U:forward>0?0U:ram.u8(control+0x569U);
+    actor_=actor;control_=control;
+  }
+  ~ModernCrawlDirectionScope() {
+    if(!control_)return;
+    jfg::mod::Memory ram({state_.rdram,kRdramSize});
+    if(ram.u8(control_+0x568U)==2U && ram.u8(control_+0x584U)==0U &&
+       ram.u32(actor_+0x68U)==control_ && modern_shoulder_current(state_,0U,actor_)) {
+      // The fixed view replaces the native delayed turn; do not accumulate
+      // its signed-short timeout while retaining backward crawl indefinitely.
+      ram.put16(0x800A2DB0U,0);
+      ram.put16(control_+0x568U,static_cast<std::uint16_t>(0x200U|direction_));
+    }
+  }
+};
+// A Modern lateral gesture becomes the native prone side action. Consume its
+// analog crawl component at the native consumers, as for Classic C-side alone.
+class ModernProneRollMotionScope {
+  hle::GuestMemory memory_;std::uint32_t saved_x_=0,saved_y_=0;bool active_=false;
+public:
+  ModernProneRollMotionScope(State& state,std::uint32_t target,recomp_context& context):
+      memory_({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian) {
+    const bool direction=target==0x80033D74U;
+    if(!direction && target!=0x800346C4U)return;
+    const auto& update=state.modern_roll_update;
+    if(!jfg::modern_roll_side_buttons(update.flags) || !state.rdram ||
+       !state.modern_controls_active || !state.modern_controls[0].enabled ||
+       state.pc_input_blocked || !update.connected || !state.pc_frames[0].connected ||
+       !state.controller_ports.samples[0].connected ||
+       !(update.flags&jfg::kModernActionsFlag) ||
+       (update.mode!=0U && update.mode!=3U && update.mode!=5U))return;
+    const auto actor=static_cast<std::uint32_t>(context.r4);
+    const auto control=static_cast<std::uint32_t>(context.r5);
+    const auto magnitude=static_cast<std::uint32_t>(context.r6);
+    const auto yaw=static_cast<std::uint32_t>(context.r7);
+    jfg::mod::Memory ram({state.rdram,kRdramSize});
+    if(!actor || actor!=update.actor || control!=update.control ||
+       !ram.valid(actor,0xA4U) || !ram.valid(control,0x5F0U) ||
+       ram.u32(actor+0x68U)!=control || ram.u8(control)!=0U ||
+       (ram.u8(control+1U)&3U)>=2U || ram.u8(control+0x568U)!=2U ||
+       (ram.u8(control+0x584U)!=3U && ram.u8(control+0x584U)!=4U) ||
+       !jfg::mod::pc_gameplay_active(ram,actor) || ram.u8(0x800FD7BDU)!=0U ||
+       !ram.valid(magnitude,4U) || (magnitude&3U) ||
+       (!direction && (!ram.valid(yaw,2U) || (yaw&1U))))return;
+    const auto table=ram.u32(0x800A18B0U);
+    if(table!=0x800A18B4U && table!=0x800A18D8U)return;
+    for(std::size_t i=0;i<jfg::kModernGuestTable.size();++i)
+      if(ram.u32(table+static_cast<std::uint32_t>(i*4U))!=jfg::kModernGuestTable[i])return;
+    saved_x_=ram.u32(0x800F6DACU);saved_y_=ram.u32(0x800F6DB0U);
+    (void)memory_.write_u32(magnitude,0U);
+    if(direction)context.r7=static_cast<std::uint64_t>(static_cast<std::int64_t>(ram.s16(control+0x11CU)));
+    else ram.put16(yaw,ram.u16(control+0x11CU));
+    (void)memory_.write_u32(0x800F6DACU,0U);
+    active_=memory_.write_u32(0x800F6DB0U,0U);
+  }
+  ~ModernProneRollMotionScope() {
+    if(!active_)return;
+    (void)memory_.write_u32(0x800F6DACU,saved_x_);
+    (void)memory_.write_u32(0x800F6DB0U,saved_y_);
   }
 };
 // Default-off attribution of host calls outside graphics submission. Nested
@@ -3054,7 +3189,8 @@ void sample_controller_ports(State &state,bool discover_sdl=true) {
         jfg::map_modern_actions(input,menu,state.guest_menu.kind==jfg::GuestMenuKind::pause_root &&
           state.guest_menu.ready && (state.guest_menu.enabled&0x100U)!=0);
       sample.buttons=state.menu_confirm[p].apply(menu?state.guest_menu:jfg::GuestMenuState{},sample.buttons);
-      state.modern_live_flags[p]=jfg::modern_scope_flags(menu?0:input.held);
+      state.modern_live_flags[p]=static_cast<std::uint8_t>(jfg::modern_scope_flags(menu?0:input.held) |
+          (menu?0U:jfg::modern_roll_flags(input)));
       if(device>=0 && !menu)state.pc_aim[p]=jfg::pc_stick_look(config.look,
         hardware[static_cast<std::size_t>(device)],config.movement_stick,(sample.buttons&0x10)!=0);
       continue;
@@ -9207,6 +9343,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
         ModernAnimationScope modern_animation(state,target,*context);
         ModernGuestTableScope modern_table(state,target,static_cast<std::uint32_t>(context->r4));
+        ModernRollScope modern_roll(state,target,*context);
+        ModernCrawlDirectionScope modern_crawl_direction(state,target,*context);
+        ModernProneRollMotionScope modern_prone_roll_motion(state,target,*context);
 #endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
 #if defined(JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING)

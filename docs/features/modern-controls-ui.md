@@ -1,5 +1,20 @@
 # Modern Controls: implementation and RmlUi contract
 
+## Roll binding preview (2026-10-20)
+
+In the Modern Roll Direction Preview, bind **Roll Left** and **Roll Right** in
+either Modern action picker. Both start unbound. **Advanced > Automatic movement
+rolling** defaults On; switch it Off to disable movement-triggered rolls while
+retaining your explicit roll buttons. This one preference is shared per player
+across both Modern input types. Manual rolls use the existing posture gates;
+they do not automatically crouch. Opposing manual directions cancel.
+
+Profiles 1-5 migrate retaining existing bindings, Ctrl and inversion; newly saved
+profiles use schema 6 and require this build or newer. Source controller vertical
+inversion defaults Off; saved On remains On. Prone direction, bindings and UI
+are automated-test verified and owner-accepted in the preview; unreleased.
+See [GH-033](../development/issues/github-modern-controls-side-roll.md).
+
 The native controller window follows the owner's Idea 3 refined prototype
 in RmlUi. It offers Modern Controls alongside the original Controller Mapping
 editor. Selecting Modern Controls enables its experimental gameplay; selecting

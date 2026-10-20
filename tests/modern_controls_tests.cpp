@@ -59,7 +59,7 @@ int main(int argc,char **argv) {
     invalid("");invalid(std::string(8193,'x'));invalid(custom+"enabled=0\n");invalid(custom+"unknown=0\n");
     invalid(custom.substr(custom.find('\n')+1));
     for(auto pair:std::array<std::pair<std::string,std::string>,10>{{
-        {"version=5","version=6"},{"enabled=1","enabled=2"},{"aim_toggle=1","aim_toggle=-1"},
+        {"version=6","version=7"},{"enabled=1","enabled=2"},{"aim_toggle=1","aim_toggle=-1"},
         {"pad.jump=10","pad.jump=27"},{"key.fire=70","key.fire=258"},
         {"movement_stick=0","movement_stick=2"},{"movement_deadzone=7849","movement_deadzone=32768"},
         {"axis_threshold=8689","axis_threshold=0"},{"look.modern=1","look.modern=0"},
@@ -69,7 +69,17 @@ int main(int argc,char **argv) {
     check(!ModernControlsConfig{}.mouse_original_acceleration,"original acceleration defaults off");
     auto accelerated=config;accelerated.mouse_original_acceleration=true;
     check(parse_modern_controls(serialize_modern_controls(accelerated),parsed) && parsed.mouse_original_acceleration,"original acceleration saves and reloads enabled");
-    auto version4=defaults;version4.replace(0,9,"version=4");
+    auto legacyDefaults=defaults;
+    for(const std::string field:{"roll.automatic=1\n","pad.roll_left=-1\n","key.roll_left=0\n","pad.roll_right=-1\n","key.roll_right=0\n"}) {
+        const auto at=legacyDefaults.find(field);check(at!=legacyDefaults.npos,"legacy roll fixture field");
+        legacyDefaults.erase(at,field.size());
+    }
+    auto version5=legacyDefaults;version5.replace(0,9,"version=5");
+    check(parse_modern_controls(version5,parsed) && parsed.automatic_roll &&
+        parsed.pad[index(ModernAction::roll_left)]==-1 && parsed.pad[index(ModernAction::roll_right)]==-1 &&
+        parsed.keys[index(ModernAction::roll_left)]==0 && parsed.keys[index(ModernAction::roll_right)]==0,"v5 migrates automatic rolling without new binds");
+    invalid(version5+"roll.automatic=1\n");
+    auto version4=legacyDefaults;version4.replace(0,9,"version=4");
     version4.replace(version4.find("key.menu_back=81"),16,"key.menu_back=8");
     check(parse_modern_controls(version4,parsed) && parsed.keys[index(ModernAction::menu_back)]=='Q',"old Backspace default migrates to Q");
     auto moveQ=version4;moveQ.replace(moveQ.find("key.move_left=65"),16,"key.move_left=81");
@@ -81,7 +91,7 @@ int main(int argc,char **argv) {
     check(parse_modern_controls(customBack,parsed) && parsed.keys[index(ModernAction::menu_back)]=='F',"custom Back binding preserved");
     auto takenQ=version4;takenQ.replace(takenQ.find("key.menu_confirm=69"),19,"key.menu_confirm=81");
     check(parse_modern_controls(takenQ,parsed) && parsed.keys[index(ModernAction::menu_back)]==8,"migration does not steal Q");
-    auto version3=defaults;version3.replace(0,9,"version=3");
+    auto version3=legacyDefaults;version3.replace(0,9,"version=3");
     for(const std::string field:{"pad.menu_save=2\n","key.menu_save=116\n"}) {
         const auto at=version3.find(field);check(at!=version3.npos,"legacy save fixture field");
         version3.erase(at,field.size());

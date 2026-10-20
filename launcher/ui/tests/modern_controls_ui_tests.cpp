@@ -169,6 +169,36 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     ui.assignDevice(0);settle();click("action-mc-tab-advanced");
     demand(!ui.el("action-mc-original-acceleration")&&ui.el("mc-range-axis"),"controller advanced hides keyboard acceleration");
     demand(ui.modern[0].mouse_original_acceleration,"device switch preserves keyboard acceleration");
+    // Explicit roll bindings and the automatic gesture preference use the same
+    // persisted profile while keyboard and controller bindings stay independent.
+    {
+      const auto rollProfile=ui.modern[0];const bool rollDiagram=ui.modernDiagram;const auto otherPlayer=ui.read("modern-controls-2.ini");
+      const int rollLeft=static_cast<int>(jfg::ModernAction::roll_left),rollRight=static_cast<int>(jfg::ModernAction::roll_right);
+      demand(rollProfile.automatic_roll&&rollProfile.pad[rollLeft]==-1&&rollProfile.pad[rollRight]==-1&&rollProfile.keys[rollLeft]==0&&rollProfile.keys[rollRight]==0,"roll defaults preserve automatic gestures and leave new bindings unbound");
+      ui.el("mc-settings-scroll")->SetScrollTop(ui.el("mc-settings-scroll")->GetScrollHeight());settle();
+      pointerClick("action-mc-automatic-roll");ui.loadModern();
+      demand(!ui.modern[0].automatic_roll,"controller automatic roll switch persists off");
+      ui.assignDevice(-3);settle();click("action-mc-tab-advanced");
+      demand(ui.el("action-mc-automatic-roll")&&!ui.modern[0].automatic_roll,"keyboard Advanced shows the same saved automatic roll preference");
+      pointerClick("action-mc-automatic-roll");ui.loadModern();demand(ui.modern[0].automatic_roll,"keyboard automatic roll switch persists on");
+      click("action-mc-tab-buttons");
+      if(ui.modernDiagram)click("action-mc-view-list");
+      click("action-mc-add-key");settle();FrontendUiMessage(WM_KEYDOWN,'J',0);settle();
+      demand(ui.el(("action-mc-assign-"+std::to_string(rollLeft)).c_str())&&ui.el(("action-mc-assign-"+std::to_string(rollRight)).c_str()),"keyboard picker offers both roll directions");
+      click("action-mc-assign-"+std::to_string(rollLeft));
+      click("action-mc-add-key");settle();FrontendUiMessage(WM_KEYDOWN,'K',0);settle();click("action-mc-assign-"+std::to_string(rollRight));
+      ui.loadModern();demand(ui.modern[0].keys[rollLeft]=='J'&&ui.modern[0].keys[rollRight]=='K'&&ui.modern[0].pad[rollLeft]==-1,"keyboard roll bindings save independently");
+      ui.assignDevice(0);settle();click("action-mc-tab-buttons");
+      editInput(11);demand(ui.el(("action-mc-assign-"+std::to_string(rollLeft)).c_str())&&ui.el(("action-mc-assign-"+std::to_string(rollRight)).c_str()),"controller picker offers both roll directions");
+      click("action-mc-assign-"+std::to_string(rollLeft));if(ui.modernPanel=="conflict")click("action-mc-conflict-both");
+      editInput(12);click("action-mc-assign-"+std::to_string(rollRight));if(ui.modernPanel=="conflict")click("action-mc-conflict-both");
+      ui.loadModern();demand(ui.modern[0].pad[rollLeft]==11&&ui.modern[0].pad[rollRight]==12&&ui.modern[0].keys[rollLeft]=='J'&&ui.modern[0].keys[rollRight]=='K',"controller roll bindings persist without changing keyboard bindings");
+      click("action-mc-tab-advanced");click("action-mc-automatic-roll");click("action-mc-reset");click("action-mc-reset-confirm");ui.loadModern();
+      demand(ui.modern[0].automatic_roll&&ui.modern[0].pad[rollLeft]==11&&ui.modern[0].pad[rollRight]==12,"Advanced reset enables automatic rolls while preserving explicit bindings");
+      demand(ui.read("modern-controls-2.ini")==otherPlayer,"roll editing leaves other player profile untouched");
+      demand(ui.saveModern(rollProfile),"roll UI fixture restores prior saved profile");ui.modernDiagram=rollDiagram;ui.modal("controllers");settle();
+    }
+
     ui.assignDevice(-3);settle();click("action-mc-tab-settings");change("mc-range-scope",45);
     demand(ui.modern[0].mouse_scope_sensitivity==45&&ui.modern[0].pad_scope_sensitivity==65,"mouse scope independent");
     demand(!ui.el("mc-range-rumble")&&!ui.el("mc-range-look-deadzone"),"keyboard hides pad tuning");capture("keyboard-settings.tga");

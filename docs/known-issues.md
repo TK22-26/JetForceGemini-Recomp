@@ -1,5 +1,15 @@
 # Known issues
 
+## Modern input preview follow-up (2026-10-20)
+
+The new Modern Roll Direction Preview includes tested candidates for fully prone
+roll direction, explicit Roll Left/Right bindings, and live P1-P4 assignment
+indicators. The owner accepted all preview changes for develop; none is released.
+Backward-crawl reversal and controller reassignment are owner-confirmed fixed.
+See [GH-033](development/issues/github-modern-controls-side-roll.md) and
+[INPUT-013](development/issues/controller-port-indicators-stale.md). This update
+supersedes the earlier investigation statuses retained below.
+
 Current v1.3 status and remaining qualification limits.
 The [issue register](development/issues/README.md) links detailed evidence.
 Earlier investigation states are preserved in the
@@ -36,14 +46,18 @@ reports resolved. See [performance follow-up](development/issues/1.2.1-session-1
   proposed focus-only cause. Neither symptom is reproduced or fixed locally;
   the accepted focus-loss camera reset is not proof of capture recovery here.
 - [#33: sideways roll in Modern Controls](development/issues/github-modern-controls-side-roll.md):
+  Follow-up: backward-crawl and prone-roll direction corrections are owner-accepted.
+  Explicit roll bindings and the automatic-roll preference are also accepted.
+  The following original report and earlier preview status are historical:
   owner reproduces crawling instead of rolling and confirms Original Controls can
   roll. Reviewed Modern mappings omit native lateral actions; unchanged native
   checks confirm analog-to-crawl behavior and a separate simultaneous-entry
   limitation. Original manual/guide identify a shot-evading roll from crouch
   or crawl; Lupus is excluded. Owner selects movement-based rolling without a
   gentle sideways-crawl band for v1, and additionally reports sideways input
-  currently produces forward crawling. Roll-only implementation is now authorized
-  and in progress; candidate and owner live verification are pending.
+  currently produces forward crawling. A roll-only local candidate now passes
+  focused native/input tests, an isolated Release build and deployed launcher startup checks;
+  the isolated Modern Roll Preview awaits owner gameplay verification.
   The original report is v1.2.0; owner build is unspecified.
 - [#25: Ally X cutscene, reticle and rain](development/issues/github-ally-x-rendering.md):
   reporter confirms missing falling rain and homing/tri-rocket/throwable reticles
@@ -98,6 +112,7 @@ reports resolved. See [performance follow-up](development/issues/1.2.1-session-1
   candidate closely matches complete original graphics tasks at four views;
   owner approved the lighting/fog correction locally; unreleased.
 - [Removed controllers moving to later players](development/issues/controller-remove-auto-reassignment.md):
+  Follow-up: owner confirms the input-type replacement fix works; unreleased.
   persistent automatic-assignment exclusions pass core and real UI checks;
   owner approved the removal correction locally; unreleased.
 
@@ -194,3 +209,5 @@ A Modern-controller camera snap was reported again on focus return and after a r
 - **Vela rescue skip audio (unreleased):** owner confirms the chopped rumble is fixed. Intermediate skipped shots no longer start effects that would immediately be stopped; ordinary playback and music are preserved. See [native cutscene skipping](development/issues/optional-cutscene-skipping.md).
 
 Minor launcher follow-up: [menu hover and dropdown routing](development/issues/launcher-menu-hover-stuck.md). The first hover candidate broke dropdown selection; the revised input routing passes native UI checks and is owner-confirmed fixed; unreleased.
+
+- [Player port indicators stay stale](development/issues/controller-port-indicators-stale.md): idle assignment refresh is owner-accepted in the Modern Roll Direction Preview; unreleased.

@@ -38,10 +38,11 @@ Detailed per-issue records are added as those issues receive further work.
 |---|---|---|---|
 | UI-008 | Launcher menu hover remains highlighted over game | Initial hover fix regressed dropdown selection; corrected routing passes 55 menu and 790 controls checks; owner confirms fixed; unreleased | [Report](launcher-menu-hover-stuck.md) |
 | GH-032 | Intermittent mouse look and ineffective vertical inversion (#32) | Reported on v1.3; focus-only explanation withdrawn; capture and inversion tracked separately, unreproduced | [Report and proposed verification](github-mouse-look-and-inversion.md) |
-| GH-033 | Modern Controls missing sideways roll (#33) | Owner-authorized roll-only implementation in progress; native crouch/crawl coverage planned; live verification pending | [Cause, evidence and selected policy](github-modern-controls-side-roll.md) |
+| GH-033 | Modern Controls missing sideways roll (#33) | Roll bindings, automatic-roll setting, prone direction and backward-crawl fixes owner-accepted; unreleased | [Cause, evidence and selected policy](github-modern-controls-side-roll.md) |
 | PERF-005 | SS Anubis ledge-testing stutter in Lighting Preview | Earlier gaps measured; repeat Anubis capture steady, intermittent cause open | [Report](tawfret-lighting-preview-stutter.md) |
 | RENDER-019 | Tawfret brightness and distant haze differ from N64 | Fog candidate checked against original tasks; owner approved locally; unreleased | [Report](tawfret-brightness-fog-fidelity.md) |
-| INPUT-012 | Removing a controller moves it to another player | Owner approved locally; persistent exclusion passes core/UI checks; unreleased | [Report](controller-remove-auto-reassignment.md) |
+| INPUT-012 | Removing a controller moves it to another player | Explicit Remove and input-type replacement fixes owner-confirmed; unreleased | [Report](controller-remove-auto-reassignment.md) |
+| INPUT-013 | Player port indicators stay stale | Idle assignment indicator refresh owner-accepted; unreleased | [Report](controller-port-indicators-stale.md) |
 | AUDIO-004 | v1.3 crackling followed by persistent audio delay (#29) | Reported; queue/recovery leads, reporter settings/support ZIP needed | [Report](audio-crackle-persistent-latency.md) |
 | CAMERA-009 | Focus-loss camera reset | Room-entry/focus-return correction passes actual-source tests and owner review with Modern controller and mouse/keyboard; unreleased | [Report](focus-loss-camera-reset.md) |
 | CAMERA-008 | Modern controller high-drop camera reset | Owner confirmed locally; 486 scoped assertions and native checks pass; unreleased | [Report](controller-high-landing-camera-reset.md) |

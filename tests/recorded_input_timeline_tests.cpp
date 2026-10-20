@@ -47,5 +47,75 @@ int main() {
   check(holding.sample(25,held)->buttons==0,"release after delivered press has no extra edge");
   RecordedInputTimeline skipped;
   check(skipped.sample(30,held)->buttons==0x1000 && skipped.sample(31,held)->buttons==0,"late consumer preserves one short button edge");
+  for(std::uint8_t mode:{std::uint8_t{0},std::uint8_t{3},std::uint8_t{5}}) {
+    ControllerReplaySample neutral;neutral.pc_mode=mode;neutral.modern_flags=0x80;
+    auto left=neutral;left.modern_flags|=jfg::kModernRollLeftFlag;left.stick_x=-80;
+    auto right=neutral;right.modern_flags|=jfg::kModernRollRightFlag;right.stick_x=80;
+    const std::array<InputReplayEvent,3> short_roll{{{0,1,neutral},{1,2,left},{2,3,neutral}}};
+    RecordedInputTimeline roll;a=roll.sample(2,short_roll);
+    check(a && jfg::modern_roll_side_buttons(a->modern_flags)==2 && a->stick_x==0,
+      "skipped short roll intent survives once without changing final movement");
+    a=roll.sample(2,short_roll);
+    check(a && jfg::modern_roll_side_buttons(a->modern_flags)==0,"same-VI poll clears consumed roll pulse");
+    check(jfg::modern_roll_side_buttons(roll.sample(3,short_roll)->modern_flags)==0,
+      "next-VI poll cannot repeat consumed roll pulse");
+    const std::array<InputReplayEvent,2> same_vi_roll{{{4,5,right},{4,5,neutral}}};
+    RecordedInputTimeline same_vi;a=same_vi.sample(4,same_vi_roll);
+    check(a && jfg::modern_roll_side_buttons(a->modern_flags)==1,"same-VI recorded roll press and release preserved");
+    check(jfg::modern_roll_side_buttons(same_vi.sample(4,same_vi_roll)->modern_flags)==0,
+      "same-VI recorded release does not create repeated roll");
+    const std::array<InputReplayEvent,2> held_roll{{{5,6,left},{10,11,neutral}}};
+    RecordedInputTimeline held_direction;
+    check(jfg::modern_roll_side_buttons(held_direction.sample(5,held_roll)->modern_flags)==2 &&
+      jfg::modern_roll_side_buttons(held_direction.sample(9,held_roll)->modern_flags)==2,
+      "held roll intent persists for native repeat semantics");
+    check(jfg::modern_roll_side_buttons(held_direction.sample(10,held_roll)->modern_flags)==0,
+      "delivered held roll releases without an extra pulse");
+    const std::array<InputReplayEvent,3> reverse_roll{{{5,6,left},{6,7,right},{7,8,neutral}}};
+    RecordedInputTimeline unrepresentable;
+    check(!unrepresentable.sample(8,reverse_roll),"opposing skipped roll actions cannot be silently merged or cancelled");
+    RecordedInputTimeline delivered_reverse;
+    check(jfg::modern_roll_side_buttons(delivered_reverse.sample(5,reverse_roll)->modern_flags)==2 &&
+      jfg::modern_roll_side_buttons(delivered_reverse.sample(6,reverse_roll)->modern_flags)==1,
+      "distinct consumer polls preserve recorded reversal order");
+    auto both=neutral;both.modern_flags|=jfg::kModernRollFlags;
+    const std::array<InputReplayEvent,1> cancelled{{{1,2,both}}};RecordedInputTimeline cancellation;
+    check(jfg::modern_roll_side_buttons(cancellation.sample(2,cancelled)->modern_flags)==0,
+      "one packet with opposing intent keeps explicit cancellation semantics");
+    for(const auto &pending_direction:{left,right}) {
+      const std::array<InputReplayEvent,2> pending_conflict{{{1,2,pending_direction},{2,3,both}}};RecordedInputTimeline invalid_order;
+      check(!invalid_order.sample(2,pending_conflict),"explicit conflicting packet cannot resurrect a pending direction");
+    }
+    const std::array<InputReplayEvent,2> conflict_then_right{{{1,2,both},{2,3,right}}};RecordedInputTimeline later_direction;
+    check(jfg::modern_roll_side_buttons(later_direction.sample(2,conflict_then_right)->modern_flags)==1,
+      "later unambiguous intent remains usable after a standalone conflicting packet");
+    auto scope=neutral;scope.modern_flags|=1;
+    const std::array<InputReplayEvent,2> scope_after_roll{{{1,2,left},{2,3,scope}}};RecordedInputTimeline scoped_roll;
+    a=scoped_roll.sample(2,scope_after_roll);
+    check(a && (a->modern_flags&7U)==1U && jfg::modern_roll_side_buttons(a->modern_flags)==2,
+      "preserving short roll leaves final scope commands intact");
+    auto original=neutral;original.modern_flags=0;original.pc_mode=0;
+    auto disconnected=original;disconnected.connected=false;
+    auto changed_mode=neutral;changed_mode.pc_mode=mode==3?5:3;
+    for(const auto &new_lifetime:{original,disconnected,changed_mode}) {
+      const std::array<InputReplayEvent,2> cross_lifetime{{{1,2,left},{2,3,new_lifetime}}};RecordedInputTimeline changed;
+      check(!changed.sample(2,cross_lifetime),"pending roll cannot cross connection, Modern identity or source-mode lifetime");
+    }
+    auto old_lateral=neutral;old_lateral.stick_x=-80;
+    const std::array<InputReplayEvent,2> old_recording{{{1,2,old_lateral},{2,3,neutral}}};RecordedInputTimeline legacy;
+    a=legacy.sample(2,old_recording);
+    check(a && jfg::modern_roll_side_buttons(a->modern_flags)==0,"legacy lateral recordings never acquire synthetic roll intent");
+  }
+  for(std::uint8_t mode:{std::uint8_t{1},std::uint8_t{2},std::uint8_t{4}}) {
+    ControllerReplaySample legacy_mode;legacy_mode.pc_mode=mode;legacy_mode.modern_flags=0x80;
+    auto flagged=legacy_mode;flagged.modern_flags|=jfg::kModernRollLeftFlag;
+    const std::array<InputReplayEvent,2> legacy_tap{{{1,2,flagged},{2,3,legacy_mode}}};RecordedInputTimeline legacy_context;
+    a=legacy_context.sample(2,legacy_tap);
+    check(a && jfg::modern_roll_side_buttons(a->modern_flags)==0,"legacy aim modes do not preserve Modern roll pulses");
+  }
+  ControllerReplaySample original_mode;auto stray_flag=original_mode;stray_flag.modern_flags=jfg::kModernRollLeftFlag;
+  const std::array<InputReplayEvent,2> no_identity{{{1,2,stray_flag},{2,3,original_mode}}};RecordedInputTimeline original_context;
+  a=original_context.sample(2,no_identity);
+  check(a && jfg::modern_roll_side_buttons(a->modern_flags)==0,"mode 0 alone does not opt Original controls into roll semantics");
   std::printf("%u recorded timeline checks, %u failures\n",checks,failures);return failures==0?0:1;
 }

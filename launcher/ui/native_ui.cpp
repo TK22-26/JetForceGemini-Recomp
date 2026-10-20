@@ -25,6 +25,7 @@
 #include <fstream>
 #include <jfg/audio/master_volume.hpp>
 #include <jfg/runtime/controller_ports.hpp>
+#include <jfg/runtime/async_config_files.hpp>
 #include <jfg/runtime/sdl_controller_backend.hpp>
 #include <jfg/runtime/pc_input.hpp>
 #include <jfg/runtime/modern_controls.hpp>
@@ -86,6 +87,8 @@ struct Ui : Rml::EventListener {
   std::function<void(const std::string &)> action;
   FrontendUiState state;
   jfg::ControllerPorts assignments;
+  std::unique_ptr<jfg::AsyncConfigFiles> controllerProfileReader;
+  std::shared_ptr<const jfg::AsyncConfigFiles::Values> controllerProfileSnapshot;
   jfg::ControllerCatalog controllerCatalog;
   jfg::SdlControllerBackend sdlControllers;
   std::function<std::vector<jfg::ControllerDeviceInfo>()> sdlDiscovery;
@@ -221,6 +224,32 @@ struct Ui : Rml::EventListener {
     devices=assignments.devices(connected,&controllerCatalog);
     loadModern();
   }
+  void refreshControllerAssignments() {
+    // The mapping window saves in another process. Keep the main toolbar live
+    // without filesystem reads on each UI frame or replacing editor state.
+    if(controllerWindow || current=="controllers")return;
+    if(!controllerProfileReader) {
+      auto reader=std::make_unique<jfg::AsyncConfigFiles>();
+      std::vector<jfg::ConfigFileRequest> files{{profile/"controller-auto.ini",8192}};
+      for(int p=0;p<4;++p)files.push_back({profile/controllerFile(p),8192});
+      reader->start(std::move(files)); // One initial read, then the existing background worker.
+      controllerProfileReader=std::move(reader);
+    }
+    const auto snapshot=controllerProfileReader->latest();
+    if(!snapshot || snapshot==controllerProfileSnapshot)return;
+    controllerProfileSnapshot=snapshot;
+    using Status=jfg::ConfigFileValue::Status;
+    const auto& policy=(*snapshot)[0];
+    if(policy.status==Status::missing)assignments.auto_assignment={};
+    else if(policy.status==Status::ready)
+      (void)jfg::parse_controller_auto_assignment(policy.text,assignments.auto_assignment);
+    for(int p=0;p<4;++p) {
+      const auto& file=(*snapshot)[static_cast<std::size_t>(p)+1];
+      if(file.status==Status::ready && jfg::parse_controller_mapping(file.text,mappings[p]))
+        assignments.configure(p,resolvedMapping(mappings[p]));
+    }
+    devices=assignments.devices(connected,&controllerCatalog);
+  }
   bool saveController() {
     auto &m = mappings[player];
     if (writeFile(controllerFile(player), jfg::serialize_controller_mapping(m))) {
@@ -254,10 +283,15 @@ struct Ui : Rml::EventListener {
     const auto previous=mappings[player];
     const auto previousPolicy=assignments.auto_assignment;
     auto policy=previousPolicy;
-    // Explicit removal is different from unplugging a sticky automatic pad.
-    const int affected=d==-2?devices[player]:d;
-    const auto key=jfg::controller_assignment_key(affected,&controllerCatalog);
-    if(!key.empty() && !policy.set_excluded(key,d==-2)) {
+    // Selecting a new device also releases the previous pad. Keep that pad
+    // free instead of handing it to another Automatic player. An explicit
+    // Automatic selection retains normal discovery; explicit Add re-enables
+    // only the selected physical device.
+    const auto selectedKey=jfg::controller_assignment_key(d,&controllerCatalog);
+    const int released=d!=-1 && d!=devices[player]?devices[player]:-2;
+    const auto releasedKey=jfg::controller_assignment_key(released,&controllerCatalog);
+    if((!selectedKey.empty() && !policy.set_excluded(selectedKey,false)) ||
+       (!releasedKey.empty() && !policy.set_excluded(releasedKey,true))) {
       label("dialog-note","Could not save the controller removal preference.");return false;
     }
     const bool policyChanged=policy.excluded!=previousPolicy.excluded;
@@ -498,6 +532,7 @@ struct Ui : Rml::EventListener {
       }
   }
   void ports() {
+    refreshControllerAssignments();
     const bool wasKeyboard=pcKeyboard();
     const auto wasConnected=connected;const auto wasDevices=devices;
     pollSdl();

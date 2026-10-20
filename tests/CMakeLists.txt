@@ -697,6 +697,12 @@ target_compile_features(jfg_modern_controls_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_modern_controls_tests)
 add_test(NAME jfg.modern_controls COMMAND jfg_modern_controls_tests)
 
+add_executable(jfg_modern_roll_tests modern_roll_tests.cpp)
+target_link_libraries(jfg_modern_roll_tests PRIVATE jfg_runtime)
+target_compile_features(jfg_modern_roll_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_modern_roll_tests)
+add_test(NAME jfg.modern_roll COMMAND jfg_modern_roll_tests)
+
 add_executable(jfg_pc_input_tests pc_input_tests.cpp)
 target_link_libraries(jfg_pc_input_tests PRIVATE jfg_runtime)
 target_compile_features(jfg_pc_input_tests PRIVATE cxx_std_20)

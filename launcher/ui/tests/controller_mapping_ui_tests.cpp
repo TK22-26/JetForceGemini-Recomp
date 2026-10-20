@@ -43,6 +43,33 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   auto change=[&](const char* selector,int value){auto e=ui.doc->QuerySelector(selector);demand(e!=nullptr,selector);Rml::Dictionary d;d["value"]=value;e->DispatchEvent("change",d);wait();};
   auto option=[&](int value){auto e=dynamic_cast<Rml::ElementFormControlSelect*>(ui.el("available-device"));if(!e)return false;for(int i=0;i<e->GetNumOptions();++i)if(e->GetOption(i)->GetAttribute<int>("value",-99)==value)return true;return false;};
   auto choose=[&](int device){if(device==-2){click("action-device-remove");return;}click("action-device-open");change("#input-type",device<0?device:0);if(device>=0){demand(option(device),"requested device is selectable");change("#available-device",device);}click("action-device-apply");};
+  // The main launcher and the mapping window have separate assignment caches.
+  // Saved changes must update the toolbar without a game-start state transition.
+  ui.controllerWindow=false;ui.doc->SetClass("controller-window",false);ui.close();
+  auto toolbarMask=[&]{unsigned mask=0;for(int p=0;p<4;++p)if(ui.el(("p"+std::to_string(p+1)).c_str())->IsClassSet("connected"))mask|=1U<<p;return mask;};
+  auto savedPort=[&](int player,int device){auto saved=ui.mappings[player];saved.device=device;saved.device_key.clear();demand(ui.writeFile(ui.controllerFile(player),jfg::serialize_controller_mapping(saved)),"separate mapping window saves port");};
+  auto profileRefresh=[&]{for(int i=0;i<5;++i)wait();};
+  demand(toolbarMask()==0U&&!ui.state.playing,"idle toolbar starts with disconnected ports");
+  savedPort(0,-3);savedPort(1,0);profileRefresh();
+  demand(toolbarMask()==3U&&!ui.state.playing,"idle toolbar reflects external add without loading game");
+  savedPort(0,-2);savedPort(1,-2);savedPort(2,-1);
+  jfg::ControllerAutoAssignmentPolicy removed;removed.set_excluded("xinput:0",true);removed.set_excluded("xinput:1",true);
+  demand(ui.writeFile("controller-auto.ini",jfg::serialize_controller_auto_assignment(removed)),"separate mapping window saves removal policy");profileRefresh();
+  demand(toolbarMask()==0U&&!ui.state.playing,"idle toolbar reflects external removal and exclusion policy");
+  savedPort(0,-1);savedPort(2,-2);
+  demand(ui.writeFile("controller-auto.ini",jfg::serialize_controller_auto_assignment({})),"separate mapping window enables automatic device");profileRefresh();
+  demand(ui.devices[0]==0&&toolbarMask()==1U,"idle toolbar reload resolves automatic assignment");
+  hardware[0]=false;profileRefresh();
+  demand(ui.devices[0]==0&&toolbarMask()==0U,"profile refresh preserves disconnected sticky device while another pad is available");
+  hardware[0]=true;profileRefresh();demand(toolbarMask()==1U,"toolbar reconnect reflects the same automatic device");
+  demand(ui.writeFile("controller.ini","invalid mapping"),"write partial external profile fixture");profileRefresh();
+  demand(ui.devices[0]==0&&toolbarMask()==1U,"invalid external mapping preserves last valid toolbar assignment");
+  for(int p=0;p<4;++p)savedPort(p,-2);profileRefresh();
+  demand(toolbarMask()==0U,"toolbar accepts repaired external mappings");
+  ui.controllerWindow=true;ui.doc->SetClass("controller-window",true);ui.modal("controllers");
+  const auto savedBinding=ui.mappings[0].bindings[0];ui.mappings[0].bindings[0]=savedBinding==0?1:0;profileRefresh();
+  demand(ui.mappings[0].bindings[0]!=savedBinding,"background toolbar refresh never overwrites mapping-window edits");
+  ui.mappings[0].bindings[0]=savedBinding;
   // Real default downstream ports: Remove must free a pad, not cascade P2 -> P3 -> P4.
   hardware={true,false,false,false};
   ui.connected.fill(false);ui.connected[0]=true;
@@ -68,6 +95,43 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   demand(!ui.assignDevice(-2),"failed mapping write reports failure");
   demand(ui.devices[2]==0&&ui.read("controller-3.ini")==assignedBeforeFailure&&ui.read("controller-auto.ini")==policyBeforeFailure,"failed mapping write restores removal policy");
   fs::remove(profile/"controller-3.ini.ui.tmp");
+  choose(-2);
+  // Owner sequence: keyboard + one pad, remove both, reopen, re-add the pad,
+  // then change that player's input type. Released pads must remain unassigned.
+  hardware={true,false,false,false};
+  ui.assignments.auto_assignment={};
+  demand(ui.writeFile("controller-auto.ini",jfg::serialize_controller_auto_assignment(ui.assignments.auto_assignment)),"seed type-change policy");
+  for(int p=0;p<4;++p){ui.player=p;ui.mappings[p].device=p==0?-3:-1;demand(ui.saveController(),"seed type-change automatic ports");}
+  ui.player=0;ui.assignments=jfg::ControllerPorts{};ui.loadControllers();ui.discoverDevices();ui.modal("controllers");wait();
+  demand(ui.devices[0]==-3&&ui.devices[1]==0,"keyboard plus one controller before remove-all");
+  choose(-2);click("action-player1");choose(-2);
+  ui.assignments=jfg::ControllerPorts{};ui.mappings={};ui.loadControllers();ui.discoverDevices();ui.modal("controllers");wait();
+  demand(ui.devices==std::array<int,4>{-2,-2,-2,-2},"remove-all survives saved profile reload");
+  click("action-player0");choose(0);
+  demand(ui.devices==std::array<int,4>{0,-2,-2,-2},"re-added controller belongs only to selected player");
+  choose(-3);
+  demand(ui.devices==std::array<int,4>{-3,-2,-2,-2},"changing gamepad to keyboard must not move it to another automatic player");
+  demand(ui.read("controller-3.ini")==untouchedP3&&ui.read("controller-4.ini")==untouchedP4,"type change preserves downstream automatic settings");
+  ui.assignments=jfg::ControllerPorts{};ui.mappings={};ui.loadControllers();ui.discoverDevices();wait();
+  demand(ui.devices==std::array<int,4>{-3,-2,-2,-2},"type-change removal survives reopening");
+  hardware[0]=false;wait();hardware[0]=true;wait();
+  demand(ui.devices==std::array<int,4>{-3,-2,-2,-2},"type-change removal survives reconnect");
+  choose(0);
+  const auto replacementBefore=ui.read("controller.ini"),replacementPolicy=ui.read("controller-auto.ini");
+  fs::create_directory(profile/"controller-auto.ini.ui.tmp");
+  demand(!ui.assignDevice(-3),"failed replacement policy save reports failure");
+  demand(ui.devices==std::array<int,4>{0,-2,-2,-2}&&ui.read("controller.ini")==replacementBefore&&ui.read("controller-auto.ini")==replacementPolicy,"failed replacement policy save preserves assignment");
+  fs::remove(profile/"controller-auto.ini.ui.tmp");
+  fs::create_directory(profile/"controller.ini.ui.tmp");
+  demand(!ui.assignDevice(-3),"failed replacement mapping save reports failure");
+  demand(ui.devices==std::array<int,4>{0,-2,-2,-2}&&ui.read("controller.ini")==replacementBefore&&ui.read("controller-auto.ini")==replacementPolicy,"failed replacement mapping save restores exclusion policy");
+  fs::remove(profile/"controller.ini.ui.tmp");
+  choose(-1);
+  demand(ui.devices==std::array<int,4>{0,-2,-2,-2},"choosing Automatic preserves normal controller discovery");
+  choose(-3);
+  demand(ui.devices==std::array<int,4>{-3,-2,-2,-2},"replacing an automatic pad also suppresses automatic reuse");
+  click("action-player1");choose(0);
+  demand(ui.devices==std::array<int,4>{-3,0,-2,-2},"explicit Add after replacement still selects the controller");
   choose(-2);
   // Keep the remaining layout/binding fixture isolated.
   for(int p=0;p<4;++p){ui.player=p;ui.mappings[p].device=-2;demand(ui.saveController(),"reset fixture players");}

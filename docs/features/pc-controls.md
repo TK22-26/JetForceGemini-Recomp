@@ -1,5 +1,20 @@
 # PC controls
 
+## Roll binding preview (2026-10-20)
+
+In the Modern Roll Direction Preview, bind **Roll Left** and **Roll Right** in
+either Modern action picker. Both start unbound. **Advanced > Automatic movement
+rolling** defaults On; switch it Off to disable movement-triggered rolls while
+retaining your explicit roll buttons. This one preference is shared per player
+across both Modern input types. Manual rolls use the existing posture gates;
+they do not automatically crouch. Opposing manual directions cancel.
+
+Profiles 1-5 migrate retaining existing bindings, Ctrl and inversion; newly saved
+profiles use schema 6 and require this build or newer. Source controller vertical
+inversion defaults Off; saved On remains On. Prone direction, bindings and UI
+are automated-test verified and owner-accepted in the preview; unreleased.
+See [GH-033](../development/issues/github-modern-controls-side-roll.md).
+
 > **Critical, open: Goldwood combat slowdown (2026-10-11).** The owner capture shows approximately 15 game updates per second in the busiest drone fight, with 85 to 98 ms update gaps. This is separate from the confirmed camera-distance stepping defect. Owner approved a further two-hour investigation and fix on 2026-10-11.
 
 Modern Controls provides experimental dual-stick controller and mouse/keyboard
@@ -1638,3 +1653,12 @@ no candidate has been implemented and the reported keyboard/mouse aim
 cancellation still needs diagnosis. See [GH-018](../development/issues/github-held-aim-and-diagonal-movement.md)
 and its [detailed handoff](../development/issue18-native-controls-handoff-2026-10-17.md)
 for measurement scope, evidence and continuation constraints.
+
+## Modern backward-crawl follow-up (2026-10-20)
+
+The fixed Modern shoulder view preserves native crawl direction through neutral
+release and resets the delayed-turn timeout while it owns the player. This
+prevents the native turn state from flipping residual backward velocity forward.
+Actual-native regression checks/build pass; live animation/collision feel remains
+pending. Original, rolling and Ctrl/custom bindings are unchanged. See
+[GH-033 follow-up](../development/issues/github-modern-controls-side-roll.md).
