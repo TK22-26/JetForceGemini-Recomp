@@ -7,8 +7,164 @@
 namespace {
 int checks=0;
 void check(bool result,const char* what){++checks;if(!result){std::cerr<<what<<'\n';std::exit(1);}}
+
+void check_swimming_camera_collision() {
+  // The captured regression has a valid far endpoint above the water while
+  // the recovering ground boom repeatedly meets the surface clearance band.
+  // Exercise that topology, including a boom contracted by the previous frame.
+  const jfg::PcOrbitPoint focus{0,-5,0},overhead{0,160,120};
+  unsigned queries=0;
+  const auto water=[&](jfg::PcOrbitPoint p) {
+    ++queries;
+    if(p.y>-1 && p.y<16)p.y=-1;
+    return p;
+  };
+  jfg::PcCameraBoom old;old.distance=8;old.hold_seconds=.08F;
+  const auto trapped=old.solve(focus,overhead,overhead,1.0F/30.0F,water);
+  check(trapped.y<16,"fixture reproduces ground boom trapped below clear overhead endpoint");
+  for(float hz:{30.0F,60.0F,120.0F}) {
+    jfg::PcCameraBoom boom;boom.distance=8;boom.hold_seconds=.08F;
+    queries=0;
+    const auto point=jfg::pc_camera_resolve(boom,true,focus,overhead,overhead,1.0F/hz,water);
+    check(point.x==overhead.x && point.y==overhead.y && point.z==overhead.z,
+      "swimming must reach the native clear overhead endpoint despite a contracted ground boom");
+    check(queries==0,"swimming does not run ground recovery through the water surface");
+    check(boom.distance<0 && boom.hold_seconds==0,"shore return cannot inherit the contracted swimming boom");
+    const auto landed=jfg::pc_camera_resolve(boom,false,{0,40,0},{0,40,200},{0,40,200},1.0F/hz,water);
+    check(landed.z==200,"returning to clear land reacquires full camera distance");
+  }
+  jfg::PcCameraBoom boom;queries=0;
+  const jfg::PcOrbitPoint ceiling{0,90,120};
+  const auto corrected=jfg::pc_camera_resolve(boom,true,focus,overhead,ceiling,1.0F/30.0F,water);
+  check(corrected.x==ceiling.x && corrected.y==ceiling.y && corrected.z==ceiling.z,
+    "swimming preserves native off-ray ceiling/floor correction instead of bypassing collision");
+  const jfg::PcOrbitPoint wall{0,40,80};
+  const auto wall_point=jfg::pc_camera_resolve(boom,true,{0,40,0},{0,40,200},wall,1.0F/30.0F,water);
+  check(wall_point.z==68 && wall_point.y==40,"swimming wall collision retains near-plane clearance");
+  check(queries==0,"native resolved water positions need no ground collision retries");
+  const auto obstacle=[](jfg::PcOrbitPoint p){p.z=std::min(p.z,100.0F);return p;};
+  jfg::PcCameraBoom expected,actual;
+  for(int i=0;i<90;++i) {
+    const jfg::PcOrbitPoint pivot{0,40,0},wanted{0,40,200};
+    const auto original=expected.solve(pivot,wanted,obstacle(wanted),1.0F/30.0F,obstacle);
+    const auto current=jfg::pc_camera_resolve(actual,false,pivot,wanted,obstacle(wanted),1.0F/30.0F,obstacle);
+    check(current.x==original.x && current.y==original.y && current.z==original.z && actual.distance==expected.distance,
+      "ground collision and recovery preserve the existing solver result");
+  }
+}
+
+void check_boss_aim() {
+  constexpr int body_limit=0x2800, extra_limit=0xE38;
+  constexpr int total_limit=body_limit+extra_limit;
+  const auto yaw_from=[](int yaw,int center) {return int(jfg::pc_wrap_angle(yaw-center));};
+  const auto weapon_from=[&](const jfg::PcBossAimResult& result,int center) {
+    return yaw_from(result.body.x,center)+result.offset.x;
+  };
+  // The original boss permits 56.25 degrees of body turn plus 20 degrees of
+  // weapon aim. Repeated input must reach that complete envelope on either side.
+  for(int center:{0,32760,-32760})for(int sign:{-1,1}) {
+    jfg::PcBossAimMotion motion;
+    jfg::PcLookDelta body{center,0};
+    jfg::PcBossAimResult result;
+    for(int i=1;i<=40;++i) {
+      result=motion.take(body,center,{-400*sign,0},-8192,8192,
+                         {extra_limit,extra_limit},1);
+      check(weapon_from(result,center)==sign*std::min(i*400,total_limit),
+        "boss look reaches full weapon range through small consecutive inputs");
+      check(std::abs(yaw_from(result.body.x,center))<=body_limit &&
+            std::abs(result.offset.x)<=extra_limit,
+        "boss aiming preserves original body and weapon limits across yaw wrapping");
+      check(result.body.y==0 && result.offset.y==0,
+        "horizontal boss look cannot move the vertical aim");
+      body=result.body;
+    }
+    for(int i=0;i<10;++i) {
+      result=motion.take(body,center,{},-8192,8192,{extra_limit,extra_limit},1);
+      check(weapon_from(result,center)==sign*total_limit,
+        "releasing boss look holds the extra weapon reach without snapping back");
+      body=result.body;
+    }
+    for(int i=1;i<=75;++i) {
+      result=motion.take(body,center,{400*sign,0},-8192,8192,
+                         {extra_limit,extra_limit},1);
+      check(weapon_from(result,center)==sign*std::max(total_limit-i*400,-total_limit),
+        "boss reversal leaves the endpoint immediately and traverses smoothly");
+      body=result.body;
+    }
+  }
+  jfg::PcBossAimMotion motion;
+  auto result=motion.take({0,0},0,{INT32_MAX,INT32_MIN},-2000,3000,
+                         {extra_limit,extra_limit},10);
+  check(weapon_from(result,0)==-total_limit && result.body.y+result.offset.y==3000+extra_limit,
+    "huge mixed-axis boss input saturates safely at original limits");
+  result=motion.take(result.body,0,{INT32_MIN,INT32_MAX},-2000,3000,
+                     {extra_limit,extra_limit},10);
+  check(weapon_from(result,0)==total_limit && result.body.y+result.offset.y==-2000-extra_limit,
+    "opposite huge boss input cannot wrap past the other limit");
+  // A new actor/input context inherits only its own actual native aim offset.
+  result=motion.take({800,90},0,{},-2000,3000,{extra_limit,extra_limit},11);
+  check(result.body==jfg::PcLookDelta{800,90} && result.offset==jfg::PcLookDelta{},
+    "new boss context does not inherit old weapon displacement");
+  result=motion.take({body_limit,3000},0,{},-2000,3000,
+                     {extra_limit,extra_limit},12,{2000,1000});
+  check(weapon_from(result,0)==body_limit+2000 && result.body.y+result.offset.y==4000,
+    "entering modern boss aim preserves the native weapon offset");
+  motion.clear();
+  result=motion.take({0,0},0,{},-2000,3000,{extra_limit,extra_limit},12);
+  check(result.body==jfg::PcLookDelta{} && result.offset==jfg::PcLookDelta{},
+    "focus or control reset clears stored boss aim displacement");
+  motion.clear();
+  result=motion.take({body_limit,0},0,{-extra_limit,0},-2000,3000,
+                     {extra_limit,extra_limit},13);
+  check(result.offset.x==extra_limit,"boss fixture begins at the full extra reach");
+  result=motion.take({body_limit-1000,0},0,{},-2000,3000,
+                     {extra_limit,extra_limit},13);
+  check(weapon_from(result,0)==body_limit+extra_limit-1000,
+    "native body movement carries boss aim without a stale absolute heading");
+  const int scoped_limit=jfg::pc_boss_aim_limit(extra_limit,5.0F);
+  check(jfg::pc_boss_aim_limit(extra_limit,1.0F)==extra_limit &&
+        jfg::pc_boss_aim_limit(extra_limit,2.0F)==1820 && scoped_limit==330,
+    "boss scope offsets use the original nonlinear magnification envelope");
+  motion.clear();
+  result=motion.take({0,0},0,{-20000,-20000},-2000,3000,
+                     {extra_limit,extra_limit},14);
+  result=motion.take(result.body,0,{},-2000,3000,{scoped_limit,scoped_limit},14);
+  check(weapon_from(result,0)==body_limit+scoped_limit &&
+        result.body.y+result.offset.y==3000+scoped_limit,
+    "zooming in clamps an existing wide aim to the scoped weapon envelope");
+  result=motion.take(result.body,0,{},-2000,3000,{extra_limit,extra_limit},14);
+  check(weapon_from(result,0)==body_limit+scoped_limit &&
+        result.body.y+result.offset.y==3000+scoped_limit,
+    "zooming out without look input does not restore a discarded aim target");
+  result=motion.take(result.body,0,{-1,-1},-2000,3000,{extra_limit,extra_limit},14);
+  check(weapon_from(result,0)==body_limit+scoped_limit+1 &&
+        result.body.y+result.offset.y==3000+scoped_limit+1,
+    "fine boss aim resumes immediately after a scope change");
+  for(int sign:{-1,1}) {
+    motion.clear();jfg::PcLookDelta body{};
+    for(int i=0;i<60;++i) {
+      result=motion.take(body,0,{0,-200*sign},-2000,3000,{extra_limit,extra_limit},15);
+      body=result.body;
+    }
+    check(result.body.y+result.offset.y==(sign>0?3000+extra_limit:-2000-extra_limit),
+      "boss pitch reaches both original body and weapon bounds");
+    check(result.body.x==0 && result.offset.x==0,
+      "vertical boss look cannot move the horizontal aim");
+  }
+  for(bool inverted:{false,true}) {
+    jfg::PcInputConfig config;config.mouse_invert_y=inverted;
+    jfg::PcMouseMotion mouse;mouse.add(0,-4);
+    const auto delta=jfg::pc_guest_aim_look(mouse.take_angles(config),true);
+    motion.clear();result=motion.take({0,0},0,delta,-2000,3000,{extra_limit,extra_limit},16);
+    const auto expected=jfg::pc_direct_aim(0,0,delta,-2000,3000);
+    check(result.body.y+result.offset.y==expected.y && expected.y!=0,
+      "boss aim preserves mouse inversion already applied upstream");
+  }
+}
 }
 int main() {
+  check_boss_aim();
+  check_swimming_camera_collision();
   jfg::PcInputConfig config,roundtrip;
   check(!jfg::pc_experiments_enabled(""),"missing switch stays disabled");
   check(!jfg::pc_experiments_enabled("version=1\nexperimental=2\n"),"invalid opt-in stays disabled");
@@ -262,6 +418,28 @@ int main() {
     "unknown scenery or collision registry cannot certify camera clearance");
   // A paused input stream does not end view ownership; actor/control lifetime
   // does. Entry facing comes from the player even if the old camera faces back.
+  // Native steering owns all of a water-origin airborne excursion, not just
+  // the first transition update. Aim can borrow facing without clearing origin.
+  jfg::PcShoulder water_view;water_view.acquire(0x80100000,0x80101000,1234,567);
+  water_view.track_water_origin(4);
+  for(unsigned i=0;i<180;++i) {
+    water_view.track_water_origin(3);
+    check(water_view.water_origin,"water-origin ownership persists throughout a long airborne excursion");
+  }
+  water_view.track_water_origin(4);check(water_view.water_origin,"water re-entry preserves water origin");
+  for(unsigned ground:{0U,1U,2U,6U,7U,8U,10U,11U,12U}) {
+    water_view.track_water_origin(4);water_view.track_water_origin(3);water_view.track_water_origin(ground);
+    check(!water_view.water_origin,"native ground/special-state handoff ends water-origin facing");
+    water_view.track_water_origin(3);check(!water_view.water_origin,"later land-origin air cannot inherit a previous water jump");
+  }
+  water_view.track_water_origin(4);water_view.acquire(0x80100000,0x80101000,999,999);
+  check(water_view.water_origin,"same actor/control lifetime retains water-origin ownership");
+  water_view.acquire(0x80100000,0x80102000,999,999);
+  check(!water_view.water_origin,"replacement control cannot inherit water-origin ownership");
+  water_view.track_water_origin(4);water_view.acquire(0x80103000,0x80104000,999,999);
+  check(!water_view.water_origin,"replacement actor cannot inherit water-origin ownership");
+  water_view.track_water_origin(4);water_view={};
+  check(!water_view.water_origin,"mode/script/area reset clears water-origin ownership");
   jfg::PcShoulder persistent_view;
   check(persistent_view.acquire(0x80100000,0x80101000,12000,3000),"fresh native entrance acquired");
   persistent_view.yaw=16000;persistent_view.pitch=5000;persistent_view.retrace=10;

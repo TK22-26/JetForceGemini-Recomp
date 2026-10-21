@@ -14,8 +14,10 @@ int main(int argc,char **argv) {
     }
     if(argc!=1)return 2;
     ModernControlsConfig config,parsed;
-    check(config.look.mouse_invert_y==1 && config.look.aim_invert_y==0,"modern mouse defaults to vertical inversion without changing gamepad");
+    check(config.look.mouse_invert_y==0 && config.look.aim_invert_y==0,"modern mouse and controller default to noninverted vertical look");
     check(PcInputConfig{}.mouse_invert_y==0,"original mouse mapping defaults remain unchanged");
+    auto savedInverted=config;savedInverted.look.mouse_invert_y=1;
+    check(parse_modern_controls(serialize_modern_controls(savedInverted),parsed) && parsed.look.mouse_invert_y==1,"explicit inverted modern preference survives the new default");
     auto savedNonInverted=config;savedNonInverted.look.mouse_invert_y=0;
     check(parse_modern_controls(serialize_modern_controls(savedNonInverted),parsed) && parsed.look.mouse_invert_y==0,"explicit non-inverted modern preference survives loading");
     {

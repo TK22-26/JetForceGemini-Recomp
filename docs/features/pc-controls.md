@@ -379,7 +379,19 @@ window explains the jump/crouch zoom actions; wheel input still cycles weapons.
   final route stops on land and verifies continued neutral gameplay. A further
   **30 checks** reproduce both complete water-exit routes exactly
   from their recorded inputs. Steering clear of the bank edge fixes the route;
-  no swimming or collision code was changed to make it exit.
+  no swimming or collision code was changed to make it exit. The later
+  [#30 water-transition report](../development/issues/controller-ledge-camera-reset.md)
+  adds an abrupt recentering symptom while diving in/out of water. These route
+  checks do not establish offset-camera continuity for that newly reported case;
+  an October 20 candidate now retains swimming camera orientation for both Modern
+  inputs while leaving swimming locomotion native. The initial ground-boom
+  assignment trapped the camera near Juno; preview 2 keeps native swimming
+  collision positions and clears ground distance history. Focused and recorded
+  collision-point checks pass; the owner confirms the water camera works.
+  The follow-up body-facing fix retains the water origin through the whole
+  airborne excursion, preserving native steering until landing or valid aim.
+  Source/recorded-transition checks pass; the owner approved the combined preview
+  after an isolated launcher retest. Unreleased; reporter retest remains pending.
 - **125 current native regression checks** pass: unchanged
   close-camera, Lupus-flight and swimming traces; mouse/stick aim and ground
   strafing; experiments-off equivalence; and exact recorded playback for both
@@ -1005,7 +1017,7 @@ save-slot hover walking through intervening slots.
 | Native follow interpolation continued moving the view after raw look ended. | Use the current collision-resolved normal-camera position. Raw mouse displacement is consumed once per poll, with no added input smoothing. |
 | Reacquiring Win32 capture while a second mouse button was pressed cleared the first button. | Acquire capture only when this window does not already own it. RMB remains held across LMB press and release. |
 | Save-slot hover generated repeated virtual-stick pulses. | Send a semantic selection event to the validated active native menu. Select its item directly before the original activation handler; preview/rendering remain native. |
-| Modern mouse reset forced noninverted vertical look. | New modern defaults and settings reset enable mouse vertical inversion; explicit saved choices and controller inversion remain independent. |
+| Modern mouse default/reset policy. | The 2026-10-20 owner-requested correction defaults and resets mouse vertical inversion to Off; explicit saved choices and controller inversion remain independent. |
 
 Mouse look is still sampled at the native game/controller update cadence; this
 change does not add a separate render-rate camera. Removing follow easing avoids
@@ -1662,3 +1674,16 @@ prevents the native turn state from flipping residual backward velocity forward.
 Actual-native regression checks/build pass; live animation/collision feel remains
 pending. Original, rolling and Ctrl/custom bindings are unchanged. See
 [GH-033 follow-up](../development/issues/github-modern-controls-side-roll.md).
+
+
+## Modern boss aiming-range correction (2026-10-20)
+
+[GH-034](../development/issues/github-twin-mantis-aim-range.md) restores the native
+combined body/weapon range for Modern mouse and controller across the three
+character boss handlers, including both Mizar encounters and upgraded Juno.
+Both Modern paths match EmuHawk's horizontal and vertical envelope in five
+fixtures, hold after release and reverse without accumulated clamp overshoot.
+Original controls bypass the correction and their regression check passes.
+Scope limits and native smoothing are retained. The owner approved the fix after
+live Twin Mantis review and reported that it matches the reference video. The fix
+is unreleased; broader live/scoped validation limits remain in the issue record.

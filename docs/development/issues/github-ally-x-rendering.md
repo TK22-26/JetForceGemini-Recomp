@@ -894,3 +894,12 @@ was performed for this status update.
 The rain-delay portion is accepted locally. The broader RENDER-016 report
 remains open for original reporter/Ally X verification, hut performance and
 release. No commit, public issue closure or release is implied by this approval.
+
+
+## Related crosshair report (2026-10-21 UTC)
+
+New [#36](github-weapon-crosshairs.md) reports missing rocket/homing crosshairs
+on v1.3.0 with Windows 10 and an RTX 5060 Ti. It may overlap the accepted local
+reticle correction, but reporter retest is needed before calling it the same
+cause or resolved. #25 still needs updated-build/Ally X retesting, including the
+separate hut/cutscene performance point. No additional reticle fix is inferred.

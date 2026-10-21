@@ -1,5 +1,13 @@
 # Modern Controls: implementation and RmlUi contract
 
+## Modern mouse default update (2026-10-20)
+
+New Modern mouse profiles and mouse defaults/tuning reset now use vertical
+inversion Off. Existing explicit On and Off choices remain saved. Controller
+inversion continues to default Off. Core and actual UI checks pass; this local
+change is unreleased. The separate mouse capture/ineffective-Off report remains
+open; see [GH-032](../development/issues/github-mouse-look-and-inversion.md).
+
 ## Roll binding preview (2026-10-20)
 
 In the Modern Roll Direction Preview, bind **Roll Left** and **Roll Right** in
@@ -228,7 +236,7 @@ first preserves a separate unreadable-file backup.
 | Mouse/keyboard | Aim sensitivity | look.mouse_aim_sensitivity | 10..500; default 100 |
 | Mouse/keyboard | Scope sensitivity | mouse_scope_sensitivity | 10..300; default 100 |
 | Mouse/keyboard | Vertical sensitivity | look.mouse_vertical_sensitivity | 10..300; default 100 |
-| Mouse/keyboard | Invert X / Y | look.mouse_invert_x / look.mouse_invert_y | 0 or 1; current defaults X=0, Y=1; saved choices retained |
+| Mouse/keyboard | Invert X / Y | look.mouse_invert_x / look.mouse_invert_y | 0 or 1; current defaults X=0, Y=0; saved choices retained |
 
 Deadzone/threshold values use a normalized 32767 axis scale; the UI displays
 percentages but persists the underlying scale. Vertical tuning is shared between

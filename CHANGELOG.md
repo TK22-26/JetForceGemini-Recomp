@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Preserve Modern swimming camera orientation and native collision clearance,
+  including overhead views. Keep native body facing through water-origin jumps
+  to avoid snapping on surface departures and re-entry; owner-approved locally.
+
+- Restore the original boss aiming range for Modern mouse and controllers,
+  including both Mizar encounters. All five boss fixtures match EmuHawk in
+  automated angle checks; owner-approved after live Twin Mantis review.
+
+- Default Modern mouse vertical inversion to Off for new profiles and resets.
+  Preserve existing saved choices and controller settings. This does not
+  resolve the separate intermittent mouse-look/ineffective-Off report (#32).
+
 - Restore Modern crouch/prone side rolls and correct backward-crawl reversal
   and diagonal motion during prone rolls. Preserve native roll speed and easing.
 - Add bindable Roll Left/Right actions for Modern keyboard/mouse and controllers,

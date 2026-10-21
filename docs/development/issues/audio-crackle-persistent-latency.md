@@ -1,6 +1,6 @@
-# AUDIO-004: v1.3 crackling followed by persistent audio latency
+# AUDIO-004: Persistent audio latency (#35); earlier crackling report #29 closed
 
-- Status: REPORTED on v1.3.0; source leads identified, not reproduced or fixed.
+- Status: #29 closed by its reporter after attributing crackling to RTSS. Remaining latency reported separately as #35; owner cannot reproduce; awaiting affected-session evidence, no qualified latency fix.
 - Severity: high; sound effects reportedly remain 1-2 seconds behind gameplay.
 - Report: [GitHub #29](https://github.com/TK22-26/JetForceGemini-Recomp/issues/29), 2026-10-19.
 - Reporter: Windows 10, RTX 5060 Ti, Xbox One controller.
@@ -119,3 +119,21 @@ missing fields. Improving this diagnostic coverage is a follow-up limitation;
 no support exporter behavior was changed during this R&D pass.
 
 Owner cannot reproduce the audio delay and agrees more reporter information is needed. Keep this open; no speculative audio correction is approved as a resolution.
+
+
+## Reporter split and owner status (2026-10-21 UTC audit)
+
+On 2026-10-20 the reporter [closed #29](https://github.com/TK22-26/JetForceGemini-Recomp/issues/29#issuecomment-6299179314),
+explaining that RTSS caused the crackling. The reporter then opened
+[#35](https://github.com/TK22-26/JetForceGemini-Recomp/issues/35) for growing audio
+latency on v1.3.0, Windows 10, RTX 5060 Ti and an Xbox One controller. After several
+minutes, effects reportedly lag by one or two seconds and worsen over time;
+launcher setting changes or pause temporarily restore synchronization. No support
+ZIP or further comments accompany #35 at this audit.
+
+The owner again reports inability to reproduce. Track the latency work under #35;
+retain this record's prior source and queue observations as evidence, not a
+reproduced cause. No new audio remedy or gameplay experiment was attempted.
+Request an affected-session report and exact settings/device/connection/onset
+information when following up. The RTSS explanation applies to the reporter's
+crackling; it does not establish the cause of #35 latency or every audio fault.

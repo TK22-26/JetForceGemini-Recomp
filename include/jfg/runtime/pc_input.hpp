@@ -221,6 +221,43 @@ inline PcLookDelta pc_direct_aim(int yaw,int pitch,PcLookDelta delta,int minimum
   if(minimum>maximum || minimum < -32768 || maximum>32767)return {yaw,pitch};
   return {pc_wrap_angle(yaw-delta.x),std::clamp(pitch-delta.y,minimum,maximum)};
 }
+// Boss aim has a body limit and a separate native weapon offset. Carry the
+// requested offset rather than the smoothed animation result so neutral input
+// holds aim and reversing at the limit responds immediately.
+struct PcBossAimResult { PcLookDelta body{},offset{}; };
+inline int pc_boss_aim_limit(int limit,float zoom) {
+  if(!std::isfinite(zoom) || zoom<1.0F || zoom>5.0F)zoom=1.0F;
+  const float scale=1.0F+(zoom-1.0F)*zoom*0.5F;
+  return static_cast<int>(static_cast<float>(std::clamp(limit,0,32767))/scale);
+}
+class PcBossAimMotion {
+  PcLookDelta offset_{};
+  std::uint64_t context_=0;
+  bool active_=false;
+public:
+  void clear(){offset_={};context_=0;active_=false;}
+  PcBossAimResult take(PcLookDelta body,int center,PcLookDelta delta,
+      int minimum,int maximum,PcLookDelta limits,std::uint64_t context,
+      PcLookDelta initial_offset={}) {
+    if(minimum>maximum || minimum < -32768 || maximum>32767 ||
+       limits.x<0 || limits.x>0x7FFF-0x2800 || limits.y<0 || limits.y>32767 ||
+       minimum-limits.y < -32768 || maximum+limits.y>32767) {
+      clear();return {body,{}};
+    }
+    if(!active_ || context_!=context) {
+      offset_=initial_offset;context_=context;active_=true;
+    }
+    const auto yaw=std::clamp<std::int64_t>(
+      std::int64_t{pc_wrap_angle(body.x-center)}+offset_.x-delta.x,
+      -0x2800-limits.x,0x2800+limits.x);
+    const auto pitch=std::clamp<std::int64_t>(
+      std::int64_t{body.y}+offset_.y-delta.y,minimum-limits.y,maximum+limits.y);
+    const int body_yaw=static_cast<int>(std::clamp<std::int64_t>(yaw,-0x2800,0x2800));
+    const int body_pitch=static_cast<int>(std::clamp<std::int64_t>(pitch,minimum,maximum));
+    offset_={static_cast<int>(yaw)-body_yaw,static_cast<int>(pitch)-body_pitch};
+    return {{pc_wrap_angle(center+body_yaw),body_pitch},offset_};
+  }
+};
 // Modern look is expressed in camera pitch space, even when crouching or
 // swimming uses the guest aim camera. Camera ownership must not change its sign.
 // Older non-action-table replay modes keep their original aim convention.
@@ -418,9 +455,16 @@ struct PcShoulder {
   unsigned movement_before_state=0;
   int movement_before_yaw=0;
   bool active=false,aiming=false,air_aim=false,landing_recovery=false;
+  bool water_origin=false;
   std::uint32_t actor=0,control=0;
   std::uint64_t retrace=0;
   int yaw=0,pitch=0;
+  // A brief surface hop is still part of swimming. Per-update movement history
+  // is insufficient: keep the origin until native locomotion reaches land or
+  // another special state. Aim may temporarily own facing without losing it.
+  void track_water_origin(unsigned movement) {
+    water_origin=movement==4U || (movement==3U && water_origin);
+  }
   bool acquire(std::uint32_t next_actor,std::uint32_t next_control,int native_yaw,int native_pitch) {
     if(active && actor==next_actor && control==next_control)return false;
     *this={};active=true;actor=next_actor;control=next_control;
@@ -481,6 +525,22 @@ inline PcOrbitPoint pc_camera_clearance(PcOrbitPoint focus,PcOrbitPoint wanted,P
   if(dot>=0 || perpendicular>std::max(1.0F,changed*0.01F))return resolved;
   const float scale=(distance-std::min(12.0F,distance-16.0F))/distance;
   return {focus.x+dx*scale,focus.y+dy*scale,focus.z+dz*scale};
+}
+// The native water camera can cross the surface to a valid overhead point.
+// Ground boom recovery assumes every intermediate distance is on one side of
+// an obstacle; a water clearance band violates that assumption and can trap it
+// next to the swimmer. Retain the native resolved endpoint while swimming,
+// without carrying the contracted ground boom into the next land update.
+template<class Resolve>
+inline PcOrbitPoint pc_camera_resolve(PcCameraBoom& boom,bool swimming,
+    PcOrbitPoint focus,PcOrbitPoint wanted,PcOrbitPoint native_resolved,
+    float seconds,Resolve resolve) {
+  if(swimming) {
+    boom={};
+    return pc_camera_clearance(focus,wanted,native_resolved);
+  }
+  const auto point=boom.solve(focus,wanted,native_resolved,seconds,resolve);
+  return boom.fallback?pc_camera_clearance(focus,wanted,point):point;
 }
 // Three lower-body probes protect the visible width, including a thin edge
 // which misses the center ray. Near-vertical views retain a finite basis.

@@ -179,6 +179,9 @@ ZIP when available. Successful sessions do not need a report.
 See [playtesting and reporting](docs/playtesting.md). If you want to contribute
 code, [CONTRIBUTING.md](CONTRIBUTING.md) explains the pull request workflow.
 
+Thank you to everyone sharing bug reports, requests and playtest results. Your
+feedback and testing have made this project better.
+
 ## Future additions
 
 The complete v1 game is here. Future work focuses on additional PC enhancements:

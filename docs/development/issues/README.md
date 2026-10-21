@@ -37,16 +37,19 @@ Detailed per-issue records are added as those issues receive further work.
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
 | UI-008 | Launcher menu hover remains highlighted over game | Initial hover fix regressed dropdown selection; corrected routing passes 55 menu and 790 controls checks; owner confirms fixed; unreleased | [Report](launcher-menu-hover-stuck.md) |
-| GH-032 | Intermittent mouse look and ineffective vertical inversion (#32) | Reported on v1.3; focus-only explanation withdrawn; capture and inversion tracked separately, unreproduced | [Report and proposed verification](github-mouse-look-and-inversion.md) |
+| GH-032 | Intermittent mouse look and ineffective vertical inversion (#32) | Owner accepts default/reset-Off preview; TODO ask reporter to retest updated build; reporter capture/inversion symptoms remain open; unreleased | [Report and review](github-mouse-look-and-inversion.md) |
+| GH-037 | Floyd cannot fire (#37) | New v1.3.0 report; potential mission blocker, input setup unknown; not reproduced/investigated | [Report](github-floyd-cannot-fire.md) |
+| GH-036 | Missing weapon crosshairs (#36) | May overlap accepted #25 reticle fix; unverified, reporter retest after delivery | [Report](github-weapon-crosshairs.md) |
+| GH-034 | Modern boss aim range, including both Mizar fights (#34) | Owner-approved after live Twin Mantis review; five boss fixtures match EmuHawk in both Modern paths; unreleased; reporter retest after delivery | [Report](github-twin-mantis-aim-range.md) |
 | GH-033 | Modern Controls missing sideways roll (#33) | Roll bindings, automatic-roll setting, prone direction and backward-crawl fixes owner-accepted; unreleased | [Cause, evidence and selected policy](github-modern-controls-side-roll.md) |
 | PERF-005 | SS Anubis ledge-testing stutter in Lighting Preview | Earlier gaps measured; repeat Anubis capture steady, intermittent cause open | [Report](tawfret-lighting-preview-stutter.md) |
 | RENDER-019 | Tawfret brightness and distant haze differ from N64 | Fog candidate checked against original tasks; owner approved locally; unreleased | [Report](tawfret-brightness-fog-fidelity.md) |
 | INPUT-012 | Removing a controller moves it to another player | Explicit Remove and input-type replacement fixes owner-confirmed; unreleased | [Report](controller-remove-auto-reassignment.md) |
 | INPUT-013 | Player port indicators stay stale | Idle assignment indicator refresh owner-accepted; unreleased | [Report](controller-port-indicators-stale.md) |
-| AUDIO-004 | v1.3 crackling followed by persistent audio delay (#29) | Reported; queue/recovery leads, reporter settings/support ZIP needed | [Report](audio-crackle-persistent-latency.md) |
+| AUDIO-004 | Persistent audio delay (#35); earlier #29 closed | Reporter attributes #29 crackling to RTSS; #35 latency not reproduced by owner, affected-session evidence needed | [Report](audio-crackle-persistent-latency.md) |
 | CAMERA-009 | Focus-loss camera reset | Room-entry/focus-return correction passes actual-source tests and owner review with Modern controller and mouse/keyboard; unreleased | [Report](focus-loss-camera-reset.md) |
 | CAMERA-008 | Modern controller high-drop camera reset | Owner confirmed locally; 486 scoped assertions and native checks pass; unreleased | [Report](controller-high-landing-camera-reset.md) |
-| CAMERA-007 | Modern dual-stick ledge climb snaps camera (#30) | Owner confirms fixed locally; source regression/native checks pass; unreleased | [Report](controller-ledge-camera-reset.md) |
+| CAMERA-007 | Modern ledge/water camera reset and water-air facing (#30) | Ledge/water camera and water-air body-facing fix owner-approved after isolated retest; unreleased, reporter retest pending | [Report](controller-ledge-camera-reset.md) |
 | ENHANCE-001 | Optional cutscene skipping (#31) | Owner confirms reviewed story/travel routes; Vela skipped-effect audio fix owner-confirmed; broader inventory/route review remains open; unreleased | [Scope](optional-cutscene-skipping.md) |
 | RENDER-018 | Dead drone bodies jitter with camera movement | Included in v1.3; owner visual pass and capture validation, exact seed/cutscene coverage unverified | [Investigation and validation](dead-drone-camera-jitter.md) |
 | NATIVE-003 | Ichor detached-head flight locations after body destruction | EmuHawk plus idle/moving Vela comparison: no sampled out-of-bounds flight; broader parity unconfirmed | [Report and comparison plan](ichor-head-flight-locations.md) |

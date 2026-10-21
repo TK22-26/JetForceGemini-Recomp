@@ -1,5 +1,29 @@
 # Known issues
 
+## Modern boss aiming range (#34)
+
+The candidate restores the missing native weapon/reticle offset in Modern mouse
+and controller aiming. All five boss fixtures, including both Mizar encounters
+and upgraded Juno, match EmuHawk's horizontal/vertical limits. Original controls
+regression checks pass. The owner approved the fix after live Twin Mantis review,
+reporting that it matches the reference video. Broader live/scoped coverage remains
+a documented validation limit. #34 stays open for delivery and reporter retest;
+the correction is unreleased.
+See [GH-034](development/issues/github-twin-mantis-aim-range.md).
+
+## Mouse inversion default follow-up (2026-10-20)
+
+Modern mouse defaults and reset now use inversion Off in tested local source.
+Existing saved choices remain unchanged. This unreleased default correction
+does not resolve [#32](development/issues/github-mouse-look-and-inversion.md)
+intermittent mouse look or the report that Off is ineffective. Focused
+runtime tests preserve explicit Off through live reload and restart, with
+mouse/controller preferences independent. No general ignored-Off defect
+was reproduced; the approved reporter reply requests a failing support ZIP.
+The owner tested the isolated Mouse Inversion Preview and reports "looks good".
+Ask the #32 reporter to retest the updated build when available; reporter
+verification remains pending.
+
 ## Modern input preview follow-up (2026-10-20)
 
 The new Modern Roll Direction Preview includes tested candidates for fully prone
@@ -78,13 +102,27 @@ reports resolved. See [performance follow-up](development/issues/1.2.1-session-1
   unverified. Alternate transitions/projections, dimensions and intervening
   text/window output retain native gating. Reporter/Ally X retest is pending.
   Hardware/driver dependence is unproved.
-- [#29: crackling followed by lasting audio delay](development/issues/audio-crackle-persistent-latency.md):
-  reported every attempt after several minutes; resetting through the launcher
-  reportedly restores sync. Detailed settings or an affected-session support ZIP
-  are needed. No new fix is qualified.
+- [#35: growing audio delay](development/issues/audio-crackle-persistent-latency.md):
+  #29 was closed by its reporter after attributing crackling to RTSS. Remaining
+  latency is now #35: effects become delayed after several minutes and pause or
+  launcher changes temporarily restore sync. The owner cannot reproduce it;
+  affected-session evidence and detailed settings are needed. No latency fix is qualified.
+- [#36: missing weapon crosshairs](development/issues/github-weapon-crosshairs.md):
+  a v1.3.0 report may overlap #25. Retest the accepted reticle correction after
+  delivery before claiming the same cause or a resolved duplicate.
+- [#37: Floyd cannot fire](development/issues/github-floyd-cannot-fire.md):
+  new v1.3.0 mission-blocking report; device, preset and mission are unspecified.
+  No reproduction or fix has been established.
 - [#30: dual-stick ledge-camera reset](development/issues/controller-ledge-camera-reset.md):
   an unreleased candidate extends retained camera ownership to Modern controller
   ledge climbs. Source regression and native checks pass; owner confirms the ledge fix locally.
+  The added water trigger is reproduced in the owner capture. A candidate retains
+  Modern mouse/controller view through swimming. The first preview trapped the
+  camera near Juno; preview 2 preserves native swimming collision positions and
+  passes focused/recorded-point checks. Owner confirms the water camera works.
+  The follow-up swimming-to-air/re-entry body-facing fix preserves native facing
+  through the whole water-origin jump. Source and recorded-transition checks pass;
+  the owner approved the combined preview after an isolated launcher retest.
   Reporter retest and release remain pending.
 - [#31: cutscene skipping](development/issues/optional-cutscene-skipping.md):
   opening story skipping now passes owner review. A further candidate adds

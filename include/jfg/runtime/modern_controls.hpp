@@ -56,7 +56,7 @@ struct ModernControlsConfig {
         2,1,32,17,'E',kPcWheelDown,kPcWheelUp,4,0,0,9,'E','Q',
         'W','S','A','D',16,0,0,0,0,0x74,0,0};
     PcInputConfig look = [] {
-        PcInputConfig c;c.modern=c.mouse_aim=c.dual_stick=1;c.mouse_invert_y=1;return c;
+        PcInputConfig c;c.modern=c.mouse_aim=c.dual_stick=1;return c;
     }();
 };
 inline constexpr std::array<std::string_view,12> kModernSettings{

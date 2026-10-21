@@ -1755,6 +1755,9 @@ struct State : JfgOriginalTimingFast {
   std::array<jfg::PcLookDelta,4> pc_aim{};
   std::array<jfg::PcStickMotion,4> pc_stick_motion{};
   std::array<jfg::PcScopeMotion,4> pc_scope_motion{};
+  std::array<jfg::PcBossAimMotion,4> pc_boss_aim_motion{};
+  std::array<unsigned,4> pc_boss_aim_modes{};
+  std::array<std::uint32_t,4> pc_boss_aim_controls{};
   std::array<jfg::ModernScopeSensitivity,4> modern_scope_sensitivity{};
   std::array<jfg::PcDeviceReleaseGate,4> pc_device_release{};
   std::array<int,4> pc_devices{-2,-2,-2,-2};
@@ -2399,7 +2402,8 @@ bool modern_shoulder_current(const State &state,std::size_t port,std::uint32_t a
   jfg::mod::Memory ram({state.rdram,kRdramSize});
   return port<4 && state.pc_shoulder_actor==actor && state.pc_shoulders[port].active &&
     state.pc_shoulders[port].actor==actor && jfg::mod::pc_gameplay_active(ram,actor) &&
-    !jfg::mod::pc_ledge_view_active(ram,actor);
+    !jfg::mod::pc_ledge_view_active(ram,actor) &&
+    ram.u8(state.pc_shoulders[port].control+0x568U)!=4U;
 }
 bool modern_landing_view_current(const State& state,std::uint32_t actor) {
   if(!state.modern_controls_active || !state.modern_controls[0].enabled)return false;
@@ -2418,10 +2422,21 @@ bool modern_ledge_view_current(const State& state,std::uint32_t actor) {
   return view.active && view.actor==actor && ram.valid(actor,0xA4U) &&
     view.control==ram.u32(actor+0x68U) && jfg::mod::pc_ledge_view_active(ram,actor);
 }
+// Swimming keeps native body heading and physics while the Modern camera
+// retains its world orientation through the land/water handoff.
+bool modern_swimming_view_current(const State& state,std::uint32_t actor) {
+  if(!state.modern_controls_active || !state.modern_controls[0].enabled)return false;
+  const auto& view=state.pc_shoulders[0];
+  jfg::mod::Memory ram({state.rdram,kRdramSize});
+  return view.active && view.actor==actor && ram.valid(actor,0xA4U) &&
+    view.control==ram.u32(actor+0x68U) && jfg::mod::pc_gameplay_active(ram,actor) &&
+    ram.u8(view.control+0x568U)==4U;
+}
 bool modern_shoulder_camera_current(const State& state,std::size_t port,std::uint32_t actor) {
   return modern_shoulder_current(state,port,actor) ||
     (port==0U && state.pc_shoulder_actor==actor &&
-      (modern_landing_view_current(state,actor) || modern_ledge_view_current(state,actor)));
+      (modern_landing_view_current(state,actor) || modern_ledge_view_current(state,actor) ||
+       modern_swimming_view_current(state,actor)));
 }
 int dispatch(void *opaque,std::int32_t address,std::uint8_t *rdram,recomp_context *context);
 bool modern_air_aim_active(const State &state,std::uint32_t actor,std::uint32_t control) {
@@ -2430,6 +2445,7 @@ bool modern_air_aim_active(const State &state,std::uint32_t actor,std::uint32_t 
   const auto port=ram.u8(control);
   return port==0U && state.modern_controls_active && state.pc_shoulders[port].active &&
     state.pc_shoulders[port].actor==actor && state.pc_shoulders[port].control==control &&
+    state.pc_shoulders[port].movement_before_state!=4U &&
     (state.pc_frames[port].modern_flags&jfg::kModernActionsFlag) &&
     (state.pc_frames[port].pc_mode==3 || state.pc_frames[port].pc_mode==5) &&
     state.controller_ports.samples[port].connected && !state.pc_input_blocked &&
@@ -2513,14 +2529,18 @@ public:
     const auto movement=ram.u8(control+0x568U);
     const bool landing_view=modern_landing_view_current(state,actor);
     const bool ledge_view=modern_ledge_view_current(state,actor);
-    const bool view_only=landing_view || ledge_view;
+    // A session or Modern-mode change may begin while already swimming.
+    // Acquire that native view too; identity changes still go through acquire().
+    const bool swimming_view=state.modern_controls[port].enabled && movement==4U &&
+      jfg::mod::pc_gameplay_active(ram,actor);
+    const bool view_only=landing_view || ledge_view || swimming_view;
     // Camera ownership follows the new room/player even while physical
     // input is suspended by the map or desktop. Deferring first acquisition
     // until focus returns visibly replaces the native camera at that click.
     if(port!=0 || !state.modern_controls_active ||
        !(frame.modern_flags&jfg::kModernActionsFlag) ||
        (frame.pc_mode!=3 && frame.pc_mode!=5) || !state.controller_ports.samples[port].connected ||
-       (ram.u8(control+1U)&3U)>=3U || (!jfg::pc_shoulder_state(movement) && !ledge_view) ||
+       (ram.u8(control+1U)&3U)>=3U || (!jfg::pc_shoulder_state(movement) && !ledge_view && !swimming_view) ||
        (!jfg::mod::pc_gameplay_active(ram,actor) && !landing_view) || ram.u8(0x800FD7BDU)!=0 ||
        jfg::mod::scripted_camera_active(ram,actor) ||
        ram.u32(target)!=0x27BDFF70U || ram.u32(target+4U)!=0xAFBF002CU) {
@@ -2543,6 +2563,7 @@ public:
     if(view.acquire(actor,control,ram.s16(control+0x11CU),native_pitch))
       state.gameplay_trace.event("pc-shoulder-acquire",{state.vi_retraces,actor,control,
         static_cast<std::uint16_t>(view.yaw),static_cast<std::uint16_t>(view.pitch)});
+    view.track_water_origin(movement);
     view.landing_recovery=landing_view;
     view.movement_before_state=movement;
     view.movement_before_yaw=ram.s16(control+0x11CU);
@@ -2562,7 +2583,7 @@ public:
       view.yaw=after.x;view.pitch=after.y;
     }
     if(view_only) {
-      state.gameplay_trace.event(ledge_view?"pc-ledge-view":"pc-landing-view",{state.vi_retraces,actor,
+      state.gameplay_trace.event(swimming_view?"pc-swimming-view":ledge_view?"pc-ledge-view":"pc-landing-view",{state.vi_retraces,actor,
         ram.u8(control+0x56BU),static_cast<std::uint16_t>(view.yaw),
         static_cast<std::uint16_t>(view.pitch),ram.u32(0x800F6DBCU)});
       return; // Camera only: no facing, velocity, action or recovery-timer writes.
@@ -2604,6 +2625,9 @@ void modern_shoulder_physics(State &state,std::uint32_t target,const recomp_cont
   if(!ram.valid(actor,0xA4U) || !ram.valid(control,0x5D0U) || ram.u32(actor+0x68U)!=control)return;
   const auto port=ram.u8(control);
   if(!modern_shoulder_current(state,port,actor))return;
+  // A swim-to-air/shore transition occurring inside this update still owns
+  // native swimming momentum; never convert it as a grounded takeoff.
+  if(state.pc_shoulders[port].movement_before_state==4U)return;
   const auto movement=ram.u8(control+0x568U);
   if(!jfg::pc_shoulder_state(movement) || (animation && movement!=0U))return;
   auto &view=state.pc_shoulders[port];
@@ -2674,7 +2698,11 @@ public:
     if(!ram.valid(actor,0xA4U) || !ram.valid(control,0x5D0U) || ram.u32(actor+0x68U)!=control ||
        ram.u8(control+0x568U)!=3U)return;
     const auto port=ram.u8(control);
-    if(modern_shoulder_current(state,port,actor)){actor_=actor;port_=port;}
+    if(modern_shoulder_current(state,port,actor) &&
+       state.pc_shoulders[port].movement_before_state!=4U &&
+       (!state.pc_shoulders[port].water_origin || modern_air_aim_active(state,actor,control))) {
+      actor_=actor;port_=port;
+    }
   }
   ~ModernAirPhysicsScope() {
     if(!actor_ || !modern_shoulder_current(state_,port_,actor_))return;
@@ -3217,7 +3245,7 @@ void sample_controller_ports(State &state,bool discover_sdl=true) {
       trace_modern_view_reset(state,p,1U);
       sample.buttons=0;sample.x=sample.y=0;state.pc_aim[p]={};state.modern_live_flags[p]=0;
       state.modern_aim_latch[p].reset();state.modern_scope_zoom[p].reset();
-      state.pc_stick_motion[p].clear();state.pc_scope_motion[p].clear();state.modern_scope_sensitivity[p].clear();state.pc_orbits[p]={};state.pc_shoulders[p]={};
+      state.pc_stick_motion[p].clear();state.pc_scope_motion[p].clear();state.pc_boss_aim_motion[p].clear();state.modern_scope_sensitivity[p].clear();state.pc_orbits[p]={};state.pc_shoulders[p]={};
       if(devices[p]==-3){state.pc_mouse.clear();state.pc_wheel.clear();}
     }
   }
@@ -3515,11 +3543,11 @@ void sample_live_controller(State &state) noexcept {
     state.pc_mouse.clear();
   }
   state.pc_mouse_captured=want_mouse;
-  if(state.pc_input_blocked){state.pc_aim.fill({});state.pc_wheel.clear();state.pc_mouse.clear();for(auto &motion:state.pc_stick_motion)motion.clear();for(auto &motion:state.pc_scope_motion)motion.clear();for(auto &motion:state.modern_scope_sensitivity)motion.clear();}
+  if(state.pc_input_blocked){state.pc_aim.fill({});state.pc_wheel.clear();state.pc_mouse.clear();for(auto &motion:state.pc_stick_motion)motion.clear();for(auto &motion:state.pc_scope_motion)motion.clear();for(auto &motion:state.pc_boss_aim_motion)motion.clear();for(auto &motion:state.modern_scope_sensitivity)motion.clear();}
   if(!state.modern_controls_active || pc_memory.u8(0x800FD7BDU)!=0 || (!jfg::mod::pc_actions_active(pc_memory,state.phase9_player_actor) && !landing_view) ||
      jfg::mod::scripted_camera_active(pc_memory,state.phase9_player_actor)) {
     for(std::size_t p=0;p<4;++p)trace_modern_view_reset(state,p,2U);
-    state.pc_orbits.fill({});state.pc_shoulders.fill({});for(auto &motion:state.pc_stick_motion)motion.clear();for(auto &motion:state.pc_scope_motion)motion.clear();for(auto &motion:state.modern_scope_sensitivity)motion.clear();
+    state.pc_orbits.fill({});state.pc_shoulders.fill({});for(auto &motion:state.pc_stick_motion)motion.clear();for(auto &motion:state.pc_scope_motion)motion.clear();for(auto &motion:state.pc_boss_aim_motion)motion.clear();for(auto &motion:state.modern_scope_sensitivity)motion.clear();
   } else if(!jfg::mod::pc_gameplay_active(pc_memory,state.phase9_player_actor) && !landing_view) {
     // Boss aiming still needs its fractional look accumulator. Relinquish
     // only free-camera ownership while its native fixed camera is in control.
@@ -8359,15 +8387,16 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             }
             return result;
           };
-          clear=boom.solve(from,wanted,validate_height(wanted,resolved),state.pc_camera_ticks/60.0F,
+          const bool swimming=modern_swimming_view_current(state,state.pc_camera_actor);
+          clear=jfg::pc_camera_resolve(boom,swimming,from,wanted,
+            swimming?resolved:validate_height(wanted,resolved),state.pc_camera_ticks/60.0F,
             [&](jfg::PcOrbitPoint candidate) {
               put(point,candidate);*context=entry;original(rdram,context);
               return validate_height(candidate,
                 {ram.f32(point),ram.f32(point+4U),ram.f32(point+8U)});
             });
-          if(boom.fallback)clear=jfg::pc_camera_clearance(from,wanted,clear);
           camera_queries=boom.queries;
-          state.gameplay_trace.event("pc-camera-boom",{state.vi_retraces,
+          state.gameplay_trace.event(swimming?"pc-swimming-camera":"pc-camera-boom",{state.vi_retraces,
             std::bit_cast<std::uint32_t>(boom.distance),boom.queries,
             boom.constrained?1U:0U,boom.fallback?1U:0U,
             std::bit_cast<std::uint32_t>(state.pc_camera_ticks),
@@ -8574,6 +8603,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto &frame=state.pc_frames[port];
         const bool mouse=frame.pc_mode==1 || frame.pc_mode==3;
         const bool direct=frame.pc_mode==3 || frame.pc_mode==4 || frame.pc_mode==5;
+        if(frame.pc_mode==0)state.pc_boss_aim_motion[port].clear();
         if(frame.pc_mode!=0) {
           auto look=jfg::PcLookDelta{frame.look_x,frame.look_y};
           if(mouse && state.pc_mouse_used[port])look={};
@@ -8586,6 +8616,36 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           const int minimum=valid_limits?static_cast<std::int32_t>(pc_memory.u32(stack+0x10U)):0;
           const int maximum=valid_limits?static_cast<std::int32_t>(pc_memory.u32(stack+0x14U)):0;
           const auto before=jfg::PcLookDelta{pc_memory.s16(control+0x11CU),pc_memory.s16(control+0x1E2U)};
+          // All three character boss handlers save their nominal facing here
+          // before substituting the body yaw for the common aiming helper.
+          // Qualify the caller ABI as well as combat state before using it.
+          const auto caller=static_cast<std::uint32_t>(context->r31);
+          const auto boss=pc_memory.u32(control+0xFCU);
+          const auto boss_state=pc_memory.u8(control+0x568U);
+          const auto yaw_output=valid_limits?pc_memory.u32(stack+0x18U):0U;
+          const auto pitch_output=valid_limits?pc_memory.u32(stack+0x1CU):0U;
+          const bool boss_aim=direct && (boss_state==32U || boss_state==35U) &&
+            pc_memory.valid(boss,0xA4U) && pc_memory.valid(stack,0x5CU) &&
+            context->r6==0xE38U && context->r7==0xE38U &&
+            minimum==-0x2AAA && maximum==0x2AAA &&
+            yaw_output==stack+0x56U && pitch_output==stack+0x54U &&
+            pc_memory.u32(stack+0x58U)<=0xFFFFU;
+          if((boss_state==32U || boss_state==35U) && state.pc_aim_calls%120U==0U)
+            state.gameplay_trace.event("pc-boss-contract",{state.vi_retraces,port,
+              boss_state,boss,caller,stack,static_cast<std::uint32_t>(context->r6),
+              static_cast<std::uint32_t>(context->r7),static_cast<std::uint32_t>(minimum),
+              static_cast<std::uint32_t>(maximum),yaw_output,pitch_output,
+              pc_memory.valid(caller-4U,8U)?pc_memory.u32(caller-4U):UINT32_MAX,
+              pc_memory.valid(caller,4U)?pc_memory.u32(caller):UINT32_MAX,
+              static_cast<unsigned>(boss_aim)});
+          const int boss_center=boss_aim?pc_memory.u16(stack+0x5AU):0;
+          const auto boss_initial=jfg::PcLookDelta{
+            pc_memory.s16(control+0x1CEU),pc_memory.s16(control+0x1E0U)};
+          if(!boss_aim || state.pc_boss_aim_modes[port]!=frame.pc_mode ||
+             state.pc_boss_aim_controls[port]!=control)
+            state.pc_boss_aim_motion[port].clear();
+          state.pc_boss_aim_modes[port]=frame.pc_mode;
+          state.pc_boss_aim_controls[port]=control;
           hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
           std::uint32_t x=0,y=0;
           if(memory.read_u32(0x800F6DB4U,x) && memory.read_u32(0x800F6DB8U,y)) {
@@ -8632,7 +8692,21 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
                 // world pitch is positive down. Keep one mouse convention.
                 const auto aim_look=jfg::pc_guest_aim_look(look,
                     (frame.modern_flags&jfg::kModernActionsFlag)!=0);
-                const auto after=jfg::pc_direct_aim(before.x,before.y,aim_look,minimum,maximum);
+                auto after=jfg::pc_direct_aim(before.x,before.y,aim_look,minimum,maximum);
+                if(boss_aim) {
+                  const int extra=jfg::pc_boss_aim_limit(0xE38,zoom);
+                  const auto combined=state.pc_boss_aim_motion[port].take(
+                    before,boss_center,aim_look,minimum,maximum,{extra,extra},
+                    (std::uint64_t{actor}<<32U)|boss,boss_initial);
+                  after=combined.body;
+                  pc_memory.put16(yaw_output,static_cast<std::uint16_t>(combined.offset.x));
+                  pc_memory.put16(pitch_output,static_cast<std::uint16_t>(combined.offset.y));
+                  state.gameplay_trace.event("pc-boss-aim",{state.vi_retraces,port,
+                    frame.pc_mode,actor,boss,caller,static_cast<std::uint32_t>(boss_center),
+                    static_cast<std::uint32_t>(after.x),static_cast<std::uint32_t>(after.y),
+                    static_cast<std::uint32_t>(combined.offset.x),
+                    static_cast<std::uint32_t>(combined.offset.y),static_cast<std::uint32_t>(extra)});
+                }
                 pc_memory.put16(control+0x11CU,static_cast<std::uint16_t>(after.x));
                 pc_memory.put16(control+0x1E2U,static_cast<std::uint16_t>(after.y));
                 if(modern_shoulder_current(state,port,actor)) {
@@ -8667,6 +8741,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   // shoulder heading into a new native entrance sequence.
   if(target==0x8004665CU && state.modern_controls_active) {
     state.pc_shoulders.fill({});state.pc_orbits.fill({});
+    for(auto &motion:state.pc_boss_aim_motion)motion.clear();
     state.gameplay_trace.event("pc-view-area-reset",{state.vi_retraces,
       static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r5)});
   }
