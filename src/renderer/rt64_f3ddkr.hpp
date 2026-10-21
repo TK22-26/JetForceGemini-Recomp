@@ -64,7 +64,7 @@ public:
 
     void begin(std::span<const std::uint8_t> simulation_rdram, std::uint64_t vi_tick = 0U,
         std::shared_ptr<const PresentationSceneIdentity> identities = {},
-        NativeCutscenePrompt prompt = {}) noexcept;
+        NativeCutscenePrompt prompt = {}, DayNightFog daynight_fog = {}) noexcept;
     void install() noexcept;
     void process_display_list(std::uint32_t address);
     [[nodiscard]] bool complete() const noexcept;

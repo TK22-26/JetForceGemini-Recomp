@@ -169,8 +169,10 @@ struct PcLookDelta {
 // Modern look has its own precision/range; it is not an N64 movement stick.
 // 2048 is full travel at 100%. The maximum configured vertical rate is 18432.
 inline constexpr int kPcStickLookUnit = 2048;
+enum class PcStickLookShape { radial, square };
 inline PcLookDelta pc_stick_look(const PcInputConfig &c,
-    const StandardControllerSample &pad,int movement_stick,bool aiming=true) {
+    const StandardControllerSample &pad,int movement_stick,bool aiming=true,
+    PcStickLookShape shape=PcStickLookShape::radial) {
   const std::size_t axis=movement_stick==0?2U:0U;
   const double x=std::clamp(pad.axes[axis],-32767,32767);
   const double y=-std::clamp(pad.axes[axis+1U],-32767,32767);
@@ -179,7 +181,12 @@ inline PcLookDelta pc_stick_look(const PcInputConfig &c,
   const double travel=std::clamp((magnitude-deadzone)/(32767.0-deadzone),0.0,1.0);
   const double response=c.aim_curve==1?travel*travel:c.aim_curve==2?travel*travel*travel:travel;
   const double sensitivity=std::clamp(aiming?c.aim_sensitivity:c.camera_sensitivity,10,300)/100.0;
-  const double scale=kPcStickLookUnit*response*sensitivity/magnitude;
+  // Camera rotation uses circular response. Floyd has an absolute square
+  // reticle envelope: map each radial direction to that square before applying
+  // per-axis sensitivity/inversion, so a circular stick can reach its corners.
+  const double divisor=shape==PcStickLookShape::square?
+    std::max(std::abs(x),std::abs(y)):magnitude;
+  const double scale=kPcStickLookUnit*response*sensitivity/divisor;
   return {static_cast<int>(std::lround(x*scale*(c.aim_invert_x?-1.0:1.0))),
     static_cast<int>(std::lround(y*scale*std::clamp(c.stick_vertical_sensitivity,10,300)/100.0*(c.aim_invert_y?-1.0:1.0)))};
 }
@@ -372,6 +379,7 @@ struct PcCameraBoom {
       const auto p=at(d);++queries;return unchanged(p,resolve(p));
     };
     const auto limit=[&](float upper,PcOrbitPoint corrected) {
+      bool refine_contact=false,wall_contact=false;
       // Use the native correction as a candidate bound, then validate it.
       // Floor/ceiling displacement bounds the vertical coordinate; wall
       // contacts bound the corresponding ray coordinates. This converges
@@ -383,12 +391,20 @@ struct PcCameraBoom {
           direction{dx/length,dy/length,dz/length},
           request{requested.x,requested.y,requested.z},
           result{corrected.x,corrected.y,corrected.z};
-        for(unsigned axis=0;axis<3;++axis)
-          if(std::abs(direction[axis])>0.0001F && std::isfinite(result[axis]) &&
-             (result[axis]-request[axis])*direction[axis]<-0.001F)
-            bound=std::min(bound,(result[axis]-origin[axis])/direction[axis]);
         const bool height_only=std::abs(corrected.x-requested.x)<=0.01F &&
                                std::abs(corrected.z-requested.z)<=0.01F;
+        wall_contact|=!height_only;
+        refine_contact|=!height_only && std::abs(corrected.y-requested.y)>0.01F;
+        for(unsigned axis=0;axis<3;++axis)
+          if(std::abs(direction[axis])>0.0001F && std::isfinite(result[axis]) &&
+             (result[axis]-request[axis])*direction[axis]<-0.001F) {
+            const float projected=(result[axis]-origin[axis])/direction[axis];
+            // A mixed wall/floor correction can put height above the pivot
+            // on a downward viewing ray. Its negative projection is not a
+            // distance constraint; find and validate a new search bracket.
+            if(std::isfinite(projected) && projected>0.0F)bound=std::min(bound,projected);
+            else refine_contact=true;
+          }
         // A floor/ceiling query already supplies vertical clearance. Applying
         // the wall inset and returning a halved seed can discard nearly the
         // entire clear boom at a shallow ledge or a horizontal view.
@@ -398,7 +414,7 @@ struct PcCameraBoom {
         const auto candidate=at(next);
         ++queries;corrected=resolve(candidate);
         if(unchanged(candidate,corrected)) {
-          if(!height_only)return next;
+          if(!height_only && !refine_contact)return next;
           float accepted=next,rejected=upper;
           // First test immediately beyond the analytic estimate. Ordinary
           // planar floors then need no full-range search. A coarse seed is
@@ -408,6 +424,14 @@ struct PcCameraBoom {
           for(unsigned refine=0;refine<8 && rejected-accepted>0.5F;++refine) {
             const float middle=(accepted+rejected)*0.5F;
             if(clear(middle))accepted=middle;else rejected=middle;
+          }
+          if(wall_contact && refine_contact) {
+            // Refinement locates the clearance boundary, so restore the wall
+            // inset once. The inset itself may meet a different floor/ridge.
+            const float inset=std::max(4.0F,accepted-12.0F);
+            if(clear(inset))return inset;
+            if(next<=inset)return next; // Already checked, with at least the inset.
+            return -1.0F; // Keep the native correction if no inset is validated.
           }
           return accepted;
         }
@@ -596,6 +620,52 @@ public:
     x_-=result.x;y_-=result.y;return result;
   }
   void clear(){x_=y_=0;context_=0;}
+};
+// Mission mouse motion is a relative heading change, not an accumulated
+// virtual stick. The native flight axes use negative yaw for right and
+// negative pitch for up; sensitivity/inversion have already been applied.
+inline PcLookDelta pc_floyd_mouse_flight(PcLookDelta look,int yaw,int pitch) {
+  return {pc_wrap_angle(yaw-look.x),std::clamp(pitch-look.y,-16384,16384)};
+}
+// Add sideways thrust in the horizontal plane of the current flight heading.
+// Native forward acceleration is already scaled by ticks. Cap the combined
+// impulse at native full thrust so diagonals cannot accelerate faster.
+inline PcOrbitPoint pc_floyd_mouse_strafe(PcOrbitPoint forward,int yaw,int sideways,float ticks) {
+  if(!sideways || !std::isfinite(ticks) || ticks<=0)return forward;
+  const float side=static_cast<float>(std::clamp(sideways,-80,80))*ticks/80.0F;
+  const float angle=static_cast<float>(pc_wrap_angle(yaw))*6.283185307179586F/65536.0F;
+  forward.x-=std::cos(angle)*side;forward.z+=std::sin(angle)*side;
+  const float length=std::hypot(forward.x,forward.y,forward.z);
+  if(length>ticks) {
+    const float scale=ticks/length;forward.x*=scale;forward.y*=scale;forward.z*=scale;
+  }
+  return forward;
+}
+// Floyd's reticle takes an absolute stick target, unlike character camera
+// angles. Native input negates Y into +0x4C, then projects screen Y as
+// centre minus that offset. Canonical Modern look is positive-up, so convert
+// its sign here for both devices; saved inversion was already applied.
+// Mouse motion accumulates a bounded target; a controller retains
+// native spring-to-centre aiming. Identity/mode changes reacquire the reticle.
+class PcFloydLook {
+  double x_=0,y_=0;std::uint64_t identity_=0;bool active_=false;
+public:
+  PcLookDelta take(PcLookDelta look,bool mouse,std::uint64_t identity,float native_x,float native_y) {
+    if(!active_ || identity_!=identity) {
+      x_=std::isfinite(native_x)?std::clamp(double(native_x)*65.0/80.0,-65.0,65.0):0;
+      y_=std::isfinite(native_y)?std::clamp(-double(native_y)*65.0/80.0,-65.0,65.0):0;
+      identity_=identity;active_=true;
+    }
+    if(mouse) {
+      x_=std::clamp(x_+double(look.x)*65.0/8192.0,-65.0,65.0);
+      y_=std::clamp(y_-double(look.y)*65.0/8192.0,-65.0,65.0);
+    } else {
+      x_=std::clamp(double(look.x)*65.0/kPcStickLookUnit,-65.0,65.0);
+      y_=std::clamp(-double(look.y)*65.0/kPcStickLookUnit,-65.0,65.0);
+    }
+    return {static_cast<int>(std::lround(x_)),static_cast<int>(std::lround(y_))};
+  }
+  void clear(){active_=false;identity_=0;x_=y_=0;}
 };
 class PcMouseMotion {
   double x_=0,y_=0;

@@ -103,3 +103,22 @@ focused host Clang run; no root cause was established for its first-run failure.
 That failure remains an intermittent validation observation, not a claimed game
 fix. Canonical timer hashing and explicit random-output widths are verified on
 both supported host platforms without relaxing compiler warnings or source pins.
+
+## v1.4 final-pass candidate
+
+Five worktrees are reconciled into develop without dropping unique paths or
+commits. The combined Release runtime and all 123 native/renderer CTest suites
+pass; managed/native launcher checks also pass. See the
+[v1.4 qualification](../releases-1.4.0-qualification.md) for counts and limits.
+
+The 1,807-test local Python run retains the same two sanitizer subtest failures
+and one WSL trust-anchor error documented for v1.2. The installed Microsoft-signed
+WSL 10.0.26100.8737 differs from the repository pin; the harness/test source is
+unchanged. No trust boundary was repinned or bypassed. Affected-host harness
+qualification and full CI remain separate from the Windows final-pass package.
+
+Source-policy review registered exact owner-generated skip artwork and removed
+personal video directories from current notes. Existing public historical notes
+have exact-body path-only exceptions. Private unreachable/archive objects are
+preserved locally and excluded from the clean public-history fetch, not added to
+public exceptions. Native game source, ROMs, saves and captures remain excluded.

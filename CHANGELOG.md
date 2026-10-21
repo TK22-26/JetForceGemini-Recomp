@@ -1,6 +1,30 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 - final review (not yet released)
+
+- Enable independent Modern controls for P1-P4 and correct Floyd co-op/mission
+  fire routing, vertical direction and controller diagonal reach.
+- Add mouse-steered Floyd flight with W thrust, S brake and A/D strafe, plus a
+  separate controller flight-inversion option. Floyd changes are owner-approved
+  locally; ask the original reporter to verify the delivered version.
+- Prevent mixed wall/height collision corrections from collapsing the Modern
+  mouse camera against the character.
+- Smooth Quarry day/night fog-distance steps while retaining original cycle
+  timing and colours; restore consistent tribal brightness.
+- Complete the owner-reviewed cutscene skip batch, preserving native completion
+  behavior. Keep unsafe/debug-only scene-selector entries out of normal gameplay;
+  their diagnostic limitations remain documented.
+- Process Give weapons requests safely while the Mods window pauses gameplay,
+  and show actual grant acknowledgement instead of submission-only feedback.
+- Refresh Live map Mods with separate toggles/actions, status feedback, accessible
+  disabled/focus states and scalable local icon artwork.
+- Show progress while verifying game files in both launcher surfaces.
+- Add a conventional window-swapchain fallback when DirectComposition setup
+  fails. Windows checks pass; Steam Deck/Proton verification still needs the reporter.
+- Include bounded mouse input diagnostics in support reports for #32; this is
+  evidence collection, not a claimed fix for intermittent mouse input.
+- Update community credits and release documentation. The maintainer's final
+  SS Anubis pass, main merge and publication are still pending.
 
 - Preserve Modern swimming camera orientation and native collision clearance,
   including overhead views. Keep native body facing through water-origin jumps
@@ -21,7 +45,7 @@
   New roll bindings default to unbound; automatic rolling remains enabled.
 - Preserve removed-controller exclusions when changing input type and refresh
   idle P1-P4 indicators after saved controller changes. Owner preview review passed.
-  Newly saved Modern profiles use schema 6; older versions require separate profiles.
+  Newly saved Modern profiles use schema 7; older versions require separate profiles.
 
 
 - Prevent chopped sound-effect fragments while skipping Vela's rescue by omitting

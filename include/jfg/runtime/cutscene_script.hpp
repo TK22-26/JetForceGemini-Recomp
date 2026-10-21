@@ -21,6 +21,7 @@ struct CutsceneScriptInspection {
   // These are evidence for an explicit completion contract, never permission
   // to skip. Actor callbacks and level initialization may also change progress.
   bool changes_level=false, conditional_end=false, writes_game_flags=false;
+  bool has_out_of_order_times=false;
 };
 constexpr unsigned cutscene_command_size(unsigned opcode) noexcept {
   switch(opcode) {
@@ -57,9 +58,9 @@ inline CutsceneScriptInspection inspect_cutscene_script(std::span<const std::uin
       result.commands.push_back(command);
       result.status=CutsceneScriptStatus::finite;return result;
     }
-    if(command.time<previous) {
-      result.status=CutsceneScriptStatus::non_monotonic_time;return result;
-    }
+    // The native interpreter tests each next command against the current
+    // clock; it neither sorts commands nor rejects an earlier timestamp.
+    result.has_out_of_order_times|=command.time<previous;
     previous=command.time;
     const unsigned op=command.word>>8;
     if(op==0x7E){result.status=CutsceneScriptStatus::loop;return result;}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "jfg/renderer/daynight_fog.hpp"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -113,6 +114,7 @@ struct Rt64GraphicsTask {
     std::uint64_t vi_tick = 0U;
     std::shared_ptr<const PresentationSceneIdentity> presentation_scene{};
     NativeCutscenePrompt cutscene_prompt{};
+    DayNightFog daynight_fog{};
 };
 
 struct Rt64FramebufferInfo {

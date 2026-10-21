@@ -18,7 +18,7 @@ of a simulation slowdown. It is not specific to skipping.
 
 Private diagnostic session:
 D:/JFG-private/v131-rnd-20261019/cutscene-skip/owner-sessions/20261020-125514-ff39bdc0ad794f13a82ffe189ddd4aa5.
-Owner video: C:/Users/tjkos/Videos/2026-10-20 08-56-41.mkv.
+Owner video: 2026-10-20 08-56-41.mkv.
 Extracted frames and pixel measurements remain in the private cutscene-skip folder.
 No video, ROM or save is published.
 

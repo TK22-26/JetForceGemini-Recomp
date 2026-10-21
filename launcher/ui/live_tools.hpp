@@ -537,11 +537,21 @@ class ToolUi : public Rml::EventListener {
            (on ? "on" : "") + "\" aria-label=\"" + title +
            "\"><span/></button></div>";
   }
+  std::string modToggle(const char* id, const char* title, const char* help, bool on) {
+    return std::string("<div class=\"mods-toggle\"><div class=\"mods-copy\"><div class=\"mods-toggle-heading\"><span class=\"setting-name\">") +
+      title + "</span><span class=\"mod-on-badge" + (on ? "" : " hidden") +
+      "\"><span>ON</span></span></div><div class=\"muted\">" + help +
+      "</div></div><button id=\"" + id + "\" class=\"switch " + (on ? "on" : "") +
+      "\" role=\"switch\" aria-checked=\"" + (on ? "true" : "false") +
+      "\" aria-label=\"" + title + "\"><span/></button></div>";
+  }
   void settings() {
     building = true;
-    for (auto name : {"display", "ai", "mods"})
-      el((std::string("tab-") + name).c_str())
-          ->SetClass("selected", tab == name);
+    for (auto name : {"display", "ai", "mods"}) {
+      auto* item=el((std::string("tab-") + name).c_str());
+      item->SetClass("selected", tab == name);
+      item->SetAttribute("aria-selected", tab == name ? "true" : "false");
+    }
     std::string html;
     if (tab == "display") {
       html = "<div class=\"section-label\">HEIGHT SLICE</div><p "
@@ -602,14 +612,13 @@ class ToolUi : public Rml::EventListener {
                 button("ai-retry", "Retry room exits") + "</div>";
     }
     if (tab == "mods") {
-      html = "<div class=\"section-label\">MODS</div><p class=\"muted\">Optional gameplay changes.</p>";
-      html += toggle("toggle-warp-mod", "Warp to exits", "Double-click an exit marker on the map or an exit in the inspector to enter the next room. Bypasses normal progression requirements.", (data.mods & 2) != 0);
-      html += toggle("toggle-health-mod", "Infinite health", "Keep your current character at full health and prevent damage during gameplay.", (data.mods & 4) != 0);
-      html += toggle("toggle-kill-mod", "Instant kill enemies", "Automatically defeat loaded ordinary enemies during gameplay. Tribals and friendly NPCs are spared; defeated enemies stay defeated when switched off.", (data.mods & 8) != 0);
-      html += "<div class=\"ai-actions\">" + button("give-weapons", "Give all weapons") +
-              "</div><p class=\"muted\">Give the current character every weapon and refill ammo. Saving keeps these inventory changes.</p>";
-      html += "<p id=\"mods-help\" class=\"muted\"/>";
+      html = R"(<div class="mods-page"><div class="mods-intro"><div class="section-label">MODS</div><p>Optional changes to how the game plays. They're saved and apply whenever you play.</p></div><div class="mods-warning"><span class="mods-icon warning"/><span>Mods can skip progression and change your save. Back up your save before trying them.</span></div><div class="mods-card">)";
+      html += modToggle("toggle-warp-mod", "Warp to exits", "Double-click an exit on the map or in the inspector to jump to the next room. Skips progression requirements.", (data.mods & 2) != 0);
+      html += modToggle("toggle-health-mod", "Infinite health", "Keeps your current character at full health.", (data.mods & 4) != 0);
+      html += modToggle("toggle-kill-mod", "Instant kill enemies", "Defeats ordinary enemies as they load. Tribals and friendly NPCs are spared, and defeated enemies stay defeated after you switch this off.", (data.mods & 8) != 0);
+      html += R"(</div><div class="mods-actions-heading"><span class="section-label">ONE-TIME ACTIONS</span><span id="mods-actions-note"/></div><div class="mods-card"><div class="mods-action"><span class="mods-action-icon"><span class="mods-icon weapons"/></span><div class="mods-copy"><div class="setting-name">Give all weapons</div><div class="muted">Every weapon for the current character, with full ammo.</div></div><button id="give-weapons" class="mods-action-button"><span class="action-check"/><span id="give-weapons-label">Give weapons</span></button></div><div class="mods-action"><span class="mods-action-icon"><span class="mods-icon floyd"/></span><div class="mods-copy"><div class="setting-name">Give Floyd</div><div class="muted">Unlocks Floyd for this game. He appears when you enter another room.</div></div><button id="give-floyd" class="mods-action-button"><span>Unlock Floyd</span></button></div></div><p id="mods-help" role="status" aria-live="polite"/></div>)";
     }
+    el("settings-content")->SetClass("mods-content", tab == "mods");
     el("settings-content")->SetInnerRML(html);
     enable("slice-minus", mode != 2);
     enable("slice-plus", mode != 2);
@@ -618,10 +627,26 @@ class ToolUi : public Rml::EventListener {
   }
   void refreshAi() {
     bool failed=modsWriteFailed || (data.mods & 16)!=0;
-    enable("give-weapons", (data.mods & 32)!=0);
+    const unsigned activeMods=((data.mods & 2)!=0)+((data.mods & 4)!=0)+((data.mods & 8)!=0);
+    label("mods-count-value", std::to_string(activeMods));
+    display("mods-count", activeMods!=0, "flex");
+    if(auto* count=el("mods-count")) count->SetAttribute("aria-label",std::to_string(activeMods)+" mods on");
+    const bool weaponsPending=data.status=="Weapon grant requested...";
+    const bool weaponsGiven=data.active && data.status.rfind("All weapons granted",0)==0;
+    enable("give-weapons", data.active && (data.mods & 32)!=0 && !weaponsPending);
+    enable("give-floyd", data.active && (data.mods & 64)!=0);
+    label("give-weapons-label",weaponsGiven ? "Given" : weaponsPending ? "Giving..." : "Give weapons");
+    if(auto* grant=el("give-weapons")) grant->SetClass("succeeded",weaponsGiven);
+    label("mods-actions-note",data.active ? "Saving the game keeps these changes." : "Start the game to use these.");
+    if(auto* note=el("mods-actions-note"))note->SetClass("game-stopped",!data.active);
     for (auto id : {"toggle-warp-mod", "toggle-health-mod", "toggle-kill-mod"}) enable(id, !failed);
+    const bool weaponNotice=data.status.rfind("Weapon grant ",0)==0 ||
+                            data.status.rfind("All weapons ",0)==0;
+    const bool floydNotice=data.status.rfind("Floyd unlock ",0)==0;
+    const bool showModNotice=failed || weaponNotice || floydNotice;
     label("mods-help", failed ? "Mods could not be loaded. Reopen the map or start a new game to try again."
-                             : "Your choices are saved and apply when you play.");
+                             : (weaponNotice || floydNotice) ? data.status : "");
+    display("mods-help",showModNotice);
     label("ai-state", data.ai);
     label("ai-help",
           data.navigation ? "Navigation is available in this session."
@@ -1169,6 +1194,9 @@ public:
       tab = id.substr(4);
       settings();
       return;
+    }
+    if (id == "give-floyd") {
+      command("give-floyd");return;
     }
     if (id == "give-weapons") {
       command("give-weapons");return;

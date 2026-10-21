@@ -28,9 +28,27 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
   HWND shield=CreateWindowExW(0,L"STATIC",L"",WS_CHILD,0,24,1200,700,window,nullptr,instance,nullptr);
   std::string action;fs::create_directories(output/"profile");
   require(FrontendUiInit(window,output/"profile",[&](const std::string& a){action=a;}),"initialize");ready=true;FrontendUiInputChild(shield);
+#ifdef JFG_UI_TEST_COMPOSITION_UNAVAILABLE
+  require(!FrontendUiCanOverlayGame(),"unsupported composition selects HWND presentation");
+  ComPtr<IDXGISwapChain1> windowSwap=surface->swap;
+  HWND swapWindow=nullptr;require(SUCCEEDED(windowSwap->GetHwnd(&swapWindow)) && swapWindow==window,"fallback presents to actual launcher HWND");
+#else
+  require(FrontendUiCanOverlayGame(),"Windows retains composition presentation");
+#endif
+
   surface->ui.sdlDiscovery=[] {return std::vector<jfg::ControllerDeviceInfo>{};};
   surface->ui.controllerState=[](DWORD,XINPUT_STATE*)->DWORD{return ERROR_DEVICE_NOT_CONNECTED;};
   ShowWindow(window,SW_SHOWNOACTIVATE);FrontendUiResize();surface->context->SetDensityIndependentPixelRatio(1);frame();
+  require(SUCCEEDED(surface->swap->Present(0,0)),"selected backend presents successfully");
+  SetWindowPos(window,nullptr,0,0,1024,700,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+  FrontendUiResize();frame();
+  DXGI_SWAP_CHAIN_DESC1 resized{};RECT client{};GetClientRect(window,&client);
+  require(SUCCEEDED(surface->swap->GetDesc1(&resized)) &&
+          resized.Width==static_cast<UINT>(client.right) &&
+          resized.Height==static_cast<UINT>(client.bottom),"swap chain follows window resize");
+  require(SUCCEEDED(surface->swap->Present(0,0)),"resized backend presents successfully");
+  SetWindowPos(window,nullptr,0,0,1280,780,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+  FrontendUiResize();frame();
   input(window,WM_MOUSEMOVE,0,point("menu-controllers"));frame();
   require(item("menu-controllers")->IsPseudoClassSet("hover"),"top menu hover appears");
   input(window,WM_MOUSELEAVE);frame();
@@ -54,6 +72,33 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
   FrontendUiPanel("");frame();require(!FrontendUiCapturing(),"host dismissal closes menu");
   input(window,WM_KEYDOWN,VK_F10);frame();require(FrontendUiCapturing(),"F10 opens menu");
   input(window,WM_KEYDOWN,VK_F10);frame();require(!FrontendUiCapturing(),"F10 closes menu");
+
+  FrontendUiState verifying;
+  verifying.rom=L"fixture.z64";verifying.busy=true;
+  verifying.status=L"Verifying game files: 1 of 14 (jfg-native-boot.exe)...";
+  auto verificationFrame=[&] {for(int i=0;i<2;++i)FrontendUiFrame(verifying);};
+  verificationFrame();FrontendUiPanel("setup");verificationFrame();
+  require(item("action-setup-start")->HasAttribute("disabled"),"verify button disabled while hashing");
+  require(item("action-setup-start")->GetInnerRML().find("Verifying")!=std::string::npos,"verify button shows busy label");
+  require(item("verify-progress-fill")->GetClientWidth()>0,"verification activity bar is visible");
+  require(item("verify-progress-time")->GetInnerRML().find("running")!=std::string::npos,"verification elapsed status is visible");
+  action.clear();
+  auto verifyPoint=point("action-setup-start");input(window,WM_MOUSEMOVE,0,verifyPoint);
+  input(window,WM_LBUTTONDOWN,MK_LBUTTON,verifyPoint);input(window,WM_LBUTTONUP,0,verifyPoint);verificationFrame();
+  require(action.empty(),"busy verification cannot be submitted twice");
+  Sleep(1100);verificationFrame();
+  require(item("verify-progress-time")->GetInnerRML().find("0s")==std::string::npos,"elapsed time continues while worker runs");
+  require(item("status")->GetInnerRML().find("Verifying game files")!=std::string::npos,"home footer reports active verification");
+  surface->ui.reducedMotion=true;verificationFrame();
+  require(item("verify-progress-fill")->GetClientWidth()>0,"reduced motion keeps verification activity visible");
+  verifying.busy=false;verifying.status=L"ROM and game files verified. Click Play.";verificationFrame();
+  require(!item("action-setup-start")->HasAttribute("disabled"),"verification completion enables button");
+  require(surface->ui.el("verify-progress-fill")==nullptr,"verification completion clears activity display");
+  require(item("action-setup-start")->GetInnerRML().find("Verify files")!=std::string::npos,"completion restores button label");
+  verifying.busy=true;verificationFrame();
+  verifying.busy=false;verifying.status=L"Game files are missing or changed.";verificationFrame();
+  require(!item("action-setup-start")->HasAttribute("disabled"),"failed verification can be retried");
+  require(item("setup-status")->GetInnerRML().find("missing or changed")!=std::string::npos,"failed verification shows result");
   std::ofstream(output/"result.json")<<"{\"passed\":true,\"checks\":"<<checks<<"}";
   FrontendUiShutdown();ready=false;DestroyWindow(window);return 0;
  } catch(const std::exception& e) {std::ofstream(output/"error.txt")<<e.what();if(ready)FrontendUiShutdown();if(window)DestroyWindow(window);return 1;}

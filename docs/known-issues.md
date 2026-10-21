@@ -1,251 +1,131 @@
 # Known issues
 
-## Modern boss aiming range (#34)
+The v1.4.0 candidate is prepared on develop for the maintainer's final SS Anubis
+pass. v1.3.0 is still the published stable release. Main merge, publication and
+public issue replies await approval. See the [release qualification](development/releases-1.4.0-qualification.md).
 
-The candidate restores the missing native weapon/reticle offset in Modern mouse
-and controller aiming. All five boss fixtures, including both Mizar encounters
-and upgraded Juno, match EmuHawk's horizontal/vertical limits. Original controls
-regression checks pass. The owner approved the fix after live Twin Mantis review,
-reporting that it matches the reference video. Broader live/scoped coverage remains
-a documented validation limit. #34 stays open for delivery and reporter retest;
-the correction is unreleased.
-See [GH-034](development/issues/github-twin-mantis-aim-range.md).
+## Open reports and reporter retests
 
-## Mouse inversion default follow-up (2026-10-20)
+| Report | Current status |
+|---|---|
+| [#25: Ally X rain, reticles and performance](development/issues/github-ally-x-rendering.md) | Rain/reticle presentation and room-entry rain delay are fixed and owner-approved locally. Reporter/Ally X retest is pending; the separate hut performance report is not resolved by those fixes. |
+| [#30: ledge and water camera](development/issues/controller-ledge-camera-reset.md) | Controller ledges, high landings and swimming/re-entry corrections are owner-approved locally; reporter retest after delivery. |
+| [#31: cutscene skipping](development/issues/optional-cutscene-skipping.md) | Owner-approved for v1.4.0. Unsupported scripts retain playback. Eleven likely development/setup entries remain documented as diagnostic coverage limits, not passed tests. |
+| [#32: intermittent mouse look/inversion](development/issues/github-mouse-look-and-inversion.md) | Intermittent motion loss and reported ineffective inversion Off remain unconfirmed locally. New-profile/reset inversion now defaults Off; existing choices are preserved. Bounded support diagnostics collect evidence without claiming a behavior fix. |
+| [#33: Modern side rolls](development/issues/github-modern-controls-side-roll.md) | Roll direction, backward crawling, explicit bindings and automatic-roll preference are owner-approved locally; reporter retest after delivery. |
+| [#34: Twin Mantis aiming range](development/issues/github-twin-mantis-aim-range.md) | Native aiming range is restored; five boss fixtures match EmuHawk angle checks and owner Twin Mantis review passed. Broader live/scoped coverage remains finite. |
+| [#35: growing audio delay](development/issues/audio-crackle-persistent-latency.md) | Owner cannot reproduce it. Affected-session evidence and settings are needed. #29 crackling was attributed to RTSS by its reporter; no latency fix is claimed. |
+| [#36: missing weapon crosshairs](development/issues/github-weapon-crosshairs.md) | Likely covered by the accepted #25 reticle correction; shared cause and reporter resolution need verification after delivery. |
+| [#37: Floyd cannot fire](development/issues/github-floyd-cannot-fire.md) | Fully approved locally, including related Modern/Floyd work. Ask the reporter to re-verify v1.4.0; no extra local firing/mission acceptance gate. |
+| [#38: Fet-Bubb crash](development/issues/github-fet-bubb-crash.md) | The supplied dump matches VibinToast's v1.1.8, a different project. This port's bounded comparison did not reproduce it. Reporter clarification is needed; no general crash or texture-pack fix is claimed. |
+| [#39: Give all weapons](development/issues/github-give-all-weapons.md) | Paused-dialog request expiry is fixed; actual grant acknowledgement and inventory availability are owner-confirmed. Reporter retest after delivery. |
+| [#40: Steam Deck/Proton](development/issues/github-steam-deck-proton-startup.md) | Windows-tested window-rendering fallback added for unavailable DirectComposition. Actual Steam Deck startup, helper, gameplay and menus need reporter testing; native Linux port work is deferred. |
 
-Modern mouse defaults and reset now use inversion Off in tested local source.
-Existing saved choices remain unchanged. This unreleased default correction
-does not resolve [#32](development/issues/github-mouse-look-and-inversion.md)
-intermittent mouse look or the report that Off is ineffective. Focused
-runtime tests preserve explicit Off through live reload and restart, with
-mouse/controller preferences independent. No general ignored-Off defect
-was reproduced; the approved reporter reply requests a failing support ZIP.
-The owner tested the isolated Mouse Inversion Preview and reports "looks good".
-Ask the #32 reporter to retest the updated build when available; reporter
-verification remains pending.
+The original [#19 reporter](development/issues/github-invasion-replay-stutter.md)
+confirms the invasion slowdown is resolved and requests closure. Public closeout
+still awaits approval. [#18 targeting](development/issues/github-held-aim-and-diagonal-movement.md)
+and the v1.3 movement correction remain included. Portable storage #24 and fog
+controls #26 are already implemented; no new response is planned.
 
-## Modern input preview follow-up (2026-10-20)
+## Owner-approved v1.4 corrections
 
-The new Modern Roll Direction Preview includes tested candidates for fully prone
-roll direction, explicit Roll Left/Right bindings, and live P1-P4 assignment
-indicators. The owner accepted all preview changes for develop; none is released.
-Backward-crawl reversal and controller reassignment are owner-confirmed fixed.
-See [GH-033](development/issues/github-modern-controls-side-roll.md) and
-[INPUT-013](development/issues/controller-port-indicators-stale.md). This update
-supersedes the earlier investigation statuses retained below.
+- [Focus and room-entry camera retention](development/issues/focus-loss-camera-reset.md)
+  works in the reviewed controller and mouse modes.
+- [High-drop controller recovery](development/issues/controller-high-landing-camera-reset.md)
+  preserves the chosen angle, matching the mouse correction.
+- [Mixed wall/height camera collision](development/issues/modern-mouse-camera-floyd-preview-report.md)
+  no longer collapses the camera against Juno in the qualified cases.
+- [Controller removal](development/issues/controller-remove-auto-reassignment.md)
+  leaves the device unassigned; [port indicators](development/issues/controller-port-indicators-stale.md)
+  refresh after saved assignment changes.
+- [Tawfret lighting/fog](development/issues/tawfret-brightness-fog-fidelity.md)
+  preserves the earlier gamma correction and matches the reviewed EmuHawk comparisons.
+- [Quarry atmosphere](development/issues/quarry-atmospheric-transitions.md)
+  smooths native fog-distance steps while preserving cycle timing/colours.
+  Tribal brightness and the final smoothing candidate are owner-approved;
+  the rejected strobing candidate is historical.
+- [Character-selection white/rainbow flash](development/issues/character-selection-depth-flash.md),
+  chopped Vela skip effects and [menu hover/dropdown routing](development/issues/launcher-menu-hover-stuck.md)
+  are owner-confirmed fixed.
+- [Mods presentation](development/issues/live-map-mods-layout.md) is owner-approved.
+  Runtime acknowledgements determine weapon-grant success, not the button click.
+- File verification now has [visible progress](development/issues/launcher-file-verification-feedback.md).
+  Native UI tests cover both verification surfaces.
 
-Current v1.3 status and remaining qualification limits.
-The [issue register](development/issues/README.md) links detailed evidence.
-Earlier investigation states are preserved in the
-[pre-v1.3 notes](development/known-issues-before-1.3.0.md); they are historical,
-not the current acceptance checklist.
+The [cutscene review record](development/issues/cutscene-owner-retest-20261020.md)
+preserves failures, retests and the eleven remaining setup/debug classifications.
+The private selector is not a release feature. Scene 207's missing-character
+prerequisites are repaired only in the diagnostic copied-save path; ordinary
+campaign progression is unchanged.
 
-## v1.3 release qualification
+## Performance and coverage
 
-The owner completed the combined New Game-through-Vela review and the targeted
-corpse follow-up, and approved release preparation.
 The release target is visibly smooth, responsive play with clean audio.
-The completed long-route capture has zero audio-device underruns/overruns;
-frame timing distributions and limits are recorded in the release checklist. An isolated timing outlier does not automatically block release; recurring
-or noticeable stutter, audio gaps and lost input still require attention.
-No campaign-wide, every-device or zero-stall guarantee is claimed.
+The v1.3 owner route and targeted corpse review passed. The full v1.4 SS Anubis
+pass is still pending. No campaign-wide, every-device or zero-stall guarantee
+is claimed.
 
-v1.3 includes the owner-accepted ship-cutscene improvements,
-high-refresh glass correction, boss camera-sweep interpolation, Reduced blur,
-high-drop/ledge camera retention, storage settings and live fog strength.
-Native standing-aim movement matches the measured original Expert values
-in the qualified owner capture. See the release checklist for build and publication evidence.
+[SS Anubis ledge-testing stutter](development/issues/tawfret-lighting-preview-stutter.md)
+was captured once and not reproduced in the repeated route; its intermittent
+cause remains unlocalized. The earlier [Vela transition dip and broader performance coverage](development/issues/1.2.1-session-1.3-followup.md)
+remain bounded findings. Unlimited/360+ Hz, every scenery collision and every
+random encounter have not been exhaustively qualified.
 
-A brief Vela-to-first-cut transition dip was previously reported. Ground-shadow
-cadence, broader scene/camera coverage and Unlimited/360+ Hz behavior retain
-finite validation. Review the new combined route before claiming those
-reports resolved. See [performance follow-up](development/issues/1.2.1-session-1.3-followup.md).
-
-## Reporter retests
-
-- [#32: intermittent mouse look and vertical inversion](development/issues/github-mouse-look-and-inversion.md):
-  reported on v1.3.0, Windows 11, RTX 5070 Ti and mouse/keyboard. Buttons and menus
-  work while camera/aim motion intermittently fails. Inversion reportedly stays
-  active with Off selected, including after restart. The reporter withdrew the
-  proposed focus-only cause. Neither symptom is reproduced or fixed locally;
-  the accepted focus-loss camera reset is not proof of capture recovery here.
-- [#33: sideways roll in Modern Controls](development/issues/github-modern-controls-side-roll.md):
-  Follow-up: backward-crawl and prone-roll direction corrections are owner-accepted.
-  Explicit roll bindings and the automatic-roll preference are also accepted.
-  The following original report and earlier preview status are historical:
-  owner reproduces crawling instead of rolling and confirms Original Controls can
-  roll. Reviewed Modern mappings omit native lateral actions; unchanged native
-  checks confirm analog-to-crawl behavior and a separate simultaneous-entry
-  limitation. Original manual/guide identify a shot-evading roll from crouch
-  or crawl; Lupus is excluded. Owner selects movement-based rolling without a
-  gentle sideways-crawl band for v1, and additionally reports sideways input
-  currently produces forward crawling. A roll-only local candidate now passes
-  focused native/input tests, an isolated Release build and deployed launcher startup checks;
-  the isolated Modern Roll Preview awaits owner gameplay verification.
-  The original report is v1.2.0; owner build is unspecified.
-- [#25: Ally X cutscene, reticle and rain](development/issues/github-ally-x-rendering.md):
-  reporter confirms missing falling rain and homing/tri-rocket/throwable reticles
-  in v1.3 at 1080p/60 with Modern Controls. The earlier desktop mouse/120 FPS
-  pass did not resolve this report. The owner reproduced both symptoms on the
-  desktop; widescreen and the 60 FPS cap were excluded as sole causes. An
-  unreleased output-timestamp correction restores rain/reticles in the owner's
-  candidate test. Five archived room entries show a 427-435 ms delay before
-  native rain writes, explained by the original fade gate and one initialization
-  update. The owner still saw late rain in the first private fade preview. Its
-  recording showed no activation: the first candidate supports type-0 opacity
-  fades, while the black entry uses type-3 moving geometry. The actual native
-  routine reproduces this missed case. A replacement spatial-fade preview now
-  passes 1,049 tracked and 30,912 native integration checks plus deployed-launcher
-  validation. The owner subsequently approves this replacement as fixing the
-  rain delay locally. It remains unreleased; exact onset measurements,
-  accumulated streak rounding and pixel-exact original-game comparison are
-  unverified. Alternate transitions/projections, dimensions and intervening
-  text/window output retain native gating. Reporter/Ally X retest is pending.
-  Hardware/driver dependence is unproved.
-- [#35: growing audio delay](development/issues/audio-crackle-persistent-latency.md):
-  #29 was closed by its reporter after attributing crackling to RTSS. Remaining
-  latency is now #35: effects become delayed after several minutes and pause or
-  launcher changes temporarily restore sync. The owner cannot reproduce it;
-  affected-session evidence and detailed settings are needed. No latency fix is qualified.
-- [#36: missing weapon crosshairs](development/issues/github-weapon-crosshairs.md):
-  a v1.3.0 report may overlap #25. Retest the accepted reticle correction after
-  delivery before claiming the same cause or a resolved duplicate.
-- [#37: Floyd cannot fire](development/issues/github-floyd-cannot-fire.md):
-  new v1.3.0 mission-blocking report; device, preset and mission are unspecified.
-  No reproduction or fix has been established.
-- [#30: dual-stick ledge-camera reset](development/issues/controller-ledge-camera-reset.md):
-  an unreleased candidate extends retained camera ownership to Modern controller
-  ledge climbs. Source regression and native checks pass; owner confirms the ledge fix locally.
-  The added water trigger is reproduced in the owner capture. A candidate retains
-  Modern mouse/controller view through swimming. The first preview trapped the
-  camera near Juno; preview 2 preserves native swimming collision positions and
-  passes focused/recorded-point checks. Owner confirms the water camera works.
-  The follow-up swimming-to-air/re-entry body-facing fix preserves native facing
-  through the whole water-origin jump. Source and recorded-transition checks pass;
-  the owner approved the combined preview after an isolated launcher retest.
-  Reporter retest and release remain pending.
-- [#31: cutscene skipping](development/issues/optional-cutscene-skipping.md):
-  opening story skipping now passes owner review. A further candidate adds
-  King Jeff invasion completion after an owner-reported partial skip, and a generated native blue-A button.
-  Native/focused checks pass. Owner verified the SS Anubis flashback, Vela rescue,
-  Juno departure and Tawfret intro. Broader cutscene coverage remains open;
-  unsupported scripts retain normal playback.
-- [#19: invasion replay stutter](development/issues/github-invasion-replay-stutter.md):
-  the original reporter confirms the latest update resolves the problem and
-  requests closure; another affected user also confirms improvement. GitHub
-  remains open with an explicit closeout TODO. Exact independent severity/cause
-  attribution remains limited; this does not resolve the separate Ally X report.
-- [#18: targeting controls](development/issues/github-held-aim-and-diagonal-movement.md):
-  the reporter confirms firing no longer cancels held aim in v1.2.0. The separate
-  standing-aim diagonal-speed correction is included in v1.3.
-- [#4: Windows source setup](development/issues/github-windows-source-setup.md)
-  and [#15: Linux source build](development/issues/github-linux-native-build.md):
-  prior source remedies are released, while reporter-platform qualification
-  remains limited. A packaged Linux AppImage is not qualified.
-
-## Unreleased visual and controller candidates
-
-- [Tawfret sky brightness/fog](development/issues/tawfret-brightness-fog-fidelity.md):
-  EmuHawk confirms the old gamma-off correction is intact. A signed fog-gradient
-  candidate closely matches complete original graphics tasks at four views;
-  owner approved the lighting/fog correction locally; unreleased.
-- [Removed controllers moving to later players](development/issues/controller-remove-auto-reassignment.md):
-  Follow-up: owner confirms the input-type replacement fix works; unreleased.
-  persistent automatic-assignment exclusions pass core and real UI checks;
-  owner approved the removal correction locally; unreleased.
+[Grounded drone-body interpolation](development/issues/dead-drone-camera-jitter.md)
+is included in v1.3 and passed the latest owner visual review. Exact seeded
+route parity is not established.
 
 ## Original behavior and optional enhancements
 
 [Enemy-clear door indicators](development/issues/door-enemy-lock-distance-darkening.md)
-also darken at distance in EmuHawk. Further original-game investigation is
-deferred by the owner; the accepted readability workaround remains in v1.3.
-This is not evidence of a general transparent-material correction.
+also darken at distance in EmuHawk. The owner deferred further original-game work;
+the accepted readability workaround remains. This is not a general material fix.
 
-The original game deliberately softens some Vela-rescue shots and uses motion
-blur in boss encounters. v1.3 offers Off, Reduced and Original blur, with Reduced
-as default and a comfort note for Original at high frame rates. The owner
-accepted Reduced and verified the original soft shots against N64 footage.
-
+Some Vela-rescue shots are intentionally soft, and native boss motion blur can
+be uncomfortable at high refresh rates. Off / Reduced / Original remains
+available, with Reduced the default and a comfort note for Original.
 [Ichor detached-head flight](development/issues/ichor-head-flight-locations.md)
-was an unconfirmed concern. Bounded original-game and recomp samples found no
-out-of-bounds flight; no gameplay patch was justified. Exact random trajectories
-and every attack path are not established as identical.
+was an unconfirmed concern; bounded comparisons found no out-of-bounds flight
+and did not justify a gameplay patch.
 
 ## Settings, controls and mods
 
-- FPS mode, cap and VSync still require stopping/restarting the game.
-  [Live switching](development/issues/live-frame-rate-settings.md) is queued.
-  Fog strength applies live.
-- Game > Settings > Change directory supports movable storage inside the game
-  folder. Existing destination files take precedence when copying profiles;
-  original files remain. Changing the data folder restarts the launcher and
-  is unavailable during gameplay.
-- Exit warp bypasses progression only for that explicit mod action. Ordinary
-  doors retain native rules. Coverage of every exit remains finite.
-- Give all weapons grants the current single-player character's inventory and
-  ammo once; saving persists it. It is not unlimited ammunition.
-- Modern Controls targets player 1 in single-player. Multiplayer uses Original
-  Controller Mapping. Some native menu subpages require keyboard/controller
-  navigation. SDL/DualSense rumble, gyro and adaptive triggers are not implemented.
-- Camera collision retains native responses for unknown geometry. Broader
-  scenery coverage and a complete swept-volume camera rewrite are not claimed.
+- Frame rate, cap and VSync changes require stopping/restarting the game.
+  [Live switching](development/issues/live-frame-rate-settings.md) is queued;
+  fog percentage applies live.
+- Modern controls can be selected independently for P1-P4. Some native menu
+  subpages still require keyboard/controller navigation. SDL/DualSense rumble,
+  gyro and adaptive triggers are not implemented.
+- Game > Settings > Change directory copies data without overwriting existing
+  destination files. Changing storage restarts the launcher and requires gameplay
+  to be stopped. An internal data folder moves with the installation.
+- Exit warp bypasses progression only for the explicit mod action. Ordinary
+  doors retain native requirements; every exit has not been qualified.
+- Give weapons affects the current single-player character once and refills
+  existing ammo capacities. Save normally to retain it. It is not infinite ammo.
+- Unlock Floyd takes effect in the next room. Mission entry still requires native
+  prerequisites, including Mizar tokens. The earlier zero-token test was not a
+  failed unlock.
+- Rapid duplicate grant clicks before helper feedback and some command-file error
+  presentation remain recorded [UI limitations](development/issues/github-give-all-weapons.md).
 
-## Platform and support
+## Windows 10 setup
 
-The prebuilt release targets Windows x64 and requires a compatible hardware GPU.
-No compiler or WSL is required for ordinary ZIP installation. Source compilation
-and released portable packages are separate support paths.
+The prebuilt Windows x64 package needs no compiler or WSL. Older
+[#4 source-setup](development/issues/github-windows-source-setup.md) workarounds
+apply to developer builds, not ordinary ZIP installation.
+[#15 Linux source-build](development/issues/github-linux-native-build.md)
+remedies are recorded, but a native Linux/AppImage release is not qualified.
 
-The maintainer's campaign completion used optional mods and an unlocked save;
-it is not exhaustive unassisted play or original-console fidelity verification.
-Support capture is local and best effort; nothing uploads automatically.
-Provide the game/runtime version, control mode, location and reproduction steps
-using the [playtesting guide](playtesting.md).
+Developer qualification retains three pre-existing local WSL harness findings
+(two sanitizer subtest failures and a tool-pin error); the Windows runtime and
+launcher checks pass. See [source validation](development/issues/release-source-validation.md).
+Full CI remains a publication gate.
 
-## Grounded drone bodies
+Support collection is local and best effort; nothing uploads automatically.
+Include version, control mode, location and reproduction steps using the
+[reporting guide](playtesting.md).
 
-Detached-body ownership and hidden-bone validation corrections pass focused checks and the latest owner visual review. The latest capture has no invalid-sample rejections or audio underruns; the exact seeded route and earlier cutscene groups remain unverified. See the [issue record](development/issues/dead-drone-camera-jitter.md). Not yet released.
-
-- [SS Anubis ledge-testing stutter](development/issues/tawfret-lighting-preview-stutter.md):
-  a short 60 FPS owner run records a several-second delivery slowdown, then
-  recovery. The repeat capture has no gameplay presentation intervals over 25 ms
-  after loading. Intermittent cause remains unlocalized; unrelated to #30 acceptance.
-
-- [Modern controller high-drop camera reset](development/issues/controller-high-landing-camera-reset.md):
-  separate from accepted ledge-climb correction; candidate passes the scoped
-  source regression and the owner confirms the landing fix locally; unreleased.
-
-- [Camera reset on window focus loss](development/issues/focus-loss-camera-reset.md):
-  late input cleanup loses Modern view identity; candidate passes source regression
-  for controller and mouse, with Original exclusion checked. Owner confirms
-  fixed in all tested modes; unreleased.
-
-Cutscene-skip preview follow-up: native A sprite draw corrected and styled SKIP label prepared; owner visual review and King Jeff invasion completion remain pending. See [the cutscene-skip record](development/issues/optional-cutscene-skipping.md).
-
-Cutscene skip preview6 now has a candidate for the missing Goldwood forest prompt (native no-control scenery object48). The 25% smaller prompt uses a textured ring. Live verification remains pending; other unsupported scenes are still gated.
-
-Cutscene skip: preview6 did not fix the reported forest sequence. Preview7 targets the captured A holds in the Magnus tutorial (scene199), completing its original399/group1 ->21 return. Health/ammo object classification was blocking eligibility. Candidate passed build and production-function/renderer checks; live verification remains pending.
-
-SS Anubis flashback skip: preview8 candidate admits its native no-control glowing light while retaining movement/event checks. Original route and prompt alignment checks pass; live verification pending.
-
-Owner live verification (2026-10-20): preview8 SS Anubis flashback skip and A-button/ring alignment both confirmed fixed. Owner is continuing the route. This confirms these two fixes only; other untested cutscenes remain open coverage. Not yet released.
-
-Preview8 follow-up: owner cannot skip the Vela rescue cutscene (corrected "can" to "cant"); still playing. Exact scene, eligibility and completion cause under investigation. Preserve active session; no replacement until closed.
-
-Owner confirmed preview8 SS Anubis flashback skip and A-button/ring alignment fixed on2026-10-20; other cutscenes remain under review, unreleased.
-
-New preview8 reports: Vela rescue cannot skip; Juno SS Anubis fly-away cannot skip; brief white flicker on return from SS Anubis to character selection. Owner continues playing; inspect current capture, do not replace active package.
-
-Cutscene skipping preview9 awaits live review of Juno departure. Vela rescue no-prompt and brief white flash after natural SS Anubis departure remain unresolved; targeted input/fade/presentation logging added.
-
-Cutscene skip status, preview10: owner confirms Vela rescue now skips. Juno SS Anubis departure requires retest of revised door eligibility. The repeatable white flash returning to character selection remains under investigation; this preview records a short image window, which adds capture overhead during that transition.
-
-The [character-selection rainbow/white flash](development/issues/character-selection-depth-flash.md) is fixed in the local candidate and owner-confirmed. Workload-aware depth/readback exclusion prevents encoded depth from becoming interpolated output. Vela rescue, Juno departure and Tawfret intro skipping are also owner-confirmed. These changes are not released yet.
-
-A Modern-controller camera snap was reported again on focus return and after a room transition. The room-entry cause is delayed Modern-camera acquisition while input is blocked. The correction passes actual-source regression and owner verification with Modern controller and mouse/keyboard; unreleased. See [CAMERA-009](development/issues/focus-loss-camera-reset.md).
-
-- **Vela rescue skip audio (unreleased):** owner confirms the chopped rumble is fixed. Intermediate skipped shots no longer start effects that would immediately be stopped; ordinary playback and music are preserved. See [native cutscene skipping](development/issues/optional-cutscene-skipping.md).
-
-Minor launcher follow-up: [menu hover and dropdown routing](development/issues/launcher-menu-hover-stuck.md). The first hover candidate broke dropdown selection; the revised input routing passes native UI checks and is owner-confirmed fixed; unreleased.
-
-- [Player port indicators stay stale](development/issues/controller-port-indicators-stale.md): idle assignment refresh is owner-accepted in the Modern Roll Direction Preview; unreleased.
+Historical evidence remains in the [pre-v1.4 notes](development/known-issues-before-1.4.0.md),
+[pre-v1.3 notes](development/known-issues-before-1.3.0.md) and
+[issue register](development/issues/README.md).

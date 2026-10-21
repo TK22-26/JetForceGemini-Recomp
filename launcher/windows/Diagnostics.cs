@@ -23,7 +23,7 @@ namespace JfgLauncher
 
     internal sealed partial class SupportSession
     {
-        internal static readonly string[] Files = { "launcher.log", "native.log", "system.log", "build.log", "controller.log", "crash.log", "hang.log", "breadcrumbs.log" };
+        internal static readonly string[] Files = { "launcher.log", "native.log", "system.log", "build.log", "controller.log", "crash.log", "hang.log", "breadcrumbs.log", "mouse.log" };
         internal static bool Owned(string path) { return Regex.IsMatch(System.IO.Path.GetFileName(path), @"\A[0-9]{8}T[0-9]{9}-[0-9a-f]{32}\z") && (File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0; }
         internal static List<SupportChoice> Sessions(string root)
         {

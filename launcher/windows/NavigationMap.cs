@@ -210,7 +210,9 @@ namespace JfgLauncher
     }
     [DataContract] internal sealed class MapLive
     {
-        [DataMember] public bool give_weapons_available = false;
+        [DataMember] public bool give_weapons_available = false, give_floyd_available = false;
+        [DataMember] public long weapons_nonce = 0;
+        [DataMember] public bool weapons_applied = false;
 
         [DataMember] public int schema = 0;
         [DataMember] public uint level = 0;
@@ -257,6 +259,13 @@ namespace JfgLauncher
             if(File.Exists(path))File.Replace(temp,path,null);else File.Move(temp,path);
         }
         internal void Save(string directory) { Write(directory,"mods.txt","JFGMODS1 "+(Warp?"1":"0")+" "+(Health?"1":"0")+" "+(Kill?"1":"0")); }
+        internal static void GiveFloyd(string directory,MapSnapshot map,long nonce,bool paused) {
+            if(map==null||(!map.IsLive&&!paused)||!map.Live.give_floyd_available||
+                !map.Live.gameplay_active||map.Live.scripted_camera)
+                throw new InvalidDataException("Give Floyd requires active gameplay.");
+            Write(directory,"give-floyd.txt",String.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "JFGFLOYD1 {0} {1} {2} {3}",map.Live.level,map.Live.generation,nonce,NavigationExplorer.Clock));
+        }
         internal static void GiveWeapons(string directory,MapSnapshot map,long nonce,bool paused) {
             if(map==null||(!map.IsLive&&!paused)||!map.Live.give_weapons_available||
                 !map.Live.gameplay_active||map.Live.scripted_camera)
@@ -954,6 +963,12 @@ namespace JfgLauncher
                 catch(Exception error){status.Text=error.Message;}
             };
             modsMenu.DropDownItems.Add(giveWeapons);
+            var giveFloyd=new ToolStripMenuItem("Give Floyd"){ToolTipText="Unlock Floyd for this game. Enter another room to spawn him. Saving keeps the unlock."};
+            giveFloyd.Click+=delegate {
+                try {MapMods.GiveFloyd(directory,aiSnapshot,DateTime.UtcNow.Ticks,false);status.Text="Floyd unlock requested. Enter the next room to spawn him.";}
+                catch(Exception error){status.Text=error.Message;}
+            };
+            modsMenu.DropDownItems.Add(giveFloyd);
             foreach(var mod in new[]{warpMod,healthMod,killMod})mod.CheckedChanged+=delegate{SaveMods();};
             canvas.ExitActivated+=WarpToExit;
             interactionList.MouseDoubleClick+=delegate(object sender,MouseEventArgs e){

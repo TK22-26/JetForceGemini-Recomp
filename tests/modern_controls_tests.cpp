@@ -61,7 +61,7 @@ int main(int argc,char **argv) {
     invalid("");invalid(std::string(8193,'x'));invalid(custom+"enabled=0\n");invalid(custom+"unknown=0\n");
     invalid(custom.substr(custom.find('\n')+1));
     for(auto pair:std::array<std::pair<std::string,std::string>,10>{{
-        {"version=6","version=7"},{"enabled=1","enabled=2"},{"aim_toggle=1","aim_toggle=-1"},
+        {"version=7","version=8"},{"enabled=1","enabled=2"},{"aim_toggle=1","aim_toggle=-1"},
         {"pad.jump=10","pad.jump=27"},{"key.fire=70","key.fire=258"},
         {"movement_stick=0","movement_stick=2"},{"movement_deadzone=7849","movement_deadzone=32768"},
         {"axis_threshold=8689","axis_threshold=0"},{"look.modern=1","look.modern=0"},
@@ -71,7 +71,24 @@ int main(int argc,char **argv) {
     check(!ModernControlsConfig{}.mouse_original_acceleration,"original acceleration defaults off");
     auto accelerated=config;accelerated.mouse_original_acceleration=true;
     check(parse_modern_controls(serialize_modern_controls(accelerated),parsed) && parsed.mouse_original_acceleration,"original acceleration saves and reloads enabled");
-    auto legacyDefaults=defaults;
+    check(ModernControlsConfig{}.pad_floyd_flight_invert_y,"controller flight defaults inverted");
+    auto flightConfig=config;flightConfig.pad_floyd_flight_invert_y=false;
+    check(parse_modern_controls(serialize_modern_controls(flightConfig),parsed) && !parsed.pad_floyd_flight_invert_y && parsed.look.aim_invert_y==config.look.aim_invert_y,"flight saves independently of look inversion");
+    const std::string flightField="pad_floyd_flight_invert_y=1\n";
+    auto legacyDefaults=defaults;legacyDefaults.erase(legacyDefaults.find(flightField),flightField.size());
+    auto version6=legacyDefaults;version6.replace(0,9,"version=6");
+    check(parse_modern_controls(version6,parsed) && parsed.pad_floyd_flight_invert_y,"v6 preserves original flight steering");
+    invalid(version6+flightField);invalid(legacyDefaults);invalid(defaults+flightField);
+    for(const auto value:{-1,2}) {auto bad=defaults;bad.replace(bad.find(flightField),flightField.size(),"pad_floyd_flight_invert_y="+std::to_string(value)+"\n");invalid(bad);}
+    for(int y:{-128,-80,0,80,127}) {
+        ModernActionSample input;input.gamepad=true;input.move={42,static_cast<std::int8_t>(y)};input.held=modern_bit(ModernAction::fire)|modern_bit(ModernAction::jump)|modern_bit(ModernAction::pause);
+        const auto original=map_modern_floyd_actions(input,true,false,true),direct=map_modern_floyd_actions(input,true,false,false);
+        check(original.y==y && direct.y==std::clamp(-y,-128,127) && direct.x==42 && direct.buttons==original.buttons,"only controller mission pitch changes");
+        check(map_modern_floyd_actions(input,false,false,false).y==y,"co-op ignores flight option");
+        const auto mouse=map_modern_floyd_actions(input,true,true,false),mouseOriginal=map_modern_floyd_actions(input,true,true,true);
+        check(mouse.x==mouseOriginal.x && mouse.y==mouseOriginal.y && mouse.buttons==mouseOriginal.buttons,"mouse ignores controller flight option");
+    }
+
     for(const std::string field:{"roll.automatic=1\n","pad.roll_left=-1\n","key.roll_left=0\n","pad.roll_right=-1\n","key.roll_right=0\n"}) {
         const auto at=legacyDefaults.find(field);check(at!=legacyDefaults.npos,"legacy roll fixture field");
         legacyDefaults.erase(at,field.size());
@@ -284,5 +301,29 @@ int main(int argc,char **argv) {
     const auto keyboardText=serialize_pc_input(oldKeyboard);
     auto changed=config;changed.enabled=true;changed.pad[index(ModernAction::jump)]=9;
     check(serialize_controller_mapping(original)==originalText && serialize_pc_input(oldKeyboard)==keyboardText,"independent modern profile preserves mapping profiles");
+    {
+      ModernActionSample input;input.move={-40,50};
+      input.held=modern_bit(ModernAction::fire)|modern_bit(ModernAction::pause)|
+        modern_bit(ModernAction::jump)|modern_bit(ModernAction::crouch)|modern_bit(ModernAction::aim);
+      const auto coop=map_modern_floyd_actions(input,false),mission=map_modern_floyd_actions(input,true);
+      check(coop.buttons==0x3000 && coop.connected,"co-op maps Fire and join without character actions");
+      check(mission.buttons==0xF000 && mission.x==-40 && mission.y==50,"mission maps Fire, acceleration and brake with flight axes");
+      input.held=modern_bit(ModernAction::interact);check(map_modern_floyd_actions(input,true).buttons==0x8000,"mission interaction can accelerate");
+      input.held=0;check(!map_modern_floyd_actions(input,true).buttons,"release reaches native shot edge detection");
+      input.held=modern_bit(ModernAction::interact)|modern_bit(ModernAction::jump);
+      input.move={80,0};auto flight=map_modern_floyd_actions(input,true,true);
+      check(!flight.buttons && flight.x==80 && !flight.y,"mouse mission retains strafe intent without Interact or Jump thrust");
+      input.move={-80,80};input.held=modern_bit(ModernAction::fire);
+      flight=map_modern_floyd_actions(input,true,true);
+      check(flight.buttons==0xA000 && flight.x==-80 && !flight.y,"mouse W thrust preserves Fire and lateral intent without pitch input");
+      input.move.y=-80;flight=map_modern_floyd_actions(input,true,true);
+      check(flight.buttons==0x6000,"mouse S brakes while firing");
+      input.move={};input.held=0;flight=map_modern_floyd_actions(input,true,true);
+      check(!flight.buttons && !flight.x && !flight.y,"mouse throttle and brake release cleanly");
+      input.held=modern_bit(ModernAction::interact);
+      check(map_modern_actions(input,false).buttons==0x8000,"ordinary Interact still enters the mission pad");
+      check(map_modern_floyd_actions(input,true,false).buttons==0x8000,"controller mission retains original acceleration binding");
+
+    }
     std::cout<<checks<<" modern controls checks passed\n";
 }

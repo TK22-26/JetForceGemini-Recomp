@@ -1,6 +1,13 @@
 # ENHANCE-001: optional cutscene skipping
 
-- Status: supported native completion routes implemented; owner confirms SS Anubis flashback, Vela rescue, Juno departure and Tawfret intro. Unsupported scripts remain ineligible; broader route coverage remains open. Unreleased.
+> Owner approval (2026-10-21): **#31 approved; unreleased.** The owner explicitly
+> directed ?note 31 as approved.? This supersedes earlier pending acceptance
+> language. The four final targeted Juno retests passed. The eleven remaining
+> unchecked entries retain the owner's ?Debug Cutscene? notes and documented
+> classification limits; approval does not invent visual verification of them.
+> Historical failures, source evidence and selector limitations remain below.
+
+- Status: owner-approved for inclusion; unreleased. Supported completion routes and the reviewed story/travel scenes are accepted. Unsupported scripts remain ineligible; exhaustive scene coverage is not claimed.
 - Report: [GitHub #31](https://github.com/TK22-26/JetForceGemini-Recomp/issues/31), 2026-10-19.
 - Owner requests inclusion in a quick v1.3.1 together with #30.
 - Problem: repeated story/travel/level-transition cinematics interrupt pacing,
@@ -456,6 +463,15 @@ The A sprite/ring rectangles shared mathematical centers, but the 9-native-pixel
 
 Preview8 validation: native build and component tests pass. Production-function harness passes3921 checks, including all remaining command boundaries of original flashback assets242/241/243, exact native transitions239->238->240->remembered35, unchanged actor memory and clock, rejection of glowing-light movement/event callbacks, and normal execution of the time-zero music-start before eligibility. These are reconstructed-context tests, not owner live acceptance. Four native GPU renders show a stationary A texture (129-pixel blue mask identical across progress0/.5/.92/1) with animated ring. Raster-bound correction removes the one-output-pixel rightward bias; vertical threshold bounds differ by half an output pixel, within sampling discretization. Owner review of concentric appearance remains pending. Receipt: private cutscene-skip/preview-receipt-v8.json.
 
+
+#### Preview8 owner acceptance
+
+Owner live verification (2026-10-20): preview8 SS Anubis flashback skip and A-button/ring alignment both confirmed fixed. Owner is continuing the route. This confirms these two fixes only; other untested cutscenes remain open coverage. Not yet released.
+
+Owner report: "fixed on both - im moving on. what was the issue?". Final causes/remedies: type65 GlowingLight has the native empty control handler at800104A8; accept it while retaining movement/event callback checks and original completion transitions. A texture used a fractional rectangle top that triggered the native RDP T-row adjustment and different raster coverage; use integer coverage bounds with fractional origin carried in S/T. Keep unchanged artwork, size, one-second animated ring and no final pop. Transferable lesson: review actual object callbacks rather than assuming every scene object has gameplay effects; align native texture sampling, not only rectangle centers.
+
+Preview8 follow-up: owner cannot skip the Vela rescue cutscene (corrected "can" to "cant"); still playing. Exact scene, eligibility and completion cause under investigation. Preserve active session; no replacement until closed.
+
 Owner confirmed preview8 SS Anubis flashback skip and A-button/ring alignment fixed on2026-10-20; other cutscenes remain under review, unreleased.
 
 New preview8 reports: Vela rescue cannot skip; Juno SS Anubis fly-away cannot skip; brief white flicker on return from SS Anubis to character selection. Owner continues playing; inspect current capture, do not replace active package.
@@ -528,7 +544,7 @@ outside this opt-in path. Private source/evidence: steps446?460 and preview9 cap
 
 Preview10 packaged: build and native cutscene component tests pass; extracted production completion harness passes 4,136 checks, including post-first-update cursor0x2C, object reordering/list membership and all native ending branches. Owner corrected latest report to Vela rescue NOW confirmed skippable. Preview9 Juno eligibility still failed after its first update; special-list count at the failing VI was not captured, so the exact previous exclusion is not proven. Revised cinematic-door candidate awaits live verification. Diagnostic images span the end of departure and start of character selection (up to64 sampled native presents, downsampled in RAM, PPM flushed on close). This does not capture every interpolated output frame. No white-flash fix claimed. Private receipt: cutscene-skip/preview-receipt-v10.json.
 
-Preview10 live result (2026-10-20): owner confirms Juno SS Anubis departure now skips. White flash reproduced; supplied screenshot shows saturated rainbow/white corrupted scene materials at character selection (geometry remains recognizable), not merely a flat white overlay. Private video C:/Users/tjkos/Videos/2026-10-20 08-56-41.mkv; diagnostics owner-sessions/20261020-125514-ff39bdc0ad794f13a82ffe189ddd4aa5. Investigating captured pixels and scene transition before assigning cause. Vela and Juno skip owner-accepted; white-flash issue remains open.
+Preview10 live result (2026-10-20): owner confirms Juno SS Anubis departure now skips. White flash reproduced; supplied screenshot shows saturated rainbow/white corrupted scene materials at character selection (geometry remains recognizable), not merely a flat white overlay. Private video 2026-10-20 08-56-41.mkv; diagnostics owner-sessions/20261020-125514-ff39bdc0ad794f13a82ffe189ddd4aa5. Investigating captured pixels and scene transition before assigning cause. Vela and Juno skip owner-accepted; white-flash issue remains open.
 
 ### Preview10 white-flash video and current framebuffer-role candidate
 Owner video is120FPS,1280x720. Frames795/796 (~6.625-6.642s) contain the
@@ -606,6 +622,23 @@ A listening/capture comparison is still needed to identify the reported sound.
 
 Owner clarifies the Vela skip symptom is interrupted music. Native build and four focused suites passed with sparse audio-call tracing. Separate desktop Cutscene Audio Review package prepared using a copied profile; no listening result or audio fix is claimed.
 
+### Direct-entry inventory and selector (2026-10-20)
+
+[Inventory and owner workflow](../cutscene-skip-review.md) and its 168-row
+checklist are prepared. Native request validation, explicit launcher handoff,
+UI construction/search and all real inventory entries passed non-gameplay
+checks. No direct-entry visual pass is claimed. Ordinary Play cannot inherit
+this capability; the test package uses a copied profile with a restore option.
+
+Informative preparation failures: the first build caught a shadowed local
+variable (renamed); Windows PowerShell initially wrapped the JSON array as one
+pipeline object (corrected before UI handoff). Review also caught the launcher's
+intentional stripping of inherited diagnostic variables; an explicit diagnostic
+option now carries the request file, with tests retaining ordinary-play
+sanitization. No owner test was requested against those failed packages.
+
+The music report remains open and awaits the dedicated audio-call capture.
+
 Owner correction after the dedicated audio run: the interrupted sound is a
 low continuous effect (spaceship/vent rumble), not music. Closed capture
 20261020-171422 is available with music/effect call tracing and final RAM.
@@ -656,3 +689,479 @@ for the Vela rescue rumble. This is not a release claim or verification of all
 cutscenes. The accompanying menu-hover change failed review separately.
 
 The subsequent corrected menu candidate is also owner-confirmed; see UI-008.
+
+## Live checklist reports (2026-10-20)
+
+The owner reports Lee Walkway Sequence room15/groups0 and1 cannot skip for all
+three dropdown choices. No cause or fix is confirmed yet. Review captures and
+native completion qualification before changing behavior. The private selector
+also had reversed Juno/Vela IDs; that diagnostic mapping is corrected in source
+and awaits restart/review. Room45 direct-entry crashes are tracked under
+[the selector investigation](cutscene-review-selector-loading.md).
+
+### Owner checklist failures: Walkway and Anubis (2026-10-20)
+
+Owner reports room15 variants0/1, room66 and room94 do not show/complete skipping.
+Current live capture confirms room15 has a valid completion plan but actor types6
+and59 block qualification. Type6 resolves to native no-control dispatch800104A8.
+Type59 is a progression trigger and is NOT safe in general: overlay02B00014 first
+calls objGetPlayerNo8000E4D0; only when gameplay-player count800F2D10 is zero does it
+remove itself and return before flags/inventory/hints/collision. The captured
+cinematic has zero gameplay players. Candidate accepts type59 only with that
+verified condition and the existing no-custom-callback guards.
+
+Room66 includes cinematic type1, also no ordinary objControl case, with zero
+gameplay players. Candidate qualifies only that non-gameplay context. Pending
+ambient-start24 and ambient-volume26 also blocked the Anubis scripts. Completion
+now preserves native amAmbientPlay/amAmbientSetVolume followed by
+amAmbientResetFade in original order. Unreviewed ambient fade25 remains rejected.
+Build, component checks and owner skip/audio review are pending. The owner is
+still running the immutable session-request candidate while this change is staged.
+
+### Continuing checklist reports
+
+Current owner notes also identify no-skip reports for rooms97/group0,98/group0,
+193/group0 (boss intro),207/group0 and212/group0; room235/group0 reportedly freezes.
+These are open diagnostic entries, not verified ordinary-route regressions. The
+session-request preview is fixed in place while notes and traces are read. Private
+immutable note snapshots are retained under cutscene-skip/live-owner-review.
+Owner checkboxes record reviewed entries, not automatic proof of successful
+skips. No completion claims or public issue responses are made from these notes.
+
+Walkway/Anubis candidate validation: eleven checks compiled from the actual actor
+qualification function cover non-gameplay types1/59, rejection with any gameplay
+player, custom movement callback or data callback, type6 and unrelated types.
+Native build and five component suites pass. Candidate staged separately; live
+owner package remains unchanged and visual/audio verification is pending. The
+same type6 exclusion is present in the room207 report. Later no-terminal/branching
+scripts and other unreviewed actor controls remain separate open work.
+
+Further owner notes: room240/group1 loops without a terminal transition;
+252/group0,253/group0,271/groups1/2 have no-skip reports, with group2 also described
+as a softlock. Native scripts235/group0 and240/group1 have no level departure or
+conditional-end command. Direct loading may omit their normal caller; these need
+entry/lifetime review rather than an invented destination. Room98 has two distinct
+same-tick native departures; their actual interpreter order is under review.
+Room97/group0 became eligible in the live trace, but no A/B/Start input reached
+its handler during that interval; keep owner report open for focused retest.
+
+### Additional checklist completion contracts, 2026-10-20
+
+Room98 cave exit was rejected because its script schedules two unconditional
+departures on the same tick. The original interpreter continues its due-command
+loop after each native change-level call; the second call updates the pending
+destination. The candidate preserves both calls in order, with the final native
+destination retained. Conditional/mixed departures, different departure times,
+already-passed departure commands and later persistent effects stay rejected.
+
+Room212 MeetMizar was blocked by material RGBA interpolation opcode6B.
+Interpreter80079008 calls overlay02F01798 to queue only material color fades.
+The candidate classifies this alongside the existing visual color commands,
+without changing progression or inventing destination state. Both changes are
+source-reviewed candidates pending build and owner live verification.
+
+New owner notes also report room275/group1 failing to run, and flashing Quarry
+tribals after room282. These remain open; the reviewed checkbox does not erase
+the accompanying defect note. Room45 and the no-terminal standalone entries
+remain direct-entry limitations under investigation, not confirmed unused scenes.
+
+Room193 SwampBossIntro has a type8 player camera/hint trigger. Its native
+control8002561C places all writes behind hitPlayer8007E150, whose list getter
+8000E464 reads gameplay-player count800F2D10. The candidate allows this only
+with zero gameplay players, valid trigger data and no custom callbacks.
+Ordinary gameplay triggers remain excluded. Pending component/live validation.
+
+The native build, five component suites and sixteen extracted actor checks pass.
+The first private inventory-driven planner fixture failed because inventory JSON
+omits the script sentinel: every reconstructed script was truncated. Restoring
+the recorded finite-script terminator corrected that fixture. The cave-exit and
+MeetMizar command streams now produce completion plans, retaining destination354
+for cave exit. This is source/component verification, not owner live acceptance.
+
+Rooms252/253 both contain type147. Its original objControl case calls800270EC,
+which only advances the local +68 texture-animation counter and writes draw
+parameters: no calls, flags, inventory, player or transition writes. Candidate
+qualification checks valid local data and rejects custom callbacks. This closes
+a separate actor-review gap; live skipping remains pending owner verification.
+
+Expanded checklist candidate: native build and five component suites pass, with twenty extracted-runtime actor qualification checks, including type147 valid-data/custom-callback rejection. Root/build-worktree actor qualification is identical. Live preview remains unchanged. Room282/group2 is newly reported unable to skip and under investigation; Quarry tribal flashing and direct-entry failures remain open.
+
+Latest live checklist additions (owner preview unchanged): 275/group1 Juno: cant skip and doesnt run - is this a real cutscene?, 282/group0 Juno: Quarry tribals after the cutscene flash during the day. We fixed this in a past commit. It happens on all fps original and higher., 282/group1 Juno: this one you can skip the first part but it forces you to watch the second part, 282/group2 Juno: cant skip, 283/group0 Juno: you can skip the first section but then you cannot skip the full thing, 284/group0 Juno: cannot skip, 284/group1 Juno: cannot skip, 308/group0 Juno: cannot skip, 308/group1 Juno: cannot skip, 309/group0 Juno: ca. These are open observations, not verified resolutions.
+
+### Native command order and descending timestamps
+
+Room271/group1 is a complete original sequence, not an incomplete parse:
+the original bytes have a departure to93 at700, visual commands at850/900,
+then visual commands stamped200/350, and the terminator. The old inspection
+stopped at the decreasing timestamp and never reached that terminator.
+
+Native interpreter80077ABC/800797E4 checks each next command against its clock;
+it does not sort or reject decreasing timestamps. The candidate retains raw
+timestamps and stream order, flags their presence, and derives each command's
+earliest execution time from the preceding maximum only for completion safety.
+This permits the reviewed visual tail while still rejecting persistent effects
+that would occur after departure, including deceptively earlier-stamped flags
+behind a later visual command. Truncation, unknown commands and loop/pause gates
+remain rejected. Component build and owner live verification pending.
+
+Follow-on Gem Quarry scene357/group1 cannot currently complete because its
+generator-activation flag89 is scheduled at25.00s, after the destination267/
+entrance1 request at24.91s. Native change-level starts a10-or30-VI countdown;
+the script continues during that transition. This is the only late game-flag
+write found in the current sequence inventory (the other later departure is
+asset388, a separate conditional/timing case). Review the explicit generator
+completion state; do not globally allow arbitrary effects after room departure.
+
+Owner notes322/group0 and323/group0 are skippable but slow. The322 capture has
+nine consecutive native completions over about3.83s; loading each segment is
+retained to preserve initialization/progression. This is a skip-latency
+limitation, not a demonstrated frame-rate regression.
+
+Native-order candidate validation: native build, five component suites and twenty actor checks pass. A private fixture using the full original room271/group1 bytes reaches its real terminator and produces destination93 while retaining the out-of-order-time observation. Live acceptance remains pending. Empty native variants275/group1 and308/group1 are catalog limitations, not failed skip implementations. User notes240/group2 as working but slow; skip-latency review remains open.
+
+Quarry generator completion candidate: the planner receives the actual sequence
+asset/group and recognizes only asset357/group1's reviewed terminal request
+(room267, entrance1 at24.91s) followed by generator flag89=1 at25.00s.
+It preserves the native change-level call followed by native flag write.
+The source review identifies a delayed room unload (native10/30-VI countdown)
+and continuing animation-script control; the flag is the explicit generator
+activation completion, not an audiovisual command to discard. The candidate
+keeps ordinary post-departure effects rejected and requires this exact source,
+destination, flag/value and timing contract. Build/component checks and owner
+verification of skipping the full chain and returned generator state pending.
+
+Further owner checklist notes on the unchanged session-fix preview: 240/group2 Juno: works but slow to skip, 240/group3 Juno: works but also semi-slow skip, 323/group1 Juno: works but slow, 323/group2 Juno: works but slow, 324/group0 Juno: works but slow, 325/group0 Juno: works - slow, 326/group0 Juno: works - slow, 331/group0 Juno: does not skip the full cutscene, 334/group0 Juno: does not skip the full cutscene, 334/group1 Juno: cannot skip, 334/group2 Juno: cannot skip, 335/group0 Juno: cannot skip, 335/group1 Juno: cannot skip, 341/group0 Juno: does not skip the full scene, 342/group0 Juno: cannot skip, 342/group1 Juno: does not skip the full scene, 343/group0 Juno: cannot skip, 344/group0 Juno: works - slow, 346/group0 Juno: does not skip the full scene, 347/group0 Juno: cannot skip, 348/group0 Juno: opening sequence, 349/group0 Juno: opening sequence, 350/group0 Juno: cannot skip, 350/group1 Juno: cannot skip, 352/group0 Juno: cannot skip, 353/group0 Juno: cannot skip all of the scene, 353/group1 Juno: cannot skip, 354/group0 Juno: does not skip full scene, 357/group0 Juno: cannot skip. Source/trace triage is ongoing; these are not completed fixes.
+
+Full private command-coverage scan uses the original bounded sequence bytes and
+actual planner with asset/group context:141 of168 catalog entries have a
+completion plan at entry. The remaining27 include empty/no-terminal entries,
+looping scroll/credits sequences, pause-gated content and additional unreviewed
+commands. This is not141 verified skippable scenes: actor qualification and
+owner visual/progression checks remain separate. Coverage evidence stays private.
+The generator candidate builds and passes all five suites, twenty actor checks,
+and the full original Quarry/Space Station command fixtures; still pending live
+review. Native output was copied to an immutable candidate in the build step.
+
+Disco Credits departure now has an owner-reported overlay persistence issue; note stored under361 but refers to360. Track native credits cleanup and selector mode separately in [selector loading](cutscene-review-selector-loading.md). Original credits script loops and is not yet accepted by the completion planner.
+
+
+### 2026-10-20: remaining model-animation disposition (candidate)
+
+The owner checklist identifies Asteroid boss sequences 347/350 and variants
+335/1 and 359/1 as unable to skip in the earlier session-fix preview. Their
+scripts include command 6F. The original US interpreter at 8007933C through
+80079468 only changes flags and rate in the selected model animation data;
+it makes no calls and writes no progression or transition globals. The
+completion planner now treats that command as presentation state of the
+outgoing scene. Other unsupported command families and terminal checks remain
+enforced. Source candidate only until component/original-script tests and owner
+review; no live preview replacement is included in this step.
+
+The prior guarded source-read step 697 failed because its search expected
+spaces absent from the source; corrected step 698 recovered the actual code.
+No app mutation occurred in the failed read.
+
+
+### 2026-10-20: later checklist entries
+
+The owner continued after the manifest correction. New notes include blocked
+entries374/0 and376/0, and CargoShip Brig variants378/1 and380/1. Several Brig
+variants skip but take noticeable time through linked native transitions.
+The captured scene/actor eligibility and original sequence inventory are being
+correlated; these are open reports, not verified fixes. Brig variants1 have
+no native terminal command in the inventory and must not receive an invented
+destination. Immutable source/capture triage is retained privately.
+
+
+### 2026-10-20: complete owner checklist retained
+
+The owner finished the full selector list. A private immutable snapshot retains
+184 per-character/variant entries, including unchecked failures and reviewed
+entries with limitations. Reviewed is not equivalent to passed. The final notes
+and three capture cohorts are correlated privately; earlier failures predate
+later candidates and still need targeted owner retests.
+
+Contract clarified with the owner: one A hold completes the entire continuous
+linked cinematic. Another hold is appropriate only for a separate cinematic
+after gameplay. The partial-chain and repeated-hold reports remain defects.
+Credits are a separate native frontend completion path, not an animation-script
+terminal. Quarry tribal flashing is reported absent in entry411 but present
+after entry282; this is a comparison lead, not a verified resolution.
+
+
+### Native credits completion candidate
+
+The credits background script loops by design. Native frontCredits ends when
+its separate text sequence reaches command -4: it sets the active credits
+module completion halfword, then invokes the original frontend exit handler.
+The candidate reproduces those two completion operations and retains the
+native destination/mode selection and cleanup. It requires the actual active
+credits module, original handler signatures, mode23, level/asset360 group0,
+a presentation-only loop and the existing actor checks. Other loops remain
+unqualified. It does not jump the script clock or choose an arbitrary level.
+Source/component/build and owner verification remain separate; no live result
+is claimed yet. The selector's independently tested mode-restoration correction
+also prevents credits state from carrying into a manually selected gameplay room.
+
+
+Later actor review: type145 in room374 uses the identical local texture
+animation handler already reviewed for type147 (800270EC); it has no calls or
+persistent writes. The same pointer/callback guards now cover both types.
+Type50 in room376 uses player-triggered audio region control800272B4. The
+candidate permits only zero gameplay players, inactive region state, no
+projectile-trigger mode, valid entry storage, and no custom callbacks. In that
+state the original hitPlayer check returns before audio/animation effects.
+Active regions and gameplay-trigger paths still reject. Targeted checks and
+owner review are pending.
+
+
+Ending-chain finding: room391 uses asset388/group0. The script requests room392
+at native time1950, then contains a second departure at native time6500. The native transition starts
+a10/30 update-unit countdown; there is no MIDI wait in this asset. That second
+departure is unreachable during normal playback. The planner previously
+rejected both rather than determining the reachable ending. The candidate
+recognizes only this reviewed tail and retains the first native destination;
+other differing-time departures still reject. The native countdown and room
+cleanup are preserved. This should unblock linked ending entries388/389/390
+that arrive at391, subject to owner verification.
+
+
+The combined credits/ending/actor candidate builds and passes all five native
+suites,31 extracted runtime actor checks,11 active credits-memory checks, and
+actual original script fixtures. New launcher feedback passes81 native UI
+checks plus the launcher package checks. Initial staging stopped because its
+chosen directory already existed; the historical stage was preserved and a
+new unique stage was used. All14 package manifest entries are verified after
+installation. Owner scene/visual review is pending, not inferred from tests.
+
+
+The final command audit produces completion plans for148 of168 non-frontend
+cinematic variants. The remaining20 are explicitly unclassified contexts:
+045/0,235/0,240/1,271/2,275/1,308/1,322/1,348/0,349/0,353/1,
+378/1,380/1,381/0,381/1,382/0,383/0,384/0,385/0,409/0,410/0.
+Some contain no timed sequence; the Scroll entries are background animation;
+409/0 is paused waiting for native context. This count is source-plan coverage,
+not148 owner-verified fixes or proof that all20 are unused. The known045 direct
+load crash remains a diagnostic limitation; absence of incoming animation-script
+references alone is insufficient to prove the asset is unused in the game.
+
+
+### Owner clarification: scene-specific Quarry flashing
+The owner confirms the tribal flashing occurs only after one specific scene;
+another visually identical scene did not produce it. The checklist identifies
+entry282/group0 as the affected route and411/group0 as the non-flashing
+comparison. Visual similarity does not establish identical room, variant,
+story flags, actor setup or material state. Compare those native paths before
+changing general interpolation or materials. Existing capture evidence and
+notes are retained; no rendering fix is yet verified.
+
+Owner follow-up confirms the affected Quarry sequence was skipped. Unskipped
+playback of that exact route has not been compared; skip completion and room
+initialization remain specific hypotheses, not a confirmed renderer regression.
+
+
+### Native menu backgrounds distinguished from story cutscenes
+Source and original-memory review resolves eight catalog entries:
+348/0,349/0,381/0,381/1,382/0,383/0,384/0,385/0. The original frontend return
+handler8004758C chooses these seven rooms from table800A337C using completion
+flags, then enters frontend mode3. Their scripts provide menu-background
+animation, not a standalone story departure. They should be identified as
+menu backgrounds in the review tool rather than counted as broken story skips.
+This does not classify the other no-terminal variants as unused. Owner notes
+and review marks remain unchanged; no original-game runtime change is needed.
+
+
+Owner reproduced the flashing in the current credits/ending candidate, after
+skipping282/0. It occurs in actual gameplay after the cutscene, not during the
+cinematic. The20261020-211400 capture ends in native room272/group0 with
+TribalBoy, TribalGirl and three TribalLantern actors. The lighting/fade script
+globals are cleared at exit; a stuck cutscene light/fade is not established.
+The exact actor snapshot is retained privately for material/control comparison.
+
+
+The owner also reported flashing after the supposedly normal comparison route,
+411/0, in the 20261020-212519 capture, and requested another look. That route is
+not a verified clean control. Both entries now have reported post-cutscene
+gameplay flashing; a route-specific root cause is not established.
+
+
+The second 411/0 check also reproduced the post-cutscene tribal flashing. The
+owner clarified that bodies brighten and darken, rather than disappearing or
+jumping. Both paths are affected; the renderer/colour state shared by Quarry
+gameplay now takes precedence over a route-specific skip hypothesis.
+The historical shared-palette interpolation repair c9189c1 is an ancestor of
+the current source and remains present. It has not been established as the
+earlier brightness repair the owner recalls.
+
+The review-only BigShip rejection and catalog annotations are now coded and
+staged, pending component checks and installation. They prevent a known unsafe
+diagnostic entry without changing native campaign initialization. Six context-
+dependent variants remain explicitly unresolved; the eight menu backgrounds
+and five setup variants retain their rows and saved-note keys.
+
+
+The owner clarified the effect as brightening then darkening and suggested an
+EmuHawk comparison. Native brightness cycling versus incorrect renderer colour
+handling is not yet established; a spatial interpolation repair alone does not
+explain this observation.
+
+
+### Original-ROM Quarry comparison (2026-10-20)
+The owner repeated411/0 and confirmed brightening/darkening, and confirmed the
+same symptom after selecting Original FPS and restarting. The isolated muted
+EmuHawk reference now reaches native room272 with TribalBoy, TribalGirl and
+three TribalLantern actors. Initial reference setup loaded214 and was rejected;
+a separate copied save checkpoint corrected the room without runtime memory
+writes. All source saves remain intact.
+
+A90-consecutive-frame EmuHawk sequence visibly includes a brief bright pulse
+on the nearby tribals. Pulses occur in captured frames2479,2503 and2527,
+24emulator frames apart. The preceding native lighting field observations also
+show periodic spikes, with presentation lag; a mid-update RDRAM spike alone
+was deliberately not treated as visual proof. This establishes that a similar
+pulse exists in this emulator's original-ROM rendering. It does not yet prove
+equal amplitude/timing in the recomp or original N64 hardware.
+
+Private evidence: cutscene-skip/quarry-emuhawk-checkpoint-20261020;
+consecutive/session/checkpoint-18.png,checkpoint-1c.png,checkpoint-20.png
+show before/pulse/after. Copy/checksum/source-save records and all90frames are
+retained. No renderer brightness patch was applied. The recalled older
+duplicate-lighting-update experiment is distinct from the already-present
+shared-palette interpolation repair; its relationship to this pulse is not
+established.
+
+
+Source clarification: the observed lighting bytes+0x25,+0x26,+0x27 are written
+by the original object-light routine (normalized0440003C). They are byte fields,
+not sixteen-bit light-table indices. The temporary analysis label "light_indices"
+must not be interpreted as their semantic type. The pulse corresponds to a
+change in these native brightness components; the screen comparison remains
+the primary evidence for visible original-game flashing.
+
+
+### Earlier repair located; scoped restoration candidate
+The exact earlier repair is retained in the predecoded Quarry candidate from
+2026-10-08. It intercepted the day/night controller's call to80022520 and
+re-ran the affected actor's original light-selection routine80021B8C. A later
+original-OS control experiment disabled that re-entry, and the current source
+has no equivalent repair. This is the earlier fix the owner recalled, not the
+unrelated shared-palette interpolation change.
+
+The new staged candidate restores the scoped refresh with independent floating-
+point register storage and a separate lower stack window. It verifies the actor
+owns the rewritten descriptor and only applies to the ordinary native lighting
+path; the alternate overlay light selector is intentionally not substituted.
+Quarry272 uses the ordinary path. No blanket brightness clamp, interpolation
+change, global day/night disable, or arbitrary colour is used. Compile/runtime
+qualification and owner acceptance remain pending. The live preview is unchanged.
+
+
+The ordinary-lighting restoration candidate builds and passes the five relevant
+native component suites. It is installed in the existing cutscene preview after
+confirming that preview's game and launcher were closed. All14 package entries
+verify, and the profile/checklist hashes are preserved. This is a candidate for
+owner visual review, not a verified or released resolution. The selector window
+and its in-memory catalog are left alone; updated category labels remain staged.
+
+
+### Quarry lighting acceptance and separate atmospheric follow-up
+The owner confirmed the restored tribal brightness repair in capture
+20261020-215634-e17310e1a5ea4d5ca3a21417d06386da (runtime SHA-256
+4fd680f2c5bf6b04859a660eb6b3da44aafd7da3c7b8621b96192399993a0bcc).
+Actors now look correct. The remaining report is atmospheric only: the day/night
+colour transition blends, jumps darker/lighter, then resumes blending. It must
+not be treated as a failure of the accepted actor-lighting correction.
+See [Quarry atmospheric transitions](quarry-atmospheric-transitions.md).
+
+
+### Quarry follow-up accepted; broader cutscene review resumed
+
+Owner approved the corrected atmospheric smoothing after a complete day/night cycle and resumed cutscene review on runtime ca94e6b4c3437fa86086c7bc8e0009767144313c2eef0654ce020d8265ccd50d. The saved per-character checklist is preserved. See [the atmosphere acceptance](quarry-atmospheric-transitions.md). This acceptance does not mark all scene entries or direct-entry limitations verified.
+
+
+Owner full-review update: BigShip045/0 no longer crashes but does nothing. The review validator explicitly blocks this unsafe standalone entry. Crash avoidance is not successful scene playback or skip verification; retain it as a context-required review limitation. See [selector record](cutscene-review-selector-loading.md). No normal-campaign failure is established.
+
+
+### Owner review: scene207 crashes after skip (2026-10-21 UTC)
+
+Owner reports: "207 crashes after skip (but does show skip)" on the accepted
+Quarry-fog preview ca94e6b4c3437fa86086c7bc8e0009767144313c2eef0654ce020d8265ccd50d.
+The prompt now appears, but completion crashes according to the owner.
+Severity: high; skip path unresolved, not verified. The saved checklist's
+existing207 row is group0/Juno with an older "cant skip" note; the current
+variant/character must be correlated with the live request trace, not inferred
+from that older note. Latest observed session is
+20261021-012017-9eb9e200ee9e45fd9846d399c2b3c309.
+Preserve the active game, saves and owner's notes. No remedy is claimed from
+prompt visibility; completion/transition evidence needs review.
+
+
+### Owner clarifications and additional failures during the same pass
+
+- 207: owner clarifies "it stops after" and "on207". Record stalled playback /
+  no progress after skipping, rather than asserting a process exit. The prompt
+  appears. The request trace identifies207/group0/native character1 (Juno).
+  Earlier wording "crashes" is preserved as the initial report; final cause and
+  remedy remain unknown. An active process does not prove gameplay is healthy.
+- 235: owner reports it still crashes after playing and suspects it is unused.
+  Unused status is **unconfirmed**. Do not remove it from coverage or classify
+  the crash as harmless based on that suspicion. Failure remains open; exact
+  entry and fault/exit mechanism need trace correlation.
+- 240/variant1: owner reports skipping is not allowed. Record failed skip
+  availability; whether a prompt appears was not specified. This variant was
+  among the earlier context-only/unclassified entries, which does not establish
+  it is unused or exempt it from investigation.
+
+Affected preview: ca94e6b4c3437fa86086c7bc8e0009767144313c2eef0654ce020d8265ccd50d.
+Private live intake is review-intake-20261021/207-235-240-live-intake.json.
+Live progress/event samples are partial, not closed crash evidence or replay
+verification. No code or active profile changes were made, and the owner's
+persistent checklist is not overwritten by this intake.
+
+
+Owner retest additions:271/variant2 and275/variant1 still do nothing. Both remain open observations; no unused classification or safe-entry fix is inferred. The current pass is consolidated in [the owner retest record](cutscene-owner-retest-20261020.md), alongside045/207/235/240. No active game/profile/checklist changes.
+
+Owner retest:308/variant1 and322/variant1 do nothing, with explicit confirmation of no freeze for both. Added to [the consolidated owner record](cutscene-owner-retest-20261020.md). No crash/hang or unused classification is inferred.
+
+Owner retest:335 still cannot be skipped. Fresh persistent entry335/1/Juno (2026-10-21T01:30:13Z) says ?cannot skip?; older335/0 failure remains separate. Both are open, and a reviewed checkbox is not a passing result. See [current owner retest](cutscene-owner-retest-20261020.md).
+
+
+Juno final retest clarification: checked boxes are owner-confirmed passes, including entries whose old failure notes remain. Only15 unchecked entries are active; see [the authoritative retest record](cutscene-owner-retest-20261020.md). Candidate bad068704 fixes normalized Credits-overlay qualification, adds individually reviewed visual/proximity actor handlers, and repairs diagnostic selector frontend recovery.48 extracted native/captured-memory checks and both cutscene component suites pass; owner live review is pending. No-exit/context-dependent variants remain unresolved, not classified as unused or silently marked passed.
+
+
+### Corrected native actor audit and review prerequisites (2026-10-21)
+
+This supersedes the type50/type112/type132 dispatch claims above, including
+the description of type50 as projectile-triggered audio control. The native
+dispatch indexes (type - 2), not type. Type50 uses the no-op animation
+controller80026FD4; type112 has no ordinary controller; type132 uses07C00678
+and is accepted only with the animation flag that suppresses that ordinary
+controller. The earlier over-restrictive type50 qualification explains why
+376/0 still rejected skipping. Per-object callbacks remain disallowed.
+
+The owner passed405/2, leaving14 unchecked Juno entries. After207/0 skips,
+its copied review save had only Juno unlocked and the scene marked his route
+complete, leaving no eligible character in the original character-selection
+loop08701754. The exact207/0 diagnostic entry now prepares missing character
+unlocks through native game-flag setters in the copied review game, preserving
+completion flags. Normal campaign entry and skip completion are unchanged.
+
+Candidate96a6b257 passed both cutscene suites,46 extracted native actor/address
+checks, and8 checks executing the original character-selection function against
+the captured state. Its package and support identity are verified, and the
+launcher/selector are open for owner review.376/0 and207/0 remain candidates,
+335/0 remains pending, and11 context-dependent entries remain unresolved.
+See [the current retest record](cutscene-owner-retest-20261020.md) and
+[selector details](cutscene-review-selector-loading.md).
+
+
+Owner acceptance2026-10-21 20:46UTC:376/0 and207/0 work on batch2 (96a6b257);405/2 already passed. Saved Juno boxes agree.335/0 and11 context-dependent entries remain unchecked. This is local owner verification, not a published resolution. See [current retest](cutscene-owner-retest-20261020.md).
+
+
+Owner acceptance20:55UTC:335/0 passed and207/0 re-confirmed. All four targeted Juno retests now pass. Only11 unchecked context-dependent entries and the separate native type145 qualification audit remain; current preview and owner notes unchanged.
+
+
+The remaining11 entries are classified as likely development/setup variants after the original631-exit scan and script audit. Normal exit data selects the already-passed378/2,409/1 and410/1. No actual source or owner notes were changed, and universal unreachability is not claimed. See [the detailed classification](cutscene-owner-retest-20261020.md).
+
+
+Final Juno audit: the type 145 follow-up is complete. It is the native FireWork particle/light control, distinct from type 147 texture animation. Only the incorrect source explanation changed; runtime code and accepted preview remain identical. All four targeted owner retests pass. The remaining 11 rows retain their likely development/setup classification and original notes. See [the final audit](cutscene-owner-retest-20261020.md).

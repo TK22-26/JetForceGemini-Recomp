@@ -15,11 +15,13 @@ check(bool ok,
     std::abort();
   }
 }
+#include "modern_player_context_tests.hpp"
 #include "box_jump_tests.hpp"
 #include "npc_rewards_tests.hpp"
 #include "navigation_pilot_tests.hpp"
 #include "navigation_collision_tests.hpp"
 int main(int argc, char **argv) {
+  modern_player_context_tests();
   box_jump_tests();
   navigation_collision_tests();
   npc_reward_tests();
@@ -581,6 +583,7 @@ int main(int argc, char **argv) {
         }
         const auto before=bytes;
         check(send(++request_nonce,grant.generation));
+        check(grant.weapons_applied && grant.weapons_nonce==request_nonce);
         check(m.u16(saved+0xAU)==0x7FFFU && m.u8(saved+0x6FU)==15U &&
               m.u8(saved+0x6EU)==0xA5U && m.u8(saved+0x70U)==2U);
         for(unsigned i=0;i<15;++i)check(m.u16(saved+0x14U+2U*i)==20U+i &&
@@ -597,6 +600,7 @@ int main(int argc, char **argv) {
       }
       auto before=bytes;
       check(!send(++request_nonce,grant.generation+1U)&&bytes==before);
+      check(!grant.weapons_applied && grant.weapons_nonce==request_nonce);
       check(!send(++request_nonce,grant.generation,-1)&&bytes==before);
       check(!send(++request_nonce,grant.generation,1001)&&bytes==before);
       check(!send(++request_nonce,grant.generation,1000,false)&&bytes==before);
@@ -607,6 +611,38 @@ int main(int argc, char **argv) {
       put8(control+1U,0U);m.put16(game+0x15CU+0x34U+28U,0U);before=bytes;
       check(!send(++request_nonce,grant.generation)&&bytes==before); // no partial grant
       std::istringstream bad("JFGWEAPONS1 0 extra");check(!grant.give_weapons(bad,m,{},1000));
+      bytes=preserved;
+    }
+    {
+      const auto preserved=bytes;
+      NavigationMod grant;grant.telemetry_enabled=true;grant.player=player;
+      const auto room=m.u32(0x800FB114U);std::uint64_t nonce=0;
+      auto send=[&](std::uint64_t n,std::uint64_t gen,std::int64_t stamp=1000,
+                    std::uint32_t level=UINT32_MAX,bool present=true) {
+        std::ostringstream text;text<<"JFGFLOYD1 "<<(level==UINT32_MAX?room:level)
+          <<' '<<gen<<' '<<n<<' '<<stamp;
+        std::istringstream in(text.str());
+        return grant.give_floyd(in,m,present?std::vector<Actor>{{player,1U,{}}}:std::vector<Actor>{},1000);
+      };
+      m.put16(props+6U,512U);put8(control+1U,1U);
+      put8(game+0x30U,0xA5U);put8(game+0x31U,0x5AU);
+      auto expected=bytes;expected[((game+0x30U)&0x1FFFFFFFU)^(swapped?3U:0U)]|=8U;
+      check(send(++nonce,grant.generation)&&bytes==expected&&grant.floyd_grants==1);
+      check(npc_facts(m,inventory(m,player),player).flag(3)==Fact::met);
+      check(!send(nonce,grant.generation)&&bytes==expected);
+      check(send(++nonce,grant.generation)&&bytes==expected); // idempotent unlock
+      check(!send(++nonce,grant.generation+1U)&&bytes==expected);
+      check(!send(++nonce,grant.generation,-1)&&bytes==expected);
+      check(!send(++nonce,grant.generation,1001)&&bytes==expected);
+      check(!send(++nonce,grant.generation,1000,room+1U)&&bytes==expected);
+      check(!send(++nonce,grant.generation,1000,room,false)&&bytes==expected);
+      put8(0x800FD7BDU,1U);auto floyd_unchanged=bytes;
+      check(!send(++nonce,grant.generation)&&bytes==floyd_unchanged);
+      put8(0x800FD7BDU,0U);put8(control+1U,3U);floyd_unchanged=bytes;
+      check(!send(++nonce,grant.generation)&&bytes==floyd_unchanged);
+      put8(control+1U,1U);put32(0x800FD7D4U,0U);floyd_unchanged=bytes;
+      check(!send(++nonce,grant.generation)&&bytes==floyd_unchanged);
+      std::istringstream bad("JFGFLOYD1 0 extra");check(!grant.give_floyd(bad,m,{},1000));
       bytes=preserved;
     }
     // The three map Mods work independently in ordinary telemetry sessions.

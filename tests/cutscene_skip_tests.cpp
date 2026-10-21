@@ -116,7 +116,12 @@ int main() {
  CHECK(inspect({0,0,0x7B,0}).status==Status::pause_gate);
  CHECK(inspect({0,0,0x70,0}).status==Status::unsupported_command);
  CHECK(inspect({0,0,0x7A,0,0}).status==Status::truncated);
- CHECK(inspect({0,1,0x00,0,0,0,0x00,0}).status==Status::non_monotonic_time);
+ {
+   const auto s=inspect({0,1,0x00,0,0,0,0x00,0,0,0,0x7f,0});
+   CHECK(s.status==Status::finite&&s.has_out_of_order_times);
+   CHECK(s.commands[0].time==1&&s.commands[1].time==0);
+   CHECK(inspect({0,1,0x00,0,0,0,0x00,0}).status==Status::truncated);
+ }
  CHECK(inspect({0,0,0x7F,1}).status==Status::unsupported_command);
  CHECK(inspect({0,0,0x00}).status==Status::truncated);
  std::vector<std::uint8_t> endless(4*2049);
@@ -194,5 +199,125 @@ int main() {
  CHECK((jfg::cutscene_skip_button_rgba16[0]&1U)==0);
  CHECK((jfg::cutscene_skip_button_rgba16[16*32+16]&1U)==1);
  CHECK(!jfg::cutscene_skip_gbi(320,240,0.92f,true).empty());
+ {
+   // Landing/takeoff ambient state must survive a skip in native order.
+   const auto script=inspect({0,0,0x24,0x1b, 0,0,0x26,0x50,
+       0,10,0x7a,0,0,88, 0,10,0x7f,0});
+   auto p=jfg::plan_cutscene_completion(script,0);
+   CHECK(p&&p->actions.size()==3&&p->destination==88);
+   CHECK(p->actions[0].kind==jfg::CutsceneCompletionActionKind::ambient_track);
+   CHECK(p->actions[0].argument==27);
+   CHECK(p->actions[1].kind==jfg::CutsceneCompletionActionKind::ambient_volume);
+   CHECK(p->actions[1].argument==80);
+   CHECK(jfg::plan_cutscene_completion(script,8)->actions.size()==1);
+   // Unreviewed ambient fades and ambient effects after departure stay closed.
+   CHECK(!jfg::plan_cutscene_completion(inspect({0,0,0x25,0,0,60,
+       0,10,0x7a,0,0,88,0,10,0x7f,0}),0));
+   CHECK(!jfg::plan_cutscene_completion(inspect({0,0,0x7a,0,0,88,
+       0,1,0x24,27,0,1,0x7f,0}),0));
+ }
+ {
+   // Cave-exit scripts issue two departures in one native interpreter update.
+   const auto script=inspect({5,120,0x7a,0,1,27, 5,120,0x7a,2,1,98, 0,0,0x7f,0});
+   const auto p=jfg::plan_cutscene_completion(script,0);
+   CHECK(p&&p->destination==354&&p->group==2&&p->actions.size()==2);
+   CHECK(p->actions[0].kind==jfg::CutsceneCompletionActionKind::change_level);
+   CHECK(p->actions[0].argument==283&&p->actions[1].argument==354);
+   CHECK(p->actions[1].value==2);
+   CHECK(!jfg::plan_cutscene_completion(script,6)); // First departure already ran.
+   CHECK(!jfg::plan_cutscene_completion(inspect({0,1,0x7a,0,0,1,
+       0,2,0x7a,0,0,2,0,0,0x7f,0}),0));
+   CHECK(!jfg::plan_cutscene_completion(inspect({0,1,0x77,0,
+       0,1,0x7a,0,0,2,0,0,0x7f,0}),0));
+   CHECK(!jfg::plan_cutscene_completion(inspect({0,1,0x7a,0,0,1,
+       0,1,0x77,0,0,0,0x7f,0}),0));
+ }
+ {
+   // Material RGBA interpolation changes presentation, not progression.
+   const auto p=jfg::plan_cutscene_completion(inspect({0,0,0x6b,1,
+       0,255,128,255,0,0,0,60, 0,60,0x7a,0,0,93,0,0,0x7f,0}),0);
+   CHECK(p&&p->destination==93&&p->actions.size()==1);
+   CHECK(!jfg::plan_cutscene_completion(inspect({0,0,0x61,0,0,1,
+       0,60,0x7a,0,0,93,0,0,0x7f,0}),0));
+ }
+ {
+   // Native stream order, not sorted timestamp order, determines side effects.
+   const auto s=inspect({0,10,0x00,0, 0,5,0x78,1,0,89,
+       0,6,0x7a,0,0,93, 0,0,0x7f,0});
+   const auto p=jfg::plan_cutscene_completion(s,0);
+   CHECK(s.has_out_of_order_times&&p&&p->actions.size()==2&&p->destination==93);
+   CHECK(p->actions[0].kind==jfg::CutsceneCompletionActionKind::game_flag);
+   CHECK(p->actions[0].argument==89);
+   CHECK(jfg::plan_cutscene_completion(s,10)->actions.size()==1);
+   // A late visual wait also delays an earlier-stamped flag after departure.
+   CHECK(!jfg::plan_cutscene_completion(inspect({0,5,0x7a,0,0,93,
+       0,10,0x00,0, 0,1,0x78,1,0,89, 0,0,0x7f,0}),0));
+   // Two departure commands already due in the same update retain their order.
+   const auto q=jfg::plan_cutscene_completion(inspect({0,10,0x00,0,
+       0,5,0x7a,0,0,93, 0,6,0x7a,0,0,94, 0,0,0x7f,0}),0);
+   CHECK(q&&q->destination==94&&q->actions.size()==2);
+ }
+ {
+   // A reviewed scene completion keeps its generator flag after requesting
+   // the native destination. An identical unqualified tail stays rejected.
+   const auto s=inspect({9,187,0x7a,0,0x11,0x0b,
+       9,196,0x78,1,0,89, 0,0,0x7f,0});
+   CHECK(!jfg::plan_cutscene_completion(s,0));
+   const auto p=jfg::plan_cutscene_completion(s,0,{357,1});
+   CHECK(p&&p->destination==267&&p->actions.size()==2);
+   CHECK(p->actions[0].kind==jfg::CutsceneCompletionActionKind::change_level);
+   CHECK(p->actions[0].argument==0x110b);
+   CHECK(p->actions[1].kind==jfg::CutsceneCompletionActionKind::game_flag);
+   CHECK(p->actions[1].argument==89&&p->actions[1].value==1);
+   CHECK(!jfg::plan_cutscene_completion(s,0,{357,0}));
+   CHECK(!jfg::plan_cutscene_completion(s,0,{356,1}));
+   CHECK(!jfg::plan_cutscene_completion(s,6,{357,1}));
+   for(unsigned field:{0U,1U,2U,3U}) {
+     auto different=s;
+     if(field==0)different.commands[0].payload[0]=0x110c;
+     if(field==1)different.commands[1].payload[0]=90;
+     if(field==2)different.commands[1].time=2501;
+     if(field==3)different.commands[1].word=0x7800;
+     CHECK(!jfg::plan_cutscene_completion(different,0,{357,1}));
+   }
+ }
+ {
+   // Model animation control is local presentation. Keep the following
+   // departure and progression flag in their native stream order.
+   const auto s=inspect({0,0,0x6f,1, 0,1,0,60,
+       0,10,0x7a,0,1,76, 0,10,0x78,1,0,99, 0,0,0x7f,0});
+   const auto p=jfg::plan_cutscene_completion(s,0);
+   CHECK(p&&p->destination==332&&p->actions.size()==2);
+   CHECK(p->actions[0].kind==jfg::CutsceneCompletionActionKind::change_level);
+   CHECK(p->actions[1].kind==jfg::CutsceneCompletionActionKind::game_flag);
+   CHECK(p->actions[1].argument==99&&p->actions[1].value==1);
+ }
+ {
+   // Only credits can complete a presentation-only background loop through
+   // its native frontend handler. Other loops and persistent effects reject.
+   const auto loop=inspect({0,0,0,1, 0,10,0x65,1, 0,20,0x7e,0});
+   const auto p=jfg::plan_cutscene_completion(loop,0,{360,0});
+   CHECK(p&&p->native_credits&&p->actions.size()==1);
+   CHECK(p->actions[0].kind==jfg::CutsceneCompletionActionKind::credits_end);
+   CHECK(jfg::plan_cutscene_completion(loop,4,{360,0}));
+   CHECK(!jfg::plan_cutscene_completion(loop,2,{360,0}));
+   CHECK(!jfg::plan_cutscene_completion(loop,0,{359,0}));
+   CHECK(!jfg::plan_cutscene_completion(loop,0,{360,1}));
+   CHECK(!jfg::plan_cutscene_completion(loop,0));
+   const auto persistent=inspect({0,0,0x78,1,0,89,0,20,0x7e,0});
+   CHECK(!jfg::plan_cutscene_completion(persistent,0,{360,0}));
+ }
+ {
+   const auto s=inspect({7,158,0x7a,0,1,136, 25,100,0x7a,2,1,132, 0,0,0x7f,0});
+   auto p=jfg::plan_cutscene_completion(s,0,{388,0});
+   CHECK(p&&p->destination==392&&p->group==0&&p->actions.size()==1);
+   CHECK(!jfg::plan_cutscene_completion(s,0));
+   CHECK(!jfg::plan_cutscene_completion(s,0,{388,1}));
+   CHECK(!jfg::plan_cutscene_completion(s,6,{388,0}));
+   auto changed=s;changed.commands[1].payload[0]=389;
+   CHECK(!jfg::plan_cutscene_completion(changed,0,{388,0}));
+   changed=s;changed.commands[1].time=6501;
+   CHECK(!jfg::plan_cutscene_completion(changed,0,{388,0}));
+ }
  std::cout<<checks<<" checks passed\n";
 }

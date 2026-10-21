@@ -73,7 +73,7 @@ struct App {
   HBRUSH background = CreateSolidBrush(RGB(18, 27, 40));
   fs::path profile, helper, dataRoot, localRoot, executable;
   bool portable = false, customProfile = false, restartStorage = false, settingsDialogOpen = false;
-  std::wstring inputReplay, progressOutput, diagnosticsDirectory;
+  std::wstring inputReplay, progressOutput, diagnosticsDirectory, cutsceneReviewRequest;
   bool weatherDiagnostics = false;
   bool quickPlay = false, previewUpdate = false;
   Process session, dialog;
@@ -175,6 +175,8 @@ bool launch(Process &process, const wchar_t *action, HWND owner) {
       command += L" --progress-output " + quote(app.progressOutput);
     if (!app.diagnosticsDirectory.empty())
       command += (app.weatherDiagnostics ? L" --weather-diagnostics " : L" --diagnostics ") + quote(app.diagnosticsDirectory);
+    if (!app.cutsceneReviewRequest.empty())
+      command += L" --cutscene-review-request " + quote(app.cutsceneReviewRequest);
   }
   fs::path executable=app.helper;
 #ifdef JFG_RML_UI
@@ -600,6 +602,13 @@ void syncUiCapture() {
       status(L"Ctrl+M is already in use. Mute is available in the Audio menu.");
   }
   bool enabled = FrontendUiCapturing() || app.dialog.running() || app.videoDialogOpen;
+  if (!FrontendUiCanOverlayGame() && app.viewport) {
+    // HWND presentation stays behind the game child. Expose the UI while a
+    // menu/dialog captures input, then restore the same game without restarting.
+    const bool showGame = app.render && IsWindow(app.render) && !enabled;
+    if ((IsWindowVisible(app.viewport) != FALSE) != showGame)
+      ShowWindow(app.viewport, showGame ? SW_SHOWNOACTIVATE : SW_HIDE);
+  }
   if (enabled != app.setting) {
     capture(enabled);
     ShowWindow(app.shield, enabled ? SW_SHOW : SW_HIDE);
@@ -926,11 +935,18 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       app.manualPause = false;
       app.stopRequested = false;
       app.startedAt = GetTickCount64();
-      if (launch(app.session, app.playing ? L"play" : L"setup",
-                 app.playing ? app.viewport : window))
-        status(app.playing ? L"Starting game..." : L"Checking game files...");
-      else
-        app.playing = false;
+      {
+        const auto starting = app.playing ? L"Starting game..." : L"Verifying files...";
+        // Publish before launch so neither an old result nor a racing helper
+        // status can be overwritten by the starting message.
+        write(L"frontend-status.txt", starting);
+        status(starting);
+        if (!launch(app.session, app.playing ? L"play" : L"setup",
+                    app.playing ? app.viewport : window)) {
+          app.playing = false;
+          write(L"frontend-status.txt", app.lastStatus);
+        }
+      }
       showHome(true);
       break;
     case Stop:
@@ -1139,6 +1155,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
       app.inputReplay = fs::absolute(fs::path(argv[++i])).wstring();
     else if (option == L"--progress-output" && i + 1 < argc && app.progressOutput.empty())
       app.progressOutput = fs::absolute(fs::path(argv[++i])).wstring();
+    else if (option == L"--cutscene-review-request" && i + 1 < argc && app.cutsceneReviewRequest.empty())
+      app.cutsceneReviewRequest = fs::absolute(fs::path(argv[++i])).wstring();
     else if ((option == L"--diagnostics" || option == L"--weather-diagnostics") &&
              i + 1 < argc && app.diagnosticsDirectory.empty()) {
       app.weatherDiagnostics = option == L"--weather-diagnostics";
@@ -1148,7 +1166,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
       validArguments = false;
   }
   LocalFree(argv);
-  if (!validArguments || (!app.quickPlay && (!app.inputReplay.empty() || !app.progressOutput.empty()))) {
+  if (!validArguments || (!app.quickPlay && (!app.inputReplay.empty() || !app.progressOutput.empty())) ||
+      (!app.cutsceneReviewRequest.empty() && (app.diagnosticsDirectory.empty() || !app.inputReplay.empty()))) {
     MessageBoxW(nullptr,
                 L"Use JFG-Launcher.exe [--play] [--profile <folder>] [--portable] [--diagnostics <folder>] [--preview-update]. "
                 L"Diagnostic --input-replay <file> and --progress-output <file> require --play.",

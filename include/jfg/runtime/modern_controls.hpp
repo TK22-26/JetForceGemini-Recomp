@@ -42,6 +42,7 @@ struct ModernControlsConfig {
     bool enabled = false;
     bool aim_toggle = false;
     bool automatic_roll = true;
+    bool pad_floyd_flight_invert_y = true;
     bool mouse_original_acceleration = false;
     ModernGlyphStyle glyph_style = ModernGlyphStyle::automatic;
     int movement_stick = 0, movement_deadzone = 7849;
@@ -59,17 +60,17 @@ struct ModernControlsConfig {
         PcInputConfig c;c.modern=c.mouse_aim=c.dual_stick=1;return c;
     }();
 };
-inline constexpr std::array<std::string_view,12> kModernSettings{
+inline constexpr std::array<std::string_view,13> kModernSettings{
     "version","enabled","aim_toggle","glyph_style","movement_stick",
-    "movement_deadzone","axis_threshold","trigger_threshold","mouse_scope_sensitivity","pad_scope_sensitivity","mouse_original_acceleration","roll.automatic"};
+    "movement_deadzone","axis_threshold","trigger_threshold","mouse_scope_sensitivity","pad_scope_sensitivity","mouse_original_acceleration","roll.automatic","pad_floyd_flight_invert_y"};
 // Modern keyboard navigation follows the movement keys; arrow keys are not
 // bindings. Keep the persisted action IDs for controller and profile compatibility.
 inline constexpr bool modern_arrow_key(int key) { return key>=37 && key<=40; }
 inline std::string serialize_modern_controls(const ModernControlsConfig &c) {
     std::string out;
-    const std::array<int,kModernSettings.size()> values{6,int(c.enabled),int(c.aim_toggle),int(c.glyph_style),
+    const std::array<int,kModernSettings.size()> values{7,int(c.enabled),int(c.aim_toggle),int(c.glyph_style),
         c.movement_stick,c.movement_deadzone,c.axis_threshold,c.trigger_threshold,
-        c.mouse_scope_sensitivity,c.pad_scope_sensitivity,int(c.mouse_original_acceleration),int(c.automatic_roll)};
+        c.mouse_scope_sensitivity,c.pad_scope_sensitivity,int(c.mouse_original_acceleration),int(c.automatic_roll),int(c.pad_floyd_flight_invert_y)};
     for(std::size_t i=0;i<values.size();++i)
         out+=std::string(kModernSettings[i])+"="+std::to_string(values[i])+"\n";
     for(std::size_t i=0;i<kModernActionCount;++i) {
@@ -149,12 +150,18 @@ inline bool parse_modern_controls(std::string_view text,ModernControlsConfig &re
             seen[padSlot]=seen[keySlot]=true;
         }
     }
+    // Version 7 separates controller aircraft pitch from look inversion.
+    // Existing profiles retain original flight steering.
+    if(values[0]>=1 && values[0]<=6) {
+        if(seen[12])return false;
+        values[12]=1;seen[12]=true;
+    }
     for(bool present:seen)if(!present)return false;
-    if((values[0]!=1 && values[0]!=2 && values[0]!=3 && values[0]!=4 && values[0]!=5 && values[0]!=6) || values[1]<0 || values[1]>1 || values[2]<0 || values[2]>1 ||
+    if((values[0]!=1 && values[0]!=2 && values[0]!=3 && values[0]!=4 && values[0]!=5 && values[0]!=6 && values[0]!=7) || values[1]<0 || values[1]>1 || values[2]<0 || values[2]>1 ||
        values[3]<0 || values[3]>2 || values[4]<0 || values[4]>1 ||
        values[5]<0 || values[5]>30000 || values[6]<1000 || values[6]>32000 ||
        values[7]<1000 || values[7]>32000 || values[8]<10 || values[8]>300 ||
-       values[9]<10 || values[9]>300 || values[10]<0 || values[10]>1 || values[11]<0 || values[11]>1 || !parse_pc_input(look,c.look) ||
+       values[9]<10 || values[9]>300 || values[10]<0 || values[10]>1 || values[11]<0 || values[11]>1 || values[12]<0 || values[12]>1 || !parse_pc_input(look,c.look) ||
        c.look.modern!=1 || c.look.mouse_aim!=1 || c.look.dual_stick!=1)return false;
     // Only migrate the old default Back binding; preserve custom controls and
     // avoid taking Q from a menu or movement action. New profiles expose Q in UI.
@@ -168,7 +175,7 @@ inline bool parse_modern_controls(std::string_view text,ModernControlsConfig &re
     c.glyph_style=static_cast<ModernGlyphStyle>(values[3]);c.movement_stick=values[4];
     c.movement_deadzone=values[5];c.axis_threshold=values[6];c.trigger_threshold=values[7];
     c.mouse_scope_sensitivity=values[8];c.pad_scope_sensitivity=values[9];
-    c.mouse_original_acceleration=values[10]!=0;c.automatic_roll=values[11]!=0;
+    c.mouse_original_acceleration=values[10]!=0;c.automatic_roll=values[11]!=0;c.pad_floyd_flight_invert_y=values[12]!=0;
     // Retire arrow bindings from saved modern profiles without changing other
     // choices, including shared E actions, inversion and controller mappings.
     for(auto& key:c.keys)if(modern_arrow_key(key))key=0;
@@ -357,6 +364,26 @@ inline ControllerPortSample map_modern_boss_actions(const ModernActionSample &in
     if(input.move.x<0)out.buttons|=0x2;
     if(input.move.x>0)out.buttons|=0x1;
     out.x=out.y=0;
+    return out;
+}
+// Floyd reads fixed native buttons rather than either character action table.
+// Jump/Interact accelerate in missions; Crouch brakes. Co-op only needs Fire
+// and Start to join/leave. Movement remains available for native flight.
+inline ControllerPortSample map_modern_floyd_actions(const ModernActionSample& input,bool mission,bool mouse=false,bool flight_inverted=true) {
+    ControllerPortSample out;out.connected=true;out.x=input.move.x;out.y=input.move.y;
+    if(input.held&modern_bit(ModernAction::pause))out.buttons|=0x1000;
+    if(input.held&modern_bit(ModernAction::fire))out.buttons|=0x2000;
+    if(mission && mouse) {
+        // Mouse steers flight; X carries strafe intent to the mission adapter.
+        // Forward/back become thrust/brake. Interact remains the pad action.
+        out.y=0;
+        if(input.move.y>0)out.buttons|=0x8000;
+        if(input.move.y<0)out.buttons|=0x4000;
+    } else if(mission) {
+        if(!flight_inverted)out.y=static_cast<std::int8_t>(std::clamp(-int(out.y),-128,127));
+        if(input.held&(modern_bit(ModernAction::jump)|modern_bit(ModernAction::interact)))out.buttons|=0x8000;
+        if(input.held&modern_bit(ModernAction::crouch))out.buttons|=0x4000;
+    }
     return out;
 }
 // Toggle aim resets on context/focus/device changes. Re-entry while held needs

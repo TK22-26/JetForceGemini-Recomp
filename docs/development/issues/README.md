@@ -36,11 +36,16 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
-| UI-008 | Launcher menu hover remains highlighted over game | Initial hover fix regressed dropdown selection; corrected routing passes 55 menu and 790 controls checks; owner confirms fixed; unreleased | [Report](launcher-menu-hover-stuck.md) |
-| GH-032 | Intermittent mouse look and ineffective vertical inversion (#32) | Owner accepts default/reset-Off preview; TODO ask reporter to retest updated build; reporter capture/inversion symptoms remain open; unreleased | [Report and review](github-mouse-look-and-inversion.md) |
-| GH-037 | Floyd cannot fire (#37) | New v1.3.0 report; potential mission blocker, input setup unknown; not reproduced/investigated | [Report](github-floyd-cannot-fire.md) |
-| GH-036 | Missing weapon crosshairs (#36) | May overlap accepted #25 reticle fix; unverified, reporter retest after delivery | [Report](github-weapon-crosshairs.md) |
+| UI-009 | Live map Mods redesign disabled/focus states | Owner-approved 2026-10-21; visible badges and reference padlock accepted locally; 973 native checks pass; unreleased | [Review](live-map-mods-layout.md) |
+| GH-040 | Windows release fails to start through Steam Deck Proton (#40) | Mandatory DirectComposition conflicts with Valve Wine; HWND candidate built; normal/failure-injection UI checks passed. Proton/Deck validation pending; native port deferred | [Report](github-steam-deck-proton-startup.md) |
+| GH-039 | Give all weapons leaves inventory unchanged (#39) | Reproduced: paused Mods dialog expires requests. Candidate processes grants while paused and confirms application; native/runtime/launcher checks passed and owner confirms actual UI grant; reporter retest/release pending | [Report](github-give-all-weapons.md) |
+| GH-038 | Fet-Bubb crashes shortly after attacking (#38) | Dump exactly matches VibinToast v1.1.8, a different project; our v1.3.0 passes bounded boss comparison; local defect unestablished, reporter routing/clarification needed | [Report](github-fet-bubb-crash.md) |
+| GH-037 | Floyd cannot fire (#37) | Fully approved locally by owner for v1.4.0; reporter re-verification after delivery pending | [Report](github-floyd-cannot-fire.md) |
+| GH-036 | Missing weapon crosshairs (#36) | Owner believes existing accepted reticle correction covers it; likely fixed locally, delivery/reporter confirmation pending | [Report](github-weapon-crosshairs.md) |
 | GH-034 | Modern boss aim range, including both Mizar fights (#34) | Owner-approved after live Twin Mantis review; five boss fixtures match EmuHawk in both Modern paths; unreleased; reporter retest after delivery | [Report](github-twin-mantis-aim-range.md) |
+| DIAG-003 | Cutscene selector rejects a running game | Normal native parent/child pair miscounted as two games; corrected detection owner-confirmed; character ID swap corrected awaiting review; room45 direct-entry crash and stale-request startup open | [Report](cutscene-review-selector-loading.md) |
+| UI-008 | Launcher menu hover remains highlighted over game | Initial hover fix regressed dropdown selection; corrected routing passes 55 menu and 790 controls checks; owner confirms fixed; unreleased | [Report](launcher-menu-hover-stuck.md) |
+| GH-032 | Intermittent mouse look and ineffective vertical inversion (#32) | Official v1.3.0 verified; cause unproved; bounded mouse diagnostics implemented and tested, package/live capture pending; default/reset-Off separately accepted, unreleased | [Report and review](github-mouse-look-and-inversion.md) |
 | GH-033 | Modern Controls missing sideways roll (#33) | Roll bindings, automatic-roll setting, prone direction and backward-crawl fixes owner-accepted; unreleased | [Cause, evidence and selected policy](github-modern-controls-side-roll.md) |
 | PERF-005 | SS Anubis ledge-testing stutter in Lighting Preview | Earlier gaps measured; repeat Anubis capture steady, intermittent cause open | [Report](tawfret-lighting-preview-stutter.md) |
 | RENDER-019 | Tawfret brightness and distant haze differ from N64 | Fog candidate checked against original tasks; owner approved locally; unreleased | [Report](tawfret-brightness-fog-fidelity.md) |
@@ -50,7 +55,7 @@ Detailed per-issue records are added as those issues receive further work.
 | CAMERA-009 | Focus-loss camera reset | Room-entry/focus-return correction passes actual-source tests and owner review with Modern controller and mouse/keyboard; unreleased | [Report](focus-loss-camera-reset.md) |
 | CAMERA-008 | Modern controller high-drop camera reset | Owner confirmed locally; 486 scoped assertions and native checks pass; unreleased | [Report](controller-high-landing-camera-reset.md) |
 | CAMERA-007 | Modern ledge/water camera reset and water-air facing (#30) | Ledge/water camera and water-air body-facing fix owner-approved after isolated retest; unreleased, reporter retest pending | [Report](controller-ledge-camera-reset.md) |
-| ENHANCE-001 | Optional cutscene skipping (#31) | Owner confirms reviewed story/travel routes; Vela skipped-effect audio fix owner-confirmed; broader inventory/route review remains open; unreleased | [Scope](optional-cutscene-skipping.md) |
+| ENHANCE-001 | Optional cutscene skipping (#31) | Owner-approved 2026-10-21; final four targeted Juno retests pass; eleven debug/context entries retain documented coverage limits; unreleased | [Scope](optional-cutscene-skipping.md) |
 | RENDER-018 | Dead drone bodies jitter with camera movement | Included in v1.3; owner visual pass and capture validation, exact seed/cutscene coverage unverified | [Investigation and validation](dead-drone-camera-jitter.md) |
 | NATIVE-003 | Ichor detached-head flight locations after body destruction | EmuHawk plus idle/moving Vela comparison: no sampled out-of-bounds flight; broader parity unconfirmed | [Report and comparison plan](ichor-head-flight-locations.md) |
 | MOD-001 | Exit warp stops at the door | Native contact fix in 1.2.1; 1.3 progression bypass and exact overlapping-exit handoff pass focused/native checks | [Report and source review](map-exit-warp-transition.md) |
@@ -61,7 +66,7 @@ Detailed per-issue records are added as those issues receive further work.
 | RENDER-013 | Original appears to follow VSync/display refresh | Not reproduced after restart; owner confirms 30 FPS motion, earlier session unlogged | [Investigation](original-vsync-rate-selection.md) |
 | RENDER-011 | Vela rescue cutscene stalls / appears low resolution | Tentatively accepted by owner at 120/30 after N64 footage confirms soft shots; brief Vela-to-first-cut dip and broader review remain | [Report and evidence](vela-rescue-cutscene-stutter-resolution.md) |
 | INPUT-011 | GitHub #20 Ichor boss-room controls stop responding | Released in v1.2.1; owner confirms three bosses; reporter retest pending | [Cause and verification](github-ichor-boss-controls.md) |
-| BUILD-003 | Release source policy and compiler portability | v1.3 source/compiler/package checks pass; publication and finite test limits recorded | [Release validation](release-source-validation.md) |
+| BUILD-003 | Release source policy and compiler portability | v1.4 Windows candidate checks pass; clean-history/package verification pending; existing WSL harness limitation retained | [Release validation](release-source-validation.md) |
 | NATIVE-002 | GitHub #14 mouse-look startup access violation | Reproduced startup cause resolved in v1.2.0; current enabled startup passes | [Startup report](github-mouse-look-startup.md) |
 | BUILD-002 | GitHub #15 GCC native build failure | Portable source released in v1.2.0; actual GCC source verified, AppImage not qualified | [Linux build review](github-linux-native-build.md) |
 | INPUT-010 | GitHub #13 controller camera inversion | GUI toggle released in v1.2.0; persistence/deltas verified, reporter retest pending | [Controls review](github-controller-vertical-inversion.md) |
@@ -163,3 +168,64 @@ Cutscene preview10: Vela rescue now owner-confirmed working. Juno departure rema
 - [Character-selection rainbow/white flash](character-selection-depth-flash.md): workload-aware depth/readback correction passed renderer checks and owner visual review in preview13; unreleased.
 
 Current cutscene status: owner confirmed preview13 Tawfret intro, Vela rescue and Juno departure skipping. Earlier preview notes above preserve historical failures and superseded pending states; see [the current record](optional-cutscene-skipping.md).
+
+2026-10-20 cutscene review: [optional skipping](optional-cutscene-skipping.md) now records the owner checklist failures, separate direct-entry limitations, Quarry tribal flashing, and source-tested completion candidates. These candidates are not yet owner-verified or released. [Selector loading](cutscene-review-selector-loading.md) records the session replay and character mapping candidates.
+
+- [Launcher file verification feedback](launcher-file-verification-feedback.md): open owner report; both Verify files actions lack a visible working state (2026-10-20).
+
+
+2026-10-20 checklist completion candidate: linked texture-actor segments,
+native credits exit and selector cleanup, and reachable ending departure are
+source/component-tested and installed for targeted owner retest.
+[File verification feedback](launcher-file-verification-feedback.md) adds
+visible activity to both verification views;81 native UI checks pass.
+The full owner checklist is preserved; unresolved diagnostic contexts and
+Quarry tribal flashing are not marked resolved.
+
+
+2026-10-20 follow-up: Quarry tribals brighten/darken after both282/0 and411/0,
+including the owner's restarted Original-FPS comparison. Native EmuHawk
+brightness comparison is in progress. The private selector's classified
+catalog and BigShip direct-entry rejection pass isolated persistence checks
+and62 native entry checks; these changes are staged, not installed/released.
+
+
+Quarry follow-up: original-ROM EmuHawk also visibly pulses. The exact earlier
+day/night lighting repair was located; a scoped restoration is built and
+installed for owner review, with the live outcome still pending. See the
+[cutscene issue](optional-cutscene-skipping.md) for cause, comparison evidence,
+source scope and limitations. No released-resolution claim.
+
+- [Quarry atmospheric day/night transition jumps](quarry-atmospheric-transitions.md): owner-approved corrected smoothing; all 12 phases captured with 2,971 matching fog commands and zero colour-match rejection. Original integer-distance steps and rejected strobing candidate documented. Unreleased; actor fix remains accepted.
+
+- [Modern controls on P2-P4](modern-controls-secondary-players.md): confirmed setup/runtime restriction; UI tests pass, per-port runtime candidate under validation.
+
+- 2026-10-21 review follow-up: [BigShip selector entry](cutscene-review-selector-loading.md) no longer crashes but does not start. Current validator deliberately rejects the unsafe standalone entry; safe entry and clear selector feedback remain unresolved. Not a verified skip pass.
+
+- 2026-10-21 owner cutscene retest: [scene207](optional-cutscene-skipping.md) shows the skip prompt but reportedly crashes after skipping. High-severity completion failure remains open; prompt visibility is not successful skip verification.
+
+- 2026-10-21 ongoing [cutscene pass](optional-cutscene-skipping.md):207/0 stalls after skip (owner clarification);235 reportedly crashes after playback, unused status unconfirmed;240/1 does not allow skip. All remain open, separate from accepted Quarry lighting/fog fixes.
+
+- [Current cutscene owner retest](cutscene-owner-retest-20261020.md): ongoing045/207/235/240/271/275 findings, with crashes, stalled completion, unavailable skip and no visible action kept distinct. Unresolved; accepted Quarry fog is separate.
+
+- Final [Juno cutscene retest](cutscene-owner-retest-20261020.md): owner confirms remaining failures are valid; Juno-only investigation active, including376,378/1 and corrected380/1. Superseded by the owner clarification below: checked Juno entries are passes even when older failure notes remain.
+
+- [Modern Floyd vertical inversion](modern-floyd-vertical-inversion.md): owner reproduced reversed mouse aim with P2 inversion Off; adapter correction passes native tests and preview 2 is owner-confirmed.
+
+- Owner clarified final Juno checkbox semantics: checked means passed, even with an older failure note. Only unchecked entries remain in the [active cutscene retest scope](cutscene-owner-retest-20261020.md).
+
+- Juno final cutscene pass: [current owner retest](cutscene-owner-retest-20261020.md), All four targeted fixes are owner-confirmed. The11 remaining unchecked entries are classified as likely development/setup variants after the original631-exit and animation-script scans; no exact unresolved variant was linked by those exits. Classification limits are recorded; the type 145 audit is complete with a source-comment correction and no runtime change. [Selector record](cutscene-review-selector-loading.md) covers mode recovery, focus handoff, explicit blocked-entry feedback and the corrected note-row event ordering. Checked owner entries remain passed.
+
+- [Floyd widescreen bounds](floyd-widescreen-aim-bounds.md): original limits confirmed in EmuHawk at4:3/widescreen; mouse matches, no bounds change.
+
+- [Modern Floyd controller diagonal range](modern-floyd-controller-diagonal-range.md): correction in preview3;64 native cases and four suites pass; owner controller test pending; original outer bounds intact.
+
+- [Floyd reticle/ammo HUD layering](floyd-reticle-ammo-hud-layering.md): original triangle/line layering reproduced in EmuHawk Angrylion; no correction indicated.
+
+- [Modern M/K camera during Floyd preview3](modern-mouse-camera-floyd-preview-report.md): mixed-contact distance correction in preview4;447 recorded points qualified in both native execution paths; owner confirms camera fixed; unreleased.
+
+- [Floyd mission pad access after Give Floyd](give-floyd-mission-pad-access.md): SS Anubis pad requires a Mizar token; zero-token gate explained. Owner subsequently entered the mission; firing/completion validation remains open.
+
+- [Modern M/K Floyd mission steering](modern-floyd-mission-mouse-flight.md): Owner reports preview5 flight feels good; preview6 adds A/D strafing. Runtime/four suites and native velocity checks pass; owner strafe/fire/completion validation pending.
+
+- [Modern controller Floyd flight inversion](modern-floyd-controller-flight-inversion.md): separate default-On flight option in preview7; automated checks pass and owner approved; unreleased.

@@ -1687,3 +1687,21 @@ Original controls bypass the correction and their regression check passes.
 Scope limits and native smoothing are retained. The owner approved the fix after
 live Twin Mantis review and reported that it matches the reference video. The fix
 is unreleased; broader live/scoped validation limits remain in the issue record.
+
+
+## Floyd mission mouse flight (local preview5, 2026-10-21)
+
+In Modern mouse/keyboard Floyd missions, the mouse steers flight and aim together.
+Move Forward (default W) provides thrust; Move Back (S) brakes. Fire (left-click)
+shoots, and Interact (E) still enters eligible pads. Mouse aim sensitivity,
+vertical sensitivity and inversion apply. Co-op retains independent reticle
+control and Modern controller missions retain their previous mapping.
+
+Runtime, four component suites and 302 native/adapter cases pass. Owner live
+flight, firing and mission completion remain pending; this is an unreleased
+preview. See [mission controls](../development/issues/modern-floyd-mission-mouse-flight.md).
+
+Preview6 adds Move Left/Right (default A/D) as lateral flight alongside the mouse steering. Strafe follows the current yaw, preserves mouse aim and stays within the native thrust/speed limits. Release uses native coasting. Owner reports preview5 mouse flight feels good; the new strafing, actual shots and mission completion await live verification.
+
+
+Modern controller Advanced settings includes **Invert Floyd flight steering** for Floyd missions. On (default) keeps aircraft controls: push up to fly down; Off makes up fly up. This is saved per player and separate from normal look inversion. Existing profiles migrate to On. Controller reset restores On; keyboard reset preserves the controller flight preference. Mouse mission steering and A/D strafing retain their existing behavior. Local preview7 passed automated checks and was approved by the owner on 2026-10-21; unreleased.

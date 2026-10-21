@@ -141,9 +141,9 @@
         "<img class=\"mc-radio\" src=\"controls-art/ui-details.tga\" rect=\""+std::string(selected?"64 128 64 64":"0 128 64 64")+"\"/><span class=\"mc-style-copy\"><span class=\"mc-style-name\">"+
         std::string(active?"Modern Controls <span class=\"mc-badge\">EXPERIMENTAL</span>":"Controller Mapping")+
         "</span><span class=\"mc-style-desc\">"+(active?(pcKeyboard()?"Modern PC controls: WASD to move, mouse to look and aim.":"Movement, aiming and action bindings made for modern controllers."):(pcKeyboard()?"Map keys and mouse buttons to the original game controls.":"Map your inputs to the original game controls."))+"</span></span>",
-        "mc-style-choice",selected,active && (player!=0 || modernInvalid[player]));
+        "mc-style-choice",selected,active && modernInvalid[player]);
     }
-    const std::string note=player!=0?"Modern Controls is available for Player 1 in single-player.":"Modern Controls is experimental.";
+    const std::string note="Modern Controls is experimental.";
     html+="</div><span class=\"mc-style-note\">"+note+"</span></div>";
     if(modernInvalid[player])html+="<div class=\"mc-warning\">Modern profile could not be read. "+modernButton("mc-repair","Restore modern defaults")+"</div>";
     return html;
@@ -358,7 +358,8 @@
       modernSwitch("mc-original-acceleration","Original movement acceleration",
         "Ease into movement and slow down gradually when releasing keys. Off gives immediate starts and stops. Top speed stays the same.",c.mouse_original_acceleration)+automaticRoll+"</section></div></div>";
     return "<div id=\"mc-settings-scroll\" class=\"mc-settings-scroll\"><div class=\"mc-settings-grid\"><div class=\"mc-settings-column\"><section class=\"mc-settings-card\"><div class=\"mc-section-title\">VERTICAL LOOK</div>"+
-      modernRange("vertical","Vertical sensitivity",c.look.stick_vertical_sensitivity,10,300)+"</section><section id=\"mc-movement-card\" class=\"mc-settings-card\"><div class=\"mc-section-title\">MOVEMENT</div>"+automaticRoll+"</section></div><div class=\"mc-settings-column\"><section class=\"mc-settings-card\"><div class=\"mc-section-title\">BINDING THRESHOLDS</div>"+
+      modernRange("vertical","Vertical sensitivity",c.look.stick_vertical_sensitivity,10,300)+
+      modernSwitch("mc-floyd-flight-invert","Invert Floyd flight steering","Floyd missions: push up to fly down. Turn off to fly up.",c.pad_floyd_flight_invert_y)+"</section><section id=\"mc-movement-card\" class=\"mc-settings-card\"><div class=\"mc-section-title\">MOVEMENT</div>"+automaticRoll+"</section></div><div class=\"mc-settings-column\"><section class=\"mc-settings-card\"><div class=\"mc-section-title\">BINDING THRESHOLDS</div>"+
       modernRange("axis","Button axis threshold",c.axis_threshold,1000,32000,"",true)+modernRange("trigger","Trigger threshold",c.trigger_threshold,1000,32000,"",true)+"</section></div></div></div>";
   }
   std::string modernHtml() {

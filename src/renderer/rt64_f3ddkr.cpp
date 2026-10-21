@@ -79,6 +79,7 @@ struct Context {
     RT64::Application* application = nullptr;
     RT64::GBI gbi{};
     NativeCutscenePrompt cutscene_prompt{};
+    DayNightFog daynight_fog{};
     bool cutscene_prompt_drawn = false;
     std::array<hlslpp::float4x4, kMatrixCount> matrices{};
     std::array<std::uint32_t, kMatrixCount> matrix_segmented_addresses{};
@@ -1037,7 +1038,26 @@ void move_word(RT64::State* state, RT64::DisplayList** dl) {
         return;
     }
     if ((*dl)->p0(0U,8U) == G_MW_FOG) {
-        const auto coefficients=jfg::fog_coefficients((*dl)->w1,
+        auto native = (*dl)->w1;
+        const auto& refinement = context->daynight_fog;
+        if (refinement.valid && native == refinement.native_coefficients) {
+            const auto& color = state->rdp->fogColorStack[state->rdp->fogColorStackSize - 1];
+            const auto byte = [](float value) {
+                return static_cast<std::uint32_t>(value * 255.0f + 0.5f);
+            };
+            const auto packed_color = (byte(static_cast<float>(color.x)) << 24U) |
+                (byte(static_cast<float>(color.y)) << 16U) |
+                (byte(static_cast<float>(color.z)) << 8U) | byte(static_cast<float>(color.w));
+            native = daynight_fog_command(refinement, native, packed_color);
+            if (interpolation_trace_enabled())
+                trace_interpolation("daynight-fog-match", context->vi_tick,
+                    (*dl)->w1, native, packed_color,
+                    packed_color == refinement.color ? 1U : 0U, 0.0f, 0U, 0U);
+            if (native != (*dl)->w1 && interpolation_trace_enabled())
+                trace_interpolation("daynight-fog", context->vi_tick, (*dl)->w1,
+                    native, packed_color, 0U, 0.0f, 0U, 0U);
+        }
+        const auto coefficients=jfg::fog_coefficients(native,
             jfg::fog_strength_preference().load(std::memory_order_relaxed));
         state->rsp->setFog(static_cast<std::int16_t>(coefficients >> 16U),
                           static_cast<std::int16_t>(coefficients & 0xffffU));
@@ -2028,7 +2048,9 @@ Rt64F3ddkr::~Rt64F3ddkr() {
 
 void Rt64F3ddkr::begin(
     const std::span<const std::uint8_t> simulation_rdram, const std::uint64_t vi_tick,
-    std::shared_ptr<const PresentationSceneIdentity> identities, NativeCutscenePrompt prompt) noexcept {
+    std::shared_ptr<const PresentationSceneIdentity> identities, NativeCutscenePrompt prompt,
+    DayNightFog daynight_fog) noexcept {
+    impl_->context.daynight_fog = daynight_fog;
     impl_->context.cutscene_prompt=prompt;
     impl_->context.cutscene_prompt_drawn=false;
     impl_->context.identities=std::move(identities);

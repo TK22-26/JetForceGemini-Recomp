@@ -880,13 +880,25 @@ jfg_set_project_warnings(jfg_cutscene_skip_tests)
 add_test(NAME jfg.cutscene_skip COMMAND jfg_cutscene_skip_tests)
 
 add_executable(jfg_rain_fade_tests rain_fade_tests.cpp)
-target_include_directories(jfg_rain_fade_tests PRIVATE "../include")
+target_include_directories(jfg_rain_fade_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
 target_compile_features(jfg_rain_fade_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_rain_fade_tests)
 add_test(NAME jfg.rain_fade COMMAND jfg_rain_fade_tests)
+
+add_executable(jfg_cutscene_review_tests cutscene_review_tests.cpp)
+target_include_directories(jfg_cutscene_review_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_cutscene_review_tests PRIVATE cxx_std_20)
+add_test(NAME jfg.cutscene_review COMMAND jfg_cutscene_review_tests)
 
 add_executable(jfg_cutscene_audio_tests cutscene_audio_tests.cpp)
 target_include_directories(jfg_cutscene_audio_tests PRIVATE "../include")
 target_compile_features(jfg_cutscene_audio_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_cutscene_audio_tests)
 add_test(NAME jfg.cutscene_audio COMMAND jfg_cutscene_audio_tests)
+
+
+add_executable(jfg_daynight_fog_tests daynight_fog_tests.cpp)
+target_include_directories(jfg_daynight_fog_tests PRIVATE "../include")
+target_compile_features(jfg_daynight_fog_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_daynight_fog_tests)
+add_test(NAME jfg.daynight_fog COMMAND jfg_daynight_fog_tests)

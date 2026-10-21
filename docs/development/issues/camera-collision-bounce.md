@@ -341,3 +341,11 @@ Prove actual contact before tuning damping. An endpoint height solver can disagr
 with finite-volume geometry, and a coarse search can amplify a tiny correction
 into a large visual jump. Validate the recording pipeline before asking an owner
 for another capture; a final snapshot is useful context but is not a replay.
+
+## Mixed-contact follow-up (2026-10-21)
+
+The [Floyd-preview camera report](modern-mouse-camera-floyd-preview-report.md) confirms a different limit of the current solver: mixed wall plus height corrections can produce a negative ray projection and return the4-unit minimum without refining it.447 captured production-helper cases reproduce this. Earlier pure-height pond qualification does not cover this topology. Correction/native scene qualification pending; no previously accepted scenario is silently relabeled as a pass for this case.
+
+The mixed-contact follow-up is now corrected in preview4. Four component suites and894 original-collision scene runs pass; every recorded native endpoint matches before evaluating new positions. Owner live acceptance and broader scenery/cost coverage remain pending. See the linked follow-up for exact scope and private evidence.
+
+Owner confirms the preview4 mixed-contact camera correction is fixed on2026-10-21. This live acceptance covers the reported collapse; broader geometry/performance limits remain.
