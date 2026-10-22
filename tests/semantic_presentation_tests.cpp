@@ -25,7 +25,7 @@ int main() {
       put32(draw,0x27BDFFE8U);put32(draw+0x14,0x84EE0006U);put32(draw+0x1c,0x31CF0C00U);
       put32(actor+0x48,0x002F001EU);put32(actor+0x40,header);
       constexpr char name[]="AnimCamera";
-      for(unsigned i=0;i<sizeof(name);++i)put8(header+4+i,name[i]);
+      for(unsigned i=0;i<sizeof(name);++i)put8(header+4+i,static_cast<std::uint8_t>(name[i]));
       put8(actor+7,2);put32(actor+12,0xC4893800U);put32(actor+0x68,0x80000400U);
     };
     const jfg::PresentationGuestView ram(bytes);

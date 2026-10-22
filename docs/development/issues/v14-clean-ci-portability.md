@@ -24,3 +24,11 @@ the obsolete source could be called release-ready. Initial CI logs, fixture
 outputs and exact build identities are retained privately under
 `v14-final-release-20261022`; replacement artifacts must identify the corrected
 clean source. Full CI is required before the owner's final publication signoff.
+
+
+The second CI run (39710195968) passes all 107 GCC Debug tests, all 107 GCC
+Release tests and the sanitizer lane. Clang then rejects a signed char-to-unsigned
+conversion in the new camera-helper test fixture. The fixture now explicitly
+converts the ASCII name byte to uint8_t before writing it, matching the guest
+byte representation. This changes test construction only, not runtime code.
+Warning strictness is retained; a fresh complete CI run is required.
