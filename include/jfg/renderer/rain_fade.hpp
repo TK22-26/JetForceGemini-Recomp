@@ -27,7 +27,7 @@ struct Fade {
   std::uint8_t alpha = 0;
   std::uint32_t rgb = 0;
   std::uint64_t transition = 0;
-  SpatialFade spatial;
+  SpatialFade spatial{};
 };
 struct Frame {
   std::uint32_t buffer = 0, bytes = 0;

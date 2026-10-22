@@ -50,11 +50,13 @@ jfg_flash_trace_replace(
 file(WRITE "${generated}" "${contents}")
 
 set(source "${jfg_rt64_root}/src/render/rt64_render_target.cpp")
-file(SHA256 "${source}" digest)
+# Checkout line endings are not a change to the pinned source content.
+file(READ "${source}" contents)
+string(REPLACE "\r\n" "\n" contents "${contents}")
+string(SHA256 digest "${contents}")
 if(NOT digest STREQUAL "0dee0d19a4be22c4fa34b7ef793e3d4f75a07ab0d31252f9a23a2a0355edb41d")
  message(FATAL_ERROR "Pinned RT64 framebuffer copy input differs")
 endif()
-file(READ "${source}" contents)
 jfg_flash_trace_replace(
 [=[        assert(format != src->format);
 

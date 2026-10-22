@@ -118,3 +118,11 @@ commit in both launcher and runtime, pass package verification, and complete
 all-platform CI before publication. See
 [the full record](issues/tawfret-chief-camera-and-square.md).
 Main merge and release publication remain pending owner approval.
+
+## Clean CI follow-up (2026-10-22)
+
+The first PR run found GCC aggregate-initializer warnings and a raw-byte RT64
+source pin sensitive to Windows checkout line endings. Both are corrected
+without weakening compiler checks or changing the dependency revision. The
+CMake pin accepts LF/CRLF and rejects modified content; all-platform CI must
+pass on the corrected source. See [the build record](issues/v14-clean-ci-portability.md).
