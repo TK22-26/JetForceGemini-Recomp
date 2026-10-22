@@ -3,14 +3,12 @@
 [![Build status](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml)
 
 A native PC recompilation of Jet Force Gemini for Windows x64.
-**v1.4.0 is in final review on develop.** The candidate includes a prebuilt game: extract the ZIP, import your supported
+**v1.4.0** includes a prebuilt game: extract the ZIP, import your supported
 North American ROM once, and click **Play**. No developer tools or compilation
 are required.
 
 **A complete, fully playable v1 release:** play the campaign from start to finish.
-Original local multiplayer and optional content also work. The latest published
-stable release is v1.3.0; v1.4.0 awaits the maintainer's final SS Anubis pass before
-a main merge and publication. See the playtesting notes below
+Original local multiplayer and optional content also work. See the playtesting notes below
 for the recorded campaign run and [known issues](docs/known-issues.md) for ongoing fixes.
 
 Written with the help of **AI: Codex GPT 6 Astra**, with human direction,
@@ -44,7 +42,7 @@ program and runtime libraries. Textures, models, audio, and other game data are
 read from your locally imported ROM, which is never uploaded. Original game
 content remains the property of its respective owners.
 
-The v1.4.0 candidate adds native cutscene skipping, Modern controls for all four
+The v1.4.0 update adds native cutscene skipping, Modern controls for all four
 players, Floyd flight controls, and fixes for camera resets, boss aiming, rain,
 weapon reticles and paused inventory grants. It also improves Quarry's day/night
 fog transitions, cinematic camera cuts and helper visibility, and launcher feedback. Adjustable motion blur, live fog strength

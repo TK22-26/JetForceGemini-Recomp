@@ -1,9 +1,14 @@
 # v1.4.0 release qualification
 
-Status: final candidate preparation; owner SS Anubis pass pending.
-The owner authorized the version change, five-worktree reconciliation, final
-documentation, combined build and commit/push to develop. Main merge, tag,
-publication and public issue replies await separate approval.
+Status: owner authorized publication of v1.4.0 on 2026-10-22 UTC.
+PR #42 is merged; main and develop passed all six checks at `04cded4`.
+The release carries the approved runtime from `521f666`, rebuilt launcher
+metadata, final documentation and allowlisted package contents. Publication
+requires the tagged workflow and verified public assets. Public issue replies
+and closures still require separate owner approval.
+
+Historical preparation entries below retain their original validation scope.
+The release page is the authority for publication availability: [v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0).
 
 ## Source reconciliation
 

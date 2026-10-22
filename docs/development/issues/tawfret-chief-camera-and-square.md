@@ -1,6 +1,6 @@
 # Tawfret chief cutscene: rapid bad-angle camera motion and floating square
 
-- Status: camera-cut and original-game camera-helper visibility corrections owner-verified; prepared for v1.4.0, unreleased.
+- Status: camera-cut and original-game camera-helper visibility corrections owner-verified; included in v1.4.0; see the release qualification for delivery status.
 - Severity: visible cinematic rendering/camera regression.
 - Reported (UTC): 2026-10-22.
 - Build: v1.4.0 candidate ea9845e, Custom 120 FPS, VSync on, Reduced blur,

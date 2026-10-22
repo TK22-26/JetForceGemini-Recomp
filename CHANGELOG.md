@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0 - final review (not yet released)
+## 1.4.0 - 2026-10-22
 
 - Prevent scenery from interpolating through cinematic camera cuts when a distant
   shape incorrectly anchors the shared transform. Tawfret chief camera changes
@@ -33,8 +33,7 @@
   fails. Windows checks pass; Steam Deck/Proton verification still needs the reporter.
 - Include bounded mouse input diagnostics in support reports for #32; this is
   evidence collection, not a claimed fix for intermittent mouse input.
-- Update community credits and release documentation. The maintainer's final
-  SS Anubis pass, main merge and publication are still pending.
+- Update community credits and release documentation.
 
 - Preserve Modern swimming camera orientation and native collision clearance,
   including overhead views. Keep native body facing through water-origin jumps

@@ -5,7 +5,7 @@ the original game. It is not corrupted texture data or a recompilation error.
 The owner initially could not see it in the N64 reference, then found it on
 reinspection: native resolution and television blur disguise it as background
 detail. The separate rapid camera movement at shot changes was an interpolation
-defect in the recomp. Both corrections are owner-verified for v1.4.0, unreleased.
+defect in the recomp. Both corrections are owner-verified and included in v1.4.0.
 
 ## Two symptoms, two causes
 

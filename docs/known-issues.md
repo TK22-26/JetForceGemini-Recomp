@@ -1,8 +1,8 @@
 # Known issues
 
-The v1.4.0 candidate is prepared on develop for the maintainer's final SS Anubis
-pass. v1.3.0 is still the published stable release. Main merge, publication and
-public issue replies await approval. See the [release qualification](development/releases-1.4.0-qualification.md).
+v1.4.0 includes the owner-reviewed fixes listed below. Reporter-specific retests
+and unresolved reports remain open. Public issue replies require separate owner
+approval. See the [release qualification](development/releases-1.4.0-qualification.md).
 
 ## Open reports and reporter retests
 

@@ -1,6 +1,6 @@
 # v1.4.0 clean CI portability checks
 
-- Status: supported-platform CI passed for the corrected source; release preparation complete subject to final source checks and owner signoff. Unreleased.
+- Status: supported-platform CI passed for the corrected source and merged main; owner approved v1.4.0 publication. The tagged release workflow is the final delivery gate.
 - Discovered: 2026-10-22, release PR #42, initial CI run 39709407647.
 - Severity: release build gate; no observed gameplay regression.
 
