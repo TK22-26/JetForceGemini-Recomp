@@ -1,4 +1,5 @@
 #include "jfg/runtime/input_replay.hpp"
+#include "jfg/runtime/modern_roll.hpp"
 
 #include <algorithm>
 #include <array>
@@ -83,7 +84,7 @@ template <typename Value>
       return false;
     unsigned modern_flags=0;
     if(has_actions && (!parse_integer(fields[9],modern_flags) ||
-        (modern_flags!=0 && ((modern_flags&0x80U)==0 || (modern_flags&~0x87U)!=0)) ||
+        (modern_flags!=0 && ((modern_flags&0x80U)==0 || (modern_flags&~(0x87U | kModernRollFlags))!=0)) ||
         (!connected && modern_flags!=0)))return false;
     unsigned menu_kind=0,menu_target=0;
     if(has_menu && (!parse_integer(fields[10],menu_kind) || !parse_integer(fields[11],menu_target) ||

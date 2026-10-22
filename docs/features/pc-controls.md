@@ -1,5 +1,20 @@
 # PC controls
 
+## Roll binding preview (2026-10-20)
+
+In the Modern Roll Direction Preview, bind **Roll Left** and **Roll Right** in
+either Modern action picker. Both start unbound. **Advanced > Automatic movement
+rolling** defaults On; switch it Off to disable movement-triggered rolls while
+retaining your explicit roll buttons. This one preference is shared per player
+across both Modern input types. Manual rolls use the existing posture gates;
+they do not automatically crouch. Opposing manual directions cancel.
+
+Profiles 1-5 migrate retaining existing bindings, Ctrl and inversion; newly saved
+profiles use schema 6 and require this build or newer. Source controller vertical
+inversion defaults Off; saved On remains On. Prone direction, bindings and UI
+are automated-test verified and owner-accepted in the preview; unreleased.
+See [GH-033](../development/issues/github-modern-controls-side-roll.md).
+
 > **Critical, open: Goldwood combat slowdown (2026-10-11).** The owner capture shows approximately 15 game updates per second in the busiest drone fight, with 85 to 98 ms update gaps. This is separate from the confirmed camera-distance stepping defect. Owner approved a further two-hour investigation and fix on 2026-10-11.
 
 Modern Controls provides experimental dual-stick controller and mouse/keyboard
@@ -36,6 +51,7 @@ of the game's Normal/Expert option.
 | Aim / fire | Right mouse / left mouse | LT / RT; L2 / R2 |
 | Jump | Space | A / Cross |
 | Crouch | Ctrl | B / Circle |
+| Roll from crouch/crawl (local candidate) | A or D alone | Movement stick left/right |
 | Interact | E | X / Square |
 | Previous / next weapon | Wheel down / up | LB / RB; L1 / R1 |
 | Cycle sniper magnification | Middle mouse while scoped | Right-stick click while scoped |
@@ -61,6 +77,27 @@ and Normal/Expert presets. Both modes retain capture and clear controls. Release
 held controls before capture; Escape cancels. Focus/device loss cancels capture.
 Five mouse buttons, both wheel directions, keys, gamepad buttons, triggers and
 stick directions can be assigned. Escape and F11 retain launcher shortcuts.
+
+## Local roll candidate (unreleased)
+
+The GH-033 candidate adds lateral rolling for Juno and Vela from both crouch
+and crawl. Press Crouch to enter a low posture, then move sideways; Crouch does
+not need to stay held. The keyboard uses the assigned movement actions, so an
+unopposed A/D or its remap requests a roll only when neither forward nor back is
+held. Controller lateral input uses the ordinary movement deadzone and the
+left/right sector within 22.5 degrees of horizontal. Diagonals and forward/back
+remain crawl input. No extra stick-strength threshold preserves sideways crawl
+in this first version. Holding sideways repeats according to the native game.
+
+Simultaneous Crouch and lateral movement may first enter crawl, then roll on the
+next eligible native update. Aim and Jump keep their native priority; Lupus
+cannot roll. Native animation, motion and collision remain in charge. No bumper
+or D-pad binding changes are required. Existing Original Controls are unchanged.
+
+This is a tested local candidate awaiting owner gameplay/feel verification,
+not a released resolution. The independent GH-032 mouse capture/inversion report
+is unchanged. See the [roll issue record](../development/issues/github-modern-controls-side-roll.md)
+for evidence, replay behavior and remaining limits.
 
 ## Mouse navigation in the native menus
 
@@ -342,7 +379,19 @@ window explains the jump/crouch zoom actions; wheel input still cycles weapons.
   final route stops on land and verifies continued neutral gameplay. A further
   **30 checks** reproduce both complete water-exit routes exactly
   from their recorded inputs. Steering clear of the bank edge fixes the route;
-  no swimming or collision code was changed to make it exit.
+  no swimming or collision code was changed to make it exit. The later
+  [#30 water-transition report](../development/issues/controller-ledge-camera-reset.md)
+  adds an abrupt recentering symptom while diving in/out of water. These route
+  checks do not establish offset-camera continuity for that newly reported case;
+  an October 20 candidate now retains swimming camera orientation for both Modern
+  inputs while leaving swimming locomotion native. The initial ground-boom
+  assignment trapped the camera near Juno; preview 2 keeps native swimming
+  collision positions and clears ground distance history. Focused and recorded
+  collision-point checks pass; the owner confirms the water camera works.
+  The follow-up body-facing fix retains the water origin through the whole
+  airborne excursion, preserving native steering until landing or valid aim.
+  Source/recorded-transition checks pass; the owner approved the combined preview
+  after an isolated launcher retest. Unreleased; reporter retest remains pending.
 - **125 current native regression checks** pass: unchanged
   close-camera, Lupus-flight and swimming traces; mouse/stick aim and ground
   strafing; experiments-off equivalence; and exact recorded playback for both
@@ -968,7 +1017,7 @@ save-slot hover walking through intervening slots.
 | Native follow interpolation continued moving the view after raw look ended. | Use the current collision-resolved normal-camera position. Raw mouse displacement is consumed once per poll, with no added input smoothing. |
 | Reacquiring Win32 capture while a second mouse button was pressed cleared the first button. | Acquire capture only when this window does not already own it. RMB remains held across LMB press and release. |
 | Save-slot hover generated repeated virtual-stick pulses. | Send a semantic selection event to the validated active native menu. Select its item directly before the original activation handler; preview/rendering remain native. |
-| Modern mouse reset forced noninverted vertical look. | New modern defaults and settings reset enable mouse vertical inversion; explicit saved choices and controller inversion remain independent. |
+| Modern mouse default/reset policy. | The 2026-10-20 owner-requested correction defaults and resets mouse vertical inversion to Off; explicit saved choices and controller inversion remain independent. |
 
 Mouse look is still sampled at the native game/controller update cadence; this
 change does not add a separate render-rate camera. Removing follow easing avoids
@@ -1616,3 +1665,43 @@ no candidate has been implemented and the reported keyboard/mouse aim
 cancellation still needs diagnosis. See [GH-018](../development/issues/github-held-aim-and-diagonal-movement.md)
 and its [detailed handoff](../development/issue18-native-controls-handoff-2026-10-17.md)
 for measurement scope, evidence and continuation constraints.
+
+## Modern backward-crawl follow-up (2026-10-20)
+
+The fixed Modern shoulder view preserves native crawl direction through neutral
+release and resets the delayed-turn timeout while it owns the player. This
+prevents the native turn state from flipping residual backward velocity forward.
+Actual-native regression checks/build pass; live animation/collision feel remains
+pending. Original, rolling and Ctrl/custom bindings are unchanged. See
+[GH-033 follow-up](../development/issues/github-modern-controls-side-roll.md).
+
+
+## Modern boss aiming-range correction (2026-10-20)
+
+[GH-034](../development/issues/github-twin-mantis-aim-range.md) restores the native
+combined body/weapon range for Modern mouse and controller across the three
+character boss handlers, including both Mizar encounters and upgraded Juno.
+Both Modern paths match EmuHawk's horizontal and vertical envelope in five
+fixtures, hold after release and reverse without accumulated clamp overshoot.
+Original controls bypass the correction and their regression check passes.
+Scope limits and native smoothing are retained. The owner approved the fix after
+live Twin Mantis review and reported that it matches the reference video. The fix
+is unreleased; broader live/scoped validation limits remain in the issue record.
+
+
+## Floyd mission mouse flight (local preview5, 2026-10-21)
+
+In Modern mouse/keyboard Floyd missions, the mouse steers flight and aim together.
+Move Forward (default W) provides thrust; Move Back (S) brakes. Fire (left-click)
+shoots, and Interact (E) still enters eligible pads. Mouse aim sensitivity,
+vertical sensitivity and inversion apply. Co-op retains independent reticle
+control and Modern controller missions retain their previous mapping.
+
+Runtime, four component suites and 302 native/adapter cases pass. Owner live
+flight, firing and mission completion remain pending; this is an unreleased
+preview. See [mission controls](../development/issues/modern-floyd-mission-mouse-flight.md).
+
+Preview6 adds Move Left/Right (default A/D) as lateral flight alongside the mouse steering. Strafe follows the current yaw, preserves mouse aim and stays within the native thrust/speed limits. Release uses native coasting. Owner reports preview5 mouse flight feels good; the new strafing, actual shots and mission completion await live verification.
+
+
+Modern controller Advanced settings includes **Invert Floyd flight steering** for Floyd missions. On (default) keeps aircraft controls: push up to fly down; Off makes up fly up. This is saved per player and separate from normal look inversion. Existing profiles migrate to On. Controller reset restores On; keyboard reset preserves the controller flight preference. Mouse mission steering and A/D strafing retain their existing behavior. Local preview7 passed automated checks and was approved by the owner on 2026-10-21; unreleased.

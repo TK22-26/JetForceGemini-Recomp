@@ -271,3 +271,44 @@ preserve landing islands if it is adopted (zlib license notice required).
 Travel-speed reports should give time-weighted stick magnitude together with
 distance progressed and room completion time, with door and cutscene waits
 reported separately.
+
+
+## Give Floyd (local candidate, 2026-10-21)
+
+Tools > Map > Settings > Mods > Give Floyd unlocks the sidekick in the current
+game. Enter another room after clicking; the native loader creates Floyd.
+Saving in game retains the unlock. Parts, mission medals and global unlocks are
+unchanged. The command is available only with a compatible live runtime.
+
+The original US room loader checks shared game flag 3 at 0x80005A58 and spawns
+actor 0x81 at 0x80005A90. The tool sets only that current-game bit, preserving
+adjacent flags; it does not call the global EEPROM-writing native setter.
+Timestamp, room, generation, nonce, gameplay and character checks reject stale
+or invalid grants. Tests cover both memory layouts and the real launcher bridge.
+Build and package checks pass; owner gameplay verification remains pending.
+This is a test aid, not a remedy for [Floyd firing #37](../development/issues/github-floyd-cannot-fire.md).
+
+The first preview incorrectly used old UI source paths and omitted the button.
+The corrected package uses this feature source and passes 848 offscreen UI
+checks, including a real Mods-panel visibility/label/capability check; 670
+launcher checks and four native runtime suites also pass. User gameplay and
+Floyd mission firing remain pending. Private recipe failures and correction
+are retained in the #37 issue record.
+
+Give Floyd grants the sidekick unlock only. Floyd mission pads can still require a Mizar token from the active character; the original SS Anubis pad charges one per attempt. Owner pad-access report traced to zero tokens, not a failed Floyd grant. See [pad access](../development/issues/give-floyd-mission-pad-access.md); minigame firing/completion remains unverified.
+
+### Give all weapons while paused (candidate, 2026-10-21)
+
+GH-039 reproduces a v1.3.0 request expiring while the Mods dialog pauses gameplay.
+The candidate services explicit inventory commands on the paused game thread and
+shows the runtime's acknowledgement. It keeps the original eligibility and request
+checks and does not advance gameplay. Native/component and copied-save runtime
+checks passed. The owner confirms the actual Mods button shows Given and grants
+all weapons after an eight-second pause. Save/reload and release remain pending.
+See [GH-039](../development/issues/github-give-all-weapons.md).
+
+## Mods settings presentation (local candidate, 2026-10-21)
+
+The native Mods dialog follows the supplied Live map settings design: a save warning, grouped saved toggles, amber ON badges, active-toggle count, and separate one-time action rows. Give Floyd uses the reference open-padlock icon. Actions require a capable running game; Give weapons shows Given only after the existing runtime acknowledgement. Floyd keeps its request feedback rather than claiming an unconfirmed unlock.
+
+The current launcher is in Give Weapons Fix Preview. Native integration checks (973), compact-window hit targets and 100/125/150% scale checks pass. The owner approved the final layout, visible badges and reference padlock on 2026-10-21. Release remains pending. [UI review, informative failures and evidence](../development/issues/live-map-mods-layout.md).

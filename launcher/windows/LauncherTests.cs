@@ -279,6 +279,39 @@ namespace JfgLauncher
             send("give-weapons");
             Check(File.ReadAllText(Path.Combine(root,"give-weapons.txt"))!=grant,"Native bridge failed weapon action");
             Check(File.ReadAllText(Path.Combine(root,"mods.txt")).Trim()=="JFGMODS1 0 0 0","Weapon grant changed persistent mod toggles");
+            var observeGrant=type.GetMethod("ObserveWeaponGrant",flags);
+            long sentGrant=(long)type.GetField("pendingWeaponNonce",flags).GetValue(service);
+            Check(sentGrant>0,"Weapon request has no acknowledgement identity");
+            live.weapons_nonce=sentGrant-1;live.weapons_applied=true;
+            observeGrant.Invoke(service,new object[]{live});
+            Check((long)type.GetField("pendingWeaponNonce",flags).GetValue(service)==sentGrant,"Unrelated acknowledgement completed weapon request");
+            string ackJson=@"{""weapons_nonce"":"+sentGrant+@",""weapons_applied"":true}";
+            MapLive acknowledged;
+            using(var ackStream=new MemoryStream(System.Text.Encoding.UTF8.GetBytes(ackJson)))
+                acknowledged=(MapLive)new System.Runtime.Serialization.Json.DataContractJsonSerializer(typeof(MapLive)).ReadObject(ackStream);
+            observeGrant.Invoke(service,new object[]{acknowledged});
+            Check((long)type.GetField("pendingWeaponNonce",flags).GetValue(service)==0 &&
+                  ((string)type.GetField("notice",flags).GetValue(service)).StartsWith("All weapons granted"),"Successful runtime grant not acknowledged");
+            send("give-weapons");live.weapons_nonce=(long)type.GetField("pendingWeaponNonce",flags).GetValue(service);live.weapons_applied=false;
+            observeGrant.Invoke(service,new object[]{live});
+            Check(((string)type.GetField("notice",flags).GetValue(service)).StartsWith("Weapon grant could not"),"Runtime rejection shown as success");
+            send("give-weapons");type.GetField("pendingWeaponSentAt",flags).SetValue(service,NavigationExplorer.Clock-8000);
+            observeGrant.Invoke(service,new object[]{new MapLive()});
+            Check((long)type.GetField("pendingWeaponNonce",flags).GetValue(service)==0 &&
+                  ((string)type.GetField("notice",flags).GetValue(service)).Contains("not confirmed"),"Missing/old-runtime acknowledgement not reported");
+            Reject(delegate{MapMods.GiveFloyd(root,map,201,false);},"Old runtime accepted Floyd grant");
+            live.give_floyd_available=true;
+            MapMods.GiveFloyd(root,map,202,false);
+            string floyd=File.ReadAllText(Path.Combine(root,"give-floyd.txt"));
+            Check(floyd.StartsWith("JFGFLOYD1 27 3 202 "),"Floyd grant not bound to room and generation");
+            live.scripted_camera=true;Reject(delegate{MapMods.GiveFloyd(root,map,203,false);},"Cutscene accepted Floyd grant");
+            live.scripted_camera=false;live.timestamp_ms=NavigationExplorer.Clock-6000;
+            Reject(delegate{MapMods.GiveFloyd(root,map,204,false);},"Stale map accepted Floyd grant");
+            live.timestamp_ms=NavigationExplorer.Clock;
+            send("give-floyd");
+            Check(File.ReadAllText(Path.Combine(root,"give-floyd.txt"))!=floyd,"Native bridge failed Floyd action");
+            Check(File.ReadAllText(Path.Combine(root,"mods.txt")).Trim()=="JFGMODS1 0 0 0","Floyd grant changed persistent mod toggles");
+
 
         }
         private static void EnemyMarkerTests(string directory) {
@@ -473,6 +506,14 @@ namespace JfgLauncher
                 string packageJson = "{\"schema\":1,\"version\":\"1.0.1-beta.1\",\"files\":[" + String.Join(",", packageEntries.ToArray()) + "]}";
                 File.WriteAllText(packagePath, packageJson);
                 Check(PortablePackage.Resolve(packageLauncher) == game, "complete bundled package rejected");
+                var verificationMessages = new System.Collections.Generic.List<string>();
+                Check(PortablePackage.Resolve(packageLauncher, verificationMessages.Add) == game,
+                    "progress-enabled verification rejected valid package");
+                Check(verificationMessages.Count == PortablePackage.RuntimeFiles.Length,
+                    "file verification did not report every member");
+                Check(verificationMessages[0].Contains("1 of 14") && verificationMessages[13].Contains("14 of 14"),
+                    "file verification progress did not span complete package");
+
                 foreach (string crt in new string[] { "concrt140.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "msvcp140_atomic_wait.dll", "msvcp140_codecvt_ids.dll", "vccorlib140.dll", "vcruntime140.dll", "vcruntime140_1.dll", "vcruntime140_threads.dll" }) {
                     string member = Path.Combine(directory, crt);
                     File.Delete(member);
@@ -579,6 +620,15 @@ namespace JfgLauncher
                     Path.GetDirectoryName(diagnosticStart.EnvironmentVariables["JFG_PHASE95_NATIVE_POLL_TRACE"]) == diagnosticSession, "capture streams split");
                 Check(diagnosticStart.EnvironmentVariables["JFG_RT64_INTERPOLATION_TRACE"] == Path.Combine(diagnosticSession, "interpolation.tsv"), "capture missing interpolation stream");
                 Check(!diagnosticStart.EnvironmentVariables.ContainsKey("JFG_PHASE8_FRAME_CAPTURE"), "route timing capture enabled blocking GPU screenshots");
+                string reviewRequest = Path.Combine(directory, "cutscene request.txt");
+                File.WriteAllText(reviewRequest, "");
+                Environment.SetEnvironmentVariable("JFG_DIAGNOSTIC_CUTSCENE_REQUEST", reviewRequest);
+                Check(!LocalSetup.StartInfo(game, wrongRom, directory).EnvironmentVariables.ContainsKey("JFG_DIAGNOSTIC_CUTSCENE_REQUEST"), "ordinary play inherited scene selection");
+                Environment.SetEnvironmentVariable("JFG_DIAGNOSTIC_CUTSCENE_REQUEST", null);
+                FrontendBridge.ApplyReplayOptions(diagnosticStart, new[] {"--frontend-worker", "play", directory, "0", "--cutscene-review-request", reviewRequest});
+                Check(diagnosticStart.EnvironmentVariables["JFG_DIAGNOSTIC_CUTSCENE_REQUEST"] == reviewRequest, "explicit scene selector request lost");
+                Reject(delegate { FrontendBridge.ApplyReplayOptions(diagnosticStart, new[] {"--frontend-worker", "play", directory, "0", "--cutscene-review-request", reviewRequest}); }, "duplicate scene selector accepted");
+                Reject(delegate { FrontendBridge.ApplyReplayOptions(LocalSetup.StartInfo(game, wrongRom, directory), new[] {"--frontend-worker", "play", directory, "0", "--cutscene-review-request", reviewRequest}); }, "scene selector accepted without diagnostic session");
                 var conflictingTrace = LocalSetup.StartInfo(game, wrongRom, directory);
                 conflictingTrace.EnvironmentVariables["JFG_RT64_INTERPOLATION_TRACE"] = "existing.tsv";
                 Reject(delegate { FrontendBridge.ConfigureDiagnostics(conflictingTrace, diagnosticRoot); }, "duplicate interpolation capture accepted");
@@ -725,15 +775,25 @@ namespace JfgLauncher
                 File.WriteAllText(Path.Combine(assetCache,"weapon-0.png"),"ROM-ART-CANARY");
                 File.WriteAllText(Path.Combine(assetCache,"manifest.json"),"ROM-MANIFEST-CANARY");
                 File.WriteAllText(Path.Combine(support.DirectoryPath,"item-200.png"),"ROM-THUMBNAIL-CANARY");
+                const string mouseCounts = "mouse_counts=32/0/0/32/0/20/18/16";
+                const string mouseFlow = "mouse_flow=14/32/0/2/16/15";
+                const string mouseState = "mouse_state=6000/1/0/0/1/1/1/1/0/0/0/1/1/1/0";
+                const string mousePlayer = "mouse_player=0/1/1/1/1/100/80/120/0/0/1/1/3";
+                string mouseEvidence = "mouse_schema=1\n" + mouseCounts + "\n" + mouseFlow + "\n" + mouseState + "\n" + mousePlayer + "\n";
+                string mousePath = Path.Combine(support.DirectoryPath, "mouse.log");
+                File.WriteAllText(mousePath, mouseEvidence + "mouse_schema=2\nmouse_counts=1/2\nmouse_flow=-1/0/0/0/0/0\nmouse_player=0/1/1/1/1/100/80/120/0/0/1/1/3/9\nmouse_path=PRIVATE-PATH-CANARY\nmouse_counts=" + new string('9', 21) + "/0/0/0/0/0/0/0\n");
+                Check(SupportSession.SanitizeFile(mousePath) == mouseEvidence, "bounded mouse diagnostics rejected or private/malformed data accepted");
                 string zipPath = SupportSession.Export(reportRoot, Path.Combine(directory, "exports"));
                 using (FileStream file = File.OpenRead(zipPath))
                 using (System.IO.Compression.ZipArchive zip = new System.IO.Compression.ZipArchive(file)) {
-                    Check(zip.Entries.Count == 9, "unexpected support archive members");
+                    Check(zip.Entries.Count == 10, "unexpected support archive members");
+                    Check(zip.GetEntry("mouse.log") != null, "mouse diagnostics omitted from support archive");
                     string combined = "";
                     foreach (var entry in zip.Entries) using (StreamReader reader = new StreamReader(entry.Open())) combined += reader.ReadToEnd();
                     Check(!combined.Contains("CANARY") && !combined.Contains(directory), "private contents leaked into support report");
                     Check(combined.Contains("exit=0x00000011") && combined.Contains("native_exit=0xc0000005") && combined.Contains("failure=runlink/guest-overlay-load"), "crash evidence lost");
                     Check(combined.Contains("mod=navigation-enabled"), "mod context lost from support report");
+                    Check(combined.Contains(mouseEvidence), "effective mouse settings or delivery counters lost during export");
                     if (!String.IsNullOrEmpty(diagnosticFixture)) {
                         Check(combined.Contains("snapshot=crash-v1") && combined.Contains("snapshot=hang-v1") && combined.Contains("/jfg-support-fixture.exe/"), "native stack evidence lost during ZIP export");
                     }

@@ -1053,7 +1053,7 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
             trace_interpolation("native-blur",task.vi_tick,blur->source,blur->target,
                 gpuBlur?1U:0U,blurMode,0.0f,0U,0U);
         cpu_overlay_capture_tick().store(task.vi_tick, std::memory_order_release);
-        impl_->f3ddkr->begin(impl_->task_rdram, task.vi_tick, task.presentation_scene);
+        impl_->f3ddkr->begin(impl_->task_rdram, task.vi_tick, task.presentation_scene, task.cutscene_prompt, task.daynight_fog);
         impl_->f3ddkr->install();
         const auto rdram_check_start = std::chrono::steady_clock::now();
         // Refresh CPU-owned intensity buffers when they are next drawn. Texture

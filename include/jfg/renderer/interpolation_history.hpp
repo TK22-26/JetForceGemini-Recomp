@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string_view>
 #include <vector>
@@ -266,6 +267,10 @@ public:
                       found->second->rigid_pose!=mesh.camera_pose) found->second.reset();
         }
         std::map<CameraKey,PresentationMatrix> camera_anchors;
+        // A validated camera discontinuity is stronger evidence than a
+        // distant shape's small projected displacement. Without this veto,
+        // one far triangle can anchor all near scenery across a real cut.
+        std::set<PresentationMatrix> camera_cuts;
         for(const auto& [key,current]:cameras) {
             if(diagnostic)++result.debug_cameras[0];
             if(!current)continue;
@@ -289,6 +294,7 @@ public:
                 } else ++result.debug_cameras[4];
             }
             if(result.source_rate && motion)camera_anchors.emplace(key,prior->second.matrix);
+            if(result.source_rate && !motion)camera_cuts.insert(current->matrix);
         }
         previous_cameras_.clear();
         for(const auto& entry:cameras)if(entry.second)
@@ -311,7 +317,7 @@ public:
             const auto& mesh = meshes[i];
             if (mesh.positions.empty() || !finite_matrix(mesh.matrix)) continue;
             auto& cohort = cohorts[mesh.matrix];
-            cohort.blocked = cohort.blocked || !mesh.eligible;
+            cohort.blocked = cohort.blocked || !mesh.eligible || camera_cuts.find(mesh.matrix) != camera_cuts.end();
             if (result.transforms[i].matched) {
                 const auto& previous = result.transforms[i].previous;
                 if (cohort.anchored && cohort.previous != previous)

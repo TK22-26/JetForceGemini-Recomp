@@ -82,6 +82,35 @@ int main() {
         gap_history.record({},302,true);
         require(!gap_history.record({camera_b},304,true).transforms[0].matched);
     }
+    // A distant triangle can barely move on screen across a real camera cut.
+    // Its matching shape must not drag every near mesh sharing that camera.
+    {
+        auto far_a=bridge,far_b=bridge;
+        far_a.rigid_pose.reset(); far_b.rigid_pose.reset();
+        far_a.positions=far_b.positions={{{0,0,10000}},{{10,0,10000}},{{0,10,10000}}};
+        far_a.camera_owner=far_b.camera_owner=std::array<std::uint64_t,2>{92,1};
+        far_a.camera_pose=pose;far_b.camera_pose=pose;
+        far_b.camera_pose->view[12]=300;far_b.matrix[12]=300;
+        require(jfg::continuous_presentation_motion(far_a,far_b));
+        require(!jfg::continuous_owned_camera_motion(*far_a.camera_pose,*far_b.camera_pose));
+        jfg::PresentationHistory cut_veto;cut_veto.record({far_a},300,true);
+        require(!cut_veto.record({far_b},302,true).transforms[0].matched);
+        auto near_b=far_b;near_b.key={901};near_b.camera_owner.reset();
+        near_b.camera_pose.reset();near_b.positions={{{1,0,10}}};
+        jfg::PresentationHistory shared_cut;shared_cut.record({far_a},300,true);
+        const auto blocked=shared_cut.record({far_b,near_b},302,true);
+        require(!blocked.transforms[0].matched && !blocked.transforms[1].matched);
+        auto smooth_b=far_b;smooth_b.camera_pose->view[12]=10;smooth_b.matrix[12]=10;
+        jfg::PresentationHistory smooth;smooth.record({far_a},300,true);
+        require(smooth.record({smooth_b},302,true).transforms[0].matched);
+        // An independent camera/matrix remains eligible in the same scene.
+        auto other_a=far_a,other_b=smooth_b;
+        other_a.camera_owner=other_b.camera_owner=std::array<std::uint64_t,2>{92,2};
+        other_a.key=other_b.key={902};
+        jfg::PresentationHistory multiple;multiple.record({far_a,other_a},300,true);
+        const auto split=multiple.record({far_b,other_b},302,true);
+        require(!split.transforms[0].matched && split.transforms[1].matched);
+    }
     auto teleported=next_pose; teleported.view[12]=300;
     require(!jfg::stationary_rigid_camera_motion(pose,teleported));
     auto turn=pose; turn.view[0]=turn.view[10]=0; turn.view[2]=1;turn.view[8]=-1;

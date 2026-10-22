@@ -31,6 +31,7 @@ internal sealed class NativeLiveTools {
   }
   private string notice = "";
   private long noticeUntil;
+  private long pendingWeaponNonce, pendingWeaponSentAt;
   private string directory = "",
                  status = "Waiting for gameplay and room geometry...",
                  artStatus = "Reading images from your ROM...",
@@ -238,11 +239,20 @@ internal sealed class NativeLiveTools {
           modPreferences.Choose(mods);
           modPreferences.Sync(directory,map==null?null:map.Live,active);
         }
+        else if (command == "give-floyd") {
+          if(fields.Length!=1 || !active)throw new InvalidDataException("Start gameplay before giving Floyd.");
+          MapMods.GiveFloyd(directory,map,DateTime.UtcNow.Ticks,Paused);
+          notice="Floyd unlock requested. Enter the next room to spawn him.";
+          noticeUntil=NavigationExplorer.Clock+5000;
+        }
         else if (command == "give-weapons") {
           if(fields.Length!=1 || !active)throw new InvalidDataException("Start gameplay before giving weapons.");
-          MapMods.GiveWeapons(directory,map,DateTime.UtcNow.Ticks,Paused);
-          notice="All-weapons grant requested.";
-          noticeUntil=NavigationExplorer.Clock+5000;
+          long requestNonce=++nonce;
+          MapMods.GiveWeapons(directory,map,requestNonce,Paused);
+          pendingWeaponNonce=requestNonce;
+          pendingWeaponSentAt=NavigationExplorer.Clock;
+          notice="Weapon grant requested...";
+          noticeUntil=pendingWeaponSentAt+8000;
         }
         else if (command == "warp") {
           uint address;
@@ -318,6 +328,18 @@ internal sealed class NativeLiveTools {
       }
     }
   }
+  private void ObserveWeaponGrant(MapLive live) {
+    if(pendingWeaponNonce==0)return;
+    if(live!=null && live.weapons_nonce==pendingWeaponNonce) {
+      notice=live.weapons_applied
+          ? "All weapons granted and ammo refilled for the current character."
+          : "Weapon grant could not be applied. Return to active gameplay and try again.";
+    } else if(NavigationExplorer.Clock-pendingWeaponSentAt>7000) {
+      notice="Weapon grant was not confirmed. Return to the game and try again.";
+    } else return;
+    pendingWeaponNonce=0;
+    noticeUntil=NavigationExplorer.Clock+8000;
+  }
   private void Refresh() {
     active = InventorySession.IsActive(profile);
     string next = FrontendBridge.MapDirectory(profile);
@@ -325,6 +347,7 @@ internal sealed class NativeLiveTools {
     if (next != directory) {
       Stop();
       directory = next;
+      pendingWeaponNonce=0;
       map = null;
       cached = null;
       layers = null;
@@ -387,6 +410,7 @@ internal sealed class NativeLiveTools {
         cached = value.Mesh;
       }
       map = value;
+      ObserveWeaponGrant(value.Live);
       modPreferences.Sync(directory,value.Live,active);
       inventory = value.Live.inventory_tracker;
       if (inventory != null)
@@ -667,7 +691,8 @@ internal sealed class NativeLiveTools {
       var mods = modPreferences.Values;
       w.Write(1 | (modPreferences.Failed ? 16 : 0) |
               (mods.Warp ? 2 : 0) | (mods.Health ? 4 : 0) | (mods.Kill ? 8 : 0) |
-              (active && map!=null && map.Live.give_weapons_available && map.Live.gameplay_active && !map.Live.scripted_camera ? 32 : 0));
+              (active && map!=null && map.Live.give_weapons_available && map.Live.gameplay_active && !map.Live.scripted_camera ? 32 : 0) |
+              (active && map!=null && map.Live.give_floyd_available && map.Live.gameplay_active && !map.Live.scripted_camera ? 64 : 0));
       w.Write(modPreferences.ErrorVersion);
     }
     if (File.Exists(file))

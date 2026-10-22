@@ -199,6 +199,18 @@ internal static class FrontendBridge
                 continue;
             }
             if (args[i] == "--diagnostics") { ConfigureDiagnostics(start, args[i + 1]); continue; }
+            if (args[i] == "--cutscene-review-request") {
+                const string reviewVariable = "JFG_DIAGNOSTIC_CUTSCENE_REQUEST";
+                if (!start.EnvironmentVariables.ContainsKey("JFG_GAMEPLAY_TRACE") ||
+                    start.EnvironmentVariables.ContainsKey("JFG_PHASE8_INPUT_REPLAY") ||
+                    start.EnvironmentVariables.ContainsKey(reviewVariable))
+                    throw new InvalidDataException("Cutscene review requires one explicit diagnostic capture.");
+                string request = LocalSetup.FullPath(args[i + 1]);
+                if (!File.Exists(request))
+                    throw new InvalidDataException("The cutscene review request file was not found.");
+                start.EnvironmentVariables[reviewVariable] = request;
+                continue;
+            }
             if (args[i] == "--input-replay" && start.EnvironmentVariables.ContainsKey("JFG_PHASE9_INPUT_RECORD"))
                 throw new InvalidDataException("A live diagnostic capture cannot replay inputs.");
             string variable;
@@ -296,13 +308,15 @@ internal static class FrontendBridge
             }
             else if (!File.Exists(selected)) Write("frontend-rom.txt", "");
             // Always resolve against this package, including after moving or updating it.
-            Write("frontend-runtime.txt", PortablePackage.FromLauncher());
+            State("Checking game files...");
+            Write("frontend-runtime.txt", await Task.Run(delegate { return PortablePackage.FromLauncher(State); }));
             if (!File.Exists(ControllerProfile.FileName(root)))
                 new ControllerProfile().Save(root);
             await Task.Run((Action)PrepareBackground);
             State(File.Exists(Read("frontend-rom.txt")) ? "Ready. Your ROM is imported. Click Play." : "Import your ROM once, then click Play. No build tools are required.");
             return 0;
         }
+        State("Checking your imported ROM...");
         string rom = await Task.Run(delegate { return ImportedRom.Import(root, Read("frontend-rom.txt")); });
         Write("frontend-rom.txt", rom);
         State("Verifying your ROM...");
@@ -313,14 +327,15 @@ internal static class FrontendBridge
                 if (action == "setup")
                 {
                     State("Checking game files...");
-                    string bundled = await Task.Run((Func<string>)PortablePackage.FromLauncher);
+                    string bundled = await Task.Run(delegate { return PortablePackage.FromLauncher(State); });
+                    State("Checking the game runtime...");
                     await Task.Run(delegate { CheckRuntimeProtocol(bundled, 10000); });
                     Write("frontend-runtime.txt", bundled);
                     LocalSetup.SaveSettings(root, new Settings { RomPath = rom, RuntimePath = bundled });
                     State("ROM and game files verified. Click Play.");
                     return 0;
                 }
-                string game = await Task.Run((Func<string>)PortablePackage.FromLauncher);
+                string game = await Task.Run(delegate { return PortablePackage.FromLauncher(State); });
                 Write("frontend-runtime.txt", game);
                 CheckRuntimeProtocol(game, 10000);
                 LocalSetup.SaveSettings(root, new Settings { RomPath = rom, RuntimePath = game });

@@ -169,8 +169,10 @@ struct PcLookDelta {
 // Modern look has its own precision/range; it is not an N64 movement stick.
 // 2048 is full travel at 100%. The maximum configured vertical rate is 18432.
 inline constexpr int kPcStickLookUnit = 2048;
+enum class PcStickLookShape { radial, square };
 inline PcLookDelta pc_stick_look(const PcInputConfig &c,
-    const StandardControllerSample &pad,int movement_stick,bool aiming=true) {
+    const StandardControllerSample &pad,int movement_stick,bool aiming=true,
+    PcStickLookShape shape=PcStickLookShape::radial) {
   const std::size_t axis=movement_stick==0?2U:0U;
   const double x=std::clamp(pad.axes[axis],-32767,32767);
   const double y=-std::clamp(pad.axes[axis+1U],-32767,32767);
@@ -179,7 +181,12 @@ inline PcLookDelta pc_stick_look(const PcInputConfig &c,
   const double travel=std::clamp((magnitude-deadzone)/(32767.0-deadzone),0.0,1.0);
   const double response=c.aim_curve==1?travel*travel:c.aim_curve==2?travel*travel*travel:travel;
   const double sensitivity=std::clamp(aiming?c.aim_sensitivity:c.camera_sensitivity,10,300)/100.0;
-  const double scale=kPcStickLookUnit*response*sensitivity/magnitude;
+  // Camera rotation uses circular response. Floyd has an absolute square
+  // reticle envelope: map each radial direction to that square before applying
+  // per-axis sensitivity/inversion, so a circular stick can reach its corners.
+  const double divisor=shape==PcStickLookShape::square?
+    std::max(std::abs(x),std::abs(y)):magnitude;
+  const double scale=kPcStickLookUnit*response*sensitivity/divisor;
   return {static_cast<int>(std::lround(x*scale*(c.aim_invert_x?-1.0:1.0))),
     static_cast<int>(std::lround(y*scale*std::clamp(c.stick_vertical_sensitivity,10,300)/100.0*(c.aim_invert_y?-1.0:1.0)))};
 }
@@ -221,6 +228,43 @@ inline PcLookDelta pc_direct_aim(int yaw,int pitch,PcLookDelta delta,int minimum
   if(minimum>maximum || minimum < -32768 || maximum>32767)return {yaw,pitch};
   return {pc_wrap_angle(yaw-delta.x),std::clamp(pitch-delta.y,minimum,maximum)};
 }
+// Boss aim has a body limit and a separate native weapon offset. Carry the
+// requested offset rather than the smoothed animation result so neutral input
+// holds aim and reversing at the limit responds immediately.
+struct PcBossAimResult { PcLookDelta body{},offset{}; };
+inline int pc_boss_aim_limit(int limit,float zoom) {
+  if(!std::isfinite(zoom) || zoom<1.0F || zoom>5.0F)zoom=1.0F;
+  const float scale=1.0F+(zoom-1.0F)*zoom*0.5F;
+  return static_cast<int>(static_cast<float>(std::clamp(limit,0,32767))/scale);
+}
+class PcBossAimMotion {
+  PcLookDelta offset_{};
+  std::uint64_t context_=0;
+  bool active_=false;
+public:
+  void clear(){offset_={};context_=0;active_=false;}
+  PcBossAimResult take(PcLookDelta body,int center,PcLookDelta delta,
+      int minimum,int maximum,PcLookDelta limits,std::uint64_t context,
+      PcLookDelta initial_offset={}) {
+    if(minimum>maximum || minimum < -32768 || maximum>32767 ||
+       limits.x<0 || limits.x>0x7FFF-0x2800 || limits.y<0 || limits.y>32767 ||
+       minimum-limits.y < -32768 || maximum+limits.y>32767) {
+      clear();return {body,{}};
+    }
+    if(!active_ || context_!=context) {
+      offset_=initial_offset;context_=context;active_=true;
+    }
+    const auto yaw=std::clamp<std::int64_t>(
+      std::int64_t{pc_wrap_angle(body.x-center)}+offset_.x-delta.x,
+      -0x2800-limits.x,0x2800+limits.x);
+    const auto pitch=std::clamp<std::int64_t>(
+      std::int64_t{body.y}+offset_.y-delta.y,minimum-limits.y,maximum+limits.y);
+    const int body_yaw=static_cast<int>(std::clamp<std::int64_t>(yaw,-0x2800,0x2800));
+    const int body_pitch=static_cast<int>(std::clamp<std::int64_t>(pitch,minimum,maximum));
+    offset_={static_cast<int>(yaw)-body_yaw,static_cast<int>(pitch)-body_pitch};
+    return {{pc_wrap_angle(center+body_yaw),body_pitch},offset_};
+  }
+};
 // Modern look is expressed in camera pitch space, even when crouching or
 // swimming uses the guest aim camera. Camera ownership must not change its sign.
 // Older non-action-table replay modes keep their original aim convention.
@@ -335,6 +379,7 @@ struct PcCameraBoom {
       const auto p=at(d);++queries;return unchanged(p,resolve(p));
     };
     const auto limit=[&](float upper,PcOrbitPoint corrected) {
+      bool refine_contact=false,wall_contact=false;
       // Use the native correction as a candidate bound, then validate it.
       // Floor/ceiling displacement bounds the vertical coordinate; wall
       // contacts bound the corresponding ray coordinates. This converges
@@ -346,12 +391,20 @@ struct PcCameraBoom {
           direction{dx/length,dy/length,dz/length},
           request{requested.x,requested.y,requested.z},
           result{corrected.x,corrected.y,corrected.z};
-        for(unsigned axis=0;axis<3;++axis)
-          if(std::abs(direction[axis])>0.0001F && std::isfinite(result[axis]) &&
-             (result[axis]-request[axis])*direction[axis]<-0.001F)
-            bound=std::min(bound,(result[axis]-origin[axis])/direction[axis]);
         const bool height_only=std::abs(corrected.x-requested.x)<=0.01F &&
                                std::abs(corrected.z-requested.z)<=0.01F;
+        wall_contact|=!height_only;
+        refine_contact|=!height_only && std::abs(corrected.y-requested.y)>0.01F;
+        for(unsigned axis=0;axis<3;++axis)
+          if(std::abs(direction[axis])>0.0001F && std::isfinite(result[axis]) &&
+             (result[axis]-request[axis])*direction[axis]<-0.001F) {
+            const float projected=(result[axis]-origin[axis])/direction[axis];
+            // A mixed wall/floor correction can put height above the pivot
+            // on a downward viewing ray. Its negative projection is not a
+            // distance constraint; find and validate a new search bracket.
+            if(std::isfinite(projected) && projected>0.0F)bound=std::min(bound,projected);
+            else refine_contact=true;
+          }
         // A floor/ceiling query already supplies vertical clearance. Applying
         // the wall inset and returning a halved seed can discard nearly the
         // entire clear boom at a shallow ledge or a horizontal view.
@@ -361,7 +414,7 @@ struct PcCameraBoom {
         const auto candidate=at(next);
         ++queries;corrected=resolve(candidate);
         if(unchanged(candidate,corrected)) {
-          if(!height_only)return next;
+          if(!height_only && !refine_contact)return next;
           float accepted=next,rejected=upper;
           // First test immediately beyond the analytic estimate. Ordinary
           // planar floors then need no full-range search. A coarse seed is
@@ -371,6 +424,14 @@ struct PcCameraBoom {
           for(unsigned refine=0;refine<8 && rejected-accepted>0.5F;++refine) {
             const float middle=(accepted+rejected)*0.5F;
             if(clear(middle))accepted=middle;else rejected=middle;
+          }
+          if(wall_contact && refine_contact) {
+            // Refinement locates the clearance boundary, so restore the wall
+            // inset once. The inset itself may meet a different floor/ridge.
+            const float inset=std::max(4.0F,accepted-12.0F);
+            if(clear(inset))return inset;
+            if(next<=inset)return next; // Already checked, with at least the inset.
+            return -1.0F; // Keep the native correction if no inset is validated.
           }
           return accepted;
         }
@@ -418,9 +479,16 @@ struct PcShoulder {
   unsigned movement_before_state=0;
   int movement_before_yaw=0;
   bool active=false,aiming=false,air_aim=false,landing_recovery=false;
+  bool water_origin=false;
   std::uint32_t actor=0,control=0;
   std::uint64_t retrace=0;
   int yaw=0,pitch=0;
+  // A brief surface hop is still part of swimming. Per-update movement history
+  // is insufficient: keep the origin until native locomotion reaches land or
+  // another special state. Aim may temporarily own facing without losing it.
+  void track_water_origin(unsigned movement) {
+    water_origin=movement==4U || (movement==3U && water_origin);
+  }
   bool acquire(std::uint32_t next_actor,std::uint32_t next_control,int native_yaw,int native_pitch) {
     if(active && actor==next_actor && control==next_control)return false;
     *this={};active=true;actor=next_actor;control=next_control;
@@ -482,6 +550,22 @@ inline PcOrbitPoint pc_camera_clearance(PcOrbitPoint focus,PcOrbitPoint wanted,P
   const float scale=(distance-std::min(12.0F,distance-16.0F))/distance;
   return {focus.x+dx*scale,focus.y+dy*scale,focus.z+dz*scale};
 }
+// The native water camera can cross the surface to a valid overhead point.
+// Ground boom recovery assumes every intermediate distance is on one side of
+// an obstacle; a water clearance band violates that assumption and can trap it
+// next to the swimmer. Retain the native resolved endpoint while swimming,
+// without carrying the contracted ground boom into the next land update.
+template<class Resolve>
+inline PcOrbitPoint pc_camera_resolve(PcCameraBoom& boom,bool swimming,
+    PcOrbitPoint focus,PcOrbitPoint wanted,PcOrbitPoint native_resolved,
+    float seconds,Resolve resolve) {
+  if(swimming) {
+    boom={};
+    return pc_camera_clearance(focus,wanted,native_resolved);
+  }
+  const auto point=boom.solve(focus,wanted,native_resolved,seconds,resolve);
+  return boom.fallback?pc_camera_clearance(focus,wanted,point):point;
+}
 // Three lower-body probes protect the visible width, including a thin edge
 // which misses the center ray. Near-vertical views retain a finite basis.
 inline std::array<PcOrbitPoint,3> pc_camera_body_probes(PcOrbitPoint body,PcOrbitPoint camera) {
@@ -536,6 +620,52 @@ public:
     x_-=result.x;y_-=result.y;return result;
   }
   void clear(){x_=y_=0;context_=0;}
+};
+// Mission mouse motion is a relative heading change, not an accumulated
+// virtual stick. The native flight axes use negative yaw for right and
+// negative pitch for up; sensitivity/inversion have already been applied.
+inline PcLookDelta pc_floyd_mouse_flight(PcLookDelta look,int yaw,int pitch) {
+  return {pc_wrap_angle(yaw-look.x),std::clamp(pitch-look.y,-16384,16384)};
+}
+// Add sideways thrust in the horizontal plane of the current flight heading.
+// Native forward acceleration is already scaled by ticks. Cap the combined
+// impulse at native full thrust so diagonals cannot accelerate faster.
+inline PcOrbitPoint pc_floyd_mouse_strafe(PcOrbitPoint forward,int yaw,int sideways,float ticks) {
+  if(!sideways || !std::isfinite(ticks) || ticks<=0)return forward;
+  const float side=static_cast<float>(std::clamp(sideways,-80,80))*ticks/80.0F;
+  const float angle=static_cast<float>(pc_wrap_angle(yaw))*6.283185307179586F/65536.0F;
+  forward.x-=std::cos(angle)*side;forward.z+=std::sin(angle)*side;
+  const float length=std::hypot(forward.x,forward.y,forward.z);
+  if(length>ticks) {
+    const float scale=ticks/length;forward.x*=scale;forward.y*=scale;forward.z*=scale;
+  }
+  return forward;
+}
+// Floyd's reticle takes an absolute stick target, unlike character camera
+// angles. Native input negates Y into +0x4C, then projects screen Y as
+// centre minus that offset. Canonical Modern look is positive-up, so convert
+// its sign here for both devices; saved inversion was already applied.
+// Mouse motion accumulates a bounded target; a controller retains
+// native spring-to-centre aiming. Identity/mode changes reacquire the reticle.
+class PcFloydLook {
+  double x_=0,y_=0;std::uint64_t identity_=0;bool active_=false;
+public:
+  PcLookDelta take(PcLookDelta look,bool mouse,std::uint64_t identity,float native_x,float native_y) {
+    if(!active_ || identity_!=identity) {
+      x_=std::isfinite(native_x)?std::clamp(double(native_x)*65.0/80.0,-65.0,65.0):0;
+      y_=std::isfinite(native_y)?std::clamp(-double(native_y)*65.0/80.0,-65.0,65.0):0;
+      identity_=identity;active_=true;
+    }
+    if(mouse) {
+      x_=std::clamp(x_+double(look.x)*65.0/8192.0,-65.0,65.0);
+      y_=std::clamp(y_-double(look.y)*65.0/8192.0,-65.0,65.0);
+    } else {
+      x_=std::clamp(double(look.x)*65.0/kPcStickLookUnit,-65.0,65.0);
+      y_=std::clamp(-double(look.y)*65.0/kPcStickLookUnit,-65.0,65.0);
+    }
+    return {static_cast<int>(std::lround(x_)),static_cast<int>(std::lround(y_))};
+  }
+  void clear(){active_=false;identity_=0;x_=y_=0;}
 };
 class PcMouseMotion {
   double x_=0,y_=0;

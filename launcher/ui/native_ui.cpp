@@ -25,6 +25,7 @@
 #include <fstream>
 #include <jfg/audio/master_volume.hpp>
 #include <jfg/runtime/controller_ports.hpp>
+#include <jfg/runtime/async_config_files.hpp>
 #include <jfg/runtime/sdl_controller_backend.hpp>
 #include <jfg/runtime/pc_input.hpp>
 #include <jfg/runtime/modern_controls.hpp>
@@ -85,7 +86,10 @@ struct Ui : Rml::EventListener {
   HWND window = nullptr;
   std::function<void(const std::string &)> action;
   FrontendUiState state;
+  double operationStarted = -1;
   jfg::ControllerPorts assignments;
+  std::unique_ptr<jfg::AsyncConfigFiles> controllerProfileReader;
+  std::shared_ptr<const jfg::AsyncConfigFiles::Values> controllerProfileSnapshot;
   jfg::ControllerCatalog controllerCatalog;
   jfg::SdlControllerBackend sdlControllers;
   std::function<std::vector<jfg::ControllerDeviceInfo>()> sdlDiscovery;
@@ -208,13 +212,44 @@ struct Ui : Rml::EventListener {
              : "controller.ini";
   }
   void loadControllers() {
+    const auto policyText=read("controller-auto.ini");
+    if(policyText.empty()) {
+      std::error_code error;
+      if(!fs::exists(profile/"controller-auto.ini",error) && !error)assignments.auto_assignment={};
+    } else (void)jfg::parse_controller_auto_assignment(policyText,assignments.auto_assignment);
     for (int p = 0; p < 4; p++) {
       jfg::parse_controller_mapping(read(controllerFile(p).c_str()),
                                     mappings[p]);
       assignments.configure(p, resolvedMapping(mappings[p]));
     }
-    devices=assignments.devices(connected);
+    devices=assignments.devices(connected,&controllerCatalog);
     loadModern();
+  }
+  void refreshControllerAssignments() {
+    // The mapping window saves in another process. Keep the main toolbar live
+    // without filesystem reads on each UI frame or replacing editor state.
+    if(controllerWindow || current=="controllers")return;
+    if(!controllerProfileReader) {
+      auto reader=std::make_unique<jfg::AsyncConfigFiles>();
+      std::vector<jfg::ConfigFileRequest> files{{profile/"controller-auto.ini",8192}};
+      for(int p=0;p<4;++p)files.push_back({profile/controllerFile(p),8192});
+      reader->start(std::move(files)); // One initial read, then the existing background worker.
+      controllerProfileReader=std::move(reader);
+    }
+    const auto snapshot=controllerProfileReader->latest();
+    if(!snapshot || snapshot==controllerProfileSnapshot)return;
+    controllerProfileSnapshot=snapshot;
+    using Status=jfg::ConfigFileValue::Status;
+    const auto& policy=(*snapshot)[0];
+    if(policy.status==Status::missing)assignments.auto_assignment={};
+    else if(policy.status==Status::ready)
+      (void)jfg::parse_controller_auto_assignment(policy.text,assignments.auto_assignment);
+    for(int p=0;p<4;++p) {
+      const auto& file=(*snapshot)[static_cast<std::size_t>(p)+1];
+      if(file.status==Status::ready && jfg::parse_controller_mapping(file.text,mappings[p]))
+        assignments.configure(p,resolvedMapping(mappings[p]));
+    }
+    devices=assignments.devices(connected,&controllerCatalog);
   }
   bool saveController() {
     auto &m = mappings[player];
@@ -231,7 +266,7 @@ struct Ui : Rml::EventListener {
   void discoverDevices() {
     pollSdl();
     for(DWORD d=0;d<jfg::kControllerDeviceCount;++d){XINPUT_STATE sample{};connected[d]=readController(d,&sample)==ERROR_SUCCESS;}
-    devices=assignments.devices(connected);
+    devices=assignments.devices(connected,&controllerCatalog);
   }
   void normalizePicker() {
     if(pickerType==-3 || pickerType==-1){pickerDevice=pickerType;return;}
@@ -247,10 +282,35 @@ struct Ui : Rml::EventListener {
       return false;
     }
     const auto previous=mappings[player];
+    const auto previousPolicy=assignments.auto_assignment;
+    auto policy=previousPolicy;
+    // Selecting a new device also releases the previous pad. Keep that pad
+    // free instead of handing it to another Automatic player. An explicit
+    // Automatic selection retains normal discovery; explicit Add re-enables
+    // only the selected physical device.
+    const auto selectedKey=jfg::controller_assignment_key(d,&controllerCatalog);
+    const int released=d!=-1 && d!=devices[player]?devices[player]:-2;
+    const auto releasedKey=jfg::controller_assignment_key(released,&controllerCatalog);
+    if((!selectedKey.empty() && !policy.set_excluded(selectedKey,false)) ||
+       (!releasedKey.empty() && !policy.set_excluded(releasedKey,true))) {
+      label("dialog-note","Could not save the controller removal preference.");return false;
+    }
+    const bool policyChanged=policy.excluded!=previousPolicy.excluded;
+    if(policyChanged && !writeFile("controller-auto.ini",jfg::serialize_controller_auto_assignment(policy)))
+      return false;
     mappings[player].device=d>=4?-4:d;
     mappings[player].device_key=d>=4?controllerCatalog.get(d)->key:std::string{};
-    if(!saveController()){mappings[player]=previous;label("dialog-note","Could not save the device assignment.");return false;}
-    devices=assignments.devices(connected);learning=keyLearning=-1;
+    if(!saveController()){
+      mappings[player]=previous;
+      const bool restored=!policyChanged || writeFile("controller-auto.ini",jfg::serialize_controller_auto_assignment(previousPolicy));
+      // If storage also rejects rollback, retain the policy actually on disk.
+      assignments.auto_assignment=restored?previousPolicy:policy;
+      devices=assignments.devices(connected,&controllerCatalog);
+      label("dialog-note",restored?"Could not save the device assignment.":"Could not save the device assignment or restore its removal preference.");
+      return false;
+    }
+    assignments.auto_assignment=std::move(policy);
+    devices=assignments.devices(connected,&controllerCatalog);learning=keyLearning=-1;
     devicePicker=false;controllerSettings=false;modernSelected=-100;modernNavReady=false;
     if(pcKeyboard() && modernAdvanced){modernAdvanced=false;modernSettings=true;}
     modal("controllers");el("dialog-body")->SetScrollTop(0);return true;
@@ -473,6 +533,7 @@ struct Ui : Rml::EventListener {
       }
   }
   void ports() {
+    refreshControllerAssignments();
     const bool wasKeyboard=pcKeyboard();
     const auto wasConnected=connected;const auto wasDevices=devices;
     pollSdl();
@@ -489,7 +550,7 @@ struct Ui : Rml::EventListener {
       if (on != connected[i]) {
         connected[i] = on;
         activated[i] = false;
-        devices = assignments.devices(connected);
+        devices = assignments.devices(connected,&controllerCatalog);
         std::string port;
         for (int p = 0; p < 4; p++)
           if (devices[p] == int(i))
@@ -543,7 +604,7 @@ struct Ui : Rml::EventListener {
       buttons[i] = on ? s.Gamepad.wButtons : 0;
     }
 
-    devices = assignments.devices(connected);
+    devices = assignments.devices(connected,&controllerCatalog);
     if(current=="controllers" && (wasConnected!=connected || wasDevices!=devices || wasKeyboard!=pcKeyboard())) {
       learning=keyLearning=-1;
       if(wasDevices[player]!=devices[player] || wasKeyboard!=pcKeyboard())modernSelected=-100;
@@ -775,10 +836,12 @@ struct Ui : Rml::EventListener {
       }
     } else if (page == "setup") {
       html = "<div class=\"steps\"><span>1 &nbsp; Import ROM</span><span>2 &nbsp; Verify</span><span>3 &nbsp; Play</span></div>"
-             "<div class=\"name\">Ready to play</div>"
+             "<div class=\"name\">" + std::string(state.busy ? "Verifying files..." : "Verify game files") + "</div>"
              "<p class=\"muted\">The game is already built. Import your supported ROM once, then click Play. The original file is no longer needed after import.</p>";
       html += "<div class=\"setup-log\" id=\"setup-status\"><span>" + escape(u8(state.status)) + "</span></div>";
-      html += "<div class=\"panel-actions\">" + button("setup-start", "Verify files", state.busy || state.rom.empty()) + "</div>";
+      if(state.busy)html += "<div class=\"verify-progress\"><div id=\"verify-progress-fill\"/></div>"
+                            "<p class=\"muted\" id=\"verify-progress-time\">Verification is running...</p>";
+      html += "<div class=\"panel-actions\">" + button("setup-start", state.busy ? "Verifying..." : "Verify files", state.busy || state.rom.empty()) + "</div>";
       note = "No development tools or additional downloads are needed.";
     } else if (page == "updates") {
       html = "<div class=\"name\">" + escape(updateState == "available" ? "Update " + updateTag + " is available" : updateState == "checking" ? "Checking for updates" : updateState == "current" ? "You're up to date" : "Unable to check for updates") + "</div>";
@@ -1168,7 +1231,7 @@ struct Resources : Rml::FileInterface {
                                  {"theme.rcss", 202},
                                  {"Barlow-Regular.ttf", 203},
                                  {"Barlow-SemiBold.ttf", 204},
-                                 {"ChakraPetch-Bold.ttf", 205}, {"live-map.rml", 206}, {"live-inventory.rml", 207}, {"live-tools.rcss", 208}, {"about.rml", 209}, {"about.rcss", 210}, {"modern-controls.rcss",211}, {"xbox.tga",212}, {"dualsense.tga",213}, {"mouse.tga",214}, {"generic.tga",215}, {"chips.tga",216}, {"highlights.tga",217},{"toolbar-pad.tga",218},{"ui-details.tga",219},{"video-settings.rml",220},{"video-settings.rcss",221},{"settings.rml",222},{"settings.rcss",223},{"video-icons.tga",224}};
+                                 {"ChakraPetch-Bold.ttf", 205}, {"live-map.rml", 206}, {"live-inventory.rml", 207}, {"live-tools.rcss", 208}, {"about.rml", 209}, {"about.rcss", 210}, {"modern-controls.rcss",211}, {"xbox.tga",212}, {"dualsense.tga",213}, {"mouse.tga",214}, {"generic.tga",215}, {"chips.tga",216}, {"highlights.tga",217},{"toolbar-pad.tga",218},{"ui-details.tga",219},{"video-settings.rml",220},{"video-settings.rcss",221},{"settings.rml",222},{"settings.rcss",223},{"video-icons.tga",224},{"mods-icons.tga",225}};
     for (auto &e : entries)
       if (fs::path(path).filename() == e.name) {
         auto r = FindResourceW(nullptr, MAKEINTRESOURCEW(e.id), RT_RCDATA);
@@ -1219,7 +1282,7 @@ struct Resources : Rml::FileInterface {
   }
 };
 struct Surface {
-  HWND window = nullptr;
+  HWND window = nullptr, inputChild = nullptr, mouseWindow = nullptr;
   ComPtr<ID3D11Device> device;
   ComPtr<ID3D11DeviceContext> gpu;
   ComPtr<IDXGISwapChain1> swap;
@@ -1241,7 +1304,44 @@ struct Surface {
   Ui ui;
   bool initialized = false;
   int width = 0, height = 0;
+  void cancelMouseTracking() {
+    if (mouseWindow) {
+      TRACKMOUSEEVENT tracking{sizeof(TRACKMOUSEEVENT), TME_CANCEL | TME_LEAVE, mouseWindow, 0};
+      TrackMouseEvent(&tracking);
+      mouseWindow = nullptr;
+    }
+  }
+  void mouseMove(HWND source, LPARAM position) {
+    if (mouseWindow != source) cancelMouseTracking();
+    mouseWindow = source;
+    TRACKMOUSEEVENT tracking{sizeof(TRACKMOUSEEVENT), TME_LEAVE, source, 0};
+    TrackMouseEvent(&tracking);
+    context->ProcessMouseMove(int(short(LOWORD(position))), int(short(HIWORD(position))),
+                              RmlWin32::GetKeyModifierState());
+  }
+  void mouseLeave(HWND source) {
+    // A queued leave from the old HWND must not erase a newer child/root hover.
+    if (mouseWindow != source) return;
+    cancelMouseTracking();
+    POINT cursor{};
+    if (GetCursorPos(&cursor)) {
+      const HWND next = WindowFromPoint(cursor);
+      // The hosted game is deliberately excluded: it is not part of this UI.
+      if (next == window || (inputChild && next == inputChild)) {
+        POINT local = cursor;
+        ScreenToClient(window, &local);
+        RECT client{};
+        GetClientRect(window, &client);
+        if (PtInRect(&client, local)) {
+          mouseMove(next, MAKELPARAM(local.x, local.y));
+          return;
+        }
+      }
+    }
+    context->ProcessMouseLeave();
+  }
   ~Surface() {
+    cancelMouseTracking();
     if (initialized) {
       if (ui.doc) {
         ui.doc->RemoveEventListener("click", &ui);
@@ -1293,14 +1393,40 @@ bool FrontendUiInit(HWND w, const fs::path &profile,
     desc.Scaling = DXGI_SCALING_STRETCH;
     desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
     desc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
-    check(factory->CreateSwapChainForComposition(s.device.Get(), &desc, nullptr,
-                                                 &s.swap));
-    check(DCompositionCreateDevice(dxgi.Get(), IID_PPV_ARGS(&s.composition)));
-    check(s.composition->CreateTargetForHwnd(w, TRUE, &s.compositionTarget));
-    check(s.composition->CreateVisual(&s.visual));
-    check(s.visual->SetContent(s.swap.Get()));
-    check(s.compositionTarget->SetRoot(s.visual.Get()));
-    check(s.composition->Commit());
+    // DirectComposition is optional: Wine/Proton can expose the API while
+    // returning E_NOTIMPL. Test it before requesting a composition swap chain.
+    const auto createComposition = [&]() -> HRESULT {
+#ifdef JFG_UI_TEST_COMPOSITION_UNAVAILABLE
+      return E_NOTIMPL;
+#else
+      HRESULT result = DCompositionCreateDevice(dxgi.Get(), IID_PPV_ARGS(&s.composition));
+      if (FAILED(result)) return result;
+      result = factory->CreateSwapChainForComposition(s.device.Get(), &desc, nullptr, &s.swap);
+      if (FAILED(result)) return result;
+      result = s.composition->CreateTargetForHwnd(w, TRUE, &s.compositionTarget);
+      if (FAILED(result)) return result;
+      result = s.composition->CreateVisual(&s.visual);
+      if (FAILED(result)) return result;
+      result = s.visual->SetContent(s.swap.Get());
+      if (FAILED(result)) return result;
+      result = s.compositionTarget->SetRoot(s.visual.Get());
+      return FAILED(result) ? result : s.composition->Commit();
+#endif
+    };
+    const HRESULT compositionResult = createComposition();
+    if (FAILED(compositionResult)) {
+      s.visual.Reset();s.compositionTarget.Reset();s.composition.Reset();s.swap.Reset();
+      desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+      desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+      check(factory->CreateSwapChainForHwnd(s.device.Get(), w, &desc, nullptr, nullptr, &s.swap));
+      check(factory->MakeWindowAssociation(w, DXGI_MWA_NO_ALT_ENTER));
+    }
+    {
+      std::ofstream presentation(profile / (tool.empty() ? "frontend-presentation.log" : "live-" + tool + "-presentation.log"));
+      presentation << "backend=" << (s.composition ? "directcomposition" : "window")
+                   << "\ncomposition_hresult=0x" << std::hex
+                   << static_cast<unsigned long>(compositionResult) << "\n";
+    }
     s.platform.SetWindow(w);
     s.log = std::make_unique<LogSystem>(&s.platform);
     s.log->file.close();
@@ -1365,6 +1491,7 @@ bool FrontendUiInit(HWND w, const fs::path &profile,
   }
 }
 void FrontendUiShutdown() { surface.reset(); }
+bool FrontendUiCanOverlayGame() { return surface && surface->composition != nullptr; }
 void FrontendUiResize() {
   if (!surface || !surface->context)
     return;
@@ -1396,6 +1523,12 @@ void FrontendUiFrame(const FrontendUiState &state) {
     if(s.live)s.live->tick();s.context->Update();const float clear[]={0,0,0,0};s.gpu->ClearRenderTargetView(s.target.Get(),clear);s.renderer->BeginFrame();s.context->Render();s.renderer->EndFrame(s.target.Get());s.swap->Present(1,0);return;
   }
   ui.pollUpdateCheck();
+  const bool wasOperationBusy = ui.state.busy && !ui.state.playing;
+  const bool operationBusy = state.busy && !state.playing;
+  const double operationNow = Rml::GetSystemInterface()->GetElapsedTime();
+  if(operationBusy && ui.operationStarted < 0)ui.operationStarted=operationNow;
+  if(!operationBusy)ui.operationStarted=-1;
+  const auto operationSeconds=operationBusy?static_cast<unsigned>(operationNow-ui.operationStarted):0U;
   const bool paused = state.playing && GetPropW(s.window, L"JfgFrontendPaused") != nullptr;
   const bool pauseChanged = ui.doc->IsClassSet("paused") != paused;
   const bool refreshPanel =
@@ -1410,7 +1543,7 @@ void FrontendUiFrame(const FrontendUiState &state) {
     if (state.playing) {
       ui.assignments = jfg::ControllerPorts{};
       ui.loadControllers();
-      ui.devices = ui.assignments.devices(ui.connected);
+      ui.devices = ui.assignments.devices(ui.connected,&ui.controllerCatalog);
     }
     ui.doc->SetClass("playing", state.playing);
     if (state.playing)
@@ -1440,6 +1573,17 @@ void FrontendUiFrame(const FrontendUiState &state) {
   ui.state = state;
   if (refreshPanel)
     ui.modal(ui.current);
+  if(operationBusy) {
+    const auto elapsed=std::to_string(operationSeconds)+"s";
+    ui.status(u8(state.status)+"  ("+elapsed+")");
+    if(auto* e=ui.el("verify-progress-time"))
+      e->SetInnerRML("Verification is running &middot; "+elapsed);
+    if(auto* e=ui.el("verify-progress-fill")) {
+      // Indeterminate motion signals activity, not invented percentage progress.
+      const double phase=std::fmod(operationNow-ui.operationStarted,1.8)/1.8;
+      e->SetProperty("margin-left",std::to_string(ui.reducedMotion?0.0:phase*75.0)+"%");
+    }
+  } else if(wasOperationBusy)ui.status(u8(state.status));
   if (ui.current == "support") {
     auto list = ui.read("frontend-sessions.tsv");
     if (list != ui.sessionList) {
@@ -1473,7 +1617,16 @@ void FrontendUiFrame(const FrontendUiState &state) {
   s.renderer->EndFrame(s.target.Get());
   s.swap->Present(1, 0);
 }
-void FrontendUiMessage(UINT m, WPARAM w, LPARAM l) {
+void FrontendUiInputChild(HWND child) { if (surface) surface->inputChild = child; }
+void FrontendUiMessage(UINT m, WPARAM w, LPARAM l, HWND source) {
+  if (surface && surface->context && (m == WM_MOUSEMOVE || m == WM_MOUSELEAVE)) {
+    // RmlUi's generic Win32 backend assumes one input HWND. Our launcher also
+    // receives pointer events through a child shield over the embedded game.
+    if (!source) source = surface->window;
+    if (m == WM_MOUSEMOVE) surface->mouseMove(source, l);
+    else surface->mouseLeave(source);
+    return;
+  }
   if(surface && surface->storage) {
     if(surface->storage->keyboard(m,w))return;
     RmlWin32::WindowProcedure(surface->context,surface->ime,surface->window,m,w,l);return;

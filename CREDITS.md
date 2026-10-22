@@ -65,3 +65,40 @@ Dependency attribution remains in [third-party notices](THIRD_PARTY_NOTICES.md).
 - Reported and consolidated cutscene and boss stutter, motion-blur resolution
   loss, and audio interruptions, with captured evidence and follow-up criteria,
   in [issue #21](https://github.com/TK22-26/JetForceGemini-Recomp/issues/21).
+
+
+## v1.4 community reports and testing
+
+Thank you to the following reporters and testers. These credits acknowledge
+feedback, requests and evidence, including reports still under investigation.
+
+- @Tasosgemah - portable storage, skippable cutscenes, ledge camera behavior,
+  audio latency, Floyd controls and crosshair follow-up
+  ([#24](https://github.com/TK22-26/JetForceGemini-Recomp/issues/24),
+  [#30](https://github.com/TK22-26/JetForceGemini-Recomp/issues/30),
+  [#31](https://github.com/TK22-26/JetForceGemini-Recomp/issues/31),
+  [#35](https://github.com/TK22-26/JetForceGemini-Recomp/issues/35),
+  [#37](https://github.com/TK22-26/JetForceGemini-Recomp/issues/37)).
+- @duke912 - Ally X performance, rain and weapon-reticle reports
+  ([#25](https://github.com/TK22-26/JetForceGemini-Recomp/issues/25)).
+- @drencoss - fog controls, portable-storage support and cutscene follow-up
+  ([#26](https://github.com/TK22-26/JetForceGemini-Recomp/issues/26),
+  [#24](https://github.com/TK22-26/JetForceGemini-Recomp/issues/24),
+  [#19](https://github.com/TK22-26/JetForceGemini-Recomp/issues/19)).
+- @GsxRoarK4 - additional cutscene performance feedback
+  ([#19](https://github.com/TK22-26/JetForceGemini-Recomp/issues/19)).
+- @Bighead-SMZ - mouse-look reproduction details, support data and comparison videos
+  ([#32](https://github.com/TK22-26/JetForceGemini-Recomp/issues/32)).
+- @yodaxy - missing Modern movements and rolling feedback
+  ([#33](https://github.com/TK22-26/JetForceGemini-Recomp/issues/33)).
+- @impmallet - Twin Mantis aiming-range report and reference
+  ([#34](https://github.com/TK22-26/JetForceGemini-Recomp/issues/34)).
+- @GenesisEB - missing weapon crosshairs
+  ([#36](https://github.com/TK22-26/JetForceGemini-Recomp/issues/36)).
+- @azjsales01-stack - Fet-Bubb crash report and diagnostic attachment
+  ([#38](https://github.com/TK22-26/JetForceGemini-Recomp/issues/38)).
+- @marvin-SL - Give all weapons failure and discoverability feedback
+  ([#39](https://github.com/TK22-26/JetForceGemini-Recomp/issues/39)).
+- @chaberl-art - Steam Deck/Proton startup report
+  ([#40](https://github.com/TK22-26/JetForceGemini-Recomp/issues/40)).
+- @EnforcerRidley - community feedback and testing, acknowledged by the maintainer.

@@ -31,7 +31,9 @@ struct ControllerReplaySample {
     // 5 (v4 only): precise modern stick rate, 2048 units at full travel/100%.
     std::uint8_t pc_mode = 0;
     std::int16_t look_x = 0, look_y = 0;
-    // v5: bit 7 selects modern action semantics; bits 0..2 are held scope actions.
+    // v5+: bit 7 selects Modern action semantics; bits 0..2 are held scope actions.
+    // Bits 3/4 explicitly record left/right roll intent. Older recordings lack
+    // these bits and retain their original behavior; axes never imply intent.
     std::uint8_t modern_flags = 0;
 
     // v6: semantic native-menu selection, separate from emulated pad input.

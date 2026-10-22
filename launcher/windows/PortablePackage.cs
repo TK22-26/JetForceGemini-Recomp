@@ -37,7 +37,15 @@ namespace JfgLauncher
         {
             return Resolve(Environment.GetEnvironmentVariable("JFG_LAUNCHER_EXE"));
         }
+        internal static string FromLauncher(Action<string> progress)
+        {
+            return Resolve(Environment.GetEnvironmentVariable("JFG_LAUNCHER_EXE"), progress);
+        }
         internal static string Resolve(string launcher)
+        {
+            return Resolve(launcher, null);
+        }
+        internal static string Resolve(string launcher, Action<string> progress)
         {
             if (String.IsNullOrWhiteSpace(launcher) || !File.Exists(launcher))
                 throw new InvalidDataException("Open JFG-Launcher.exe from the extracted game folder.");
@@ -54,6 +62,7 @@ namespace JfgLauncher
             if (manifest == null || manifest.Schema != 1 || String.IsNullOrWhiteSpace(manifest.Version) ||
                 manifest.Files == null || manifest.Files.Length != RuntimeFiles.Length) throw Incomplete();
             var remaining = new HashSet<string>(RuntimeFiles, StringComparer.Ordinal);
+            int verifiedCount = 0;
             foreach (Entry entry in manifest.Files)
             {
                 if (entry == null || !remaining.Remove(entry.Name ?? "") || entry.Size <= 0 ||
@@ -61,6 +70,8 @@ namespace JfgLauncher
                 string member = Path.Combine(directory, entry.Name);
                 if (!File.Exists(member) || new FileInfo(member).Length != entry.Size ||
                     (File.GetAttributes(member) & FileAttributes.ReparsePoint) != 0) throw Incomplete();
+                if (progress != null)
+                    progress("Verifying game files: " + (++verifiedCount) + " of " + manifest.Files.Length + " (" + entry.Name + ")...");
                 using (var input = File.OpenRead(member))
                 using (var sha = SHA256.Create())
                 {

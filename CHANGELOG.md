@@ -1,5 +1,97 @@
 # Changelog
 
+## 1.4.0 - final review (not yet released)
+
+- Prevent scenery from interpolating through cinematic camera cuts when a distant
+  shape incorrectly anchors the shared transform. Tawfret chief camera changes
+  passed owner review at 120 FPS with logging off.
+
+- Prevent cinematic camera-helper models from appearing as floating squares.
+  This corrects an original-game artifact while retaining camera paths and
+  scene state. Owner verified all three Tawfret chief shots at 120 FPS with
+  diagnostics and FPS logging disabled. See the
+  [investigation write-up](docs/development/tawfret-camera-helper-findings-2026-10-22.md).
+
+- Enable independent Modern controls for P1-P4 and correct Floyd co-op/mission
+  fire routing, vertical direction and controller diagonal reach.
+- Add mouse-steered Floyd flight with W thrust, S brake and A/D strafe, plus a
+  separate controller flight-inversion option. Floyd changes are owner-approved
+  locally; ask the original reporter to verify the delivered version.
+- Prevent mixed wall/height collision corrections from collapsing the Modern
+  mouse camera against the character.
+- Smooth Quarry day/night fog-distance steps while retaining original cycle
+  timing and colours; restore consistent tribal brightness.
+- Complete the owner-reviewed cutscene skip batch, preserving native completion
+  behavior. Keep unsafe/debug-only scene-selector entries out of normal gameplay;
+  their diagnostic limitations remain documented.
+- Process Give weapons requests safely while the Mods window pauses gameplay,
+  and show actual grant acknowledgement instead of submission-only feedback.
+- Refresh Live map Mods with separate toggles/actions, status feedback, accessible
+  disabled/focus states and scalable local icon artwork.
+- Show progress while verifying game files in both launcher surfaces.
+- Add a conventional window-swapchain fallback when DirectComposition setup
+  fails. Windows checks pass; Steam Deck/Proton verification still needs the reporter.
+- Include bounded mouse input diagnostics in support reports for #32; this is
+  evidence collection, not a claimed fix for intermittent mouse input.
+- Update community credits and release documentation. The maintainer's final
+  SS Anubis pass, main merge and publication are still pending.
+
+- Preserve Modern swimming camera orientation and native collision clearance,
+  including overhead views. Keep native body facing through water-origin jumps
+  to avoid snapping on surface departures and re-entry; owner-approved locally.
+
+- Restore the original boss aiming range for Modern mouse and controllers,
+  including both Mizar encounters. All five boss fixtures match EmuHawk in
+  automated angle checks; owner-approved after live Twin Mantis review.
+
+- Default Modern mouse vertical inversion to Off for new profiles and resets.
+  Preserve existing saved choices and controller settings. This does not
+  resolve the separate intermittent mouse-look/ineffective-Off report (#32).
+
+- Restore Modern crouch/prone side rolls and correct backward-crawl reversal
+  and diagonal motion during prone rolls. Preserve native roll speed and easing.
+- Add bindable Roll Left/Right actions for Modern keyboard/mouse and controllers,
+  plus an Advanced automatic movement rolling switch shared per player.
+  New roll bindings default to unbound; automatic rolling remains enabled.
+- Preserve removed-controller exclusions when changing input type and refresh
+  idle P1-P4 indicators after saved controller changes. Owner preview review passed.
+  Newly saved Modern profiles use schema 7; older versions require separate profiles.
+
+
+- Prevent chopped sound-effect fragments while skipping Vela's rescue by omitting
+  effect starts from intermediate shots in a confirmed skip chain. Preserve
+  native cleanup, music and normal playback. Owner listening review passed.
+- Clear launcher menu hover when entering the game while preserving dropdown
+  selection across the child input window. Native UI checks and owner review passed.
+
+- Show rain through supported room-entry fades instead of waiting for the fade
+  to finish. Preserve fade masking and native gating for unsupported cases.
+  Native/regression checks and owner visual review passed; reporter retest remains.
+
+- Prevent depth-buffer readback from appearing as white/rainbow geometry in
+  interpolated character-selection frames after the Vela/SS Anubis cinematics.
+  Renderer regression checks and owner visual verification passed.
+- Add an in-game cutscene skip prompt: A, B or Start reveals it; hold A for one
+  second to confirm. Reviewed cinematics use explicit native completion and
+  scene transitions, preserving progression and required music changes.
+  Owner verified the SS Anubis flashback, Vela rescue, Juno departure and
+  Tawfret introduction; unsupported scripts remain ineligible.
+- Retain the Modern controller camera angle during ledge grabs, climbs and
+  high-drop landing recovery, extending the existing mouse corrections.
+  Automated checks and owner verification passed (#30).
+- Preserve Modern view identity while neutralizing input during focus loss.
+  The earlier correction passed owner testing. A follow-up initializes the new
+  room camera while the map has focus, avoiding delayed takeover on clicking
+  back. Controller/mouse regression checks and owner verification passed.
+- Correct rain and software-drawn reticles disappearing during normal high-refresh
+  Play because required output-frame timestamps depended on diagnostic logging.
+  Regression checks pass with logging disabled; owner verified both effects.
+- Keep removed controllers unassigned instead of automatically moving them to
+  later player slots. Automated mapping/UI checks and owner review passed.
+- Correct the fog gradient on large sky polygons, bringing Tawfret's sky and haze
+  closer to matched original-game rendering. Preserve the gamma correction and
+  fog percentage controls. Original-task comparisons and owner review passed.
+
 ## 1.3.0 - 2026-10-19
 
 - Improve ship, village and Vela-rescue cutscene presentation and boss motion.

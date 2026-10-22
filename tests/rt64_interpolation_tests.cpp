@@ -1,5 +1,6 @@
 #define SDL_MAIN_HANDLED
 #include "rt64_interpolation_adapter.hpp"
+#include "rt64_cpu_overlay.hpp"
 #include <cmath>
 #include <cstdlib>
 static void require(bool value) {
@@ -7,6 +8,123 @@ static void require(bool value) {
     std::abort();
 }
 int main() {
+  // A cutscene presents 0x15AF40 as color; the character room later uses
+  // the same allocation for depth. Historical address/size compatibility
+  // must not redirect a valid VI to those depth pixels.
+  {
+    RT64::VI current{};
+    current.status.word = 0x13016U;
+    current.width = 320U;
+    current.origin = 0x10FF00U + 640U;
+    current.hRegion.word = 0x006C02ECU;
+    current.vRegion.word = 0x00330195U;
+    current.xTransform.word = 0x200U;
+    current.yTransform.word = 0x555U;
+    RT64::VIHistory::Present oldColor{current, 320U};
+    oldColor.vi.origin = 0x15AF40U + 640U;
+    RT64::Framebuffer reused;
+    reused.addressStart = oldColor.vi.fbAddress();
+    reused.width = 320U;
+    reused.siz = G_IM_SIZ_16b;
+    reused.lastWriteType = RT64::Framebuffer::Type::Color;
+    require(jfg::early_present_history_match(reused, oldColor, current));
+    reused.lastWriteType = RT64::Framebuffer::Type::Depth;
+    require(!jfg::early_present_history_match(reused, oldColor, current));
+    // A later genuine color write makes the address eligible again.
+    reused.lastWriteType = RT64::Framebuffer::Type::Color;
+    require(jfg::early_present_history_match(reused, oldColor, current));
+    reused.width = 640U;
+    require(!jfg::early_present_history_match(reused, oldColor, current));
+    reused.width = 320U;
+    reused.siz = G_IM_SIZ_32b;
+    require(!jfg::early_present_history_match(reused, oldColor, current));
+    reused.siz = G_IM_SIZ_16b;
+    reused.addressStart += 640U;
+    require(!jfg::early_present_history_match(reused, oldColor, current));
+
+    RT64::FramebufferPair pair;
+    pair.reset();
+    pair.colorImage.width = 320U;
+    pair.colorImage.siz = G_IM_SIZ_16b;
+    pair.fastPaths.clearDepthOnly = true;
+    require(!jfg::early_present_pair_candidate(pair, true));
+    require(!jfg::early_present_pair_candidate(pair, false));
+    pair.fastPaths.clearDepthOnly = false;
+    // A real flat color clear (fade/background) remains eligible.
+    pair.fillRectOnly = true;
+    require(jfg::early_present_pair_candidate(pair, true));
+    pair.fillRectOnly = false;
+    require(jfg::early_present_pair_candidate(pair, true));
+  }
+  {
+    // Owner capture: clear depth, draw scene, bind depth as color for
+    // readback, restore scene color without a draw. Both addresses retain
+    // old presentation history; reverse scanning used to select readback.
+    std::array<RT64::FramebufferPair, 4> pairs;
+    for (auto& p : pairs) {
+      p.reset(); p.colorImage.width = 320U; p.colorImage.siz = G_IM_SIZ_16b;
+      p.depthImage.address = 0x15AF40U;
+    }
+    pairs[0].colorImage.address = 0x15AF40U;
+    pairs[0].fastPaths.clearDepthOnly = true;
+    pairs[1].colorImage.address = 0x135700U;
+    pairs[1].depthRead = pairs[1].depthWrite = true;
+    pairs[2].colorImage.address = 0x15AF40U;
+    pairs[3].colorImage.address = 0x135700U;
+    // The single-pass check alone accepts this depth-as-color readback.
+    require(jfg::early_present_pair_candidate(pairs[2], true));
+    require(!jfg::early_present_workload_candidate(pairs[0], true, pairs.data(), pairs.size()));
+    require(jfg::early_present_workload_candidate(pairs[1], true, pairs.data(), pairs.size()));
+    require(!jfg::early_present_workload_candidate(pairs[2], true, pairs.data(), pairs.size()));
+    require(!jfg::early_present_workload_candidate(pairs[2], false, pairs.data(), pairs.size()));
+    // Normal color-only tasks and subsequent legitimate cinematic color
+    // reuse remain valid. The rule has no permanent address blacklist.
+    std::array<RT64::FramebufferPair, 1> colorOnly;
+    colorOnly[0].reset(); colorOnly[0].colorImage = pairs[2].colorImage;
+    require(jfg::early_present_workload_candidate(colorOnly[0], true, colorOnly.data(), colorOnly.size()));
+    pairs[0].fastPaths.clearDepthOnly = false;
+    pairs[1].depthRead = pairs[1].depthWrite = false;
+    require(jfg::early_present_workload_candidate(pairs[2], true, pairs.data(), pairs.size()));
+  }
+  // CPU-written rain and reticles select retained masks by the actual output
+  // timestamp. This is production state even when no diagnostic trace is open.
+#if defined(_WIN32)
+  _putenv_s("JFG_RT64_INTERPOLATION_TRACE", "");
+#else
+  unsetenv("JFG_RT64_INTERPOLATION_TRACE");
+#endif
+  require(!jfg::interpolation_trace_enabled());
+  int output_owner = 0, other_output_owner = 0;
+  jfg::record_presentation_output(&output_owner, UINT32_MAX, {120, 30, 0, 4, 0.0f});
+  jfg::record_presentation_output(&output_owner, 3, {120, 30, 3, 4, 1.0f});
+  const auto output = jfg::presentation_output_sample(&output_owner, 3);
+  require(output.tick == 120 && output.source == 30 && output.frame == 3 &&
+          output.count == 4 && output.alpha == 1.0f);
+  require(jfg::presentation_output_sample(&output_owner, UINT32_MAX).alpha == 0.0f);
+  require(jfg::presentation_output_sample(&other_output_owner, 3).tick == 0);
+  require(jfg::presentation_output_sample(&output_owner, 2).tick == 0);
+  jfg::record_presentation_output(&output_owner, 3, {122, 30, 1, 2, 1.0f});
+  require(jfg::presentation_output_sample(&output_owner, 3).tick == 122);
+  // A normal-play output must select its CPU mask; retain the existing
+  // framebuffer and two-VI lifetime checks rather than bypassing them.
+  {
+    auto retained_mask = std::make_shared<jfg::CpuOverlayFrame>();
+    retained_mask->valid = true;
+    retained_mask->address = 0x110000U;
+    retained_mask->tick = 120;
+    {
+      auto& overlays = jfg::cpu_overlay_storage();
+      const std::scoped_lock lock(overlays.mutex);
+      overlays.frames[0] = retained_mask;
+    }
+    require(jfg::cpu_overlay_for(0x110000U,
+        jfg::presentation_output_sample(&output_owner, 3).tick) == retained_mask);
+    require(!jfg::cpu_overlay_for(0x135700U, 122));
+    require(!jfg::cpu_overlay_for(0x110000U, 119));
+    require(!jfg::cpu_overlay_for(0x110000U, 123));
+    jfg::release_cpu_overlays();
+    require(!jfg::cpu_overlay_for(0x110000U, 122));
+  }
   // A real N64 scene starts by binding its depth image as a color target
   // for a fill, then draws the scene into a different RGBA16 target.
   // The clear must not make the source ambiguous; two drawn scenes must.

@@ -58,12 +58,14 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
   HWND window=nullptr;bool ready=false;
   try {
     int argc=0;auto** argv=CommandLineToArgvW(GetCommandLineW(),&argc);
-    if(argc!=2){LocalFree(argv);return 2;}home=argv[1];LocalFree(argv);
+    const bool modsOnly=argc==3&&std::wstring(argv[2])==L"--mods-only";
+    if(argc!=2&&!modsOnly){LocalFree(argv);return 2;}home=argv[1];LocalFree(argv);
     if(fs::exists(home))return 3;fs::create_directories(home);
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     WNDCLASSW cls{};cls.lpfnWndProc=DefWindowProcW;cls.hInstance=instance;cls.lpszClassName=L"JfgModernControlsTests";RegisterClassW(&cls);
     window=CreateWindowExW(WS_EX_TOOLWINDOW,cls.lpszClassName,L"Offscreen Modern Controls checks",
       WS_OVERLAPPEDWINDOW,-30000,-30000,1280,1000,nullptr,nullptr,instance,nullptr);
+    if(!modsOnly) {
     const auto profile=home/"profile";fs::create_directories(profile);
     std::ofstream(profile/"experimental-controls.ini")<<jfg::serialize_pc_experiments(false);
     demand(FrontendUiInit(window,profile,[](const std::string&){},"controllers"),"native UI initializes");ready=true;
@@ -169,6 +171,51 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     ui.assignDevice(0);settle();click("action-mc-tab-advanced");
     demand(!ui.el("action-mc-original-acceleration")&&ui.el("mc-range-axis"),"controller advanced hides keyboard acceleration");
     demand(ui.modern[0].mouse_original_acceleration,"device switch preserves keyboard acceleration");
+    {
+      const auto flightProfile=ui.modern[0];const auto otherFlightPlayer=ui.read("modern-controls-2.ini");
+      demand(ui.modern[0].pad_floyd_flight_invert_y&&ui.el("action-mc-floyd-flight-invert"),"controller flight defaults inverted and visible");
+      pointerClick("action-mc-floyd-flight-invert");ui.loadModern();
+      demand(!ui.modern[0].pad_floyd_flight_invert_y&&ui.modern[0].look.aim_invert_y==flightProfile.look.aim_invert_y,"flight toggle persists independently of look inversion");
+      capture("controller-flight-option.tga");
+      demand(ui.read("modern-controls-2.ini")==otherFlightPlayer,"P1 flight option preserves P2 profile");
+      ui.assignDevice(-3);settle();click("action-mc-tab-advanced");
+      demand(!ui.el("action-mc-floyd-flight-invert")&&!ui.modern[0].pad_floyd_flight_invert_y,"keyboard hides and preserves controller flight option");
+      click("action-mc-reset");click("action-mc-reset-confirm");ui.loadModern();
+      demand(!ui.modern[0].pad_floyd_flight_invert_y,"keyboard reset preserves controller flight option");
+      ui.assignDevice(0);settle();click("action-mc-tab-advanced");click("action-mc-reset");click("action-mc-reset-confirm");ui.loadModern();
+      demand(ui.modern[0].pad_floyd_flight_invert_y,"controller reset restores original flight pitch");
+      demand(ui.saveModern(flightProfile),"restore flight test profile");ui.modal("controllers");settle();click("action-mc-tab-advanced");
+    }
+    // Explicit roll bindings and the automatic gesture preference use the same
+    // persisted profile while keyboard and controller bindings stay independent.
+    {
+      const auto rollProfile=ui.modern[0];const bool rollDiagram=ui.modernDiagram;const auto otherPlayer=ui.read("modern-controls-2.ini");
+      const int rollLeft=static_cast<int>(jfg::ModernAction::roll_left),rollRight=static_cast<int>(jfg::ModernAction::roll_right);
+      demand(rollProfile.automatic_roll&&rollProfile.pad[rollLeft]==-1&&rollProfile.pad[rollRight]==-1&&rollProfile.keys[rollLeft]==0&&rollProfile.keys[rollRight]==0,"roll defaults preserve automatic gestures and leave new bindings unbound");
+      ui.el("mc-settings-scroll")->SetScrollTop(ui.el("mc-settings-scroll")->GetScrollHeight());settle();
+      pointerClick("action-mc-automatic-roll");ui.loadModern();
+      demand(!ui.modern[0].automatic_roll,"controller automatic roll switch persists off");
+      ui.assignDevice(-3);settle();click("action-mc-tab-advanced");
+      demand(ui.el("action-mc-automatic-roll")&&!ui.modern[0].automatic_roll,"keyboard Advanced shows the same saved automatic roll preference");
+      pointerClick("action-mc-automatic-roll");ui.loadModern();demand(ui.modern[0].automatic_roll,"keyboard automatic roll switch persists on");
+      click("action-mc-tab-buttons");
+      if(ui.modernDiagram)click("action-mc-view-list");
+      click("action-mc-add-key");settle();FrontendUiMessage(WM_KEYDOWN,'J',0);settle();
+      demand(ui.el(("action-mc-assign-"+std::to_string(rollLeft)).c_str())&&ui.el(("action-mc-assign-"+std::to_string(rollRight)).c_str()),"keyboard picker offers both roll directions");
+      click("action-mc-assign-"+std::to_string(rollLeft));
+      click("action-mc-add-key");settle();FrontendUiMessage(WM_KEYDOWN,'K',0);settle();click("action-mc-assign-"+std::to_string(rollRight));
+      ui.loadModern();demand(ui.modern[0].keys[rollLeft]=='J'&&ui.modern[0].keys[rollRight]=='K'&&ui.modern[0].pad[rollLeft]==-1,"keyboard roll bindings save independently");
+      ui.assignDevice(0);settle();click("action-mc-tab-buttons");
+      editInput(11);demand(ui.el(("action-mc-assign-"+std::to_string(rollLeft)).c_str())&&ui.el(("action-mc-assign-"+std::to_string(rollRight)).c_str()),"controller picker offers both roll directions");
+      click("action-mc-assign-"+std::to_string(rollLeft));if(ui.modernPanel=="conflict")click("action-mc-conflict-both");
+      editInput(12);click("action-mc-assign-"+std::to_string(rollRight));if(ui.modernPanel=="conflict")click("action-mc-conflict-both");
+      ui.loadModern();demand(ui.modern[0].pad[rollLeft]==11&&ui.modern[0].pad[rollRight]==12&&ui.modern[0].keys[rollLeft]=='J'&&ui.modern[0].keys[rollRight]=='K',"controller roll bindings persist without changing keyboard bindings");
+      click("action-mc-tab-advanced");click("action-mc-automatic-roll");click("action-mc-reset");click("action-mc-reset-confirm");ui.loadModern();
+      demand(ui.modern[0].automatic_roll&&ui.modern[0].pad[rollLeft]==11&&ui.modern[0].pad[rollRight]==12,"Advanced reset enables automatic rolls while preserving explicit bindings");
+      demand(ui.read("modern-controls-2.ini")==otherPlayer,"roll editing leaves other player profile untouched");
+      demand(ui.saveModern(rollProfile),"roll UI fixture restores prior saved profile");ui.modernDiagram=rollDiagram;ui.modal("controllers");settle();
+    }
+
     ui.assignDevice(-3);settle();click("action-mc-tab-settings");change("mc-range-scope",45);
     demand(ui.modern[0].mouse_scope_sensitivity==45&&ui.modern[0].pad_scope_sensitivity==65,"mouse scope independent");
     demand(!ui.el("mc-range-rumble")&&!ui.el("mc-range-look-deadzone"),"keyboard hides pad tuning");capture("keyboard-settings.tga");
@@ -215,15 +262,15 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     demand(ui.read("modern-controls.ini")==beforeError,"save failure retains file");capture("save-error.tga");CloseHandle(locked);
     click("action-mc-save-retry");demand(ui.modern[0].mouse_scope_sensitivity==85,"retry applies pending change");
     ui.loadModern();demand(ui.modern[0].mouse_scope_sensitivity==85&&ui.modern[0].keys[4]=='T',"reload retains saved state");
-    if(ui.modern[0].look.mouse_invert_y)click("action-mc-invert-y");
-    demand(!ui.modern[0].look.mouse_invert_y,"explicit noninverted mouse choice accepted");
+    if(!ui.modern[0].look.mouse_invert_y)click("action-mc-invert-y");
+    demand(ui.modern[0].look.mouse_invert_y,"explicit inverted mouse choice accepted");
     const auto padInvertBefore=ui.modern[0].look.aim_invert_y;
     const auto padBefore=ui.modern[0].pad;click("action-mc-reset");click("action-mc-cancel");
-    demand(ui.modern[0].keys[4]=='T'&&!ui.modern[0].look.mouse_invert_y,"reset cancellation retains bindings and inversion");
+    demand(ui.modern[0].keys[4]=='T'&&ui.modern[0].look.mouse_invert_y,"reset cancellation retains bindings and inversion");
     click("action-mc-reset");click("action-mc-reset-confirm");
     demand(ui.modern[0].keys[4]=='T'&&ui.modern[0].mouse_scope_sensitivity==100&&!ui.modern[0].aim_toggle,"settings reset preserves bindings and resets tuning");
-    demand(ui.modern[0].look.mouse_invert_y==1&&ui.modern[0].look.aim_invert_y==padInvertBefore,"mouse reset restores inverted vertical and retains controller choice");
-    ui.loadModern();demand(ui.modern[0].look.mouse_invert_y==1,"reset inversion is saved");
+    demand(ui.modern[0].look.mouse_invert_y==0&&ui.modern[0].look.aim_invert_y==padInvertBefore,"mouse reset restores noninverted vertical and retains controller choice");
+    ui.loadModern();demand(ui.modern[0].look.mouse_invert_y==0,"reset inversion is saved");
     demand(!ui.modern[0].mouse_original_acceleration,"keyboard tuning reset saves acceleration off");
     click("action-mc-tab-buttons");click("action-mc-reset");click("action-mc-reset-confirm");
     demand(ui.modern[0].keys[4]=='E',"button tab reset restores bindings");
@@ -238,7 +285,23 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     click("action-mc-tab-settings");demand(!ui.el("mc-range-rumble"),"unsupported SDL rumble hidden");
     extra[0].family=jfg::ControllerFamily::generic;ui.discoverDevices();ui.modal("controllers");settle();
     demand(ui.modernInputName(0)=="South button","unknown controller generic labels");click("action-mc-tab-buttons");capture("generic-diagram.tga");
-    click("action-player1");demand(element("action-mc-style-modern")->HasAttribute("disabled"),"Player2 modern unavailable");click("action-player0");
+    const auto primaryModernBefore=ui.read("modern-controls.ini");
+    for(int port=1;port<4;++port) {
+      click("action-player"+std::to_string(port));
+      demand(!element("action-mc-style-modern")->HasAttribute("disabled"),"Secondary player can choose Modern");
+      const auto originalMapping=ui.read((port?"controller-"+std::to_string(port+1)+".ini":std::string("controller.ini")).c_str());
+      click("action-mc-style-modern");demand(ui.modernMode(),"Secondary Modern selection takes effect");
+      auto secondary=ui.modern[port];secondary.keys[1]='1'+port;secondary.pad[1]=port;
+      secondary.look.mouse_sensitivity=100+port;
+      demand(ui.saveModern(secondary),"Secondary Modern configuration saves");
+      ui.loadModern();demand(ui.modernMode()&&ui.modern[port].keys[1]=='1'+port&&ui.modern[port].pad[1]==port&&ui.modern[port].look.mouse_sensitivity==100+port,"Secondary configuration survives reload");
+      demand(ui.read((port?"controller-"+std::to_string(port+1)+".ini":std::string("controller.ini")).c_str())==originalMapping,"Modern edits preserve secondary Original mapping");
+      click("action-mc-style-mapping");demand(!ui.modernMode(),"Secondary Original mode remains available");
+      click("action-mc-style-modern");demand(ui.modern[port].keys[1]=='1'+port,"Secondary style toggle preserves bindings");
+    }
+    demand(ui.read("modern-controls.ini")==primaryModernBefore,"Secondary Modern edits preserve P1");
+    for(int port=1;port<4;++port)demand(ui.modern[port].keys[1]=='1'+port&&ui.modern[port].pad[1]==port,"Secondary profiles remain independent");
+    click("action-player0");
     ui.assignDevice(0);settle();ui.modernFocusMove(1);settle();auto* first=surface->context->GetFocusElement();
     inputs[0]={};settle();inputs[0].Gamepad.wButtons=XINPUT_GAMEPAD_DPAD_DOWN;settle();
     demand(surface->context->GetFocusElement()!=first,"D-pad moves focus");inputs[0]={};settle();
@@ -470,6 +533,90 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     homeState.rom.clear();
     for(int i=0;i<3;++i)FrontendUiFrame(homeState);
     demand(element("rom-card")->IsVisible(true),"missing ROM restores import entry");
+    FrontendUiShutdown();ready=false;
+    }
+    RECT modsFrame{0,0,1280,920};AdjustWindowRectExForDpi(&modsFrame,WS_OVERLAPPEDWINDOW,FALSE,WS_EX_TOOLWINDOW,GetDpiForWindow(window));
+    SetWindowPos(window,nullptr,-30000,-30000,modsFrame.right-modsFrame.left,modsFrame.bottom-modsFrame.top,SWP_NOZORDER|SWP_NOACTIVATE);
+    const auto floydProfile=home/"floyd-profile";fs::create_directories(floydProfile);
+    demand(FrontendUiInit(window,floydProfile,[](const std::string&){},"map"),"Floyd map initializes");ready=true;
+    ShowWindow(window,SW_SHOWNOACTIVATE);FrontendUiResize();surface->context->SetDensityIndependentPixelRatio(1.f);
+    settle();click("map-settings");click("tab-mods");settle();
+    auto* floyd=element("give-floyd");
+    demand(floyd->IsVisible(true)&&floyd->GetClientWidth()>0,"Give Floyd is visible in Mods");
+    demand(floyd->GetInnerRML().find("Unlock Floyd")!=std::string::npos,"Give Floyd has its user-facing label");
+    demand(floyd->HasAttribute("disabled"),"Give Floyd waits for runtime capability");
+    capture("review-give-floyd.tga");
+    demand(!element("mods-count")->IsVisible(true),"zero active mods hides sidebar badge");
+    auto snapshot=[&](unsigned mods,bool active,const std::string& status) {
+      static int sequence=0;
+      std::ofstream f(surface->files.liveAssets/"snapshot.bin",std::ios::binary);
+      auto put=[&](const auto& value){f.write(reinterpret_cast<const char*>(&value),sizeof(value));};
+      auto text=[&](const std::string& value){put(static_cast<int>(value.size()));f<<value;};
+      put(0x32544c4aU);put(++sequence);put(active?1:0);put(1);put(0);put(0U);
+      put(1LL);put(1LL);put(0);text("");text(status);text("");text("");
+      put(0);put(0);put(0);
+      for(int i=0;i<7;++i)put(0U);
+      for(int i=0;i<7;++i)put(0.f);
+      put(0);put(0);put(0);put(mods);put(0U);f.close();
+      Sleep(120);settle();
+    };
+    snapshot(2|4|8|32|64,true,"Ready");
+    demand(element("mods-count")->IsVisible(true)&&element("mods-count-value")->GetInnerRML()=="3","sidebar counts active toggles only");
+    demand(element("toggle-health-mod")->GetAttribute<Rml::String>("aria-checked","")=="true","toggle accessibility reflects enabled state");
+    demand(!element("give-weapons")->HasAttribute("disabled")&&!element("give-floyd")->HasAttribute("disabled"),"capable running game enables actions");
+    demand(element("give-weapons-label")->GetInnerRML()=="Give weapons","runtime capability alone is not success");
+    demand(element("mods-count-value")->GetClientWidth()>4&&element("mods-count-value")->GetClientHeight()>4,"active count text has rendered geometry");
+    auto* onBadge=element("settings-content")->QuerySelector(".mod-on-badge span");
+    demand(onBadge&&onBadge->GetClientWidth()>8&&onBadge->GetClientHeight()>4,"ON badge text has rendered geometry");
+    capture("mods-running.tga");
+    element("tab-ai")->Focus();settle();
+    auto focusColor=element("tab-ai")->QuerySelector(".settings-tab-bar")->GetProperty<Rml::Colourb>("background-color");
+    demand(focusColor.red==0x6f&&focusColor.green==0xd3,"inactive tab keyboard focus stays visible");
+    element("tab-mods")->Focus();settle();
+    snapshot(2|4|8|16|32|64,true,"Ready");
+    auto disabledColor=element("toggle-health-mod")->GetProperty<Rml::Colourb>("background-color");
+    demand(element("toggle-health-mod")->HasAttribute("disabled")&&disabledColor.red==0x22&&disabledColor.green==0x2b,"mod failure mutes an enabled toggle instead of leaving amber");
+    capture("mods-error.tga");
+    snapshot(2|4|8|32|64,true,"Ready");
+
+    element("settings-content")->SetScrollTop(1000);settle();capture("mods-actions.tga");
+    snapshot(2|4|8|32|64,true,"Weapon grant requested...");
+    demand(element("give-weapons")->HasAttribute("disabled")&&!element("give-weapons")->IsClassSet("succeeded"),"pending feedback disables grant and does not claim success");
+    snapshot(2|4|8|32|64,true,"All weapons granted and ammo refilled for the current character.");
+    demand(element("give-weapons")->IsClassSet("succeeded")&&element("give-weapons-label")->GetInnerRML()=="Given","confirmed runtime grant shows success");
+    capture("mods-confirmed.tga");
+    snapshot(2|4|8|32|64,true,"Weapon grant was not confirmed. Return to the game and try again.");
+    demand(!element("give-weapons")->IsClassSet("succeeded")&&element("mods-help")->GetInnerRML().find("not confirmed")!=std::string::npos,"unconfirmed grant stays visible without success styling");
+    snapshot(32|64,false,"Ready");
+    demand(element("give-weapons")->HasAttribute("disabled")&&element("give-floyd")->HasAttribute("disabled"),"stopped game disables even stale capabilities");
+    demand(!element("mods-count")->IsVisible(true),"clearing toggles hides count");
+    element("settings-content")->SetScrollTop(1000);settle();capture("mods-stopped.tga");
+    snapshot(2|4|8|32|64,true,"Ready");
+    auto visibleAction=[&]() {
+      auto* grant=element("give-floyd");auto* pane=element("settings-content");
+      const auto gp=grant->GetAbsoluteOffset(Rml::BoxArea::Border),gs=grant->GetBox().GetSize(Rml::BoxArea::Border);
+      const auto pp=pane->GetAbsoluteOffset(Rml::BoxArea::Content),ps=pane->GetBox().GetSize(Rml::BoxArea::Content);
+      demand(gs.x>40&&gs.y>20&&gp.x>=pp.x-1&&gp.y>=pp.y-1&&gp.x+gs.x<=pp.x+ps.x+1&&gp.y+gs.y<=pp.y+ps.y+1,"last action fits inside the scrolled content viewport");
+      auto point=gp+gs*0.5f;auto projected=point;demand(grant->Project(projected),"project action hit target");point+=point-projected;
+      auto* hit=surface->context->GetElementAtPoint(point);
+      while(hit&&hit!=grant)hit=hit->GetParentNode();
+      demand(hit==grant,"last action remains a native pointer target");
+    };
+    for(float dpi:{1.f,1.25f,1.5f}) {
+      surface->context->SetDensityIndependentPixelRatio(dpi);settle();
+      element("settings-content")->SetScrollTop(1000);settle();
+      visibleAction();
+      capture((std::string("mods-scale-")+std::to_string(int(dpi*100))+".tga").c_str());
+      auto* grant=element("give-floyd");auto* done=element("settings-done");
+      const auto gp=grant->GetAbsoluteOffset(Rml::BoxArea::Border),gs=grant->GetBox().GetSize(Rml::BoxArea::Border);
+      demand(gp.y+gs.y<=done->GetAbsoluteOffset(Rml::BoxArea::Border).y,"scroll reveals actions above fixed footer at each DPI");
+    }
+    surface->context->SetDensityIndependentPixelRatio(1.f);settle();
+    RECT compact{0,0,720,600};AdjustWindowRectExForDpi(&compact,WS_OVERLAPPEDWINDOW,FALSE,WS_EX_TOOLWINDOW,GetDpiForWindow(window));
+    SetWindowPos(window,nullptr,-30000,-30000,compact.right-compact.left,compact.bottom-compact.top,SWP_NOZORDER|SWP_NOACTIVATE);
+    FrontendUiResize();surface->context->SetDensityIndependentPixelRatio(1.f);settle();element("settings-content")->SetScrollTop(1000);settle();visibleAction();capture("mods-compact.tga");
+    demand(element("give-floyd")->GetAbsoluteOffset(Rml::BoxArea::Border).y+element("give-floyd")->GetBox().GetSize(Rml::BoxArea::Border).y<element("settings-done")->GetAbsoluteOffset(Rml::BoxArea::Border).y,"compact window can scroll to last action");
+
     std::ofstream(home/"result.json")<<"{\"passed\":true,\"checks\":"<<checks<<",\"physical_desktop_input\":false}";
     FrontendUiShutdown();ready=false;DestroyWindow(window);return 0;
   } catch(const std::exception& error) {

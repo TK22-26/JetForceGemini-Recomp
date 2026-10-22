@@ -1,5 +1,13 @@
 # INPUT-008: Retained capture profile differs from modern defaults
 
+## Default policy superseded (2026-10-20)
+
+The owner now requests Modern mouse vertical inversion Off for new profiles
+and resets. The tested local source implements that policy while preserving
+existing saved preferences. This supersedes the earlier default-On policy
+recorded below; see [GH-032](github-mouse-look-and-inversion.md). It does not
+establish a fix for the reporter's intermittent capture or ineffective Off.
+
 Status: owner-requested unified Keys revision verified in tests and screenshot review; delivered locally; physical owner check pending. Severity: usability. Affected: draw-key preview, runtime source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e and retained route-capture profile.
 
 During the longer owner measurement the owner reports unexpected mouse direction and E not acting as the expected A/Confirm. The attached Scooby-Doo image was accidental; the owner confirms JFG. Turning vertical inversion Off fixes the direction according to the owner.

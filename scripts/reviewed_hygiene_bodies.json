@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "review": "1.2.0 and 1.3.0 release qualification; exact reviewed bodies only; credential/ROM/archive checks remain active",
+  "review": "1.2.0, 1.3.0 and 1.4.0 release qualification; exact reviewed bodies only; credential/ROM/archive checks remain active",
   "bodies": [
     {
       "git_blob": "f4765bee58991ce081160b787ce3c07af23a003e",
@@ -714,6 +714,67 @@
         "contains a generated-recompilation marker"
       ],
       "reason": "Handwritten synthetic four-increment compiler fixture using a function named synthetic; no generated game body"
+    },
+    {
+      "git_blob": "eefa852593a7841a5b65003d6be39fad56704af8",
+      "sha256": "ea4613d90f02b1bf7053c2c5aa067180d9a65e6377a87b1070303ba581f9e05c",
+      "bytes": 196652,
+      "path": "launcher/ui/assets/mods-icons.tga",
+      "exceptions": [
+        "binary"
+      ],
+      "reason": "Project UI line-icon atlas generated from adjacent editable Python geometry for the owner-supplied Mods settings reference; no game art or extracted assets"
+    },
+    {
+      "git_blob": "2648bc28e3184181698dab9fdb413b01907c2c73",
+      "sha256": "5c10a3faa06181951a1c28678e516f07d8adc801e7f8698a2f38351235b13f4c",
+      "bytes": 1223840,
+      "path": "assets/ui/cutscene-skip/a-button-source.png",
+      "exceptions": [
+        "binary",
+        "size"
+      ],
+      "reason": "Owner-requested original generated blue A-button source; visually reviewed for v1.4. No extracted game artwork. Provenance in adjacent README."
+    },
+    {
+      "git_blob": "211cf69e21a70811306ca9bdefb321e066387b43",
+      "sha256": "b09c7e94e33645c5d5ebd7f569066dfebe6551b864c28f26171854b065bf6389",
+      "bytes": 1490,
+      "path": "assets/ui/cutscene-skip/skip-label.png",
+      "exceptions": [
+        "binary"
+      ],
+      "reason": "Original SKIP label rendered with bundled OFL Chakra Petch; visually reviewed for v1.4. License and provenance in adjacent files."
+    },
+    {
+      "git_blob": "6f3e93f10ebce63bad090ccdefed287ebf4900c5",
+      "sha256": "29adc2b8da902f9f1113ae94a0698a958b2c1bf475d82f4e9823fae29dacef27",
+      "bytes": 8186,
+      "path": "docs/development/issues/character-selection-depth-flash.md",
+      "exceptions": [
+        "contains a user-specific local path"
+      ],
+      "reason": "Historical published issue note names the owner video location; current text removes the personal directory. Preserve public history, with only this exact local-path finding excepted."
+    },
+    {
+      "git_blob": "b8226b5bda5944418df22206e06fe3b6291b6039",
+      "sha256": "4ffc23d1d559e0579727f5b8f1cf35ffb189b4e7c773774d173f12bf7281ab4f",
+      "bytes": 48687,
+      "path": "docs/development/issues/optional-cutscene-skipping.md",
+      "exceptions": [
+        "contains a user-specific local path"
+      ],
+      "reason": "Historical published issue note names the owner video location; current text removes the personal directory. Exact historical local-path finding only."
+    },
+    {
+      "git_blob": "8dfde09592e352d767519a8bea6ba754b0c14105",
+      "sha256": "c1328dcafa8f0e0e57c6de4cf4fd96c15cd6c467348e35c0558ab8dddcd5297d",
+      "bytes": 44447,
+      "path": "docs/development/issues/optional-cutscene-skipping.md",
+      "exceptions": [
+        "contains a user-specific local path"
+      ],
+      "reason": "Earlier published version of the same owner video reference; current directory redacted. Exact historical local-path finding only."
     }
   ]
 }

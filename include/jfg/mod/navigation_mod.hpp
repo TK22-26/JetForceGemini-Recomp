@@ -1257,11 +1257,99 @@ inline bool gameplay_active(const Memory &m, std::uint32_t player) {
          m.u32(0x801045B8U) == 0U && m.u32(0x800F6DBCU) == 0U;
 }
 
+// The guest can compact connected controller slots into logical players.
+// Mirror joyGetAbsX/Y's logical-to-physical lookup before selecting a profile.
+inline unsigned pc_input_port(const Memory& m,unsigned player) {
+  if(player>=4U)return 4U;
+  const auto port=m.u8(0x800FB100U+player);
+  return port<4U?port:4U;
+}
+// Resolve the native player list by the control port, not update order. The
+// last controlPlayer call can belong to any split-screen player or a bot.
+inline std::uint32_t pc_player_for_port(const Memory& m,unsigned port) {
+  if(port>=4U || m.u32(0x8000E468U)!=0x8DCE2D10U ||
+     m.u32(0x8000E474U)!=0x8C422D0CU)return 0;
+  const auto list=m.u32(0x800F2D0CU),count=m.u32(0x800F2D10U);
+  if(!count || count>4U || (list&3U) || !m.valid(list,count*4U))return 0;
+  std::uint32_t found=0;
+  for(unsigned i=0;i<count;++i) {
+    const auto actor=m.u32(list+i*4U);
+    if((actor&3U) || !m.valid(actor,0xA4U))continue;
+    const auto control=m.u32(actor+0x68U);
+    if((control&3U) || !m.valid(control,0x5F0U) || pc_input_port(m,m.u8(control))!=port)continue;
+    if(found)return 0; // Ambiguous ownership must not borrow another view.
+    found=actor;
+  }
+  return found;
+}
+// Navigation mods retain their single-player gate. Controls additionally
+// accept a qualified native multiplayer character with its own port.
+inline bool pc_session_active(const Memory& m,std::uint32_t player) {
+  if(!m.u8(0x800A4FC4U))return gameplay_active(m,player);
+  if(!m.valid(player,0xA4U))return false;
+  const auto control=m.u32(player+0x68U);
+  return m.valid(control,0x5F0U) && !m.u32(control+0x5C0U) &&
+    pc_player_for_port(m,pc_input_port(m,m.u8(control)))==player &&
+    !m.u32(0x800FD7C4U) && !m.u32(0x801045B8U) && !m.u32(0x800F6DBCU);
+}
+// mainGetPlayer's inventory selection differs in competitive multiplayer.
+// Use the native logical player for its 0xA0-byte record, regardless of the
+// connected controller slot or the character's single-player save inventory.
+inline std::uint32_t pc_player_inventory(const Memory& m,std::uint32_t control) {
+  if(!m.valid(control,0x5F0U) || m.u32(0x80047C20U)!=0x91CE4FC4U ||
+     m.u32(0x80047C80U)!=0x8D29D7D4U)return 0;
+  const unsigned player=m.u8(control),character=m.u8(control+1U)&3U;
+  std::uint32_t inventory=0;
+  const unsigned players=m.u8(0x800A4FD0U);
+  if(m.u8(0x800A4FC4U) && players>=2U) {
+    if(players>4U || player>=players)return 0;
+    inventory=0x800FED50U+0x16U+player*0xA0U;
+  } else {
+    const auto game=m.u32(0x800FD7D4U);
+    if(character>=3U || !m.valid(game,0x538U))return 0;
+    inventory=game+0x15CU+character*0x76U;
+  }
+  return m.valid(inventory,0x76U)?inventory:0;
+}
+inline unsigned pc_player_weapon(const Memory& m,std::uint32_t control) {
+  const auto inventory=pc_player_inventory(m,control);
+  return inventory?m.u8(inventory+0x70U):255U;
+}
+struct PcFloydContext {
+  std::uint32_t actor=0,control=0,owner=0;
+  unsigned port=4;
+  bool mission=false;
+  explicit operator bool() const {return actor!=0;}
+};
+// sidekickControl routes joined co-op to port 1 and active missions to the
+// owner's port. Mode 3 is the mission's input-locked transition, not gameplay.
+inline PcFloydContext pc_floyd_context(const Memory& m) {
+  if(m.u32(0x8002F7A0U)!=0x0C010D44U || m.u32(0x8002F7A4U)!=0x24040001U ||
+     m.u32(0x8002F85CU)!=0x0C00DC94U || m.u8(0x800A4FC4U) ||
+     m.u32(0x800FD7C4U) || m.u8(0x800FD7BDU))return {};
+  const auto actor=m.u32(0x800F2D14U);
+  if((actor&3U) || !m.valid(actor,0xA4U))return {};
+  const auto control=m.u32(actor+0x68U);
+  if((control&3U) || !m.valid(control,0xA0U))return {};
+  const auto owner=m.u32(control+0x24U);
+  if((owner&3U) || !m.valid(owner,0xA4U))return {};
+  const auto owner_control=m.u32(owner+0x68U);
+  if((owner_control&3U) || !m.valid(owner_control,0x5F0U) ||
+     scripted_camera_active(m,owner))return {};
+  const auto mode=m.u8(owner_control+0x10DU);
+  const bool mission=mode==1U;
+  if(mode && !mission)return {};
+  if(!mission && (!m.u8(0x800A4FC8U) || !(m.u8(control+0x94U)&0x80U)))return {};
+  const unsigned port=pc_input_port(m,(m.u8(control+0x94U)&0x80U)?1U:m.u8(owner_control));
+  if(port>=4U)return {};
+  return {actor,control,owner,port,mission};
+}
+
 // PC view ownership must honor the character's own input locks before its
 // update publishes 0x800F6DBC. Pickups/dialogue and scripted actor control can
 // leave the general gameplay/camera flags clear at the outer player boundary.
 inline bool pc_gameplay_active(const Memory &m, std::uint32_t player) {
-  if(!gameplay_active(m,player) || scripted_camera_active(m,player))return false;
+  if(!pc_session_active(m,player) || scripted_camera_active(m,player))return false;
   const auto control=m.u32(player+0x68U);
   if(!m.valid(control,0x5F0U) || m.u32(control+0xFCU)!=0U)return false;
   // Shared by Vela, Juno and Lupus before their native read-input call.
@@ -1271,7 +1359,7 @@ inline bool pc_gameplay_active(const Memory &m, std::uint32_t player) {
 }
 
 // Native ledge attachment/climb handlers own body heading and movement.
-// Keep only the mouse view; never admit these states into modern locomotion.
+// Keep only the Modern view; never admit these states into modern locomotion.
 inline bool pc_ledge_view_active(const Memory& m,std::uint32_t player) {
   if(!pc_gameplay_active(m,player) || m.u8(0x800FD7BDU))return false;
   const auto control=m.u32(player+0x68U);
@@ -1280,7 +1368,7 @@ inline bool pc_ledge_view_active(const Memory& m,std::uint32_t player) {
   return movement==6U || movement==7U || movement==8U || movement==12U;
 }
 
-// High-land recovery locks locomotion, not the chosen mouse view. Juno's
+// High-land recovery locks locomotion, not the chosen Modern view. Juno's
 // landing clip is 0x1A, Vela's is 0x19; both start a 30-tick +0x56B timer.
 // A just-expired timer can leave the prior global input lock until the next
 // native read-input call. Do not admit dialogue, damage or scripted cameras.
@@ -1294,7 +1382,8 @@ inline bool pc_landing_view_active(const Memory& m,std::uint32_t player,bool fin
   const bool settling=finishing && timer==0U && m.u32(0x800F6DBCU)!=0U;
   if(character>1U || (!settling && clip!=(character==0U?0x1AU:0x19U)) ||
      (timer==0U && m.u32(0x800F6DBCU)==0U))return false;
-  if(m.u8(0x800A4FC4U) || m.u32(0x800FD7C4U) || m.u8(0x800FD7BDU) ||
+  if((m.u8(0x800A4FC4U) && pc_player_for_port(m,pc_input_port(m,m.u8(control)))!=player) ||
+     m.u32(0x800FD7C4U) || m.u8(0x800FD7BDU) ||
      scripted_camera_active(m,player))return false;
   for(auto offset:{0x577U,0x1F9U,0x1FAU,0x186U,0x198U,0x5EEU,0x10DU,0x19FU})
     if(m.u8(control+offset))return false;
@@ -1363,6 +1452,8 @@ public:
   bool mods_configured = false, warp_exits = false, infinite_health = false,
        instant_kill = false;
   std::uint64_t warp_nonce = 0, weapons_nonce = 0, weapon_grants = 0;
+  bool weapons_applied = false;
+  std::uint64_t floyd_nonce = 0, floyd_grants = 0;
   bool health_enabled() const noexcept { return mods_configured ? infinite_health : enabled; }
   bool kill_enabled() const noexcept { return mods_configured ? instant_kill : enabled; }
   bool configure_mods(std::istream &in) {
@@ -1488,6 +1579,7 @@ public:
     if(!(in>>magic>>level>>gen>>nonce>>stamp) || magic!="JFGWEAPONS1" ||
        (in>>extra) || nonce<=weapons_nonce)return false;
     weapons_nonce=nonce; // A rejected or consumed click must never fire later.
+    weapons_applied=false;
     if(!observing() || gen!=generation || stamp<0 || now<stamp || now-stamp>5000 ||
        !player)return false;
     try {
@@ -1513,6 +1605,32 @@ public:
       m.put16(saved+0x6EU,static_cast<std::uint16_t>((m.u8(saved+0x6EU)<<8U)|
           std::popcount(mask)));
       ++weapon_grants;
+      weapons_applied=true;
+      return true;
+    } catch(const std::runtime_error&) {++invalid;return false;}
+  }
+  // Native single-player room loading checks shared game flag 3 before
+  // spawning Floyd. Grant that flag in the current game only; the next normal
+  // room load creates him. Do not mutate global unlocks, parts or mission medals.
+  bool give_floyd(std::istream &in, Memory &m, const std::vector<Actor> &list,
+                  std::int64_t now) {
+    std::string magic,extra;
+    std::uint32_t level{};std::uint64_t gen{},nonce{};std::int64_t stamp{};
+    if(!(in>>magic>>level>>gen>>nonce>>stamp) || magic!="JFGFLOYD1" ||
+       (in>>extra) || nonce<=floyd_nonce)return false;
+    floyd_nonce=nonce;
+    if(!observing() || gen!=generation || stamp<0 || now<stamp || now-stamp>5000 ||
+       !player)return false;
+    try {
+      if(level!=m.u32(0x800FB114U) || !gameplay_active(m,player) ||
+         scripted_camera_active(m,player) || m.u8(0x800FD7BDU)!=0U)return false;
+      bool present=false;for(const auto& actor:list)if(actor.address==player)present=true;
+      if(!present || !inventory(m,player).known)return false;
+      const auto properties=m.u32(player+0x4CU),game=m.u32(0x800FD7D4U);
+      if(!m.valid(properties,8U) || m.s16(properties+6U)<0x100 ||
+         !m.valid(game,0x334U))return false;
+      m.put16(game+0x30U,static_cast<std::uint16_t>(m.u16(game+0x30U)|0x0800U));
+      ++floyd_grants;
       return true;
     } catch(const std::runtime_error&) {++invalid;return false;}
   }
@@ -1637,8 +1755,11 @@ public:
         << ",\"mesh_ready\":" << (mesh_ready ? "true" : "false")
         << ",\"scripted_camera\":" << (scripted_camera_active(m,player) ? "true" : "false")
         << ",\"mods_available\":true"
+        << ",\"give_floyd_available\":true"
         << ",\"give_weapons_available\":true"
         << ",\"weapon_grants\":" << weapon_grants
+        << ",\"weapons_nonce\":" << weapons_nonce
+        << ",\"weapons_applied\":" << (weapons_applied ? "true" : "false")
         << ",\"mod_warp_exits\":" << (warp_exits ? "true" : "false")
         << ",\"mod_infinite_health\":" << (health_enabled() ? "true" : "false")
         << ",\"mod_instant_kill\":" << (kill_enabled() ? "true" : "false")

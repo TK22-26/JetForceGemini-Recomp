@@ -12,7 +12,7 @@ endif()
 
 project(
     jfg_recomp
-    VERSION 1.3.0
+    VERSION 1.4.0
     DESCRIPTION "ROM-free host scaffolding for a Jet Force Gemini native recompilation"
     LANGUAGES C CXX
 )
@@ -130,6 +130,12 @@ if(WIN32)
     target_link_libraries(jfg-support-capture PRIVATE dbghelp psapi)
     jfg_set_project_warnings(jfg-support-capture)
     if(BUILD_TESTING AND JFG_BUILD_TESTS)
+        add_executable(jfg-mouse-input-diagnostics-tests tests/mouse_input_diagnostics_tests.cpp)
+        target_include_directories(jfg-mouse-input-diagnostics-tests PRIVATE include)
+        target_compile_features(jfg-mouse-input-diagnostics-tests PRIVATE cxx_std_20)
+        jfg_set_project_warnings(jfg-mouse-input-diagnostics-tests)
+        add_test(NAME jfg.mouse_input_diagnostics COMMAND jfg-mouse-input-diagnostics-tests
+            "${CMAKE_CURRENT_BINARY_DIR}/mouse-diagnostics-test")
         add_executable(jfg-support-fixture tests/support_snapshot_fixture.cpp)
         target_include_directories(jfg-support-fixture PRIVATE include)
         target_compile_features(jfg-support-fixture PRIVATE cxx_std_20)

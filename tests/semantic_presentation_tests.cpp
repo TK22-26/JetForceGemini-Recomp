@@ -1,3 +1,4 @@
+#include "jfg/renderer/camera_helper_presentation.hpp"
 #include "jfg/renderer/door_indicator_presentation.hpp"
 #include "jfg/runtime/rt64_overlay_address.hpp"
 #include "jfg/renderer/glass_uv_history.hpp"
@@ -11,6 +12,59 @@ static void require(bool v) {
     std::abort();
 }
 int main() {
+  // A path start exposes the camera controller exactly like an animated prop.
+  // Only the known camera helper must fail the native object-draw gate. Its
+  // whole state (including path flags/pose) must survive draw and unwinding.
+  {
+    std::vector<std::uint8_t> bytes(0x10000U,0);
+    const auto put8=[&](unsigned a,unsigned v){bytes[(a&0xFFFFFFU)^3U]=static_cast<std::uint8_t>(v);};
+    const auto put32=[&](unsigned a,unsigned v){for(unsigned i=0;i<4;++i)put8(a+i,v>>(24-i*8));};
+    constexpr unsigned draw=0x8000DB94U,actor=0x80000100U,header=0x80000300U;
+    const auto setup=[&] {
+      std::fill(bytes.begin(),bytes.end(),std::uint8_t{0});
+      put32(draw,0x27BDFFE8U);put32(draw+0x14,0x84EE0006U);put32(draw+0x1c,0x31CF0C00U);
+      put32(actor+0x48,0x002F001EU);put32(actor+0x40,header);
+      constexpr char name[]="AnimCamera";
+      for(unsigned i=0;i<sizeof(name);++i)put8(header+4+i,static_cast<std::uint8_t>(name[i]));
+      put8(actor+7,2);put32(actor+12,0xC4893800U);put32(actor+0x68,0x80000400U);
+    };
+    const jfg::PresentationGuestView ram(bytes);
+    setup();const auto original=bytes;
+    require((ram.u16(actor+6)&0xC00U)==0); // Old native path would draw the mesh.
+    {
+      jfg::CameraHelperPresentationScope scope(bytes,draw,actor);require(scope.applied());
+      require(ram.u16(actor+6)==0x402);
+      auto expected=original;expected[((actor+6)&0xFFFFFFU)^3U]=4;
+      require(bytes==expected); // No pose, control, list or script writes.
+      {jfg::CameraHelperPresentationScope nested(bytes,draw,actor);require(!nested.applied());}
+      require(bytes==expected);
+      scope.restore();scope.restore();require(bytes==original);
+    }
+    require(bytes==original);
+    try {jfg::CameraHelperPresentationScope scope(bytes,draw,actor);throw 1;}
+    catch(int) {}
+    require(bytes==original);
+    for(unsigned scenario=0;scenario<9;++scenario) {
+      setup();unsigned target=draw,a=actor;
+      if(scenario==0)put32(actor+0x48,0x002F0256U); // Same behavior, visible animated prop.
+      if(scenario==1)put32(actor+0x48,0x002E001EU);
+      if(scenario==2)put8(header+4,'X');
+      if(scenario==3)put8(header+14,'X'); // Reject a non-terminated lookalike name.
+      if(scenario==4)put32(actor+0x40,0xFFFFFFFFU);
+      if(scenario==5)put32(draw+0x1c,0);
+      if(scenario==6)target=0x800767ECU; // Never change path/simulation calls.
+      if(scenario==7)a=0xFFFFFFFFU;
+      if(scenario==8)a=actor+1;
+      const auto before=bytes;
+      {jfg::CameraHelperPresentationScope scope(bytes,target,a);require(!scope.applied());}
+      require(bytes==before);
+    }
+    for(unsigned flags:{0x400U,0x800U,0xC00U}) {
+      setup();put8(actor+6,flags>>8);const auto before=bytes;
+      {jfg::CameraHelperPresentationScope scope(bytes,draw,actor);require(!scope.applied());}
+      require(bytes==before);
+    }
+  }
   {
     jfg::PresentationMatrix collapsed{};
     collapsed[12]=-44.875F;collapsed[13]=-213.5F;collapsed[14]=1342;collapsed[15]=1;

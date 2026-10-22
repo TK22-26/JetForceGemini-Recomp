@@ -1,5 +1,6 @@
 #pragma once
 #include "rt64_blur_pairing.hpp"
+#include "rt64_present_source.hpp"
 #include "jfg/renderer/native_blur_mode.hpp"
 #include "jfg/renderer/interpolation_bridge.hpp"
 #include "hle/rt64_workload.h"

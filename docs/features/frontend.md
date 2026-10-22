@@ -1,5 +1,13 @@
 # Unified frontend and live inventory
 
+## Live player indicators preview (2026-10-20)
+
+The Modern Roll Direction Preview refreshes saved assignment/exclusion changes
+in idle P1-P4 indicators via bounded background snapshots, preserving sticky
+assignments and active editor state. 305 mapping, 839 Modern UI and 55 menu-input
+checks pass; the owner accepted the preview correction. See
+[INPUT-013](../development/issues/controller-port-indicators-stale.md).
+
 The native launcher owns one window for setup, home and gameplay, plus
 separate live-tool windows. This page records its architecture, design rules,
 the live inventory and its locally derived artwork, and remaining
@@ -154,3 +162,11 @@ presentations/s in a short replay with matching guest RAM, input, save and probe
 state. Real-menu persistence and live pause/resume have automated coverage.
 Unlimited pacing, broad visual acceptance and sustained high-rate performance
 remain open; Original remains the default.
+## Controller replacement follow-up (2026-10-20)
+
+Changing input type now preserves the released pad's exclusion from Automatic
+assignment, as explicit Remove does. Add re-enables the selected pad; Automatic
+still discovers available controllers. The remove-all/save/reopen/type-change
+regression and failed-save rollback pass the real UI fixture. Preview startup
+checks pass; the owner confirmed the assignment correction fixed. See
+[INPUT-012](../development/issues/controller-remove-auto-reassignment.md).

@@ -154,6 +154,12 @@ map closed. A loading failure shows **Error loading mods** and disables mods
 for that connection; reopening the map or starting a new game retries.
 **Restore defaults** turns all three off.
 
+**Give all weapons** is a separate one-shot inventory/ammunition grant for the
+current single-player character, not an infinite-ammo toggle. Saving retains the
+grant. [GitHub #39](issues/github-give-all-weapons.md) reports no inventory change
+on v1.3.0 and questions the action's placement in map settings; reproduction and
+any UI-placement decision remain pending.
+
 ## Navigation mod
 
 The optional **Navigation mod** checkbox enables full health, automatic
@@ -247,3 +253,15 @@ and closes. Rendering changes apply when the game is next launched.
 Apply updates the running game immediately; fog does not require a restart.
 It does not extend the game's draw distance. [Implementation and validation
 status](issues/optional-fog-removal.md).
+
+
+### Mouse support evidence candidate (2026-10-21, unreleased)
+
+Support exports now include optional mouse.log evidence from instrumented
+runtimes: the preceding 60 one-second snapshots of delivery counts, focus/capture
+state and effective Modern mouse settings. Numeric fields are explicitly
+allowlisted; coordinates, keys, window handles, device paths and personal game
+data are excluded. Older runtimes leave this entry empty. Source/native tests
+and the full-size export roundtrip pass; full runtime packaging and live
+verification remain pending. This is diagnostic support for [#32](issues/github-mouse-look-and-inversion.md),
+not a verified mouse behavior fix.

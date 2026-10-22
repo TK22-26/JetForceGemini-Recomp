@@ -25,7 +25,7 @@
         fs::exists(profile/modernFile(p),ec);
     }
   }
-  bool modernMode() const {return player==0 && modern[player].enabled;}
+  bool modernMode() const {return modern[player].enabled;}
   bool modernOnline() const {
     return pcKeyboard() || (devices[player]>=0 && connected[devices[player]]);
   }
@@ -398,7 +398,6 @@
     }
     if(modernInvalid[player])return true;
     if(a=="mc-style-modern" || a=="mc-style-mapping") {
-      if(player!=0 && a=="mc-style-modern")return true;
       auto c=modern[player];c.enabled=a=="mc-style-modern";
       if(saveModern(c)){learning=keyLearning=-1;modernSelected=-100;modal("controllers");}
       return true;
@@ -459,12 +458,14 @@
     auto c=modern[player];const jfg::ModernControlsConfig defaults;
     if(a=="mc-reset-confirm") {
       c.aim_toggle=defaults.aim_toggle;
+      c.automatic_roll=defaults.automatic_roll;
       if(pcKeyboard()) {
         c.mouse_original_acceleration=defaults.mouse_original_acceleration;
         if(!modernResetTuning)c.keys=defaults.keys;c.mouse_scope_sensitivity=100;c.look.mouse_sensitivity=defaults.look.mouse_sensitivity;
         c.look.mouse_aim_sensitivity=defaults.look.mouse_aim_sensitivity;c.look.mouse_vertical_sensitivity=100;
         c.look.mouse_invert_x=defaults.look.mouse_invert_x;c.look.mouse_invert_y=defaults.look.mouse_invert_y;
       } else {
+        c.pad_floyd_flight_invert_y=defaults.pad_floyd_flight_invert_y;
         if(!modernResetTuning){c.pad=defaults.pad;c.movement_stick=defaults.movement_stick;}c.pad_scope_sensitivity=100;c.movement_deadzone=defaults.movement_deadzone;
         c.axis_threshold=defaults.axis_threshold;c.trigger_threshold=defaults.trigger_threshold;
         c.look.camera_sensitivity=c.look.aim_sensitivity=c.look.stick_vertical_sensitivity=100;
@@ -477,6 +478,8 @@
     else if(a=="mc-invert-x"){auto& value=pcKeyboard()?c.look.mouse_invert_x:c.look.aim_invert_x;value=!value;}
     else if(a=="mc-invert-y"){auto& value=pcKeyboard()?c.look.mouse_invert_y:c.look.aim_invert_y;value=!value;}
     else if(a=="mc-original-acceleration" && pcKeyboard())c.mouse_original_acceleration=!c.mouse_original_acceleration;
+    else if(a=="mc-floyd-flight-invert" && !pcKeyboard())c.pad_floyd_flight_invert_y=!c.pad_floyd_flight_invert_y;
+    else if(a=="mc-automatic-roll")c.automatic_roll=!c.automatic_roll;
     else if(a.rfind("mc-curve-",0)==0)c.look.aim_curve=std::clamp(std::stoi(a.substr(9)),0,2);
     // Select clicks open its popup; only its change event changes glyphs.
     else return true;

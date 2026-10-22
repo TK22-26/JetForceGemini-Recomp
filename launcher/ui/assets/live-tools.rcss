@@ -128,3 +128,87 @@ map-scene { display:block; position:absolute; width:100%; height:100%; }
 #settings-done { height:38dp; min-width:90dp; }
 .setting-fields select, .setting-fields input { padding:0 8dp; line-height:36dp; }
 .setting-fields selectarrow { margin-top:13dp; }
+
+/* Owner's Live map settings reference, 2026-10-21. */
+.live-settings { height:640dp; box-sizing:border-box; }
+.settings-header { box-sizing:border-box; }
+#settings-close { width:44dp; height:40dp; margin:0 0 0 auto; }
+.settings-tabs button { display:flex; align-items:center; gap:12dp; padding:0 12dp; border:0; border-radius:6dp; color:#9aa4b8; }
+.settings-tabs button.selected { color:#e8ecf4; }
+.settings-tab-bar { flex-shrink:0; width:3dp; height:18dp; margin-left:-6dp; border-radius:2dp; background:transparent; }
+.selected .settings-tab-bar { background:#ffb23e; }
+.settings-tab-label { flex:1; }
+.settings-tabs button > span { pointer-events:none; }
+#mods-count { display:none; flex-shrink:0; min-width:20dp; height:20dp; padding:0 6dp; box-sizing:border-box; border-radius:10dp; background:#2a2214; color:#ffc872; font-family:Chakra Petch; font-size:11dp; align-items:center; justify-content:center; }
+.settings-footer { height:56dp; padding:0 16dp 0 196dp; background:#0e1320; }
+.settings-footer #restore-defaults { padding:0; font-size:13dp; }
+.settings-footer #settings-done { padding:0 24dp; min-width:0; height:38dp; border-radius:6dp; }
+.mods-page { display:flex; flex-direction:column; gap:14dp; }
+#settings-content .mods-intro p { color:#8691a8; font-size:13dp; line-height:1.45; margin:6dp 0 0; }
+.mods-warning { display:flex; align-items:flex-start; gap:8dp; padding:10dp 12dp; background:#241c10; border:1dp #4a3818; border-radius:8dp; color:#e8d5b0; font-size:13dp; line-height:1.45; }
+.mods-warning > .mods-icon { margin-top:1dp; }
+.mods-warning > span:last-child { flex:1; min-width:0; }
+.mods-card { background:#0e1320; border:1dp #1c2438; border-radius:10dp; overflow:hidden; flex-shrink:0; }
+.mods-toggle, .mods-action { display:flex; align-items:center; min-height:64dp; box-sizing:border-box; padding:10dp 16dp; gap:18dp; border-top:1dp #1a2133; }
+.mods-toggle:first-child, .mods-action:first-child { border-top:0; }
+.mods-copy { flex:1; min-width:0; }
+.mods-copy .muted { font-size:13dp; line-height:1.4; margin-top:3dp; color:#8691a8; }
+.mods-toggle-heading { display:flex; align-items:center; gap:8dp; }
+.mod-on-badge { flex-shrink:0; height:18dp; padding:0 7dp; border-radius:9dp; display:flex; align-items:center; font-size:10dp; font-weight:bold; letter-spacing:1dp; color:#ffc872; background:#2a2214; }
+.mod-on-badge.hidden { display:none; }
+.mods-toggle .switch { box-sizing:border-box; background:#2e3a57; }
+.mods-toggle .switch span { background:#a7b0c2; }
+.mods-toggle .switch.on { background:#ffb23e; }
+.mods-toggle .switch.on span { background:#1a1206; }
+.mods-actions-heading { display:flex; align-items:center; justify-content:space-between; gap:12dp; margin-top:4dp; }
+#mods-actions-note { font-size:12dp; color:#6f7a91; }
+#mods-actions-note.game-stopped { color:#b59a72; }
+.mods-action { gap:14dp; }
+.mods-action-icon { flex-shrink:0; width:34dp; height:34dp; border-radius:8dp; background:#1a2236; display:flex; align-items:center; justify-content:center; }
+.mods-action-button { flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:6dp; box-sizing:border-box; height:36dp; min-width:112dp; padding:0 14dp; border:1dp #2e3a57; background:#161d2e; border-radius:6dp; font-size:14dp; font-weight:bold; color:#e8ecf4; }
+.mods-action-button:hover { background:#202b42; }
+.live-map .mods-action-button.disabled, .live-map .mods-action-button.disabled:hover { background:transparent; border-color:#222b40; color:#4a556e; }
+.mods-action-button.succeeded { border-color:#2a5a4a; background:#12261f; color:#5fd08a; }
+.action-check { display:none; width:5dp; height:9dp; border-right:2dp #5fd08a; border-bottom:2dp #5fd08a; transform:rotate(45deg); margin:0 4dp 3dp 0; }
+.succeeded .action-check { display:block; }
+#settings-content #mods-help { margin:0; font-size:13dp; color:#a7b0c2; line-height:1.4; }
+.mods-icon { display:block; flex-shrink:0; width:16dp; height:16dp; pointer-events:none; }
+.mods-action-icon .mods-icon { width:17dp; height:17dp; }
+@spritesheet mods-icons {
+ src: mods-icons.tga;
+ resolution:4x;
+ mods-display:0px 0px 64px 64px;
+ mods-ai:64px 0px 64px 64px;
+ mods-wrench:128px 0px 64px 64px;
+ mods-display-selected:0px 64px 64px 64px;
+ mods-ai-selected:64px 64px 64px 64px;
+ mods-wrench-selected:128px 64px 64px 64px;
+ mods-warning:192px 0px 64px 64px;
+ mods-weapons:256px 0px 64px 64px;
+ mods-floyd:320px 0px 64px 64px;
+}
+.mods-icon.display { decorator:image(mods-display); }
+.mods-icon.ai { decorator:image(mods-ai); }
+.mods-icon.mods { decorator:image(mods-wrench); }
+.selected .mods-icon.display { decorator:image(mods-display-selected); }
+.selected .mods-icon.ai { decorator:image(mods-ai-selected); }
+.selected .mods-icon.mods { decorator:image(mods-wrench-selected); }
+.mods-icon.warning { decorator:image(mods-warning); }
+.mods-icon.weapons { decorator:image(mods-weapons); }
+.mods-icon.floyd { decorator:image(mods-floyd); }
+@media (max-width:760dp) {
+ .settings-footer { padding-left:146dp; }
+ .settings-tabs button { gap:7dp; padding:0 8dp; }
+ .mods-action { flex-wrap:wrap; }
+ .mods-action .mods-copy { min-width:140dp; }
+ .mods-action-button { margin-left:auto; }
+ .mods-actions-heading { align-items:flex-start; flex-direction:column; gap:5dp; }
+ .mods-toggle { gap:10dp; padding:10dp 12dp; }
+ .mods-toggle-heading { flex-wrap:wrap; gap:4dp 8dp; }
+}
+@media (max-height:680dp) { .live-settings { height:94%; } }
+
+/* Focus stays visible without borders; disabled ON toggles must not look active. */
+.settings-tabs button:focus .settings-tab-bar { background:#6fd3ee; }
+.live-map .mods-toggle .switch.disabled, .live-map .mods-toggle .switch.disabled:hover { background:#222b40; }
+.live-map .mods-toggle .switch.disabled span { background:#59657d; }

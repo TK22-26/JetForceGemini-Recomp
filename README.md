@@ -3,13 +3,14 @@
 [![Build status](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml)
 
 A native PC recompilation of Jet Force Gemini for Windows x64.
-**v1.3.0** includes a prebuilt game: extract the ZIP, import your supported
+**v1.4.0 is in final review on develop.** The candidate includes a prebuilt game: extract the ZIP, import your supported
 North American ROM once, and click **Play**. No developer tools or compilation
 are required.
 
 **A complete, fully playable v1 release:** play the campaign from start to finish.
-Original local multiplayer and optional content also work. v1.3.0 is a released
-game, ready to play with your own supported ROM. See the playtesting notes below
+Original local multiplayer and optional content also work. The latest published
+stable release is v1.3.0; v1.4.0 awaits the maintainer's final SS Anubis pass before
+a main merge and publication. See the playtesting notes below
 for the recorded campaign run and [known issues](docs/known-issues.md) for ongoing fixes.
 
 Written with the help of **AI: Codex GPT 6 Astra**, with human direction,
@@ -43,9 +44,12 @@ program and runtime libraries. Textures, models, audio, and other game data are
 read from your locally imported ROM, which is never uploaded. Original game
 content remains the property of its respective owners.
 
-Version 1.3.0 improves cutscene and boss presentation, adds adjustable motion
-blur and live fog strength, and supports portable data storage. Gameplay and
-cutscene framing follow the saved widescreen option. See the [changelog](CHANGELOG.md).
+The v1.4.0 candidate adds native cutscene skipping, Modern controls for all four
+players, Floyd flight controls, and fixes for camera resets, boss aiming, rain,
+weapon reticles and paused inventory grants. It also improves Quarry's day/night
+fog transitions, cinematic camera cuts and helper visibility, and launcher feedback. Adjustable motion blur, live fog strength
+and portable storage remain available. See the [changelog](CHANGELOG.md) and
+[final-review record](docs/development/releases-1.4.0-qualification.md).
 
 For a portable installation, open **Game > Settings > Change directory** and
 choose a folder inside the game folder. The launcher copies existing saves,
@@ -88,14 +92,15 @@ the way you play.
 - **Keep the original feel when you want it:** switch back to **Controller Mapping**
   with Normal/Expert presets. Both layouts retain their bindings.
 
-Open **Controllers**, assign a device, and select **Modern Controls**. Modern
-gameplay is opt-in for player 1 in single-player; original mappings support the
-other players. XInput rumble is available; native SDL/DualSense rumble, gyro and
+Open **Controllers**, choose P1-P4, assign a device, and select **Modern Controls**.
+Each player keeps independent bindings and camera settings; Original mapping
+remains available for every port. XInput rumble is available; native SDL/DualSense rumble, gyro and
 adaptive triggers remain future work.
 
-**Release availability:** the controls introduced in v1.2.0 are included in v1.3.0,
-with boss, camera and standing-aim movement fixes. Modern gameplay remains
-experimental while camera, pointer coverage and physical-device feel are refined.
+**v1.4.0 controls:** native boss aiming limits, crouch/prone side rolls, optional
+Roll Left/Right bindings, and camera retention through ledges, landings, swimming
+and focus changes. Modern gameplay remains experimental while camera, pointer
+coverage and physical-device feel are refined.
 See the [controls guide and validation notes](docs/features/pc-controls.md).
 
 ![Modern Controls showing the Xbox controller diagram and action bindings](docs/images/modern-controls-xbox.png)
@@ -105,6 +110,26 @@ See the [controls guide and validation notes](docs/features/pc-controls.md).
 ![Modern Controls keyboard and mouse Keys & buttons screen showing bindings and gameplay instructions](docs/images/modern-controls-keyboard.png)
 
 *Keyboard and mouse: the Keys & buttons view keeps mouse, movement and action bindings together.*
+
+### Floyd
+
+Modern controls now route Floyd's fire and flight inputs correctly. In missions,
+mouse movement steers; **W** supplies thrust, **S** brakes, and **A/D** strafe with
+default bindings. Left-click fires. For controllers, **Advanced > Invert Floyd
+flight steering** defaults to the original aircraft direction and is independent
+of normal look inversion. Co-op Floyd joins through the assigned player's Start
+or Pause action. Native mission entry requirements, including Mizar tokens, apply.
+
+## Cutscene skipping
+
+During a supported cinematic, press **A, B or Start** to reveal the in-game prompt,
+then **hold A for one second** to skip. The native blue-A prompt fills a white
+progress ring; releasing early cancels the hold. Modern bindings use the actions
+mapped to those native buttons.
+
+Reviewed sequences complete their required progression and transitions.
+Unsupported or context-dependent scripts retain normal playback. The private
+scene selector is a development review tool and is not part of the release.
 
 ## High-refresh rendering
 
@@ -156,6 +181,12 @@ those artwork files are not bundled with the project or launcher. The interface
 is custom project code. Game content remains the property of its respective
 owners.
 
+Open **Live map > Settings > Mods** for exit warps, infinite health, instant
+enemy defeats, **Give weapons**, and **Unlock Floyd**. Weapon grants apply while
+the Mods window is open and show **Given** only after runtime confirmation.
+They affect the current character and refill ammunition once. Unlocking Floyd
+takes effect on entering another room. Save normally to retain inventory/unlocks.
+
 See the [launcher and live tools guide](docs/development/launcher.md) for details.
 
 ## Getting started
@@ -178,6 +209,17 @@ ZIP when available. Successful sessions do not need a report.
 
 See [playtesting and reporting](docs/playtesting.md). If you want to contribute
 code, [CONTRIBUTING.md](CONTRIBUTING.md) explains the pull request workflow.
+
+Thank you to everyone sharing bug reports, requests and playtest results. Your
+feedback and testing have made this project better. See [community credits](CREDITS.md).
+
+## Compatibility still under review
+
+Steam Deck/Proton startup has a Windows-tested launcher fallback, but no Steam
+Deck result is available yet. Intermittent mouse input (#32), accumulating audio
+delay (#35), and reporter-specific Ally X performance still need affected-user
+evidence or retesting. These are not claimed as resolved by v1.4.0.
+See [known issues](docs/known-issues.md).
 
 ## Future additions
 

@@ -1,3 +1,6 @@
+#include "jfg/runtime/cutscene_skip.hpp"
+#include "jfg/runtime/cutscene_skip_button.hpp"
+#include "jfg/runtime/cutscene_skip_label.hpp"
 #include "jfg/renderer/glass_uv_history.hpp"
 #include "rt64_f3ddkr.hpp"
 #include "rt64_blur_pairing.hpp"
@@ -75,6 +78,9 @@ struct SemanticVertexState {
 struct Context {
     RT64::Application* application = nullptr;
     RT64::GBI gbi{};
+    NativeCutscenePrompt cutscene_prompt{};
+    DayNightFog daynight_fog{};
+    bool cutscene_prompt_drawn = false;
     std::array<hlslpp::float4x4, kMatrixCount> matrices{};
     std::array<std::uint32_t, kMatrixCount> matrix_segmented_addresses{};
     std::array<std::uint32_t, kMatrixCount> matrix_physical_addresses{};
@@ -1032,7 +1038,26 @@ void move_word(RT64::State* state, RT64::DisplayList** dl) {
         return;
     }
     if ((*dl)->p0(0U,8U) == G_MW_FOG) {
-        const auto coefficients=jfg::fog_coefficients((*dl)->w1,
+        auto native = (*dl)->w1;
+        const auto& refinement = context->daynight_fog;
+        if (refinement.valid && native == refinement.native_coefficients) {
+            const auto& color = state->rdp->fogColorStack[state->rdp->fogColorStackSize - 1];
+            const auto byte = [](float value) {
+                return static_cast<std::uint32_t>(value * 255.0f + 0.5f);
+            };
+            const auto packed_color = (byte(static_cast<float>(color.x)) << 24U) |
+                (byte(static_cast<float>(color.y)) << 16U) |
+                (byte(static_cast<float>(color.z)) << 8U) | byte(static_cast<float>(color.w));
+            native = daynight_fog_command(refinement, native, packed_color);
+            if (interpolation_trace_enabled())
+                trace_interpolation("daynight-fog-match", context->vi_tick,
+                    (*dl)->w1, native, packed_color,
+                    packed_color == refinement.color ? 1U : 0U, 0.0f, 0U, 0U);
+            if (native != (*dl)->w1 && interpolation_trace_enabled())
+                trace_interpolation("daynight-fog", context->vi_tick, (*dl)->w1,
+                    native, packed_color, 0U, 0.0f, 0U, 0U);
+        }
+        const auto coefficients=jfg::fog_coefficients(native,
             jfg::fog_strength_preference().load(std::memory_order_relaxed));
         state->rsp->setFog(static_cast<std::int16_t>(coefficients >> 16U),
                           static_cast<std::int16_t>(coefficients & 0xffffU));
@@ -1725,10 +1750,154 @@ void set_blur_env_color(RT64::State* state, RT64::DisplayList** dl) {
     state->rdp->setEnvColor(color);
 }
 
+
+
+// The generated button is a small native RGBA16 texture. Upload through RT64's
+// ordinary TMEM decoder, while preserving game TMEM and guest memory. Only the
+// explicitly added HUD rectangle receives this texture; no host overlay exists.
+void draw_native_skip_texture(RT64::State* state, const NativeCutscenePrompt& prompt,
+    std::span<const std::uint16_t> pixels, unsigned texture_width, unsigned texture_height,
+    int left, int top, int display_width, int display_height,
+    std::uint8_t format=G_IM_FMT_RGBA, std::uint8_t size=G_IM_SIZ_16b) {
+    auto& rdp=*state->rdp;
+    auto& workload=state->ext.workloadQueue->workloads[state->ext.workloadQueue->writeCursor];
+    state->flush(); // Complete the preceding game's draw before changing tile state.
+    constexpr unsigned tile_index=7;
+    const auto old_tile=rdp.tiles[tile_index];
+    const auto old_hash=rdp.tileReplacementHashes[tile_index];
+    const auto old_texture_on=state->drawCall.textureOn;
+    const auto old_texture_tile=state->drawCall.textureTile;
+    const auto old_texture_levels=state->drawCall.textureLevels;
+    rdp.setTile(tile_index,format,size,static_cast<std::uint16_t>((texture_width<<size)/16),0,0,
+                G_TX_CLAMP,G_TX_CLAMP,0,0,0,0);
+    rdp.setTileSize(tile_index,0,0,static_cast<std::uint16_t>((texture_width-1)*4),
+        static_cast<std::uint16_t>((texture_height-1)*4));
+    std::array<std::uint64_t,RDP_TMEM_WORDS> saved_tmem{};
+    std::copy(std::begin(rdp.TMEM),std::end(rdp.TMEM),saved_tmem.begin());
+    std::array<std::uint8_t,RDP_TMEM_BYTES> native_pixels{};
+    for(unsigned i=0;i<pixels.size();++i) {
+        native_pixels[(2U*i)^3U]=static_cast<std::uint8_t>(pixels[i]>>8U);
+        native_pixels[(2U*i+1U)^3U]=static_cast<std::uint8_t>(pixels[i]);
+    }
+    auto source=rdp.texture;
+    source.address=0;source.fmt=format;source.siz=size;source.width=static_cast<std::uint16_t>(texture_width);
+    auto* game_rdram=state->RDRAM;
+    state->RDRAM=native_pixels.data();
+    // This immediate half of the native load only copies bytes into TMEM.
+    // It schedules no deferred read from the temporary source buffer.
+    rdp.loadTileOperation(rdp.tiles[tile_index],source,false);
+    state->RDRAM=game_rdram;
+    const auto hash=state->textureManager.uploadTexture(state,rdp.tiles[tile_index],
+        state->ext.textureCache,workload.submissionFrame,
+        static_cast<std::uint16_t>(texture_width),static_cast<std::uint16_t>(texture_height),0);
+    std::copy(saved_tmem.begin(),saved_tmem.end(),std::begin(rdp.TMEM));
+    rdp.setTileReplacementHash(tile_index,hash);
+    // G_CC_DECALRGBA, one-cycle bilerp, standard translucent surface blending.
+    // RT64 stores the native command low word in the upper uint32.
+    rdp.setCombine(0xFFFCF27900FFFFFFULL);
+    rdp.setOtherMode(0x000020F0U,0x00504240U);
+    rdp.setScissor(0,0,0,prompt.width*4U,prompt.height*4U,RT64::ExtendedAlignment{});
+    const auto before=workload.drawData.callTiles.size();
+    // RDP rectangles rasterize on whole pixels. Fractional top coordinates
+    // also trigger the native one-row T adjustment; using them directly made
+    // the small button shift upward relative to its integer-aligned ring.
+    // Cover the intended subpixel rectangle with whole-pixel bounds and carry
+    // the fractional origin in S/T instead, identically on both axes.
+    const auto ds=static_cast<std::int16_t>(texture_width*4096/display_width);
+    const auto dt=static_cast<std::int16_t>(texture_height*4096/display_height);
+    const int x0=left&~3,y0=top&~3;
+    const int x1=(left+display_width+3)&~3,y1=(top+display_height+3)&~3;
+    const auto s0=static_cast<std::int16_t>(-((left-x0)*ds)/128);
+    const auto t0=static_cast<std::int16_t>(-((top-y0)*dt)/128);
+    rdp.drawTexRect(x0,y0,x1,y1,tile_index,s0,t0,ds,dt,
+        false,RT64::ExtendedAlignment{});
+    state->flush();
+    // The HUD has its own texture, never an overlapping game framebuffer copy.
+    // Correct only descriptors created for this one native rectangle.
+    for(auto i=before;i<workload.drawData.callTiles.size();++i) {
+        auto& tile=workload.drawData.callTiles[i];
+        tile.tmemHashOrID=hash;tile.tileCopyUsed=false;tile.rawTMEM=false;
+        tile.reinterpretTile=false;tile.syncRequired=false;
+    }
+    rdp.tiles[tile_index]=old_tile;
+    rdp.setTileReplacementHash(tile_index,old_hash);
+    state->drawCall.textureOn=old_texture_on;
+    state->drawCall.textureTile=old_texture_tile;
+    state->drawCall.textureLevels=old_texture_levels;
+    state->updateDrawStatusAttribute(RT64::DrawAttribute::Texture);
+}
+
+// IA8 gives the ring 16 alpha levels at 64x64 while fitting native 4 KiB TMEM.
+// Its rectangle shares the button center, avoiding integer-fill half-pixel bias.
+std::array<std::uint16_t,2048> native_skip_ring(float progress) {
+    std::array<std::uint16_t,2048> packed{};
+    if(progress<=0.0f)return packed;
+    constexpr float pi=3.14159265358979323846f, radius=28.0f;
+    const float sweep=std::clamp(progress,0.0f,1.0f)*2.0f*pi;
+    const float ex=std::sin(sweep)*radius,ey=-std::cos(sweep)*radius;
+    for(unsigned y=0;y<64;++y)for(unsigned x=0;x<64;++x) {
+        const float dx=static_cast<float>(x)+0.5f-32.0f;
+        const float dy=static_cast<float>(y)+0.5f-32.0f;
+        float angle=std::atan2(dx,-dy);if(angle<0.0f)angle+=2.0f*pi;
+        float distance=std::abs(std::hypot(dx,dy)-radius);
+        if(angle>sweep)distance=std::min(std::hypot(dx,dy+radius),std::hypot(dx-ex,dy-ey));
+        const auto alpha=static_cast<unsigned>(std::lround(std::clamp(2.5f-distance,0.0f,1.0f)*15.0f));
+        const auto value=static_cast<std::uint16_t>(0xF0U|alpha);
+        const unsigned i=y*64+x;
+        packed[i/2]|=static_cast<std::uint16_t>(value<<((i&1U)?0U:8U));
+    }
+    return packed;
+}
+
+// This is an extra native N64 HUD display list, decoded through the same GBI
+// functions as the game. It allocates no guest RAM and is never a host overlay.
+void draw_cutscene_prompt(Context& context, RT64::State* state) {
+    const auto& prompt=context.cutscene_prompt;
+    auto& rdp=*state->rdp;
+    if((!prompt.visible && !prompt.transition) || context.cutscene_prompt_drawn ||
+       rdp.colorImage.fmt!=G_IM_FMT_RGBA || rdp.colorImage.siz!=G_IM_SIZ_16b ||
+       rdp.colorImage.width!=prompt.width ||
+       rdp.fillColorStackSize>=RDP_EXTENDED_STACK_SIZE-1 ||
+         rdp.primColorStackSize>=RDP_EXTENDED_STACK_SIZE-1 ||
+         rdp.colorCombinerStackSize>=RDP_EXTENDED_STACK_SIZE-1 ||
+       rdp.scissorStackSize>=RDP_EXTENDED_STACK_SIZE-1)return;
+    const auto commands=prompt.transition ? cutscene_transition_gbi(prompt.width,prompt.height)
+          : cutscene_skip_gbi(prompt.width,prompt.height,0.0f,true);
+    if(commands.empty())return;
+    const auto modes=rdp.otherMode;
+    rdp.pushFillColor();rdp.pushScissor();rdp.pushPrimColor();rdp.pushCombine();
+    if(!prompt.transition) {
+        const int scale=prompt.width>=512?2:1;
+        const int cx=(static_cast<int>(prompt.width)-49*scale)*4;
+        const int cy=(static_cast<int>(prompt.height)-14*scale)*4;
+        const int diameter=36*scale;
+        if(prompt.progress>0.0f) {
+            const auto ring=native_skip_ring(prompt.progress);
+            draw_native_skip_texture(state,prompt,ring,64,64,
+                cx-24*scale,cy-24*scale,48*scale,48*scale,G_IM_FMT_IA,G_IM_SIZ_8b);
+        }
+        draw_native_skip_texture(state,prompt,cutscene_skip_button_rgba16,32,32,
+            cx-diameter/2,cy-diameter/2,diameter,diameter);
+        draw_native_skip_texture(state,prompt,cutscene_skip_label_rgba16,64,24,
+            cx+33*scale,cy-15*scale,90*scale,30*scale);
+    }
+    for(const auto words:commands) {
+        RT64::DisplayList command{};
+        command.w0=words.w0;command.w1=words.w1;
+        auto* current=&command;
+        const auto function=context.gbi.map[words.w0>>24U];
+        if(function)function(state,&current);
+    }
+    rdp.popCombine();rdp.popPrimColor();rdp.popScissor();rdp.popFillColor();
+    rdp.setOtherMode(modes.H,modes.L);
+    context.cutscene_prompt_drawn=true;
+}
+
 void full_sync(RT64::State* state, RT64::DisplayList** dl) {
     Context* context = find_context(state);
     const auto start = std::chrono::steady_clock::now();
     const bool detailed=detailed_function_profile_enabled();
+    if(context)draw_cutscene_prompt(*context,state);
     auto rdp_started=std::chrono::steady_clock::time_point{};
     if (context != nullptr) {
         const auto& workload = state->ext.workloadQueue->workloads[state->ext.workloadQueue->writeCursor];
@@ -1879,7 +2048,11 @@ Rt64F3ddkr::~Rt64F3ddkr() {
 
 void Rt64F3ddkr::begin(
     const std::span<const std::uint8_t> simulation_rdram, const std::uint64_t vi_tick,
-    std::shared_ptr<const PresentationSceneIdentity> identities) noexcept {
+    std::shared_ptr<const PresentationSceneIdentity> identities, NativeCutscenePrompt prompt,
+    DayNightFog daynight_fog) noexcept {
+    impl_->context.daynight_fog = daynight_fog;
+    impl_->context.cutscene_prompt=prompt;
+    impl_->context.cutscene_prompt_drawn=false;
     impl_->context.identities=std::move(identities);
     impl_->context.semantic_vertices.clear();
     impl_->context.vi_tick = vi_tick;

@@ -49,3 +49,19 @@ Windows bundle and published it. The public download was downloaded again and
 its ZIP, per-member hashes, package inventory and clean runtime identity verified.
 This release includes the remedy and finite verification described above; it
 does not expand the recorded hardware, Linux, campaign or fresh-install coverage.
+
+
+## Native Steam Deck follow-up, October 21
+
+The earlier Linux port is recoverable from the reporter's pinned compiler-fix
+commit 2a117d8f230c092160e51f4274f658274b37ba83 (parent 8b6837d). Source review
+found POSIX host support, SDL and RT64 Vulkan, with the UI tools still Windows-only.
+Its AppImage builds the game on the user's computer. Integrating current release
+fixes and producing a prebuilt Deck-tested runtime remain unimplemented.
+See [#40's native Linux assessment](github-steam-deck-proton-startup.md).
+No new build or playback verification is claimed.
+
+
+October 21 owner scope decision: native Linux integration is deferred. The
+continuation targets [Windows-package Proton startup](github-steam-deck-proton-startup.md)
+only; the recovered fork is reference material, not a newly supported release.
