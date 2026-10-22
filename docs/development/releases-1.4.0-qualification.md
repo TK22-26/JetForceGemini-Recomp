@@ -1,11 +1,18 @@
 # v1.4.0 release qualification
 
-Status: owner authorized publication of v1.4.0 on 2026-10-22 UTC.
-PR #42 is merged; main and develop passed all six checks at `04cded4`.
-The release carries the approved runtime from `521f666`, rebuilt launcher
-metadata, final documentation and allowlisted package contents. Publication
-requires the tagged workflow and verified public assets. Public issue replies
-and closures still require separate owner approval.
+Status: v1.4.0 published on 2026-10-22 at 03:37:17 UTC and marked Latest.
+The release tag is `5ec705f7d1575135e7965fe1376666b225f22ee1`; the unchanged,
+owner-approved runtime retains its actual clean build identity `521f666`.
+[All eight release jobs passed](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/39716906964).
+The ZIP, SHA-256 file and inventory were downloaded anonymously from the public
+release and matched the independently verified local package. ZIP SHA-256:
+`8bf60c984a23143285c6ccaf7bb489667d21c3fcf936f18d95681a92d9d8d5b1`.
+
+All twelve individually approved replies were posted after publication and
+verified against their exact approved text. #15 and #19 were additionally
+closed by explicit owner request. #32, #35 and #40 remain open; #41 tracks
+future skip-completion optimization. The desktop review plan records each link.
+This documentation-only closeout does not change the published tag or assets.
 
 Historical preparation entries below retain their original validation scope.
 The release page is the authority for publication availability: [v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0).
@@ -45,7 +52,7 @@ Steam Deck/Proton has a Windows-tested fallback, not a verified Deck result.
 Intermittent mouse input #32, delayed audio #35 and reporter-specific Ally X
 performance still need affected-user evidence/retesting. The #38 attachment is
 from a different project's build; it does not establish a resolved defect here.
-Public replies remain drafts pending owner approval.
+The current publication summary above supersedes the earlier draft-only status; reporter-specific verification limits still apply.
 
 Combined check results and exact build/package identities will be retained in
 the private v14-release-prep-20261021 evidence directory. Compilation alone is

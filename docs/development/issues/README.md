@@ -29,6 +29,21 @@ This practice applies to future work throughout the repository, including
 launcher/UI, controls, runtime, rendering, audio, setup and tooling. Documentation
 does not authorize reopening an exhausted investigation or reset guard budgets.
 
+## v1.4.0 publication and issue delivery
+
+[v1.4.0 is public](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0).
+All eight release jobs passed and the public downloads matched the verified package.
+The owner individually approved all twelve replies before publication; #15 and
+#19 were subsequently closed by explicit request without additional comments.
+
+- Closed: #15, #19, #25, #30, #31, #33, #34, #36, #37, #38 and #39.
+- Still open: #32 mouse input, #35 growing audio delay and #40 Proton startup.
+  #41 remains the skip-completion optimization follow-up.
+- #38 was redirected to the project matching its dump, not resolved by our code.
+  Closed reports retain any unverified reporter/platform coverage in their records.
+- [Comment punctuation correction](github-comment-punctuation.md) records the
+  posting defect and exact-text verification; no duplicate replies were created.
+
 ## Active and historical issue index
 
 The historical rows below index existing evidence; they do not claim a new retest.
@@ -40,37 +55,37 @@ Detailed per-issue records are added as those issues receive further work.
 | BUILD-V14 | Clean CI: GCC rain initializer and RT64 checkout line endings | All supported-platform and merged-main CI jobs pass; included in v1.4.0 | [Report](v14-clean-ci-portability.md) |
 | RENDER-CHIEF | Tawfret chief cutscene camera motion and floating square | Both corrections owner-verified; original N64 helper artifact removed in v1.4.0 | [Report](tawfret-chief-camera-and-square.md) |
 | GH-041 | Cutscene skip completion time (#41) | Owner requests faster completion for some scenes; measurement and optimization pending | [Follow-up](cutscene-skip-completion-time.md) |
-| UI-009 | Live map Mods redesign disabled/focus states | Owner-approved 2026-10-21; visible badges and reference padlock accepted locally; 973 native checks pass; unreleased | [Review](live-map-mods-layout.md) |
+| UI-009 | Live map Mods redesign disabled/focus states | Owner-approved 2026-10-21; visible badges and reference padlock accepted locally; 973 native checks pass; included in v1.4.0 | [Review](live-map-mods-layout.md) |
 | GH-040 | Windows release fails to start through Steam Deck Proton (#40) | Mandatory DirectComposition conflicts with Valve Wine; HWND candidate built; normal/failure-injection UI checks passed. Proton/Deck validation pending; native port deferred | [Report](github-steam-deck-proton-startup.md) |
-| GH-039 | Give all weapons leaves inventory unchanged (#39) | Reproduced: paused Mods dialog expires requests. Candidate processes grants while paused and confirms application; native/runtime/launcher checks passed and owner confirms actual UI grant; reporter retest/release pending | [Report](github-give-all-weapons.md) |
-| GH-038 | Fet-Bubb crashes shortly after attacking (#38) | Dump exactly matches VibinToast v1.1.8, a different project; our v1.3.0 passes bounded boss comparison; local defect unestablished, reporter routing/clarification needed | [Report](github-fet-bubb-crash.md) |
+| GH-039 | Give all weapons leaves inventory unchanged (#39) | Reproduced: paused Mods dialog expires requests. Candidate processes grants while paused and confirms application; native/runtime/launcher checks passed and owner confirms actual UI grant; released in v1.4.0; #39 closed with reporter retest requested | [Report](github-give-all-weapons.md) |
+| GH-038 | Fet-Bubb crashes shortly after attacking (#38) | Dump exactly matches VibinToast v1.1.8, a different project; our v1.3.0 passes bounded boss comparison; local defect unestablished; #38 closed and reporter redirected | [Report](github-fet-bubb-crash.md) |
 | GH-037 | Floyd cannot fire (#37) | Fully approved locally by owner for v1.4.0; reporter re-verification after delivery pending | [Report](github-floyd-cannot-fire.md) |
-| GH-036 | Missing weapon crosshairs (#36) | Owner believes existing accepted reticle correction covers it; likely fixed locally, delivery/reporter confirmation pending | [Report](github-weapon-crosshairs.md) |
-| GH-034 | Modern boss aim range, including both Mizar fights (#34) | Owner-approved after live Twin Mantis review; five boss fixtures match EmuHawk in both Modern paths; unreleased; reporter retest after delivery | [Report](github-twin-mantis-aim-range.md) |
+| GH-036 | Missing weapon crosshairs (#36) | Owner believes existing accepted reticle correction covers it; likely fixed locally, delivered in v1.4.0; #36 closed with reporter retest requested | [Report](github-weapon-crosshairs.md) |
+| GH-034 | Modern boss aim range, including both Mizar fights (#34) | Owner-approved after live Twin Mantis review; five boss fixtures match EmuHawk in both Modern paths; included in v1.4.0; reporter retest after delivery | [Report](github-twin-mantis-aim-range.md) |
 | DIAG-003 | Cutscene selector rejects a running game | Normal native parent/child pair miscounted as two games; corrected detection owner-confirmed; character ID swap corrected awaiting review; room45 direct-entry crash and stale-request startup open | [Report](cutscene-review-selector-loading.md) |
-| UI-008 | Launcher menu hover remains highlighted over game | Initial hover fix regressed dropdown selection; corrected routing passes 55 menu and 790 controls checks; owner confirms fixed; unreleased | [Report](launcher-menu-hover-stuck.md) |
-| GH-032 | Intermittent mouse look and ineffective vertical inversion (#32) | Official v1.3.0 verified; cause unproved; bounded mouse diagnostics implemented and tested, package/live capture pending; default/reset-Off separately accepted, unreleased | [Report and review](github-mouse-look-and-inversion.md) |
-| GH-033 | Modern Controls missing sideways roll (#33) | Roll bindings, automatic-roll setting, prone direction and backward-crawl fixes owner-accepted; unreleased | [Cause, evidence and selected policy](github-modern-controls-side-roll.md) |
+| UI-008 | Launcher menu hover remains highlighted over game | Initial hover fix regressed dropdown selection; corrected routing passes 55 menu and 790 controls checks; owner confirms fixed; included in v1.4.0 | [Report](launcher-menu-hover-stuck.md) |
+| GH-032 | Intermittent mouse look and ineffective vertical inversion (#32) | Official v1.3.0 verified; cause unproved; bounded mouse diagnostics implemented and tested, package/live capture pending; default/reset-Off separately accepted, included in v1.4.0 | [Report and review](github-mouse-look-and-inversion.md) |
+| GH-033 | Modern Controls missing sideways roll (#33) | Roll bindings, automatic-roll setting, prone direction and backward-crawl fixes owner-accepted; included in v1.4.0 | [Cause, evidence and selected policy](github-modern-controls-side-roll.md) |
 | PERF-005 | SS Anubis ledge-testing stutter in Lighting Preview | Earlier gaps measured; repeat Anubis capture steady, intermittent cause open | [Report](tawfret-lighting-preview-stutter.md) |
-| RENDER-019 | Tawfret brightness and distant haze differ from N64 | Fog candidate checked against original tasks; owner approved locally; unreleased | [Report](tawfret-brightness-fog-fidelity.md) |
-| INPUT-012 | Removing a controller moves it to another player | Explicit Remove and input-type replacement fixes owner-confirmed; unreleased | [Report](controller-remove-auto-reassignment.md) |
-| INPUT-013 | Player port indicators stay stale | Idle assignment indicator refresh owner-accepted; unreleased | [Report](controller-port-indicators-stale.md) |
+| RENDER-019 | Tawfret brightness and distant haze differ from N64 | Fog candidate checked against original tasks; owner approved locally; included in v1.4.0 | [Report](tawfret-brightness-fog-fidelity.md) |
+| INPUT-012 | Removing a controller moves it to another player | Explicit Remove and input-type replacement fixes owner-confirmed; included in v1.4.0 | [Report](controller-remove-auto-reassignment.md) |
+| INPUT-013 | Player port indicators stay stale | Idle assignment indicator refresh owner-accepted; included in v1.4.0 | [Report](controller-port-indicators-stale.md) |
 | AUDIO-004 | Persistent audio delay (#35); earlier #29 closed | Reporter attributes #29 crackling to RTSS; #35 latency not reproduced by owner, affected-session evidence needed | [Report](audio-crackle-persistent-latency.md) |
-| CAMERA-009 | Focus-loss camera reset | Room-entry/focus-return correction passes actual-source tests and owner review with Modern controller and mouse/keyboard; unreleased | [Report](focus-loss-camera-reset.md) |
-| CAMERA-008 | Modern controller high-drop camera reset | Owner confirmed locally; 486 scoped assertions and native checks pass; unreleased | [Report](controller-high-landing-camera-reset.md) |
-| CAMERA-007 | Modern ledge/water camera reset and water-air facing (#30) | Ledge/water camera and water-air body-facing fix owner-approved after isolated retest; unreleased, reporter retest pending | [Report](controller-ledge-camera-reset.md) |
-| ENHANCE-001 | Optional cutscene skipping (#31) | Owner-approved 2026-10-21; final four targeted Juno retests pass; eleven debug/context entries retain documented coverage limits; unreleased | [Scope](optional-cutscene-skipping.md) |
+| CAMERA-009 | Focus-loss camera reset | Room-entry/focus-return correction passes actual-source tests and owner review with Modern controller and mouse/keyboard; included in v1.4.0 | [Report](focus-loss-camera-reset.md) |
+| CAMERA-008 | Modern controller high-drop camera reset | Owner confirmed locally; 486 scoped assertions and native checks pass; included in v1.4.0 | [Report](controller-high-landing-camera-reset.md) |
+| CAMERA-007 | Modern ledge/water camera reset and water-air facing (#30) | Ledge/water camera and water-air body-facing fix owner-approved after isolated retest; included in v1.4.0, reporter retest pending | [Report](controller-ledge-camera-reset.md) |
+| ENHANCE-001 | Optional cutscene skipping (#31) | Owner-approved 2026-10-21; final four targeted Juno retests pass; eleven debug/context entries retain documented coverage limits; included in v1.4.0 | [Scope](optional-cutscene-skipping.md) |
 | RENDER-018 | Dead drone bodies jitter with camera movement | Included in v1.3; owner visual pass and capture validation, exact seed/cutscene coverage unverified | [Investigation and validation](dead-drone-camera-jitter.md) |
 | NATIVE-003 | Ichor detached-head flight locations after body destruction | EmuHawk plus idle/moving Vela comparison: no sampled out-of-bounds flight; broader parity unconfirmed | [Report and comparison plan](ichor-head-flight-locations.md) |
 | MOD-001 | Exit warp stops at the door | Native contact fix in 1.2.1; 1.3 progression bypass and exact overlapping-exit handoff pass focused/native checks | [Report and source review](map-exit-warp-transition.md) |
 | RENDER-012 | Breakable glass before Vela shakes at high refresh | Included in v1.3: production overlay translation, component checks and owner live verification passed | [Report](high-refresh-glass-shaking.md) |
 | RENDER-015 | Boss motion blur causes discomfort despite 120/30 | Included in v1.3; Off/Reduced owner-accepted and three-mode preference component-tested | [Report](boss-motion-blur-discomfort.md) |
-| RENDER-016 | GitHub #25 Ally X cutscenes, homing reticle and rain | Timestamp and spatial rain-delay fixes owner-confirmed locally; unreleased; reporter/Ally X retest and hut performance open | [Report](github-ally-x-rendering.md) |
+| RENDER-016 | GitHub #25 Ally X cutscenes, homing reticle and rain | Timestamp and spatial rain-delay fixes owner-confirmed locally; included in v1.4.0; reporter/Ally X retest and hut performance open | [Report](github-ally-x-rendering.md) |
 | RENDER-014 | Enemy-clear door indicator darkens with distance | ORIGINAL-GAME BUG confirmed in EmuHawk; further investigation deferred by owner; accepted visibility workaround included in v1.3 | [Report](door-enemy-lock-distance-darkening.md) |
 | RENDER-013 | Original appears to follow VSync/display refresh | Not reproduced after restart; owner confirms 30 FPS motion, earlier session unlogged | [Investigation](original-vsync-rate-selection.md) |
 | RENDER-011 | Vela rescue cutscene stalls / appears low resolution | Tentatively accepted by owner at 120/30 after N64 footage confirms soft shots; brief Vela-to-first-cut dip and broader review remain | [Report and evidence](vela-rescue-cutscene-stutter-resolution.md) |
 | INPUT-011 | GitHub #20 Ichor boss-room controls stop responding | Released in v1.2.1; owner confirms three bosses; reporter retest pending | [Cause and verification](github-ichor-boss-controls.md) |
-| BUILD-003 | Release source policy and compiler portability | v1.4 Windows candidate checks pass; clean-history/package verification pending; existing WSL harness limitation retained | [Release validation](release-source-validation.md) |
+| BUILD-003 | Release source policy and compiler portability | v1.4 Windows candidate checks pass; clean-history/package/public-download verification passed; existing WSL harness limitation retained | [Release validation](release-source-validation.md) |
 | NATIVE-002 | GitHub #14 mouse-look startup access violation | Reproduced startup cause resolved in v1.2.0; current enabled startup passes | [Startup report](github-mouse-look-startup.md) |
 | BUILD-002 | GitHub #15 GCC native build failure | Portable source released in v1.2.0; actual GCC source verified, AppImage not qualified | [Linux build review](github-linux-native-build.md) |
 | INPUT-010 | GitHub #13 controller camera inversion | GUI toggle released in v1.2.0; persistence/deltas verified, reporter retest pending | [Controls review](github-controller-vertical-inversion.md) |
@@ -107,7 +122,7 @@ Detailed per-issue records are added as those issues receive further work.
 | AUDIO-001 | Intermittent background-music crackle | Verified in tests and owner live verification; local preview only | [Investigation](intermittent-music-crackle.md) |
 | DIAG-002 | Reference owner capture inherited debug gameplay overrides and classic controls | Setup defect confirmed; correction prepared; further reference testing stopped at owner request | [Audit and correction](reference-owner-capture-contamination.md) |
 | DIAG-001 | Bounded replay misses final image capture | Verified in hidden replays; unchanged final reference RAM | [Cause and verification](final-probe-frame-capture.md) |
-| CAMERA-006 | Mouse camera resets after landing or ledge climb | Fixed in local candidate; component checks and owner confirmation cover high-drop landing and ledge climb; unreleased | [Report](mouse-camera-high-landing-reset.md) |
+| CAMERA-006 | Mouse camera resets after landing or ledge climb | Fixed in local candidate; component checks and owner confirmation cover high-drop landing and ledge climb; included in v1.4.0 | [Report](mouse-camera-high-landing-reset.md) |
 | CAMERA-005 | Modern camera jumps upward over terrain / apparent pond-lip contact | Actual pond regression reproduced and corrected in tests; revised preview installed, owner live check pending | [Report and investigation](camera-collision-bounce.md) |
 | CAMERA-003 | Modern area entry faces the exit | Verified in focused tests and owner live play; local preview | [Reproduction and work](modern-controller-state-transitions.md) |
 | MOVE-003 | Dual-stick jump loses direction and air steering | Verified in focused tests and owner live play; local preview | [Reproduction and work](modern-controller-state-transitions.md) |

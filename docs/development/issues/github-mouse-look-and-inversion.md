@@ -1,5 +1,12 @@
 # GH-032: Intermittent mouse look and ineffective vertical inversion setting
 
+## Delivery and issue status — 2026-10-22 UTC
+
+The default/reset inversion-Off preference and bounded support diagnostics ship in v1.4.0. #32 remains open: intermittent mouse-look loss and the reported ineffective inversion setting are not reproduced or claimed fixed. The approved reply requests a current-session support ZIP if they persist.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/32#issuecomment-6332072753).
+Earlier entries below preserve their original investigation and verification scope.
+
 
 ## Supplied evidence investigation (2026-10-21)
 

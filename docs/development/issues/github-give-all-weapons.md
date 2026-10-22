@@ -1,5 +1,12 @@
 # GH-039: Give all weapons leaves the inventory unchanged
 
+## Delivery and issue status — 2026-10-22 UTC
+
+The expanded Give weapons behavior ships in v1.4.0. Paused-dialog grant acknowledgement and inventory access passed owner testing. #39 is closed with the approved request to double-check the new version and comment if it still fails; earlier duplicate-click/UI limits remain documented.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/39#issuecomment-6332078068).
+Earlier entries below preserve their original investigation and verification scope.
+
 - Severity: medium; optional mod functionality.
 - Status: reproduced in official v1.3.0; source candidate passes paused-game
   integration and component checks; owner confirms the actual UI grant. Reporter retest and release pending.

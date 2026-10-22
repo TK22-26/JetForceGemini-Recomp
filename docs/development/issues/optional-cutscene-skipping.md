@@ -1,5 +1,12 @@
 # ENHANCE-001: optional cutscene skipping
 
+## Delivery and issue status — 2026-10-22 UTC
+
+Cutscene skipping is released in v1.4.0 and #31 is closed as implemented. A/B/Start reveal the prompt; holding A for one second requests skipping. Completion-time optimization remains open in #41. Unsupported/development entries retain the documented coverage limits.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/31#issuecomment-6332072096).
+Earlier entries below preserve their original investigation and verification scope.
+
 > Owner approval (2026-10-21): **#31 approved; unreleased.** The owner explicitly
 > directed ?note 31 as approved.? This supersedes earlier pending acceptance
 > language. The four final targeted Juno retests passed. The eleven remaining

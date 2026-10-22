@@ -1,5 +1,12 @@
 # AUDIO-004: Persistent audio latency (#35); earlier crackling report #29 closed
 
+## Delivery and issue status — 2026-10-22 UTC
+
+The owner-approved reply requests a v1.4.0 affected-session support ZIP, audio device/connection and FPS/VSync settings. #35 stays open; growing audio delay remains unlocalized and is not claimed fixed. The separate RTSS finding for #29 is retained.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/35#issuecomment-6332075095).
+Earlier entries below preserve their original investigation and verification scope.
+
 - Status: #29 closed by its reporter after attributing crackling to RTSS. Remaining latency reported separately as #35; owner cannot reproduce; awaiting affected-session evidence, no qualified latency fix.
 - Severity: high; sound effects reportedly remain 1-2 seconds behind gameplay.
 - Report: [GitHub #29](https://github.com/TK22-26/JetForceGemini-Recomp/issues/29), 2026-10-19.

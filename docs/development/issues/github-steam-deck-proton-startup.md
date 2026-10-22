@@ -1,5 +1,12 @@
 # GH-040: Windows release does not start through Steam Deck Proton
 
+## Delivery and issue status — 2026-10-22 UTC
+
+The Windows-tested launcher fallback ships in v1.4.0. #40 stays open pending reporter Steam Deck/Proton testing. The approved reply requests versions, the failing stage and a Proton log, with a commitment to investigate using that log. No Deck success or native Linux release is claimed.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/40#issuecomment-6332078795).
+Earlier entries below preserve their original investigation and verification scope.
+
 - Severity: high for the reported platform; launch is blocked.
 - Status: source-confirmed startup incompatibility; HWND presentation candidate implemented. Windows build and both backend UI suites passed; actual Proton/Deck and reporter verification pending.
 - Reported and reviewed: 2026-10-21 UTC.

@@ -1,10 +1,10 @@
 # Known issues
 
-v1.4.0 includes the owner-reviewed fixes listed below. Reporter-specific retests
-and unresolved reports remain open. Public issue replies require separate owner
-approval. See the [release qualification](development/releases-1.4.0-qualification.md).
+[v1.4.0 is public](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0) and includes the owner-reviewed fixes below. All eight release jobs and public-download verification passed. Twelve individually approved replies were posted. Issues #32, #35 and #40 remain open for affected-user evidence; #41 tracks faster cutscene skip completion. Closed reports can be reopened if symptoms persist. See the [release qualification](development/releases-1.4.0-qualification.md).
 
-## Open reports and reporter retests
+## Issue delivery and reporter retests
+
+Closed with owner-approved replies: #25, #30, #31, #33, #34, #36, #37, #38 and #39. The statuses below preserve the finite verification scope; closure does not turn an untested platform or symptom into a confirmed pass.
 
 | Report | Current status |
 |---|---|
@@ -23,8 +23,7 @@ approval. See the [release qualification](development/releases-1.4.0-qualificati
 | [#40: Steam Deck/Proton](development/issues/github-steam-deck-proton-startup.md) | Windows-tested window-rendering fallback added for unavailable DirectComposition. Actual Steam Deck startup, helper, gameplay and menus need reporter testing; native Linux port work is deferred. |
 
 The original [#19 reporter](development/issues/github-invasion-replay-stutter.md)
-confirms the invasion slowdown is resolved and requests closure. Public closeout
-still awaits approval. [#18 targeting](development/issues/github-held-aim-and-diagonal-movement.md)
+and another tester confirm the invasion slowdown is resolved. The owner approved closure, now completed without an additional reply. [#18 targeting](development/issues/github-held-aim-and-diagonal-movement.md)
 and the v1.3 movement correction remain included. Portable storage #24 and fog
 controls #26 are already implemented; no new response is planned.
 
@@ -61,12 +60,10 @@ campaign progression is unchanged.
 
 ## Performance and coverage
 
-The final v1.4 pass identified [rapid bad-angle camera motion and a floating square in the Tawfret chief cutscene](development/issues/tawfret-chief-camera-and-square.md). The camera-cut correction passed owner review at 120 FPS with logging off. The owner subsequently confirmed the square on original N64 hardware; native resolution had obscured the camera-helper mesh. The owner verified the helper visibility correction in the ordinary 120 FPS launcher: the square is gone and the scene looks correct. Both changes are prepared for v1.4.0, not yet released. See the [findings and lessons](development/tawfret-camera-helper-findings-2026-10-22.md).
+The final v1.4 pass identified [rapid bad-angle camera motion and a floating square in the Tawfret chief cutscene](development/issues/tawfret-chief-camera-and-square.md). The camera-cut correction passed owner review at 120 FPS with logging off. The owner subsequently confirmed the square on original N64 hardware; native resolution had obscured the camera-helper mesh. The owner verified the helper visibility correction in the ordinary 120 FPS launcher: the square is gone and the scene looks correct. Both changes are included in the published v1.4.0 release. See the [findings and lessons](development/tawfret-camera-helper-findings-2026-10-22.md).
 
 The release target is visibly smooth, responsive play with clean audio.
-The v1.3 owner route and targeted corpse review passed. The full v1.4 SS Anubis
-pass is still pending. No campaign-wide, every-device or zero-stall guarantee
-is claimed.
+The v1.3 owner route and targeted corpse review passed. The owner approved publication after the final targeted corrections. A separate full v1.4 SS Anubis pass was not recorded as completed; no campaign-wide, every-device or zero-stall guarantee is claimed.
 
 [SS Anubis ledge-testing stutter](development/issues/tawfret-lighting-preview-stutter.md)
 was captured once and not reproduced in the repeated route; its intermittent
@@ -118,12 +115,12 @@ The prebuilt Windows x64 package needs no compiler or WSL. Older
 [#4 source-setup](development/issues/github-windows-source-setup.md) workarounds
 apply to developer builds, not ordinary ZIP installation.
 [#15 Linux source-build](development/issues/github-linux-native-build.md)
-remedies are recorded, but a native Linux/AppImage release is not qualified.
+remedies are released and #15 is closed at the owner's request; a native Linux/AppImage release is not qualified.
 
 Developer qualification retains three pre-existing local WSL harness findings
 (two sanitizer subtest failures and a tool-pin error); the Windows runtime and
 launcher checks pass. See [source validation](development/issues/release-source-validation.md).
-Full CI remains a publication gate.
+All required source and tagged-release CI subsequently passed; the local WSL harness findings remain historical.
 
 Support collection is local and best effort; nothing uploads automatically.
 Include version, control mode, location and reproduction steps using the

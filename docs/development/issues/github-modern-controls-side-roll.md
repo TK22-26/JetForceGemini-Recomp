@@ -1,5 +1,12 @@
 # GH-033: Sideways roll unavailable with Modern Controls
 
+## Delivery and issue status — 2026-10-22 UTC
+
+The owner-approved roll bindings, automatic-roll preference, prone direction and backward-crawl corrections ship in v1.4.0. #33 is closed with the approved request to retest on the reporter's Xbox Elite controller and reopen if needed.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/33#issuecomment-6332073446).
+Earlier entries below preserve their original investigation and verification scope.
+
 ## Owner acceptance (2026-10-20)
 
 The owner approved all changes in the Modern Roll Direction Preview and requested

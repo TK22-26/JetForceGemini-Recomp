@@ -1,5 +1,12 @@
 # PERF-005: GitHub #19 invasion replay collapses to 1-2 FPS
 
+## Delivery and issue status — 2026-10-22 UTC
+
+Closed at the owner's explicit request after the original reporter and another tester confirmed resolution in the issue. No additional public reply was posted; earlier bounded capture limitations remain historical evidence.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/19).
+Earlier entries below preserve their original investigation and verification scope.
+
 - Source: [GitHub #19](https://github.com/TK22-26/JetForceGemini-Recomp/issues/19),
   reported 2026-10-18 UTC.
 - Severity: high; a cinematic reportedly becomes almost unwatchable every time.

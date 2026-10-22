@@ -1,5 +1,12 @@
 # GH-034: Modern aiming range during the Twin Mantis fight
 
+## Delivery and issue status — 2026-10-22 UTC
+
+The aiming-range correction ships in v1.4.0 after the recorded EmuHawk checks and owner Twin Mantis review. #34 is closed with the approved PS4-controller retest request. Five bounded boss fixtures do not establish exhaustive campaign/input coverage.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/34#issuecomment-6332074336).
+Earlier entries below preserve their original investigation and verification scope.
+
 - Status: owner-approved boss aiming correction after live Twin Mantis review; all five boss fixtures match EmuHawk in both Modern input paths; unreleased. Remaining validation limits are documented below.
 - Severity: high gameplay impact; reported reduced ability to target boss arms.
 - Source: [GitHub #34](https://github.com/TK22-26/JetForceGemini-Recomp/issues/34), created 2026-10-20.

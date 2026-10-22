@@ -1,5 +1,12 @@
 # GH-037: Floyd cannot fire
 
+## Delivery and issue status — 2026-10-22 UTC
+
+The locally owner-approved Floyd corrections ship in v1.4.0. #37 is closed with the approved request to retry the affected mission and provide control/input details if firing still fails. No extra local acceptance gate is introduced.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/37#issuecomment-6332076210).
+Earlier entries below preserve their original investigation and verification scope.
+
 - Status: fully approved locally by owner for v1.4.0. Reporter re-verification after delivery remains pending; no extra local acceptance gate.
 - Severity: potentially blocks completion of Floyd missions.
 - Report: [GitHub #37](https://github.com/TK22-26/JetForceGemini-Recomp/issues/37), 2026-10-20; audited 2026-10-21 UTC.

@@ -1,5 +1,12 @@
 # GH-038: Crash shortly after Fet-Bubb begins attacking
 
+## Delivery and issue status — 2026-10-22 UTC
+
+Closed as not planned in this repository after the owner-approved reply redirected the dump to VibinToast's matching v1.1.8 project. This is report routing, not a claimed crash fix in our release.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/38#issuecomment-6332077268).
+Earlier entries below preserve their original investigation and verification scope.
+
 - Severity: high; reported crash blocks the Tawfret Castle boss encounter.
 - Status: attached crash is confirmed to come from another project's v1.1.8 executable. This project's v1.3.0 passed one bounded boss comparison; no local defect or runtime fix established. Reporter routing/clarification pending.
 - Reported and reviewed: 2026-10-21 UTC.

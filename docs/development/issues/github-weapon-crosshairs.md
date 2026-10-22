@@ -1,5 +1,12 @@
 # GH-036: Missing weapon crosshairs
 
+## Delivery and issue status — 2026-10-22 UTC
+
+v1.4.0 includes the accepted reticle correction. The owner-approved reply closes #36 as addressed and requests weapon/control/FPS details if crosshairs still disappear or flicker. The specific reporter's resolution and shared cause remain unverified.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/36#issuecomment-6332075527).
+Earlier entries below preserve their original investigation and verification scope.
+
 - Status: owner believes the existing accepted reticle correction already covers #36; treat as likely fixed locally, pending delivery and reporter confirmation. No separate repair investigation selected.
 - Severity: aiming usability, reported on every attempt.
 - Report: [GitHub #36](https://github.com/TK22-26/JetForceGemini-Recomp/issues/36), 2026-10-20; audited 2026-10-21 UTC.

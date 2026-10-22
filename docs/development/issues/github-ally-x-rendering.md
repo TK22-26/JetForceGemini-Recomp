@@ -1,5 +1,12 @@
 # RENDER-016: GitHub #25 Ally X cutscenes, homing reticle and rain
 
+## Delivery and issue status — 2026-10-22 UTC
+
+Rain and reticle presentation and the brief room-entry rain delay are released in v1.4.0 after local owner approval. The approved reply closes #25 and invites a new report if any symptom persists. Ally X hardware retesting and the separate hut slowdown are not claimed as verified fixes.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/25#issuecomment-6332070678).
+Earlier entries below preserve their original investigation and verification scope.
+
 - Status: PARTIALLY RESOLVED LOCALLY: owner confirms the unreleased timestamp correction restores missing rain/reticles and approves the replacement spatial-fade preview as fixing the Tawfret rain delay. Release, original reporter/Ally X retest and hut performance remain open.
 - Report: https://github.com/TK22-26/JetForceGemini-Recomp/issues/25
 - Hardware: Windows 11, Xbox Ally X; no support ZIP or recording attached.

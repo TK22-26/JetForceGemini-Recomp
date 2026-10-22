@@ -1,5 +1,12 @@
 # Linux native build rejects compiler-specific probe declarations
 
+## Delivery and issue status — 2026-10-22 UTC
+
+Closed at the owner's explicit request. The compiler corrections were already released in v1.2.0 and remain included. This closure does not qualify a playable Linux/AppImage release; native Linux integration remains deferred.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/15).
+Earlier entries below preserve their original investigation and verification scope.
+
 - ID: BUILD-002; severity: high for Linux native/AppImage builds.
 - Source: [GitHub #15](https://github.com/TK22-26/JetForceGemini-Recomp/issues/15), filed 2026-10-16.
 - Affected report: Linux AppImage source `8b6837d`, GCC 16.2.1, CachyOS x86-64.

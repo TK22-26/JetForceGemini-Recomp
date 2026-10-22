@@ -1,5 +1,12 @@
 # CAMERA-007: modern dual-stick ledge climb recenters the camera
 
+## Delivery and issue status — 2026-10-22 UTC
+
+Ledge and swimming-transition corrections are released in v1.4.0 after local owner approval. The approved reply closes #30 and asks for a retest, with reopening if camera snapping persists.
+
+[Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/30#issuecomment-6332071353).
+Earlier entries below preserve their original investigation and verification scope.
+
 - Status: ledge/water camera and water-origin airborne facing owner-approved locally. Latest water-air preview accepted after single-instance relaunch; unreleased; #30 remains open for delivery and reporter retest.
 - Severity: gameplay usability; abrupt disorienting view change.
 - Report: [GitHub #30](https://github.com/TK22-26/JetForceGemini-Recomp/issues/30), 2026-10-19.
