@@ -8,6 +8,7 @@ public issue replies await approval. See the [release qualification](development
 
 | Report | Current status |
 |---|---|
+| [#41: cutscene skip completion time](development/issues/cutscene-skip-completion-time.md) | Owner-requested optimization follow-up; affected scenes and delays need measurement. No speed improvement claimed. |
 | [#25: Ally X rain, reticles and performance](development/issues/github-ally-x-rendering.md) | Rain/reticle presentation and room-entry rain delay are fixed and owner-approved locally. Reporter/Ally X retest is pending; the separate hut performance report is not resolved by those fixes. |
 | [#30: ledge and water camera](development/issues/controller-ledge-camera-reset.md) | Controller ledges, high landings and swimming/re-entry corrections are owner-approved locally; reporter retest after delivery. |
 | [#31: cutscene skipping](development/issues/optional-cutscene-skipping.md) | Owner-approved for v1.4.0. Unsupported scripts retain playback. Eleven likely development/setup entries remain documented as diagnostic coverage limits, not passed tests. |
@@ -59,6 +60,8 @@ prerequisites are repaired only in the diagnostic copied-save path; ordinary
 campaign progression is unchanged.
 
 ## Performance and coverage
+
+The final v1.4 pass identified [rapid bad-angle camera motion and a floating square in the Tawfret chief cutscene](development/issues/tawfret-chief-camera-and-square.md). The camera-cut correction passed owner review at 120 FPS with logging off. The square is traced to camera-model geometry; it appears in software-emulator references but the owner confirms it is absent on N64 hardware, so that fidelity discrepancy remains open.
 
 The release target is visibly smooth, responsive play with clean audio.
 The v1.3 owner route and targeted corpse review passed. The full v1.4 SS Anubis

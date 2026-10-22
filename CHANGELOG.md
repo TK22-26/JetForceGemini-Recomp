@@ -2,6 +2,10 @@
 
 ## 1.4.0 - final review (not yet released)
 
+- Prevent scenery from interpolating through cinematic camera cuts when a distant
+  shape incorrectly anchors the shared transform. Tawfret chief camera changes
+  passed owner review at 120 FPS with logging off; its floating square remains open.
+
 - Enable independent Modern controls for P1-P4 and correct Floyd co-op/mission
   fire routing, vertical direction and controller diagonal reach.
 - Add mouse-steered Floyd flight with W thrust, S brake and A/D strafe, plus a

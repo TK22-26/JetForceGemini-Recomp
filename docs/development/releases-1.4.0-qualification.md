@@ -83,3 +83,32 @@ source-policy corrections. Exact-body policy regression checks pass.
 
 The staged cutscene checklist had doubled CR line endings. They are normalized
 without changing any of its 169 parsed rows or the private live review manifest.
+
+## Final-pass launch configuration correction (2026-10-21)
+
+The first desktop final-pass shortcut incorrectly enabled standard diagnostic
+capture and inherited `performance.ini` with logging and overlay enabled.
+The owner correctly rejected that configuration for release-condition testing:
+the earlier [rain/reticle defect](issues/github-ally-x-rendering.md) was masked
+by diagnostic output metadata. The FPS box itself was not its cause.
+
+The same verified v1.4.0 candidate binaries now launch without `--diagnostics`,
+with performance logging and overlay disabled. Custom 120 FPS, the current
+save and all other profile settings are preserved. No runtime patch or new
+visual pass is claimed. Previous captures remain historical diagnostic evidence;
+normal-play rain/reticle and full-route acceptance remain with the owner.
+
+Private correction receipt: v14-release-prep-20261021/normal-launch-correction.
+The production guard stays enabled; one owner-approved additional attempt uses
+the existing time window with all investigation counters preserved.
+
+### Tawfret chief final-pass follow-up
+
+The owner verified the camera-cut correction at 120 FPS with logging/overlay off.
+The focused regression fails before the change and passes after it; the native
+Release build and four relevant renderer/history CTest suites pass. The reviewed
+camera preview contains the correction; the earlier release ZIP does not yet.
+The floating square remains an open fidelity discrepancy, now isolated to camera
+model geometry. EmuHawk software rendering reproduces it, while the owner reports
+it absent on N64 hardware. See [the full record](issues/tawfret-chief-camera-and-square.md).
+Main merge and release publication remain pending owner approval.
