@@ -55,7 +55,7 @@ inline std::optional<CutsceneCompletionPlan> plan_cutscene_completion(
   bool cursor=false,terminal=false;
   unsigned terminal_time=0,effective_time=0;
   for(const auto& c:script.commands) {
-    const auto op=c.word>>8;
+    const auto op=static_cast<unsigned>(c.word)>>8;
     cursor|=c.offset==current_offset;
     if(c.word==0x7F00) {plan.sentinel_offset=c.offset;break;}
     // A command behind a later-timed command cannot execute before it.

@@ -110,9 +110,9 @@ inline std::vector<SkipGbiCommand> cutscene_skip_gbi(unsigned width,
   }
   const auto glyph=[&](int x,int y,const std::array<unsigned,7>& rows) {
     for(int row=0;row<7;++row)for(int col=0;col<5;) {
-      if(!(rows[row]&(1U<<(4-col)))){++col;continue;}
+      if(!(rows[static_cast<std::size_t>(row)]&(1U<<(4-col)))){++col;continue;}
       const int first=col;
-      while(col<5&&(rows[row]&(1U<<(4-col))))++col;
+      while(col<5&&(rows[static_cast<std::size_t>(row)]&(1U<<(4-col))))++col;
       rect(x+first*scale,y+row*scale,x+col*scale-1,y+(row+1)*scale-1);
     }
   };
