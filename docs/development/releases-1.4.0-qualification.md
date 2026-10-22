@@ -108,7 +108,13 @@ The owner verified the camera-cut correction at 120 FPS with logging/overlay off
 The focused regression fails before the change and passes after it; the native
 Release build and four relevant renderer/history CTest suites pass. The reviewed
 camera preview contains the correction; the earlier release ZIP does not yet.
-The floating square remains an open fidelity discrepancy, now isolated to camera
-model geometry. EmuHawk software rendering reproduces it, while the owner reports
-it absent on N64 hardware. See [the full record](issues/tawfret-chief-camera-and-square.md).
+The owner rechecked and confirmed the floating square on original N64 hardware;
+native resolution had obscured it. The scoped camera-helper draw correction is
+built and passes four focused suites. The owner confirmed "Square gone; scene
+looks correct" in normal 120 FPS Play with logging/overlay off. The earlier ZIP
+does not contain either final-pass correction and is superseded by the final
+package preparation. The final package must identify the reviewed clean develop
+commit in both launcher and runtime, pass package verification, and complete
+all-platform CI before publication. See
+[the full record](issues/tawfret-chief-camera-and-square.md).
 Main merge and release publication remain pending owner approval.

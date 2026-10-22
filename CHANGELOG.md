@@ -4,7 +4,13 @@
 
 - Prevent scenery from interpolating through cinematic camera cuts when a distant
   shape incorrectly anchors the shared transform. Tawfret chief camera changes
-  passed owner review at 120 FPS with logging off; its floating square remains open.
+  passed owner review at 120 FPS with logging off.
+
+- Prevent cinematic camera-helper models from appearing as floating squares.
+  This corrects an original-game artifact while retaining camera paths and
+  scene state. Owner verified all three Tawfret chief shots at 120 FPS with
+  diagnostics and FPS logging disabled. See the
+  [investigation write-up](docs/development/tawfret-camera-helper-findings-2026-10-22.md).
 
 - Enable independent Modern controls for P1-P4 and correct Floyd co-op/mission
   fire routing, vertical direction and controller diagonal reach.

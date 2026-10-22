@@ -36,7 +36,7 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
-| RENDER-CHIEF | Tawfret chief cutscene camera motion and floating square | Camera cuts owner-verified; square traced to camera-model triangles, hardware discrepancy open | [Report](tawfret-chief-camera-and-square.md) |
+| RENDER-CHIEF | Tawfret chief cutscene camera motion and floating square | Both corrections owner-verified; original N64 helper artifact removed; unreleased | [Report](tawfret-chief-camera-and-square.md) |
 | GH-041 | Cutscene skip completion time (#41) | Owner requests faster completion for some scenes; measurement and optimization pending | [Follow-up](cutscene-skip-completion-time.md) |
 | UI-009 | Live map Mods redesign disabled/focus states | Owner-approved 2026-10-21; visible badges and reference padlock accepted locally; 973 native checks pass; unreleased | [Review](live-map-mods-layout.md) |
 | GH-040 | Windows release fails to start through Steam Deck Proton (#40) | Mandatory DirectComposition conflicts with Valve Wine; HWND candidate built; normal/failure-injection UI checks passed. Proton/Deck validation pending; native port deferred | [Report](github-steam-deck-proton-startup.md) |

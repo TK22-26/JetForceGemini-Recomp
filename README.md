@@ -47,7 +47,7 @@ content remains the property of its respective owners.
 The v1.4.0 candidate adds native cutscene skipping, Modern controls for all four
 players, Floyd flight controls, and fixes for camera resets, boss aiming, rain,
 weapon reticles and paused inventory grants. It also improves Quarry's day/night
-fog transitions and launcher feedback. Adjustable motion blur, live fog strength
+fog transitions, cinematic camera cuts and helper visibility, and launcher feedback. Adjustable motion blur, live fog strength
 and portable storage remain available. See the [changelog](CHANGELOG.md) and
 [final-review record](docs/development/releases-1.4.0-qualification.md).
 

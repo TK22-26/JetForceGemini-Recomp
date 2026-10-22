@@ -1,4 +1,5 @@
 #include "jfg/renderer/door_indicator_presentation.hpp"
+#include "jfg/renderer/camera_helper_presentation.hpp"
 #include "jfg/renderer/native_blur_mode.hpp"
 #include "jfg/renderer/rain_fade.hpp"
 #include "jfg/renderer/fog_settings.hpp"
@@ -10049,6 +10050,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto rigid_matrix = observe_rigid ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(rigid_output) : 0U;
 #endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        jfg::CameraHelperPresentationScope camera_helper_presentation(
+            {rdram,kRdramSize},target,static_cast<std::uint32_t>(context->r7));
         const auto function_started = state.diagnostic_cpu_costs ? std::chrono::steady_clock::now()
             : std::chrono::steady_clock::time_point{};
         const auto function_children = state.profile_function_self_ns;
@@ -10097,6 +10100,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           generated(rdram, context);
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        camera_helper_presentation.restore();
         if (rain_fade) {
           const auto native_result = context->r2;
           context->r2 = rain_fade->finish(context->r2);

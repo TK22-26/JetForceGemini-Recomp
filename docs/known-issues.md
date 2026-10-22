@@ -61,7 +61,7 @@ campaign progression is unchanged.
 
 ## Performance and coverage
 
-The final v1.4 pass identified [rapid bad-angle camera motion and a floating square in the Tawfret chief cutscene](development/issues/tawfret-chief-camera-and-square.md). The camera-cut correction passed owner review at 120 FPS with logging off. The square is traced to camera-model geometry; it appears in software-emulator references but the owner confirms it is absent on N64 hardware, so that fidelity discrepancy remains open.
+The final v1.4 pass identified [rapid bad-angle camera motion and a floating square in the Tawfret chief cutscene](development/issues/tawfret-chief-camera-and-square.md). The camera-cut correction passed owner review at 120 FPS with logging off. The owner subsequently confirmed the square on original N64 hardware; native resolution had obscured the camera-helper mesh. The owner verified the helper visibility correction in the ordinary 120 FPS launcher: the square is gone and the scene looks correct. Both changes are prepared for v1.4.0, not yet released. See the [findings and lessons](development/tawfret-camera-helper-findings-2026-10-22.md).
 
 The release target is visibly smooth, responsive play with clean audio.
 The v1.3 owner route and targeted corpse review passed. The full v1.4 SS Anubis

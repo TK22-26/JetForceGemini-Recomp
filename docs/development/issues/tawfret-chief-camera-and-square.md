@@ -1,6 +1,6 @@
 # Tawfret chief cutscene: rapid bad-angle camera motion and floating square
 
-- Status: camera-cut correction owner-verified, unreleased; floating square remains open.
+- Status: camera-cut and original-game camera-helper visibility corrections owner-verified; prepared for v1.4.0, unreleased.
 - Severity: visible cinematic rendering/camera regression.
 - Reported (UTC): 2026-10-22.
 - Build: v1.4.0 candidate ea9845e, Custom 120 FPS, VSync on, Reduced blur,
@@ -12,10 +12,10 @@ During the Tawfret tribal chief sequence, a small yellow square with a dark
 surround appears beside/behind the chief in three distinct shots. The owner
 also initially described a white flash on camera changes, then clarified that
 the camera moves very quickly through bad angles: this is not a white
-framebuffer flash. The owner reports neither artifact in the base game.
-The owner specifically reports the square absent on original N64 hardware.
-Software-emulator reproduction does not override that observation; the reason
-for the difference remains unresolved.
+framebuffer flash. The owner initially believed neither artifact was in the base game.
+The owner initially reported the square absent on original N64 hardware, then
+rechecked and confirmed it is present but obscured by native resolution and TV
+blur. See the later hardware confirmation and intentional original-game fix below.
 
 Evidence: owner video 2026-10-21 20-18-01.mkv, four VLC snapshots extracted
 at 20h22m31s527 / 20h22m40s602 / 20h22m45s150 / 20h22m52s478, and three
@@ -23,7 +23,7 @@ annotated conversation images. Private hash inventory:
 v14-tawfret-chief-20261022/inputs.json.
 The owner supplied a pre-scene save and completed an instrumented launcher capture.
 
-## Evidence and hypotheses
+## Initial evidence and hypotheses
 
 Unknown whether the square is a world-space primitive, an actor effect or a
 screen-space overlay. Camera path/interpolation at cuts is a hypothesis, not
@@ -39,8 +39,9 @@ logging dependency.
 
 ## Verification and remaining limits
 
-Camera acceptance is recorded below. The square remains unresolved; its draw
-ownership is now isolated to camera-model geometry, but visibility needs tracing.
+Camera acceptance is recorded below. The square is confirmed as an original-game
+camera-helper artifact; the scoped visibility correction is built and owner-verified
+in the ordinary 120 FPS launcher with logging disabled.
 A candidate must retain normal camera shots, actor geometry, progression and
 rain/reticle presentation with logging disabled. The owner performs live review.
 
@@ -121,7 +122,8 @@ No square-removal change has been made, and this is not a released resolution.
 The original ROM in EmuHawk with Angrylion and software RSP also draws the square
 in checkpoint 11 (private `emuhawk-chief-angrylion/session/checkpoint-11.png`).
 The owner then explicitly confirmed that it is absent on original N64 hardware.
-Keep the hardware-versus-software discrepancy open. Neither agreement between
+That prompted keeping the hardware-versus-software discrepancy open at this stage.
+The later owner confirmation below resolves it. Neither agreement between
 emulators nor running the original ROM alone establishes hardware fidelity.
 No live N64 RAM dump is required from the owner to continue local draw tracing.
 
@@ -155,7 +157,7 @@ rendering scratchpad. That explanation is unverified and is not a match for the
 camera-model geometry identified here. No exact matching published report or
 established cross-game fix was found in this bounded search.
 
-Next: identify the exact drawn camera instance and follow JFG's visibility and
+Initial follow-up plan: identify the exact drawn camera instance and follow JFG's visibility and
 animation update rules. Preserve camera logic, shot timing and actor behavior;
 do not hide pixels or remove an actor merely by its screen position or color.
 
@@ -176,3 +178,54 @@ that read with explicit UTF-8 completes the entry without changing game code.
 Corrected two-triangles probe: changed bounds (522, 252, 528, 257), 28 pixels.
 
 Corrected whole-camera-model probe: changed bounds (517, 248, 530, 258), 120 pixels.
+
+## Original hardware confirmation and helper visibility candidate
+
+The owner rechecked the original N64 reference and confirmed that the square is
+present there too: the low resolution/TV blur made it resemble background detail.
+This resolves the previously reported hardware discrepancy. The camera-cut
+interpolation defect remains a separate recomp defect and owner-verified fix.
+The owner explicitly requested fixing the original camera-helper artifact in our
+release. Do not describe this as mistranslated guest instructions or a generic
+renderer bug.
+
+The original path interpreter starts path 13 at 20 seconds, clearing actor +6
+bit 0x0400 in animseqStartPath (0x800767EC). Later camera commands select other
+paths without stopping path 13. In snapshot 11, path 13/actor 0x801bc130 is still
+drawable at (-1101.75,79.875,1344.875), while the current camera is path 20/actor
+0x801bd920. The normal object gate at 0x8000DB94 therefore submits its camera mesh.
+A fresh Angrylion/software-RSP diagnostic hiding only that former camera removes
+the square. Its timing differs enough to move some sparkle pixels (3,574 pixels
+changed overall), so this is not claimed as an isolated pixel-identical replay;
+the earlier immutable display-list replay changes only the square's 120 pixels.
+Clearing the widescreen preference changes no screenshot pixels in this cinematic
+and does not remove the square. Reference runs have no inherited cheat files.
+Private evidence: v14-tawfret-camera-helper-20261022/camera-script-and-matrix.json,
+original-camera-paths.json and original-counterfactual-results.json.
+
+Candidate: exclude only the supported AnimCamera object (behavior47, object30,
+exact terminated header name) at the pinned native object-draw gate. Its native
+hidden flag is scoped to that draw and restored immediately, including on unwind.
+Animation paths, camera selection, simulation flags, positions and progression
+remain intact. Other behavior47 objects include visible props and must remain
+unaffected. The correction has no room, screen-position, color, FPS or logging
+condition. Source: include/jfg/renderer/camera_helper_presentation.hpp and the
+native dispatch wrapper. Focused regression coverage checks native draw-gate
+eligibility, exact state restoration, nesting/unwind, same-behavior props,
+malformed pointers and incompatible instruction/header identities. Build and
+owner visual verification subsequently passed as recorded below; not yet released.
+
+The first build produced the native executable but rejected the regression fixture
+because std::fill inferred an int zero for a byte container under MSVC /WX.
+The fixture now uses an explicit uint8_t zero; compiler strictness is unchanged.
+Preview preparation correctly stopped at its failed-build gate and launched
+nothing. Both failed logs remain private evidence.
+
+Native Release build and all four focused renderer/history suites pass, including
+the new helper scope checks. A separate copied-save 120 FPS preview uses normal
+Play with diagnostics, FPS logging and the overlay disabled. The owner confirmed:
+"Square gone; scene looks correct" after being asked to check all three shots,
+camera motion and the rest of the cinematic. The prior camera-cut correction
+remains included. This is acceptance of the reviewed chief sequence, not an
+exhaustive claim about every cinematic. See the standalone
+[findings write-up](../tawfret-camera-helper-findings-2026-10-22.md).
