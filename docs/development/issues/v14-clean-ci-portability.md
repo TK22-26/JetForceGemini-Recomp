@@ -1,6 +1,6 @@
 # v1.4.0 clean CI portability checks
 
-- Status: two build corrections applied; clean CI rerun pending. Publication blocked until checks pass.
+- Status: supported-platform CI passed for the corrected source; release preparation complete subject to final source checks and owner signoff. Unreleased.
 - Discovered: 2026-10-22, release PR #42, initial CI run 39709407647.
 - Severity: release build gate; no observed gameplay regression.
 
@@ -52,3 +52,18 @@ compiles but cannot link because its runtime library depends on that unchanged
 CIC object; its local Not Run result is retained, with full execution left to CI.
 The existing CIC source and warnings-as-errors are unchanged; CI's supported
 compiler remains the full-build gate.
+
+
+## Final supported-platform verification
+
+[CI run 39711677000](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/39711677000)
+passes all six jobs on `521f66620e734671a06a07f118e874076f02a133`: Linux
+GCC Debug/Release and Clang, Windows Debug/Release, Linux sanitizers, the Windows
+RT64 renderer, launcher, and policy/schema/Python checks. The clean native Windows
+Release build and cutscene/helper/rain suites also pass locally. No warning,
+source pin or test assertion was disabled to obtain those results.
+
+The local Clang 21 CIC warning remains a documented newer-toolchain limitation;
+it does not apply to the supported Clang 18 CI result. The final documentation
+commit receives its own PR checks before signoff. Main merge and publication
+remain unapproved.

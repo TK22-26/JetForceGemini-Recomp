@@ -126,3 +126,39 @@ source pin sensitive to Windows checkout line endings. Both are corrected
 without weakening compiler checks or changing the dependency revision. The
 CMake pin accepts LF/CRLF and rejects modified content; all-platform CI must
 pass on the corrected source. See [the build record](issues/v14-clean-ci-portability.md).
+
+
+## Final release candidate qualification (2026-10-22)
+
+The Tawfret camera/helper write-up and owner acceptance are recorded in
+[the findings](tawfret-camera-helper-findings-2026-10-22.md). The project,
+launcher assembly, packaged launcher FileVersion/ProductVersion and runtime
+manifest all identify v1.4.0. No version downgrade to v1.3.1 is planned.
+
+The clean runtime is built from `521f66620e734671a06a07f118e874076f02a133`.
+[Its full CI](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/39711677000)
+passes all six jobs, including the GCC/Clang, Windows, sanitizer, renderer,
+launcher and policy/Python lanes. Local Release build and the focused
+cutscene/helper/rain tests pass. The subsequent qualification commit changes
+documentation only; the runtime identity must retain its actual build revision.
+The final launcher/package inventory identifies the exact documentation commit.
+PR #42 checks that final source before the owner's signoff.
+
+The earlier ZIP is preserved as historical evidence. The final bundle is built
+in a new private directory and verified by the normal release validator: exact
+membership, per-file hashes, ZIP checksum, v1.4.0 manifest and clean executable
+provenance. ROMs, private game data, personal saves and debug symbols are excluded.
+The release-ready desktop profile uses a copied save, 120 FPS, diagnostics off,
+and FPS logging/overlay off. The original profile remains untouched.
+
+All five worktrees remain accounted for. The three retained non-build copies
+still match the earlier reconciliation inventory; the build worktree's reviewed
+changes were preserved before clean checkout. No worktree or branch was deleted.
+
+The final release notes and publication wording are staged privately for owner
+review. Main, tags, releases, issue comments and closures remain unchanged.
+After final signoff, publication metadata must use the actual release date and
+the package must match the exact tagged source; the release workflow repeats
+its required checks before publication. Exact package identities and the latest
+CI receipt are retained under `v14-final-release-20261022` and in the desktop
+handoff. Reporter-specific limits in known issues remain open.
