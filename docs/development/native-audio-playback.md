@@ -46,3 +46,17 @@ See [qualification](../../evidence/high-refresh-audio-bridge.json),
 [AUDIO-002](issues/walking-audio-interruptions.md), and
 [RENDER-006](issues/tutorial-late-object-jitter.md). Detailed profiling is still
 opt-in. The broader no-20-FPS objective remains open.
+
+## Unreleased latency recovery candidate (October 24)
+
+`fix/audio-latency-recovery` adds an exception-only host queue recovery policy.
+It retains the production/demand, synth frequency, volume and emulated DMA
+paths above. After sustained excess buffering with confirmed consumption, the
+host queue keeps its recent 100 ms with a 5 ms splice. Normal PCM submissions
+are unchanged. Startup, pause, loading, skip completion and reference timing
+are excluded; there is no audio-driven gameplay throttle or continuous resample.
+
+The [AUDIO-004 investigation](issues/audio-crackle-persistent-latency.md)
+documents thresholds, accounting, controlled fault tests, the informative
+failed run and remaining listening/reporter gates. This is a candidate on a
+separate branch, not a change delivered in v1.4.0.

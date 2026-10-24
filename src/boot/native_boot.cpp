@@ -51,6 +51,7 @@
 #include "jfg/runtime/async_config_files.hpp"
 #include "jfg/audio/master_volume.hpp"
 #include "jfg/audio/playback_buffer.hpp"
+#include "jfg/audio/latency_recovery.hpp"
 #include "jfg/audio/vi_playback_clock.hpp"
 #include "jfg/runtime/window_input_mailbox.hpp"
 #include "jfg/runtime/mouse_input_diagnostics.hpp"
@@ -741,6 +742,8 @@ public:
 
   void set_gameplay_trace(GameplayTrace *trace) noexcept { gameplay_trace_ = trace; }
   void frontend_pause(bool paused) noexcept {
+    frontend_paused_ = paused;
+    latency_recovery_.reset();
     if (device_ != 0U && device_playing_) SDL_PauseAudioDevice(device_, paused ? 1 : 0);
   }
   void set_vi_counter(const std::uint64_t *vi) noexcept { capture_vi_ = vi; }
@@ -794,6 +797,7 @@ public:
     if (device_ != 0U &&
         SDL_QueueAudio(device_, converted_.data(), length) != 0)
       return false;
+    recovery_pcm_.append(converted_);
     ++submitted_buffers_;
     queued_bytes_ += length;
     emulated_dma_lengths_.push_back(length);
@@ -807,6 +811,7 @@ public:
   // Establish the wall clock only after that excess has played, so startup
   // work cannot permanently choose a larger audio/video phase offset.
   void settle_startup_queue() {
+    latency_recovery_.reset();
     if (!device_playing_ || device_ == 0U) return;
     update_metrics();
     capture_event("anchor-drain-begin");
@@ -838,6 +843,59 @@ public:
         capture_events_.flush();
     }
   }
+
+  // Called after submissions are drained, never from an SDL callback. This
+  // changes only the host queue; guest DMA completion and VI pacing stay intact.
+  bool recover_latency(bool eligible, std::chrono::steady_clock::time_point observation =
+      std::chrono::steady_clock::now()) {
+    // service()/queue() supplied the same snapshot used by normal demand.
+    // Do not add another SDL poll (or move that demand decision) on a healthy
+    // queue. Re-query only after pausing for an actual recovery below.
+    const auto now = static_cast<std::uint64_t>(std::chrono::duration_cast<
+        std::chrono::milliseconds>(observation.time_since_epoch()).count());
+    if (!latency_recovery_.observe(now, current_queued_bytes_, frequency_, consumed_bytes_,
+        eligible && device_ != 0U && device_playing_ && !frontend_paused_)) return true;
+    // SDL serializes its queue API internally. Pause to take a stable snapshot;
+    // do not hold SDL_LockAudioDevice across these internally locked calls.
+    SDL_PauseAudioDevice(device_, 1);
+    update_metrics();
+    const auto before = current_queued_bytes_;
+    auto replacement = recovery_pcm_.replacement(before);
+    if (before <= frequency_ || replacement.empty()) {
+      SDL_PauseAudioDevice(device_, 0);
+      latency_recovery_.reset();
+      return true;
+    }
+    capture_event("latency-recovery-begin");
+    SDL_ClearQueuedAudio(device_);
+    if (SDL_QueueAudio(device_, replacement.data(), static_cast<Uint32>(replacement.size())) != 0) {
+      // Match the existing queue failure contract; never report dropped audio
+      // as consumed or resume an empty device after a failed replacement.
+      discarded_bytes_ += before;
+      recovery_pcm_.clear();
+      device_playing_ = false;
+      update_metrics();
+      jfg::support_event("audio=latency-recovery-queue-failed");
+      return false;
+    }
+    discarded_bytes_ += before - replacement.size();
+    recovery_pcm_.clear();
+    recovery_pcm_.append(replacement);
+    ++latency_recoveries_;
+    latency_recovery_.recovered(now);
+    update_metrics();
+    capture_event("latency-recovery-end");
+    SDL_PauseAudioDevice(device_, 0);
+    jfg::support_event("audio=latency-recovery/before_ms=" +
+        std::to_string(std::uint64_t{before} * 1000U / (frequency_ * 4U)) +
+        "/after_ms=" + std::to_string(replacement.size() * 1000U / (frequency_ * 4U)) +
+        "/discarded_bytes=" + std::to_string(discarded_bytes_) +
+        "/recoveries=" + std::to_string(latency_recoveries_));
+    return true;
+  }
+  [[nodiscard]] std::uint32_t buffered_bytes() const noexcept { return current_queued_bytes_; }
+  [[nodiscard]] std::uint64_t discarded_bytes() const noexcept { return discarded_bytes_; }
+  [[nodiscard]] std::uint64_t latency_recoveries() const noexcept { return latency_recoveries_; }
 
   [[nodiscard]] bool capturing_pcm() const noexcept { return capture_pcm_.is_open(); }
   void finish_capture() noexcept { capture_pcm_.finish(); capture_events_.finish(); }
@@ -930,6 +988,7 @@ private:
       null_sink_ = true;
     }
     frequency_ = frequency;
+    recovery_pcm_.configure(frequency);
     // Give the first renderer/shader work a generous cushion, then keep normal
     // host latency bounded independently of the emulated AI DMA clock.
     prebuffer_bytes_ = frequency_ * 4U / 10U;
@@ -966,8 +1025,9 @@ private:
       return;
     }
     current_queued_bytes_ = SDL_GetQueuedAudioSize(device_);
-    consumed_bytes_ = queued_bytes_ >= current_queued_bytes_
-                          ? queued_bytes_ - current_queued_bytes_
+    const auto retained = queued_bytes_ - discarded_bytes_;
+    consumed_bytes_ = retained >= current_queued_bytes_
+                          ? retained - current_queued_bytes_
                           : 0U;
     if (device_playing_ && current_queued_bytes_ == 0U) {
       if (!empty_episode_) {
@@ -1061,6 +1121,10 @@ private:
   const std::uint64_t *capture_vi_ = nullptr;
   SDL_AudioDeviceID device_ = 0U;
   jfg::audio::MasterVolume master_volume_;
+  jfg::audio::LatencyRecovery latency_recovery_;
+  jfg::audio::RecoveryPcmHistory recovery_pcm_;
+  std::uint64_t discarded_bytes_ = 0U, latency_recoveries_ = 0U;
+  bool frontend_paused_ = false;
   std::filesystem::path volume_path_;
   jfg::AsyncVolumeFile volume_file_;
   std::chrono::steady_clock::time_point volume_next_read_{};
@@ -3926,6 +3990,17 @@ bool service_host_audio(State &state, const bool pace) {
       pace, pace && !state.play_mode && !state.fast_replay &&
                 !state.realtime_replay &&
                 !(state.original_os_host_pacing && state.original_os_host_anchor_ready));
+  // Only native interactive audio uses recovery. Original timing, null sinks,
+  // startup/resume anchors, loading and cutscene completion remain excluded.
+  hle::GuestMemory audio_memory({state.rdram,kRdramSize},
+      hle::GuestMemory::Layout::native_word_big_endian);
+  std::uint32_t audio_mode = UINT32_MAX, loading = UINT32_MAX;
+  const bool recoverable = state.play_mode && !state.fast_replay &&
+      state.diagnostic_host_clock && state.native_audio_playback &&
+      state.original_os_host_anchor_ready && !state.cutscene_prompt.transition &&
+      !state.cutscene_chain && audio_memory.read_u32(0x800A06DCU,audio_mode) &&
+      audio_mode == 0U && audio_memory.read_u32(0x800A3530U,loading) && loading == 0U;
+  if (!state.host_audio.recover_latency(recoverable)) return false;
   state.audio_device_initialized = state.host_audio.initialized();
   state.audio_device_started = state.host_audio.started();
   state.audio_device_frequency = state.host_audio.frequency();
@@ -9314,7 +9389,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     if(target==0x80050154U && state.host_audio.started()) {
       hle::GuestMemory m({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
       std::uint32_t countdown=0,frames=0,mode=0,queued=0;
-      const auto buffered=state.host_audio.queued_bytes()-state.host_audio.consumed_bytes();
+      const auto buffered=state.host_audio.buffered_bytes();
       if(m.read_u32(0x800A38C8U,countdown) && m.read_u32(0x800A06ECU,frames) &&
           m.read_u32(0x800A06DCU,mode) && m.read_u32(0x800F1AFCU,queued)) {
         const auto adjusted=native_audio_countdown(countdown,frames,mode,queued,

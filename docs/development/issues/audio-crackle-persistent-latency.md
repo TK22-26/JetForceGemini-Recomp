@@ -2,10 +2,80 @@
 
 ## Delivery and issue status — 2026-10-22 UTC
 
-The owner-approved reply requests a v1.4.0 affected-session support ZIP, audio device/connection and FPS/VSync settings. #35 stays open; growing audio delay remains unlocalized and is not claimed fixed. The separate RTSS finding for #29 is retained.
+On October 22, the #35 reporter supplied six logs from v1.4.0 and confirmed that latency still increases in sudden steps, sometimes repeatedly. Pause/unpause restores synchronization. Device and display settings are now supplied, but the cause remains unlocalized and no latency fix is claimed. #35 stays open. The separate RTSS finding for #29 is retained.
 
 [Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/35#issuecomment-6332075095).
+October 24: `fix/audio-latency-recovery` contains an unreleased host-queue
+recovery candidate. Component parity, fault-recovery and sanitizer checks pass;
+native build passes; owner listening is still pending. The actual #35 trigger is
+still unknown. See the candidate results at the end of this report.
+
 Earlier entries below preserve their original investigation and verification scope.
+
+### Affected v1.4.0 session reviewed October 23 UTC
+
+The [October 22 reporter follow-up](https://github.com/TK22-26/JetForceGemini-Recomp/issues/35#issuecomment-6334947549)
+explicitly distinguishes sudden latency increases from continuous gradual
+drift. Another event can add further delay. They used pause/unpause to recover
+shortly before quitting the attached session.
+
+Reported settings: 240 Hz VRR display, usually 120 FPS; also reproduced at
+60 FPS, 240 FPS and unlocked. VSync is forced through the NVIDIA driver. Audio
+device is an Audigy 2. These details identify the affected configuration, not
+a diagnosed driver or hardware cause. The earlier report identifies Windows 10
+and an RTX 5060 Ti. Do not conflate this with #29's RTSS crackling resolution.
+
+The six supplied files are breadcrumbs.log, build.log, controller.log,
+launcher.log, mouse.log and native.log. Build and launcher identities match
+v1.4.0 (launcher source 5ec705f7, runtime source 521f6662); the session closes
+with exit code zero. The native log lists startup/audio-path markers but no
+audio queue duration, device-consumption timing or underrun/overrun timeline.
+Breadcrumbs and mouse records cannot establish the audio backlog or its cause.
+The supplied evidence is therefore useful but insufficient for a root-cause
+claim. Do not request the same basic settings again.
+
+The next investigation should correlate a sudden delay event and pause recovery
+with queued samples, audio-device consumption and host/game clock timing. The
+existing queue/reanchor observations below and upstream catalog entry
+JFG-UP-024 remain hypotheses to test. No code, replay or new diagnostic capture
+was run in this review; the existing production guard allowance is exhausted.
+
+Private evidence: `post-v14-issue-review-20261023/issue-35.json`, the six original
+attachments under `issue35-attachments`, and URL/SHA-256 receipts in
+`attachment-receipt.json`. A response acknowledging the logs and the remaining
+failure is drafted for owner review only; no response or closure was posted.
+
+### Owner follow-up: hold reply; prioritize the backlog hypothesis
+
+The owner asked for concrete leads and explicitly withheld a #35 response.
+Read-only source reinspection confirms a useful first hypothesis: audio output
+temporarily falls behind while samples continue to be produced, leaving an
+excess queue that normal playback does not remove. A later event could add
+another step. This is consistent with the report, not a reproduction or a
+confirmed trigger.
+
+Evidence supporting this priority:
+
+- `settle_startup_queue` drains excess queued sound toward the
+  configured 100 ms prebuffer. Frontend pause/resume clears the host anchor,
+  allowing this drain on the next VI. There is therefore an explicit code path
+  that could explain why pause repairs accumulated software-queue latency.
+- The audio device's `update_metrics` counts queues over two seconds but does not
+  correct them. The normal host-paced gameplay path does not use the separate
+  200 ms queue throttle. A persistent offset can therefore exist without
+  ordinary playback bringing it back to the starting latency.
+- The newer report describes steps rather than continuous drift; prioritize
+  temporary output/clock disruptions over a steady sample-rate mismatch.
+
+Distinguish a software backlog from downstream device buffering with queue age,
+production/consumption rates and clock/pause markers across the event. An
+isolated delayed-consumption test could establish whether our current recovery
+policy retains excess latency, but would not by itself identify the reporter's
+trigger. If the software queue remains near its baseline while audible latency
+increases, investigate downstream device timing or source-event timing instead.
+Do not apply periodic audio flushing or blame the Audigy without that evidence.
+No execution or new fix was attempted; the existing guarded allowance remains
+exhausted and the requested continuation has not yet been granted.
 
 - Status: #29 closed by its reporter after attributing crackling to RTSS. Remaining latency reported separately as #35; owner cannot reproduce; awaiting affected-session evidence, no qualified latency fix.
 - Severity: high; sound effects reportedly remain 1-2 seconds behind gameplay.
@@ -144,3 +214,214 @@ reproduced cause. No new audio remedy or gameplay experiment was attempted.
 Request an affected-session report and exact settings/device/connection/onset
 information when following up. The RTSS explanation applies to the reporter's
 crackling; it does not establish the cause of #35 latency or every audio fault.
+
+
+## Guarded audio-backlog fault injection, October 23 UTC
+
+The owner explicitly approved up to one hour for this targeted experiment.
+The existing `high-refresh-rendering-20261011` investigation was continued with
+one bounded attempt and unchanged root/counters; the production guard remained
+enabled. Execution used its supervised child process tree. No game, ROM, save,
+release executable or GitHub issue was modified. Public responses remain held.
+
+**Result: a persistent software-queue backlog and pause recovery are reproduced
+under controlled faults in the released audio-device component. The trigger
+on the reporter's machine and a production remedy are still unverified.**
+
+### Method and identity
+
+The fixture extracts `HostAudioDevice` verbatim from `native_boot.cpp`, then
+checks it against the v1.4.0 tag. It uses the production playback-buffer helper,
+master-volume implementation and low-queue demand helper. The SDL 2.26.3 DLL
+has the same SHA-256 as the current released package. Real-backend tests use
+WASAPI on the owner's PC with silent synthetic stereo PCM at 22,018 Hz.
+
+The controlled producer emits nominal two-retrace audio chunks, using absolute
+60 Hz deadlines; this is a component harness, not the guest audio-manager/game
+execution. Trace/file-watcher dependencies are inert fixture substitutes.
+There is also a deterministic SDL-consumption substitute to check queue math
+without OS scheduling variation. Faults are introduced only by the fixture;
+the extracted production class is unchanged.
+
+### Measured results
+
+Numbers below are software queue durations, not measured speaker latency.
+Real-backend final medians use the last two seconds of each 15-second run.
+
+| Controlled case | Result |
+|---|---|
+| Normal playback | 121 ms final median; no underrun or overrun |
+| Consumer stopped for one second, then resumed | 1133 ms final median; excess persists after consumption returns; zero overrun count |
+| Two one-second consumer stops | 2131 ms median after the second stop |
+| Pause/resume and the existing anchor drain after those stops | 109 ms final median |
+| Six separate 150 ms consumer stops | 989 ms final median; zero underruns and zero overruns |
+| Producer stopped for one second while output kept consuming | One underrun, then recovery to 114 ms final median |
+| One second of extra PCM submitted as a burst; consumer never stopped | 1119 ms final median; zero overrun count |
+
+The deterministic counterpart starts near 108 ms and retains exactly one or
+two additional seconds after the respective consumer faults. Pause recovery
+returns to the same baseline. Its normal pause control does not accumulate
+delay, and a one-percent consumption-rate mismatch produces gradual growth
+instead of discrete steps. Eight deterministic scenarios and six real-backend
+scenarios completed with their targeted comparisons passing.
+
+### Interpretation and remaining work
+
+Once excess audio exists, ordinary playback produces and consumes at roughly
+the same rate, retaining the offset. The low-queue demand helper can accelerate
+production below its target but does not remove excess above it. Counting only
+queues over two seconds misses clearly excessive one-second backlogs. Existing
+pause/resume recovery drains queued sound toward 100 ms, reproducing the
+reporter's stated recovery pattern without a full game restart.
+
+This establishes a recovery gap under a controlled fault, not that the Audigy,
+its driver, NVIDIA VSync or any particular game scene caused #35. The burst
+control deliberately produces the same symptom with uninterrupted consumption:
+the next affected-session capture must distinguish a production burst from an
+output-consumption stall, rather than assuming hardware caused it. A baseline
+pass on another PC and zero overrun/underrun counts do not exclude this fault.
+
+Next evidence should include selected backend/device and format, current queue
+milliseconds, submitted/consumed deltas against monotonic time, host/VI clock
+events and pause/reanchor markers around a queue increase. Ordinary support logs
+currently omit those observations. If the software queue stays normal during
+audible delay, downstream buffering or source-event timing remains a separate
+path. The synthetic tests do not establish the full game's response to the
+fault or end-to-end audible latency.
+
+No production patch is applied. A fix must bound excess latency while preserving
+guest/game timing and avoiding audible discontinuities. Re-enabling the old
+second pacing loop would need care because it was removed to avoid frame
+hitches; periodically flushing audio without identifying the event is not a
+qualified remedy. Keep #35 open and do not claim a released resolution.
+
+Private evidence on D: `audio-backlog-test-20261023/authorization.json`,
+`process-guard.json`, hashed step requests/results and the fixture directory.
+The latter retains raw per-frame CSVs, source/DLL identity receipts,
+`fake-analysis.json`, `real-results.json`, `production-burst-result.json`,
+`verified-summary.json` and build logs. No copyrighted game data is involved.
+
+## Host queue recovery candidate, October 24 UTC
+
+Owner authorized five hours and a dedicated branch, `fix/audio-latency-recovery`.
+The production guard continues the existing investigation/root/counters. This
+is an unverified candidate, not a released fix or confirmation of #35's trigger.
+
+The candidate retains the original synth rate, PCM conversion/volume, AI DMA,
+VI/game pacing and ordinary SDL submissions. Native interactive playback alone
+can recover after the queue stays over 250 ms for a second, with consumption
+progress, following a one-second warmup. Startup/resume anchors, pause, loading,
+cutscene completion, reference timing, fast replay and null sinks are excluded.
+A service gap re-arms the detector; a recovery has a five-second cooldown.
+
+Recovery pauses the device briefly, retains the newest 100 ms from bounded
+post-volume PCM history, and blends its first 5 ms from the old pending head.
+For faults longer than the four-second history it fades in instead. Unavoidably,
+stale sound is discarded during this exceptional resynchronization; this cannot
+guarantee an inaudible transition. Submitted, consumed and discarded bytes stay
+separate; demand uses the actual remaining queue. SDL replacement failure follows
+the existing queue-failure contract rather than silently continuing without sound.
+An ordinary support-log recovery record does not require diagnostic capture.
+
+Validation in progress: pure policy/PCM tests, unchanged-path component parity,
+controlled fault recovery on simulated and real WASAPI consumption, native build,
+then owner listening. Full-game and reporter-machine verification remain pending.
+Private evidence: `D:/JFG-private/audio-latency-fix-20261024`. The initial branch
+preflight rejected a whitespace-stripped porcelain status; it made no edits.
+The corrected check preserved all pre-existing documentation and created the
+branch. No main/develop merge, release or GitHub response is authorized here.
+
+### Component validation results
+
+- MSVC `/W4 /WX`: the policy/PCM suite passes at 8,000, 22,018, 32,000,
+  44,100, 48,000 and 96,000 Hz. An hour of simulated normal buffering at each
+  rate produces no recovery. It also covers stalled consumption, transient
+  spikes, warmup/cooldown, exclusions, clock discontinuities, ring wrapping,
+  stereo signed samples, unchanged tail samples and long-fault fade-in.
+- A verbatim old/new `HostAudioDevice` fixture passes **48 baseline/candidate
+  comparisons** (three rates, four service frequencies and normal/pause/
+  producer-starvation/excluded contexts). Submitted PCM hashes and SDL queue/
+  playback-control operations match exactly; no recoveries/discards occur.
+  This proves the tested paths, not every hardware backend or full gameplay.
+- The deterministic fault cases retain 1,099/2,099/999/1,099/6,099 ms in the old
+  component after one stall, two stalls, six short stalls, an extra-production
+  burst and a six-second stall respectively. All settle to 117 ms with the
+  candidate. Recovery leaves emulated DMA state and original submission counts
+  unchanged, separates discarded bytes from consumption, and tests failed SDL
+  replacement with the device paused and the existing error path returned.
+- With the released SDL DLL and real **WASAPI**, normal baseline is 121 ms;
+  the released component retains 1,133 ms after a one-second consumption stop.
+  Candidate final medians are 108 ms after one stop, 120 ms after two,
+  111 ms after repeated short stops and 116 ms after extra production. These
+  successful fault runs have no underruns. Normal/pause/producer-starvation
+  controls trigger no latency recovery; the deliberate one-second producer
+  starvation produces one expected underrun and returns to 109 ms.
+- The first repeated-stall real run did record two underruns. Raw timestamps
+  put both after roughly 268 ms producer-observation gaps exceeding the queued
+  cushion, including one before any injected fault/recovery. That failed check
+  is retained, not relabeled a clean pass. A subsequent run of the same case
+  records no underruns. Its cause outside the component was not established.
+- GCC with AddressSanitizer/UndefinedBehaviorSanitizer and strict conversion
+  warnings passes. The initial Clang attempt could not run because clang++ is
+  not installed in Ubuntu-24.04; GCC supplied the sanitizer check instead.
+
+Private evidence: `component/source-receipt.json`, `005-component-ab.request.log`,
+`component/real-results.json`, `component/real-twice-underrun-analysis.json`,
+`component/real-continuation.json`, and `010-sanitize-gcc.request.log` beneath
+the October 24 evidence root. Silent PCM tests measure software queue duration,
+not speaker latency or subjective continuity. No game saves were used.
+
+The remaining release gate is unchanged: listen to normal gameplay, cutscene
+skips, focus/pause transitions and a long session in an isolated candidate,
+then obtain an affected-machine retest. A normal software queue with delayed
+audible output would require a different investigation. Keep #35 open.
+
+Transferable lesson: count queued latency and discarded audio separately from
+underruns and bytes played. A healthy producer/consumer rate after a temporary
+disruption does not restore their earlier phase. Recovery must not introduce
+a second clock controlling gameplay or alter sound for healthy queues.
+
+
+Final source review caught a telemetry-only error: `support_event` deliberately
+rejects spaces, whereas the first fixture substituted a stdout logger. Recovery
+metrics now use its accepted slash-separated category format. The component
+suite was rerun against the actual production logger, and all eight expected
+success/failure records were verified on disk. PCM/SDL parity and fault results
+remain unchanged. Original fixture evidence is preserved; the corrected receipt
+is `component-v2/support-validation.json`. This illustrates why a diagnostic stub
+does not establish that ordinary packaged support logging works.
+
+The full native build started before this string-only correction. Its source
+consistency check will intentionally reject that changed input; final native
+qualification must rebuild/check the current source and identity afterward.
+
+
+The final normal-path refinement reuses the measurement already taken by
+`service()`/`queue()` rather than polling SDL again. The 48 comparison pairs now
+also verify every SDL queue-size read, alongside PCM and playback-control calls;
+all match the baseline. Repeated real WASAPI normal/one-stall/two-stall checks
+use the actual production support logger. `component-v3` retains these exact
+source, operation-trace and support-log results. This avoids shifting the
+healthy path's cached demand observation just to evaluate recovery.
+
+### Native build and review package
+
+Fresh CPU/RSP generation from the supported local ROM completed and verified
+the matching ROM checksum. The current Windows native Release build passes,
+as do all eight registered audio suites: latency recovery, playback buffer,
+master volume, native event/demand timing, native audio source, DMA broker,
+audio task bridge and cutscene audio. The earlier in-flight build was rejected
+by its source-consistency check after the support-message correction; the final
+pass rebuilt/checked the exact current inputs and their hashes. Project
+validation, repository hygiene and whitespace checks also passed.
+
+The isolated `D:/JFG-previews/audio-latency-recovery-20261024` package uses the
+released launcher and a copied save/profile, keeps the owner's 120 FPS and
+audio/control settings, and has diagnostics/FPS overlay disabled. Its package
+hashes and source/runtime identity are checked. The released folder and save
+remain unchanged. Private `native-qualification.json` and `preview-ready.json`
+record the final input hashes and package identity.
+
+Status: implemented on `fix/audio-latency-recovery`, built and component-tested;
+owner listening and affected-reporter verification pending. Not merged into
+main/develop, published, posted to GitHub or claimed as a released #35 fix.
