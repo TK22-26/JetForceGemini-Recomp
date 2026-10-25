@@ -1,3 +1,4 @@
+#include "../../include/jfg/renderer/actor_lod_settings.hpp"
 // Native window ownership is independent of the ROM-derived game process.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -427,15 +428,18 @@ void persist() {
 }
 bool applyVideo(const jfg::frontend::VideoDialogSettings &settings,
                 std::wstring &error) {
-  if (!write(L"video.ini",
+  if (!write(L"game-settings.ini",wide(jfg::serialize_actor_lod(settings.actor_lod))) ||
+      !write(L"video.ini",
              wide(jfg::serialize_video_settings(settings.rendering))) ||
       !write(L"frontend-pause-inactive.txt",
              settings.pause_inactive ? L"1" : L"0")) {
     error = L"Could not save video settings. Check access to your save folder.";
     return false;
   }
-  if(app.render && IsWindow(app.render))
+  if(app.render && IsWindow(app.render)) {
     PostMessageW(app.render, WM_APP+26, settings.rendering.fog_percent, reinterpret_cast<LPARAM>(app.window));
+    PostMessageW(app.render, WM_APP+27,settings.actor_lod==jfg::ActorLod::high?1U:0U,reinterpret_cast<LPARAM>(app.window));
+  }
   app.pauseInactive = settings.pause_inactive;
   if (app.fullscreen != settings.fullscreen)
     fullscreen();
@@ -699,6 +703,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     if(!jfg::frontend::valid_video_request(request))return 0;
     jfg::frontend::VideoDialogSettings settings;
     settings.rendering={static_cast<jfg::FrameRateMode>(request.mode),request.fps,request.vsync!=0,static_cast<jfg::BlurMode>(request.blur),request.fog_percent};
+    settings.actor_lod=request.actor_lod?jfg::ActorLod::high:jfg::ActorLod::original;
     settings.fullscreen=request.fullscreen!=0;settings.window_size=request.window_size;settings.pause_inactive=request.pause_inactive!=0;
     std::wstring error;return applyVideo(settings,error)?1:0;
   }
@@ -987,6 +992,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       }
       jfg::frontend::VideoDialogModel model;
       model.settings = {*saved,app.fullscreen,app.pauseInactive,0};
+      model.settings.actor_lod=jfg::load_actor_lod(app.profile).value_or(jfg::ActorLod::original);
       model.apply = applyVideo;
       app.videoDialogOpen=true;
       capture(true);

@@ -1,5 +1,6 @@
 #include "jfg/renderer/door_indicator_presentation.hpp"
 #include "jfg/renderer/camera_helper_presentation.hpp"
+#include "jfg/renderer/camera_trig_precision.hpp"
 #include "jfg/renderer/native_blur_mode.hpp"
 #include "jfg/renderer/rain_fade.hpp"
 #include "jfg/renderer/fog_settings.hpp"
@@ -117,6 +118,7 @@
 #include "jfg/renderer/rt64_shell.hpp"
 #include "jfg/renderer/video_settings.hpp"
 #include "jfg/renderer/presentation_identity.hpp"
+#include "jfg/renderer/actor_lod_presentation.hpp"
 #include "jfg/renderer/interpolation_history.hpp"
 #include "jfg/renderer/vi_presentation.hpp"
 #include "jfg/runtime/audio_task_bridge.hpp"
@@ -1566,6 +1568,9 @@ struct State : JfgOriginalTimingFast {
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
   bool presentation_identity_enabled = false;
   jfg::PresentationIdentityTracker presentation_identities;
+  struct CameraFade { std::uint32_t actor=0,control=0,header=0; std::uint64_t tick=0, update=0; unsigned alpha=255; };
+  std::array<CameraFade,4> pc_camera_fades{};
+  std::uint64_t camera_fade_updates=0;
   jfg::rain::Runtime rain_fade;
 #endif
   bool os_initialized = false;
@@ -2217,6 +2222,9 @@ private:
     }
     auto *self = reinterpret_cast<LiveRt64Window*>(GetWindowLongPtrW(window,GWLP_USERDATA));
     if (!self) return DefWindowProcW(window,message,wparam,lparam);
+    if(message==WM_APP+27 && wparam<=1 && reinterpret_cast<HWND>(lparam)==GetAncestor(window,GA_ROOT)) {
+      jfg::configure_actor_lod(wparam?jfg::ActorLod::high:jfg::ActorLod::original);return 1;
+    }
     if(message==WM_APP+26 && wparam<=100 && reinterpret_cast<HWND>(lparam)==GetAncestor(window,GA_ROOT)) {
       jfg::configure_fog_strength(static_cast<unsigned>(wparam));return 1;
     }
@@ -6047,6 +6055,8 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
     wchar_t* config_path = nullptr;
     std::size_t size = 0;
     (void)_wdupenv_s(&config_path, &size, L"JFG_VIDEO_CONFIG");
+    const auto profile=config_path?std::filesystem::path(config_path).parent_path():std::filesystem::path{};
+    jfg::configure_actor_lod(jfg::load_actor_lod(profile).value_or(jfg::ActorLod::original));
     auto settings = jfg::load_video_settings(config_path == nullptr ? std::filesystem::path{} : std::filesystem::path(config_path));
     std::free(config_path);
     if (!settings) return std::nullopt;
@@ -6206,13 +6216,29 @@ bool execute_live_graphics_task(State &state, hle::GuestMemory &memory) {
   pending.changed.resize(count);
   const auto prepare_overlay_done = state.diagnostic_function_profile ? std::chrono::steady_clock::now()
       : std::chrono::steady_clock::time_point{};
-  if (state.presentation_identity_enabled)
-    pending.task.presentation_scene = std::make_shared<const jfg::PresentationSceneIdentity>(
-        state.presentation_identities.capture(
-            {reinterpret_cast<const std::uint8_t*>(pending.rdram.data()),pending.rdram.size()},
-            state.vi_retraces,[&state](std::uint32_t address) {
-              return translate_live_graphics_address(state,address);
-            }));
+  // Native scene lists are built after the previous list is submitted. Keep
+  // their metadata through the following update, including the intervening
+  // shadow tasks. This counter is independent of logging and elapsed VIs.
+  const auto current_fade=[&](const auto& fade) {
+    return fade.actor && fade.alpha<255U && state.camera_fade_updates>=fade.update &&
+        state.camera_fade_updates-fade.update<=1U;
+  };
+  const bool camera_fade_active=std::any_of(state.pc_camera_fades.begin(),state.pc_camera_fades.end(),current_fade);
+  if (state.presentation_identity_enabled || camera_fade_active) {
+    auto scene=state.presentation_identities.capture(
+        {reinterpret_cast<const std::uint8_t*>(pending.rdram.data()),pending.rdram.size()},
+        state.vi_retraces,[&state](std::uint32_t address) {
+          return translate_live_graphics_address(state,address);
+        });
+    const jfg::PresentationGuestView fade_ram({
+        reinterpret_cast<const std::uint8_t*>(pending.rdram.data()),pending.rdram.size()});
+    for(const auto& fade:state.pc_camera_fades)
+      if(current_fade(fade) &&
+         fade_ram.valid(fade.actor,0xA4U) && fade_ram.u32(fade.actor+0x68U)==fade.control &&
+         fade_ram.u32(fade.actor+0x40U)==fade.header)
+        scene.camera_fades.push_back({fade.actor,fade.alpha/255.0F});
+    pending.task.presentation_scene=std::make_shared<const jfg::PresentationSceneIdentity>(std::move(scene));
+  }
   if (state.diagnostic_function_profile) {
     const auto elapsed = [](auto a, auto b) { return static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::nanoseconds>(b-a).count()); };
@@ -8700,10 +8726,10 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       }
     }
   }
-  // Apply proximity fading only to the opacity returned for the current
-  // modern-camera player. Calling the guest first preserves its death/aim fades;
-  // no actor flags or persistent control fields are changed.
-  if(target==0x80015E3CU && state.modern_controls_active && !state.pc_input_blocked &&
+  // Keep native transparent-object ordering for a proximity-faded player.
+  // Renderer metadata resolves its nearest surface in a separate depth layer
+  // and blends the result once, rather than blending interior mesh surfaces.
+  if(target==0x80015E3CU && state.modern_controls_active &&
      (state.play_mode || state.input_replay_loaded) &&
      (state.input_record_path.empty() || state.pc_record_extended)) {
     jfg::mod::Memory ram({rdram,kRdramSize});
@@ -8727,7 +8753,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           const int before=static_cast<std::int32_t>(context->r2);
           const int after=jfg::pc_camera_player_alpha(body,
               {camera.position.x,camera.position.y,camera.position.z},before);
-          context->r2=static_cast<gpr>(after);
+          // Native alpha selects the original transparent-object ordering.
+          // Only our added fade (native opacity255) uses the isolated layer;
+          // native aim/death fades remain on their existing path.
+          if(before==255)context->r2=after;
+          state.pc_camera_fades[port]={actor,control,ram.u32(actor+0x40U),
+              state.vi_retraces,state.camera_fade_updates,before==255?static_cast<unsigned>(after):255U};
           if(after!=before)state.gameplay_trace.event("pc-camera-fade",{
             state.vi_retraces,actor,static_cast<std::uint32_t>(before),static_cast<std::uint32_t>(after)});
           return 1;
@@ -9548,6 +9579,25 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  // Interpolated presentation keeps the camera's four low angle bits.
+  // Original mode and all non-camera trig calls retain the native result.
+  const bool precision_camera_call=jfg::camera_precision_call(
+      state.presentation_identity_enabled,target,
+      static_cast<std::uint32_t>(context->r31),static_cast<std::uint32_t>(context->r6),
+      static_cast<std::uint32_t>(context->r5));
+  const auto precision_camera_angle=precision_camera_call ?
+      static_cast<std::uint32_t>(context->r4)+(target==0x80049C30U?0x4000U:0U):0U;
+  const auto finish_precision_camera=[&] {
+    if(!precision_camera_call)return;
+    std::fenv_t saved{};
+    if(std::feholdexcept(&saved)!=0)return;
+    const auto value=jfg::camera_precision_sine(precision_camera_angle,[&](unsigned index) {
+      float entry=0.0f;std::memcpy(&entry,rdram+0xA7D94U+index*4U,4U);return entry;
+    });
+    if(std::fesetenv(&saved)!=0)
+      fail_closed_dispatch(state,"camera-precision","restore-fenv",target);
+    if(value)context->f0.fl=*value;
+  };
   // Qualified bounded resident leaves cannot call, yield, write
   // memory or change section ownership. Preserve dispatch/watch history above.
   // Original timing, instruction observers and focused dispatch diagnostics
@@ -9564,6 +9614,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 
     if((target==0x80049C30U || target==0x80049C34U) &&
        jfg_native_trig_try(rdram,context,target==0x80049C30U)) {
+      finish_precision_camera();
       ++state.generated_calls;++state.pure_trig_calls;return 1;
     }
     if(target==0x80049D80U && jfg_native_angle_diff_try(rdram,context)) {
@@ -10093,6 +10144,18 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             if (static_cast<std::uint32_t>(context->r31) == 0x8005D59CU)
               state.presentation_identities.particle_sprite({rdram,kRdramSize},
                   output,owner,asset,state.vi_retraces);
+            else if (section_addresses &&
+                static_cast<std::uint32_t>(context->r31)==
+                    static_cast<std::uint32_t>(section_addresses[115U])+0xB0CU) {
+              // Pinned US regionidDraw: a3 is a stack transform, while the
+              // real actor and sorted sparkle index remain in its frame.
+              const auto sp=static_cast<std::uint32_t>(context->r29);
+              const auto cursor=static_cast<std::uint32_t>(context->r19);
+              if(owner==sp+0x190U && cursor>=sp+0x281U && cursor<=sp+0x294U)
+                state.presentation_identities.region_sprite({rdram,kRdramSize},
+                    output,ram.u32(sp+0x2ACU),static_cast<std::uint32_t>(context->r21),
+                    ram.u8(cursor-1U),asset,state.vi_retraces);
+            }
             else
               state.presentation_identities.sprite({rdram,kRdramSize},
                   output,owner,asset,state.vi_retraces);
@@ -10107,10 +10170,32 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           char value[2]{};
           return GetEnvironmentVariableA("JFG_DIAGNOSTIC_AUDIO_SCHEDULER",value,2U)==1U && value[0]=='1';
         }();
+        static const bool shot_matrix_trace=[] {
+          char value[2]{};
+          return GetEnvironmentVariableA("JFG_DIAGNOSTIC_SHOT_MATCHING",value,2U)==1U && value[0]=='1';
+        }();
+        static const bool camera_motion_trace=[] {
+          char value[2]{};
+          return GetEnvironmentVariableA("JFG_DIAGNOSTIC_CAMERA_MOTION",value,2U)==1U && value[0]=='1';
+        }();
+        const auto tracer_caller=static_cast<std::uint32_t>(context->r31);
+        const bool observe_tracer=state.presentation_identity_enabled && target==0x8000A300U &&
+            (tracer_caller==0x8000AB4CU || tracer_caller==0x8000AF5CU);
+        const auto tracer_actor=observe_tracer ? static_cast<std::uint32_t>(context->r20) : 0U;
+        const jfg::PresentationGuestView tracer_ram({rdram,kRdramSize});
+        const auto tracer_vertex_output=observe_tracer ? static_cast<std::uint32_t>(context->r5) : 0U;
+        const auto tracer_vertices=observe_tracer ? tracer_ram.u32(tracer_vertex_output) : 0U;
+        const auto tracer_list=observe_tracer ? tracer_ram.u32(static_cast<std::uint32_t>(context->r4)) : 0U;
+        const bool observe_shot_matrix=shot_matrix_trace && state.gameplay_trace &&
+            (target==0x80041A90U || target==0x80041BE0U);
+        const auto shot_output=observe_shot_matrix ? static_cast<std::uint32_t>(context->r5) : 0U;
+        const auto shot_matrix=observe_shot_matrix ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(shot_output) : 0U;
+        const auto shot_caller=observe_shot_matrix ? static_cast<std::uint32_t>(context->r31) : 0U;
+        const auto shot_actor=observe_shot_matrix ? static_cast<std::uint32_t>(context->r21) : 0U;
         const bool observe_audio_buffer=audio_buffer_trace && target==0x80096DF0U;
         const auto ai_buffer_address=observe_audio_buffer ? static_cast<std::uint32_t>(context->r4) : 0U;
         const auto ai_buffer_length=observe_audio_buffer ? static_cast<std::uint32_t>(context->r5) : 0U;
-        const bool observe_camera=state.presentation_identity_enabled && target==0x80040AA4U;
+        const bool observe_camera=(state.presentation_identity_enabled || camera_motion_trace) && target==0x80040AA4U;
         const auto camera_output=observe_camera ? static_cast<std::uint32_t>(context->r5) : 0U;
         const auto camera_matrix=observe_camera ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(camera_output) : 0U;
         // US ShirukenPushMtx has the same output/actor ABI as camPushModelMtx,
@@ -10125,6 +10210,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto rigid_matrix = observe_rigid ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(rigid_output) : 0U;
 #endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        jfg::ActorLodPresentationScope actor_lod_presentation(
+            {rdram,kRdramSize},target,static_cast<std::uint32_t>(context->r4),
+            target==0x8000CC64U && jfg::actor_lod_preference().load(std::memory_order_relaxed)==jfg::ActorLod::high);
         jfg::CameraHelperPresentationScope camera_helper_presentation(
             {rdram,kRdramSize},target,static_cast<std::uint32_t>(context->r7));
         const auto function_started = state.diagnostic_cpu_costs ? std::chrono::steady_clock::now()
@@ -10175,6 +10263,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           generated(rdram, context);
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        finish_precision_camera();
         camera_helper_presentation.restore();
         if (rain_fade) {
           const auto native_result = context->r2;
@@ -10233,14 +10322,50 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           if(!delivered || !restored)
             fail_closed_dispatch(state,"audio","immediate-host-delivery",target);
         }
+        if(observe_tracer && tracer_ram.u32(tracer_vertex_output)==tracer_vertices+40U &&
+           tracer_ram.u32(tracer_list)==0x01010040U) {
+          const auto tracer_matrix=tracer_ram.u32(tracer_list+4U);
+          state.presentation_identities.tracer({rdram,kRdramSize},tracer_actor,
+              tracer_vertices,tracer_matrix,state.vi_retraces);
+          if(state.gameplay_trace)state.gameplay_trace.event("tracer-draw",
+              {state.vi_retraces,tracer_actor,tracer_caller,tracer_vertices,tracer_matrix,
+               tracer_ram.u16(tracer_actor+0x48U),tracer_ram.u32(tracer_actor+0x68U),
+               tracer_ram.u32(0x800FB114U)});
+        }
+        if (observe_shot_matrix) {
+          const jfg::PresentationGuestView shot_ram({rdram,kRdramSize});
+          std::array<std::uint64_t,24> row{};
+          row[0]=state.vi_retraces;row[1]=target;row[2]=shot_caller;row[3]=shot_actor;
+          row[4]=shot_matrix;row[5]=shot_ram.u32(shot_output);
+          row[6]=shot_ram.u16(shot_actor+0x48U);row[7]=shot_ram.u32(shot_actor+0x88U);
+          for(unsigned i=0;i<16U;++i)row[8U+i]=shot_ram.u32(shot_matrix+i*4U);
+          state.gameplay_trace.event("shot-draw-matrix",row);
+        }
         if(observe_audio_buffer && state.gameplay_trace)
           state.gameplay_trace.event("audio-ai-buffer",{state.vi_retraces,state.cpu_count,
               ai_buffer_address,ai_buffer_length,static_cast<std::uint32_t>(context->r2),
               state.mmio_trace->ai_dma.read(12U,state.cpu_count).value_or(UINT32_MAX),
               state.host_audio.queued_bytes(),state.host_audio.consumed_bytes()});
         if (observe_camera && camera_matrix &&
-            jfg::PresentationGuestView({rdram,kRdramSize}).u32(camera_output)==camera_matrix+64U)
-          state.presentation_identities.camera_completed({rdram,kRdramSize},camera_matrix,state.vi_retraces);
+            jfg::PresentationGuestView({rdram,kRdramSize}).u32(camera_output)==camera_matrix+64U) {
+          if(state.presentation_identity_enabled)
+            state.presentation_identities.camera_completed({rdram,kRdramSize},camera_matrix,state.vi_retraces);
+          if(camera_motion_trace && state.gameplay_trace) {
+            // Read the final view/projection immediately after emission, before
+            // another draw reuses scratch globals. No guest writes or math.
+            const jfg::PresentationGuestView camera_ram({rdram,kRdramSize});
+            std::array<std::uint64_t,54> row{};
+            row[0]=state.vi_retraces;row[1]=camera_ram.u32(0x800FB114U);
+            row[2]=camera_matrix;row[3]=camera_ram.u32(0x800FA630U);
+            row[4]=camera_ram.u32(0x800FA634U);row[5]=state.gameplay_trace_updates;
+            for(unsigned i=0;i<16U;++i) {
+              row[6U+i]=camera_ram.u32(0x800FAF78U+i*4U);
+              row[22U+i]=camera_ram.u32(0x800FAA70U+i*4U);
+              row[38U+i]=camera_ram.u32(camera_matrix+i*4U);
+            }
+            state.gameplay_trace.event("camera-emitted-pose",row);
+          }
+        }
         if (observe_rigid && (!observe_shuriken ||
             jfg::PresentationGuestView({rdram,kRdramSize}).u32(rigid_output)==rigid_matrix+64U)) {
           state.presentation_identities.rigid({rdram,kRdramSize},rigid_matrix,rigid_actor,state.vi_retraces);
@@ -10520,6 +10645,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         state.diagnostic_clock_released=true;
       }
       if (target == 0x80044FACU) {
+#if defined(JFG_PHASE8_LIVE_RUNTIME)
+        ++state.camera_fade_updates;
+#endif
         trace_gameplay_state(state, true);
         if (state.timing_trace.is_open())
           state.timing_trace << "game-update\t" << state.vi_frames << '\t'

@@ -2,7 +2,11 @@
 # pinned checkout and original waits; prepare a hash-guarded build-tree copy.
 set(jfg_gpu_source "${jfg_rt64_root}/src/hle/rt64_state.cpp")
 file(SHA256 "${jfg_gpu_source}" jfg_gpu_hash)
-if(NOT jfg_gpu_hash STREQUAL "98464b469c2bdf7bb13e17bb204d41476250a23d82bba332a020e7962279ebc8" AND
+if(NOT jfg_gpu_hash STREQUAL "69be93fb554ab2eb521badfaa4d43148e626e73cc4bc106bee1be1f598b0f736" AND
+   NOT jfg_gpu_hash STREQUAL "6364296df0c52c45114944e525aa8865fba7099b40e4f3e7d45cd00015f0be94" AND
+   NOT jfg_gpu_hash STREQUAL "e7a7483602d08ed533f35351c36db387fd0f7a05700dc76aeefe616e4e726cfc" AND
+   NOT jfg_gpu_hash STREQUAL "576d130e49d2b44c62188f500e711fbc54fdd23486925b39a634d4bd6054631f" AND
+   NOT jfg_gpu_hash STREQUAL "98464b469c2bdf7bb13e17bb204d41476250a23d82bba332a020e7962279ebc8" AND
    NOT jfg_gpu_hash STREQUAL "700c8d1247af96b2a37575935d68763b55ae97fa82bd858299aceda939bf92bf")
     message(FATAL_ERROR "Pinned RT64 state differs from GPU timing instrumentation input")
 endif()

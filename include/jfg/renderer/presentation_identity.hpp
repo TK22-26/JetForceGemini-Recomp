@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstring>
 #include <map>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -20,6 +21,7 @@ struct PresentationModelIdentity {
   std::array<std::uint32_t, 2> palettes{};
   std::uint32_t vertices = 0, vertex_count = 0, bone_count = 0;
   bool deforming_bridge = false; // US hitBridgeControl (behavior 55).
+  bool animated_ship = false; // US animship, used only for attached effects.
 };
 struct PresentationCameraIdentity {
   std::uint32_t matrix = 0;
@@ -27,11 +29,19 @@ struct PresentationCameraIdentity {
   std::uint64_t generation = 0;
   RigidPresentationPose pose;
   bool pose_valid = false;
+  // Sky uses native operands for byte validation, folded model/view only for motion.
+  std::optional<RigidPresentationPose> motion_pose;
 };
 struct PresentationSpriteIdentity {
   std::uint32_t anchor = 0, actor = 0, sprite = 0;
   std::uint64_t lifetime = 0;
+  std::uint32_t sub_id = 0, control = 0;
 };
+inline std::array<std::uint64_t,4> presentation_sprite_key(
+    const PresentationSpriteIdentity& sprite,std::uint64_t camera) {
+  return {sprite.lifetime,(std::uint64_t(sprite.sub_id)<<32U)|sprite.actor,
+      (std::uint64_t(sprite.control)<<32U)|sprite.sprite,camera};
+}
 // A rigid object's transient combined matrix is bound to its actor lifetime.
 // The address locates this task's sample; it is never the history key.
 struct PresentationRigidIdentity {
@@ -62,12 +72,38 @@ struct PresentationLimbIdentity {
   std::uint32_t actor = 0, control = 0, header = 0, vertices = 0;
   std::vector<std::array<std::uint32_t,2>> ranges;
 };
+// US animshipDrawThrusters attaches separately allocated fxDrawCone geometry
+// to a model bone. Both alternating buffers represent the same logical mesh.
+struct PresentationConeIdentity {
+  std::uint64_t lifetime = 0;
+  std::uint32_t actor = 0, instance = 0, control = 0, allocation = 0;
+  std::array<std::uint32_t,2> vertices{};
+  std::uint32_t vertex_count = 0, joint = 0;
+};
+// US objDrawTracer emits a transient four-vertex view-space quad.
+// The live projectile/control allocation owns it; task bytes bind scratch reuse.
+// US behavior 40 / shockwaveDraw: two alternating 20-vertex rings at
+// control+0 and control+200. Radius changes in local vertices each scene.
+struct PresentationShockwaveIdentity {
+  std::uint64_t lifetime=0;
+  std::uint32_t actor=0,control=0,header=0,vertices=0,texture=0;
+};
+struct PresentationTracerIdentity {
+  std::uint64_t lifetime=0, camera=0;
+  std::uint32_t actor=0, control=0, header=0, vertices=0, matrix=0;
+  RigidPresentationPose pose{};
+};
+struct PresentationCameraFade { std::uint32_t actor=0; float opacity=0; };
 struct PresentationSceneIdentity {
+  std::vector<PresentationCameraFade> camera_fades;
   std::vector<PresentationModelIdentity> models;
+  std::vector<PresentationConeIdentity> cones;
   std::vector<PresentationCameraIdentity> cameras;
   std::vector<PresentationSpriteIdentity> sprites;
   std::vector<PresentationRigidIdentity> rigids;
   std::vector<PresentationBeamIdentity> beams;
+  std::vector<PresentationTracerIdentity> tracers;
+  std::vector<PresentationShockwaveIdentity> shockwaves;
   std::vector<PresentationGlassIdentity> glass;
   std::vector<PresentationLimbIdentity> limbs;
 };
@@ -76,7 +112,23 @@ struct PresentationSceneIdentity {
 struct PresentationVertexIdentity {
   const PresentationModelIdentity *owner = nullptr, *geometry = nullptr;
   std::uint32_t joint = 0, vertex = 0;
+  const PresentationConeIdentity* cone = nullptr;
 };
+inline void presentation_cone_vertex(const PresentationSceneIdentity& scene,
+    std::uint32_t source, PresentationVertexIdentity& result) {
+  if (!result.owner || result.geometry) return;
+  for (const auto& cone:scene.cones) {
+    if (cone.actor!=result.owner->actor || cone.lifetime!=result.owner->lifetime ||
+        cone.instance!=result.owner->instance || cone.joint!=result.joint) continue;
+    for (const auto base:cone.vertices) {
+      if (!base || source<base || (source-base)%10U ||
+          (source-base)/10U>=cone.vertex_count) continue;
+      // An ambiguous custom allocation is never a provenance fallback.
+      if (result.cone) {result.cone=nullptr;return;}
+      result.cone=&cone;result.vertex=(source-base)/10U;
+    }
+  }
+}
 inline PresentationVertexIdentity
 presentation_vertex_identity(const PresentationSceneIdentity &scene,
                              std::uint32_t matrix, std::uint32_t source) {
@@ -109,6 +161,7 @@ presentation_vertex_identity(const PresentationSceneIdentity &scene,
     result.geometry = &model;
     result.vertex = (source - model.vertices) / 10U;
   }
+  presentation_cone_vertex(scene,source,result);
   return result;
 }
 // F3DDKR DMA supplies at most 32 consecutive ten-byte vertices with one
@@ -156,6 +209,9 @@ inline void presentation_vertex_identities(const PresentationSceneIdentity& scen
       vertex.vertex=static_cast<std::uint32_t>(offset/10U+i-first);
     }
   }
+  if (!scene.cones.empty()) for (std::size_t i=0;i<result.size();++i)
+    if (!ambiguous[i]) presentation_cone_vertex(scene,
+        source+static_cast<std::uint32_t>(i*10U),result[i]);
 }
 inline const PresentationRigidIdentity* presentation_rigid_owner(
     const PresentationSceneIdentity& scene, std::uint32_t matrix) {
@@ -165,6 +221,20 @@ inline const PresentationRigidIdentity* presentation_rigid_owner(
     owner=&rigid;
   }
   return owner;
+}
+inline const PresentationShockwaveIdentity* presentation_shockwave_batch(
+    const PresentationSceneIdentity& scene, const PresentationRigidIdentity& owner,
+    std::uint32_t source,std::uint32_t count) {
+  if(!owner.lifetime || !owner.camera || !count)return nullptr;
+  const PresentationShockwaveIdentity* found=nullptr;
+  for(const auto& wave:scene.shockwaves) {
+    if(wave.actor!=owner.actor || wave.lifetime!=owner.lifetime ||
+       source<wave.vertices || source-wave.vertices>=200U ||
+       (source-wave.vertices)%10U || count>(200U-(source-wave.vertices))/10U)continue;
+    if(found)return nullptr;
+    found=&wave;
+  }
+  return found;
 }
 inline const PresentationBeamIdentity* presentation_beam_vertex(
     const PresentationSceneIdentity& scene, const PresentationRigidIdentity& owner,
@@ -323,6 +393,9 @@ class PresentationIdentityTracker {
 public:
   void retire(std::uint32_t actor) {
     actors_.erase(actor);
+    if(sky_actor_==actor){sky_actor_=0;sky_lifetime_={};}
+    for(auto it=tracers_.begin();it!=tracers_.end();)
+      if(it->second.identity.actor==actor)it=tracers_.erase(it);else ++it;
     for (auto it = rigids_.begin(); it != rigids_.end();)
       if (it->second.actor == actor) it = rigids_.erase(it); else ++it;
     for (auto it = sprites_.begin(); it != sprites_.end();)
@@ -390,6 +463,28 @@ public:
     sprites_[PresentationGuestView::physical(address)] = {
         actor, asset, ram.u32(actor + 0x40U), ram.u32(actor + 0x6CU), tick};
   }
+  // US regionidDraw sorts 20 persistent sparkle slots by distance, then
+  // calls camDoSprite with a temporary ObjectTransform on its stack. The
+  // sorted slot, not draw order or that temporary address, owns the sprite.
+  void region_sprite(std::span<const std::uint8_t> data,
+      std::uint32_t output_pointer, std::uint32_t actor,
+      std::uint32_t control, std::uint32_t index, std::uint32_t asset,
+      std::uint64_t tick) {
+    const PresentationGuestView ram(data);
+    level(ram.u32(0x800FB114U));
+    const auto address=ram.u32(output_pointer);
+    const auto physical=PresentationGuestView::physical(address);
+    sprites_.erase(physical); // Scratch reuse cannot retain a prior owner.
+    if(index>=20U || !ram.valid(address,10U) || !ram.valid(actor,0xA1U) ||
+       ram.u16(actor+0x48U)!=136U || ram.u32(actor+0x68U)!=control ||
+       (control&3U) || !ram.valid(control,0x154U) || !ram.u8(control+0xFU))return;
+    const auto header=ram.u32(actor+0x40U);
+    const auto assets=ram.u32(header+0xACU);
+    if(!ram.valid(header,0xB0U) || !ram.valid(assets,4U) ||
+       !ram.valid(asset,8U) || ram.u32(assets)!=asset)return;
+    if(sprites_.size()>=4096U)sprites_.clear();
+    sprites_[physical]={actor,asset,header,ram.u32(actor+0x6CU),tick,index+1U,control};
+  }
   // US camPushModelMtx (0x80041CA0), and module 122 ShirukenPushMtx
   // (0x07A00F38), consume ObjectTransform* in a2 and
   // write a combined model/camera matrix at the entry value of *a1. Observe
@@ -418,6 +513,39 @@ public:
       binding.pose.projection[i]=std::bit_cast<float>(ram.u32(0x800FAA70U+i*4U));
     }
     rigids_[physical] = binding;
+  }
+  // Observe only the verified objPrintCustomObject projectile callers,
+  // after exactly four native vertices and their projection DMA are emitted.
+  void tracer(std::span<const std::uint8_t> data, std::uint32_t actor,
+              std::uint32_t vertices, std::uint32_t matrix, std::uint64_t tick) {
+    const PresentationGuestView ram(data);
+    level(ram.u32(0x800FB114U));
+    vertices=PresentationGuestView::physical(vertices);
+    matrix=PresentationGuestView::physical(matrix);
+    tracers_.erase(vertices);
+    const auto number=ram.u32(0x800FA634U), mode=ram.u32(0x800FA630U);
+    if(!ram.valid(actor,0xA1U) || !ram.valid(vertices,40U) ||
+       !ram.valid(matrix,64U) || (matrix&3U) || (vertices&1U) || number>3U)
+      return;
+    const auto control=ram.u32(actor+0x68U);
+    if(!control || !ram.valid(control,0x20U))return;
+    if(tracers_.size()>=1024U)tracers_.clear();
+    Tracer record{};
+    record.tick=tick;record.models=ram.u32(actor+0x6CU);
+    record.identity.actor=actor;record.identity.control=control;
+    record.identity.header=ram.u32(actor+0x40U);
+    record.identity.vertices=vertices;record.identity.matrix=matrix;
+    record.identity.camera=(std::uint64_t(mode)<<32U)|(number+1U);
+    // Native corners are decoded back into world space before presentation.
+    // The remaining camera pose has an identity world transform.
+    record.identity.pose.world={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+    for(unsigned i=0;i<40U;++i)record.vertices[i]=ram.u8(vertices+i);
+    for(unsigned i=0;i<16U;++i) {
+      record.matrix[i]=ram.u32(matrix+i*4U);
+      record.identity.pose.view[i]=std::bit_cast<float>(ram.u32(0x800FAF78U+i*4U));
+      record.identity.pose.projection[i]=std::bit_cast<float>(ram.u32(0x800FAA70U+i*4U));
+    }
+    tracers_[vertices]=record;
   }
   // camSetProjMtx writes one camera MVP at *a1 and emits its DMA command.
   // Observe before the guest call; bind the record to the eventual task copy.
@@ -511,6 +639,13 @@ public:
           result.limbs.push_back({serial,actor,control,header,
               PresentationGuestView::physical(vertices),std::move(ranges)});
       }
+      if(ram.u16(actor+0x48U)==40U && ram.valid(control,0x1DBU) &&
+         !(control&3U) && ram.u8(control+0x1DAU)<=1U) {
+        const auto texture=ram.u32(control+0x190U);
+        if(ram.valid(texture,8U))
+          result.shockwaves.push_back({serial,actor,control,header,
+              PresentationGuestView::physical(control)+ram.u8(control+0x1DAU)*200U,texture});
+      }
       if (ram.u16(actor+0x48U)==68U && ram.valid(control,0xD0U) &&
           (control&3U)==0U && ram.u8(control+0xCCU)!=0U &&
           ram.u8(control+0xCDU)<=1U) {
@@ -582,16 +717,87 @@ public:
              PresentationGuestView::physical(vertex_base),
              vertices,
              bones,
-             ram.u16(actor + 0x48U) == 55U});
+             ram.u16(actor + 0x48U) == 55U,ram.u16(actor + 0x48U) == 95U});
+        // Module 73 animshipDrawThrusters uses the selected instance's bone
+        // palette for up to sixteen 12-byte engine entries. fxAllocateCone
+        // owns a header, triangle stream and two contiguous vertex buffers;
+        // fxDrawCone selects +8/+12 with byte +0x16. Recognize that exact
+        // allocation layout, never arbitrary vertices near a model.
+        if (palette && ram.u16(actor+0x48U)==95U &&
+            j==ram.u8(actor+0x3AU) && !(control&3U) && ram.valid(control,192U)) {
+          for (std::uint32_t engine=0;engine<16U;++engine) {
+            const auto entry=control+engine*12U, cone=ram.u32(entry);
+            if (!cone) break;
+            const auto joint=ram.u8(entry+11U);
+            if (!ram.u8(entry+4U) || joint>=bones || (cone&3U) ||
+                !ram.valid(cone,0x28U)) continue;
+            const auto sides=ram.u8(cone+0x15U);
+            const auto cone_vertices=sides ? sides+1U : 34U;
+            const auto triangle_bytes=sides ? sides*16U : 0x280U;
+            const auto bytes=0x28U+triangle_bytes+cone_vertices*20U;
+            if (sides>30U || ram.u8(cone+0x14U)!=sides+1U ||
+                ram.u8(cone+0x16U)>1U || !ram.valid(cone,bytes)) continue;
+            const auto first=cone+0x28U+triangle_bytes;
+            if (ram.u32(cone+0x10U)!=cone+0x28U ||
+                ram.u32(cone+8U)!=first || ram.u32(cone+12U)!=first+cone_vertices*10U)
+              continue;
+            result.cones.push_back({serial,actor,instance,control,cone,
+                {PresentationGuestView::physical(first),
+                 PresentationGuestView::physical(first+cone_vertices*10U)},cone_vertices,joint});
+          }
+        }
       }
     }
     actors_ = std::move(live);
+    for(auto it=tracers_.begin();it!=tracers_.end();) {
+      const auto& record=it->second;const auto& id=record.identity;
+      const auto actor=actors_.find(id.actor);
+      bool bytes_match=true;
+      for(unsigned i=0;i<40U;++i)bytes_match=bytes_match && ram.u8(id.vertices+i)==record.vertices[i];
+      for(unsigned i=0;i<16U;++i)bytes_match=bytes_match && ram.u32(id.matrix+i*4U)==record.matrix[i];
+      if(tick<record.tick || tick-record.tick>6U || !bytes_match ||
+         actor==actors_.end() || actor->second.header!=id.header ||
+         actor->second.models!=record.models || ram.u32(id.actor+0x68U)!=id.control)
+        it=tracers_.erase(it);
+      else {
+        auto retained=id;retained.lifetime=actor->second.serial;
+        result.tracers.push_back(retained);++it;
+      }
+    }
+    const auto sky=ram.u32(0x800F2F88U);
+    const auto sky_header=ram.u32(sky+0x40U),sky_models=ram.u32(sky+0x6CU);
+    const auto sky_count=ram.u8(sky_header+0x1FU);
+    const bool sky_live=ram.valid(sky,0xA4U) && ram.valid(sky_header,0x20U) &&
+        sky_count>0U && sky_count<=16U && ram.valid(sky_models,sky_count*4U);
+    if(!sky_live){sky_actor_=0;sky_lifetime_={};}
+    else if(sky_actor_!=sky || sky_lifetime_.header!=sky_header || sky_lifetime_.models!=sky_models) {
+      sky_actor_=sky;sky_lifetime_={++serial_,sky_header,sky_models};
+    }
     for (auto it = rigids_.begin(); it != rigids_.end();) {
       const auto &rigid = it->second;
       const auto actor = actors_.find(rigid.actor);
       bool bytes_match = true;
       for (unsigned i = 0; i < 16; ++i)
         bytes_match = bytes_match && ram.u32(it->first + i*4U) == rigid.words[i];
+      // The sky is drawn before ordinary actors and follows a separate
+      // allocation. Bind its exact emitted transform, not whichever triangle
+      // happens to remain in front of the camera this frame. Folding its model
+      // transform into the view lets the standard owned-camera continuity/cut
+      // checks apply without weakening arbitrary near-plane geometry guards.
+      if(sky_live && rigid.actor==sky_actor_ && rigid.header==sky_lifetime_.header &&
+         rigid.models==sky_lifetime_.models && tick>=rigid.tick && tick-rigid.tick<=6U && bytes_match) {
+        auto pose=rigid.pose;
+        pose.world={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+        for(unsigned row=0;row<4;++row)for(unsigned col=0;col<4;++col) {
+          const auto& a=rigid.pose.world;const auto& b=rigid.pose.view;
+          const volatile float t0=a[row*4]*b[col],t1=a[row*4+1]*b[4+col],
+              t2=a[row*4+2]*b[8+col],t3=a[row*4+3]*b[12+col];
+          const volatile float left=t1+t2,right=t0+t3;pose.view[row*4+col]=left+right;
+        }
+        result.cameras.push_back({it->first,0x534B590000000000ULL|rigid.camera,
+                                  sky_lifetime_.serial,rigid.pose,true,pose});
+        ++it;continue;
+      }
       if (tick < rigid.tick || tick - rigid.tick > 6U || !bytes_match ||
           actor == actors_.end() || actor->second.header != rigid.header ||
           actor->second.models != rigid.models) it = rigids_.erase(it);
@@ -605,11 +811,13 @@ public:
       const auto actor = actors_.find(sprite.actor);
       if (tick < sprite.tick || tick - sprite.tick > 6U ||
           actor == actors_.end() || actor->second.header != sprite.header ||
-          actor->second.models != sprite.models)
+          actor->second.models != sprite.models ||
+          (sprite.control && (ram.u32(sprite.actor+0x68U)!=sprite.control ||
+           ram.u16(sprite.actor+0x48U)!=136U || !ram.u8(sprite.control+0xFU))))
         it = sprites_.erase(it);
       else {
         result.sprites.push_back(
-            {it->first, sprite.actor, sprite.asset, actor->second.serial});
+            {it->first, sprite.actor, sprite.asset, actor->second.serial, sprite.sub_id, sprite.control});
         ++it;
       }
     }
@@ -644,6 +852,7 @@ private:
   struct Sprite {
     std::uint32_t actor, asset, header, models;
     std::uint64_t tick;
+    std::uint32_t sub_id=0, control=0;
   };
   struct Rigid {
     std::uint32_t actor, header, models;
@@ -651,6 +860,14 @@ private:
     std::array<std::uint32_t, 16> words;
     RigidPresentationPose pose{};
   };
+  struct Tracer {
+    PresentationTracerIdentity identity{};
+    std::uint32_t models=0;
+    std::uint64_t tick=0;
+    std::array<std::uint8_t,40> vertices{};
+    std::array<std::uint32_t,16> matrix{};
+  };
+  std::map<std::uint32_t,Tracer> tracers_;
   std::map<std::uint32_t, Rigid> rigids_;
   struct ParticleSprite {
     std::uint32_t particle, asset;
@@ -660,6 +877,8 @@ private:
   std::map<std::uint32_t, ParticleSprite> particle_sprites_;
   std::map<std::uint32_t, Sprite> sprites_;
   std::map<std::uint32_t, Lifetime> actors_;
+  std::uint32_t sky_actor_=0;
+  Lifetime sky_lifetime_{};
   std::map<std::uint32_t, Camera> cameras_;
   std::uint64_t serial_ = 0;
   std::uint32_t level_ = UINT32_MAX;
@@ -667,7 +886,9 @@ private:
   void level(std::uint32_t current) {
     if (current != level_) {
       actors_.clear();
+      sky_actor_=0;sky_lifetime_={};
       rigids_.clear();
+      tracers_.clear();
       cameras_.clear();
       sprites_.clear();
       particles_clear();

@@ -82,6 +82,34 @@ int main() {
         gap_history.record({},302,true);
         require(!gap_history.record({camera_b},304,true).transforms[0].matched);
     }
+    // A camera-relative sky retains native product operands; folding them
+    // is only a continuity representation. Changing native claims must fail
+    // even when the folded claim happens to agree.
+    {
+        auto a=bridge,b=pan;a.rigid_pose.reset();b.rigid_pose.reset();
+        a.camera_owner=b.camera_owner=std::array<std::uint64_t,2>{88,0x534B590000000001ULL};
+        a.camera_pose=pose;b.camera_pose=next_pose;
+        a.camera_pose->world[12]=1000;a.camera_pose->view[12]=-1000;
+        b.camera_pose->world[12]=1001;b.camera_pose->view[12]=-1001;
+        a.camera_motion_pose=pose;b.camera_motion_pose=next_pose;b.key={601};
+        require(jfg::rigid_pose_matches_matrix(*a.camera_pose,a.matrix));
+        require(jfg::rigid_pose_matches_matrix(*b.camera_pose,b.matrix));
+        jfg::PresentationHistory sky;sky.record({a},300,true);
+        require(sky.record({b},302,true).transforms[0].matched);
+        auto corrupt=b;corrupt.camera_pose->world[12]+=1;
+        jfg::PresentationHistory bad;bad.record({a},300,true);
+        require(!bad.record({corrupt},302,true).transforms[0].matched);
+        corrupt.key={602};
+        jfg::PresentationHistory conflict;conflict.record({a},300,true);
+        const auto disagree=conflict.record({b,corrupt},302,true);
+        require(!disagree.transforms[0].matched&&!disagree.transforms[1].matched);
+        auto cut=b;cut.camera_motion_pose->view[12]=300;
+        jfg::PresentationHistory cuts;cuts.record({a},300,true);
+        require(!cuts.record({cut},302,true).transforms[0].matched);
+        auto retired=b;retired.camera_owner->at(0)++;
+        jfg::PresentationHistory lifetime;lifetime.record({a},300,true);
+        require(!lifetime.record({retired},302,true).transforms[0].matched);
+    }
     // A distant triangle can barely move on screen across a real camera cut.
     // Its matching shape must not drag every near mesh sharing that camera.
     {
@@ -260,7 +288,7 @@ int main() {
     require(!missed.record({late},tick+40U,true).transforms[0].matched);
     require(!missed.record({late},tick+40U,true).transforms[0].matched);
     // A living sprite can change dimensions without becoming another object.
-    // Its anchor still interpolates; free/reuse and topology changes hold.
+    // Its anchor still interpolates across animated tiling; free/reuse holds.
     auto sprite = a;
     sprite.positions = {{{0,0,0}}};
     sprite.key = {0,0,0,0xFFFFFFFFU,1,0,0,0};
@@ -279,11 +307,43 @@ int main() {
     reused_sprite.key = {0,0,0,0xFFFFFFFFU,1,0,0,0};
     jfg::bind_presentation_billboard(reused_sprite,{75,72,73,74});
     require(!sprite_history.record({reused_sprite},104,true).transforms[0].matched);
-    auto topology = resized;
-    topology.key.push_back(1);
+    // A texture frame can add another triangle cell without changing the
+    // native sprite/anchor. Only the transform is interpolated here.
+    auto tiled_sprite = a;
+    tiled_sprite.positions = {{{0,0,0}},{{0.05f,0,0}},{{0,0.05f,0}}};
+    tiled_sprite.key = {0,0,0,123,0,0,0,456,0,0xFFFFFFFFU,3,0,1,2};
+    tiled_sprite.matrix[12] = 0.2f;
+    jfg::bind_presentation_billboard(tiled_sprite,{71,72,73,74});
     jfg::PresentationHistory topology_history;
     topology_history.record({resized},100,true);
-    require(!topology_history.record({topology},102,true).transforms[0].matched);
+    require(topology_history.record({tiled_sprite},102,true).transforms[0].matched);
+    // Logging must not make the previously missing sprite match work.
+    jfg::PresentationHistory logged_sprite, plain_sprite;
+    logged_sprite.record({resized},100,true,true);
+    plain_sprite.record({resized},100,true,false);
+    const auto logged_frame=logged_sprite.record({tiled_sprite},102,true,true);
+    const auto plain_frame=plain_sprite.record({tiled_sprite},102,true,false);
+    require(logged_frame.source_rate==plain_frame.source_rate &&
+            logged_frame.transforms[0].matched==plain_frame.transforms[0].matched &&
+            logged_frame.transforms[0].previous==plain_frame.transforms[0].previous);
+    auto other_asset = a; other_asset.positions = {{{0,0,0}}};
+    other_asset.key = {0,0,0,0xFFFFFFFFU,1,0,0,0};
+    jfg::bind_presentation_billboard(other_asset,{71,72,99,74});
+    require(!topology_history.record({other_asset},104,true).transforms[0].matched);
+    auto other_camera = a; other_camera.positions = {{{0,0,0}}};
+    other_camera.key = {0,0,0,0xFFFFFFFFU,1,0,0,0};
+    jfg::bind_presentation_billboard(other_camera,{71,72,99,75});
+    require(!topology_history.record({other_camera},106,true).transforms[0].matched);
+    auto teleport_sprite = tiled_sprite; teleport_sprite.matrix[12] = 2.0f;
+    jfg::PresentationHistory sprite_cut;
+    sprite_cut.record({tiled_sprite},100,true);
+    require(!sprite_cut.record({teleport_sprite},102,true).transforms[0].matched);
+    // Two conflicting transforms claiming one sprite remain ambiguous.
+    auto conflicting_sprite = tiled_sprite; conflicting_sprite.matrix[12]=0.21f;
+    jfg::PresentationHistory sprite_ambiguity;
+    sprite_ambiguity.record({tiled_sprite},100,true);
+    auto sprite_conflict=sprite_ambiguity.record({tiled_sprite,conflicting_sprite},102,true);
+    require(!sprite_conflict.transforms[0].matched && !sprite_conflict.transforms[1].matched);
     auto unknown = a;
     const auto original_key = unknown.key;
     jfg::bind_presentation_billboard(unknown,{0,72,73,74});

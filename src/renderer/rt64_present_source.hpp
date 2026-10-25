@@ -33,6 +33,29 @@ inline bool early_present_workload_candidate(const RT64::FramebufferPair& pair,
     return true;
 }
 
+// A newly selected display buffer may not yet carry RT64's prior-VI flag.
+// It may not have a manager entry until threadRenderFrame creates it.
+// Its first continuous scene already has valid endpoints. Permit generating
+// those outputs only for the native color shape and current-workload proof;
+// presentation itself still chooses the actual VI/history-approved buffer.
+inline bool bootstrap_interpolation_target(const RT64::Framebuffer* framebuffer,
+        const RT64::FramebufferPair& pair,const RT64::FramebufferPair* pairs,
+        std::size_t pairCount,bool scene,bool paused,unsigned sourceRate,bool hasHistory) {
+    return scene && !paused && sourceRate>0 && hasHistory &&
+        (!framebuffer || (framebuffer->lastWriteType==RT64::Framebuffer::Type::Color &&
+         framebuffer->addressStart==pair.colorImage.address && framebuffer->width==320U &&
+         framebuffer->siz==G_IM_SIZ_16b)) && pair.colorImage.width==320U &&
+        pair.colorImage.fmt==G_IM_FMT_RGBA && pair.colorImage.siz==G_IM_SIZ_16b &&
+        early_present_workload_candidate(pair,scene,pairs,pairCount);
+}
+
+// An inferred startup target must never outrank a confirmed display target,
+// regardless of their draw-list order. Keep the first provisional candidate.
+inline bool select_interpolation_target(bool selected,bool provisional,
+        bool confirmed,bool bootstrap) {
+    return confirmed ? (!selected || provisional) : (!selected && bootstrap);
+}
+
 // History proves that an address USED to be displayed, not that the current
 // contents are still color. Keep the actual VI/debugger depth display path
 // separate; this predicate is only for redirecting early presentation.

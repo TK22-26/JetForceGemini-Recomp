@@ -1,7 +1,11 @@
+#include "jfg/renderer/tracer_presentation.hpp"
+#include "jfg/renderer/attached_effect_history.hpp"
+#include "jfg/renderer/camera_trig_precision.hpp"
 #include "jfg/renderer/camera_helper_presentation.hpp"
 #include "jfg/renderer/door_indicator_presentation.hpp"
 #include "jfg/runtime/rt64_overlay_address.hpp"
 #include "jfg/renderer/glass_uv_history.hpp"
+#include "jfg/renderer/beam_uv_history.hpp"
 #include "jfg/renderer/presentation_identity.hpp"
 #include "jfg/renderer/semantic_presentation.hpp"
 #include <cstdlib>
@@ -12,6 +16,153 @@ static void require(bool v) {
     std::abort();
 }
 int main() {
+  {
+    const jfg::PresentationMatrix identity{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+    const jfg::PresentationMatrix projection{1.125f,0,0,0,0,1.5f,0,0,0,0,-1,-1,0,0,-10,0};
+    jfg::PresentationTracerIdentity tracer{};
+    tracer.lifetime=17;tracer.camera=3;tracer.actor=0x80100000;
+    tracer.control=0x80110000;tracer.header=0x80120000;tracer.vertices=0x180000;
+    tracer.pose.view=identity;tracer.pose.projection=projection;
+    tracer.matrix=0xFAB38;
+    jfg::PresentationSceneIdentity scene{};scene.tracers.push_back(tracer);
+    require(jfg::presentation_tracer_batch(scene,tracer.matrix,0x180000,4));
+    require(jfg::presentation_tracer_batch(scene,tracer.matrix,0x180014,2));
+    require(!jfg::presentation_tracer_batch(scene,tracer.matrix,0x180014,3));
+    require(!jfg::presentation_tracer_batch(scene,tracer.matrix+64,0x180000,4));
+    require(!jfg::presentation_tracer_batch(scene,tracer.matrix,0x180001,1));
+    scene.tracers.push_back(tracer);
+    require(!jfg::presentation_tracer_batch(scene,tracer.matrix,0x180000,4));
+    const auto previous=jfg::tracer_presentation_vertex(tracer,0x180000,projection,{10,20,-200});
+    require(previous && previous->sample.world==std::array<float,3>{10,20,-200});
+    // A turning/translating camera and a moving projectile must retain separate
+    // world and camera endpoints even when their transient buffer addresses flip.
+    tracer.pose.view={0.8f,0,0.6f,0,0,1,0,0,-0.6f,0,0.8f,0,40,-12,10,1};
+    tracer.vertices=0x181000;
+    const std::array<float,3> expected{20,20,-200};
+    std::array<float,3> local{};
+    for(unsigned col=0;col<3;++col) {
+      local[col]=tracer.pose.view[12+col];
+      for(unsigned row=0;row<3;++row)local[col]+=expected[row]*tracer.pose.view[row*4+col];
+    }
+    const auto current=jfg::tracer_presentation_vertex(tracer,0x181000,projection,local);
+    require(current && current->sample.key==previous->sample.key);
+    for(unsigned c=0;c<3;++c)require(std::abs(current->sample.world[c]-expected[c])<0.0001f);
+    for(unsigned col=0;col<4;++col) {
+      float original=projection[12+col],reconstructed=current->sample.camera[12+col];
+      for(unsigned row=0;row<3;++row) {
+        original+=local[row]*projection[row*4+col];
+        reconstructed+=current->sample.world[row]*current->sample.camera[row*4+col];
+      }
+      require(std::abs(original-reconstructed)<0.001f);
+    }
+    // Same-camera movement has quarter-frame world positions at120FPS.
+    tracer.pose.view=identity;
+    const auto next=jfg::tracer_presentation_vertex(tracer,0x181000,projection,expected);
+    jfg::SemanticPresentationHistory tracer_history;
+    require(!tracer_history.record({previous->sample},100,true,true)[0].matched);
+    const auto endpoint=tracer_history.record({next->sample},102,true,true)[0];
+    require(endpoint.matched);
+    for(float phase:{0.0f,0.25f,0.5f,0.75f,1.0f})
+      require(endpoint.world[0]+(next->sample.world[0]-endpoint.world[0])*phase==10+10*phase);
+    tracer.lifetime++;
+    const auto reused=jfg::tracer_presentation_vertex(tracer,0x181000,projection,expected);
+    require(!tracer_history.record({reused->sample},104,true,true)[0].matched);
+    require(!jfg::tracer_presentation_vertex(tracer,0x181001,projection,expected));
+    require(!jfg::tracer_presentation_vertex(tracer,0x181028,projection,expected));
+    auto bad=projection;bad[0]+=1;
+    require(!jfg::tracer_presentation_vertex(tracer,0x181000,bad,expected));
+    tracer.pose.view[0]=0;
+    require(!jfg::tracer_presentation_vertex(tracer,0x181000,projection,expected));
+    tracer.pose.view=identity;tracer.pose.view[12]=std::numeric_limits<float>::quiet_NaN();
+    require(!jfg::tracer_presentation_vertex(tracer,0x181000,projection,expected));
+  }
+  {
+    std::array<float,1025> table{};
+    for(unsigned i=0;i<table.size();++i)table[i]=static_cast<float>(i)/1024.0f;
+    const auto read=[&](unsigned i){require(i<table.size());return table[i];};
+    for(unsigned angle=0;angle<65536U;++angle) {
+      const auto value=jfg::camera_precision_sine(angle,read);require(value.has_value());
+      const unsigned phase=(angle&0x4000U)?0x4000U-(angle&0x3FFFU):(angle&0x3FFFU);
+      const float expected=static_cast<float>(phase)/16384.0f*((angle&0x8000U)?-1.0f:1.0f);
+      require(*value==expected);
+    }
+    require(jfg::camera_precision_call(true,0x80049C34,0x8004A1B4,0x800FA638,0x800FAF78));
+    require(jfg::camera_precision_call(true,0x80049C30,0x80049F4C,0x800FA638,0x800F2A08));
+    require(!jfg::camera_precision_call(true,0x80049C30,0x8004A1B4,0x800FA638,0x800FAF78));
+    require(!jfg::camera_precision_call(true,0x80049C34,0x8004A1B4,0x80100000,0x800FAF78));
+    require(!jfg::camera_precision_call(true,0x80049C34,0x8004A1B4,0x800FA638,0x800FAAB0));
+    // Original mode never admits either camera matrix path.
+    require(!jfg::camera_precision_call(false,0x80049C34,0x8004A1B4,0x800FA638,0x800FAF78));
+    require(!jfg::camera_precision_call(false,0x80049C30,0x80049F4C,0x800FA638,0x800F2A08));
+    // Model/world matrices and unrelated return addresses remain native.
+    require(!jfg::camera_precision_call(true,0x80049C34,0x8004A1B4,0x800FA638,0x800F2A08));
+    require(!jfg::camera_precision_call(true,0x80049C34,0x80048D84,0x800FA638,0x800FAF78));
+    table[1]=std::numeric_limits<float>::quiet_NaN();
+    require(!jfg::camera_precision_sine(1,read));
+  }
+  // Ship engine cones use the ship palette, but own two custom vertex
+  // buffers. Buffer parity must not lose the hull's semantic provenance.
+  {
+    std::vector<std::uint8_t> bytes(0x100000U,0);
+    const auto put8=[&](unsigned a,unsigned v){bytes[(a&0xFFFFFFU)^3U]=static_cast<std::uint8_t>(v);};
+    const auto put32=[&](unsigned a,unsigned v){for(unsigned i=0;i<4;++i)put8(a+i,v>>(24-i*8));};
+    constexpr unsigned actor=0x80001000U,header=0x80002000U,models=0x80003000U;
+    constexpr unsigned instance=0x80004000U,model=0x80005000U,control=0x80006000U;
+    constexpr unsigned cone=0x80007000U,other=0x80008000U;
+    const auto setup=[&] {
+      std::fill(bytes.begin(),bytes.end(),std::uint8_t{0});
+      put32(0x800F2CA4U,0x80000100U);put32(0x800F2CA8U,1);put32(0x80000100U,actor);
+      put32(actor+0x40,header);put32(actor+0x6c,models);put32(actor+0x68,control);
+      put8(actor+0x49,95);put8(header+0x1f,1);put32(models,instance);put32(instance,model);
+      put32(instance+4,0x80009000U);put8(model+0x13,4);put8(model+0x4e,1);put8(model+0x4f,4);
+      put32(instance+0x10,0x8000A000U);put32(instance+0x14,0x8000A100U);
+      for (unsigned i=0;i<2;++i) {
+        const auto c=i?other:cone,e=control+i*12U;
+        put32(e,c);put8(e+4,192);put8(e+11,1);
+        put32(c+0x10,c+0x28);put32(c+8,c+0x2a8);put32(c+12,c+0x3fc);
+        put8(c+0x14,1);put8(c+0x16,i);
+      }
+    };
+    setup();jfg::PresentationIdentityTracker tracker;
+    const auto scene=tracker.capture(bytes,10);require(scene.cones.size()==2);
+    const auto lifetime=scene.cones[0].lifetime;
+    for (unsigned matrix:{0xA040U,0xA140U}) for(unsigned buffer:{0x72A8U,0x73FCU}) {
+      const auto v=jfg::presentation_vertex_identity(scene,matrix,buffer+130);
+      require(v.owner && !v.geometry && v.cone && v.cone->allocation==cone && v.vertex==13);
+      std::array<jfg::PresentationVertexIdentity,20> batch{};
+      jfg::presentation_vertex_identities(scene,matrix,buffer+130,batch);
+      for(unsigned i=0;i<batch.size();++i) {
+        const auto expected=jfg::presentation_vertex_identity(scene,matrix,buffer+(13+i)*10U);
+        require(batch[i].cone==expected.cone && batch[i].vertex==expected.vertex);
+      }
+    }
+    const auto engine2=jfg::presentation_vertex_identity(scene,0xA040,0x82A8);
+    require(engine2.cone && engine2.cone->allocation==other);
+    require(!jfg::presentation_vertex_identity(scene,0xA080,0x72A8).cone); // Wrong bone.
+    require(!jfg::presentation_vertex_identity(scene,0xA040,0x72A9).cone); // Misaligned.
+    require(!jfg::presentation_vertex_identity(scene,0xA040,0x7550).cone); // Past allocation.
+    auto foreign=scene;foreign.cones[0].actor+=4;
+    require(!jfg::presentation_vertex_identity(foreign,0xA040,0x72A8).cone);
+    foreign=scene;foreign.cones[0].lifetime+=1;
+    require(!jfg::presentation_vertex_identity(foreign,0xA040,0x72A8).cone);
+    foreign=scene;foreign.cones[0].instance+=4;
+    require(!jfg::presentation_vertex_identity(foreign,0xA040,0x72A8).cone);
+    foreign=scene;foreign.cones.push_back(foreign.cones[0]);
+    require(!jfg::presentation_vertex_identity(foreign,0xA040,0x72A8).cone);
+    tracker.retire(actor);require(tracker.capture(bytes,12).cones[0].lifetime!=lifetime);
+    for(unsigned bad=0;bad<7;++bad) {
+      setup();
+      if(bad==0)put8(actor+0x49,94);
+      if(bad==1)put8(actor+0x3a,1);
+      if(bad==2)put32(cone+8,0x8000FFFFU);
+      if(bad==3)put8(cone+0x16,2);
+      if(bad==4)put8(cone+0x14,2);
+      if(bad==5)put8(control+11,4);
+      if(bad==6)put32(cone+12,cone+0x2a8);
+      const auto broken=tracker.capture(bytes,14);
+      require(!jfg::presentation_vertex_identity(broken,0xA040,0x72A8).cone);
+    }
+  }
   // A path start exposes the camera controller exactly like an animated prop.
   // Only the known camera helper must fail the native object-draw gate. Its
   // whole state (including path flags/pose) must survive draw and unwinding.
@@ -262,13 +413,78 @@ int main() {
 
   const jfg::PresentationMatrix identity{1, 0, 0, 0, 0, 1, 0, 0,
                                          0, 0, 1, 0, 0, 0, 0, 1};
-  // A near-plane vertex can move a large screen distance during a tiny,
-  // valid camera move. A bending bridge uses owned camera operands, while
-  // character joints and real camera/model/deformation cuts remain strict.
+  // An explicitly owned engine cone can appear on a continuously moving
+  // ship without holding its hull. Unknown topology remains all-or-nothing.
   {
+    const jfg::EffectAttachmentKey key{700,2,3,0,4};
+    const jfg::EffectAttachmentPose old_pose{identity,identity};
+    auto new_pose=old_pose;new_pose.world[12]=10;
+    jfg::EffectAttachmentFrames old_frames,new_frames;
+    jfg::observe_effect_attachment(old_frames,key,old_pose);
+    jfg::observe_effect_attachment(new_frames,key,new_pose);
+    jfg::SemanticPresentationSample body{{700,2,3,4,0,0},{0,0,100},identity,true};
+    auto moved=body;moved.world[0]=10;
+    auto cone=moved;cone.key[2]=0x8010000080200000ULL;cone.world[0]=11;
+    const jfg::AttachedEffectVertex vertex{cone,key,{1,0,100}};
+    jfg::AttachedEffectHistory attachments;
+    require(attachments.record(old_frames,{},10,true,true).empty());
+    const auto births=attachments.record(new_frames,{vertex},12,true,true);
+    require(births.size()==1 && births.begin()->second.matched);
+    require(births.begin()->second.world==std::array<float,3>{1,0,100});
+    jfg::SemanticCameraFrames cameras{{4,{1,{identity,identity,identity},identity}}};
+    const auto run=[&](std::vector<jfg::SemanticPresentationSample> after,
+                       const jfg::SemanticBirthEndpoints* provided,
+                       const jfg::SemanticCameraFrames* next_cameras) {
+      jfg::SemanticPresentationHistory history;
+      (void)history.record({body},10,true,true,nullptr,nullptr,&cameras);
+      return history.record(after,12,true,true,nullptr,nullptr,next_cameras,provided);
+    };
+    const auto good=run({moved,cone},&births,&cameras);
+    require(good[0].matched && good[1].matched);
+    for(unsigned fps:{120U,360U}) for(unsigned step=0;step<=fps/30U;++step) {
+      const float alpha=float(step)/float(fps/30U);
+      const float hull=good[0].world[0]*(1-alpha)+moved.world[0]*alpha;
+      const float flame=good[1].world[0]*(1-alpha)+cone.world[0]*alpha;
+      require(std::abs(flame-hull-1)<0.00001f);
+    }
+    for(const auto& point:run({moved,cone},nullptr,&cameras))require(!point.matched);
+    for(const auto& point:run({moved,cone},&births,nullptr))require(!point.matched);
+    auto generation=cameras;generation[4].generation=2;
+    for(const auto& point:run({moved,cone},&births,&generation))require(!point.matched);
+    auto bad_body=moved;bad_body.valid=false;
+    for(const auto& point:run({bad_body,cone},&births,&cameras))require(!point.matched);
+    auto duplicate=cone;duplicate.world[1]=1;
+    for(const auto& point:run({moved,cone,duplicate},&births,&cameras))require(!point.matched);
+    auto relocated=cone;relocated.world[0]=1000;
+    for(const auto& point:run({moved,relocated},&births,&cameras))require(!point.matched);
+    // Recycled actor/model/instance, stale cadence and contradictory anchors
+    // cannot supply an earlier pose even if allocation addresses coincide.
+    for(unsigned component:{0U,1U,2U,3U,4U}) {
+      jfg::AttachedEffectHistory h;(void)h.record(old_frames,{},10,true,true);
+      auto changed=vertex;changed.attachment[component]++;
+      require(h.record(new_frames,{changed},12,true,true).empty());
+    }
+    jfg::AttachedEffectHistory stale;(void)stale.record(old_frames,{},10,true,true);
+    require(stale.record(new_frames,{vertex},18,true,true).empty());
+    auto conflicting=new_frames;auto other=new_pose;other.world[12]=20;
+    jfg::observe_effect_attachment(conflicting,key,other);
+    jfg::observe_effect_attachment(conflicting,key,new_pose);
+    require(!conflicting[key]);
+    jfg::AttachedEffectHistory conflict;(void)conflict.record(old_frames,{},10,true,true);
+    require(conflict.record(conflicting,{vertex},12,true,true).empty());
+    auto singular=old_pose;singular.world[0]=0;
+    jfg::EffectAttachmentFrames invalid;
+    jfg::observe_effect_attachment(invalid,key,singular);require(!invalid[key]);
+    auto nonfinite=old_pose;nonfinite.world[5]=std::numeric_limits<float>::infinity();
+    jfg::observe_effect_attachment(invalid,key,nonfinite);require(!invalid[key]);
+  }
+  // A near-plane vertex can move a large screen distance during a tiny,
+  // valid camera move. Procedural bridges/beams use owned camera operands, while
+  // character joints and real camera/model/deformation cuts remain strict.
+  for(const auto kind:{0x42524944U,0x4245414dU,0x53484f43U,0x54524143U}) {
     jfg::RigidPresentationPose pose{identity,identity,identity};
     pose.projection[11]=1;pose.projection[15]=0;
-    jfg::SemanticPresentationSample old{{90,2,3,4,0x42524944U,0},
+    jfg::SemanticPresentationSample old{{90,2,3,4,kind,0},
         {1,0,0.01f},pose.projection,true};
     auto moved=old;moved.camera[12]=0.1f;moved.world[1]=0.05f;
     require(!jfg::semantic_motion_continuous(old,moved));
@@ -356,7 +572,26 @@ int main() {
     changed=after;changed[1].valid=false;
     (void)run(changed,next,false);
     changed=after;changed[1].key[5]++; // missing logical vertex
-    (void)run(changed,next,false);
+    const auto held_geometry=run(changed,next,false);
+    for(std::size_t i=0;i<held_geometry.size();++i) {
+      require(held_geometry[i].camera_only);
+      require(held_geometry[i].world==changed[i].world);
+      require(held_geometry[i].camera==old_camera);
+    }
+    // The whole actor uses one camera phase; actual geometry motion/camera
+    // cuts, invalid samples and conflicting clones do not acquire a fallback.
+    auto bad_geometry=changed;bad_geometry[0].valid=false;
+    for(const auto& v:run(bad_geometry,next,false))require(!v.camera_only);
+    auto jumped_geometry=changed;jumped_geometry[0].world[0]+=200;
+    for(const auto& v:run(jumped_geometry,next,false))require(!v.camera_only);
+    auto mixed_camera=changed;mixed_camera[1].camera[12]+=0.01f;
+    for(const auto& v:run(mixed_camera,next,false))require(!v.camera_only);
+    auto cut_camera=next;cut_camera.pose.view[12]=1000;
+    for(const auto& v:run(changed,cut_camera,false))require(!v.camera_only);
+    auto duplicates=changed;duplicates.push_back(changed[0]);
+    duplicates.back().world[0]+=0.1f;
+    for(const auto& v:run(duplicates,next,false))require(!v.camera_only);
+
     changed=after;changed[1].key[2]++; // changed model
     (void)run(changed,next,false);
     changed=after;changed[1].world[0]=std::numeric_limits<float>::quiet_NaN();
@@ -653,6 +888,91 @@ int main() {
   w32(0x800FB114U,4);
   require(tracker.capture(ram,144).sprites.empty());
 
+  {
+    // RegionID reorders the same 20 sparkles as the camera turns. The
+    // temporary stack transform and emitted anchor order are not identity.
+    const auto saved_ram=ram;
+    jfg::PresentationIdentityTracker marker;
+    w32(0x800F2CA8U,1);w8(0x80100049U,136);
+    w32(0x80100068U,0x801D0000U);w8(0x801D000FU,128);
+    w32(0x801100ACU,0x801C0000U);w32(0x801C0000U,0x801A0000U);
+    const auto emit=[&](unsigned slot,unsigned anchor,std::uint64_t tick) {
+      w32(0x80180000U,0x80190000U+anchor*16U);
+      marker.region_sprite(ram,0x80180000U,0x80100000U,0x801D0000U,
+          slot,0x801A0000U,tick);
+    };
+    for(unsigned slot=0;slot<20;++slot)emit(slot,slot,150);
+    const auto marker_first=marker.capture(ram,150);
+    require(marker_first.sprites.size()==20);
+    std::map<unsigned,std::array<std::uint64_t,4>> keys;
+    for(const auto& sprite:marker_first.sprites) {
+      require(sprite.actor==0x80100000U && sprite.control==0x801D0000U);
+      keys[sprite.sub_id]=jfg::presentation_sprite_key(sprite,7);
+    }
+    require(keys.size()==20 && keys[1]!=keys[20]);
+    for(unsigned slot=0;slot<20;++slot)emit(slot,19-slot,152);
+    const auto sorted=marker.capture(ram,152);
+    require(sorted.sprites.size()==20 && sorted.sprites.front().sub_id==20);
+    for(const auto& sprite:sorted.sprites)
+      require(jfg::presentation_sprite_key(sprite,7)==keys[sprite.sub_id]);
+    emit(20,0,152);require(marker.capture(ram,152).sprites.size()==19);
+    w8(0x801D000FU,0);require(marker.capture(ram,154).sprites.empty());
+    w8(0x801D000FU,255);emit(0,0,156);
+    w32(0x80100068U,0x801D0200U);require(marker.capture(ram,156).sprites.empty());
+    w32(0x80100068U,0x801D0000U);emit(0,0,158);
+    marker.retire(0x80100000U);require(marker.capture(ram,158).sprites.empty());
+    emit(0,0,160);const auto marker_reused=marker.capture(ram,160);
+    require(marker_reused.sprites.size()==1 && jfg::presentation_sprite_key(marker_reused.sprites[0],7)!=keys[1]);
+    w8(0x80100049U,67);emit(0,0,162);require(marker.capture(ram,162).sprites.empty());
+    w8(0x80100049U,136);w32(0x801C0000U,0x801A0100U);
+    emit(0,0,164);require(marker.capture(ram,164).sprites.empty());
+    w32(0x801C0000U,0x801A0000U);emit(0,0,166);
+    require(marker.capture(ram,173).sprites.empty());
+    ram=saved_ram;
+  }
+  {
+    const auto saved_ram=ram;
+    w32(0x800FB114U,80);w32(0x800F2CA8U,1);
+    w32(0x80130000U,0x80100000U);w8(0x801000A0U,0);
+    w8(0x8011001FU,0);w32(0x8010006CU,0);
+    w32(0x80100068U,0x801A0000U);w32(0x800FA634U,0);
+    jfg::PresentationIdentityTracker tracer_tracker;
+    tracer_tracker.tracer(ram,0x80100000U,0x801B0000U,0x80190000U,150);
+    const auto tracer_first=tracer_tracker.capture(ram,150);
+    require(tracer_first.tracers.size()==1);
+    const auto tracer_lifetime=tracer_first.tracers[0].lifetime;
+    require(tracer_first.tracers[0].vertices==0x1B0000U);
+    tracer_tracker.tracer(ram,0x80100000U,0x801B0100U,0x80190000U,152);
+    auto tracer_second=tracer_tracker.capture(ram,152);
+    require(tracer_second.tracers.size()==2 &&
+            tracer_second.tracers[1].lifetime==tracer_lifetime);
+    w8(0x801B0000U,9); // Scratch buffer reused; retained snapshot is immutable.
+    require(tracer_tracker.capture(ram,152).tracers.size()==1);
+    require(tracer_first.tracers[0].vertices==0x1B0000U);
+    w32(0x80190000U,27); // Exact emitted matrix ownership is required.
+    require(tracer_tracker.capture(ram,152).tracers.empty());
+    tracer_tracker.tracer(ram,0x80100000U,0x801B0000U,0x80190000U,154);
+    require(tracer_tracker.capture(ram,161).tracers.empty());
+    tracer_tracker.tracer(ram,0x80100000U,0x801B0000U,0x80190000U,162);
+    w32(0x80100068U,0x801A0100U);
+    require(tracer_tracker.capture(ram,162).tracers.empty());
+    tracer_tracker.retire(0x80100000U);
+    tracer_tracker.tracer(ram,0x80100000U,0x801B0000U,0x80190000U,164);
+    tracer_second=tracer_tracker.capture(ram,164);
+    require(tracer_second.tracers.size()==1 &&
+            tracer_second.tracers[0].lifetime!=tracer_lifetime);
+    w32(0x800F2CA8U,0);
+    require(tracer_tracker.capture(ram,166).tracers.empty());
+    w32(0x800F2CA8U,1);
+    tracer_tracker.tracer(ram,0x80100000U,0x801B0000U,0x80190000U,168);
+    w32(0x800FB114U,81);
+    require(tracer_tracker.capture(ram,168).tracers.empty());
+    tracer_tracker.tracer(ram,0x80100000U,0x803FFFF0U,0x80190000U,170);
+    // This synthetic RAM is8MiB; use an unequivocally out-of-range stream.
+    tracer_tracker.tracer(ram,0x80100000U,0x807FFFF0U,0x80190000U,170);
+    require(tracer_tracker.capture(ram,170).tracers.size()==1);
+    ram=saved_ram;
+  }
   // Two-frame rigid matrix buffers preserve actor/model identity, while
   // overwritten memory, freed actors and changed camera/level must not.
   w32(0x800FB114U, 5); w32(0x800F2CA8U, 1);
@@ -697,6 +1017,30 @@ int main() {
   require(rigid_tracker.capture(ram,214).rigids.empty());
   rigid_tracker.rigid(ram,0x80190001U,0x80100000U,216);
   require(rigid_tracker.capture(ram,216).rigids.empty());
+  {
+    const auto saved_ram=ram;
+    w32(0x800FB114U,7);w32(0x800F2CA8U,1);w8(0x8011001FU,0);
+    w32(0x8010006CU,0);w8(0x80100048U,0);w8(0x80100049U,40);
+    w32(0x80100068U,0x801a0000U);w32(0x801a0190U,0x801b0000U);w8(0x801a01daU,0);
+    jfg::PresentationIdentityTracker wave_tracker;
+    wave_tracker.rigid(ram,0x80190000U,0x80100000U,220);
+    auto wave_scene=wave_tracker.capture(ram,220);require(wave_scene.shockwaves.size()==1);
+    auto owner=jfg::presentation_rigid_owner(wave_scene,0x190000U);require(owner);
+    require(jfg::presentation_shockwave_batch(wave_scene,*owner,0x1a0000U,20));
+    require(!jfg::presentation_shockwave_batch(wave_scene,*owner,0x1a0000U,21));
+    require(!jfg::presentation_shockwave_batch(wave_scene,*owner,0x1a0001U,1));
+    const auto lifetime=wave_scene.shockwaves[0].lifetime;
+    w8(0x801a01daU,1);wave_tracker.rigid(ram,0x80190000U,0x80100000U,222);
+    wave_scene=wave_tracker.capture(ram,222);owner=jfg::presentation_rigid_owner(wave_scene,0x190000U);
+    require(wave_scene.shockwaves.size()==1 && wave_scene.shockwaves[0].lifetime==lifetime);
+    require(jfg::presentation_shockwave_batch(wave_scene,*owner,0x1a00c8U,20));
+    require(!jfg::presentation_shockwave_batch(wave_scene,*owner,0x1a0000U,20));
+    wave_tracker.retire(0x80100000U);wave_tracker.rigid(ram,0x80190000U,0x80100000U,224);
+    require(wave_tracker.capture(ram,224).shockwaves[0].lifetime!=lifetime);
+    w8(0x801a01daU,2);require(wave_tracker.capture(ram,224).shockwaves.empty());
+    w8(0x801a01daU,0);w8(0x80100049U,39);require(wave_tracker.capture(ram,224).shockwaves.empty());
+    ram=saved_ram;
+  }
   {
     const auto saved_ram = ram;
     // A grounded severed body has no model array. Its explicit baked DMA
@@ -744,6 +1088,40 @@ int main() {
     w8(0x80100049U,63);
     require(limb_tracker.capture(ram,224).limbs.empty()); // only native limb path
     ram = saved_ram;
+  }
+  {
+    jfg::BeamUvHistory beam_history;
+    jfg::BeamUvSample sample{{1,2,3,4,0x4245414dU,4,0x1004},{31,31.875F},true};
+    std::array samples{sample};
+    require(beam_history.record(samples,100,true)[0]==std::array<float,2>{});
+    samples[0].uv[1]=0;
+    auto v=beam_history.record(samples,102,true)[0];
+    require(v==std::array<float,2>{0,0.125F});
+    // The 120 FPS phases stay on the short scroll through a 32-texel wrap.
+    require(samples[0].uv[1]-v[1]*0.75F==-0.09375F);
+    require(samples[0].uv[1]-v[1]*0.25F==-0.03125F);
+    require(beam_history.record(samples,102,true)[0]==std::array<float,2>{});
+    auto seam=samples[0];seam.key[6]+=4;seam.uv[1]+=16;
+    std::array seams{samples[0],seam};
+    beam_history.record(seams,104,true);
+    for(auto& s:seams)s.uv[1]+=0.125F;
+    const auto separate=beam_history.record(seams,106,true);
+    require(separate[0][1]==0.125F && separate[1][1]==0.125F);
+    auto conflict=seams[0];conflict.uv[1]+=1;
+    std::array bad{seams[0],conflict};
+    require(beam_history.record(bad,108,true)[0]==std::array<float,2>{});
+    require(beam_history.record(seams,110,true)[0]==std::array<float,2>{});
+    for(auto& s:seams)s.uv[1]+=0.125F;
+    require(beam_history.record(seams,112,false)[0]==std::array<float,2>{}); // Cut.
+    for(auto& s:seams){s.uv[1]+=0.125F;s.geometry_matched=false;}
+    require(beam_history.record(seams,114,true)[0]==std::array<float,2>{});
+    for(auto& s:seams){s.geometry_matched=true;s.key[0]++;}
+    require(beam_history.record(seams,116,true)[0]==std::array<float,2>{}); // Reused actor.
+    seams[0].uv[0]+=1;
+    require(beam_history.record(seams,118,true)[0]==std::array<float,2>{}); // Material seam changed.
+    require(beam_history.record(seams,130,true)[0]==std::array<float,2>{}); // Missing scenes.
+    require(beam_history.record(seams,120,true)[0]==std::array<float,2>{}); // Rewind.
+    beam_history.clear();require(beam_history.record(seams,122,true)[0]==std::array<float,2>{});
   }
   {
     jfg::GlassUvHistory glass_history;

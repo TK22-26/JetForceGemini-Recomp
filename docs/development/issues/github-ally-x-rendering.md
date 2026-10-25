@@ -2,10 +2,23 @@
 
 ## Delivery and issue status — 2026-10-22 UTC
 
-Rain and reticle presentation and the brief room-entry rain delay are released in v1.4.0 after local owner approval. The approved reply closes #25 and invites a new report if any symptom persists. Ally X hardware retesting and the separate hut slowdown are not claimed as verified fixes.
+Rain and reticle presentation and the brief room-entry rain delay are released in v1.4.0 after local owner approval. On October 22, the original reporter confirmed that all originally reported bugs are fixed and reported being able to play at 120 FPS on the Ally X. This includes their cutscene complaint; it is reporter verification, not an independently measured performance guarantee across every area. #25 remains closed.
 
 [Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/25#issuecomment-6332070678).
 Earlier entries below preserve their original investigation and verification scope.
+
+### Reporter confirmation reviewed October 23 UTC
+
+[@duke912's October 22 retest](https://github.com/TK22-26/JetForceGemini-Recomp/issues/25#issuecomment-6346820937)
+confirms all reported symptoms resolved and improved performance. No new failure
+or follow-up request accompanied it. The private issue snapshot is
+`post-v14-issue-review-20261023/issue-25.json`. A thank-you reply is drafted for
+owner approval only; nothing was posted during this review.
+
+The result supersedes the reporter-pending status in the historical entries
+below. Their unsuccessful v1.3 checks remain relevant evidence: a successful
+owner capture did not establish that the ordinary release path worked for the
+reporter. Keep those differing test conditions when investigating regressions.
 
 - Status: PARTIALLY RESOLVED LOCALLY: owner confirms the unreleased timestamp correction restores missing rain/reticles and approves the replacement spatial-fade preview as fixing the Tawfret rain delay. Release, original reporter/Ally X retest and hut performance remain open.
 - Report: https://github.com/TK22-26/JetForceGemini-Recomp/issues/25

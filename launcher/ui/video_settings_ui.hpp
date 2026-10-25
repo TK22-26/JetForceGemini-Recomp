@@ -30,7 +30,7 @@ struct Ui final : Rml::EventListener {
            (a.mode != jfg::FrameRateMode::custom || a.fps == b.fps);
   }
   bool dirty() const {
-    return draft.fullscreen != saved.fullscreen ||
+    return draft.actor_lod != saved.actor_lod || draft.fullscreen != saved.fullscreen ||
            draft.window_size != saved.window_size ||
            draft.pause_inactive != saved.pause_inactive ||
            !sameRender(draft.rendering, saved.rendering) ||
@@ -58,12 +58,14 @@ struct Ui final : Rml::EventListener {
     saved.fullscreen = (state & 1) != 0;
     saved.pause_inactive = (state & 2) != 0;
     running = (state & 4) != 0;
+    saved.actor_lod=jfg::load_actor_lod(profile).value_or(jfg::ActorLod::original);
     draft = saved;
     fpsText = std::to_string(draft.rendering.fps);
     save = [this](const Settings &candidate) {
       if (!IsWindow(owner))
         return false;
       jfg::frontend::VideoRequest request;
+      request.actor_lod=candidate.actor_lod==jfg::ActorLod::high?1U:0U;
       request.mode = static_cast<unsigned>(candidate.rendering.mode);
       request.fps = candidate.rendering.fps;
       request.vsync = candidate.rendering.vsync;
@@ -98,6 +100,8 @@ struct Ui final : Rml::EventListener {
     selected("video-fullscreen", draft.fullscreen);
     selected("video-pause", draft.pause_inactive);
     selected("video-vsync", draft.rendering.vsync);
+    selected("video-lod-original",draft.actor_lod==jfg::ActorLod::original);
+    selected("video-lod-high",draft.actor_lod==jfg::ActorLod::high);
     static_cast<Rml::ElementFormControlInput*>(el("video-fog"))->SetValue(std::to_string(draft.rendering.fog_percent));
     text("video-fog-value",std::to_string(draft.rendering.fog_percent)+"%");
     selected("video-blur-off", draft.rendering.blur == jfg::BlurMode::off);
@@ -172,6 +176,7 @@ struct Ui final : Rml::EventListener {
       {"size",0,"window size resolution dimensions 1280 720 1600 900 1920 1080 2560 1440"},
       {"pause",0,"pause inactive background focus"},
       {"vsync",1,"vsync v-sync vertical sync display tearing refresh"},
+      {"lod",1,"actor lod level detail high original distance models graphics"},
       {"blur",1,"motion blur trails ghosting sickness nausea"},
       {"fps",2,"frame rate framerate fps original custom unlimited smooth cap"},
       {"cap",2,"frame rate cap fps limit 60 120 144 165 240 360 1000"},
@@ -180,7 +185,7 @@ struct Ui final : Rml::EventListener {
     const char* names[]={"display","rendering","framerate","enhance"};
     const char* titles[]={"Display","Rendering","Frame rate","Enhancements"};
     const char* subtitles[]={"Choose how the game window appears.",
-      "Control frame presentation and motion blur.","Set how many frames per second the game renders.",
+      "Control rendering, actor detail and motion blur.","Set how many frames per second the game renders.",
       "Optional changes to the game's visuals."};
     std::string query=search;
     std::transform(query.begin(),query.end(),query.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
@@ -196,7 +201,7 @@ struct Ui final : Rml::EventListener {
       if(show){++counts[row.tab];++total;}
     }
     const bool changed[]={draft.fullscreen!=saved.fullscreen||draft.window_size!=saved.window_size||draft.pause_inactive!=saved.pause_inactive,
-      draft.rendering.vsync!=saved.rendering.vsync||draft.rendering.blur!=saved.rendering.blur,
+      draft.rendering.vsync!=saved.rendering.vsync||draft.rendering.blur!=saved.rendering.blur||draft.actor_lod!=saved.actor_lod,
       draft.rendering.mode!=saved.rendering.mode||fpsText!=std::to_string(saved.rendering.fps),
       draft.rendering.fog_percent!=saved.rendering.fog_percent};
     for(unsigned i=0;i<4;++i) {
@@ -296,6 +301,10 @@ struct Ui final : Rml::EventListener {
       draft.pause_inactive = !draft.pause_inactive;
     else if (id == "video-vsync")
       draft.rendering.vsync = !draft.rendering.vsync;
+    else if (id == "video-lod-original")
+      draft.actor_lod=jfg::ActorLod::original;
+    else if (id == "video-lod-high")
+      draft.actor_lod=jfg::ActorLod::high;
     else if (id == "video-blur-off")
       draft.rendering.blur = jfg::BlurMode::off;
     else if (id == "video-blur-reduced")

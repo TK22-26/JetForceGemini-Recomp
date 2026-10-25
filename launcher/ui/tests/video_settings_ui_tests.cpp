@@ -29,7 +29,7 @@ static void pointer(const char *id) {
     const auto card=parent->GetId();
     const char* tab=nullptr;
     if(card=="video-card-mode"||card=="video-card-size"||card=="video-card-pause")tab="video-tab-display";
-    else if(card=="video-card-vsync"||card=="video-card-blur")tab="video-tab-rendering";
+    else if(card=="video-card-vsync"||card=="video-card-blur"||card=="video-card-lod")tab="video-tab-rendering";
     else if(card=="video-card-fps"||card=="video-card-cap")tab="video-tab-framerate";
     else if(card=="video-card-fog")tab="video-tab-enhance";
     if(tab&&!parent->IsVisible(true)){click(tab);break;}
@@ -135,6 +135,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
       surface->video->save = [&](const jfg_video::Ui::Settings &value) {
         std::ofstream(profile / "video.ini")
             << jfg::serialize_video_settings(value.rendering);
+        std::ofstream(profile / "game-settings.ini") << jfg::serialize_actor_lod(value.actor_lod);
         return true;
       };
     };
@@ -195,6 +196,11 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     demand(!ui.dirty(), "return to initial Reduced clears dirty state");
     jfg::frontend::VideoRequest request;
     demand(jfg::frontend::valid_video_request(request), "default blur protocol valid");
+    request.actor_lod = 2;
+    demand(!jfg::frontend::valid_video_request(request), "reject invalid LOD protocol");
+    request.actor_lod = 0; request.version = 4;
+    demand(!jfg::frontend::valid_video_request(request), "reject pre-LOD protocol");
+    request.version = 5;
     request.blur = 3;
     demand(!jfg::frontend::valid_video_request(request), "reject invalid blur protocol");
     request.blur = 1; request.version = 1;
@@ -208,6 +214,36 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
            "Apply can accept unchanged values");
     pointer("video-apply");
     accepted();
+    ui.running = true;
+    pointer("video-lod-high");
+    demand(ui.draft.actor_lod == jfg::ActorLod::high && ui.dirty(),
+           "High LOD changes Rendering draft");
+    demand(element("video-card-lod")->IsVisible(true) &&
+               !element("video-restart")->IsVisible(true),
+           "LOD appears in Rendering and applies without restart");
+    capture("rendering-lod.tga");
+    demand(jfg::load_actor_lod(profile) == jfg::ActorLod::original,
+           "LOD choice does not write before Apply");
+    pointer("video-apply");
+    accepted();
+    demand(jfg::load_actor_lod(profile) == jfg::ActorLod::high &&
+               !ui.pendingRestart, "Apply persists High LOD without restart");
+    pointer("video-lod-original");
+    pointer("video-cancel");
+    demand(PeekMessageW(&close, window, WM_CLOSE, WM_CLOSE, PM_REMOVE) != 0 &&
+               jfg::load_actor_lod(profile) == jfg::ActorLod::high,
+           "Cancel leaves saved High LOD unchanged");
+    ui.draft = ui.saved; ui.refresh(); settle();
+    auto goodSave = ui.save;
+    pointer("video-lod-original");
+    ui.save = [](const auto &) { return false; };
+    pointer("video-apply");
+    demand(!ui.error.empty() && ui.saved.actor_lod == jfg::ActorLod::high &&
+               jfg::load_actor_lod(profile) == jfg::ActorLod::high &&
+               !PeekMessageW(&close, window, WM_CLOSE, WM_CLOSE, PM_REMOVE),
+           "failed LOD Apply preserves saved value and keeps dialog open");
+    ui.save = goodSave; ui.draft = ui.saved; ui.error.clear(); ui.refresh();
+    ui.running = false;
     pointer("video-preset-360");
     demand(ui.draft.rendering.fps == 360, "360 preset");
     pointer("video-vsync");
@@ -280,6 +316,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     demand(surface->video->draft.rendering.mode ==
                jfg::FrameRateMode::unlimited,
            "reopen restores saved mode");
+    demand(surface->video->draft.actor_lod == jfg::ActorLod::high,
+           "reopen restores saved High LOD");
     pointer("video-fullscreen");
     demand(element("video-size")->HasAttribute("disabled"),
            "window size disabled in fullscreen");

@@ -2,7 +2,8 @@
 file(READ "${jfg_rt64_root}/src/render/rt64_framebuffer_renderer.cpp" jfg_noise_contents)
 string(REPLACE "\r\n" "\n" jfg_noise_contents "${jfg_noise_contents}")
 string(SHA256 digest "${jfg_noise_contents}")
-if(NOT digest STREQUAL "73870c23b2340611b930b668d52aec9e687fd74b7da310962b7b1ef35dee015d")
+if(NOT digest STREQUAL "73870c23b2340611b930b668d52aec9e687fd74b7da310962b7b1ef35dee015d" AND
+   NOT digest STREQUAL "26df32cb959fcb42627b3bd050c854260c12eb67ba1d2f4099d363311cfaff08")
     message(FATAL_ERROR "Pinned framebuffer renderer changed")
 endif()
 set(old "        frameParams.viewUbershaders = ubershadersVisible;")

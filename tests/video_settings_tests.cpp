@@ -2,6 +2,7 @@
 #include "jfg/renderer/presentation_policy.hpp"
 #include "jfg/renderer/video_settings.hpp"
 #include <iostream>
+#include "jfg/renderer/actor_lod_settings.hpp"
 #include "jfg/renderer/native_blur_mode.hpp"
 #include "jfg/renderer/fog_settings.hpp"
 int main() {
@@ -10,6 +11,15 @@ int main() {
     if (!ok)
       ++failures;
   };
+  check(jfg::load_actor_lod({})==jfg::ActorLod::original);
+  for(auto value:{jfg::ActorLod::original,jfg::ActorLod::high}) {
+    check(jfg::parse_actor_lod(jfg::serialize_actor_lod(value))==value);
+    jfg::configure_actor_lod(value);check(jfg::actor_lod_preference().load()==value);
+  }
+  for(const auto* bad:{"","version=2\nactor_lod=high\n","version=1\nactor_lod=2\n",
+                       "version=1\nactor_lod=high\nactor_lod=original\n"})
+    check(!jfg::parse_actor_lod(bad));
+  jfg::configure_actor_lod(jfg::ActorLod::original);
   for (auto mode : {jfg::FrameRateMode::original, jfg::FrameRateMode::custom,
                     jfg::FrameRateMode::unlimited}) {
     for (bool vsync : {false, true}) {

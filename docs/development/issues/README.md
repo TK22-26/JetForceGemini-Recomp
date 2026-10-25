@@ -37,7 +37,7 @@ The owner individually approved all twelve replies before publication; #15 and
 #19 were subsequently closed by explicit request without additional comments.
 
 - Closed: #15, #19, #25, #30, #31, #33, #34, #36, #37, #38 and #39.
-- Still open: #32 mouse input, #35 growing audio delay and #40 Proton startup.
+- Still open: #32 mouse input, #35 audio delay and #40 Proton launcher menus. The October 22 reporter updates confirm #25 resolved and #40 startup working; #35 remains affected and now has logs. See the individual reports for the later evidence.
   #41 remains the skip-completion optimization follow-up.
 - #38 was redirected to the project matching its dump, not resolved by our code.
   Closed reports retain any unverified reporter/platform coverage in their records.
@@ -51,12 +51,17 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
+| RENDER-VELA-SKIRT | Vela skirt transparency artifact on slopes | Resolved locally: skirt/focus repair and smooth transparency owner-verified; unreleased | [Report](vela-skirt-focus-tearing.md) |
+| RENDER-CAMERA-CADENCE | Pulsing flight camera and ship motion | Camera/ship/startup corrections owner-verified locally; separate skybox correction passes replay and owner review | [Report](cutscene-camera-cadence.md) |
+| AUDIO-FLIGHT-045 | Missing music in specific flight transitions | Closed: owner confirms all three routes match original N64; #45 closed, no code change | [Report](flight-transition-missing-music.md) |
+| RENDER-SHOT-001 | Low-FPS effects at high output rates | Ship beams, travelling shots and grenade shockwaves owner-verified locally; opening marker owner-verified locally; fire improved but still open; unreleased | [Report](high-refresh-shot-effects.md) |
+| GH-046 | Character shadows jitter at high FPS | Report intake recorded; reproduction/source cause pending | [Report](github-character-shadow-jitter.md) |
 | META-001 | GitHub merge identity differs from local no-reply/UTC policy | PR #42 server metadata observed; owner informed; history preserved; publication commit/tag identity checked locally | [Report](github-merge-metadata.md) |
 | BUILD-V14 | Clean CI: GCC rain initializer and RT64 checkout line endings | All supported-platform and merged-main CI jobs pass; included in v1.4.0 | [Report](v14-clean-ci-portability.md) |
 | RENDER-CHIEF | Tawfret chief cutscene camera motion and floating square | Both corrections owner-verified; original N64 helper artifact removed in v1.4.0 | [Report](tawfret-chief-camera-and-square.md) |
 | GH-041 | Cutscene skip completion time (#41) | Owner requests faster completion for some scenes; measurement and optimization pending | [Follow-up](cutscene-skip-completion-time.md) |
 | UI-009 | Live map Mods redesign disabled/focus states | Owner-approved 2026-10-21; visible badges and reference padlock accepted locally; 973 native checks pass; included in v1.4.0 | [Review](live-map-mods-layout.md) |
-| GH-040 | Windows release fails to start through Steam Deck Proton (#40) | Mandatory DirectComposition conflicts with Valve Wine; HWND candidate built; normal/failure-injection UI checks passed. Proton/Deck validation pending; native port deferred | [Report](github-steam-deck-proton-startup.md) |
+| GH-040 | Steam Deck Proton startup and blank launcher menus (#40) | Reporter confirms v1.4.0 boots and shows gameplay; menus still blank. Proton details/log pending; local Hyper-V access denied, no Proton execution; native port deferred | [Report](github-steam-deck-proton-startup.md) |
 | GH-039 | Give all weapons leaves inventory unchanged (#39) | Reproduced: paused Mods dialog expires requests. Candidate processes grants while paused and confirms application; native/runtime/launcher checks passed and owner confirms actual UI grant; released in v1.4.0; #39 closed with reporter retest requested | [Report](github-give-all-weapons.md) |
 | GH-038 | Fet-Bubb crashes shortly after attacking (#38) | Dump exactly matches VibinToast v1.1.8, a different project; our v1.3.0 passes bounded boss comparison; local defect unestablished; #38 closed and reporter redirected | [Report](github-fet-bubb-crash.md) |
 | GH-037 | Floyd cannot fire (#37) | Fully approved locally by owner for v1.4.0; reporter re-verification after delivery pending | [Report](github-floyd-cannot-fire.md) |
@@ -70,7 +75,7 @@ Detailed per-issue records are added as those issues receive further work.
 | RENDER-019 | Tawfret brightness and distant haze differ from N64 | Fog candidate checked against original tasks; owner approved locally; included in v1.4.0 | [Report](tawfret-brightness-fog-fidelity.md) |
 | INPUT-012 | Removing a controller moves it to another player | Explicit Remove and input-type replacement fixes owner-confirmed; included in v1.4.0 | [Report](controller-remove-auto-reassignment.md) |
 | INPUT-013 | Player port indicators stay stale | Idle assignment indicator refresh owner-accepted; included in v1.4.0 | [Report](controller-port-indicators-stale.md) |
-| AUDIO-004 | Crackling and persistent audio delay (#29/#35) | #29 closed after RTSS attribution; #35 remains open. Unreleased host-queue recovery candidate passes component parity/fault/sanitizer checks; native build and eight audio suites pass; owner/reporter listening pending | [Report](audio-crackle-persistent-latency.md) |
+| AUDIO-004 | Crackling and persistent audio delay (#29/#35) | #29 closed after RTSS attribution; #35 remains open. Unreleased host-queue recovery candidate passes component parity/fault/sanitizer checks and eight audio suites; owner SS Anubis pass reports no regression; affected-reporter retest pending | [Report](audio-crackle-persistent-latency.md) |
 | CAMERA-009 | Focus-loss camera reset | Room-entry/focus-return correction passes actual-source tests and owner review with Modern controller and mouse/keyboard; included in v1.4.0 | [Report](focus-loss-camera-reset.md) |
 | CAMERA-008 | Modern controller high-drop camera reset | Owner confirmed locally; 486 scoped assertions and native checks pass; included in v1.4.0 | [Report](controller-high-landing-camera-reset.md) |
 | CAMERA-007 | Modern ledge/water camera reset and water-air facing (#30) | Ledge/water camera and water-air body-facing fix owner-approved after isolated retest; included in v1.4.0, reporter retest pending | [Report](controller-ledge-camera-reset.md) |
@@ -80,7 +85,7 @@ Detailed per-issue records are added as those issues receive further work.
 | MOD-001 | Exit warp stops at the door | Native contact fix in 1.2.1; 1.3 progression bypass and exact overlapping-exit handoff pass focused/native checks | [Report and source review](map-exit-warp-transition.md) |
 | RENDER-012 | Breakable glass before Vela shakes at high refresh | Included in v1.3: production overlay translation, component checks and owner live verification passed | [Report](high-refresh-glass-shaking.md) |
 | RENDER-015 | Boss motion blur causes discomfort despite 120/30 | Included in v1.3; Off/Reduced owner-accepted and three-mode preference component-tested | [Report](boss-motion-blur-discomfort.md) |
-| RENDER-016 | GitHub #25 Ally X cutscenes, homing reticle and rain | Timestamp and spatial rain-delay fixes owner-confirmed locally; included in v1.4.0; reporter/Ally X retest and hut performance open | [Report](github-ally-x-rendering.md) |
+| RENDER-016 | GitHub #25 Ally X cutscenes, homing reticle and rain | Original reporter confirms all reported bugs fixed in v1.4.0 and reports 120 FPS on Ally X; remains closed | [Report](github-ally-x-rendering.md) |
 | RENDER-014 | Enemy-clear door indicator darkens with distance | ORIGINAL-GAME BUG confirmed in EmuHawk; further investigation deferred by owner; accepted visibility workaround included in v1.3 | [Report](door-enemy-lock-distance-darkening.md) |
 | RENDER-013 | Original appears to follow VSync/display refresh | Not reproduced after restart; owner confirms 30 FPS motion, earlier session unlogged | [Investigation](original-vsync-rate-selection.md) |
 | RENDER-011 | Vela rescue cutscene stalls / appears low resolution | Tentatively accepted by owner at 120/30 after N64 footage confirms soft shots; brief Vela-to-first-cut dip and broader review remain | [Report and evidence](vela-rescue-cutscene-stutter-resolution.md) |
@@ -248,3 +253,10 @@ source scope and limitations. No released-resolution claim.
 - [Modern M/K Floyd mission steering](modern-floyd-mission-mouse-flight.md): Owner reports preview5 flight feels good; preview6 adds A/D strafing. Runtime/four suites and native velocity checks pass; owner strafe/fire/completion validation pending.
 
 - [Modern controller Floyd flight inversion](modern-floyd-controller-flight-inversion.md): separate default-On flight option in preview7; automated checks pass and owner approved; unreleased.
+
+- [Actor jumps while rotating the camera](camera-turn-actor-jumps.md): camera continuity correction owner-verified at 120 FPS; unreleased.
+
+- [Actor LOD option](actor-lod-option.md): live Original/High behavior owner-verified; controls moved to Video Settings > Rendering with UI checks passing.
+- [Exit marker and grenade fire cadence](exit-marker-fire-cadence.md): marker sparkle identity repair owner-verified locally; fire partially improved and remains open; unreleased.
+
+- [Drone buried after hut collision](drone-buried-after-hut-collision.md): open; saved actor position is below the floor, but the collision sequence and original-game parity remain unconfirmed.

@@ -72,7 +72,11 @@ struct SemanticPresentationPrevious {
   std::array<float, 3> world{};
   PresentationMatrix camera{};
   bool matched = false;
+  // New visibility/topology has no old vertex pose, but a verified continuous
+  // camera can still present its current pose in phase with the scenery.
+  bool camera_only = false;
 };
+using SemanticBirthEndpoints=std::map<PresentationVertexKey,SemanticPresentationPrevious>;
 inline bool semantic_motion_continuous(const SemanticPresentationSample &a,
                                        const SemanticPresentationSample &b) {
   const auto project = [](const SemanticPresentationSample &s) {
@@ -125,8 +129,10 @@ struct PresentationVertexHash {
   }
 };
 // Optional per-lifetime reasons: invalid sample, cadence break, conflicting
-// duplicate, missing old endpoint, projected-motion cut, matched vertex.
-using SemanticPresentationDiagnostics=std::map<std::uint64_t,std::array<std::uint64_t,7>>;
+// duplicate, missing old endpoint, projected-motion cut, matched vertex,
+// owned-camera exception, attached effect birth. Births still obey every
+// whole-actor poison/cut/camera guard and need a verified previous attachment.
+using SemanticPresentationDiagnostics=std::map<std::uint64_t,std::array<std::uint64_t,8>>;
 using SemanticRigidPoses=std::map<std::uint64_t,RigidPresentationPose>;
 // Captured camera operands must have matched the actual emitted fixed matrix.
 // Generation separates rooms; the key identifies the camera mode/player.
@@ -194,9 +200,10 @@ public:
          std::uint64_t tick, bool scene, bool cadence,
          SemanticPresentationDiagnostics* diagnostics=nullptr,
          const SemanticRigidPoses* rigid_poses=nullptr,
-         const SemanticCameraFrames* camera_frames=nullptr) {
+         const SemanticCameraFrames* camera_frames=nullptr,
+         const SemanticBirthEndpoints* births=nullptr) {
     std::vector<SemanticPresentationPrevious> result;
-    record_into(samples, tick, scene, cadence, result, diagnostics, rigid_poses, camera_frames);
+    record_into(samples, tick, scene, cadence, result, diagnostics, rigid_poses, camera_frames, births);
     return result;
   }
   // The caller owns this scratch output, which is consumed before its next
@@ -207,11 +214,12 @@ public:
       std::vector<SemanticPresentationPrevious>& result,
       SemanticPresentationDiagnostics* diagnostics=nullptr,
       const SemanticRigidPoses* rigid_poses=nullptr,
-         const SemanticCameraFrames* camera_frames=nullptr) {
+         const SemanticCameraFrames* camera_frames=nullptr,
+         const SemanticBirthEndpoints* births=nullptr) {
     result.assign(samples.size(), SemanticPresentationPrevious{});
     if (!scene) return;
     next_.clear(samples.size());
-    std::set<std::uint64_t> blocked, corrupt;
+    std::set<std::uint64_t> blocked, corrupt, missing_actors, camera_ineligible;
     const bool continuous = cadence && previous_tick_ != 0U &&
                             tick > previous_tick_ &&
                             tick - previous_tick_ <= 6U;
@@ -240,8 +248,9 @@ public:
       return continuous_cameras.contains(current.key[3]) &&
              semantic_world_motion_continuous(old,current);
     };
-    const auto bridge_continuous=[&](const auto& old,const auto& current) {
-      if(current.key[4]!=0x42524944U || !continuous_rigids.contains(current.key[0]))
+    const auto procedural_continuous=[&](const auto& old,const auto& current) {
+      if((current.key[4]!=0x42524944U && current.key[4]!=0x4245414dU && current.key[4]!=0x53484f43U && current.key[4]!=0x54524143U) ||
+         !continuous_rigids.contains(current.key[0]))
         return false;
       for(float value:old.camera)if(!std::isfinite(value))return false;
       for(float value:current.camera)if(!std::isfinite(value))return false;
@@ -250,7 +259,7 @@ public:
         if(!std::isfinite(old.world[c]) || !std::isfinite(current.world[c]))return false;
         const auto delta=double(current.world[c])-old.world[c];distance2+=delta*delta;
       }
-      // Retain a world-space bound on actual deformation. Camera/zoom/model
+      // Retain a world-space bound on bridge/beam deformation. Camera/zoom/model
       // cuts have already been checked using the immutable owned operands.
       return distance2<=128.0*128.0;
     };
@@ -263,8 +272,9 @@ public:
         (*diagnostics)[actor][0]+=!s.valid;
         (*diagnostics)[actor][1]+=!continuous;
       }
-      if (!s.valid || !continuous)
-        blocked.insert(actor);
+      if (!s.valid || !continuous) {
+        blocked.insert(actor);camera_ineligible.insert(actor);
+      }
       if (!s.valid) {
         corrupt.insert(actor);
         continue;
@@ -280,16 +290,25 @@ public:
         continue;
       } else {
         blocked.insert(actor);
-        corrupt.insert(actor);
+        corrupt.insert(actor);camera_ineligible.insert(actor);
         if(diagnostics)++(*diagnostics)[actor][2];
       }
       // A unique NaN endpoint was rejected by the original duplicate audit.
       // Preserve its poison even when that vertex is culled next scene.
       for (float value:s.world) if (std::isnan(value)) corrupt.insert(actor);
       for (float value:s.camera) if (std::isnan(value)) corrupt.insert(actor);
-      const auto old = previous_.find(s.key);
+      const Endpoint* old = previous_.find(s.key);
+      Endpoint attached;
+      bool birth=false;
+      if(!old && births && continuous && s.valid) {
+        const auto found=births->find(s.key);
+        if(found!=births->end() && found->second.matched) {
+          attached.sample=s;attached.sample.world=found->second.world;
+          attached.sample.camera=found->second.camera;old=&attached;birth=true;
+        }
+      }
       if (old == nullptr) {
-        blocked.insert(actor);
+        blocked.insert(actor);missing_actors.insert(actor);
         if(diagnostics)++(*diagnostics)[actor][3];
       } else {
         // Screen-space speed combines the camera and actor. A close/offscreen
@@ -297,23 +316,48 @@ public:
         // otherwise freeze every visible joint at a different camera phase.
         const bool projected=semantic_motion_continuous(old->sample,s);
         const auto owned=owned_camera_motion(old->sample,s);
-        const bool motion=owned.has_value()?*owned:
-            (projected || bridge_continuous(old->sample,s));
+        const bool motion=birth?owned.value_or(false):owned.has_value()?*owned:
+            (projected || procedural_continuous(old->sample,s));
         if(!motion) {
-          blocked.insert(actor);
+          blocked.insert(actor);camera_ineligible.insert(actor);
           if(diagnostics)++(*diagnostics)[actor][4];
         } else {
           result[i] = {old->sample.world, old->sample.camera, true};
           if(diagnostics) {
             ++(*diagnostics)[actor][5];
+            (*diagnostics)[actor][7]+=birth;
             (*diagnostics)[actor][6]+=!projected && owned.value_or(false);
           }
         }
       }
     }
+    // Missing geometry history must not advance the camera to the native
+    // endpoint while the room uses an intermediate camera. Keep all vertices
+    // of that actor at the current world pose, with zero deformation velocity.
+    // Only a fully validated camera shared by every part can be borrowed.
+    auto camera_only=missing_actors;
+    for(const auto actor:camera_ineligible)camera_only.erase(actor);
+    for(const auto& sample:samples) {
+      const auto actor=sample.key[0];
+      if(!camera_only.contains(actor))continue;
+      if(!camera_frames || !continuous_cameras.contains(sample.key[3])) {
+        camera_only.erase(actor);continue;
+      }
+      const auto current=camera_frames->find(sample.key[3]);
+      const auto old=previous_camera_frames_.find(sample.key[3]);
+      if(current==camera_frames->end() || old==previous_camera_frames_.end() ||
+         current->second.matrix!=sample.camera ||
+         !std::all_of(old->second.matrix.begin(),old->second.matrix.end(),
+             [](float value){return std::isfinite(value);}))
+        camera_only.erase(actor);
+    }
     for (std::size_t i = 0; i < samples.size(); ++i)
-      if (blocked.contains(samples[i].key[0]))
+      if (blocked.contains(samples[i].key[0])) {
         result[i].matched = false;
+        if(camera_only.contains(samples[i].key[0]))
+          result[i]={samples[i].world,
+              previous_camera_frames_.at(samples[i].key[3]).matrix,false,true};
+      }
     // A conflicting endpoint is not a valid anchor for the next scene.
     for (auto& entry : next_.entries)
       if (corrupt.contains(entry.sample.key[0])) entry.sample.valid=false;

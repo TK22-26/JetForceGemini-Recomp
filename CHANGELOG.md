@@ -1,5 +1,77 @@
 # Changelog
 
+## Unreleased
+
+- Add Actor LOD Original/High under Video Settings > Rendering. High retains
+  detailed actor models at a distance and applies live when saved. Original
+  remains the default; Apply/Cancel, persistence and aligned help text are covered
+  by launcher checks. High may increase rendering cost in crowded scenes.
+  [Implementation and review](docs/development/issues/actor-lod-option.md).
+- Smooth high-refresh cinematic camera motion by retaining the low angle bits
+  lost by the original camera trigonometry. Preserve native results in Original
+  FPS mode and for non-camera calls. Owner review confirms the space/Goldwood
+  improvement and smooth Cerulean entry at 120 FPS.
+- Preserve ship interpolation when attached engine geometry appears, and allow
+  the first continuous scene to use its verified framebuffer/history before the
+  display target has a prior-frame entry. Keep camera-cut, lifetime and target
+  selection checks. Two repeated owner flight reviews passed.
+- Correct the two mid-flight space-backdrop jumps during Goldwood departure by
+  tracking the sky actor's camera transform separately from ordinary actors.
+  The final operand order preserves native matrix validation; targeted replay
+  and owner review pass. [Camera and flight findings](docs/development/issues/cutscene-camera-cadence.md).
+- Correct Vela's apparent skirt separation on slopes during close-camera fading,
+  including Original FPS. Resolve the nearest player surface into a separate
+  layer and blend it once, preventing overlapping internal surfaces from showing
+  through. Keep the fade consistent across focus changes and replace the initial
+  screen-door pattern with smooth transparency. Native aim/death fades keep their
+  existing path. [Cause and accepted remedy](docs/development/issues/vela-skirt-focus-tearing.md).
+- Interpolate Vela's ship-underside light-beam motion and wrapped texture scrolling
+  at high output rates. Preserve native animation speed and actual camera cuts.
+  Targeted checks, controlled rendering comparison and owner review pass.
+- Smooth travelling bullets and expanding grenade shockwaves by tracking their
+  custom vertex buffers with the actual live projectile/effect and camera.
+  Valid motion near the camera no longer fails solely because its projected
+  screen displacement is large; real discontinuities still reject history.
+  [Effect evidence and limits](docs/development/issues/high-refresh-shot-effects.md).
+- Prevent drones and tribals from jumping sideways during camera turns when they
+  reappear or change detail models. Unmatched geometry retains its current world
+  pose while following the verified interpolated camera, without inventing an
+  earlier pose. [Owner-verified correction](docs/development/issues/camera-turn-actor-jumps.md).
+- Improve grenade-fire motion by keeping known sprite-transform identity stable
+  when animated local mesh topology changes. Native texture/shape frame cadence
+  is unchanged. Owner review found improvement; full fire confirmation remains
+  pending.
+- Smooth opening exit-marker sparkles while turning the camera. The native marker
+  sorts 20 persistent sparkles by camera distance and draws them through temporary
+  transforms; tracking their logical slots prevents draw order from breaking
+  interpolation. Owner review passed at 120 FPS. The cone's geometry was already
+  interpolating. [Investigation and lessons](docs/development/issues/exit-marker-fire-cadence.md).
+- Recover from a sustained host audio backlog after a temporary output stall
+  while preserving normal buffering behavior. Component parity/fault checks,
+  native audio suites and the owner's SS Anubis listening pass found no regression.
+  The affected user on [#35](https://github.com/TK22-26/JetForceGemini-Recomp/issues/35)
+  should retest when this change is available; affected-machine verification and
+  the original trigger remain open.
+
+### Findings and remaining verification
+
+- All three reported silent flight transitions match original N64 hardware in
+  the owner's comparison. #45 is closed as original behavior; no music was added.
+  [Comparison record](docs/development/issues/flight-transition-missing-music.md).
+- The #25 reporter confirms their rain, reticle and performance complaints are
+  resolved in v1.4.0. The #40 reporter confirms Proton startup now works, but
+  launcher menus remain blank; local Proton reproduction and a fix are still open.
+  [Ally X retest](docs/development/issues/github-ally-x-rendering.md),
+  [Proton follow-up](docs/development/issues/github-steam-deck-proton-startup.md).
+- A Goldwood drone was observed below the floor near a broken hut. Saved actor
+  state supports a native position/collision displacement, but the collision
+  sequence and any difference from the original game remain unproved. No collision
+  patch is included. [Evidence](docs/development/issues/drone-buried-after-hut-collision.md).
+- Grenade-fire completion, suspected muzzle-flash jitter, character shadows (#46),
+  floor reflections (#47) and the separate camera-fade activation report (#52)
+  are not claimed resolved by these rendering fixes. See the
+  [issue index](docs/development/issues/README.md) and [known issues](docs/known-issues.md).
+
 ## 1.4.0 - 2026-10-22
 
 - Prevent scenery from interpolating through cinematic camera cuts when a distant

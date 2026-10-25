@@ -59,6 +59,55 @@ if(offset EQUAL -1)
  message(FATAL_ERROR "Missing RT64 interpolation patch site")
 endif()
 string(REPLACE "${before}" "${after}" contents "${contents}")
+set(before [=[                int32_t interpolationTargetFbPairIndex = -1;]=])
+set(after [=[                int32_t interpolationTargetFbPairIndex = -1;
+                bool jfgProvisionalTarget = false;]=])
+string(FIND "${contents}" "${before}" offset)
+if(offset EQUAL -1)
+ message(FATAL_ERROR "Missing RT64 target priority declaration")
+endif()
+string(REPLACE "${before}" "${after}" contents "${contents}")
+set(before [=[if (!interpolationCandidate || !interpolationTargetKey.isEmpty()) {]=])
+set(after [=[if (!interpolationCandidate || (!interpolationTargetKey.isEmpty() && !jfgProvisionalTarget)) {]=])
+string(FIND "${contents}" "${before}" offset)
+if(offset EQUAL -1)
+ message(FATAL_ERROR "Missing RT64 target priority selection")
+endif()
+string(REPLACE "${before}" "${after}" contents "${contents}")
+set(before [=[                        if ((interpolationFb != nullptr) && interpolationFb->interpolationEnabled) {]=])
+set(after [=[                        const bool jfgConfirmed = interpolationFb && interpolationFb->interpolationEnabled;
+                        const bool jfgBootstrap = !jfgOffscreen && jfgSnapshot &&
+                            !jfgSnapshot->blur_source && jfg::bootstrap_interpolation_target(interpolationFb,
+                                fbPair,workload.fbPairs.data(),workload.fbPairCount,jfgSnapshot->scene,
+                                workload.paused,workload.viOriginalRate,
+                                std::any_of(jfgSnapshot->transforms.begin(),jfgSnapshot->transforms.end(),
+                                    [](const auto& transform){return transform.matched;}));
+                        if (jfg::interpolation_trace_enabled() && jfgSnapshot) {
+                            const unsigned flags=(jfgSnapshot->scene?1U:0U)|(jfgOffscreen?2U:0U)|
+                                (jfgSnapshot->blur_source?4U:0U)|(workload.paused?8U:0U)|
+                                (interpolationFb?16U:0U)|
+                                (interpolationFb && interpolationFb->lastWriteType==Framebuffer::Type::Color?32U:0U)|
+                                (interpolationFb && interpolationFb->interpolationEnabled?64U:0U)|
+                                (std::any_of(jfgSnapshot->transforms.begin(),jfgSnapshot->transforms.end(),
+                                  [](const auto& transform){return transform.matched;})?128U:0U)|
+                                (jfgBootstrap?256U:0U);
+                            jfg::trace_interpolation("target-candidate",jfgSnapshot->tick,colorImg.address,
+                                colorImg.width,interpolationFb?interpolationFb->width:0U,flags,
+                                float(workload.viOriginalRate),
+                                colorImg.siz|(colorImg.fmt<<8U)|(interpolationFb?interpolationFb->siz<<16U:0U),
+                                interpolationFb?interpolationFb->addressStart:0U);
+                        }
+                        if (jfgBootstrap && !jfgConfirmed)
+                            jfg::trace_interpolation("target-history-bootstrap",jfgSnapshot->tick,
+                                colorImg.address,workload.viOriginalRate,workloadConfig.targetRate,0U,0.0f,0U,0U);
+                        if (jfg::select_interpolation_target(!interpolationTargetKey.isEmpty(),
+                                jfgProvisionalTarget,jfgConfirmed,jfgBootstrap)) {
+                            jfgProvisionalTarget = !jfgConfirmed;]=])
+string(FIND "${contents}" "${before}" offset)
+if(offset EQUAL -1)
+ message(FATAL_ERROR "Missing RT64 first continuous scene target patch site")
+endif()
+string(REPLACE "${before}" "${after}" contents "${contents}")
 set(before [=[if (resetTicks) {]=])
 set(after [=[if (resetTicks && !jfgOffscreen) {]=])
 string(FIND "${contents}" "${before}" offset)

@@ -425,3 +425,34 @@ record the final input hashes and package identity.
 Status: implemented on `fix/audio-latency-recovery`, built and component-tested;
 owner listening and affected-reporter verification pending. Not merged into
 main/develop, published, posted to GitHub or claimed as a released #35 fix.
+
+### Owner regression pass, 2026-10-24
+
+The owner ran the SS Anubis audio pass with diagnostics disabled on the
+`1d631c0` candidate and reported **no audio regression**. The owner did not
+previously experience #35's persistent delay, so this is listening acceptance
+for the exercised route, not verification on the affected machine. The
+reporter's retest remains pending; no release, merge or GitHub reply follows
+from this pass. A subsequent capture covers separate flight-music and shot
+effect reports.
+
+## Background replay audio report, 2026-10-24
+
+The owner heard a brief audio tear after closing the visual review capture,
+then clarified only menu music was audible and no game window was visible.
+An agent-started hidden camera replay was running at that time. Its requested
+NULL_AUDIO flag did not silence this native-clock configuration, so the test
+was stopped immediately. Treat this as an unqualified background-test symptom,
+not regression acceptance or failure of the owner's earlier gameplay pass.
+The completed visible review reports zero host underruns/overruns; that does
+not rule out an audible defect. Any further hidden audio-capable fixture must
+use an explicit muted copied audio profile. Private stop receipt:
+flight-shot-analysis-20261024/camera-replay-stopped.json.
+
+
+## Retest delivery note
+
+On 2026-10-24 the owner requests that #35 be carried as a changelog retest
+request for the affected user. The Unreleased changelog now states that scope.
+The ordinary SS Anubis listening pass remains accepted; this does not establish
+resolution on the affected machine, close #35 or authorize a GitHub reply.

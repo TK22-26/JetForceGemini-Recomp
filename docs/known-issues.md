@@ -1,6 +1,6 @@
 # Known issues
 
-[v1.4.0 is public](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0) and includes the owner-reviewed fixes below. All eight release jobs and public-download verification passed. Twelve individually approved replies were posted. Issues #32, #35 and #40 remain open for affected-user evidence; #41 tracks faster cutscene skip completion. Closed reports can be reopened if symptoms persist. See the [release qualification](development/releases-1.4.0-qualification.md).
+[v1.4.0 is public](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0) and includes the owner-reviewed fixes below. All eight release jobs and public-download verification passed. Twelve individually approved replies were posted. Issues #32, #35 and #40 remain open; the October 22 updates provide #35 logs and narrow #40 to blank launcher menus after successful startup. #41 tracks faster cutscene skip completion. Closed reports can be reopened if symptoms persist. See the [release qualification](development/releases-1.4.0-qualification.md).
 
 ## Issue delivery and reporter retests
 
@@ -9,18 +9,18 @@ Closed with owner-approved replies: #25, #30, #31, #33, #34, #36, #37, #38 and #
 | Report | Current status |
 |---|---|
 | [#41: cutscene skip completion time](development/issues/cutscene-skip-completion-time.md) | Owner-requested optimization follow-up; affected scenes and delays need measurement. No speed improvement claimed. |
-| [#25: Ally X rain, reticles and performance](development/issues/github-ally-x-rendering.md) | Rain/reticle presentation and room-entry rain delay are fixed and owner-approved locally. Reporter/Ally X retest is pending; the separate hut performance report is not resolved by those fixes. |
+| [#25: Ally X rain, reticles and performance](development/issues/github-ally-x-rendering.md) | Original reporter confirms all originally reported bugs fixed in v1.4.0 and reports being able to play at 120 FPS on Ally X. This is a report of their tested setup, not a universal performance guarantee. |
 | [#30: ledge and water camera](development/issues/controller-ledge-camera-reset.md) | Controller ledges, high landings and swimming/re-entry corrections are owner-approved locally; reporter retest after delivery. |
 | [#31: cutscene skipping](development/issues/optional-cutscene-skipping.md) | Owner-approved for v1.4.0. Unsupported scripts retain playback. Eleven likely development/setup entries remain documented as diagnostic coverage limits, not passed tests. |
 | [#32: intermittent mouse look/inversion](development/issues/github-mouse-look-and-inversion.md) | Intermittent motion loss and reported ineffective inversion Off remain unconfirmed locally. New-profile/reset inversion now defaults Off; existing choices are preserved. Bounded support diagnostics collect evidence without claiming a behavior fix. |
 | [#33: Modern side rolls](development/issues/github-modern-controls-side-roll.md) | Roll direction, backward crawling, explicit bindings and automatic-roll preference are owner-approved locally; reporter retest after delivery. |
 | [#34: Twin Mantis aiming range](development/issues/github-twin-mantis-aim-range.md) | Native aiming range is restored; five boss fixtures match EmuHawk angle checks and owner Twin Mantis review passed. Broader live/scoped coverage remains finite. |
-| [#35: audio delay](development/issues/audio-crackle-persistent-latency.md) | Reporter confirms stepwise v1.4.0 delay. An unreleased host-queue recovery candidate passes component parity, controlled fault recovery and sanitizer checks. Native build and eight audio suites pass; owner/reporter listening remain pending; the reporter's trigger is still unknown. #29's RTSS crackling is separate. |
+| [#35: audio delay](development/issues/audio-crackle-persistent-latency.md) | Reporter confirms stepwise v1.4.0 delay. An unreleased host-queue recovery candidate passes component parity, controlled fault recovery and sanitizer checks. Native build and eight audio suites pass; owner listening found no regression, affected-reporter retest remains pending; the reporter's trigger is still unknown. #29's RTSS crackling is separate. |
 | [#36: missing weapon crosshairs](development/issues/github-weapon-crosshairs.md) | Likely covered by the accepted #25 reticle correction; shared cause and reporter resolution need verification after delivery. |
 | [#37: Floyd cannot fire](development/issues/github-floyd-cannot-fire.md) | Fully approved locally, including related Modern/Floyd work. Ask the reporter to re-verify v1.4.0; no extra local firing/mission acceptance gate. |
 | [#38: Fet-Bubb crash](development/issues/github-fet-bubb-crash.md) | The supplied dump matches VibinToast's v1.1.8, a different project. This port's bounded comparison did not reproduce it. Reporter clarification is needed; no general crash or texture-pack fix is claimed. |
 | [#39: Give all weapons](development/issues/github-give-all-weapons.md) | Paused-dialog request expiry is fixed; actual grant acknowledgement and inventory availability are owner-confirmed. Reporter retest after delivery. |
-| [#40: Steam Deck/Proton](development/issues/github-steam-deck-proton-startup.md) | Windows-tested window-rendering fallback added for unavailable DirectComposition. Actual Steam Deck startup, helper, gameplay and menus need reporter testing; native Linux port work is deferred. |
+| [#40: Steam Deck/Proton](development/issues/github-steam-deck-proton-startup.md) | Reporter confirms the latest release boots and shows gameplay on Deck. Launcher menus display only a blank background; exact SteamOS/Proton versions and a menu-opening log are still needed. Remains open; native Linux work deferred. |
 
 The original [#19 reporter](development/issues/github-invasion-replay-stutter.md)
 and another tester confirm the invasion slowdown is resolved. The owner approved closure, now completed without an additional reply. [#18 targeting](development/issues/github-held-aim-and-diagonal-movement.md)
@@ -129,3 +129,35 @@ Include version, control mode, location and reproduction steps using the
 Historical evidence remains in the [pre-v1.4 notes](development/known-issues-before-1.4.0.md),
 [pre-v1.3 notes](development/known-issues-before-1.3.0.md) and
 [issue register](development/issues/README.md).
+
+## October 24 diagnostic follow-up
+
+- [Flight-transition music](development/issues/flight-transition-missing-music.md):
+  #45 reports silent flight segments and music restarting in the following shot.
+  Owner confirms all three reported sections match original N64 hardware.
+  #45 is closed as original-game behavior; no music change is needed.
+- [Shot effects at high FPS](development/issues/high-refresh-shot-effects.md):
+  travelling bullets and grenade shockwaves now pass owner review at 120 FPS.
+  The separate Vela ship-beam scroll/motion correction passes targeted checks,
+  a controlled flight comparison and owner visual verification. It is resolved
+  locally and unreleased. The opening exit-marker sparkle correction also
+  passes owner review. Grenade fire improved but awaits full confirmation.
+
+- [Flight camera and ship cadence](development/issues/cutscene-camera-cadence.md):
+  owner confirms the camera precision change removes recurring jitter. The
+  development candidate enables it for high-refresh modes and preserves Original.
+  The combined engine/startup candidate now has two clean, owner-accepted live
+  repeats. One earlier isolated hitch remains unexplained. These changes are unreleased.
+
+- [Vela skirt transparency](development/issues/vela-skirt-focus-tearing.md): the added
+  close-camera alpha fade exposes internal surfaces, including at Original FPS.
+  The owner confirms the skirt repair and accepts the smooth-layer replacement
+  for the initial visible mesh pattern. Build, targeted tests and rendered replay
+  pass. These changes are unreleased.
+
+- **Projectile/effect and camera-turn motion:** a local 120 FPS candidate adds travelling-tracer and grenade-shockwave interpolation and keeps held actor geometry aligned with the interpolated camera. Automated checks and owner visual review pass; unreleased. Suspected muzzle-flash jitter remains unconfirmed. See [shot effects](development/issues/high-refresh-shot-effects.md) and [actor camera jumps](development/issues/camera-turn-actor-jumps.md).
+
+- [Actor LOD](development/issues/actor-lod-option.md): live Original/High behavior verified by the owner. Controls now appear in Video Settings > Rendering; default remains Original.
+- [Space skybox holds](development/issues/cutscene-camera-cadence.md): a separate byte-bound sky-camera identity removes internal holds in the targeted replay. The owner confirms both space-departure jumps are gone in the normal preview.
+
+- [Drone buried beside a broken hut](development/issues/drone-buried-after-hut-collision.md): reported in Goldwood; saved actor position is below the floor, but the collision sequence and original-game parity remain unconfirmed.

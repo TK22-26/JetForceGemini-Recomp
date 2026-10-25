@@ -2,10 +2,60 @@
 
 ## Delivery and issue status — 2026-10-22 UTC
 
-The Windows-tested launcher fallback ships in v1.4.0. #40 stays open pending reporter Steam Deck/Proton testing. The approved reply requests versions, the failing stage and a Proton log, with a commitment to investigate using that log. No Deck success or native Linux release is claimed.
+The Windows-tested launcher fallback ships in v1.4.0. On October 22, the reporter confirmed that the latest Windows release now boots through Proton on Steam Deck and displays gameplay. Launcher menus still replace gameplay with a blank background; toggling the menu returns to gameplay. #40 remains open for this unresolved menu rendering failure. Full Deck compatibility and a native Linux release are not claimed.
 
 [Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/40#issuecomment-6332078795).
 Earlier entries below preserve their original investigation and verification scope.
+
+### Reporter retest and local feasibility review, October 23 UTC
+
+[@chaberl-art's October 22 report](https://github.com/TK22-26/JetForceGemini-Recomp/issues/40#issuecomment-6349698249)
+narrows the failure from startup to launcher menu contents. Clicking a top menu
+shows a solid grey/blue menu background, and clicking again restores gameplay.
+SteamOS version, Proton version, Gaming/Desktop Mode and a Proton log are still
+unspecified. Severity remains high because launcher settings are inaccessible.
+No local Proton reproduction or new rendering remedy is verified.
+
+The existing HWND fallback hides the hosted game window while showing opaque
+launcher UI. The reported hide/restore behavior makes this presentation boundary
+a useful investigation target, but does not establish which backend ran or why
+the menu contents disappeared. Passing Windows fallback tests did not qualify
+the actual Wine renderer. Capture the backend/HRESULT and Proton output before
+attributing the failure to a specific draw or compositor operation.
+
+Read-only host inventory found Windows 11 Pro, an RTX 5090, a running hypervisor,
+installed Hyper-V tools and running Hyper-V services. Both Get-VM and Get-VMHost
+returned a permission error, so available VMs and their graphics capabilities
+could not be inventoried. Three existing Ubuntu WSL2 distributions were stopped.
+No VM/distro was started, no package installed and no Proton test performed.
+
+Microsoft does not support Hyper-V DDA/GPU-P on Windows 11 client hosts; this is
+an official support limitation, not proof that every community configuration is
+impossible. The game's D3D12 path also needs the Vulkan features required by
+vkd3d-proton. A Linux VM or WSLg may still help isolate launcher behavior, but
+guest graphics support must be measured before drawing game compatibility or
+performance conclusions. WSLg's documented accelerated OpenGL support alone
+does not establish the required Vulkan support.
+
+References: [Microsoft Hyper-V GPU support](https://learn.microsoft.com/en-us/troubleshoot/windows-server/virtualization/troubleshoot-hyper-v-gpu-assignment-partitioning-passthrough-issues),
+[WSLg graphics prerequisites](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps),
+[vkd3d-proton driver requirements](https://github.com/HansKristian-Work/vkd3d-proton#drivers).
+
+Further execution requires an owner-authorized continuation of the existing
+guarded investigation; the production guard is enabled and the prior allowance
+is exhausted/shelved. Preserve its counters. Keep any new VM disks, prefixes,
+downloads and evidence on D:. The next bounded task is to establish an accessible
+Linux graphics environment, record exact versions/capabilities, and attempt the
+released launcher/menu sequence with an isolated profile. A successful local
+test would still need reporter verification on Steam Deck.
+
+Private evidence: `post-v14-issue-review-20261023/issue-40.json`. A reply requesting
+the missing platform details and a menu-opening Proton log is prepared for
+owner review. No GitHub response, title change or closure was made.
+
+The owner subsequently requested local fix work before replying to #40. Hold
+the proposed information request; no response is authorized. The local test
+plan and its access/guard blockers above remain in effect.
 
 - Severity: high for the reported platform; launch is blocked.
 - Status: source-confirmed startup incompatibility; HWND presentation candidate implemented. Windows build and both backend UI suites passed; actual Proton/Deck and reporter verification pending.

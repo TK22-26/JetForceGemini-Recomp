@@ -86,6 +86,56 @@ int main() {
     pairs[1].depthRead = pairs[1].depthWrite = false;
     require(jfg::early_present_workload_candidate(pairs[2], true, pairs.data(), pairs.size()));
   }
+  {
+    RT64::Framebuffer framebuffer;
+    framebuffer.addressStart=0x135700U;framebuffer.width=320U;
+    framebuffer.siz=G_IM_SIZ_16b;framebuffer.lastWriteType=RT64::Framebuffer::Type::Color;
+    std::array<RT64::FramebufferPair,2> pairs;
+    for(auto& pair:pairs)pair.reset();
+    auto& color=pairs[0];color.colorImage.address=framebuffer.addressStart;
+    color.colorImage.width=320U;color.colorImage.fmt=G_IM_FMT_RGBA;color.colorImage.siz=G_IM_SIZ_16b;
+    const auto ready=[&](bool scene=true,bool paused=false,unsigned rate=30U,bool history=true) {
+      return jfg::bootstrap_interpolation_target(&framebuffer,color,pairs.data(),pairs.size(),scene,paused,rate,history);
+    };
+    // Captured first continuous flight frame: alternating target has no
+    // manager entry yet; drawing this workload will create it.
+    const auto unseen=[&](unsigned rate=30U,bool history=true) {
+      return jfg::bootstrap_interpolation_target(nullptr,color,pairs.data(),pairs.size(),true,false,rate,history);
+    };
+    require(unseen());require(!unseen(0));require(!unseen(30,false));
+    pairs[1].depthImage.address=color.colorImage.address;pairs[1].depthWrite=true;
+    require(!unseen());pairs[1].depthWrite=false;
+    color.fastPaths.clearDepthOnly=true;require(!unseen());color.fastPaths.clearDepthOnly=false;
+    require(ready());require(!ready(false));require(!ready(true,true));
+    require(!ready(true,false,0));require(!ready(true,false,30,false));
+    framebuffer.lastWriteType=RT64::Framebuffer::Type::Depth;require(!ready());
+    framebuffer.lastWriteType=RT64::Framebuffer::Type::Color;
+    pairs[1].depthImage.address=framebuffer.addressStart;pairs[1].depthRead=true;require(!ready());
+    pairs[1].depthRead=false;pairs[1].fastPaths.clearDepthOnly=true;
+    pairs[1].colorImage.address=framebuffer.addressStart;require(!ready());
+    pairs[1].fastPaths.clearDepthOnly=false;require(ready());
+    color.colorImage.fmt=G_IM_FMT_I;require(!ready());color.colorImage.fmt=G_IM_FMT_RGBA;
+    framebuffer.width=640;require(!ready());framebuffer.width=320;
+    framebuffer.addressStart++;require(!ready());framebuffer.addressStart--;
+    color.colorImage.siz=G_IM_SIZ_32b;require(!ready());
+  }
+  {
+    // A multi-target task must keep a known display ahead of an inferred one,
+    // even when reverse draw scanning encounters the inferred target first.
+    for(bool confirmed_first:{false,true}) {
+      int selected=-1;bool provisional=false;
+      for(unsigned i=0;i<2U;++i) {
+        const bool confirmed=(i==0U)==confirmed_first;
+        if(jfg::select_interpolation_target(selected!=-1,provisional,confirmed,!confirmed)) {
+          selected=confirmed?1:0;provisional=!confirmed;
+        }
+      }
+      require(selected==1 && !provisional);
+    }
+    require(!jfg::select_interpolation_target(true,true,false,true));
+    require(!jfg::select_interpolation_target(false,false,false,false));
+    require(!jfg::select_interpolation_target(true,false,true,true));
+  }
   // CPU-written rain and reticles select retained masks by the actual output
   // timestamp. This is production state even when no diagnostic trace is open.
 #if defined(_WIN32)
