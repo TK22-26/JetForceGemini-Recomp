@@ -129,6 +129,9 @@ struct Context {
     std::vector<hlslpp::float4x4> inverse_worlds;
     std::vector<bool> inverse_ready;
     bool billboard = false;
+    // The game's G_CULL_FRONT bit (see dma_triangles): set by
+    // G_SETGEOMETRYMODE, cleared by G_CLEARGEOMETRYMODE, reset per task.
+    bool cull_front_switch = false;
     bool failed = false;
 };
 
@@ -905,12 +908,21 @@ void dma_triangles(RT64::State* state, RT64::DisplayList** dl) {
         if (common_clip != 0U &&
             !(context->interpolate && context->semantic_target))
             continue;
+        // JFG's microcode (DMA-triangle handler IMEM 0x1754-0x1770, triangle
+        // setup 0x1B18-0x1BF8): a triangle without flag 0x40 gets G_CULL_BACK.
+        // If the game has set G_CULL_FRONT, that bit turns the test round, so
+        // single-sided triangles lose their front faces instead. The game sets
+        // it around mirrored floor-reflection draws (overlay 137,
+        // realReflectPrint). The GLideN64 DKR rule (front only when the
+        // viewport X scale is negative) ignored the game's bit, so mirrored
+        // single-sided parts such as faces were culled on the wrong side.
+        // A negative viewport scale needs no rule: RT64 culls by screen
+        // winding like the RDP.
         const std::uint32_t cull_mode = (flags & 0x40U) != 0U
             ? 0U
-            : (state->rsp->viewportStack[
-                    state->rsp->viewportStackSize - 1U].scale.x > 0.0F
-                ? state->rsp->cullBothMask ^ state->rsp->cullFrontMask
-                : state->rsp->cullFrontMask);
+            : (context->cull_front_switch
+                ? state->rsp->cullFrontMask
+                : state->rsp->cullBothMask ^ state->rsp->cullFrontMask);
         state->rsp->modifyGeometryMode(
             ~state->rsp->cullBothMask, cull_mode);
         for (std::size_t corner = 0U; corner < vertices.size(); ++corner) {
@@ -942,6 +954,22 @@ void set_perspective_normalization(
         ++context->commands;
     }
     state->rsp->setPerspNorm((*dl)->p1(16U, 16U));
+}
+
+void set_geometry_mode(RT64::State* state, RT64::DisplayList** dl) {
+    if (Context* context = find_context(state); context != nullptr &&
+        ((*dl)->w1 & state->rsp->cullFrontMask) != 0U) {
+        context->cull_front_switch = true;
+    }
+    RT64::GBI_F3D::setGeometryMode(state, dl);
+}
+
+void clear_geometry_mode(RT64::State* state, RT64::DisplayList** dl) {
+    if (Context* context = find_context(state); context != nullptr &&
+        ((*dl)->w1 & state->rsp->cullFrontMask) != 0U) {
+        context->cull_front_switch = false;
+    }
+    RT64::GBI_F3D::clearGeometryMode(state, dl);
 }
 
 void cull_display_list(RT64::State* state, RT64::DisplayList** dl) {
@@ -2016,6 +2044,7 @@ void reset(RT64::State* state) {
         context->model_finite.fill(false);
         context->semantic_target=false;
         context->billboard = false;
+        context->cull_front_switch = false;
     }
 }
 
@@ -2107,6 +2136,8 @@ void Rt64F3ddkr::install() noexcept {
     context.gbi.map[kOpSetColorImage] = &set_color_image;
     context.gbi.map[G_LOADBLOCK] = &load_block;
     context.gbi.map[F3D_G_MOVEMEM] = &move_mem;
+    context.gbi.map[F3D_G_SETGEOMETRYMODE] = &set_geometry_mode;
+    context.gbi.map[F3D_G_CLEARGEOMETRYMODE] = &clear_geometry_mode;
     // F3DDKR has no sprite microcode; stock F3D would interpret 0x09 as a
     // Sprite2D base pointer and dereference it unchecked.
     context.gbi.map[F3D_G_SPRITE2D_BASE] = &unsupported;
