@@ -172,3 +172,13 @@ terrain-driven camera bounce remains under investigation in
 [camera collision bounce](camera-collision-bounce.md).
 
 The three owner-validated fixes were committed as 7b1ea4ba6228c126757b2b2e966ed7c0e1de8ca4 using the maintainer identity. No public release or push was performed. The subsequent camera-collision candidate retains those fixes; its separate issue record tracks new validation and delivery.
+
+
+## Follow-up, 2026-10-19
+
+The owner reports a focus-loss camera reset in the v1.3.1 controller preview.
+The live-only late input cleanup still clears the Modern mode marker, outside
+the earlier replay-suspension coverage. [CAMERA-009](focus-loss-camera-reset.md)
+records the qualified source failure, candidate, and pending live retest.
+Preserve the historical owner acceptance above; it is not a new cross-mode
+verification of the current build.

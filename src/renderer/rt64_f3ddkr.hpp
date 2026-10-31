@@ -1,5 +1,6 @@
 #pragma once
 
+#include "jfg/renderer/rt64_shell.hpp"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -62,7 +63,8 @@ public:
     Rt64F3ddkr& operator=(const Rt64F3ddkr&) = delete;
 
     void begin(std::span<const std::uint8_t> simulation_rdram, std::uint64_t vi_tick = 0U,
-        std::shared_ptr<const PresentationSceneIdentity> identities = {}) noexcept;
+        std::shared_ptr<const PresentationSceneIdentity> identities = {},
+        NativeCutscenePrompt prompt = {}) noexcept;
     void install() noexcept;
     void process_display_list(std::uint32_t address);
     [[nodiscard]] bool complete() const noexcept;

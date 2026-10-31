@@ -1,6 +1,6 @@
 # RENDER-017: Adjustable distance fog (GitHub #26)
 
-Status: revised implementation candidate; owner gameplay review pending.
+Status: released in v1.3.0 with owner acceptance; GitHub #26 closed and requester acknowledges the option. Earlier pending statuses below are historical.
 Report: https://github.com/TK22-26/JetForceGemini-Recomp/issues/26
 Severity: requested visual enhancement, not a gameplay bug.
 
@@ -55,6 +55,14 @@ Revised qualification: 204 UI checks pass; video configuration/coefficient check
 ## Owner acceptance (2026-10-19)
 
 The owner states fog/settings are done after testing the live strength preview. Local owner acceptance recorded; not released or posted to GitHub.
+
+## Public follow-up reviewed (2026-10-20 UTC)
+
+GitHub #26 is closed. The requester acknowledges the released fog control in
+[the 2026-10-19 follow-up](https://github.com/TK22-26/JetForceGemini-Recomp/issues/26#issuecomment-6269649774).
+That acknowledgement is not an additional technical test of fog fidelity.
+Existing owner/release validation remains the evidence for implementation.
+The owner's instruction not to reply remains in force; no public action was taken.
 
 ## v1.3.0 source availability
 

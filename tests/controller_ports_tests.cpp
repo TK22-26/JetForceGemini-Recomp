@@ -55,6 +55,67 @@ int main() {
   check(available(1,-3));
   selected.device=-3;selection.configure(1,selected);assigned=selection.devices(present);
   check(!available(0,-3) && available(1,-3));
+  {
+    jfg::ControllerPorts removing;
+    auto keyboard=removing.mappings[0];keyboard.device=-3;removing.configure(0,keyboard);
+    std::array<bool,4> connected{true,false,false,false};
+    check(removing.devices(connected)==std::array<int,4>{-3,0,-2,-2});
+    check(removing.auto_assignment.set_excluded("xinput:0",true));
+    auto removed=removing.mappings[1];removed.device=-2;removing.configure(1,removed);
+    auto free=removing.devices(connected);
+    check(free==std::array<int,4>{-3,-2,-2,-2});
+    check(jfg::controller_device_available(2,0,removing.mappings,free,connected));
+    connected[0]=false;check(removing.devices(connected)==free);
+    connected[0]=true;connected[1]=true;
+    check(removing.devices(connected)==std::array<int,4>{-3,-2,1,-2});
+    const auto stored=jfg::serialize_controller_auto_assignment(removing.auto_assignment);
+    jfg::ControllerPorts restarted;restarted.mappings=removing.mappings;
+    check(jfg::parse_controller_auto_assignment(stored,restarted.auto_assignment));
+    check(restarted.devices(connected)==std::array<int,4>{-3,-2,1,-2});
+    auto explicitAdd=restarted.mappings[3];explicitAdd.device=0;restarted.configure(3,explicitAdd);
+    check(restarted.devices(connected)==std::array<int,4>{-3,-2,1,0});
+    // Explicit assignment wins even during a settings snapshot's reload.
+    check(restarted.auto_assignment.set_excluded("xinput:0",false));
+    check(restarted.devices(connected)==std::array<int,4>{-3,-2,1,0});
+    for(const std::string invalid:{"", "version=2\n", "version=1\nversion=1\n",
+        "version=1\nexclude=xinput:4\n", "version=1\nexclude=sdl:1234\n",
+        "version=1\nexclude=xinput:0\nexclude=xinput:0\n", "exclude=xinput:0\n"}) {
+      auto policy=removing.auto_assignment;
+      check(!jfg::parse_controller_auto_assignment(invalid,policy));
+      check(jfg::serialize_controller_auto_assignment(policy)==stored);
+    }
+    check(!removing.auto_assignment.set_excluded("sdl:invalid",true));
+    check(jfg::parse_controller_auto_assignment("version=1\r\nexclude=xinput:0\r\n",restarted.auto_assignment));
+    check(restarted.auto_assignment.excluded.contains("xinput:0"));
+  }
+  {
+    const auto first="sdl:"+std::string(64,'a'),second="sdl:"+std::string(64,'b');
+    jfg::ControllerCatalog catalog;
+    jfg::ControllerPorts removing;
+    auto keyboard=removing.mappings[0];keyboard.device=-3;removing.configure(0,keyboard);
+    const int a=catalog.reserve(first),b=catalog.reserve(second);
+    std::array<bool,jfg::kControllerDeviceCount> connected{};
+    connected[static_cast<std::size_t>(a)]=true;
+    check(removing.devices(connected,&catalog)[1]==a);
+    check(removing.auto_assignment.set_excluded(first,true));
+    auto disconnected=removing.mappings[1];disconnected.device=-2;removing.configure(1,disconnected);
+    check(removing.devices(connected,&catalog)==std::array<int,4>{-3,-2,-2,-2});
+    connected[static_cast<std::size_t>(b)]=true;
+    check(removing.devices(connected,&catalog)[2]==b);
+    // The next process discovers devices in another order; exclusions stay by key.
+    jfg::ControllerCatalog reordered;const int newB=reordered.reserve(second),newA=reordered.reserve(first);
+    jfg::ControllerPorts restarted;restarted.mappings=removing.mappings;
+    check(jfg::parse_controller_auto_assignment(jfg::serialize_controller_auto_assignment(removing.auto_assignment),restarted.auto_assignment));
+    check(restarted.devices(connected,&reordered)[2]==newB);
+    auto add=restarted.mappings[3];add.device=newA;add.device_key=first;restarted.configure(3,add);
+    check(restarted.devices(connected,&reordered)[3]==newA);
+    // A key first discovered after loading the policy is still excluded.
+    jfg::ControllerPorts later;later.mappings=removing.mappings;later.auto_assignment=removing.auto_assignment;
+    jfg::ControllerCatalog emptyCatalog;std::array<bool,jfg::kControllerDeviceCount> absent{};
+    check(later.devices(absent,&emptyCatalog)[2]==-2);
+    const int late=emptyCatalog.reserve(first);absent[static_cast<std::size_t>(late)]=true;
+    check(later.devices(absent,&emptyCatalog)[2]==-2);
+  }
   jfg::ControllerPorts ports;
   check(ports.devices({false, false, false, false})[0] == -3);
   check(ports.devices({true, true, false, false})[0] == 0);

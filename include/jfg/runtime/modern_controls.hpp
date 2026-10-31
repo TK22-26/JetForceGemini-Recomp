@@ -1,6 +1,7 @@
 #pragma once
 
 #include "jfg/runtime/pc_input.hpp"
+#include "jfg/runtime/modern_roll.hpp"
 #include "jfg/runtime/controller_catalog.hpp"
 #include <optional>
 
@@ -11,7 +12,7 @@ enum class ModernAction : std::size_t {
     aim, fire, jump, crouch, interact, weapon_previous, weapon_next,
     scope_cycle, scope_increase, scope_decrease, pause, menu_confirm, menu_back,
     move_forward, move_back, move_left, move_right, move_fast,
-    menu_up, menu_down, menu_left, menu_right, menu_save, count
+    menu_up, menu_down, menu_left, menu_right, menu_save, roll_left, roll_right, count
 };
 inline constexpr std::size_t kModernActionCount = static_cast<std::size_t>(ModernAction::count);
 inline constexpr unsigned kModernGameplay = 1, kModernScoped = 2, kModernMenus = 4;
@@ -25,7 +26,8 @@ inline constexpr std::array<ModernActionInfo,kModernActionCount> kModernActions{
     {"move_forward","Move forward",7,false}, {"move_back","Move back",7,false},
     {"move_left","Move left",7,false}, {"move_right","Move right",7,false},
     {"move_fast","Full movement",3,false}, {"menu_up","Menu up",4},
-    {"menu_down","Menu down",4}, {"menu_left","Menu left",4}, {"menu_right","Menu right",4}, {"menu_save","Save game",4}
+    {"menu_down","Menu down",4}, {"menu_left","Menu left",4}, {"menu_right","Menu right",4}, {"menu_save","Save game",4},
+    {"roll_left","Roll left",3}, {"roll_right","Roll right",3}
 }};
 inline constexpr std::uint32_t modern_bit(ModernAction action) {
     return std::uint32_t{1} << static_cast<unsigned>(action);
@@ -39,6 +41,8 @@ enum class ModernGlyphStyle { automatic=0, xbox=1, playstation=2 };
 struct ModernControlsConfig {
     bool enabled = false;
     bool aim_toggle = false;
+    bool automatic_roll = true;
+    bool pad_floyd_flight_invert_y = true;
     bool mouse_original_acceleration = false;
     ModernGlyphStyle glyph_style = ModernGlyphStyle::automatic;
     int movement_stick = 0, movement_deadzone = 7849;
@@ -47,26 +51,26 @@ struct ModernControlsConfig {
     // Standardized SDL/XInput positions; -1 is unbound. Trigger +/- codes are
     // identical to ControllerMapping, but these bindings name gameplay actions.
     std::array<int,kModernActionCount> pad{
-        23,25,0,1,2,9,10,8,-1,-1,6,0,1,-1,-1,-1,-1,-1,11,12,13,14,2};
+        23,25,0,1,2,9,10,8,-1,-1,6,0,1,-1,-1,-1,-1,-1,11,12,13,14,2,-1,-1};
     // Windows virtual keys plus portable wheel IDs. Zero is unbound.
     std::array<int,kModernActionCount> keys{
         2,1,32,17,'E',kPcWheelDown,kPcWheelUp,4,0,0,9,'E','Q',
-        'W','S','A','D',16,0,0,0,0,0x74};
+        'W','S','A','D',16,0,0,0,0,0x74,0,0};
     PcInputConfig look = [] {
-        PcInputConfig c;c.modern=c.mouse_aim=c.dual_stick=1;c.mouse_invert_y=1;return c;
+        PcInputConfig c;c.modern=c.mouse_aim=c.dual_stick=1;return c;
     }();
 };
-inline constexpr std::array<std::string_view,11> kModernSettings{
+inline constexpr std::array<std::string_view,13> kModernSettings{
     "version","enabled","aim_toggle","glyph_style","movement_stick",
-    "movement_deadzone","axis_threshold","trigger_threshold","mouse_scope_sensitivity","pad_scope_sensitivity","mouse_original_acceleration"};
+    "movement_deadzone","axis_threshold","trigger_threshold","mouse_scope_sensitivity","pad_scope_sensitivity","mouse_original_acceleration","roll.automatic","pad_floyd_flight_invert_y"};
 // Modern keyboard navigation follows the movement keys; arrow keys are not
 // bindings. Keep the persisted action IDs for controller and profile compatibility.
 inline constexpr bool modern_arrow_key(int key) { return key>=37 && key<=40; }
 inline std::string serialize_modern_controls(const ModernControlsConfig &c) {
     std::string out;
-    const std::array<int,kModernSettings.size()> values{5,int(c.enabled),int(c.aim_toggle),int(c.glyph_style),
+    const std::array<int,kModernSettings.size()> values{7,int(c.enabled),int(c.aim_toggle),int(c.glyph_style),
         c.movement_stick,c.movement_deadzone,c.axis_threshold,c.trigger_threshold,
-        c.mouse_scope_sensitivity,c.pad_scope_sensitivity,int(c.mouse_original_acceleration)};
+        c.mouse_scope_sensitivity,c.pad_scope_sensitivity,int(c.mouse_original_acceleration),int(c.automatic_roll),int(c.pad_floyd_flight_invert_y)};
     for(std::size_t i=0;i<values.size();++i)
         out+=std::string(kModernSettings[i])+"="+std::to_string(values[i])+"\n";
     for(std::size_t i=0;i<kModernActionCount;++i) {
@@ -134,12 +138,30 @@ inline bool parse_modern_controls(std::string_view text,ModernControlsConfig &re
         }
         seen[padSlot]=seen[keySlot]=true;
     }
+    // Version 6 adds optional dedicated roll bindings and a shared automatic
+    // movement-roll preference. Older profiles keep their existing behavior.
+    if(values[0]>=1 && values[0]<=5) {
+        if(seen[11])return false;
+        values[11]=1;seen[11]=true;
+        for(const auto action:{ModernAction::roll_left,ModernAction::roll_right}) {
+            const auto padSlot=kModernSettings.size()+static_cast<std::size_t>(action);
+            const auto keySlot=padSlot+kModernActionCount;
+            if(seen[padSlot] || seen[keySlot])return false;
+            seen[padSlot]=seen[keySlot]=true;
+        }
+    }
+    // Version 7 separates controller aircraft pitch from look inversion.
+    // Existing profiles retain original flight steering.
+    if(values[0]>=1 && values[0]<=6) {
+        if(seen[12])return false;
+        values[12]=1;seen[12]=true;
+    }
     for(bool present:seen)if(!present)return false;
-    if((values[0]!=1 && values[0]!=2 && values[0]!=3 && values[0]!=4 && values[0]!=5) || values[1]<0 || values[1]>1 || values[2]<0 || values[2]>1 ||
+    if((values[0]!=1 && values[0]!=2 && values[0]!=3 && values[0]!=4 && values[0]!=5 && values[0]!=6 && values[0]!=7) || values[1]<0 || values[1]>1 || values[2]<0 || values[2]>1 ||
        values[3]<0 || values[3]>2 || values[4]<0 || values[4]>1 ||
        values[5]<0 || values[5]>30000 || values[6]<1000 || values[6]>32000 ||
        values[7]<1000 || values[7]>32000 || values[8]<10 || values[8]>300 ||
-       values[9]<10 || values[9]>300 || values[10]<0 || values[10]>1 || !parse_pc_input(look,c.look) ||
+       values[9]<10 || values[9]>300 || values[10]<0 || values[10]>1 || values[11]<0 || values[11]>1 || values[12]<0 || values[12]>1 || !parse_pc_input(look,c.look) ||
        c.look.modern!=1 || c.look.mouse_aim!=1 || c.look.dual_stick!=1)return false;
     // Only migrate the old default Back binding; preserve custom controls and
     // avoid taking Q from a menu or movement action. New profiles expose Q in UI.
@@ -153,7 +175,7 @@ inline bool parse_modern_controls(std::string_view text,ModernControlsConfig &re
     c.glyph_style=static_cast<ModernGlyphStyle>(values[3]);c.movement_stick=values[4];
     c.movement_deadzone=values[5];c.axis_threshold=values[6];c.trigger_threshold=values[7];
     c.mouse_scope_sensitivity=values[8];c.pad_scope_sensitivity=values[9];
-    c.mouse_original_acceleration=values[10]!=0;
+    c.mouse_original_acceleration=values[10]!=0;c.automatic_roll=values[11]!=0;c.pad_floyd_flight_invert_y=values[12]!=0;
     // Retire arrow bindings from saved modern profiles without changing other
     // choices, including shared E actions, inversion and controller mappings.
     for(auto& key:c.keys)if(modern_arrow_key(key))key=0;
@@ -248,6 +270,7 @@ struct ModernActionSample {
     N64StickSample move{};
     bool gamepad=false;
     bool physically_neutral=true;
+    bool automatic_roll=true;
 };
 inline bool modern_pad_down(const ModernControlsConfig &c,const StandardControllerSample &pad,int binding) {
     if(binding>=0 && binding<15)return pad.buttons[static_cast<std::size_t>(binding)];
@@ -257,7 +280,7 @@ inline bool modern_pad_down(const ModernControlsConfig &c,const StandardControll
     return (binding-15)%2==0?pad.axes[axis]>threshold:pad.axes[axis]<-threshold;
 }
 inline ModernActionSample sample_modern_pad(const ModernControlsConfig &c,const StandardControllerSample &pad) {
-    ModernActionSample out;out.gamepad=true;
+    ModernActionSample out;out.gamepad=true;out.automatic_roll=c.automatic_roll;
     for(std::size_t i=0;i<kModernActionCount;++i)
         if(kModernActions[i].gamepad && modern_pad_down(c,pad,c.pad[i]))out.held|=std::uint32_t{1}<<i;
     const auto axis=static_cast<std::size_t>(c.movement_stick*2);
@@ -269,7 +292,7 @@ inline ModernActionSample sample_modern_pad(const ModernControlsConfig &c,const 
     return out;
 }
 template<class Down> ModernActionSample sample_modern_keyboard(const ModernControlsConfig &c,Down down) {
-    ModernActionSample out;
+    ModernActionSample out;out.automatic_roll=c.automatic_roll;
     for(std::size_t i=0;i<kModernActionCount;++i)
         if(c.keys[i]!=0 && !modern_arrow_key(c.keys[i]) && down(c.keys[i]))out.held|=std::uint32_t{1}<<i;
     const auto held=[&](ModernAction a){return (out.held&modern_bit(a))!=0;};
@@ -277,6 +300,20 @@ template<class Down> ModernActionSample sample_modern_keyboard(const ModernContr
     out.move={static_cast<std::int8_t>((int(held(ModernAction::move_right))-int(held(ModernAction::move_left)))*speed),
               static_cast<std::int8_t>((int(held(ModernAction::move_forward))-int(held(ModernAction::move_back)))*speed)};
     out.physically_neutral=out.held==0;return out;
+}
+// Record the physical movement intent before opposing keyboard keys collapse
+// into analog axes. The native consumer applies it only in qualified stances.
+inline constexpr std::uint8_t modern_roll_flags(const ModernActionSample &input) noexcept {
+    const bool left=(input.held&modern_bit(ModernAction::roll_left))!=0;
+    const bool right=(input.held&modern_bit(ModernAction::roll_right))!=0;
+    // Dedicated actions take priority over automatic gestures. Opposing manual
+    // actions cancel, including when movement would otherwise select a side.
+    if(left || right)return left==right?0:left?kModernRollLeftFlag:kModernRollRightFlag;
+    if(!input.automatic_roll)return 0;
+    const bool forward_back_held = (input.held &
+        (modern_bit(ModernAction::move_forward) | modern_bit(ModernAction::move_back))) != 0;
+    return modern_roll_intent_flags(input.gamepad ? ModernRollSource::controller : ModernRollSource::keyboard,
+        input.move.x, input.move.y, forward_back_held);
 }
 // Canonical internal action masks. Interaction keeps guest A exclusively;
 // previous-weapon uses L, separating it from the Expert scheme's A binding.
@@ -327,6 +364,26 @@ inline ControllerPortSample map_modern_boss_actions(const ModernActionSample &in
     if(input.move.x<0)out.buttons|=0x2;
     if(input.move.x>0)out.buttons|=0x1;
     out.x=out.y=0;
+    return out;
+}
+// Floyd reads fixed native buttons rather than either character action table.
+// Jump/Interact accelerate in missions; Crouch brakes. Co-op only needs Fire
+// and Start to join/leave. Movement remains available for native flight.
+inline ControllerPortSample map_modern_floyd_actions(const ModernActionSample& input,bool mission,bool mouse=false,bool flight_inverted=true) {
+    ControllerPortSample out;out.connected=true;out.x=input.move.x;out.y=input.move.y;
+    if(input.held&modern_bit(ModernAction::pause))out.buttons|=0x1000;
+    if(input.held&modern_bit(ModernAction::fire))out.buttons|=0x2000;
+    if(mission && mouse) {
+        // Mouse steers flight; X carries strafe intent to the mission adapter.
+        // Forward/back become thrust/brake. Interact remains the pad action.
+        out.y=0;
+        if(input.move.y>0)out.buttons|=0x8000;
+        if(input.move.y<0)out.buttons|=0x4000;
+    } else if(mission) {
+        if(!flight_inverted)out.y=static_cast<std::int8_t>(std::clamp(-int(out.y),-128,127));
+        if(input.held&(modern_bit(ModernAction::jump)|modern_bit(ModernAction::interact)))out.buttons|=0x8000;
+        if(input.held&modern_bit(ModernAction::crouch))out.buttons|=0x4000;
+    }
     return out;
 }
 // Toggle aim resets on context/focus/device changes. Re-entry while held needs

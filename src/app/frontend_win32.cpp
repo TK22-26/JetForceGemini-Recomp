@@ -73,7 +73,7 @@ struct App {
   HBRUSH background = CreateSolidBrush(RGB(18, 27, 40));
   fs::path profile, helper, dataRoot, localRoot, executable;
   bool portable = false, customProfile = false, restartStorage = false, settingsDialogOpen = false;
-  std::wstring inputReplay, progressOutput, diagnosticsDirectory;
+  std::wstring inputReplay, progressOutput, diagnosticsDirectory, cutsceneReviewRequest;
   bool weatherDiagnostics = false;
   bool quickPlay = false, previewUpdate = false;
   Process session, dialog;
@@ -175,6 +175,8 @@ bool launch(Process &process, const wchar_t *action, HWND owner) {
       command += L" --progress-output " + quote(app.progressOutput);
     if (!app.diagnosticsDirectory.empty())
       command += (app.weatherDiagnostics ? L" --weather-diagnostics " : L" --diagnostics ") + quote(app.diagnosticsDirectory);
+    if (!app.cutsceneReviewRequest.empty())
+      command += L" --cutscene-review-request " + quote(app.cutsceneReviewRequest);
   }
   fs::path executable=app.helper;
 #ifdef JFG_RML_UI
@@ -619,6 +621,16 @@ void syncUiCapture() {
     RemovePropW(app.window, L"JfgFrontendPause");
 }
 LRESULT CALLBACK shieldProcedure(HWND window, UINT m, WPARAM w, LPARAM l) {
+  if (app.uiReady && (m == WM_MOUSEMOVE || m == WM_MOUSELEAVE)) {
+    if (m == WM_MOUSEMOVE) {
+      POINT point{static_cast<short>(LOWORD(l)), static_cast<short>(HIWORD(l))};
+      MapWindowPoints(window, app.window, &point, 1);
+      l = MAKELPARAM(point.x, point.y);
+    }
+    FrontendUiMessage(m, w, l, window);
+    syncUiCapture();
+    return 0;
+  }
   if ((m >= WM_MOUSEFIRST && m <= WM_MOUSELAST) || m == WM_KEYDOWN ||
       m == WM_KEYUP || m == WM_CHAR || m == WM_SYSKEYDOWN || m == WM_SYSKEYUP) {
     if (m >= WM_MOUSEFIRST && m <= WM_MOUSELAST && m != WM_MOUSEWHEEL &&
@@ -687,6 +699,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
 #ifdef JFG_RML_UI
   if (app.uiReady &&
       ((message >= WM_MOUSEFIRST && message <= WM_MOUSELAST) ||
+       message == WM_MOUSELEAVE ||
        message == WM_KEYDOWN || message == WM_KEYUP || message == WM_CHAR ||
        message == WM_SYSKEYDOWN || message == WM_SYSKEYUP || message == WM_ACTIVATEAPP ||
        message == WM_SETFOCUS || message == WM_KILLFOCUS)) {
@@ -750,6 +763,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
                         window, nullptr, shieldClass.hInstance, nullptr);
     if (!FrontendUiInit(window, app.profile, uiAction, "", app.previewUpdate))
       return -1;
+    FrontendUiInputChild(app.shield);
     app.uiReady = true;
     SetTimer(window, 2, 16, nullptr);
 #endif
@@ -1127,6 +1141,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
       app.inputReplay = fs::absolute(fs::path(argv[++i])).wstring();
     else if (option == L"--progress-output" && i + 1 < argc && app.progressOutput.empty())
       app.progressOutput = fs::absolute(fs::path(argv[++i])).wstring();
+    else if (option == L"--cutscene-review-request" && i + 1 < argc && app.cutsceneReviewRequest.empty())
+      app.cutsceneReviewRequest = fs::absolute(fs::path(argv[++i])).wstring();
     else if ((option == L"--diagnostics" || option == L"--weather-diagnostics") &&
              i + 1 < argc && app.diagnosticsDirectory.empty()) {
       app.weatherDiagnostics = option == L"--weather-diagnostics";
@@ -1136,7 +1152,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
       validArguments = false;
   }
   LocalFree(argv);
-  if (!validArguments || (!app.quickPlay && (!app.inputReplay.empty() || !app.progressOutput.empty()))) {
+  if (!validArguments || (!app.quickPlay && (!app.inputReplay.empty() || !app.progressOutput.empty())) ||
+      (!app.cutsceneReviewRequest.empty() && (app.diagnosticsDirectory.empty() || !app.inputReplay.empty()))) {
     MessageBoxW(nullptr,
                 L"Use JFG-Launcher.exe [--play] [--profile <folder>] [--portable] [--diagnostics <folder>] [--preview-update]. "
                 L"Diagnostic --input-replay <file> and --progress-output <file> require --play.",

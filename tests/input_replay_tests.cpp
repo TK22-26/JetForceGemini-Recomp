@@ -1,4 +1,5 @@
 #include "jfg/runtime/input_replay.hpp"
+#include "jfg/runtime/modern_roll.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -6,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <sstream>
 #include <string>
 #include <string_view>
 
@@ -158,7 +160,7 @@ void test_modern_action_recording() {
     check(replay.sample_at(120).modern_flags==128 && replay.sample_at(120).buttons==0x8000,"modern menus do not require captured mouse look");
     check(replay.sample_at(121).neutral(),"modern actions release at EOF");
     const auto before=replay.events();
-    for(const auto *row:{"1,2,1,0,0,0,0,0,0,1","1,2,1,0,0,0,0,0,0,136",
+    for(const auto *row:{"1,2,1,0,0,0,0,0,0,1","1,2,1,0,0,0,0,0,0,160",
         "1,2,0,0,0,0,0,0,0,128","1,2,1,0,0,0,0,0,0,256",
         "1,2,1,0,0,0,0,0,0","1,2,1,0,0,0,0,0,0,128,0"}) {
         const TemporaryReplay bad(std::string("jfg-phase8-input-v5\n")+row+"\n");
@@ -168,6 +170,46 @@ void test_modern_action_recording() {
     check(jfg::DeterministicInputReplay::load(old.path(),replay)==jfg::InputReplayError::invalid_record,"v4 does not accept action semantics");
     const TemporaryReplay compatible("jfg-phase8-input-v5\n1,2,1,0,0,0,5,80,0,0\n");
     check(jfg::DeterministicInputReplay::load(compatible.path(),replay)==jfg::InputReplayError::none && replay.sample_at(1).modern_flags==0,"v5 retains legacy mapping semantics when disabled");
+}
+
+void test_modern_roll_recording() {
+    const TemporaryReplay valid("jfg-phase8-input-v8\n"
+        "1,2,1,0,-80,0,3,12,-9,136,0,0\n"
+        "2,3,1,0,80,0,5,-12,9,144,0,0\n"
+        "3,4,1,0,-80,0,3,0,0,128,0,0\n"
+        "4,5,1,0,-80,0,3,0,0,143,0,0\n");
+    jfg::DeterministicInputReplay replay;
+    check(jfg::DeterministicInputReplay::load(valid.path(),replay)==jfg::InputReplayError::none,
+        "explicit roll intent loads without a format rewrite");
+    check(jfg::modern_roll_side_buttons(replay.sample_by_poll(0).modern_flags)==2 &&
+        jfg::modern_roll_side_buttons(replay.sample_by_poll(1).modern_flags)==1,
+        "keyboard and controller roll directions survive recording");
+    check(jfg::modern_roll_side_buttons(replay.sample_by_poll(2).modern_flags)==0 &&
+        replay.sample_by_poll(2).stick_x==-80,"old/no-intent frames never derive a roll from lateral axes");
+    check((replay.sample_by_poll(3).modern_flags&7U)==7U &&
+        jfg::modern_roll_side_buttons(replay.sample_by_poll(3).modern_flags)==2,"scope flags coexist with roll intent");
+    const auto before=replay.events();
+    std::ostringstream serialized;serialized<<jfg::kInputReplayHeaderV8<<'\n';
+    for(const auto &event:before) {
+        const auto &sample=event.sample;
+        serialized<<event.first_retrace<<','<<event.end_retrace<<','<<int(sample.connected)<<','
+            <<std::hex<<sample.buttons<<std::dec<<','<<int(sample.stick_x)<<','<<int(sample.stick_y)<<','
+            <<int(sample.pc_mode)<<','<<sample.look_x<<','<<sample.look_y<<','<<int(sample.modern_flags)<<','
+            <<int(sample.menu_kind)<<','<<int(sample.menu_target)<<'\n';
+    }
+    const TemporaryReplay roundtrip(serialized.str());
+    check(jfg::DeterministicInputReplay::load(roundtrip.path(),replay)==jfg::InputReplayError::none &&
+        replay.events()==before,"current packet serialization roundtrips roll intent and other fields");
+    for(const auto *row:{"1,2,1,0,0,0,3,0,0,8,0,0","1,2,1,0,0,0,5,0,0,16,0,0",
+        "1,2,1,0,0,0,3,0,0,160,0,0","1,2,1,0,0,0,3,0,0,192,0,0",
+        "1,2,0,0,0,0,0,0,0,136,0,0","1,2,1,0,0,0,3,0,0,384,0,0"}) {
+        const TemporaryReplay bad(std::string("jfg-phase8-input-v8\n")+row+"\n");
+        check(jfg::DeterministicInputReplay::load(bad.path(),replay)==jfg::InputReplayError::invalid_record &&
+            replay.events()==before,"roll flags still require Modern identity, connection and known bits");
+    }
+    const TemporaryReplay legacy("jfg-phase8-input-v5\n1,2,1,0,-80,0,3,0,0,128\n");
+    check(jfg::DeterministicInputReplay::load(legacy.path(),replay)==jfg::InputReplayError::none &&
+        jfg::modern_roll_side_buttons(replay.sample_at(1).modern_flags)==0,"legacy Modern replay behavior remains unchanged");
 }
 
 void test_native_menu_recording() {
@@ -280,6 +322,7 @@ int main() {
     test_independent_look();
     test_precise_stick_recording();
     test_modern_action_recording();
+    test_modern_roll_recording();
     test_native_menu_recording();
     test_long_manual_recording();
     test_connection_transitions();

@@ -1,5 +1,38 @@
 # Changelog
 
+## Unreleased
+
+- Renderer candidate: prevent early presentation from treating reused depth buffers as historical color images; character-selection flash verification pending.
+
+- Cutscene skip candidate: retain SS Anubis departure eligibility when cinematic doors reorder; preserve native completion flags and ending selection. Vela rescue skipping is owner-confirmed; Juno departure and the return-to-character-screen white flash remain under review.
+
+- Fix SS Anubis flashback skipping and A-prompt alignment; both verified in owner testing (unreleased).
+
+- Add a native cutscene skip prompt: A, B or Start reveals it; hold A for one
+  second to confirm. Reviewed finite cinematics use explicit native completion
+  and scene transitions. The first live transition failure has a music-wait/ship-script
+  correction; focused checks pass and live retest remains pending (#31).
+
+- Preserve the Modern camera angle when the game loses focus while still
+  releasing held input, aim toggles and queued zoom. Owner confirmed locally.
+
+- Retain the chosen Modern controller camera angle during high-drop landing
+  recovery, extending the existing mouse correction. Owner confirmed locally.
+
+- Preserve the Modern dual-stick camera orientation through humanoid ledge grabs
+  and climbs, as already supported for mouse look (#30). Automated regression
+  and native checks pass; the owner confirms the controller ledge fix locally.
+
+- Correct rain and software-drawn reticles disappearing during normal high-refresh
+  Play because required output-frame timestamps depended on diagnostic logging.
+  Regression checks pass with logging disabled; the owner confirms rain and reticles return.
+
+- Keep removed controllers unassigned instead of automatically moving them to
+  later player slots. Automated mapping/UI checks pass; owner approved locally.
+- Correct the fog gradient on large sky polygons, bringing Tawfret's sky and haze
+  closer to matched original-game rendering. Preserve the gamma correction and
+  fog percentage controls. Original-task comparisons pass; owner approved locally.
+
 ## 1.3.0 - 2026-10-19
 
 - Improve ship, village and Vela-rescue cutscene presentation and boss motion.
