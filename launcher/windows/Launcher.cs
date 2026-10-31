@@ -118,7 +118,7 @@ namespace JfgLauncher
             DirectoryInfo directory = new DirectoryInfo(Path.GetFullPath(start));
             for (int depth = 0; directory != null && depth < 8; depth++, directory = directory.Parent)
             {
-                if (File.Exists(Path.Combine(directory.FullName, "scripts", "build_from_rom.py")) &&
+                if (File.Exists(Path.Combine(directory.FullName, "scripts/build/build_from_rom.py")) &&
                     File.Exists(Path.Combine(directory.FullName, "CMakeLists.txt"))) return directory.FullName;
             }
             return null;
@@ -128,10 +128,10 @@ namespace JfgLauncher
         {
             string root = FullPath(sourceRoot);
             if (FindSourceRoot(root) != root)
-                throw new InvalidDataException("Select the source repository folder containing scripts/build_from_rom.py.");
+                throw new InvalidDataException("Select the source repository folder containing scripts/build/build_from_rom.py.");
             ProcessStartInfo info = new ProcessStartInfo();
             info.FileName = "python";
-            info.Arguments = Quote(Path.Combine(root, "scripts", "build_from_rom.py")) + " --rom " + Quote(FullPath(romPath));
+            info.Arguments = Quote(Path.Combine(root, "scripts/build/build_from_rom.py")) + " --rom " + Quote(FullPath(romPath));
             info.WorkingDirectory = root;
             info.UseShellExecute = false;
             info.CreateNoWindow = true;

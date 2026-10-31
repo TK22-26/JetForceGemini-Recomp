@@ -39,7 +39,6 @@ No release date or blanket all-cutscene compatibility is claimed. Public
 comments wait for owner review. Lesson: distinguish presentation shortening
 from executing the gameplay state changes embedded in cinematic scripts.
 
-
 ## Native source review, 2026-10-19 evening
 
 The original US sequence interpreter is identified, but a skip implementation
@@ -134,7 +133,6 @@ bounded native HUD drawing without clobbering display-list storage/state, adapt
 the logical Confirm input across Modern controller/KM and Original, and compare
 post-skip state with ordinary completion. Until then no scene is marked skippable.
 
-
 ## Explicit completion candidate and native prompt
 
 The candidate is in Native Cutscene Skip Preview, using a copied profile and
@@ -210,7 +208,6 @@ No public comment, commit, issue closure or release has occurred.
 
 Owner saw an apparent freeze, then out-of-bounds views before returning inside the ship, where skipping was unavailable. The prompt was much too large; owner requests approximately one-quarter size. Input confirmation and several completion events are recorded, so the failure is after confirmation/in the scene lifecycle. Component argument checks did not establish actual camera/fade/load completion. Preserve this informative failure; do not ship the first candidate or describe it as verified. Owner closed the game and launcher.
 
-
 ## Second candidate: cancel skipped music synchronization
 
 The first live failure is retained above. The completion path preserved opcode
@@ -258,7 +255,6 @@ Transferable lesson: a state/argument harness can pass while asynchronous audio
 synchronization and camera/load presentation still fail; both need separate
 lifecycle verification.
 
-
 ## Owner second-pass result
 
 The opening story skip worked: nine remaining segments completed in ~3.61
@@ -270,7 +266,6 @@ legibility. Reworking the icon to half diameter/quarter area while preserving
 the integer-pixel 5x7 glyphs, and investigating the landing's completion handler.
 
 The third-candidate compile caught a missing newline in a test comment (fixed). The new original landing-script regression then rejected opcode 0x67, revealing an additional unreviewed object-field command before live packaging; it is being inspected. Neither failure is treated as live verification.
-
 
 ## Third candidate: Goldwood landing and readable native pixels
 
@@ -367,7 +362,6 @@ Invasion completion result has not yet been confirmed by the owner.
 
 Owner corrected the latest selection: game/launcher closed, but invasion skip was NOT tested. Keep invasion live verification pending.
 
-
 ### Preview 5: native sprite command order and styled lettering (2026-10-20)
 
 The owner corrected their previous answer: King Jeff's invasion was NOT tested.
@@ -407,7 +401,6 @@ combiner representation are different layouts. Check new HUD assets through an
 actual native render; testing asset bytes and emitted geometry alone missed
 this integration error.
 
-
 ### Forest introduction and smaller smooth prompt (2026-10-20)
 Owner reports Goldwood forest/level intro has no A/B/Start prompt; ship shots were
 not the reported scene. Latest capture 20261020-041748-98bbfaf2ebff4527ab0162b981e9e62c
@@ -429,7 +422,6 @@ inputs were injected. Evidence: small-ring-*.png and smooth-ring-build.log.
 
 ### Preview6 forest failure and renewed review (2026-10-20)
 Owner still reports forest/level introduction has no skip; capture 20261020-042859-b61fbf033aba41798bb372b144d1c57b confirms the type48 change qualifies scene399, but this does not establish that it addresses the reported introduction. Recheck actual room/sequence identity and runtime eligibility. Owner requests removal of final A-button pop/shake; candidate now keeps button diameter fixed throughout hold, preserving animated ring. New two-hour guard receipt preserves original investigation counters/root. All changes remain pending live verification.
-
 
 ### Tutorial pickup classification cause and candidate (2026-10-20)
 The preview6 capture records repeated A holds in scene199/group0/script203, the
@@ -457,11 +449,9 @@ changes after the first scene update are now logged to distinguish late gates.
 
 Candidate validation: native runtime/evidence renderer build and existing hold/GBI tests passed. Production completion-function harness passed 3003 checks including original tutorial203 and return396/group1 script bytes in reconstructed actor context, route199->399/group1->21, unchanged sequence clock and actor/inventory memory, and rejection with players present, invalid physics storage or event callbacks. Four actual GPU renders verify identical opaque A-center pixels at progress0/.5/.92/1 and animated ring changes, with fixed sprite diameter confirmed in production source. Earlier whole-prompt color-mask and rectangular-bound checks included transparent sprite corners showing the ring; individual changed pixels were inspected and both failures preserved. These are code/renderer checks; owner gameplay verification remains pending. Receipts: tutorial-no-pop-validation.json and actual-runtime-validation-v5.log.
 
-
 ### Owner follow-up: SS Anubis flashback and A centering (2026-10-20)
 
 Preview 7: owner reports the SS Anubis flashback cannot be skipped and the A button is still slightly off-center in the hold ring. Exact scene/eligibility cause under investigation; forest tutorial fix remains pending explicit live verification. Owner is currently playing, so do not replace the package or interfere with the session. Eight-hour guarded continuation approved; original ledger counters and evidence preserved.
-
 
 #### SS Anubis diagnosis and candidate
 Capture 20261020-115008-3893e8d508e34ef9801628c04fb7c34d uses preview 7's exact runtime hash. The forest tutorial now completes 199/group0 -> 399/group1 -> gameplay21 in the trace; explicit visual acceptance remains pending. The flashback is scene239/group0, asset242, followed by238/asset241 ->240/asset243 -> remembered gameplay35. Its sole unreviewed control is type65, GlowingLight. The original US control jump-table entry resolves to800104A8, the same empty return already accepted for other presentation objects. Its captured movement/event callback slots are zero. Candidate accepts type65 while preserving those callback checks. Asset242's time-zero music-start command must still run normally before the remaining script can qualify.
@@ -469,7 +459,6 @@ Capture 20261020-115008-3893e8d508e34ef9801628c04fb7c34d uses preview 7's exact 
 The A sprite/ring rectangles shared mathematical centers, but the 9-native-pixel button had a fractional top edge. RT64's native RDP rectangle path rounds coverage and applies a T-row adjustment to fractional tops; the even-sized ring did not receive it. Candidate uses whole-pixel cover bounds with fractional positioning in S/T for both axes. Artwork, prompt size and one-second hold remain unchanged. Actual-render validation and owner verification pending.
 
 Preview8 validation: native build and component tests pass. Production-function harness passes3921 checks, including all remaining command boundaries of original flashback assets242/241/243, exact native transitions239->238->240->remembered35, unchanged actor memory and clock, rejection of glowing-light movement/event callbacks, and normal execution of the time-zero music-start before eligibility. These are reconstructed-context tests, not owner live acceptance. Four native GPU renders show a stationary A texture (129-pixel blue mask identical across progress0/.5/.92/1) with animated ring. Raster-bound correction removes the one-output-pixel rightward bias; vertical threshold bounds differ by half an output pixel, within sampling discretization. Owner review of concentric appearance remains pending. Receipt: private cutscene-skip/preview-receipt-v8.json.
-
 
 #### Preview8 owner acceptance
 
@@ -851,7 +840,6 @@ review. Native output was copied to an immutable candidate in the build step.
 
 Disco Credits departure now has an owner-reported overlay persistence issue; note stored under361 but refers to360. Track native credits cleanup and selector mode separately in [selector loading](cutscene-review-selector-loading.md). Original credits script loops and is not yet accepted by the completion planner.
 
-
 ### 2026-10-20: remaining model-animation disposition (candidate)
 
 The owner checklist identifies Asteroid boss sequences 347/350 and variants
@@ -868,7 +856,6 @@ The prior guarded source-read step 697 failed because its search expected
 spaces absent from the source; corrected step 698 recovered the actual code.
 No app mutation occurred in the failed read.
 
-
 ### 2026-10-20: later checklist entries
 
 The owner continued after the manifest correction. New notes include blocked
@@ -878,7 +865,6 @@ The captured scene/actor eligibility and original sequence inventory are being
 correlated; these are open reports, not verified fixes. Brig variants1 have
 no native terminal command in the inventory and must not receive an invented
 destination. Immutable source/capture triage is retained privately.
-
 
 ### 2026-10-20: complete owner checklist retained
 
@@ -895,7 +881,6 @@ Credits are a separate native frontend completion path, not an animation-script
 terminal. Quarry tribal flashing is reported absent in entry411 but present
 after entry282; this is a comparison lead, not a verified resolution.
 
-
 ### Native credits completion candidate
 
 The credits background script loops by design. Native frontCredits ends when
@@ -910,7 +895,6 @@ Source/component/build and owner verification remain separate; no live result
 is claimed yet. The selector's independently tested mode-restoration correction
 also prevents credits state from carrying into a manually selected gameplay room.
 
-
 Later actor review: type145 in room374 uses the identical local texture
 animation handler already reviewed for type147 (800270EC); it has no calls or
 persistent writes. The same pointer/callback guards now cover both types.
@@ -920,7 +904,6 @@ projectile-trigger mode, valid entry storage, and no custom callbacks. In that
 state the original hitPlayer check returns before audio/animation effects.
 Active regions and gameplay-trigger paths still reject. Targeted checks and
 owner review are pending.
-
 
 Ending-chain finding: room391 uses asset388/group0. The script requests room392
 at native time1950, then contains a second departure at native time6500. The native transition starts
@@ -932,7 +915,6 @@ other differing-time departures still reject. The native countdown and room
 cleanup are preserved. This should unblock linked ending entries388/389/390
 that arrive at391, subject to owner verification.
 
-
 The combined credits/ending/actor candidate builds and passes all five native
 suites,31 extracted runtime actor checks,11 active credits-memory checks, and
 actual original script fixtures. New launcher feedback passes81 native UI
@@ -940,7 +922,6 @@ checks plus the launcher package checks. Initial staging stopped because its
 chosen directory already existed; the historical stage was preserved and a
 new unique stage was used. All14 package manifest entries are verified after
 installation. Owner scene/visual review is pending, not inferred from tests.
-
 
 The final command audit produces completion plans for148 of168 non-frontend
 cinematic variants. The remaining20 are explicitly unclassified contexts:
@@ -951,7 +932,6 @@ Some contain no timed sequence; the Scroll entries are background animation;
 not148 owner-verified fixes or proof that all20 are unused. The known045 direct
 load crash remains a diagnostic limitation; absence of incoming animation-script
 references alone is insufficient to prove the asset is unused in the game.
-
 
 ### Owner clarification: scene-specific Quarry flashing
 The owner confirms the tribal flashing occurs only after one specific scene;
@@ -966,7 +946,6 @@ Owner follow-up confirms the affected Quarry sequence was skipped. Unskipped
 playback of that exact route has not been compared; skip completion and room
 initialization remain specific hypotheses, not a confirmed renderer regression.
 
-
 ### Native menu backgrounds distinguished from story cutscenes
 Source and original-memory review resolves eight catalog entries:
 348/0,349/0,381/0,381/1,382/0,383/0,384/0,385/0. The original frontend return
@@ -977,7 +956,6 @@ menu backgrounds in the review tool rather than counted as broken story skips.
 This does not classify the other no-terminal variants as unused. Owner notes
 and review marks remain unchanged; no original-game runtime change is needed.
 
-
 Owner reproduced the flashing in the current credits/ending candidate, after
 skipping282/0. It occurs in actual gameplay after the cutscene, not during the
 cinematic. The20261020-211400 capture ends in native room272/group0 with
@@ -985,12 +963,10 @@ TribalBoy, TribalGirl and three TribalLantern actors. The lighting/fade script
 globals are cleared at exit; a stuck cutscene light/fade is not established.
 The exact actor snapshot is retained privately for material/control comparison.
 
-
 The owner also reported flashing after the supposedly normal comparison route,
 411/0, in the 20261020-212519 capture, and requested another look. That route is
 not a verified clean control. Both entries now have reported post-cutscene
 gameplay flashing; a route-specific root cause is not established.
-
 
 The second 411/0 check also reproduced the post-cutscene tribal flashing. The
 owner clarified that bodies brighten and darken, rather than disappearing or
@@ -1006,12 +982,10 @@ diagnostic entry without changing native campaign initialization. Six context-
 dependent variants remain explicitly unresolved; the eight menu backgrounds
 and five setup variants retain their rows and saved-note keys.
 
-
 The owner clarified the effect as brightening then darkening and suggested an
 EmuHawk comparison. Native brightness cycling versus incorrect renderer colour
 handling is not yet established; a spatial interpolation repair alone does not
 explain this observation.
-
 
 ### Original-ROM Quarry comparison (2026-10-20)
 The owner repeated411/0 and confirmed brightening/darkening, and confirmed the
@@ -1037,14 +1011,12 @@ duplicate-lighting-update experiment is distinct from the already-present
 shared-palette interpolation repair; its relationship to this pulse is not
 established.
 
-
 Source clarification: the observed lighting bytes+0x25,+0x26,+0x27 are written
 by the original object-light routine (normalized0440003C). They are byte fields,
 not sixteen-bit light-table indices. The temporary analysis label "light_indices"
 must not be interpreted as their semantic type. The pulse corresponds to a
 change in these native brightness components; the screen comparison remains
 the primary evidence for visible original-game flashing.
-
 
 ### Earlier repair located; scoped restoration candidate
 The exact earlier repair is retained in the predecoded Quarry candidate from
@@ -1062,14 +1034,12 @@ Quarry272 uses the ordinary path. No blanket brightness clamp, interpolation
 change, global day/night disable, or arbitrary colour is used. Compile/runtime
 qualification and owner acceptance remain pending. The live preview is unchanged.
 
-
 The ordinary-lighting restoration candidate builds and passes the five relevant
 native component suites. It is installed in the existing cutscene preview after
 confirming that preview's game and launcher were closed. All14 package entries
 verify, and the profile/checklist hashes are preserved. This is a candidate for
 owner visual review, not a verified or released resolution. The selector window
 and its in-memory catalog are left alone; updated category labels remain staged.
-
 
 ### Quarry lighting acceptance and separate atmospheric follow-up
 The owner confirmed the restored tribal brightness repair in capture
@@ -1080,14 +1050,11 @@ colour transition blends, jumps darker/lighter, then resumes blending. It must
 not be treated as a failure of the accepted actor-lighting correction.
 See [Quarry atmospheric transitions](quarry-atmospheric-transitions.md).
 
-
 ### Quarry follow-up accepted; broader cutscene review resumed
 
 Owner approved the corrected atmospheric smoothing after a complete day/night cycle and resumed cutscene review on runtime ca94e6b4c3437fa86086c7bc8e0009767144313c2eef0654ce020d8265ccd50d. The saved per-character checklist is preserved. See [the atmosphere acceptance](quarry-atmospheric-transitions.md). This acceptance does not mark all scene entries or direct-entry limitations verified.
 
-
 Owner full-review update: BigShip045/0 no longer crashes but does nothing. The review validator explicitly blocks this unsafe standalone entry. Crash avoidance is not successful scene playback or skip verification; retain it as a context-required review limitation. See [selector record](cutscene-review-selector-loading.md). No normal-campaign failure is established.
-
 
 ### Owner review: scene207 crashes after skip (2026-10-21 UTC)
 
@@ -1101,7 +1068,6 @@ from that older note. Latest observed session is
 20261021-012017-9eb9e200ee9e45fd9846d399c2b3c309.
 Preserve the active game, saves and owner's notes. No remedy is claimed from
 prompt visibility; completion/transition evidence needs review.
-
 
 ### Owner clarifications and additional failures during the same pass
 
@@ -1125,16 +1091,13 @@ Live progress/event samples are partial, not closed crash evidence or replay
 verification. No code or active profile changes were made, and the owner's
 persistent checklist is not overwritten by this intake.
 
-
 Owner retest additions:271/variant2 and275/variant1 still do nothing. Both remain open observations; no unused classification or safe-entry fix is inferred. The current pass is consolidated in [the owner retest record](cutscene-owner-retest-20261020.md), alongside045/207/235/240. No active game/profile/checklist changes.
 
 Owner retest:308/variant1 and322/variant1 do nothing, with explicit confirmation of no freeze for both. Added to [the consolidated owner record](cutscene-owner-retest-20261020.md). No crash/hang or unused classification is inferred.
 
 Owner retest:335 still cannot be skipped. Fresh persistent entry335/1/Juno (2026-10-21T01:30:13Z) says ?cannot skip?; older335/0 failure remains separate. Both are open, and a reviewed checkbox is not a passing result. See [current owner retest](cutscene-owner-retest-20261020.md).
 
-
 Juno final retest clarification: checked boxes are owner-confirmed passes, including entries whose old failure notes remain. Only15 unchecked entries are active; see [the authoritative retest record](cutscene-owner-retest-20261020.md). Candidate bad068704 fixes normalized Credits-overlay qualification, adds individually reviewed visual/proximity actor handlers, and repairs diagnostic selector frontend recovery.48 extracted native/captured-memory checks and both cutscene component suites pass; owner live review is pending. No-exit/context-dependent variants remain unresolved, not classified as unused or silently marked passed.
-
 
 ### Corrected native actor audit and review prerequisites (2026-10-21)
 
@@ -1161,14 +1124,10 @@ launcher/selector are open for owner review.376/0 and207/0 remain candidates,
 See [the current retest record](cutscene-owner-retest-20261020.md) and
 [selector details](cutscene-review-selector-loading.md).
 
-
 Owner acceptance2026-10-21 20:46UTC:376/0 and207/0 work on batch2 (96a6b257);405/2 already passed. Saved Juno boxes agree.335/0 and11 context-dependent entries remain unchecked. This is local owner verification, not a published resolution. See [current retest](cutscene-owner-retest-20261020.md).
-
 
 Owner acceptance20:55UTC:335/0 passed and207/0 re-confirmed. All four targeted Juno retests now pass. Only11 unchecked context-dependent entries and the separate native type145 qualification audit remain; current preview and owner notes unchanged.
 
-
 The remaining11 entries are classified as likely development/setup variants after the original631-exit scan and script audit. Normal exit data selects the already-passed378/2,409/1 and410/1. No actual source or owner notes were changed, and universal unreachability is not claimed. See [the detailed classification](cutscene-owner-retest-20261020.md).
-
 
 Final Juno audit: the type 145 follow-up is complete. It is the native FireWork particle/light control, distinct from type 147 texture animation. Only the incorrect source explanation changed; runtime code and accepted preview remain identical. All four targeted owner retests pass. The remaining 11 rows retain their likely development/setup classification and original notes. See [the final audit](cutscene-owner-retest-20261020.md).

@@ -109,7 +109,6 @@ than treating every full-width color write as an independent animation frame.
 Keep scheduling, interpolation and apparent-resolution evidence distinct until
 a shared cause is demonstrated. Do not promote partial improvement to a fix.
 
-
 ## Related boss-room rendering report
 
 During the same official capture the owner reports lower apparent resolution
@@ -122,7 +121,6 @@ source rate zero, replacing the displayed sequence. This is a shared rendering
 lead with rescue shots 344/345, not proof of the apparent-resolution cause.
 Private evidence: owner-boss-failure-live-01. Keep input and rendering acceptance
 separate; neither report is resolved by the unbuilt input candidate.
-
 
 ## Closed capture: motion-blur source and GPU-copy policy
 
@@ -151,7 +149,6 @@ over the full route, beyond the capped detailed trace. They remain unresolved;
 the absence of underruns during the earlier rescue interval is narrower.
 Private full-list/route evidence: blur-and-tail-route-review.json.
 
-
 ## Closed-capture rendering follow-up and rejected prototype
 
 Full compact timing and frame logging survive closure. The final health record
@@ -178,7 +175,6 @@ failed. Queue-slot lifetime and compositing still require independent validation
 The focused 1.2.1 preview contains the controls/exit-contact/scene-counter changes,
 not GPU-copy or composite-queue experiments. Rendering resolution, 120 FPS
 presentation in blur scenes, and the remaining audio events are still open.
-
 
 ## 2026-10-18 hotfix preview follow-up
 
@@ -311,7 +307,6 @@ The first mapping keyed only by scene present ID accidentally labelled every
 phase as the final phase. The corrected mapping uses (present ID, phase);
 retain both reports. Image continuity is separate from elapsed-time performance.
 
-
 ### Moving boss check at 360 FPS
 
 The normal-Play moving Ichor route with the map/settings I/O optimizations and
@@ -331,9 +326,7 @@ The image capture is excluded from performance claims.
 Private evidence: vela-composite/play-moving-blur-360,
 small-blur-history-comparison.json and each continuity-review-v2.json.
 
-
 Owner reaffirmed full-resolution visual fidelity as an explicit acceptance item. The original rescue drops to a visibly lower-detail image, so timing alone cannot qualify the remedy. Separate full-size captures will cover each affected rescue shot and compare scene detail, intended temporal blur, CPU shadows and overlays; screenshot overhead is excluded from performance claims.
-
 
 ### Native endpoint and resize checks
 
@@ -348,7 +341,6 @@ A separate normal-Play moving boss route changes the hidden client from
 normal shutdown, no unsupported guest accesses and no audio underrun/overrun
 events. Resizing itself is excluded from steady-state pacing acceptance.
 Private evidence: blur-endpoint-equivalence.json and play-moving-blur-resize.
-
 
 ### Full-size rescue capture and remaining timing failure
 
@@ -385,7 +377,6 @@ Private evidence: rescue-full-size-image-index.json, rescue-fidelity-plan.json,
 rescue-village-wall-review.json, rescue-village-gap-attribution.json,
 current-village and rescue-native-cutscene-route.
 
-
 ### Reference-route recovery and renderer compatibility
 
 The first original-ROM rescue reference attempt stopped in the Brig before
@@ -418,7 +409,6 @@ rescue-native-leafs and current-village-entry-profile. Full-size screenshots
 are fidelity evidence only; their readback overhead excludes them from
 performance acceptance.
 
-
 ### Original-ROM image review
 
 The original-ROM reference now completes all six rescue shots and returns to
@@ -447,7 +437,6 @@ parity. All failed fixture evidence and original saves are preserved.
 Private evidence: original-rescue-waypoint-visual, original-rescue-contact-visual,
 original-rescue-contact-v2-visual and rescue-full-size-image-index.json.
 
-
 ### Additional fidelity fixture limits
 
 The Original-rate capture attempt reached rescue shot 344 but recorded no
@@ -462,7 +451,6 @@ no accepted capsule images. No owner save was changed, and this is not labeled
 a runtime regression. The owner's actual hotfix session and initial save have
 now been located for state-based reproduction. Failed evidence remains in
 rescue-original-rate-shot344-mode0 and vela-locked-capsule-full-size.
-
 
 ### Rescue queue-capacity lead
 
@@ -491,7 +479,6 @@ pending; increased capacity is a candidate, not a declared fix.
 
 Evidence: rescue-resource-comparison-wall-review.json,
 rescue344-submission-profile/attribution.json and queue-wait-correlation.json.
-
 
 ### Original-rate and owner-selection fidelity checks
 

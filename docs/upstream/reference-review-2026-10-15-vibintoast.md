@@ -85,7 +85,6 @@ No upstream implementation has been copied into our runtime in this review.
 Respect its GPL-3.0 license and attribution if any implementation is adopted.
 PERF-001 and the rendering issues retain their existing open statuses.
 
-
 ## Published-release quiet-gameplay cadence
 
 The requested options file contains frame_rate 0, 1 or 2, respectively. Four independent muted runs reach game mode 0 in level 21. The table uses 300 updates before each final 300-update tail, excluding the close-request interval. It is a quiet-area cadence check, not the owner combat route. The debug output rounds each duration to 0.1 ms.
@@ -99,9 +98,7 @@ The requested options file contains frame_rate 0, 1 or 2, respectively. Four ind
 
 The non-original captures contain repeating one/one/four-VI updates: fast updates followed by a long stall can produce an apparently steady average near 30. This differs from Original mode pacing and is not evidence of stable 60 Hz simulation. The file settings, logs and captured overlays are preserved; the active UI setting and a fresh pinned-source build are separate checks. Do not label the average counter alone as smoothness or transplant this scheduler override as a validated remedy for our runtime. Evidence: vibintoast-gameplay-cadence/cadence-review.json and retained stderr/image captures.
 
-
 The fresh pinned-source build did not produce a completed build receipt. Its guarded request/log is preserved as 473a-vibintoast-source-build-invocation; no source-build success is claimed.
-
 
 ## Active setting confirmation and owner capture
 
@@ -113,9 +110,7 @@ The fresh-source build first stopped at a locally incorrect CMake tool path. Aft
 
 The owner offered a manual tutorial run. Automated comparisons and the source build were withdrawn before execution while a separate muted, copied-save release session records per-update game timing, player/level observations and visible FPS. The release binary exposes screen FPS in its overlay but not per-present timestamps in this logging path. Exclude startup and initial waiting when reviewing the route. Evidence: vibintoast-owner-tutorial-20261015. The owner's visual report and resulting logs must qualify combat and later-level conclusions; setup alone is not validation.
 
-
 Owner tutorial follow-up: severe stalls are confirmed in the recorded Original-mode route, including 15.0-update/s diagnostic windows. The capture inherited debug cheats, forced pistol selection and inactive dual-stick controls; it is not a clean default-game comparison. See [DIAG-002](../development/issues/reference-owner-capture-contamination.md) for the full audit, per-level timing and prepared correction. Missed-input causation and matching original-game targeting remain open; no auto-aim cheat was identified among the enabled overrides.
-
 
 ## Owner-directed end of reference testing
 

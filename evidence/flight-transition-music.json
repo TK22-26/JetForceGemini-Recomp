@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "issue": 45,
-  "status": "candidate_test_verified_live_listening_pending",
+  "status": "walkway_regional_difference_owner_confirmed_ntsc_rollback_pending",
   "source_base_commit": "d98d7fc265169d6df4a83ec45776dfa5394c739a",
   "source_dirty": true,
   "runtime_sha256": "7545c322bb20295acba31b1e105c2af44246fc2209547aec61e595cf2e3092e2",
@@ -597,5 +597,38 @@
     "root_and_all_prior_charges_preserved": true
   },
   "candidate_revision": 2,
-  "implementation": "Correct the loaded header before levelTunePlay and supply the same tune to the pinned next-scene levelGetTune comparison, using exact scene/group/asset and pending destination/group/US summary identities. Native code owns stop/keep/start, fades, volume and explicit scripts. ROM and persistent level-summary bytes unchanged."
+  "implementation": "Correct the loaded header before levelTunePlay and supply the same tune to the pinned next-scene levelGetTune comparison, using exact scene/group/asset and pending destination/group/US summary identities. Native code owns stop/keep/start, fades, volume and explicit scripts. ROM and persistent level-summary bytes unchanged.",
+  "historical_status_before_owner_correction": "candidate_test_verified_live_listening_pending",
+  "owner_correction_20261031": {
+    "route": "Leaving Walkway for SS Anubis",
+    "region": "NTSC, owner-reported original N64 hardware",
+    "owner_clarification": "Just rechecked leaving walkway.",
+    "observation": "The original hardware also omits this music; earlier expected-music claim used the wrong cutscene.",
+    "walkway_candidate": "Withdrawn as a fidelity fix; still present in source and review runtime pending removal.",
+    "pal": "Superseded by subsequent PAL EmuHawk owner confirmation below; initial correction preceded that comparison.",
+    "other_candidate_routes": "Sekhmet and Goldwood/Vela departures not covered by this recheck; remain unverified.",
+    "test_evidence": "Historical test results and runtime hashes below are retained unchanged; they demonstrate added music, not original-hardware correctness.",
+    "github_issue": "Remains open; no external update performed."
+  },
+  "owner_regional_comparison_20261031": {
+    "route": "Leaving Walkway for SS Anubis",
+    "ntsc": {
+      "platform": "Original N64 hardware, owner report",
+      "music": "absent"
+    },
+    "pal": {
+      "platform": "Original Europe ROM in EmuHawk 2.11.1 / Mupen64Plus",
+      "normalized_rom_sha1": "50651c4e0c46332f7f0b45870263f0a8b9a49602",
+      "music": "present, owner live listening report",
+      "walkway_placement": "owner confirmed",
+      "automated_audio_capture": false,
+      "physical_pal_hardware_tested": false
+    },
+    "japanese": "Not tested",
+    "interpretation": "Observed regional behavior difference; underlying ROM/code/asset cause not isolated. US Walkway insertion remains withdrawn and removal is pending. Other routes remain unverified.",
+    "future_work": "Owner requested PAL and Japanese ROM support separately; not part of reorganization.",
+    "save_isolation": "Modified only slot 1 in copied SaveRAM plus its checksum; other slots/devices and original source save hash verified unchanged.",
+    "controller_setup": "Temporary positioning loop stopped and analog bindings restored; owner confirmed normal controller input.",
+    "release_status": "No runtime rollback, new region support, commit, release, or GitHub update."
+  }
 }

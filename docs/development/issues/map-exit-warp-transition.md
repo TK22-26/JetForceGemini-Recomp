@@ -45,7 +45,6 @@ Object centers are not necessarily valid trigger points. A warp intended to
 enter an exit must satisfy its contact semantics and use the game's own
 transition handling, rather than assigning the displayed room identifier.
 
-
 ## Candidate implementation (not yet tested)
 
 The hotfix source now queues the exact contact produced by exitControl, after
@@ -60,7 +59,6 @@ replayed commands, existing pending transitions, pause/death, missing progressio
 and unknown guest layout. They have been written but not executed while the owner
 plays. The active v1.2.0 capture still uses the old behavior.
 
-
 ## Owner regression clarification and history review
 
 The owner confirms that exit warp previously entered the next room. Treat this
@@ -71,13 +69,11 @@ the search to exit geometry, collision/update ordering, and interaction with
 other runtime changes; it does not invalidate the owner's earlier working use.
 No specific introducing commit has been established.
 
-
 ## Native transition checks
 
 The focused navigation tests pass. The copied-save route now crosses the actual exits from levels 43, 42, 44, 248, 146, 185, 153, 151 and 119 using the candidate contact request. The first fixture then chose an inactive overlapping exit at level 19, which was correctly refused. The revised fixture selects the open progression alternative. No quest state is overwritten. Physical launcher click and final visual acceptance remain pending.
 
 The revised active-exit fixture also crosses level 19 into introduction 230 and then reaches the boss at 181. Both effective-input runs accept all ten native exit requests. Launcher click acceptance is still pending.
-
 
 ## Released scope and 1.3 progression bypass
 
@@ -146,7 +142,7 @@ Private proof: ungated-warps/native-contact-verification.json.
 The documented change is included in tag v1.3.0 (launcher/source
 02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
 665596482a7395593e85dbe73f1bd4b016d183d9). See the
-[combined release qualification](../releases-1.3.0-qualification.md) for owner
+[combined release qualification](../../releases/qualification-1.3.0.md) for owner
 acceptance, source CI, package and publication evidence. Earlier failed attempts
 and the scene/device/seed limits above remain part of this record; inclusion
 does not turn an unverified broader report into a confirmed resolution.

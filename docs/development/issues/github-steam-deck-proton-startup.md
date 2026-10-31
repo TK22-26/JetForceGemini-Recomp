@@ -77,7 +77,7 @@ is attached. No local Proton launch attempt was made in this review.
 Private issue/comment snapshot:
 `github-follow-up-review-20261021T204709Z/github-issues.json`.
 
-The [published package targets Windows x64](../../known-issues.md#platform-and-support).
+The [published package targets Windows x64](../../known-issues.md#open-problems-and-verification-still-needed).
 Proton compatibility is unqualified. This is distinct from
 [#15's native Linux/GCC source-build failure](github-linux-native-build.md);
 the released compiler corrections do not establish Windows-package compatibility
@@ -110,7 +110,6 @@ experiment must use the production supervisor and its existing admission limits.
 
 Separate native compilation, packaged Windows execution and Proton compatibility.
 Identify the failing startup stage before assigning a cause or proposing fixes.
-
 
 ## October 21 source review and native Linux alternative
 
@@ -189,7 +188,7 @@ composition when supported. frontend-presentation.log (and each tool's
 presentation log) records the selected backend and composition HRESULT locally.
 This log is not currently included in the sanitized support ZIP.
 
-In src/app/frontend_win32.cpp, the HWND fallback temporarily hides the hosted
+In launcher/native/frontend_win32.cpp, the HWND fallback temporarily hides the hosted
 game viewport while a launcher menu or dialog captures input, then restores
 the same viewport. It cannot place transparent UI above the game child the way
 DirectComposition does. This interaction and actual Deck gameplay still need

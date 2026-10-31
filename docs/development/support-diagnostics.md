@@ -63,7 +63,7 @@ executable nor the PDB belongs in a public issue.
 Resolve a report locally:
 
 ```powershell
-python scripts/resolve_support.py --report JFG-support.zip --executable path/to/jfg-native-boot.exe --symbols path/to/jfg-native-boot.pdb
+python scripts/validation/resolve_support.py --report JFG-support.zip --executable path/to/jfg-native-boot.exe --symbols path/to/jfg-native-boot.pdb
 ```
 
 The resolver checks the executable and PDB hashes and the PE CodeView identity
@@ -97,9 +97,11 @@ identical final RAM. Trace files contain raw guest memory: keep them private.
 ## Validation
 
 ```powershell
-./scripts/build_launcher.ps1 -Test
-python -m unittest discover -s tests -p test_runtime_identity.py
-python scripts/build_windows.py --config Release --test
+./scripts/build/build_launcher.ps1 -Test
+
+python -m unittest discover -s tests -t . -p test_runtime_identity.py
+
+python scripts/build/build_windows.py --config Release --test
 ```
 
 The Windows integration fixture triggers a real access violation, checks fault

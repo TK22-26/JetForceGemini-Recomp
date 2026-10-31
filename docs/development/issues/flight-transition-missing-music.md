@@ -1,10 +1,81 @@
 # AUDIO-FLIGHT-045: Music absent during some flight transitions
 
-- Severity: moderate audio fidelity regression report.
-- Status: open, owner-confirmed defect. The final October 31 candidate restores the flight theme in all three reported departure shots and preserves it across shot changes. Focused tests and copied-profile route/PCM checks pass; owner/hardware listening remains pending. The earlier original-behavior closure is superseded; #45 remains open.
+- Severity: regional audio-fidelity report; Walkway omission reconfirmed as original NTSC behavior.
+- Status: October 31 owner correction: leaving Walkway has no flight music on native NTSC hardware. The Walkway music-insertion candidate is withdrawn as a fidelity fix, but remains in source and the current preview pending removal. PAL music is owner-confirmed in the separate original-ROM EmuHawk session; the two Vela departures are not covered by this recheck and remain unverified. #45 remains open; no release or GitHub change.
 - Reported/updated: 2026-10-24 UTC intake; reopened assessment 2026-10-30 UTC; tested candidate and local review 2026-10-31 UTC.
 - Affected: v1.4.0; reporter uses Windows 10, GTX 1080, Xbox controller, 60 FPS.
 - Report: [GitHub #45](https://github.com/TK22-26/JetForceGemini-Recomp/issues/45).
+
+## Current owner correction: NTSC Walkway, October 31
+
+The owner initially said the restored music should be present, then corrected
+that expectation after another native-hardware check: the earlier cutscene was
+misidentified. Asked which route was rechecked, the owner specified **leaving
+Walkway**. This is the outbound Walkway-to-SS-Anubis report (candidate scene
+15, group 1); the exact internal IDs come from the retained native capture,
+not a new hardware trace.
+
+The missing music therefore matches the owner's NTSC hardware observation for
+this route. The Walkway part of the October 31 music-insertion candidate must
+not be accepted as a fidelity fix. The candidate's implementation and automated
+tests remain valid evidence that it adds music, not evidence that the original
+NTSC scene should contain that music. Its source and review executable have
+not yet been reverted by this documentation update.
+
+The subsequent **PAL** original-ROM EmuHawk comparison is now owner-confirmed:
+leaving Walkway has music, while the owner reconfirms NTSC does not. This is
+PAL emulator listening evidence versus the earlier NTSC native-hardware check;
+no PAL-hardware result, automated audio capture or Japanese behavior is claimed.
+The Sekhmet and Goldwood/Vela departure changes
+remain unverified: the latest Walkway check neither accepts nor disproves them.
+Keep #45 open for scoped regional/route assessment; do not close it wholesale.
+
+The Audio Settings review launcher opened earlier runs the unchanged issue45
+v2 game executable, which still contains all three music overrides. Its
+accepted Audio Settings window correction is independent. Follow-up: remove
+or disable the unsupported Walkway override, qualify the restored original
+behavior, and retain the separate PAL observation while qualifying variants
+and normal-versus-skipped playback explicitly. No runtime rollback or new
+automated audio qualification is claimed here. Earlier claims below are chronological evidence and
+are superseded for Walkway by this correction.
+
+## Regional comparison and separate future ROM support, October 31
+
+The owner requested `Jet Force Gemini (PAL).n64` in EmuHawk. Its normalized
+SHA-1 matches the bundled BizHawk database's Europe (En,Fr,De,Es) entry:
+`50651c4e0c46332f7f0b45870263f0a8b9a49602`. EmuHawk 2.11.1 uses Mupen64Plus
+with the software renderer in an isolated review directory. The ROM was not
+patched and no NTSC savestate or US memory-address hook was applied to PAL.
+
+A copy of the owner's existing FlashRAM was used. At the owner's request,
+slot 1 was changed to Juno's Walkway checkpoint, with the original checksum
+updated. Other slots and save devices were byte-verified unchanged and the
+original source save hash remained unchanged. The owner confirmed **Yes,
+Walkway**, then reported **PAL DOES have the music** and **NTSC does NOT**.
+The difference is observed behavior by region; its underlying ROM/code/asset
+cause has not been isolated. It does not resolve the other two Vela reports.
+
+The temporary positioning script initially paused between commands and
+injected controller input; its copied test configuration also lacked analog
+axis bindings. This blocked normal owner control. The loop was stopped,
+normal analog bindings restored, and EmuHawk relaunched without ongoing input
+injection. The owner confirmed **Yes, it works**. This was a local test-session
+setup issue, not a PAL controller defect. A preliminary world-ID assertion
+failed before any save mutation: a remembered world number belonged to a
+different checkpoint. The original lookup routine and known checkpoint fields
+were then checked, and the corrected edit passed checksum/isolation checks
+and the owner's in-game Walkway verification. Preserve both attempts.
+
+Private evidence: `pal-walkway-review-20261031/provenance.json`,
+`walkway-save-edit.json`, and the guarded folder-audit step logs. Personal
+saves, ROMs and emulator snapshots remain private. No new audio capture is
+claimed; the music result is the owner's live listening report.
+
+The owner explicitly requests [PAL and Japanese ROM support](regional-rom-support.md)
+as **separate future work**, outside this reorganization. Current US/NTSC
+fidelity must not acquire PAL music unconditionally. The existing Walkway
+music override remains pending removal from the US runtime; no rollback,
+region-support implementation, release, commit or GitHub closure occurred here.
 
 ## Symptoms and reproduction
 
@@ -63,7 +134,6 @@ our build therefore matches the original for this route; no music-insertion
 change is warranted. This confirmation supersedes the pending expectation
 comparison above. It does not resolve the other two reported Vela flights,
 which the owner will check separately. No GitHub reply has been posted.
-
 
 ## Initial owner closure (superseded)
 

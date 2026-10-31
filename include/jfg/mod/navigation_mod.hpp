@@ -197,7 +197,7 @@ inline std::vector<Actor> actors(const Memory &m) {
 }
 
 // Registered model bounds are broad-phase boxes, not exact collision polygons.
-// Offsets and accessor pin also used by scripts/phase95_collision.py.
+// Offsets and accessor pin also used by scripts/exploration/phase95_collision.py.
 struct CollisionModel {
   std::uint32_t address{};
   Vec3 lower{}, upper{};

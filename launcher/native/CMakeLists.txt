@@ -3,7 +3,7 @@ project(JfgFrontend LANGUAGES C CXX RC)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(JFG_UI_NATIVE_ONLY ON)
 add_subdirectory(../ui ui)
-add_executable(JFG-Launcher WIN32 ../../src/app/frontend_win32.cpp ../../src/app/video_settings_dialog.cpp video_settings.rc)
+add_executable(JFG-Launcher WIN32 frontend_win32.cpp video_settings_dialog.cpp video_settings.rc)
 target_compile_features(JFG-Launcher PRIVATE cxx_std_20)
 target_compile_definitions(JFG-Launcher PRIVATE UNICODE _UNICODE)
 target_link_libraries(JFG-Launcher PRIVATE user32 gdi32 shell32 ole32 comdlg32 comctl32 dxgi dwmapi)
@@ -22,17 +22,17 @@ target_sources(JFG-Launcher PRIVATE "${JFG_UI_RESOURCE}")
 target_link_libraries(JFG-Launcher PRIVATE jfg_frontend_ui)
 target_compile_definitions(JFG-Launcher PRIVATE JFG_RML_UI)
 
-add_executable(jfg-graphics-policy-tests EXCLUDE_FROM_ALL graphics_policy_tests.cpp)
+add_executable(jfg-graphics-policy-tests EXCLUDE_FROM_ALL tests/graphics_policy_tests.cpp)
 target_compile_features(jfg-graphics-policy-tests PRIVATE cxx_std_17)
 target_link_libraries(jfg-graphics-policy-tests PRIVATE dxgi)
 
-add_executable(jfg-game-viewport-tests EXCLUDE_FROM_ALL game_viewport_tests.cpp)
+add_executable(jfg-game-viewport-tests EXCLUDE_FROM_ALL tests/game_viewport_tests.cpp)
 target_compile_features(jfg-game-viewport-tests PRIVATE cxx_std_17)
 
 # Same frontend/UI/resources; only its singleton name differs so the fixture
 # cannot interfere with an owner's open launcher. Never shipped.
 add_executable(JFG-Launcher-VideoTests WIN32 EXCLUDE_FROM_ALL
-    ../../src/app/frontend_win32.cpp ../../src/app/video_settings_dialog.cpp video_settings.rc "${JFG_UI_RESOURCE}")
+    frontend_win32.cpp video_settings_dialog.cpp video_settings.rc "${JFG_UI_RESOURCE}")
 if(JFG_FRONTEND_HELPER)
     target_sources(JFG-Launcher-VideoTests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/helper.rc")
 endif()
@@ -43,7 +43,7 @@ if(MSVC)
     target_compile_options(JFG-Launcher-VideoTests PRIVATE /W4 /WX /utf-8)
 endif()
 
-add_executable(jfg-storage-settings-tests EXCLUDE_FROM_ALL storage_settings_tests.cpp)
+add_executable(jfg-storage-settings-tests EXCLUDE_FROM_ALL tests/storage_settings_tests.cpp)
 target_compile_features(jfg-storage-settings-tests PRIVATE cxx_std_20)
 target_compile_definitions(jfg-storage-settings-tests PRIVATE UNICODE _UNICODE)
 if(MSVC)
@@ -51,7 +51,7 @@ if(MSVC)
 endif()
 
 add_executable(JFG-Launcher-StorageTests WIN32 EXCLUDE_FROM_ALL
-    ../../src/app/frontend_win32.cpp ../../src/app/video_settings_dialog.cpp video_settings.rc "${JFG_UI_RESOURCE}")
+    frontend_win32.cpp video_settings_dialog.cpp video_settings.rc "${JFG_UI_RESOURCE}")
 if(JFG_FRONTEND_HELPER)
   target_sources(JFG-Launcher-StorageTests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/helper.rc")
 endif()

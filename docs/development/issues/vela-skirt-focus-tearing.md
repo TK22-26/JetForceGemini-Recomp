@@ -181,7 +181,6 @@ excluded. The pattern is removed from RasterPS. No image/style acceptance is
 claimed until GPU and owner checks pass. This rendering pass has a cost when a
 player is faded, which must be measured rather than assumed free.
 
-
 ## Smooth-layer verification and review handoff
 
 The smooth candidate builds with normal and multisampled DXIL/SPIRV shaders.
@@ -214,7 +213,6 @@ stale. The new profile omits that pointer and will create a fresh session.
 No native ROM/save contents are published. Exact-pose and Original-FPS visual
 review, plus live Vulkan/Proton/MSAA checks, remain unclaimed.
 
-
 ## Owner acceptance of smooth transparency
 
 On 2026-10-24 the owner reports that transparency looks good in the smooth-fade
@@ -222,7 +220,6 @@ preview. This accepts the visible fade replacement while retaining the prior
 skirt acceptance. The same capture still reproduces the separate Vela ship-light
 cadence issue; no ship-light fix is claimed by this result. Runtime SHA-256:
 f02fed538d35a6629f083bc9a8b7eaf30d724a45712f088d35d3d7411a0c936b.
-
 
 ## Resolution scope
 

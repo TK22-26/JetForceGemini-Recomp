@@ -7,8 +7,8 @@
   "scope": {
     "subsystem": "foundation",
     "allowed_files": [
-      "scripts/validate_project.py",
-      "tests/test_project_scripts.py"
+      "scripts/validation/validate_project.py",
+      "tests/validation/test_project_scripts.py"
     ]
   },
   "tests_required": [

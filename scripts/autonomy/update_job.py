@@ -30,6 +30,7 @@ from scripts.phase95_poll_compare import (
 
 
 TOOL_FILES = (
+    "scripts/__init__.py",
     "scripts/autonomy/atomic_file.py",
     "scripts/autonomy/update_job.py",
     "scripts/autonomy/execution_contract.py",
@@ -41,18 +42,18 @@ TOOL_FILES = (
     "scripts/autonomy/experiment.schema.json",
     "scripts/autonomy/source_build.py",
     "scripts/autonomy/source_snapshot.py",
-    "scripts/phase95_bridge.py",
-    "scripts/phase95_native_replay.py",
-    "scripts/phase9_point_probe.py",
-    "scripts/phase95_oracle_replay.py",
-    "scripts/phase9_oracle_instruction_effects.py",
-    "scripts/phase9_bizhawk_oracle.lua",
-    "scripts/phase9_si_trace.py",
-    "scripts/compare_phase9_update_hashes.py",
-    "scripts/compare_phase9_retrace_hashes.py",
-    "scripts/phase9_update_poll_alignment.py",
-    "scripts/phase95_poll_compare.py",
-    "scripts/compare_phase9_focus_rdram.py",
+    "scripts/exploration/phase95_bridge.py",
+    "scripts/exploration/phase95_native_replay.py",
+    "scripts/diagnostics/phase9_point_probe.py",
+    "scripts/exploration/phase95_oracle_replay.py",
+    "scripts/diagnostics/phase9_oracle_instruction_effects.py",
+    "scripts/diagnostics/phase9_bizhawk_oracle.lua",
+    "scripts/diagnostics/phase9_si_trace.py",
+    "scripts/diagnostics/compare_phase9_update_hashes.py",
+    "scripts/diagnostics/compare_phase9_retrace_hashes.py",
+    "scripts/diagnostics/phase9_update_poll_alignment.py",
+    "scripts/exploration/phase95_poll_compare.py",
+    "scripts/diagnostics/compare_phase9_focus_rdram.py",
 )
 
 

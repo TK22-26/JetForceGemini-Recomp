@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Reorganize build/release/validation/diagnostic tools, tests, native launcher source
+  and CMake targets by responsibility. Preserve published setup entry points and
+  shared Python imports; remove the broken Quarry shortcut, obsolete launcher-only
+  packaging and stale manual workflows. Consolidate duplicate controller artwork.
+- Rewrite and consolidate project, player and maintainer documentation, with a
+  complete file-disposition audit and one durable record per investigation. Add an
+  original N64 bugs catalog, keeping hardware-confirmed Tawfret behavior separate
+  from the NTSC/PAL Walkway music difference and future regional support.
+  [Audit, validation and remaining limits](docs/development/issues/folder-architecture-audit.md).
+
 - Fix Audio Settings opening as an inline modal: use a separate native window
   with live volume/mute controls. Focused UI and menu-route tests pass; on
   October 31 the owner confirms immediate opening and accepts the fix. The
@@ -124,12 +134,14 @@
   projected-shadow component; Enhanced actor shadows do not replace that static
   environmental shading. [Evidence and scope](docs/development/issues/enhanced-shadow-environment-scope.md).
 
-- Reopen the local #45 assessment: on October 30 the owner confirms the reporter
-  was correct after a new playthrough and original-hardware verification.
-  The earlier original-behavior closure is superseded. An October 31 candidate
-  restores the native flight theme and continuous handoff in all three reported
-  departure shots; focused tests and copied-profile route/PCM checks pass. Owner/hardware
-  listening remains pending, so #45 stays open. No release is claimed.
+- Correct the #45 assessment after the owner's October 31 NTSC hardware recheck:
+  leaving Walkway also lacks music in the original. The local Walkway insertion
+  is withdrawn as a fidelity fix, but source/preview rollback is still pending.
+  The owner subsequently confirms music in PAL EmuHawk, establishing a regional
+  difference for this route. PAL/Japanese ROM support is separate future work;
+  the two Vela routes remain
+  unverified. Existing candidate tests prove the insertion, not its correctness
+  relative to hardware. #45 remains open; no release is claimed.
   [Comparison record](docs/development/issues/flight-transition-missing-music.md).
 - The #25 reporter confirms their rain, reticle and performance complaints are
   resolved in v1.4.0. The #40 reporter confirms Proton startup now works, but
@@ -155,7 +167,7 @@
   This corrects an original-game artifact while retaining camera paths and
   scene state. Owner verified all three Tawfret chief shots at 120 FPS with
   diagnostics and FPS logging disabled. See the
-  [investigation write-up](docs/development/tawfret-camera-helper-findings-2026-10-22.md).
+  [investigation write-up](docs/development/issues/tawfret-chief-camera-and-square.md).
 
 - Enable independent Modern controls for P1-P4 and correct Floyd co-op/mission
   fire routing, vertical direction and controller diagonal reach.
@@ -258,7 +270,7 @@
 - Retain the v1.2.1 boss-controls and source-scene FPS counter corrections.
 
 Owner route and targeted visual review are complete; exact seeded parity is not
-claimed. See the [release qualification](docs/development/releases-1.3.0-qualification.md)
+claimed. See the [release qualification](docs/releases/qualification-1.3.0.md)
 for validation evidence and limits.
 Reporter-specific reticle/hut behavior and the exact invasion-replay report
 await v1.3 retests; see [known issues](docs/known-issues.md).

@@ -22,18 +22,19 @@ from scripts.phase95_bridge import runtime_digest
 
 
 TOOL_FILES = (
+    "scripts/__init__.py",
     "scripts/autonomy/atomic_file.py",
     "scripts/autonomy/controller_return_job.py",
     "scripts/autonomy/supervisor.py", "scripts/autonomy/job_store.py",
     "scripts/autonomy/process_guard.py",
-    "scripts/phase9_controller_return_pair.py",
-    "scripts/phase9_controller_return.py", "scripts/phase9_event_trace.py",
-    "scripts/phase9_controller_callers.py",
-    "scripts/phase9_poll_semantic_pair.py",
-    "scripts/phase95_native_replay.py", "scripts/phase95_oracle_replay.py",
-    "scripts/phase9_oracle_instruction_effects.py",
-    "scripts/phase9_point_probe.py",
-    "scripts/phase9_bizhawk_oracle.lua", "scripts/phase95_bridge.py",
+    "scripts/diagnostics/phase9_controller_return_pair.py",
+    "scripts/diagnostics/phase9_controller_return.py", "scripts/diagnostics/phase9_event_trace.py",
+    "scripts/diagnostics/phase9_controller_callers.py",
+    "scripts/diagnostics/phase9_poll_semantic_pair.py",
+    "scripts/exploration/phase95_native_replay.py", "scripts/exploration/phase95_oracle_replay.py",
+    "scripts/diagnostics/phase9_oracle_instruction_effects.py",
+    "scripts/diagnostics/phase9_point_probe.py",
+    "scripts/diagnostics/phase9_bizhawk_oracle.lua", "scripts/exploration/phase95_bridge.py",
     "src/boot/native_boot.cpp",
 )
 SOURCE_NAMES = ("export-manifest.json", "controller.input", "initial.flash",

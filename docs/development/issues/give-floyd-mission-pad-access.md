@@ -6,7 +6,7 @@
 - Reproduction: use Give Floyd, change rooms (owner confirmed), reach SS Anubis mission pad; owner cannot interact.
 - Initial evidence: live map has level131 and a SidekickPad actor; player stands near its position. Give Floyd currently grants current-game flag3 only. Pad eligibility, grant acceptance, required input and native state remain hypotheses; no diagnosis/fix accepted.
 
-Private evidence: D:/JFG-private/floyd-pad-access-20261021. Active capture20261021-211753-c9aa58c3da44407ebee957c896bc3269 is still running; do not treat its unflushed files as completed recording or manipulate the owner's game. Related [Floyd report](github-floyd-cannot-fire.md), [Give Floyd](../../features/navigation-mod.md#give-floyd-local-candidate-2026-10-21). No mission-completion claim.
+Private evidence: D:/JFG-private/floyd-pad-access-20261021. Active capture20261021-211753-c9aa58c3da44407ebee957c896bc3269 is still running; do not treat its unflushed files as completed recording or manipulate the owner's game. Related [Floyd report](github-floyd-cannot-fire.md), [Give Floyd](../../features/navigation-mod.md#inventory-actions-and-mods-settings). No mission-completion claim.
 
 ## Confirmed activation blocker
 
@@ -19,7 +19,6 @@ Next action: collect a nearby Mizar token and use Interact (current Modern M/K b
 Transferable lesson: a character unlock does not satisfy all native minigame costs or eligibility conditions; verify the active character's inventory and the original interaction handler before changing bindings or progression.
 
 Owner subsequently entered the Floyd minigame and reported flight-control behavior. The entry blocker is cleared for this test; the separate mission-control issue remains open.
-
 
 ## Final owner disposition for v1.4.0 (2026-10-21)
 

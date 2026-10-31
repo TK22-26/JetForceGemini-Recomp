@@ -13,7 +13,7 @@ within the same configuration entry. Hook-free generation retains its behavior.
 ## Qualification
 
 The fixture in `tests/fixtures/instruction_effects.S` and executable checks in
-`tests/generated_instruction_effects.cpp` exercise the compiler boundary.
+`tests/boot/generated_instruction_effects.cpp` exercise the compiler boundary.
 Native effect streams and exception-return observers have separate runtime tests.
 
 A textual hook after a callback does not prove completion of ERET, syscall,

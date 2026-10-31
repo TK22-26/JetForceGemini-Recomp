@@ -21,14 +21,14 @@ TOOLS = ('scripts/autonomy/instruction_job.py', 'scripts/autonomy/instruction_ob
          'scripts/autonomy/device_observation.py', 'scripts/autonomy/point_plan.py',
          'scripts/autonomy/entry_plan.py', 'scripts/autonomy/experiment_plan.py',
          'scripts/autonomy/point_interval_observation.py',
-         'scripts/phase9_instruction_correspondence.py', 'scripts/phase9_instruction_effect_trace.py',
-         'scripts/phase9_oracle_instruction_effects.py', 'scripts/phase9_instruction_effect_witnesses.py',
-         'scripts/phase9_oracle_effect_witnesses.py', 'scripts/phase9_eret_transfers.py',
-         'scripts/phase9_oracle_cpu_boundaries.py', 'scripts/phase9_device_events.py', 'scripts/phase9_point_probe.py',
-         'scripts/phase95_bridge.py', 'scripts/phase95_poll_compare.py', 'scripts/build_phase9_route_replays.py',
-         'scripts/compare_phase9_focus_rdram.py', 'scripts/oracle_instruction_effects.c',
-         'scripts/compare_phase9_retrace_hashes.py', 'scripts/compare_phase9_update_hashes.py',
-         'scripts/oracle_instruction_effects.h')
+         'scripts/diagnostics/phase9_instruction_correspondence.py', 'scripts/diagnostics/phase9_instruction_effect_trace.py',
+         'scripts/diagnostics/phase9_oracle_instruction_effects.py', 'scripts/diagnostics/phase9_instruction_effect_witnesses.py',
+         'scripts/diagnostics/phase9_oracle_effect_witnesses.py', 'scripts/diagnostics/phase9_eret_transfers.py',
+         'scripts/diagnostics/phase9_oracle_cpu_boundaries.py', 'scripts/diagnostics/phase9_device_events.py', 'scripts/diagnostics/phase9_point_probe.py',
+         'scripts/exploration/phase95_bridge.py', 'scripts/exploration/phase95_poll_compare.py', 'scripts/diagnostics/build_phase9_route_replays.py',
+         'scripts/diagnostics/compare_phase9_focus_rdram.py', 'scripts/diagnostics/oracle_instruction_effects.c',
+         'scripts/diagnostics/compare_phase9_retrace_hashes.py', 'scripts/diagnostics/compare_phase9_update_hashes.py',
+         'scripts/diagnostics/oracle_instruction_effects.h')
 
 
 def tool_sha():

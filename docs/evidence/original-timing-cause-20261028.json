@@ -156,7 +156,7 @@
     "src/boot/flying_motion.inl": "24832603cf37bbef8fa17dd6c67f8656e46d214cf22d59207062fc1a3d764fc6",
     "include/jfg/boot/host_count_clock.hpp": "426a9370b4ce189e65c54d5a08ce2dc7c8b1f50bb6db5041b6176084b327c667",
     "include/jfg/boot/original_timing_cache.h": "16fcc505c1b21dd3b41f7c7f088e2a06537ef50ee002d74e67022686623ab5c0",
-    "tests/flying_motion_adapter_tests.cpp": "26b30679bedd46f274422b12765fe0ab5fdc6aa7ea9417bdb61f2436539b3d93"
+    "tests/runtime/flying_motion_adapter_tests.cpp": "26b30679bedd46f274422b12765fe0ab5fdc6aa7ea9417bdb61f2436539b3d93"
   },
   "conclusions": [
     "Original presentation does not select original simulation timing in ordinary native Play.",

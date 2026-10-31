@@ -76,7 +76,6 @@ Intact glass now supplies texture-coordinate velocity to the existing RT64 prese
 
 Combined private Motion Clarity Review prepared on 2026-10-18. Runtime SHA-256: 8c81e21948e0af3a269b875dc3147d7f80c46d2a9f1f9e6b98bc955ed3ab80b8. Build and focused navigation, semantic-presentation and 371 PC-input checks pass. Latest owner save/settings copied to an isolated profile, originals unchanged. Muted 120 FPS/VSync with buffered FPS, controls, blur-copy and glass-match evidence. This is not live verification or a release; the owner performs gameplay/visual review.
 
-
 ## Owner rejection of UV candidate, 2026-10-18
 Owner reports "glass is still shakey" in Motion Clarity Review runtime
 8c81e21948e0af3a269b875dc3147d7f80c46d2a9f1f9e6b98bc955ed3ab80b8.
@@ -92,7 +91,6 @@ if matching succeeds, distinguish pane geometry/camera phase from reflection UV.
 No changes made to the owner's running build or save. Prisoner glass remains
 separately owner-confirmed stable.
 
-
 ### Source-supported missing identity cause
 The native intact quad is an overlay constant, initialized from linked address
 0x06501134. The renderer materializes overlay data into its expanded snapshot
@@ -104,7 +102,6 @@ pane records in both closed owner captures. The fix must resolve the pointer
 through the same bounded overlay mapping used to materialize graphics data,
 not relax general memory validation or guess a physical mask.
 
-
 The overlay-address candidate resolves the complete 40-byte shared quad through
 the same graphics address translator used for display-list materialization.
 Both range endpoints must translate contiguously, and the resulting snapshot
@@ -115,9 +112,7 @@ links the production translator rather than duplicating its implementation.
 Visual acceptance is still pending; the absence of identity was confirmed by
 the prior captures, while successful matching after this correction needs review.
 
-
 The overlay-address candidate compiled and passed the semantic presentation and navigation component tests. Private owner preview runtime a452fcaf8dd0b3255eff3383bb85b41d14d4d83c3d8706f5dffda04d6f4347fe replaces the previously rejected build; saves/settings are preserved. Live glass verification remains pending. Blur remains Off for this isolated comparison; the owner-selected Reduced default belongs to the forthcoming three-mode setting.
-
 
 ### Owner verification of overlay-address remedy
 Owner reports: "glass is fixed. capture closed". This accepts the rebuilt overlay-address candidate in the previously failing pre-Vela breakable-glass room. The actual cause was rejected shared overlay vertex addresses, preventing glass identity and UV interpolation from activating. The remedy resolves and bounds-checks those addresses through the renderer production translator. Component regression checks pass, and owner live verification is now positive. Not yet released. Other glass types/levels are not implied verified by this room-specific result.
@@ -129,7 +124,7 @@ Closed owner audit blur-source-audit-17923699591324738.csv saved 8664 rows and r
 The documented change is included in tag v1.3.0 (launcher/source
 02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
 665596482a7395593e85dbe73f1bd4b016d183d9). See the
-[combined release qualification](../releases-1.3.0-qualification.md) for owner
+[combined release qualification](../../releases/qualification-1.3.0.md) for owner
 acceptance, source CI, package and publication evidence. Earlier failed attempts
 and the scene/device/seed limits above remain part of this record; inclusion
 does not turn an unverified broader report into a confirmed resolution.

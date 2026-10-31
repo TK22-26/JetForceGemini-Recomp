@@ -7,7 +7,6 @@
 - Related: [PERF-001](goldwood-combat-slowdown.md). Smooth gameplay does not prove
   uninterrupted audio, nor does this report yet identify the audio fault.
 
-
 Latest listening evidence: the owner hears clean sound with the port's older
 timing path, but still hears static with native elapsed-time timing even when
 CPU span optimization is disabled. The verified DMA correction did not resolve
@@ -164,7 +163,6 @@ A private CPU harness links the existing generated baseline and runtime dispatch
 
 Primary upstream issue searches also found general [Mupen audio popping](https://github.com/mupen64plus/mupen64plus-core/issues/571) and [renderer-dependent crackling](https://github.com/mupen64plus/mupen64plus-core/issues/972) reports. Neither establishes this issue's cause or a transferable patch. Their symptoms alone do not justify changing our buffers, gain or decoder.
 
-
 ### Confirmed RSP DMA transfer defect; candidate correction
 
 Widening the retained capture to tasks 6928-6935 exposed a real mismatch in task
@@ -227,7 +225,6 @@ buffers can carry an error into later tasks even when those tasks execute their
 own commands correctly. This correction is independent of render rate and does
 not change audio clock, gain, envelope arithmetic or future high-refresh policy.
 
-
 ### Owner listening result: DMA correction is not the full audio fix
 
 The owner listened to the fresh Goldwood-DMA-correction-combat.wav and reported
@@ -245,7 +242,6 @@ evidence. Next diagnostic: compare every DSP task from startup against the
 independent interpreter inside a private runtime, stopping and retaining the
 first mismatch. This avoids relying on eight-task spot checks or speculative
 smoothing/gain changes. The diagnostic is private and will not be installed.
-
 
 ### Continuous DSP, sample provenance and CPU boundary results
 
@@ -299,7 +295,6 @@ Private producer/delivery comparison retained in producer-to-ai-delivery-audit.j
 
 Broader stock-emulator evidence: 24/24 retained PCM task outputs matched the corrected native producer across three separate music intervals. The emulator reached its capture-success marker, but the shutdown wrapper reported failure after stopping its owned process. All 27 input snapshots were complete; a separate command verified their sizes and compared the 24 pairs. This salvages complete evidence without relabeling the failed process result.
 
-
 ### Timing-path listening comparisons and remaining boundary
 
 The owner reported Goldwood-reference-before-Windows.wav **clean**. This is our
@@ -341,7 +336,6 @@ not a proposed sound-quality fix.
 
 The identical-clock comparison did not produce a completed comparison artifact. Retain the command results and diagnostics; do not count it as a parity or reproducibility pass.
 
-
 Remaining diagnostic work should preserve an identical input/clock fixture and
 observe original audio-frame entry/return, output sample counts, sequencer
 callbacks, parameter timestamps and RSP launch/completion ownership. Compare the
@@ -357,7 +351,6 @@ runtime, launcher, save and controller settings remain unchanged. The verified
 DMA correction is in source and a normal local build; the owner-reported static
 remains unresolved and no complete audio fix is released.
 
-
 ### Bounded clock replay and continuation handoff
 
 The 15,600-VI clock-recording experiment reached the existing 16-million-observation diagnostic cap (512,000,016-byte tape) before completion. The runtime stopped through its fail-closed clock path; that is not evidence of a real non-monotonic host clock. Its dependent replay was skipped. The failed recording remains retained, and the cap was not changed. A separate 14,000-VI fixture was selected to cover the reported burst while staying within the existing capture limit.
@@ -365,7 +358,6 @@ The 15,600-VI clock-recording experiment reached the existing 16-million-observa
 The bounded comparison produced 20,599,168 bytes when recording and 20,599,168 when replaying. Exact PCM agreement: **True**. Exact final RDRAM agreement: **True**. This supplies a repeatable complete fixture through the suspect interval with both CPU execution paths. It does not establish that this particular recording has the same audible burst; the owner identified static in the separate no-spans listening capture.
 
 AUDIO-001 remains open. The normal adapter/build and unchanged installed preview were checked at handoff. The production guard stayed enabled under the same investigation/root throughout. This continuation stops within its two-hour authorization; consult the operational ledger before any later work, without resetting counters or bypassing a denial. Remaining work is the full CPU/OS audio scheduling and voice-state comparison described above, followed by a fresh audible verification before any complete-fix claim.
-
 
 ### Owner-authorized three-hour scheduling continuation
 
@@ -493,7 +485,6 @@ all RDRAM output unchanged in the 24 retained sparse tasks. This qualifies that
 initial scratch-memory question for these tasks, not full boot or every
 possible instruction state.
 
-
 ### Compact tracing and renewed waveform investigation (2026-10-12)
 
 Status remains **open**. The owner confirmed that the same-executable matched
@@ -553,7 +544,6 @@ alone is not sufficient to reproduce the audible failure in every game state.
 The red-key-door report and earlier owner-confirmed bad native capture remain
 unresolved. Private receipt: owner-quiet-checkpoint-listening.json.
 
-
 ### Intended sample addresses and storage recovery (2026-10-12)
 
 The earlier compressed-payload search established that consumed bytes occur in the ROM; it did not establish that they came from the intended ROM address. Stale but otherwise valid sample data could pass that search. This is a qualification of the previous evidence, not proof of stale data. A new audit uses each captured DMA-cache entry's ROM start and RAM buffer address to check consumed bytes at their intended offsets.
@@ -592,7 +582,7 @@ Portable regression tests cover immediate payload availability, odd addresses, c
 
 The same-executable replay reaches 17,000 VI retraces in candidate and native control modes. The candidate records 0 stale source ranges; the control records 269. The candidate has checked 110,268 ranges through its last flushed checkpoint, task 8250. Its native callback trace confirms the provider ran. The separate 14,000-VI instruction-clock reference has exactly the same PCM and final RAM as the earlier reference recording. All input files match; original saved-game data is unchanged.
 
-Source: [native source callback](../../../include/jfg/boot/native_audio_source.hpp), [runtime selection](../../../src/boot/native_boot.cpp), and [regression cases](../../../tests/native_audio_source_tests.cpp). The candidate currently requires the private diagnostic enable flag; the installed preview is unchanged at this stage. Owner listening and live verification remain pending, especially the stationary red-key-door case. The replay demonstrates source-data readiness, not acceptance of every audible issue.
+Source: [native source callback](../../../include/jfg/boot/native_audio_source.hpp), [runtime selection](../../../src/boot/native_boot.cpp), and [regression cases](../../../tests/runtime/native_audio_source_tests.cpp). The candidate currently requires the private diagnostic enable flag; the installed preview is unchanged at this stage. Owner listening and live verification remain pending, especially the stationary red-key-door case. The replay demonstrates source-data readiness, not acceptance of every audible issue.
 
 This data-availability contract does not depend on a guessed number of CPU cycles, a graphics frame rate, or a sleep duration. Future 60+ FPS work must preserve source-buffer ownership until consumption and keep the audio sample clock independent of rendering. Do not regress to enqueue-and-assume-ready behavior when parallelizing loading or audio.
 

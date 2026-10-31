@@ -426,7 +426,6 @@ This test addresses a concrete coverage hole; visible late-room qualification
 is pending. Diagnostic function self-time collection is also added under the
 existing finite CPU-cost probe option to distinguish increased guest work.
 
-
 A direct camera candidate binds world-space batches to a camera/room generation
 and immutable emitted view/projection operands, independent of the culled
 triangle set. Its history regression fails before the change and passes after;
@@ -739,7 +738,6 @@ Their presence does not justify weakening camera-cut protection. Full replay
 qualification is required before selecting the zoom candidate.
 Evidence: camera-operand-review.json and remaining-camera-motion-review.json.
 
-
 ## Camera supplement and zoom qualification
 
 Runtime `914cc5d6185d6e2be7e3a9b1b970745c5d03b635859418064773eef9d05d2bbe` passes both complete recorded-clock
@@ -755,14 +753,12 @@ not full-route physical-display acceptance. The native-stability blocker remains
 open and the desktop package is unchanged. Evidence: camera-zoom-replay-review.json
 and camera-zoom-full-original-review.json; failed takeover evidence is retained.
 
-
 The bounded, mod-warped late-cave capture visibly contains the exit marker and
 surrounding terrain. Its eight distinct presented images cover two consecutive
 source scenes at phases 0.25/0.5/0.75/1.0, with 30 SCENES / 120 OUTPUT in the
 matching trace. This verifies the target is visible and intermediate images are
 produced; eight images do not establish an all-route jitter remedy or physical
 monitor pacing. Evidence: camera-zoom-near-beam-phase-review.json and its raw PPMs.
-
 
 ## Current-package target capture and coverage, 2026-10-15 UTC
 
@@ -781,7 +777,6 @@ transition/health qualification. RENDER-006 stays open for exact owner-visible
 bridge/crate/marker jitter and full-route verification. Evidence:
 lifetime-late-cave-review.json, lifetime-late-cave-sequence and
 transition-call-native-review.json.
-
 
 A separate current-source far-exit orbit produces eight distinct intermediate
 images showing the cave opening and distant wooden span. Actual actor labels
@@ -867,7 +862,6 @@ vertex identities. Semantic, original timing and native event-batch tests pass.
 Evidence: bridge-walk-visible, bridge-walk-baseline and bridge-default-build in
 private route-audio-bridge-20261016. Desktop preview is not updated yet.
 
-
 ## Qualified bridge geometry remedy (2026-10-16 UTC)
 
 The clean default-build walk/jump capture has 249,876 bridge samples, 248,688
@@ -880,13 +874,10 @@ The final native audio tail-overflow correction does not modify renderer code.
 source hashes and tests. Owner visual verification, other late objects and
 shadow cadence remain separately open.
 
-
 ## Local preview delivery (2026-10-16 UTC)
 
 Both desktop shortcuts now select source ca6ef7a883b2568da9df2ff0665ec7169c9f4be1 and runtime SHA-256 8dbe521304348ecda93c9f153fbd15f95486b2050b456e37ee221562e30f6a56. Package/launcher setup checks and copied-profile migration pass; all 40 checked live profile files and shortcut arguments are preserved. The previous package and links remain available for rollback. Owner listening and bridge visual review remain pending. [Qualification and delivery](../../../evidence/high-refresh-audio-bridge.json) record the exact scope. This is a local preview, not a public release or completion of the broader no-dip goal.
 
-
 The High Refresh Preview and Jitter Capture desktop links now select the native-ROM package: source 8277a80611e73c0dc57285e32e0761e9b7519e41, runtime SHA-256 5f902049bd3e4a991a020f17e63a51d0291f28709057a9aa7efc03097692764b. Launcher/setup checks pass; all 40 checked profile files and shortcut arguments are preserved. Earlier audio and bridge remedies are included. Owner listening/visual acceptance, later renderer/load hitches and the broader no-20-FPS goal remain open. [Qualification and delivery](../../../evidence/high-refresh-native-rom.json).
-
 
 Local delivery: both High Refresh Preview and Jitter Capture desktop links select source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e, runtime SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6. Manifest and launcher/profile checks pass; all 40 checked profile files and shortcut arguments are preserved. Includes native audio, bending bridge interpolation and ROM loading improvements. Owner live acceptance and broader restart/load gaps remain open. [Current qualification](../../../evidence/high-refresh-draw-key.json).

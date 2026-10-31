@@ -23,7 +23,7 @@ Windows 10 or 11 x64. Players do not need development tools. **Game > Verify
 game files** validates the bundled runtime and imported ROM.
 
 Developers can still build from source; see [ROM build setup](rom-bootstrap.md)
-and [release packaging](releases.md). Local experimental builds require a
+and [release packaging](../maintenance/releases.md). Local experimental builds require a
 matching package manifest and runtime beside the launcher.
 
 ## Files and locations
@@ -204,13 +204,11 @@ saves or settings. Drafts and prereleases are excluded; version components are
 compared numerically. Requests time out and response sizes are bounded. The existing
 v1.1.0 package predates this feature. See the [issue/validation record](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/development/issues/launcher-update-discovery.md).
 
-
 ### Release notification and design preview
 
 At startup the launcher checks the project's latest stable GitHub release in a background helper. A newer version displays a large JFG-amber **Update available** card below Play. **What's new** opens the main GitHub repository page; **Update now** opens the GitHub release/download page. Help > Check for updates remains available. Current/older releases do not display the card; a failed check leaves play available and does not claim the installation is current.
 
 For UI review only, `JFG-Launcher.exe --preview-update --profile <separate-folder>` displays a sample update without network discovery or a persistent fake result. The details panel labels the sample. Ordinary launch arguments use the real checker. This preview does not implement automatic installation.
-
 
 The owner-approved card and browser actions are delivered locally from `628d1ff40ff14ce44a6921e89e594050b290b766`. Reopen High Refresh Preview or Jitter Capture for real discovery, or Update Button Preview for the forced sample. The game runtime and owner profiles are preserved. [Delivery and limits](../../evidence/launcher-update-button.json).
 
@@ -254,7 +252,6 @@ Apply updates the running game immediately; fog does not require a restart.
 It does not extend the game's draw distance. [Implementation and validation
 status](issues/optional-fog-removal.md).
 
-
 ### Mouse support evidence candidate (2026-10-21, unreleased)
 
 Support exports now include optional mouse.log evidence from instrumented
@@ -265,3 +262,21 @@ data are excluded. Older runtimes leave this entry empty. Source/native tests
 and the full-size export roundtrip pass; full runtime packaging and live
 verification remain pending. This is diagnostic support for [#32](issues/github-mouse-look-and-inversion.md),
 not a verified mouse behavior fix.
+
+## Command-line launch
+
+Use `JFG-Launcher.exe --play` to launch the configured game immediately after startup. Add
+`--profile "D:/JFG-profile"` to select an existing profile; the profile must already have a valid
+imported ROM and compatible runtime. `--portable` selects portable storage behavior. Missing setup
+still requires completion through the launcher. These switches do not select an in-game save slot
+or warp to a level.
+
+The runtime can also start without the launcher:
+
+```text
+jfg-native-boot.exe --rom "D:/Games/my-copy.z64" --save "D:/JFG-profile/jfg.flash" --controller-pak "D:/JFG-profile/controller-1.pak" --play
+```
+
+Supply the supported ROM and explicit save paths when testing a separate profile. This enters the
+normal game flow, not a forced level. The launcher's `--play` is the convenient route for saved
+settings and the hosted game window.

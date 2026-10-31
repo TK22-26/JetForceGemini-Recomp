@@ -19,7 +19,7 @@ what has actually been demonstrated. No release dates are committed.
    requires differential evidence and is separate from the mod interface.
 7. A dependable PC experience: setup, controls, diagnostics, packaging, and support.
 
-Windows x64 is the released v1 platform. See the [dashboard](../dashboard.md) for current feature availability. Linux source CI does not establish
+Windows x64 is the released v1 platform. See the [dashboard](../status.md) for current feature availability. Linux source CI does not establish
 a supported Linux or Steam Deck game package. Additional ROM regions and
 platforms require their own explicit support and verification decisions.
 

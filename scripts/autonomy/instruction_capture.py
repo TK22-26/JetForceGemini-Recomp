@@ -19,11 +19,11 @@ from scripts.autonomy.supervisor import (canonical_bytes, file_sha256, _write_js
 
 PREFIX = 'instruction-capture:'
 EXTRA_TOOLS = ('scripts/autonomy/instruction_capture.py',
-    'scripts/phase95_native_replay.py', 'scripts/phase95_oracle_replay.py',
-    'scripts/phase9_bizhawk_oracle.lua', 'scripts/prepare_phase9_oracle_flash.py',
-    'scripts/compare_phase9_poll_hashes.py', 'scripts/phase9_event_trace.py',
-    'scripts/phase9_update_word.py', 'scripts/phase9_controller_return.py',
-    'scripts/phase9_controller_callers.py', 'scripts/phase9_si_trace.py')
+    'scripts/exploration/phase95_native_replay.py', 'scripts/exploration/phase95_oracle_replay.py',
+    'scripts/diagnostics/phase9_bizhawk_oracle.lua', 'scripts/diagnostics/prepare_phase9_oracle_flash.py',
+    'scripts/diagnostics/compare_phase9_poll_hashes.py', 'scripts/diagnostics/phase9_event_trace.py',
+    'scripts/diagnostics/phase9_update_word.py', 'scripts/diagnostics/phase9_controller_return.py',
+    'scripts/diagnostics/phase9_controller_callers.py', 'scripts/diagnostics/phase9_si_trace.py')
 
 
 def tool_sha():

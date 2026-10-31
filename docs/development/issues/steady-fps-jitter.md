@@ -105,7 +105,6 @@ semantic vertex collection for offscreen masks. The refined binary passed the ro
 byte-swapped reads for truncated RAM spans, rejected signed-negative bone counts,
 and kept unknown-camera paths on the existing conservative matcher.
 
-
 ## Bounded qualification (2026-10-13 UTC)
 
 Seven focused tests pass, including retirement/address reuse, missing actors,
@@ -163,7 +162,6 @@ all parts of an actor share the same fallback decision, and measure screenshot
 motion separately from timing to avoid diagnosing readback overhead as normal
 play stutter. Large evidence remains on D: with verified stable references.
 
-
 ## Local preview delivery (2026-10-13 UTC)
 
 Implementation commit `01a35a13539a89e8842b8491eb37565d42b03de8` is packaged as
@@ -187,7 +185,6 @@ Detailed results are in the qualification JSON. Owner visual review, full-game
 coverage, physical monitor pacing and the separate seams/lighting issues remain
 open. The previous package is retained for comparison.
 
-
 ## Owner-approved continuation (2026-10-13 UTC)
 
 The owner approved five further hours to continue the open pacing, thigh-gap and
@@ -204,7 +201,6 @@ submission waits around the combined-motion three-VI recovery episode. Reuse
 existing seam/lighting captures to define an exact pixel or spatial boundary;
 avoid repeating broad captures without a new discriminating measurement.
 
-
 The first new pacing fixture exited at startup: it requested CPU-cost diagnostics
 with --play, which the runtime deliberately rejects. The wrapper then reported
 a dead-window ownership assertion while the process was closing. No gameplay or
@@ -215,7 +211,6 @@ trace/counter only. The failed fixture and its environment are retained.
 Owner follow-up after reopening the semantic preview: "No seems at 120". Record
 this as live confirmation that the reported thigh lines are absent at 120 FPS
 in that test, not acceptance of every pose, frame-rate mode or lighting state.
-
 
 ### Owner follow-up: stationary camera spin (2026-10-13 UTC)
 
@@ -231,7 +226,6 @@ Current hypotheses include camera/terrain history falling back as visibility
 changes, skipped or repeated interpolation samples, and camera sampling phase.
 Separate the broad 20-Hz recovery event from this stable-counter reproduction.
 
-
 ### Capped sequence truncation candidate
 
 The stationary-spin trace confirms nonuniform displayed interpolation progress
@@ -245,7 +239,6 @@ scene or unknown workload still preempts; the existing time budget still sheds
 work on overloaded machines. Record actual displayed scene/alpha identities
 through the optional trace, and separately measure ordinary uncaptured play.
 This is a candidate until paired spin and combined-motion tests pass.
-
 
 The first instrumented spin held 119.74 output / 29.78 scenes per second, but
 162 of 743 displayed samples repeated their predecessor's interpolation phase.
@@ -261,7 +254,6 @@ scene, while the output counter continues to report 120. Candidate correction:
 acknowledge an already-consumed finite scene immediately and let the next source
 scene own its output window. Original mode, paused debugger work and Unlimited's
 stream handling retain their own paths. Qualification is still pending.
-
 
 The second candidate produces 740 strictly advancing samples (every step 0.5 VI)
 across 185 scenes in the original camera-pan fixture, with zero repeats or
@@ -280,7 +272,6 @@ Optional screenshots can now select a bounded source-scene interval, with a hard
 64-image limit. Scene selection requires the optional output trace, which supplies
 the image's source identity. Readback timings are never used as a benchmark.
 
-
 ### Capture regression caught before delivery
 
 Eight ordinary-play mode/pause fixtures completed, but the final finite reference
@@ -297,7 +288,6 @@ VIs still yield immediately. Explicit CPU framebuffer operations also preserve
 their existing presentation path. Re-run the exact reference and camera-phase
 checks before local delivery. Preserve the failed probe and all step receipts.
 
-
 ## Confirmed cause and qualified correction (2026-10-13 UTC)
 
 Two queue policies prevented uniform presentation progress. Shadow-only jobs
@@ -305,7 +295,7 @@ could truncate a capped scene before all intermediate images were generated.
 Separately, an extra VI referring to a consumed scene scheduled a full second
 window of its final image. The next scene then arrived visually late despite a
 steady present counter. Both policies are corrected in
-[the RT64 queue adapter](../../../cmake/rt64_video_settings.cmake).
+[the RT64 queue adapter](../../../cmake/renderer/rt64_video_settings.cmake).
 
 A muted stationary pan changes from 162 repeated phases in 743 displayed
 samples to 740 samples with 739 equal 0.5-VI steps and no repeats or rewinds.
@@ -346,14 +336,13 @@ This verifies the reproduced duplicate-window defect. Native workload spikes,
 physical display smoothness, Unlimited saturation, the heavier combat report
 and complete scene/animation coverage remain separate limits.
 
-
-The source-controlled [trace analyzer](../../../scripts/analyze_presentation_trace.py)
+The source-controlled [trace analyzer](../../../scripts/diagnostics/analyze_presentation_trace.py)
 reproduces these phase counts. Four regression tests cover mixed 30/20-Hz source
 intervals, steady-timestamp freezes/jumps, backward samples and invalid input.
 For example, after capturing the optional TSV, run:
 
 ```text
-python scripts/analyze_presentation_trace.py interpolation.tsv --from-vi 3900 --to-vi 4750 --expected-fps 120
+python scripts/diagnostics/analyze_presentation_trace.py interpolation.tsv --from-vi 3900 --to-vi 4750 --expected-fps 120
 ```
 
 Use the effective output cap after VSync; omit the expected rate for Unlimited.
@@ -361,7 +350,6 @@ The display row records source VI, source rate, requested target, render index,
 sequence length, alpha, present ID and target slot after its monotonic timestamp.
 A uniform phase does not establish physical scanout or unique pixels: retain
 camera-coverage and actual-image checks alongside it.
-
 
 The capture-compatible build now passes the specifically armed final screenshot
 and exact guest/renderer/save hashes. A fresh full-circle trace still advances
@@ -371,7 +359,6 @@ identity are in qualification; the earlier failed capture remains preserved.
 One 144-cap fixture reported one audio underrun, and Unlimited reported 413 with
 about 19 scenes/s under saturation. Those are limitations, not audio acceptance;
 the 120-cap and capped combined-motion audio results are recorded separately.
-
 
 ## Local delivery
 
@@ -418,7 +405,6 @@ do not establish that all movement/camera or late-room visual reports are fixed.
 See [route qualification](tutorial-late-object-jitter.md#continuation-qualification-2026-10-13)
 and [evidence](../../../evidence/high-refresh-route-fix.json).
 
-
 ## Finite clock and queued scene investigation, 2026-10-15 UTC
 
 Normal Play uses 46,875,000 Count ticks per second and a 783,520-tick VI
@@ -451,7 +437,6 @@ Transferable lesson: nominal VI/source labels are not elapsed-time rates; a
 fractional output schedule must also be qualified against queue admission and
 scene consumption, rather than evaluated from FPS averages alone.
 
-
 The presentation analyzer now accepts an explicit --vi-hz value for elapsed
 phase-spacing checks, retains nominal source labels for VI-span reconstruction,
 and reports up to 32 anomaly contexts with source VI, present ID, interpolation
@@ -462,7 +447,6 @@ nominal clocks, cadence changes, freeze/jump context, bounded output, corrupt
 records and drained/truncated logs. This is analysis tooling, not a renderer fix.
 For qualified native NTSC Play use --vi-hz 59.82616908311211; leave the default
 for nominal/reference captures. A log alone does not prove monitor scanout.
-
 
 The broad one-pending-event candidate fails 360-FPS qualification: 53 audio
 underruns in its first run and 169 in a repeat. The subsequent unchanged baseline
@@ -480,13 +464,11 @@ queue-outcomes-review. This observation alone does not qualify installation.
 The first nested request for this variant was withdrawn before execution to
 correct string escaping; its immutable draft is retained. No counters reset.
 
-
 The context limit retains the 32 largest phase errors, listed in capture order,
 so a small persistent nominal/elapsed clock mismatch cannot crowd out a later
 whole-scene jump. A ninth regression and the real-capture CLI verify that case.
 The CLI still rejects incomplete traces with --require-complete. This changes
 only offline analysis; the logging runtime and desktop package are unchanged.
-
 
 The same-workload-ID restriction fires zero times in its capture: offscreen
 workloads make raw graphics IDs insufficient for logical-scene equivalence.
@@ -497,7 +479,6 @@ count at each skip. In VIs 4000-5800 it classifies fresh finite skips as
 The explicit per-scene contexts are preserved in queue-scene-ownership-review.
 This remains a bounded hidden trace; no scene queue correction is selected.
 The observer is removed and the normal generated sources/runtime restored.
-
 
 ## Scene-owned queue candidate checkpoint, 2026-10-15 UTC
 
@@ -525,7 +506,6 @@ caps and the actual owner route. This checkpoint does not resolve RENDER-003 or
 PERF-001. The offline analyzer change is the only selected source implementation
 from this final pacing continuation.
 
-
 The final private prototype completes these exact-state stages:
 ['Original RAM/save/renderer/probe/instruction equality', 'Recorded-clock dense RAM/save/instruction/matching equality'] (step exit code 0). The saved reports
 compare physical RAM, save, renderer/probe state where captured, complete guest
@@ -537,12 +517,10 @@ The normal runtime is restored after the binary comparisons. Production clock
 scoping, integration, pause/other caps and full-route/live checks remain pending;
 this prototype is still not in the desktop package.
 
-
 The Original instruction-clock/reference run reports 2 audio underruns
 with final readback. Its exact-state pass is not native-play FPS/audio acceptance;
 the separate 120/360 native prototype runs each report zero audio underruns.
 The owner route, damage/combat consistency, shadows and Unlimited remain open.
-
 
 The dense recorded-clock equality fixture also has 98 displayed phase steps
 larger than one VI in its analyzed interval. Its pass qualifies guest state and
@@ -576,7 +554,6 @@ comparison distinguishes candidate behavior from starting-state/host-load change
 Evidence: production-scene-owned-native-review.
 
 The shared-prefix candidate run completed, but its report formatter expected a Play-only audio field in a probe result and raised KeyError. Raw results were already saved. The correction reuses that run and collects only the missing baseline; no successful game test is discarded or rerun. Request 356 stopped at its prerequisite check without analysis.
-
 
 ### Queue pressure in the integrated candidate
 
@@ -613,7 +590,6 @@ coalesced-scene-present-review. Original instruction-clock fixture coverage
 remains in level 21; the earlier recorded native clock reaches levels 16 and 26,
 which may provide a bounded starting prefix for future late-route qualification.
 
-
 The empty-event observer identifies a further failure: a forwarded fresh sequence
 can be skipped by its receiving notification when newer work is queued. Seven
 other observed fresh skips have two pending notifications despite the immediate
@@ -630,7 +606,6 @@ from WorkloadQueue waits. See sequence-handoff-queue-costs for the measurements.
 The next candidate must reduce producer blocking without discarding framebuffer
 writes, invalidating active Present storage, or increasing latency unchecked.
 No public or desktop delivery has occurred.
-
 
 ### Bounded native presentation window candidate (2026-10-15)
 
@@ -668,7 +643,6 @@ Compatibility lesson: releasing a queue slot can merely move producer stalls;
 measure game-update cadence and both queue waits, not just output FPS or one
 queue. Bounding presentation delay trades interpolation coverage during a
 real slow update for less backlog and requires visible cadence qualification.
-
 
 The unselected native scene-retention/clock-scale source is preserved in research
 commit 53527b626bbd14c10ff2ed151454a8bb585aae39 (branch research/native-scene-retention-candidate-20261015).

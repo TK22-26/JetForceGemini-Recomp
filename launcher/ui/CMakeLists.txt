@@ -27,6 +27,7 @@ target_compile_options(JFG-UiPreview PRIVATE /utf-8 /W4)
 target_link_libraries(JFG-UiPreview PRIVATE RmlUi::RmlUi rmlui_backend_Win32_DX11 xinput9_1_0 shell32 comdlg32)
 add_custom_command(TARGET JFG-UiPreview POST_BUILD
  COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:JFG-UiPreview>/ui"
+ COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/assets/controls-art/xbox.tga" "$<TARGET_FILE_DIR:JFG-UiPreview>/ui/controls-art/generic.tga"
  COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/fonts" "$<TARGET_FILE_DIR:JFG-UiPreview>/ui/fonts")
 
 add_custom_command(TARGET JFG-UiPreview POST_BUILD
@@ -68,7 +69,10 @@ if(JFG_UI_NATIVE_ONLY)
  set(ui_rc "1 ICON \"${CMAKE_CURRENT_SOURCE_DIR}/assets/app.ico\"\n")
  set(id 201)
  foreach(asset assets/main.rml assets/theme.rcss fonts/Barlow-Regular.ttf fonts/Barlow-SemiBold.ttf fonts/ChakraPetch-Bold.ttf assets/live-map.rml assets/live-inventory.rml assets/live-tools.rcss assets/about.rml assets/about.rcss assets/modern-controls.rcss assets/controls-art/xbox.tga assets/controls-art/dualsense.tga assets/controls-art/mouse.tga assets/controls-art/generic.tga assets/controls-art/chips.tga assets/controls-art/highlights.tga assets/controls-art/toolbar-pad.tga assets/controls-art/ui-details.tga assets/video-settings.rml assets/video-settings.rcss assets/settings.rml assets/settings.rcss assets/video-icons.tga assets/mods-icons.tga assets/audio-settings.rml assets/audio-settings.rcss)
+  # Reserve 215: generic controller art aliases the Xbox resource (212).
+  if(NOT asset STREQUAL "assets/controls-art/generic.tga")
   string(APPEND ui_rc "${id} RCDATA \"${CMAKE_CURRENT_SOURCE_DIR}/${asset}\"\n")
+  endif()
   math(EXPR id "${id}+1")
  endforeach()
  string(APPEND ui_rc "${jfg_version_resource}")

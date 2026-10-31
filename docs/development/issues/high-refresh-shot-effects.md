@@ -92,7 +92,6 @@ motion guards from un-interpolated color/texture changes with a matching draw.
 
 Owner repeats the underside-light report for Vela first ship exit, screenshot20261024 PgAWKa. The short4:38-4:41PM session used the logging-off skirt preview and saved no new gameplay capture; its copied diagnostics-session pointer refers to3:42PM and is stale. Prepare an explicitly captured follow-up with overlay hidden and additional color/UV/match observations. Do not misattribute the stale path to this reproduction.
 
-
 ## Captured follow-up for Vela ship underside lights
 
 The normal fade preview's short owner session had logging disabled; its copied
@@ -108,7 +107,6 @@ behavior depends on this observer. The launcher continues to strip inherited
 JFG environment flags; explicit diagnostic launch creates the trace.
 The light effect remains unresolved pending that capture. This is not a fix
 for muzzle flashes or exit-door particles either.
-
 
 ## Light capture evidence and scroll candidate
 
@@ -128,7 +126,6 @@ existing geometry/cadence decision and changes neither native scroll speed nor
 simulation memory. Original FPS is unchanged. Build/replay/live verification
 remain pending; no visual ship-light fix is claimed yet.
 
-
 The geometry holds are concentrated near first appearance and while the beam
 endpoints cross the camera, rather than throughout the whole shot. The captured
 reject reason is motion (one or two endpoints), with no duplicate or invalid
@@ -147,7 +144,6 @@ warps and reach room67, so their images cannot validate room88 lights. A separat
 hidden, muted review-session fixture selects room88 through the existing
 cutscene-review protocol using only copied saves; it does not alter ordinary
 campaign loading or the review eligibility checks.
-
 
 ## Controlled beam comparison and visual-review candidate
 
@@ -179,7 +175,6 @@ Status: component checks and controlled rendering evidence pass; owner visual
 verification of the lights is pending. This does not resolve the separate
 shot/exit-sparkle report or establish that all animated ship-cone textures
 interpolate.
-
 
 ## Owner verification and local resolution
 
@@ -221,13 +216,11 @@ control allocation, camera and view/projection operands. It adds bounded
 diagnostic rows but does not yet change tracer presentation. Birth, retirement,
 buffer reuse and camera changes must remain distinct in any eventual fix.
 
-
 ### Travelling-shot capture and expanded owner report (2026-10-24)
 
 The owner clarified that the low-rate shots are bullets travelling through the air. A copied-profile 120 FPS capture reproduced them while moving the camera, plus grenade shockwave jitter, running drone/tribal sideways jumps during camera rotation, and possible muzzle-flash jitter. These are separate open symptoms; the travelling-shot candidate does not establish a fix for the other paths. The capture is sealed privately under shot-effects-fix-20261024/baseline-capture-seal.json. The owner approved another hour; existing guard lineage and counters remain preserved.
 
 The initial tracer observer confirms thousands of changing native view-space projectile vertices with zero presentation velocity. The ordinary model/sprite ownership paths do not cover this custom four-corner draw. A candidate will bind native tracer corners to their actor lifetime and captured camera, preserving original simulation and draw endpoints. It is not yet live verified.
-
 
 ### Candidate replay findings
 
@@ -237,21 +230,17 @@ A follow-up candidate uses the verified tracer camera operands and a bounded wor
 
 Grenade shockwaves use behavior 40 / shockwaveDraw at 0x80029688. Their twenty local vertices alternate between control+0 and control+200, selected at control+0x1DA; expansion previously had no semantic identity. The candidate binds this exact live allocation to its captured rigid camera/model pose. A replay records 13,200 matched of 14,280 expanded vertices, with 13,044 moving samples. Texture/colour animation keeps its native cadence. Both component and decoder suites pass. None of these observations is owner visual acceptance yet.
 
-
 ### Normal visual-review candidate
 
 Prepared and opened JFG - Projectile Motion Fix Preview at 120 FPS, with diagnostic recording and FPS overlay OFF, using a copied save. Runtime SHA-256: 79dc9b329817d674338e4befc8d13c844714bf92d7d03696b346f69c8eedfb94. The combined hidden replay and four focused test suites pass (semantic presentation, decoder textures, renderer interpolation integration, interpolation history). The temporary missing-key provenance probe has been removed from the normal build. Exact counts and replay/build receipts are retained privately in shot-effects-fix-20261024. Source save hash is unchanged. Travelling shots, grenade shockwaves and actor camera continuity remain candidates pending owner review; the suspected muzzle flash is not claimed fixed.
-
 
 The final combined replay reaches VI 15,000 normally. All 1,435 tracer camera bindings validate: 1,286 scenes interpolate, 141 are new-history/birth holds and eight retain the world-motion guard. Thus 1,286/1,294 non-birth scenes interpolate in this replay. Shockwaves match 83,520/85,320 vertex samples; 76,233 move. The shared-camera fallback is used for 264 actor frames / 117,990 vertex samples. These are recorded renderer outcomes, not a guarantee that every effect or physical display frame is smooth.
 
 Muzzle-flash review: the owner described this symptom as uncertain. The native draw at 0x8000C0B8 attaches short-lived textured geometry through a parent model/bone and its matrix stack; it is separate from objDrawTracer and shockwaveDraw. This candidate does not alter its authored flashing/texture cadence or claim a fix. The owner is asked to flag any remaining visible muzzle-specific defect during normal testing.
 
-
 ## Owner review, 2026-10-24
 
 The owner reports gameplay looks good and can no longer reproduce the prior travelling-bullet, grenade-shockwave or sideways actor issues. These candidate changes are now visually verified locally, not released. Remaining distinct reports: grenade fire appears to retain native cadence, and the exit marker opening while the camera moves appears to jitter. Muzzle flashing was not separately identified as remaining. Actor detail visibly decreases with distance; the owner requested an Original/High Actor LOD option under Game > Settings. Do not conflate those open paths with the accepted fixes.
-
 
 ## Final development status, 2026-10-25
 
@@ -263,7 +252,6 @@ history, but full fire confirmation remains open. The earlier pending statuses
 above record the progression of the investigation, not the final result.
 No release containing this batch is claimed. Muzzle-flash animation, character
 shadows and floor reflections are separate paths, not verified fixes here.
-
 
 ### Subsequent fire acceptance, 2026-10-25
 

@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 
 
-SOURCE_ROOTS = {"src", "include", "cmake", "scripts", "tests", "config", "patches"}
+SOURCE_ROOTS = {"src", "include", "cmake", "scripts", "tests", "config", "patches", "launcher"}
 SOURCE_FILES = {"CMakeLists.txt", "CMakePresets.json", ".gitattributes", ".gitignore"}
 MAX_BYTES = 64 * 1024 * 1024
 

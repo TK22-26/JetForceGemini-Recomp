@@ -5,7 +5,7 @@ investigation. It must stay enabled at all times ([AGENTS.md](../../AGENTS.md)).
 It is a bounded-waste control in the supervisor, not completion of the
 autonomous repair loop or game parity. Implemented 2026-09-27 in
 `scripts/autonomy/progress_guard.py`; operator guidance is in
-[automation](../development/automation.md).
+[automation](../maintenance/automation.md).
 
 ## Production ledger
 
@@ -140,7 +140,7 @@ is not a standing authorization.
 ## Acceptance
 
 ```powershell
-python -m unittest discover -s tests -p 'test_autonomy_progress_guard.py'
+python -m unittest discover -s tests -t . -p 'test_autonomy_progress_guard.py'
 python -m scripts.autonomy.progress_guard_smoke tools/private/progress-guard-smoke-NEW
 ```
 

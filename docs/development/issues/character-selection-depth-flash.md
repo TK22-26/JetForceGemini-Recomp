@@ -34,13 +34,13 @@ strong source-supported hypothesis rather than a confirmed final cause.
 RT64 early-presentation history previously checked address, dimensions and VI
 compatibility without checking that the current allocation still contained color.
 The workload candidate list also admitted recognized depth-only clears.
-src/renderer/rt64_present_source.hpp and cmake/rt64_interpolation.cmake
+src/renderer/rt64_present_source.hpp and cmake/renderer/rt64_interpolation.cmake
 now reject depth-only clears as interpolation candidates and require a current
 color write before using historical VI compatibility to redirect presentation.
 A directly requested VI/debugger depth display retains the existing conversion
 path. No map IDs, timed masks or extra fade are used.
 
-Regression cases in tests/rt64_interpolation_tests.cpp cover color-to-depth-to-color
+Regression cases in tests/renderer/rt64_interpolation_tests.cpp cover color-to-depth-to-color
 reuse, mismatched address/size, known depth clears and genuine flat-color clears.
 Selected source/type, rejected depth-history matches and actual depth conversions
 are recorded through the existing optional interpolation log.

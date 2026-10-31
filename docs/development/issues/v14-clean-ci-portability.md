@@ -25,14 +25,12 @@ outputs and exact build identities are retained privately under
 `v14-final-release-20261022`; replacement artifacts must identify the corrected
 clean source. Full CI is required before the owner's final publication signoff.
 
-
 The second CI run (39710195968) passes all 107 GCC Debug tests, all 107 GCC
 Release tests and the sanitizer lane. Clang then rejects a signed char-to-unsigned
 conversion in the new camera-helper test fixture. The fixture now explicitly
 converts the ASCII name byte to uint8_t before writing it, matching the guest
 byte representation. This changes test construction only, not runtime code.
 Warning strictness is retained; a fresh complete CI run is required.
-
 
 The third run (39710786459) passes GCC Debug/Release and sanitizers but reaches
 three additional Clang signedness warnings in cutscene code: an int row used as
@@ -41,7 +39,6 @@ size_t/unsigned conversions preserve their already-bounded positive values.
 A local complete Clang build is used to collect further diagnostics together;
 no compiler warnings are disabled. This is separate from the recorded WSL
 trust-anchor limitation in the private sanitizer harness; those pins stay intact.
-
 
 The local WSL compiler is Clang 21.1.8, newer than CI's Clang 18. The full
 keep-going build compiles all changed cutscene/rain/helper tests and reports
@@ -52,7 +49,6 @@ compiles but cannot link because its runtime library depends on that unchanged
 CIC object; its local Not Run result is retained, with full execution left to CI.
 The existing CIC source and warnings-as-errors are unchanged; CI's supported
 compiler remains the full-build gate.
-
 
 ## Final supported-platform verification
 

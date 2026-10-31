@@ -7,7 +7,6 @@ The default/reset inversion-Off preference and bounded support diagnostics ship 
 [Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/32#issuecomment-6332072753).
 Earlier entries below preserve their original investigation and verification scope.
 
-
 ## Supplied evidence investigation (2026-10-21)
 
 **Current status:** supplied ZIP and both videos inspected; intermittent motion
@@ -136,10 +135,9 @@ and native-history-compile/result.json. Implementation:
 [runtime integration](../../../src/boot/native_boot.cpp),
 [export allowlist](../../../launcher/windows/Support.cs),
 [report file inventory](../../../launcher/windows/Diagnostics.cs) and
-[focused regression](../../../tests/mouse_input_diagnostics_tests.cpp).
+[focused regression](../../../tests/runtime/mouse_input_diagnostics_tests.cpp).
 Lesson: preserve pre-menu context, distinguish missing motion from discarded
 motion, and verify that the exact diagnostic bytes survive the export sanitizer.
-
 
 Guard closeout (2026-10-21 21:38 UTC): the diagnostic job completed and sealed successfully as supporting activity. The production guard remains enabled; grading reached the unchanged cumulative attempt ceiling (85/85), so the investigation is now shelved. No further experiment, build, replay or coding-worker execution was started. Full instrumented packaging/live capture remains pending; the earlier22:59:58UTC outer deadline does not override this stop.
 
@@ -352,7 +350,6 @@ dispatch edits require an integration owner and preserved active previews.
 Honor the latest correction to a report rather than freezing an early causal
 claim. Test stored settings, applied settings and input consumption separately;
 similar focus or inversion symptoms do not establish a common defect.
-
 
 ## Owner disposition (2026-10-21 UTC)
 

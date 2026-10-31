@@ -272,7 +272,6 @@ explicit. The observer's fixed 'pages=4' banner enumerates candidate pages;
 exception-only mode protects none, as its zero watched-write count confirms.
 Reference: https://learn.microsoft.com/en-us/windows/win32/debug/vectored-exception-handling .
 
-
 ## Read-only polling and teardown qualification
 
 The unchanged failing executable completed one 17,005-VI run under 5-ms external
@@ -288,14 +287,12 @@ is an observation-time dump, not a faulting-instruction capture. NATIVE-001 rema
 open; the helper change is diagnostic only. Evidence: external-poll-native-120-0
 and external-poll-observer-v2, including its normal-exit fixture.
 
-
 The revised read-only helper completes 45,625 samples over 250.687 seconds in
 external-poll-native-120-1. The unchanged old runtime exits normally at
 17005 VI / 8189 controller polls, with
 0 audio underruns. No watched corruption is detected. The terminal
 unmap/read race is recorded and process exit confirmed. This remains one further
 non-reproduction, not proof of native stability or exact writer attribution.
-
 
 ## External debug-register experiment
 
@@ -315,7 +312,6 @@ Controlled cached/uncached model-byte and table-word writes reach the existing
 unhandled-exception path. Read/unrelated-write and disarm fixtures also pass,
 with twelve worker threads armed in each case. Game cause remains unlocated.
 
-
 The first unchanged-executable register watch captures an expected model-pointer
 store in shadow initialization at VI 6353 / poll 2975 (guest 0x8001d804), writing
 a valid 0x80265a10. This is a deliberate diagnostic stop, not another corruption.
@@ -332,7 +328,6 @@ hidden diagnostic window. A revised receipt retains the actual earlier check;
 raw historical receipts are preserved. This is diagnostic metadata, not a game
 visibility or mute-setting change. Evidence: external-register-native-120-0.
 
-
 Reviewing the original bad RAM beyond the model word shows repeating
 03 00 1f 1f 1f bytes at 12-byte strides across neighboring globals, with later
 writes surviving between them. The model byte is part of broader structured
@@ -342,7 +337,6 @@ alone does not identify the executed writer; the filtered watch remains the
 causal check. Evidence: corruption-byte-pattern.json and the preserved original
 RAM capture. This observation does not yet justify changing game lighting or
 shadow routines.
-
 
 The after-initialization watch reaches VI 12833 / poll 6245, then stops on the
 same legitimate shadowInit store (guest 0x8001d804, post-write host RVA 0x20c9d9f6)
@@ -356,7 +350,6 @@ the existing fault path. This changes the diagnostic process/module layout and
 can still affect reproducibility; it is not a runtime repair or stability proof.
 Controlled fixtures must qualify filtering before any game run. Evidence:
 external-register-native-120-after-init and filtered-register-observer.
-
 
 ## Shadow polygon scratch-buffer lead
 
@@ -377,7 +370,6 @@ before the first out-of-bounds append. Evidence: shadow-overflow-source-evidence
 The filtered register observer passed all nine controlled fixtures, including
 allowed initialization, wrong-value, wrong-instruction and uncached writes.
 
-
 The first filtered-watch route completes with 72 threads armed, no watched
 writes, no captured corruption and no audio underruns. It is a non-reproduction,
 not a stability fix. The first private shadow-limit build fails the generated
@@ -386,7 +378,6 @@ unit adds functions. Its original sources are restored and rebuilt. The revised
 probe places capture code in the host runtime and leaves the generated function
 inventory intact; the audit is retained. Evidence: filtered-register-native-120,
 shadow-limit-probe and shadow-limit-probe-v2. Probe results are diagnostic only.
-
 
 ## Oversized secondary-shadow footprint (2026-10-14)
 
@@ -417,7 +408,6 @@ stack-evidence, shadow-limit-probe-v3, shadow-clip-degenerate-fixture.
 No production fix, crash resolution or desktop delivery follows from these
 findings. The shadow animation cadence issue remains separately open.
 
-
 A separate CPU-context ownership check finds that detached copies used by the
 synthetic overlay loader and menu sound retain the original context's f_odd
 pointer. An isolated fixture using the actual generated context type reproduces
@@ -427,7 +417,6 @@ rebases its resumed contexts. This is a concrete aliasing defect; whether a
 loader actually changes a live caller register on the failed route remains
 unobserved, so it is not yet assigned as the shadow overflow's cause. Evidence:
 context-copy-fixture. No guest timing or state repair is implied by the fixture.
-
 
 The detached-context candidate rebases the overlay-loader and menu-sound copies'
 odd-register pointer to their own storage, and restores the caller's host FP
@@ -441,7 +430,6 @@ addresses with generated memory macros and faulted in the observer. Its second
 version uses bounds-checked physical RAM reads; that diagnostic fault is not
 an additional production-game failure. Evidence: context-copy-fixture-v2,
 model-position-probe/v2, detached-context-candidate.
-
 
 ## Targeted room-return fixture
 
@@ -462,7 +450,6 @@ without capturing a large mismatch or overflow. It is a non-reproduction, not a
 fix. The detached-context candidate preserves exact guest RAM, save and per-update
 instruction counts in the dense recorded combat replay. Full Original and native
 room-return comparisons remain separately qualified by their result artifacts.
-
 
 ## Detached CPU-context ownership correction
 
@@ -490,7 +477,6 @@ root X displacement from the saved failed RAM without live scheduling. This is
 post-fault state, not a captured pre-call replay. Its input provenance and the
 first contributing value still require tracing. Evidence: animation-snapshot-fixture.
 
-
 ## Animation prefix corruption localized
 
 The retained animation table identifies Juno's active asset as animation 1063,
@@ -512,7 +498,6 @@ writer and its lifetime contract remain open. Evidence:
 animation-snapshot-trace, animation-header-restored-fixture,
 animation-prefix-corruption-evidence, animation-header-watch.
 
-
 ## First invalid path-cache write captured
 
 The immutable-header observer catches a valid animation 1053 prefix changing
@@ -533,7 +518,6 @@ and preserve the original guest loader's allocation/relocation/completion work.
 Evidence: animation-header-return, path-cache-return,
 path-cache-stale-owner-evidence. Native stability and delivery remain unqualified.
 
-
 The cold-load candidate passes the dense combat comparison and the formerly
 failing room-21/16/21 ownership-watch run. The full Original replay preserves
 physical guest RAM, save, all probe counters and total instructions, but fails
@@ -550,7 +534,6 @@ beam-phase-lifecycle-watch-v2. The first private observer did not compile
 because its macro expected a local RAM pointer; sources were restored and rebuilt.
 Normal native/pause qualification is deferred while
 this specific renderer difference is reviewed.
-
 
 ## Fresh overlay lifetime correction, 2026-10-15 UTC
 
@@ -609,7 +592,6 @@ explained by exact original operations and lifecycle evidence. Combat cadence,
 shadow-mask cadence, Unlimited pacing and owner-visible full-route acceptance
 remain separately open. This checkpoint does not change the desktop package.
 
-
 ### Local preview delivery, 2026-10-15 UTC
 
 Both existing high-refresh preview/capture desktop links now select the qualified
@@ -621,7 +603,6 @@ The unchanged launcher passes bundled-runtime init/setup protocol checks; all
 files remain unchanged. Previous links and package are retained for rollback.
 This supersedes the earlier source-only delivery status. No public release or
 full-route/live acceptance is claimed; PERF-001 and the visual issues remain open.
-
 
 The transition observer subsequently confirms that the long native replay stays
 in level 21 and includes a death/respawn reload. Its stable completion is valid

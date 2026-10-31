@@ -27,9 +27,9 @@ def tool_sha():
     names = ("scripts/autonomy/device_experiment.py", "scripts/autonomy/device_observation.py",
              "scripts/autonomy/source_build.py", "scripts/autonomy/source_snapshot.py",
              "scripts/autonomy/supervisor.py", "scripts/autonomy/job_store.py",
-             "scripts/phase9_device_events.py", "scripts/phase95_poll_compare.py",
-             "scripts/phase95_bridge.py", "scripts/build_phase9_route_replays.py",
-             "scripts/oracle_device_events.c", "scripts/oracle_device_events.h",
+             "scripts/diagnostics/phase9_device_events.py", "scripts/exploration/phase95_poll_compare.py",
+             "scripts/exploration/phase95_bridge.py", "scripts/diagnostics/build_phase9_route_replays.py",
+             "scripts/diagnostics/oracle_device_events.c", "scripts/diagnostics/oracle_device_events.h",
              "scripts/oracle_device_events.patch", "include/jfg/boot/device_event_probe.h")
     return hashlib.sha256(canonical_bytes({
         **{name: file_sha256(root / name) for name in names},

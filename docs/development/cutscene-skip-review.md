@@ -123,7 +123,6 @@ Private evidence: cutscene-skip/selector-progress-20261020. Owner review of the
 new checklist UI is pending. No completion marks are fabricated from runtime
 logs or from this automated fixture, and no new cutscene acceptance is implied.
 
-
 ## Catalog classifications from the completed review
 The selector list still preserves all168 entries and their original keys. A
 follow-up source audit identifies eight menu-background variants and five

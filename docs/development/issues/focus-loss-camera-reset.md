@@ -17,7 +17,6 @@ Private session: D:/JFG-private/v131-rnd-20261019.
 Related: [controller landing](controller-high-landing-camera-reset.md).
 Initial report preceded the candidate below. Owner validation is recorded below; no public response or release.
 
-
 ## Qualified cause and candidate
 
 The owner clarified that this happens while standing normally. An early branch
@@ -64,7 +63,6 @@ Owner gameplay verification is now accepted as recorded below. No public
 comments, commit or release made.
 
 Preview: JFG - Focus Camera Fix Preview; muted, standard diagnostics, no screenshots. Runtime ab99b8a235f6f6692fced13504dde1c95e14bc0f503b2014a4f4b84a5bf6dc8b. Owner performs gameplay. Earlier ledge and landing fixes remain included.
-
 
 ## Owner acceptance
 

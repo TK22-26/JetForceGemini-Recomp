@@ -28,7 +28,7 @@ phase. Their clean timing and audio results are not native flight-position proof
 
 The original North American game and a retained BizHawk 2.11.1/EmuHawk installation
 are available privately. Prior native observation methodology and artifact
-identities are recorded in the [issue #18 handoff](../issue18-native-controls-handoff-2026-10-17.md).
+identities are recorded in the [issue #18 handoff](../runtime/issue18-native-controls-handoff-2026-10-17.md).
 Reuse the qualified ROM identity and isolated saves/configuration, while keeping
 this boss comparison separate from that handoff's input conclusions.
 

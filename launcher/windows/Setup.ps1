@@ -240,7 +240,7 @@ function Get-PinnedSource([string]$Commit) {
     if ($LASTEXITCODE -ne 0 -or $head.Count -ne 1 -or $head[0] -ne $Commit) { throw 'Cached source revision differs. Existing files were preserved.' }
     $changes = @(& $git -C $destination status --porcelain)
     if ($LASTEXITCODE -ne 0 -or $changes.Count -ne 0) { throw 'Cached source has local changes. Existing files were preserved.' }
-    if (-not (Test-Path -LiteralPath (Join-Path $destination 'scripts\build_from_rom.py'))) { throw 'Downloaded source is incomplete.' }
+    if (-not (Test-Path -LiteralPath (Join-Path $destination 'scripts\build\build_from_rom.py'))) { throw 'Downloaded source is incomplete.' }
     return $destination
 }
 
@@ -271,7 +271,7 @@ function Invoke-Setup {
         $python = Find-Python
         Write-Output 'JFG-SUPPORT stage=build-game'
         Write-Output 'Building the game locally from your ROM...'
-        Invoke-Checked $python @('-u', (Join-Path $source 'scripts\build_from_rom.py'), '--rom', $RomPath)
+        Invoke-Checked $python @('-u', (Join-Path $source 'scripts\build\build_from_rom.py'), '--rom', $RomPath)
     } finally { Stop-Transcript | Out-Null }
 }
 

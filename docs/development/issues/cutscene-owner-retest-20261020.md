@@ -7,7 +7,6 @@
 as likely development/setup variants, with the limits documented below.
 The type 145 source-rationale audit is complete; runtime behavior is unchanged.
 
-
 Status: targeted owner retests complete; remaining entries classified for
 reference. Earlier failures and pending-test statements below are chronological
 history superseded by the later acceptance and classification sections.
@@ -55,7 +54,6 @@ Keep the owner's persistent per-character notes unchanged; this record
 supplements them. Further diagnosis and owner validation remain outstanding.
 
 335 follow-up: the owner message names335 without a variant; the freshly updated saved review entry identifies335/1/Juno. Its reviewed=true means the owner reviewed it, not that the skip passed: its note says ?cannot skip.? Preserve that distinction for all checklist imports. No note or checkbox was changed by this intake.
-
 
 ## Final Juno review and authorized follow-up, 2026-10-21
 
@@ -160,7 +158,6 @@ Additional explicit reports:376 does not skip;378/1 does not skip;380/1 does not
 | 410/0 | cannot skip | 2026-10-20T20:44:36.1668297Z |
 | 411/0 | the quarry tribal flashing is gone here somehow | 2026-10-20T20:45:15.8716741Z |
 
-
 ### Confirmed source causes and candidate, 2026-10-21
 
 Credits skipping rejected the valid normalized overlay address03B00000 because it lies below KSEG0. The loader and other overlay readers intentionally use unsigned subtraction into the reserved guest address span. Candidate uses that same mapping with the existing metadata, bounds and signature checks. The credits scene also contains visual actor types112 (attachment/shadow) and132 (timed visual effect), which were absent from the reviewed control list. Their native handlers have no progression/inventory/transition writes; event and movement callbacks remain disallowed.
@@ -168,7 +165,6 @@ Credits skipping rejected the valid normalized overlay address03B00000 because i
 Scene376 includes a type50 projectile-trigger region. Its bit40 branch only reads projectile proximity and latches local actor state, then returns; the previous qualification rejected this branch even with zero players. Candidate allows this reviewed branch while preserving the separate active audio/script-region rejection. Sparse rejection logs now include actor+88 and entry flags for further diagnosis.
 
 Validation pending.48 selected entries in the latest captures reached a completion handler, but this is NOT visual acceptance. Remaining no-exit variants are real selector-context limitations, not classified as unused. No owner notes changed.
-
 
 ### Owner clarification: checked Juno entries are passed
 
@@ -192,12 +188,9 @@ Owner explicitly confirms: "Yes - work on unchecked Juno entries." This supersed
 | 409/0 | cannot skip - seems to be debug |
 | 410/0 | cannot skip |
 
-
 First candidate built: native runtime bad068704a5fa6f308dc8d42dbe1d77d56cb104a6f0cdc0f458db16a39a95bae.48 extracted native address/actor/captured-credits checks and both cutscene component suites pass. Old credits address resolver reproduces its rejection; corrected resolver accepts the real normalized section identity and still rejects invalid identity/signature/state. Installed in copied review preview with all package entries verified and profile/checklist preserved. Owner live verification remains pending. This build does not claim all15 unchecked entries fixed.
 
-
 335/0 trace narrows its missing prompt: the scene stayed qualified, physical/mapped A appeared, but effective game buttons stayed zero throughout the attempts. Capture flags2D/3D have UI capture and input blocking set, with Settings capture unset. In this source that means the foreground window differed from the game root. Thus this recorded attempt did not deliver A to the skip hold handler. Improve the selector focus handoff and retest; do not disable the game focus guard or mark the scene passed from eligibility alone.
-
 
 ### Remaining context-dependent entries, source refresh2026-10-21
 
@@ -217,16 +210,13 @@ Original code callers examined for308 and322 explicitly request group0; the275 n
 
 Candidate owner review order:376/0;405/2 (whole ending chain);207/0 followed by loading another scene from character selection;335/0 (input/focus). All four remain pending. A checked Juno box supplied by the owner, not a completion log or this report, establishes a pass. The current allowance ends03:45:24UTC; production guard/root/counters remain enabled and unchanged.
 
-
 ### Owner review resumed, 2026-10-21 afternoon
 
 The owner approved a further two-hour continuation ending21:39:20UTC. The existing production guard remains enabled with the same investigation root/counters. The prepared bad068704 candidate and updated selector are open; all15 Juno entries remain unchecked at handoff. The owner will drive gameplay and update the persistent checklist. No runtime/profile change was made during play, and no pass is inferred from launching. First retests are376/0,405/2,207/0 plus another scene load, then335/0.
 
-
 ## Owner review, October 21, 19:50 UTC
 
 On candidate bad068704a5f, the owner confirmed **405/2 passes**. Do not reopen it. **376/0 still fails**, and **207/0 permits a skip but then shows a black screen**. The latter supersedes any inference that reaching character-select state alone proves correct visible completion. Both remain open. The owner checklist and running preview are unchanged; compare the fresh traces before proposing another candidate. Private evidence: juno-final-retest-20261021/owner-verdict-1950.json and the 19:45/19:47 owner sessions.
-
 
 ### Corrected dispatch audit and new candidate, October 21
 
@@ -234,9 +224,7 @@ The earlier actor audit indexed the native control jump table by type instead of
 
 207 final snapshot shows native main thread cycling inside08701754, searching character selection for an eligible actor; it is runnable, not blocked on GPU/audio queues. A diagnostic story-context mismatch is being checked. No destination, progression flags or save data have been changed as a remedy. New runtime build and live verification remain pending.
 
-
 207 cause confirmed: Juno-only unlock state plus native207 completion flag91 leaves zero eligible characters. Two closed/live captures and original-ROM eligibility tables agree. Diagnostic207/0 candidate prepares all three unlock prerequisites in the copied review game, without changing completion flags or normal campaign skip logic. See [selector loading](cutscene-review-selector-loading.md).376 actor correction and207 fixture preparation await live review;405/2 remains owner-confirmed passed.
-
 
 Batch2 delivery20:12UTC: runtime96a6b2577d73c4a65541843dfeef5ebd4c0e3e3fa84f14d5af79d091357d3ebf
 installed and both launcher/selector windows verified visible. All14 package
@@ -246,7 +234,6 @@ suites,46 native qualification checks and8 original selection-loop checks pass.
 Owner visual verification of376/0,207/0 and335/0 is still pending;405/2 is passed.
 Private receipts: batch2-staged-receipt.json, batch2-installed-receipt.json,
 batch2-opened-receipt.json, original-menu-loop-v3/run.log.
-
 
 Follow-up source audit while batch2 remains immutable: the earlier claim that
 actor types145/147 share800270EC is also incorrect. Type145 dispatches to
@@ -267,9 +254,7 @@ the next targeted focus/skip test. Eleven other rows need original entry or
 completion context; none is classified as unused or passed by this acceptance.
 Private owner-batch2-acceptance.json preserves exact runtime and checklist hash.
 
-
 Owner acceptance20:55UTC:335/0 works;207/0 works again. Saved Juno boxes agree. All four targeted retests (376/0,405/2,207/0,335/0) now pass. Eleven context-dependent entries remain open; no owner notes or checks were modified. Private owner-335-acceptance.json pins the source checklist. The focus-handoff fix has owner verification for335/0.
-
 
 ### Remaining variants: source classification, October 21
 
@@ -324,7 +309,6 @@ remaining-scenes-object-inventory.json, original-map-exit-reference-variants.jso
 native-player-transition-original.asm.txt, native-command-end-audit.asm.txt.
 Only the findings belong in public docs; original ROM data and saves stay private.
 
-
 ### Final qualification audit, October 21
 
 The type 145 follow-up is resolved as an incorrect source rationale, not a
@@ -351,7 +335,6 @@ qualification of modified ROM object definitions.
 Private evidence: firework-helper-scope.json,
 firework-particle-transitive-scope.json, type145-original-definitions.json and
 qualification-audit-final.json. Original instruction excerpts remain private.
-
 
 Owner checklist update, 21:08 UTC: all eleven remaining Juno rows now have
 owner-written "Debug Cutscene" notes and remain unchecked. This agrees with the

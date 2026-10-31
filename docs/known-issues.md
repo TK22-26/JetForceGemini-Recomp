@@ -1,245 +1,97 @@
 # Known issues
 
-The October 28 [storage cleanup](development/issues/diagnostic-storage-exhaustion.md#2026-10-28-owner-directed-test-artifact-disposal)
-retires old private test artifacts after distilling their findings into text.
-Historical private paths in issue reports may no longer exist; recorded test
-results retain their original scope. The latest enemy-timing set is excepted.
+Reviewed 2026-10-31. The published v1.4.0 bundle and the current `develop` source have different
+validation status. A tested local candidate is not automatically released or accepted by its reporter.
+Use the [issue index](development/issues/README.md) for full reproduction, attempts, causes and evidence;
+[project status](status.md) and the [changelog](../CHANGELOG.md) describe delivered features.
 
-[v1.4.0 is public](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0) and includes the owner-reviewed fixes below. All eight release jobs and public-download verification passed. Twelve individually approved replies were posted. Issues #32, #35 and #40 remain open; the October 22 updates provide #35 logs and narrow #40 to blank launcher menus after successful startup. #41 tracks faster cutscene skip completion. Closed reports can be reopened if symptoms persist. See the [release qualification](development/releases-1.4.0-qualification.md).
+## Open problems and verification still needed
 
-The optional [Enhanced Shadows renderer](development/issues/github-character-shadow-jitter.md)
-is visually approved by the owner after v26 review. It replaces the native
-64x64 actor silhouette with interpolated mesh shadows, soft filtering, shared
-pose-derived receiver bounds and detached-body caster support. Focused combat,
-chief and cinematic checks pass. Original mode retains native silhouette
-cadence. Broader campaign/performance qualification remains pending; the changes
-are unreleased. The bridge's own ground shading is
-[pre-existing level vertex colour](development/issues/enhanced-shadow-environment-scope.md).
-
-[Gems visible through hanging vines](development/issues/vine-gem-occlusion.md)
-have a tested candidate: native blended foliage does not write depth, so fully
-opaque pixels now contribute depth while holes and soft edges retain blending.
-Component, captured-frame GPU and normal-game checks pass; owner batch review
-remains pending. A matched-view original-ROM EmuHawk capture also reproduces
-the vine/gem overlap.
-
-## October 27 local review batch
-
-The local batch adds tested candidates for hosted mouse delivery (#32), Proton
-fallback menus (#40), faster cutscene completion (#41), Floyd objectives (#49),
-arcade traps (#50), high-resolution/interpolated screen effects (#51), optional
-combat transparency (#52), optional free movement (#53/#55), and menu icons/title
-vignette (#57). Evidence and limits are recorded in the
-[issue index](development/issues/README.md). These changes are unpublished and
-await owner batch review. No GitHub actions were performed.
-
-[Original FPS simulation parity](development/issues/original-mode-simulation-parity.md)
-remains open. Controlled tests isolate ordinary Play's host-clock policy:
-Original output does not restore the original simulation clock, so legacy
-per-call enemy motion can advance faster. Expansion Pak reference runs and
-cache-consistent instruction probes confirm the distinction between matching
-motion states and matching their elapsed time. Fresh same-clock Original/120
-probes agree in tracked motion, but
-the reference clock differs from Mupen64Plus; neither comparison certifies
-physical N64 timing. The owner supplied a confirmed original N64 image capture;
-the same-room local controller route is now qualified. A diagnostic ordinary-Play
-clock opt-in
-passes finite motion tests but records transition audio underruns, so it is not
-a default-policy remedy. Further causal tests isolate omitted RSP/DMA work:
-the diagnostic clock uses short fixed task deadlines, while the original game
-yields and resumes graphics around audio. Published reference-core timing
-tests also expose accuracy limits; matching one emulator is insufficient.
-[Research evidence](evidence/original-timing-research-20261028.json).
-No default clock policy has changed. Ordinary Original
-Play still shares the native clock and stable flight correction. Turning off
-that correction alone would restore the earlier emulator-relative speed-up.
-
-[Flying-enemy timing (#48)](development/issues/github-flying-enemy-speed.md)
-has a shared elapsed-VI movement candidate. Original-ROM captures show roughly
-19 updates/sec in Tawfret and 20.05 in a Goldwood flying-enemy encounter versus
-30 in native Play. The candidate uses a stable three-VI movement reference
-for the affected flight/death class, covering acceleration, turning, drag,
-displacement, gravity and spin while retaining native collision and AI units.
-This is an explicit compatibility reference, not a claim that all N64 rooms
-always ran at 20 Hz. A later matched loaded encounter falls to about 14.8
-updates per 60 VIs in EmuHawk; the stable candidate therefore does not satisfy
-exact Original timing. Portable tests and twelve final native replays pass;
-owner visual review and the Original-policy correction remain pending. Qualification also uncovered omitted SDK formatting metadata, now
-[restored through original-byte generation](development/issues/sdk-printf-field-metadata.md).
-The Windows 10
-black-screen cause (#58) still needs reporter evidence; its local candidate adds
-bounded presentation diagnostics. Their [actual support-ZIP audit](development/issues/support-zip-presentation-sanitization.md)
-passes privacy, fixed-entry and size-boundary checks. The [validation record](development/issues/local-batch-portability-validation.md) documents the unavailable pinned WSL sanitizer boundary and existing Linux test quarantine. #54 names another project's version and needs
-reporter clarification. #35 retains its affected-user retest requirement.
-
-## Issue delivery and reporter retests
-
-Closed with owner-approved replies: #25, #30, #31, #33, #34, #36, #37, #38 and #39. The statuses below preserve the finite verification scope; closure does not turn an untested platform or symptom into a confirmed pass.
-
-| Report | Current status |
+| Problem | Current evidence and limit |
 |---|---|
-| [#41: cutscene skip completion time](development/issues/cutscene-skip-completion-time.md) | Tested local candidate shortens only qualified outgoing skip fade waits. Three native routes complete; measured internal three-part flight completion improves from 1.136s to 0.552s. Owner batch review pending. |
-| [#25: Ally X rain, reticles and performance](development/issues/github-ally-x-rendering.md) | Original reporter confirms all originally reported bugs fixed in v1.4.0 and reports being able to play at 120 FPS on Ally X. This is a report of their tested setup, not a universal performance guarantee. |
-| [#30: ledge and water camera](development/issues/controller-ledge-camera-reset.md) | Controller ledges, high landings and swimming/re-entry corrections are owner-approved locally; reporter retest after delivery. |
-| [#31: cutscene skipping](development/issues/optional-cutscene-skipping.md) | Owner-approved for v1.4.0. Unsupported scripts retain playback. Eleven likely development/setup entries remain documented as diagnostic coverage limits, not passed tests. |
-| [#32: intermittent mouse look/inversion](development/issues/github-mouse-look-and-inversion.md) | Local candidate fixes reproduced raw-mouse delivery loss across the hosted child/root process boundary. Actual two-process input checks pass; original reporter and inversion-Off retest remain pending. |
-| [#33: Modern side rolls](development/issues/github-modern-controls-side-roll.md) | Roll direction, backward crawling, explicit bindings and automatic-roll preference are owner-approved locally; reporter retest after delivery. |
-| [#34: Twin Mantis aiming range](development/issues/github-twin-mantis-aim-range.md) | Native aiming range is restored; five boss fixtures match EmuHawk angle checks and owner Twin Mantis review passed. Broader live/scoped coverage remains finite. |
-| [#35: audio delay](development/issues/audio-crackle-persistent-latency.md) | Reporter confirms stepwise v1.4.0 delay. An unreleased host-queue recovery candidate passes component parity, controlled fault recovery and sanitizer checks. Native build and eight audio suites pass; owner listening found no regression, affected-reporter retest remains pending; the reporter's trigger is still unknown. #29's RTSS crackling is separate. |
-| [#36: missing weapon crosshairs](development/issues/github-weapon-crosshairs.md) | Likely covered by the accepted #25 reticle correction; shared cause and reporter resolution need verification after delivery. |
-| [#37: Floyd cannot fire](development/issues/github-floyd-cannot-fire.md) | Fully approved locally, including related Modern/Floyd work. Ask the reporter to re-verify v1.4.0; no extra local firing/mission acceptance gate. |
-| [#38: Fet-Bubb crash](development/issues/github-fet-bubb-crash.md) | The supplied dump matches VibinToast's v1.1.8, a different project. This port's bounded comparison did not reproduce it. Reporter clarification is needed; no general crash or texture-pack fix is claimed. |
-| [#39: Give all weapons](development/issues/github-give-all-weapons.md) | Paused-dialog request expiry is fixed; actual grant acknowledgement and inventory availability are owner-confirmed. Reporter retest after delivery. |
-| [#40: Steam Deck/Proton](development/issues/github-steam-deck-proton-startup.md) | Local HWND fallback candidate fixes the invisible input shield covering menus. Windows composition/fallback and actual GE-Proton menu/input/pixel tests pass. Steam Deck hardware verification remains pending; native Linux release work is deferred. |
+| [Original FPS simulation parity](development/issues/original-mode-simulation-parity.md) | Ordinary Play uses a host-clock policy; Original output does not restore the N64 simulation clock. Matching motion states does not prove matching elapsed time. Open. |
+| [Flying-enemy speed #48](development/issues/github-flying-enemy-speed.md) | An elapsed-VI movement candidate passes portable checks and twelve native replays. Its stable three-VI reference does not reproduce every loaded N64 cadence; owner review and the Original timing policy remain open. |
+| [Intermittent mouse look #32](development/issues/github-mouse-look-and-inversion.md) | A local candidate fixes reproduced raw-mouse delivery loss across the hosted process boundary. Two-process checks pass; reporter and inversion-Off retests remain pending. |
+| [Stepwise audio delay #35](development/issues/audio-crackle-persistent-latency.md) | Unreleased host-queue recovery passes component, fault-recovery, sanitizer and native audio checks. Owner listening found no regression; the reporter's trigger is unknown and affected-user retest is pending. RTSS-related crackling is a separate report. |
+| [Steam Deck / Proton #40](development/issues/github-steam-deck-proton-startup.md) | An unreleased HWND fallback corrects the invisible menu input shield. Windows and actual GE-Proton menu/input/pixel checks pass; Steam Deck hardware remains unverified. |
+| [Windows 10 black screen #58](development/issues/github-black-screen-audio.md) | Cause requires reporter evidence. A local candidate adds bounded presentation diagnostics; its support ZIP has privacy and size checks. |
+| [Cutscene skip completion #41](development/issues/cutscene-skip-completion-time.md) | Qualified outgoing fades are shorter in a tested local candidate; three native routes complete. Owner batch review remains pending. Unsupported scripts retain ordinary playback. |
+| [Gems through vines](development/issues/vine-gem-occlusion.md) | A candidate adds depth for fully opaque foliage pixels while preserving holes/blending. Component, GPU replay and normal-game checks pass; owner batch review remains pending. Original-ROM EmuHawk also shows the overlap. |
+| [Buried Goldwood drone](development/issues/drone-buried-after-hut-collision.md) | The captured actor is below the floor. The collision sequence and original-game parity remain unconfirmed. |
+| [Intermittent ledge-route stutter](development/issues/tawfret-lighting-preview-stutter.md) | Captured once and not reproduced on repeated routes; cause remains unlocalized. |
 
-The original [#19 reporter](development/issues/github-invasion-replay-stutter.md)
-and another tester confirm the invasion slowdown is resolved. The owner approved closure, now completed without an additional reply. [#18 targeting](development/issues/github-held-aim-and-diagonal-movement.md)
-and the v1.3 movement correction remain included. Portable storage #24 and fog
-controls #26 are already implemented; no new response is planned.
+Reports [#38](development/issues/github-fet-bubb-crash.md) and #54 identify another project's builds;
+they require reporter clarification, not a claim that this port has fixed those symptoms.
 
-## Owner-approved v1.4 corrections
+## Accepted locally, not yet released
 
-- [Focus and room-entry camera retention](development/issues/focus-loss-camera-reset.md)
-  works in the reviewed controller and mouse modes.
-- [High-drop controller recovery](development/issues/controller-high-landing-camera-reset.md)
-  preserves the chosen angle, matching the mouse correction.
-- [Mixed wall/height camera collision](development/issues/modern-mouse-camera-floyd-preview-report.md)
-  no longer collapses the camera against Juno in the qualified cases.
-- [Controller removal](development/issues/controller-remove-auto-reassignment.md)
-  leaves the device unassigned; [port indicators](development/issues/controller-port-indicators-stale.md)
-  refresh after saved assignment changes.
-- [Tawfret lighting/fog](development/issues/tawfret-brightness-fog-fidelity.md)
-  preserves the earlier gamma correction and matches the reviewed EmuHawk comparisons.
-- [Quarry atmosphere](development/issues/quarry-atmospheric-transitions.md)
-  smooths native fog-distance steps while preserving cycle timing/colours.
-  Tribal brightness and the final smoothing candidate are owner-approved;
-  the rejected strobing candidate is historical.
-- [Character-selection white/rainbow flash](development/issues/character-selection-depth-flash.md),
-  chopped Vela skip effects and [menu hover/dropdown routing](development/issues/launcher-menu-hover-stuck.md)
-  are owner-confirmed fixed.
-- [Mods presentation](development/issues/live-map-mods-layout.md) is owner-approved.
-  Runtime acknowledgements determine weapon-grant success, not the button click.
-- File verification now has [visible progress](development/issues/launcher-file-verification-feedback.md).
-  Native UI tests cover both verification surfaces.
+| Change | Acceptance and remaining limits |
+|---|---|
+| [Audio settings window](development/issues/audio-settings-window-delay.md) | Owner confirms the replacement separate window opens immediately. The old approximately 20-second delay's cause remains unknown. Restart an existing launcher to use the new route. |
+| [Enhanced Shadows](development/issues/github-character-shadow-jitter.md) | Owner approved v26 visually; focused combat/chief/cinematic checks pass. Broader campaign/performance qualification remains pending. Original mode keeps native silhouettes. |
+| [Shot effects](development/issues/high-refresh-shot-effects.md) and [actor camera motion](development/issues/camera-turn-actor-jumps.md) | Travelling tracers, grenade shockwaves/fire, opening sparkle and Vela ship-beam corrections have their recorded owner acceptance. Suspected muzzle-flash jitter remains unconfirmed. |
+| [Flight camera / skybox cadence](development/issues/cutscene-camera-cadence.md) | Owner accepts two normal live repeats and confirms space-departure jumps are gone. One earlier isolated hitch remains unexplained; Original retains its policy. |
+| [Vela skirt fade](development/issues/vela-skirt-focus-tearing.md) | Owner accepts the smooth-layer repair; native checks and replay pass. |
+| [Floor reflections](development/issues/floor-reflection-geometry.md) | Mirrored culling and skeletal interpolation pass checks, replays and owner review; original reporter retest remains pending. |
+| [Actor LOD](development/issues/actor-lod-option.md) | Owner verified live Original/High behavior in Video > Enhancements. Default remains Original. |
 
-The [cutscene review record](development/issues/cutscene-owner-retest-20261020.md)
-preserves failures, retests and the eleven remaining setup/debug classifications.
-The private selector is not a release feature. Scene 207's missing-character
-prerequisites are repaired only in the diagnostic copied-save path; ordinary
-campaign progression is unchanged.
+The October 27 batch also contains controls/UI candidates for Floyd objectives, arcade traps,
+combat transparency, free movement, high-resolution screen effects and menu/title presentation.
+Their individual [issue records](development/issues/README.md) retain owner-review status.
+[Batch portability validation](development/issues/local-batch-portability-validation.md) records the
+unavailable pinned local WSL sanitizer boundary and the existing Linux quarantine.
 
-## Performance and coverage
+## Original game and regional behavior
 
-The final v1.4 pass identified [rapid bad-angle camera motion and a floating square in the Tawfret chief cutscene](development/issues/tawfret-chief-camera-and-square.md). The camera-cut correction passed owner review at 120 FPS with logging off. The owner subsequently confirmed the square on original N64 hardware; native resolution had obscured the camera-helper mesh. The owner verified the helper visibility correction in the ordinary 120 FPS launcher: the square is gone and the scene looks correct. Both changes are included in the published v1.4.0 release. See the [findings and lessons](development/tawfret-camera-helper-findings-2026-10-22.md).
+Leaving Walkway has **no music on the owner's NTSC N64** and **does have music in PAL EmuHawk**.
+Only this departure was rechecked; the two Vela routes remain unverified. The US insertion candidate
+is withdrawn as a fidelity fix but remains in current source/preview pending separate removal.
+[Issue #45's record](development/issues/flight-transition-missing-music.md) retains that correction.
+PAL hardware and Japanese behavior are untested; [PAL/JP recomp support](development/issues/regional-rom-support.md)
+is separate future work. The current recomp accepts only its pinned US ROM.
 
-The release target is visibly smooth, responsive play with clean audio.
-The v1.3 owner route and targeted corpse review passed. The owner approved publication after the final targeted corrections. A separate full v1.4 SS Anubis pass was not recorded as completed; no campaign-wide, every-device or zero-stall guarantee is claimed.
-
-[SS Anubis ledge-testing stutter](development/issues/tawfret-lighting-preview-stutter.md)
-was captured once and not reproduced in the repeated route; its intermittent
-cause remains unlocalized. The earlier [Vela transition dip and broader performance coverage](development/issues/1.2.1-session-1.3-followup.md)
-remain bounded findings. Unlimited/360+ Hz, every scenery collision and every
-random encounter have not been exhaustively qualified.
-
-[Grounded drone-body interpolation](development/issues/dead-drone-camera-jitter.md)
-is included in v1.3 and passed the latest owner visual review. Exact seeded
-route parity is not established.
-
-## Original behavior and optional enhancements
-
-[Enemy-clear door indicators](development/issues/door-enemy-lock-distance-darkening.md)
-also darken at distance in EmuHawk. The owner deferred further original-game work;
-the accepted readability workaround remains. This is not a general material fix.
-
-Some Vela-rescue shots are intentionally soft, and native boss motion blur can
-be uncomfortable at high refresh rates. Off / Reduced / Original remains
-available, with Reduced the default and a comfort note for Original.
-[Ichor detached-head flight](development/issues/ichor-head-flight-locations.md)
-was an unconfirmed concern; bounded comparisons found no out-of-bounds flight
-and did not justify a gameplay patch.
+The [native N64 catalog](original-game/README.md) distinguishes confirmed hardware bugs from emulator
+observations and regional differences. Tawfret's camera-helper square is hardware-confirmed and was
+intentionally corrected in v1.4.0; its separate camera-cut interpolation issue was recomp-specific.
+[Enemy-clear door indicators](development/issues/door-enemy-lock-distance-darkening.md) also darken at
+distance in EmuHawk; further original-game work is deferred and the accepted readability workaround remains.
+[Ichor head flight](development/issues/ichor-head-flight-locations.md) was an unconfirmed concern and did
+not justify a gameplay patch. These emulator observations are not new hardware-bug confirmations.
 
 ## Settings, controls and mods
 
-- Frame rate, cap and VSync changes require stopping/restarting the game.
-  [Live switching](development/issues/live-frame-rate-settings.md) is queued;
-  fog percentage applies live.
-- Modern controls can be selected independently for P1-P4. Some native menu
-  subpages still require keyboard/controller navigation. SDL/DualSense rumble,
-  gyro and adaptive triggers are not implemented.
-- Game > Settings > Change directory copies data without overwriting existing
-  destination files. Changing storage restarts the launcher and requires gameplay
-  to be stopped. An internal data folder moves with the installation.
-- Exit warp bypasses progression only for the explicit mod action. Ordinary
-  doors retain native requirements; every exit has not been qualified.
-- Give weapons affects the current single-player character once and refills
-  existing ammo capacities. Save normally to retain it. It is not infinite ammo.
-- Unlock Floyd takes effect in the next room. Mission entry still requires native
-  prerequisites, including Mizar tokens. The earlier zero-token test was not a
-  failed unlock.
-- Rapid duplicate grant clicks before helper feedback and some command-file error
-  presentation remain recorded [UI limitations](development/issues/github-give-all-weapons.md).
+- FPS, cap and VSync changes require stopping/restarting the game; [live switching](development/issues/live-frame-rate-settings.md)
+  is future work. Fog percentage applies live. Unlimited/360+ Hz and every encounter are not exhaustively qualified.
+- Modern controls support P1-P4, but some native menu subpages require keyboard/controller navigation.
+  SDL/DualSense rumble, gyro and adaptive triggers are unimplemented. See [controls](features/pc-controls.md).
+- Storage changes copy without overwriting destination files and restart the launcher; stop gameplay first.
+  Keep the selected data directory and `storage-location.txt` with a portable installation.
+- Exit warp deliberately bypasses progression for that mod action. Ordinary doors keep native requirements;
+  every exit has not been qualified. Give weapons affects the current character once, not infinite ammo.
+- Unlock Floyd takes effect in the next room and does not supply mission tokens. Save normally to retain
+  inventory changes. Rapid duplicate grants and some command-error presentation remain documented UI limits.
+- Motion blur offers Off / Reduced / Original, with Reduced the default. Some original cinematic shots are
+  intentionally soft; native boss blur can be uncomfortable at high refresh rates.
+
+## Released corrections and coverage
+
+v1.4.0 includes the reviewed camera, roll, boss-aiming, Floyd, rain/reticle, cutscene, Mods and launcher
+corrections recorded in its [qualification](releases/qualification-1.4.0.md). The Ally X reporter confirms
+the originally reported bugs fixed and 120 FPS on their setup; that is not a universal performance guarantee.
+Invasion slowdown also has reporter confirmation. A closed issue retains its finite verification scope;
+weapon-crosshair shared cause and several reporter-specific retests remain distinct from owner acceptance.
+
+The retained campaign run used testing mods and an unlocked-Tribals save. A separate full v1.4 SS Anubis
+pass was not recorded as completed. No campaign-wide, every-device or zero-stall guarantee is claimed.
+Historical private captures may have been retired under the October 28 storage cleanup; their written
+findings and acceptance limits remain in the issue records, with the latest enemy-timing set excepted.
 
 ## Windows 10 setup
 
-The prebuilt Windows x64 package needs no compiler or WSL. Older
-[#4 source-setup](development/issues/github-windows-source-setup.md) workarounds
-apply to developer builds, not ordinary ZIP installation.
-[#15 Linux source-build](development/issues/github-linux-native-build.md)
-remedies are released and #15 is closed at the owner's request; a native Linux/AppImage release is not qualified.
+The prebuilt Windows x64 bundle needs no compiler or WSL. Old [source-setup workarounds](development/issues/github-windows-source-setup.md)
+apply to developer builds. Linux source-build remedies are released, but a native Linux/AppImage release
+is not qualified. Historical local WSL findings remain in [source validation](development/issues/release-source-validation.md);
+required source/tagged-release CI later passed.
 
-Developer qualification retains three pre-existing local WSL harness findings
-(two sanitizer subtest failures and a tool-pin error); the Windows runtime and
-launcher checks pass. See [source validation](development/issues/release-source-validation.md).
-All required source and tagged-release CI subsequently passed; the local WSL harness findings remain historical.
-
-Support collection is local and best effort; nothing uploads automatically.
-Include version, control mode, location and reproduction steps using the
-[reporting guide](playtesting.md).
-
-Historical evidence remains in the [pre-v1.4 notes](development/known-issues-before-1.4.0.md),
-[pre-v1.3 notes](development/known-issues-before-1.3.0.md) and
-[issue register](development/issues/README.md).
-
-## October 24 diagnostic follow-up
-
-- [Audio Settings window and delay](development/issues/audio-settings-window-delay.md):
-  resolved locally on October 31: the owner confirms the separate native window
-  opens immediately and the bug is fixed. The original delay's cause remains
-  unknown. Unreleased; existing launchers need a restart for the new menu route.
-- [Flight-transition music](development/issues/flight-transition-missing-music.md):
-  #45 reports silent flight segments and music restarting in the following shot.
-  On October 30 the owner confirms the reporter was correct after a new
-  playthrough and original-hardware verification. The earlier original-behavior
-  closure is superseded; #45 is open. The final October 31 candidate restores the
-  flight theme and continuous handoff in all three reported departure shots and passes
-  focused tests and copied-profile audio/route checks. Owner/hardware listening
-  remains pending; an isolated review build and before/after audio are ready.
-- [Shot effects at high FPS](development/issues/high-refresh-shot-effects.md):
-  travelling bullets and grenade shockwaves now pass owner review at 120 FPS.
-  The separate Vela ship-beam scroll/motion correction passes targeted checks,
-  a controlled flight comparison and owner visual verification. It is resolved
-  locally and unreleased. The opening exit-marker sparkle correction also
-  passes owner review. The owner subsequently confirms grenade fire visually; both are resolved locally.
-
-- [Flight camera and ship cadence](development/issues/cutscene-camera-cadence.md):
-  owner confirms the camera precision change removes recurring jitter. The
-  development candidate enables it for high-refresh modes and preserves Original.
-  The combined engine/startup candidate now has two clean, owner-accepted live
-  repeats. One earlier isolated hitch remains unexplained. These changes are unreleased.
-
-- [Vela skirt transparency](development/issues/vela-skirt-focus-tearing.md): the added
-  close-camera alpha fade exposes internal surfaces, including at Original FPS.
-  The owner confirms the skirt repair and accepts the smooth-layer replacement
-  for the initial visible mesh pattern. Build, targeted tests and rendered replay
-  pass. These changes are unreleased.
-
-- **Projectile/effect and camera-turn motion:** a local 120 FPS candidate adds travelling-tracer and grenade-shockwave interpolation and keeps held actor geometry aligned with the interpolated camera. Automated checks and owner visual review pass; unreleased. Suspected muzzle-flash jitter remains unconfirmed. See [shot effects](development/issues/high-refresh-shot-effects.md) and [actor camera jumps](development/issues/camera-turn-actor-jumps.md).
-
-- [Actor LOD](development/issues/actor-lod-option.md): live Original/High behavior verified by the owner. Controls now appear in Video Settings > Enhancements; default remains Original.
-- [Space skybox holds](development/issues/cutscene-camera-cadence.md): a separate byte-bound sky-camera identity removes internal holds in the targeted replay. The owner confirms both space-departure jumps are gone in the normal preview.
-
-- [Drone buried beside a broken hut](development/issues/drone-buried-after-hut-collision.md): reported in Goldwood; saved actor position is below the floor, but the collision sequence and original-game parity remain unconfirmed.
-
-- [Floor reflection geometry](development/issues/floor-reflection-geometry.md): resolved locally: mirrored face culling and skeletal reflection interpolation pass native checks, Goldwood replays and owner visual review. Unreleased; the original reporter has not yet retested.
-
-Owner review on October 27: Enhanced Shadows preview v26 visually approved ("shadows look good now"); unreleased. See [shadow investigation](development/issues/github-character-shadow-jitter.md).
+Support collection is local and best effort; nothing uploads automatically. Include version, control mode,
+location and reproduction steps using the [reporting guide](playtesting.md).

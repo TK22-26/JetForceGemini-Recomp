@@ -31,7 +31,6 @@ switching without allowing input during actual cutscenes. A build or isolated
 fixture pass alone is not live boss-fight acceptance. Record final cause,
 remedy and commit/release only once verified.
 
-
 ## Initial triage and owner reproduction
 
 The support attachment confirms the exact official v1.2.0 runtime SHA-256
@@ -56,7 +55,6 @@ and dispatches boss controls when nonzero. The PC input predicate currently
 treats any nonzero +0xFC as an input lock. This is a concrete inconsistency to
 validate, not yet proof that it explains every reported mode or movement loss.
 
-
 ## Unbuilt candidate
 
 The candidate separates playable boss actions from ordinary free-camera and
@@ -79,7 +77,6 @@ accumulators during playable boss aiming while clearing free-camera ownership.
 Pause, focus/device loss and actual non-playable contexts still discard look.
 This is a candidate correction; boss sensitivity/scope and cross-mode behavior
 remain part of the live qualification.
-
 
 ## Owner live boss reproduction (2026-10-18 03:40 UTC)
 
@@ -107,7 +104,6 @@ before the isolated hotfix build and boss-state acceptance. The live exporter
 does not expose player-control +0xFC, so that exact candidate predicate still
 requires memory verification. No fixed runtime has been delivered yet.
 
-
 ## Closed capture and exact boss state
 
 Normal closure preserved the 4 MiB final RDRAM and complete compact timing/input
@@ -127,7 +123,6 @@ have source rate zero and sequence count one. The source counters describe
 graphics submissions, not a simulation running at 60 Hz. Existing recording
 streams have slightly different flush boundaries; these are bounded observed
 windows, not invented frame-for-frame joins.
-
 
 ### Candidate correction from real captured memory
 
@@ -150,7 +145,6 @@ game-update rows do not carry these audio counters (their trailing zeros are
 not audio acceptance). Review final play-health and their timing separately;
 do not claim the full long route was audio-clean from the earlier rescue prefix.
 
-
 ## Focused validation and native build preparation
 
 The five focused CTest groups pass: navigation/warp eligibility, modern actions,
@@ -171,9 +165,7 @@ uses the hotfix normalizer and timing pass, with all input hashes recorded.
 The failed attempt and incompatible header remain preserved; no digest or
 lineage check was bypassed and no 1.3 generated root was reused.
 
-
 The fresh full native build exceeded its initial 35-minute wrapper timeout after the generated game library compiled. The still-owned MSBuild child was allowed to finish under the same guard; an incremental build then verified completion. Existing objects, failure receipt and logs were retained. This is a build-time limit, not a gameplay or compiler regression.
-
 
 ## Native route validation (2026-10-18)
 
@@ -199,7 +191,6 @@ Private evidence: candidate-checkpoint-bootstrap-02, candidate-boss-route-01,
 candidate-boss-route-02, candidate-boss-route-summary.json. Physical mouse/pad
 behavior and visual compositing still require their own validation.
 
-
 ## Effective boss input qualification
 
 Both bounded native routes now reach playable level 181. The mouse-look packet
@@ -223,7 +214,6 @@ candidate-boss-mouse-summary.json, candidate-boss-pad-summary.json.
 The qualified input executable is retained separately before rendering
 experiments. No visual rendering resolution is claimed from these checks.
 
-
 ## Focused preview qualification
 
 Original-mode effective N64 packets also reach boss movement and jump. The
@@ -245,7 +235,6 @@ performance work and the failed blur experiment. Owner verification must cover
 physical strafing, aiming, firing, jumping, pause/resume and death/re-entry before
 stable release or closing GitHub #20. No GitHub message has been posted.
 
-
 ## Local preview delivery
 
 The 1.2.1-beta.1 package is built from clean hotfix source
@@ -261,7 +250,6 @@ candidate. No release/tag, push, merge or GitHub issue closure is performed.
 Blur rendering and the long capture's audio events remain open.
 
 Private receipt: hotfix-preview-delivery.json; packaged-hotfix-bootstrap-01.
-
 
 ## 2026-10-18 owner check and direct boss fixtures
 
@@ -302,7 +290,6 @@ Local shortcut delivery: Juno, Lupus. Separate disposable saves, muted audio, re
 
 Lupus native fixture verified: lupus-bootstrap-06, level 210, character 2, nonzero boss actor. Seed lupus-boss-intro-seen.flash. Physical owner verification remains pending.
 
-
 The delivered Lupus fixture sets only its private intro-seen flag (22) in
 addition to the selected-character/checkpoint changes. Its native entrance 249,
 condition 24, reaches boss 210 with character 2 and combat state 32. The normal
@@ -313,7 +300,6 @@ and instant-kill mods off and use the unchanged hotfix executable. The failed
 first launcher setup referenced a setup executable absent from the packaged
 runtime; resuming with the existing built frontend setup tool succeeded and
 preserved the original profile.
-
 
 ## Stable hotfix acceptance (2026-10-18)
 
@@ -329,7 +315,6 @@ Retain that runtime's original clean support identity and hash when packaging;
 do not relabel its source revision. Remaining visual/audio issues are tracked in
 https://github.com/TK22-26/JetForceGemini-Recomp/issues/21, together with the ongoing general 1.3 performance work.
 Publication and final source/release identities will be recorded after release.
-
 
 ## Published v1.2.1 and reporter follow-up (2026-10-18 UTC)
 

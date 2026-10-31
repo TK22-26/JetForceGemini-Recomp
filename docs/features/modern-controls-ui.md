@@ -343,7 +343,6 @@ provides an aim-toggle alternative. This project's exact default bindings remain
 its own design. Broader port and emulator references are recorded in
 [PC controls](pc-controls.md) and the pinned upstream catalog.
 
-
 The removed Gameplay selector and the symbol selector previously shared prefixes
 with obsolete numeric button actions. Clicking either could parse "select" as an
 integer and throw. Those handlers are removed. Symbol changes queue a form
@@ -378,8 +377,6 @@ capture, saved settings, available-device filtering, reconnection, mode
 preservation and layout at the owner's 125% scale. Both fixtures measure the
 visible text children, preventing RmlUi flex labels from silently collapsing.
 
-
 Retained capture profiles may keep older menu bindings despite a source merge. [INPUT-008](../development/issues/modern-capture-profile-defaults.md) records the current owner report and preference/default distinction.
-
 
 The initial Menus & dialogue card fixed hidden saved bindings but was superseded at the owner's request. Confirm, Back, Save and new keyboard inputs now appear in Keys, while Mouse/WASD remain at the left. Shared E shows Interact + Confirm and persists both actions. Modern arrow bindings are retired. The revised native UI suite passes 772 checks, and 155 core checks cover migration and context behavior. The local preview is updated; see [INPUT-008](../development/issues/modern-capture-profile-defaults.md) and [qualification](../../evidence/unified-modern-keys.json).

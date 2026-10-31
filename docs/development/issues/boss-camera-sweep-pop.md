@@ -10,7 +10,6 @@
 - Remaining validation: broader v1.3 regression/performance qualification; retained isolated shared-camera fallback updates are documented below. Original hardware comparison is not claimed.
 - Compatibility: retain native simulation and boss behavior; do not mask a real visibility issue by interpolating across camera cuts.
 
-
 ### Targeted evidence prepared
 The current history matcher rejects an entire actor if any of its vertices
 fails continuity, including a projected movement threshold during a camera
@@ -22,7 +21,6 @@ behavior, selected model and opacity. Rows stay buffered; no screenshots or
 per-frame file writes. Normal releases do not enable this audit. Owner replay of
 the camera sweep is still needed to connect any rejection or missing draw to
 the visible pop; no boss behavior or interpolation policy has changed yet.
-
 
 ### Source finding while owner records ? 2026-10-18
 
@@ -44,7 +42,6 @@ topology protections. No interpolation policy has been changed for this lead.
 The current capture parser associates native behavior rows with each individual
 run rather than combining actor addresses across processes; addresses can be
 reused and are not sufficient identity on their own.
-
 
 ### Owner capture reviewed ? 2026-10-18 21:38 Eastern
 
@@ -70,7 +67,6 @@ to the owner's video frames still needs timestamps and positive boss-model
 identification. Analysis receipts: boss-audit-summary.json and
 boss-owner-finding.json. No boss fix is shipped.
 
-
 All 22 owner-supplied stills were inspected. The series shows successive
 groups with the boss near the same screen position while the room and reticle
 advance, followed by a larger boss position change; it also contains visible
@@ -91,7 +87,6 @@ and validate it if retained. The current owner preview still has runtime hash
 b668ab7dafdd338ae10206d8dc1618e10482fdce114cdfb935420d92a6c340ca.
 The same production investigation retains all prior guard counters and roots;
 finishing this approved session does not authorize another attempt.
-
 
 ### Two-hour owner continuation ? video correlation and candidate
 
@@ -129,7 +124,6 @@ and stale operands. Build and live verification are separate; candidate is not
 yet owner verified or released.
 
 Runtime compiled and semantic component regressions passed, including existing glass/door checks. Boss Camera Review packaged with runtime c955a489f9be1e63dded2ba16f2cb4d1205e7519054e91cddd8c8fcd75d56506. Latest owner save copied without modification; 120 FPS, Reduced blur, VSync on, starts muted. Owner visual verification remains pending.
-
 
 ### Owner acceptance and completed capture - 2026-10-18 21:58 Eastern
 
@@ -191,7 +185,7 @@ a separate open transparent-material investigation.
 The documented change is included in tag v1.3.0 (launcher/source
 02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
 665596482a7395593e85dbe73f1bd4b016d183d9). See the
-[combined release qualification](../releases-1.3.0-qualification.md) for owner
+[combined release qualification](../../releases/qualification-1.3.0.md) for owner
 acceptance, source CI, package and publication evidence. Earlier failed attempts
 and the scene/device/seed limits above remain part of this record; inclusion
 does not turn an unverified broader report into a confirmed resolution.

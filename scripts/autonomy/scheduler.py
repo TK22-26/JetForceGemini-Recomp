@@ -66,13 +66,13 @@ from scripts.phase95_bridge import runtime_digest
 
 
 POLL_PAIR_PLAN_TOOLS = (
-    "scripts/phase9_poll_semantic_pair.py",
-    "scripts/compare_phase9_poll_hashes.py",
-    "scripts/phase95_native_replay.py",
-    "scripts/phase9_point_probe.py",
-    "scripts/phase95_oracle_replay.py",
-    "scripts/phase9_oracle_instruction_effects.py",
-    "scripts/phase9_bizhawk_oracle.lua",
+    "scripts/diagnostics/phase9_poll_semantic_pair.py",
+    "scripts/diagnostics/compare_phase9_poll_hashes.py",
+    "scripts/exploration/phase95_native_replay.py",
+    "scripts/diagnostics/phase9_point_probe.py",
+    "scripts/exploration/phase95_oracle_replay.py",
+    "scripts/diagnostics/phase9_oracle_instruction_effects.py",
+    "scripts/diagnostics/phase9_bizhawk_oracle.lua",
 )
 
 

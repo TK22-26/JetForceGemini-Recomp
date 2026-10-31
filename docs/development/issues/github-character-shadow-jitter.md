@@ -24,7 +24,6 @@ and transform endpoints before selecting an interpolation policy.
 
 At intake, no patch, runtime test, GitHub reply or closure had been performed for #46.
 
-
 ## Owner reproduction and active investigation, October 25
 
 The owner approved the reflection fixes after two checks, then confirmed visible
@@ -325,7 +324,6 @@ Original may only be selected explicitly. Reflections and unrelated effects
 cannot become shadow casters through address guessing. Compatibility at Original
 FPS, split-screen, scene changes and visual/performance acceptance remain open.
 
-
 ### First Enhanced integration checks
 
 The GPU and settings implementation now compiles. The first muted 11,000-VI
@@ -384,7 +382,6 @@ color-float field; receiver alpha now reads the real normalized color-byte
 stream. Rebuilding and broader runtime/visual qualification remain in progress.
 There is no owner acceptance or release claim for Enhanced yet.
 
-
 ### Complete-route blocker isolated; replacement coverage measured
 
 The complete Original-quality replay on the same binary completed 24,240 VI.
@@ -412,7 +409,6 @@ These checks do not qualify the longer route, split-screen, performance or the
 visual appearance. Enhanced remains unreleased and is not handed over while
 the known complete-route failure remains. No Original-mask fallback was added.
 
-
 ### Camera-independent caster ownership candidate
 
 The expanded inventory resolves the failure: the task contains only the
@@ -436,7 +432,6 @@ world-pose history, a receiver with only a reflected visible draw, and rejection
 of invalid canonical geometry. The revised renderer and component suite build
 and pass; complete-route replay and owner visual verification are pending.
 
-
 The canonical-caster candidate completes the full 24,240-VI owner route
 (exit 0, 409.53 seconds). Its trace accounts for 2,104,203 expected receiver
 draws and exactly 2,104,203 replacements across 44,237 output phases, with
@@ -445,7 +440,6 @@ reflection-only transition completes. A subsequent build adds explicit task
 reset of caster-matrix validity and motion-coverage diagnostics; its replay
 and Original-FPS compatibility check are running. These are correctness
 replays with diagnostics, not representative performance measurements.
-
 
 Qualification scope correction: the full owner recording contains a long
 title-screen lead-in. Room logs confirm the complete runs reach the flight,
@@ -463,7 +457,6 @@ output phases. Canonical history records 42,559,236 moving samples and
 2,681,262 samples from the original palettes of reflected draws. This proves
 the new path receives moving poses; perceived smoothness and outline quality
 still require owner review.
-
 
 ### Qualified preview handed to owner; visual acceptance pending
 
@@ -483,7 +476,6 @@ manifest was rehashed and verified; support identity names the matching runtime
 and private symbols. The owner is asked to inspect idle arm sway, walking and
 camera turns. No owner acceptance, broad campaign coverage, split-screen
 qualification, other-GPU performance, commit or release is claimed.
-
 
 ### October 25 owner refinement review: crash and receiver overlap
 
@@ -533,7 +525,6 @@ Compatibility lesson: native receiver ownership does not imply a skeletal mesh.
 Handle the native drawable class explicitly; do not reinterpret sprite assets as
 models or silently replace unidentified actors with a generic blob.
 
-
 The first sprite candidate (v16) still failed the exact scene. Runtime evidence
 corrected the initial height-field interpretation: header+0x6C/+0x6E are -100/+10
 receiver-search limits for these objects, not caster dimensions. The earlier
@@ -546,7 +537,6 @@ proxy invalid. This remains an approximation appropriate to a billboard with no
 
 Sprite pose history is bound only to receiver packets used by the current
 workload. Retained alternating buffers cannot overwrite the current position.
-
 
 ### Corrected sprite candidate: scene qualification and owner handoff
 
@@ -645,7 +635,7 @@ Validation so far:
 - Renderer/texture ownership, semantic presentation and video setting component
   suites pass. The additional multi-light test checks that different physical
   receiving surfaces cannot leak into another projector's visibility set.
-- The reusable [shader qualification](../../../scripts/test_enhanced_shadow_shader.py)
+- The reusable [shader qualification](../../../scripts/verification/test_enhanced_shadow_shader.py)
   compiles the production HLSL and executes 48 analytic cases using D3D12 WARP.
   Cases cover moving platform boundaries at three interpolation phases, stacked
   and sloped receivers, oblique light, bilinear edge coverage and blocker weights.
@@ -923,7 +913,6 @@ that failed. Detached custom geometry must reuse its proven live allocation
 ownership rather than assuming every actor has a ModelInstance. Explicit owner
 capture now retains bounded query snapshots after launcher sanitization; normal
 Play without an explicit RDRAM capture does not enable them.
-
 
 ### Owner acceptance, October 27, 2026
 

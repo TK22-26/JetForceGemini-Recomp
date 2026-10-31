@@ -56,7 +56,7 @@ not traversed. Caches/reports are recreated under the selected shared root.
 The native frontend restarts after releasing its singleton lock; the new
 process resolves the marker afresh and forwards JFG_DATA_ROOT to helpers.
 
-Files: launcher/native/storage_settings.hpp; src/app/frontend_win32.cpp;
+Files: launcher/native/storage_settings.hpp; launcher/native/frontend_win32.cpp;
 launcher/ui/storage_settings_ui.hpp and assets/settings.rml/settings.rcss;
 launcher/windows/FirstRun.cs, Launcher.cs and InventoryImages.cs.
 The legacy setup helper also honors the forwarded root.
@@ -97,7 +97,7 @@ existing portable, verifies copied bytes and retains distinct save progress
 at both destinations. All runs are ROM-free; no game is launched.
 
 The native restart test and accepted window/layout checks are in
-tests/storage_frontend_smoke.py and launcher/ui/tests/storage_settings_ui_tests.cpp.
+tests/frontend/storage_frontend_smoke.py and launcher/ui/tests/storage_settings_ui_tests.cpp.
 File checks also verify missing preferences are added to existing profiles
 without replacing their saved progress. Existing map preferences are copied.
 [Source-pinned qualification](../../../evidence/portable-storage.json).
@@ -171,7 +171,7 @@ The owner states the settings work is done after testing the simplified director
 The documented change is included in tag v1.3.0 (launcher/source
 02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
 665596482a7395593e85dbe73f1bd4b016d183d9). See the
-[combined release qualification](../releases-1.3.0-qualification.md) for owner
+[combined release qualification](../../releases/qualification-1.3.0.md) for owner
 acceptance, source CI, package and publication evidence. Earlier failed attempts
 and the scene/device/seed limits above remain part of this record; inclusion
 does not turn an unverified broader report into a confirmed resolution.

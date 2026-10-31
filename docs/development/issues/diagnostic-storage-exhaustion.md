@@ -61,7 +61,6 @@ The helper needs hidden-file-aware enumeration and lookup consistently in any fu
 
 At audio-preview handoff, C: has 59.54 GB free (55.45 GiB). This is the current volume reading, not a claim that the archive alone reclaimed that amount; other cleanup and concurrent builds also affect free space. The verified archive remains 51.99 GB of logical data across four directories.
 
-
 ## 2026-10-15 high-refresh build recovery
 
 The ordinary candidate restore link failed with LNK1180 after the control

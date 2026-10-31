@@ -158,7 +158,6 @@ use, same-value CPU writes after GPU changes, page boundaries, and atomic
 rejection of malformed ranges. Build, exact-state and native performance
 qualification are pending; this candidate is private and unreleased.
 
-
 ## Final candidate verification and remaining limits (2026-10-17)
 
 Documentation qualification first encountered a mixed UTF-8/Windows-1252 issue
@@ -238,7 +237,6 @@ already passed, and corrected review recovered the result without a replay.
 
 The documentation retry also normalized mixed line endings before exact text replacement; failed queue receipts remain retained. No runtime tests were repeated for that correction.
 
-
 ## Source qualification receipt
 
 Implementation commit: `b9152eb012a9b96fa5f8af8fb4b0eea9ad00ae14` on `fix/goldwood-exit-audio-1.3`.
@@ -257,9 +255,8 @@ package, full-route owner acceptance or stable release is claimed.
 
 Source: [snapshot ownership](../../../src/renderer/rt64_shell.cpp),
 [task preparation and saved aspect](../../../src/boot/native_boot.cpp),
-[presentation queue integration](../../../cmake/rt64_video_settings.cmake), and
+[presentation queue integration](../../../cmake/renderer/rt64_video_settings.cmake), and
 [offscreen decoder work](../../../src/renderer/rt64_f3ddkr.cpp).
-
 
 ## Owner-authorized pacing continuation (2026-10-17)
 
@@ -272,7 +269,6 @@ comparison uses the retained qualified candidate and recorded route at 120 and
 game-update work. Native Original-mode pacing is a separate control. All tests
 remain hidden and muted, with copied profiles and private evidence on the data
 volume. This is continued open work, not a resolution or new public release.
-
 
 ### Rate-dependent queue contention candidate
 
@@ -289,7 +285,6 @@ ordering, GPU fences and guest clocks stay intact. Existing shutdown notificatio
 also releases waiting producers. Native performance/correctness validation is
 pending; no physical smoothness or audio acceptance is claimed.
 
-
 ### CPU shadow queue elision candidate
 
 Replacing queue busy-spins alone did not resolve the native 360 FPS deficit:
@@ -304,7 +299,6 @@ only with GPU framebuffer copies disabled. Native rendering, readback, CPU blur,
 texture import, guest clocks, interrupts and full-sync cleanup remain active.
 Unknown targets, external operations, tile copies, depth, developer mode and
 paused rendering retain the original queue path. This is not yet qualified.
-
 
 ### Shadow elision validation and remaining work
 
@@ -328,7 +322,6 @@ Private evidence is in `village-pacing-20261017`: `cpu-shadow-reference.json`,
 `cpu-shadow-queue-*-review.json` ordinary playback receipts. Profiling of the
 remaining deadline misses continues. Owner visual review is still pending.
 
-
 ### Cached overlay restoration candidate
 
 After shadow queue elision, measured queue waits are negligible (maximum
@@ -347,7 +340,6 @@ cache entries use the existing complete initialization path. Focused tests
 cover unchanged active data, module unload, and invalid-range atomic rejection;
 native replay and exact-state qualification are pending.
 
-
 Overlay-range correctness matches all 2,687 Custom and 1,875 Original samples,
 including RAM, inputs, saves, instruction counts and Custom interpolation
 decisions. Its first native 360 FPS run measures 29.32/29.49 scene FPS with
@@ -356,7 +348,6 @@ busy windows. This candidate is not accepted. Controlled repeat comparisons
 against the retained shadow-elision binary will distinguish reproducibility
 before any further optimization is layered on it. The failed performance
 receipt is retained as `overlay-ranges-120-review.json`.
-
 
 ### Bounded VI import candidate
 
@@ -375,13 +366,11 @@ guest pointer is retained. CPU overlay retention, framebuffer hashes and VI
 presentation operations still execute. Focused tests cover range limits,
 overlap merging and the same-value reversion case. Qualification is pending.
 
-
 The bounded-import trial's first build rejected implicit `size_t` narrowing in
 its optional trace fields. The retry casts only after the existing 8 MiB range
 validation. The failed build and dependent unexecuted replay receipts remain
 retained. Screenshot capture is armed after validation, avoiding a pending
 capture flag on an invalid import. No runtime qualification is claimed yet.
-
 
 ### Controlled repeats and measurement limits
 
@@ -402,7 +391,6 @@ from these fixed-clock correctness runs; fixed-clock audio counters do not
 qualify native playback. Large scene-transition gaps remain explicitly separated
 from the busy-window averages pending attribution.
 
-
 ### Strict missed-deadline continuation
 
 The owner explicitly rejected accepting even one late update in the 798 busy
@@ -416,7 +404,6 @@ underrun, and correctly blocks the proposed qualification and dependent jobs.
 The much worse repeat requires investigation; the clean first run is not enough
 to accept the candidate. Failed test-harness/qualification receipts are retained.
 
-
 The isolated missed update contains a cold section-8 reload and about 2.93 million
 instructions, versus 1.53 million immediately before it. This is a correlation,
 not proof that the small host overlay publication itself dominates. Deep function
@@ -429,7 +416,6 @@ recorded-clock replay, detailed instruction observers and unknown inputs retain
 the generated path. Private differential and native timing qualification are
 required before enabling it; this is not a game-clock or FPS-counter adjustment.
 
-
 The opt-in filter passes 2,048 randomized/boundary original-C comparisons for
 the complete CPU context and all 4 MiB of RAM, plus 11 rejection cases without
 mutation. The fixture measures about 9.7 times less execution time; it does not
@@ -437,7 +423,6 @@ establish a game FPS result. Source extraction is digest-pinned and rejects even
 known external callees, with synthetic guard tests. The first fixture command
 failed before compilation because of developer-environment quoting; a separate
 checked command file corrected it. All failed receipts remain preserved.
-
 
 The four controlled native-elapsed filter trials all complete with zero audio
 underruns/overruns and no dropped trace rows. The enabled 120 FPS run has 10 late
@@ -458,7 +443,6 @@ disqualifies that sample as an FPS benchmark. Evidence is retained under
 `village-pacing-20261017/native-filter-residual-misses.json` and
 `residual-attribution-review.json` on the private data volume.
 
-
 External call stacks identify repeated Windows guard-page/single-step exceptions
 and VirtualProtect calls in SP task setup, alongside actual graphics work. An
 opt-in direct-SP candidate retains all six pinned generated routines' instruction
@@ -468,7 +452,6 @@ handler. It preserves the I/O revision, SP launch/interrupt effects and MMIO
 journal. Unknown addresses/operations fall back to guarded memory. It does not
 disable page guards or the production investigation guard. Fixed-clock state and
 event parity plus native timing qualification are pending; default remains off.
-
 
 The direct-SP trial passes 2,687 Custom and 1,875 Original fixed-clock samples:
 inputs, CPU RAM, renderer RAM, save data and instruction counts are identical;
@@ -484,7 +467,6 @@ those servers or the production supervisor, and the failed receipt is retained.
 The replacement checks actual CPU activity; the other game's diagnostic had
 closed before the comparison started. No guard state or counters were reset.
 
-
 The direct-SP native comparison improves ordinary active update time but still
 misses the strict deadline criterion: two three-VI intervals at 120 FPS and one
 at 360 FPS in the busy windows. Both rates have zero audio underruns/overruns,
@@ -492,7 +474,6 @@ zero unsupported accesses and no trace loss. The repeated section-8 cold update
 remains late; the 120 run also has an independent late update near VI 8609.
 This is partial improvement, not a resolved issue or a qualified preview.
 Evidence: `direct-sp-comparison.json` and `direct-sp-cold-attribution.json`.
-
 
 Thread-transport profiling measures roughly 2-3 ms in recipient wake latency
 across 94-174 transfers in sampled late updates. A separate opt-in candidate
@@ -502,11 +483,9 @@ ownership and cooperative shutdown remain unchanged; no GPU wait or game tick
 is skipped. It can trade some CPU time for lower short-handoff latency and must
 pass exact-state and native performance comparisons before any default change.
 
-
 The first bounded-spin build caught a missing forwarding method on the guest
 transport wrapper before any replay ran. The checked recovery adds that method;
 the compile failure and dependent nonexecuted replay receipts are retained.
-
 
 ### Eight-hour continuation: cooperative stack transport candidate
 
@@ -533,7 +512,6 @@ on each Windows fiber switch; stacks inherit the executable's stack reserve.
 Shutdown unwinds each parked stack before deleting it. ASan and non-Windows
 builds retain OS threads. This is an unvalidated candidate, not a completed fix.
 
-
 Prototype build checks found two setup faults before any replay: source reads
 initially used the Windows code page instead of UTF-8, then generic storage in
 the minimal generated bridge introduced extra externally emitted symbols.
@@ -543,7 +521,6 @@ yield; that field remains ordinary TLS and the bridge source is byte-for-byte
 identical to HEAD. The other suspended-call state still uses per-stack storage.
 This corrects the broader initial TLS inventory above. Failed build and dependent
 nonexecuted replay receipts are retained.
-
 
 The first cooperative-transport build passes four focused tests, including
 deterministic scheduling, isolated stack state, FP rounding, exception transfer,
@@ -563,7 +540,6 @@ Deep function instrumentation is attribution evidence, not an FPS test. With
 the fiber backend, raw Windows thread-cycle counters include all guest stacks
 on that host thread; they must not be interpreted as exclusive per-guest cycles.
 
-
 The fiber attribution follow-up now samples logical participant cycles: measured
 switches accumulate each participant's running cycles and exclude parked time.
 Function and update-cycle events use a high-bit participant ID for fibers;
@@ -572,7 +548,6 @@ execution performs no added cycle queries. Tests distinguish a parked stack from
 another stack doing substantial CPU work. An empty pre-start backend selection
 can also return to OS threads without leaving the executor cancelled.
 These changes need build, replay and pacing revalidation before qualification.
-
 
 Next opt-in candidate: the pinned whole-cache maintenance routine walks 512
 cache lines per call, often eight calls per update. Our existing explicit
@@ -585,7 +560,6 @@ memory ownership are unchanged. This optimization is invalid for a future
 dirty-line/tag cache model and must not silently carry over to one. Source pins,
 full CPU/RAM differential tests and native replay are required before acceptance.
 
-
 The first cache-walk native replay deliberately rejected its own qualification:
 the activation counter was zero. The helper was attached to ordinary game
 dispatch, but this SDK entry uses the separate mapped-OS dispatch path. That
@@ -595,7 +569,6 @@ site; the original mapped body must still exist and remains the fallback.
 The failed activation assertion, unstarted harness withdrawal and replay are
 preserved in `cache-all-admission-review.json` and the guarded step receipts.
 
-
 The corrected mapped cache path activates (18,924 calls in its first 120 FPS
 run), but the first native comparison records additional late updates, including
 a 123 ms active interval without an overlay-cold event. It is not accepted as a
@@ -604,7 +577,6 @@ CPU work, synchronous submissions, explicit waits and scene events. Evidence:
 `cache-all-mapped-comparison.json` and `cache-all-late-attribution.json`.
 The earlier nonactivated run remains a separate control and must not be labelled
 as a cache-optimization result.
-
 
 The mapped-cache follow-up holds the output target at 120 FPS and crosses
 cache acceleration with VSync enabled/disabled. Runtime/profile are held fixed;
@@ -619,14 +591,12 @@ stages in lean captures and rejected their absence. The corrected report
 marks these costs unmeasured rather than zero. Dependent build/replay steps
 refused execution. No failed executable or capture was delivered.
 
-
 After the owner confirmed the other diagnostic would remain paused, the
 next full opening replay removes broad process enumeration and optional
 per-fiber cycle queries. It retains the in-memory update/submit timing trace
 and ordinary FPS log, uses copied profiles, and runs muted at 120/VSync and
 360/no-VSync. This is a new qualification attempt, not a reinterpretation of
 the earlier misses. Evidence: `quiet-fiber-full-comparison.json`.
-
 
 The longer lean capture still has isolated stalls and audio interruptions.
 A private diagnostic now samples Windows context-switch counts, dispatch wait
@@ -645,7 +615,6 @@ joined by VI/poll and timestamp; missing or invalid rows reject attribution.
 The detailed native results are retained in `host-dispatch-attribution.json`.
 These measurements remain separate from ordinary frame-rate qualification.
 
-
 Owner clarified that equivalent output permits changing the underlying code,
 including algorithmic and data-structure replacements. Private candidates have
 not passed zero-miss qualification; the desktop beta.1 remains unchanged.
@@ -653,7 +622,6 @@ Instrumented host scheduling captures are attribution evidence, not a delivered
 regression or acceptable performance comparison. The next work targets repeated
 CPU graphics processing and allocation, retaining full output comparisons and
 ordinary, uninstrumented performance qualification.
-
 
 A code optimization candidate reuses per-interpreter semantic input/output,
 geometry, local-index, count and inverse-transform scratch. Shape history also
@@ -674,7 +642,6 @@ retain update timing in memory and audio/drop counters. Results are preserved
 in `interpolation-scratch-reference.json` and `interpolation-scratch-comparison.json`;
 a completed run is not itself a zero-miss qualification.
 
-
 A separate algorithmic candidate resolves model/palette identities once per
 F3DDKR vertex batch, then intersects contiguous source ranges with model
 ranges. The scalar implementation remains as an independent definition and
@@ -690,7 +657,6 @@ It checks matching output checksums and counts allocations/bytes after warmup.
 This measures the specific eliminated work independently of native scene timing;
 it is not a substitute for FPS qualification. Evidence: `optimization-components`.
 
-
 Owner confirmed all other work on this PC is paused during this continuation.
 Exclusive machine use is a measurement condition, not a product requirement.
 The scratch comparison does not qualify: 120 FPS candidate has five audio
@@ -703,13 +669,11 @@ A bounded stack sample of the current optimized runtime will locate remaining
 CPU and synchronization work. It is attribution-only, separate from native FPS
 measurements and the component benchmark. All comparisons retain failures.
 
-
 New [PERF-005 / GitHub #19](github-invasion-replay-stutter.md) reports a severe
 invasion replay collapse on the same GPU model in v1.2.0, using Unlimited with
 VSync. This expands configuration/entry-route coverage; existing capped
 new-game comparisons do not independently reproduce the reported tribal replay.
 The finite display-rate path applies with VSync, not the uncapped ring.
-
 
 The current bounded stack profile contains 1,003 samples at the performance
 counter under RT64 preciseSleepUntil on the presenter, plus other polling
@@ -727,7 +691,6 @@ The timer component comparison alternates original/candidate order at 120,
 240, 360 and 1000 Hz. It records actual thread CPU time and deadline overshoot,
 rejecting early completion. This isolates pacing cost but does not qualify
 game simulation or monitor scanout. Evidence: presentation-timer-component.
-
 
 ## Quiet-PC optimization results (2026-10-18 UTC)
 
@@ -751,7 +714,6 @@ contain long scene-transition gaps whose visibility/expected timing still
 need classification; selected windows do not certify the entire route.
 Evidence: batch-identities-comparison.json, optimization-components/summary.json.
 
-
 The stack sample also locates duplicate framebuffer hashing on the guest
 thread. The preliminary CPU-mask pass hashed every screen/depth target, then
 the immediately following checkRDRAM hashed them again. Its only consumed
@@ -761,7 +723,6 @@ read heights and the following all-framebuffer check. No framebuffer upload,
 CPU overlay or ownership decision is removed. Shell checks pass; exact RAM,
 reticle pixels and native performance qualification remain pending.
 Evidence: mask-hash-filter.
-
 
 The fixed-100-us presentation timer candidate FAILED native output pacing:
 120 FPS output fell to approximately 116 FPS despite unchanged simulation.
@@ -780,7 +741,6 @@ A separate analysis joins existing lightweight submit/RAM-check/full-sync
 counters by timestamp without rerunning or instrumenting the game. It retains
 long transition gaps for visual classification; none are silently discarded.
 Evidence: current-native-late-attribution.json. Qualification remains open.
-
 
 ## Wall-clock acceptance and remaining device-trap attribution
 
@@ -820,7 +780,6 @@ from a completed harness or a zero VI-only count. MMIO attribution separately
 aggregates handler wall spans and cumulative host CPU times by hardware page.
 Evidence: wall-clock-qualification-review.json, mmio-attribution-review.json.
 
-
 Storage experiment correction: C:/JFG-builds/high-refresh-20261011 is
 a retained junction to D:/JFG-builds/high-refresh-20261011. Consequently the
 runtime-storage-comparison cases are all on the HDD; its SSD identity claim is
@@ -853,7 +812,6 @@ counters by timestamp without rerunning or instrumenting the game. It retains
 long transition gaps for visual classification; none are silently discarded.
 Evidence: gap-present-attribution.json. Qualification remains open.
 
-
 ## Context-switch interrupt-mask access candidate
 
 The new trap profile identifies the MI register page as a substantial remaining
@@ -882,7 +840,6 @@ input, device discovery, audio, window, VI and overall video servicing with
 wall time and same-thread cycles, retaining only calls above 1 ms. Nested
 spans overlap and must not be summed. Evidence: host-stage-attribution.
 
-
 ### Current merged 1.3 normal-Play control
 
 The merged candidate with background settings/map reads and opt-in blur mode 4
@@ -893,7 +850,6 @@ three-VI updates at 120 FPS and one at 360 FPS. Recorded wall gaps are
 experiments remain disabled in these controls. See vela-composite/current-village
 and rescue-village-wall-review.json. Exact-output shadow/cache leaves are the
 next isolated CPU-headroom comparison; no timing or fidelity acceptance yet.
-
 
 ### Texture-upload worker attribution
 
@@ -915,7 +871,6 @@ game updates only; both artifacts remain retained. Evidence:
 current-village-entry-profile/attribution-v2.json. This profile is attribution,
 not a zero-slowdown qualification.
 
-
 The worker profile isolates a 126-texture batch with 6.24 ms total work:
 2.54 ms constructing TMEM resources and 2.83 ms preparing decoded textures,
 versus 0.24 ms for final GPU submission/completion. The CPU-cycle samples
@@ -935,13 +890,11 @@ pacing checks are pending. The candidate remains disabled by default.
 
 Evidence: current-village-entry-texture-profile/texture-upload-review.json.
 
-
 The first recycling build rejected a defaulted comparison operator because the
 pinned RT64 target uses C++17. Replacing it with the equivalent explicit member
 comparison preserves that target's language level. The dependent replay stopped
 at the failed-build prerequisite and performed no game run. Failed build logs
 remain retained; no parity or pacing result is claimed from that attempt.
-
 
 The recycling candidate now builds with the pinned C++17 target, and renderer
 shell/texture checks pass. With the same executable and fixed guest-clock input,
@@ -955,7 +908,6 @@ The ordinary 120/360 FPS comparison is separate and still pending.
 
 Private evidence: texture-recycling-pixel-parity-v2/proof.json and
 shadow-pixels-comparison.json; runtime c77ef02cf32a858f6be393565388b2ef72afe0708d0110e96b4d0cd010b4dee4.
-
 
 ### Recycling queue-ownership correction
 
@@ -981,7 +933,6 @@ late active-shot intervals, while candidate 120 retained one 52.026 ms entry
 interval. Controls had zero late active-shot intervals at 120 and two at 360.
 All four were audio-clean. Resource reuse is therefore not yet a qualified
 zero-miss fix, even apart from the queue-ownership correction.
-
 
 ### Corrected handoff qualification and decoded-only alternative
 
@@ -1013,7 +964,6 @@ screenshot. Held-selection images likewise do not qualify that reported state.
 Private evidence: vela-selection-confirmation-safe-1300 and -1360. A copied-save
 closed-capsule fixture and Original-rate rescue checks are pending.
 
-
 ### Decoded-resource correctness checkpoint
 
 The mode-2 decoded-only recycler builds successfully and passes the new
@@ -1038,7 +988,6 @@ both texture-reuse modes are disabled in the ordinary launcher. It is neither
 a 1.3 release nor a declaration of zero missed updates. Native timing and moving
 visual acceptance remain required; no owner profile or public release changed.
 
-
 The first MI recorded-clock attempt stopped at the existing 16-million-sample
 recording limit around VI 4000, before either replay. Its 512,000,016-byte file
 and failure receipt are retained; no correctness or performance acceptance is
@@ -1046,7 +995,6 @@ claimed. The focused replacement keeps the original deterministic prefix and
 starts elapsed-time recording at VI 5500, covering the remaining busy interval
 to VI 6600 within the unchanged recording cap. The production investigation,
 its limits and counters are unchanged.
-
 
 ### MI replay rejection and diagnostic follow-up
 
@@ -1067,14 +1015,12 @@ The production investigation and counters remain unchanged.
 Evidence: context-mask-focused-clock, guarded steps 494, 499/500 withdrawal
 receipts and the forthcoming failure-diagnostic replay. This remains open work.
 
-
 The diagnostic build distinguishes the candidate failure as a recorded sample
 boundary mismatch, rather than an actual backward host clock. The first detailed
 rejection exited before the async trace writer drained its final record; the
 error label was preserved but the expected/observed row was absent. The fatal
 diagnostic path now drains that writer before exiting. Sampling and acceptance
 remain unchanged, and no native performance run is authorized by this result.
-
 
 ### Native opening comparison with decoded-only reuse
 
@@ -1087,7 +1033,6 @@ evidence. The rescue comparison still fails zero-miss acceptance.
 
 Evidence: texture-decoded-reuse-wall-review.json and
 rescue-resource-comparison-wall-review.json, runtime 8812fa614cca783905094f460e383fe4f8c22945213df6524f7fe23706ef946d.
-
 
 ### Combined upload candidate qualification (2026-10-18)
 

@@ -45,7 +45,6 @@ New private evidence root: original-mode-parity-20261027.
 Runtime, phase/cadence comparisons, attempted remedies and failures will be
 recorded below. Exact game-wide or physical-hardware parity is not yet established.
 
-
 ## Fresh Original / high-refresh clock comparison
 
 The initial probe phase changed no runtime source or clock policy. Five
@@ -149,7 +148,6 @@ in any one category cannot silently certify the others. High-refresh output
 can share a simulation clock; separately test its rendered interpolation and
 normal Play behavior before changing the default policy.
 
-
 ## Original N64 image capture, 21:27:49
 
 The owner confirmed that this roughly 71-second, 1280x720 Goldwood-combat
@@ -199,7 +197,6 @@ comparison now omits those default CPU shortcuts, including direct SP access,
 while retaining independent presentation upload optimizations. Explicit
 conflicting native-cache/shadow overrides still fail validation. Failed runs
 are preserved.
-
 
 ### Completed ordinary-Play checks and compatibility limits
 
@@ -264,7 +261,6 @@ form a validated physical-N64 clock. Do not retune costs or impose a 20 Hz
 cap to fit the capture. The proper Original-policy gate remains matched
 hardware events, guest timing coverage, ordinary-Play audio/performance, and
 separate high-refresh presentation validation.
-
 
 ### Matched room-236 encounter and final result
 
@@ -375,7 +371,6 @@ diagnostic-clock audio remain open. No new gameplay/default-clock fix or
 release qualification is claimed. Private receipts:
 reference-clock-wall-pacing.json, direct-sp-clock-comparison.json,
 reference-loading-cost-analysis.json and the per-run result/request files.
-
 
 ## October 28 exact-cause continuation
 
@@ -499,7 +494,6 @@ Private receipts: headless-motion-prefixes.json, graphics-clock-isolation.json,
 mupen-scheduler-observer-check.json, headless-default-after-causal-gate-check.json,
 headless-scheduler-analysis-units.json, frame-phase-analysis.json and the
 headless236-entry1-route scope/route/trace/snapshots.
-
 
 ### Cause isolated in ordinary Play
 
@@ -639,7 +633,6 @@ recomp's stable rate is insufficient; see the
 [immutable Toast source review](../../upstream/toast-timing-review-2026-10-28.md).
 No production clock switch, arbitrary device delay, public preview replacement,
 commit, issue reply or release is part of this causal investigation.
-
 
 ### Validation and disposition
 
@@ -891,7 +884,6 @@ rendering work. A bounded copied-profile Original-clock comparison is checking
 whether this is observable before any clock-policy promotion. This is a
 compatibility qualification of the diagnostic path, not a newly claimed
 regression in the approved LOD feature. Production settings remain unchanged.
-
 
 ## October 28 completed causal research and qualification
 

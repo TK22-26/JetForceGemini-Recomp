@@ -27,9 +27,9 @@ def registration_path(state, parent_id):
 
 def tool_sha():
     root = Path(__file__).resolve().parents[2]
-    names = ("scripts/autonomy/count_ledger_experiment.py", "scripts/phase9_oracle_count_ledger.py",
-             "scripts/phase9_oracle_cpu_boundaries.py", "scripts/oracle_cpu_boundaries.c",
-             "scripts/oracle_cpu_boundaries.h", "scripts/oracle_cpu_boundaries.patch")
+    names = ("scripts/autonomy/count_ledger_experiment.py", "scripts/diagnostics/phase9_oracle_count_ledger.py",
+             "scripts/diagnostics/phase9_oracle_cpu_boundaries.py", "scripts/diagnostics/oracle_cpu_boundaries.c",
+             "scripts/diagnostics/oracle_cpu_boundaries.h", "scripts/oracle_cpu_boundaries.patch")
     return hashlib.sha256(canonical_bytes({"files": {name: file_sha256(root / name) for name in names},
                                           "parent": parent_lane.tool_sha()})).hexdigest()
 
@@ -61,7 +61,7 @@ def check(store, repo, state, record, *, chain=()):
         raise SupervisorError("Count ledger build supporting receipts differ")
     build = parent_lane.oracle_build(repo, record["oracle_build"])
     for name in ("oracle_cpu_boundaries.c", "oracle_cpu_boundaries.h"):
-        if file_sha256(repo / "scripts" / name) != file_sha256(build_path.parent / "mupen64plus-core/src/r4300" / name):
+        if file_sha256(repo / "scripts/diagnostics" / name) != file_sha256(build_path.parent / "mupen64plus-core/src/r4300" / name):
             raise SupervisorError("Count ledger built observer differs from its reader's producer")
     names = ["update-hashes.jsonl", "retrace-hashes.jsonl", "consumed-vi-hashes.jsonl",
              "point-probe.tsv", "device-events.tsv", "checkpoints.tsv"]

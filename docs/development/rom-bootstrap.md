@@ -21,7 +21,7 @@ sudo apt install build-essential gcc-multilib binutils-mips-linux-gnu python3-ve
 From PowerShell at the repository root:
 
 ```powershell
-python scripts/build_from_rom.py --rom 'D:\Games\my-copy.z64' --play
+python scripts/build/build_from_rom.py --rom 'D:\Games\my-copy.z64' --play
 ```
 
 Or run `launcher/windows/Build-And-Play.ps1` to pick the ROM with a file

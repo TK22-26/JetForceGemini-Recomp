@@ -1,27 +1,20 @@
 # Project status
 
-[CI](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml)
-checks source, tools and tests without a ROM. A passing build does not mean
-every level or feature works. To play, start with [getting started](getting-started.md);
-to check a problem, see [known issues](known-issues.md).
+This page describes the repository as reviewed on 2026-10-31. Release availability is recorded in
+[version qualification](releases/qualification-1.4.0.md); source changes on `develop` are not automatically released.
 
-## Completed v1 release
+| State | What is established |
+|---|---|
+| Published v1.4.0 | Playable Windows x64 bundle; supported US ROM import; campaign, original local multiplayer, Modern controls for P1-P4, cutscene skipping, Floyd controls and recorded camera/rendering fixes |
+| Accepted locally, unreleased | The replacement standalone Audio settings window opens immediately in the owner's review. The old delay's underlying cause remains unknown. See the issue index and changelog for the exact local scope. |
+| Candidate or still open | Post-release controls additions and reporter-specific failures retain the verification status of their individual issue records. Builds and component checks are not owner acceptance. |
+| Corrected reference finding | Leaving Walkway has no music on the owner's NTSC N64; the PAL ROM does have music in EmuHawk. The US insertion candidate is withdrawn as a fidelity fix but remains in the current preview/source pending separate removal. |
+| Future work | PAL and Japanese recompilation support; additional hardware and parity qualification. These are not supported ROM profiles today. |
 
-**The v1 game is fully playable from beginning to end**, with original local multiplayer
-and optional content confirmed working by the maintainer. The Windows x64 ZIP
-contains the prebuilt program and runtime libraries: import your supported US
-ROM once and play. No ROMs or game assets are included, and no first-run build or
-developer tools are required. See the [project dashboard](dashboard.md).
-
-The v1.3 release includes modern controller/keyboard/mouse controls, the update
-checker, high-refresh rendering improvements, adjustable blur/fog and portable
-storage settings. See the
-[controls guide](features/pc-controls.md) and [update-checker record](development/issues/launcher-update-discovery.md).
-
-The retained campaign run used infinite-health/enemy auto-kill testing mods and
-a save with all Tribals unlocked. Historical test conditions remain recorded;
-specific bugs, broader hardware testing and original-console accuracy are still
-tracked. These are distinct from the game's released and playable status.
+Use [known issues](known-issues.md) for player-facing limitations, [issue records](development/issues/README.md)
+for cause/evidence/status, and [original-game findings](original-game/README.md) for hardware bugs and region differences.
+The recorded campaign run used infinite-health/enemy auto-kill testing mods and a save with all Tribals
+unlocked. That establishes the recorded playthrough, not exhaustive original-console parity.
 
 ## Engineering milestones
 
@@ -63,7 +56,7 @@ consecutive selected update states ([boundary record](planning/phase9-execution-
 - Extend formal G7/reference-parity evidence beyond the retained campaign run.
 - Resolve documented performance/camera issues and improve support diagnostics.
 - Continue physical-device and fresh-PC compatibility testing of modern controls.
-- Add ultrawide, higher frame-rate presentation and mod interfaces on a stable
-  compatibility baseline.
+- Extend qualification of ultrawide, high-refresh presentation and optional Mods across
+  more encounters and devices; these features already exist with documented limits.
 
 The [roadmap](planning/JFG_RECOMP_MASTER_PLAN.md) defines the goals and gates.

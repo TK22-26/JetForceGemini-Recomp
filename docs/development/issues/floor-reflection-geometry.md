@@ -26,7 +26,6 @@ camera, light, fire and marker changes. Use copied profiles/saves, muted hidden
 replays and the existing guarded investigation with all counters preserved.
 The owner approved up to three hours. No GitHub response is authorized.
 
-
 ## Tracker intake
 
 The #47 reporter uses v1.4.0 on Windows 10, GTX 1080 and an Xbox controller.
@@ -35,7 +34,6 @@ enemy debris reflects smoothly. Their suggested location is the beginning of
 Mizar's Palace with Juno or Vela; it happens every attempt. No comments or support
 capture are attached at intake. The owner's missing-geometry symptom is additional
 to that original cadence report; investigate whether the causes are related.
-
 
 ## October 25 capture and first hypothesis
 
@@ -59,7 +57,6 @@ independently establish correct JFG reflection behavior.
 Animation cadence remains a separate investigation: mirrored skeletal draws
 use a temporary adjusted camera matrix outside the regular camera registry.
 No cadence resolution is claimed yet.
-
 
 ## Confirmed causes and candidate remedy
 
@@ -133,7 +130,6 @@ Source: [F3DDKR adapter](../../../src/renderer/rt64_f3ddkr.cpp),
 [native conversion observer](../../../src/boot/native_boot.cpp). Related:
 [Vela proximity fade](vela-skirt-focus-tearing.md),
 [actor history fallback](camera-turn-actor-jumps.md).
-
 
 ## Owner acceptance, October 25
 

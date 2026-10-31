@@ -133,7 +133,7 @@ evidence that large scenery pull-ins are universally solved.
 
 ## Verification and delivery
 
-[PC input tests](../../../tests/pc_input_tests.cpp) cover floor/wall constraints,
+[PC input tests](../../../tests/runtime/pc_input_tests.cpp) cover floor/wall constraints,
 near-plane margin, inward response, outward hold/recovery, a ridge crossing an
 intermediate recovery point, immediate input rotation, exceptional fallback,
 near-vertical views and equivalent 30/60/120-update recovery. PC input, modern
@@ -211,7 +211,6 @@ basic logs alone. A further one-hour investigation was explicitly approved,
 using the same guard/root and retaining all previous charges. The issue remains
 open. Evaluate native clearance versus conservative distance selection before
 adding further smoothing.
-
 
 ## 2026-10-13 follow-up: false inward contacts at the actual pond
 

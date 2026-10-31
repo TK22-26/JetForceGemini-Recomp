@@ -19,7 +19,6 @@ Private fresh fixture receipt: `launcher-update-button-20261016/issue-4-setup-te
 
 No new setup remedy was attempted in this launcher review. [Known issues](../../known-issues.md) already distinguishes legacy source setup from prebuilt ROM import. The issue must not be marked wholly resolved based only on the stderr helper or because the normal package no longer needs WSL. Compatibility lesson: a negative prerequisite probe, a failed installer and a required reboot are separate outcomes.
 
-
 ## 1.2.0 candidate work
 
 Owner authorized a two-hour release continuation. The source changes address the recorded portability/setup failures; focused regression tests and platform qualification are in progress. This candidate is not yet a verified or published resolution. Existing guard state and counters remain preserved.

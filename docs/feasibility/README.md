@@ -52,17 +52,17 @@ the proposed native paths; and a save/accessory round trip.
 
 - The overlay lifecycle and trap-classification requirements are fixed in
   `config/overlay-runtime-g2-contract.json` and checked by
-  `scripts/validate_overlay_runtime_g2_contract.py`.
+  `scripts/validation/validate_overlay_runtime_g2_contract.py`.
 - Graphics and audio evidence came from one approved private task each,
   matched against independent oracles; the public manifests record only
-  aggregates (`scripts/validate_graphics_task_bridge.py`,
-  `scripts/validate_audio_task_bridge.py`).
+  aggregates (`scripts/validation/validate_graphics_task_bridge.py`,
+  `scripts/validation/validate_audio_task_bridge.py`).
 - Every executable mapping is a byte-pinned producer built twice,
   byte-identically, from a reviewed clean checkpoint (WSL Ubuntu 24.04,
   GCC 13.3). The dispatcher runs only staged producer copies with fixed
   arguments, a fresh nonce and before/after hash checks; on Windows it uses the
-  fixed system WSL boundary. Pins live in `scripts/g2_production_evidence_harness.py`
-  and `scripts/validate_g2_private_evidence.py`.
+  fixed system WSL boundary. Pins live in `scripts/evidence/g2_production_evidence_harness.py`
+  and `scripts/validation/validate_g2_private_evidence.py`.
 
 ## Regenerating signed Phase 4 evidence
 
@@ -70,21 +70,21 @@ The Phase 4 claim is fail-closed: it needs the signed public manifest, the
 ignored private bodies and local digest recomputation. The construction order
 is deliberately acyclic:
 
-1. Commit the production harness (`scripts/phase4_evidence_harness.py`) with
-   its pin in `scripts/validate_phase4_private_evidence.py`; worktree, index and
+1. Commit the production harness (`scripts/evidence/phase4_evidence_harness.py`) with
+   its pin in `scripts/validation/validate_phase4_private_evidence.py`; worktree, index and
    `HEAD` bytes must match.
 2. Produce all eleven execution product sets (generation; Clang, GCC and MSVC
    compiles; forced-object link audit; Clang static analysis; ASan; UBSan;
    reproducibility runs A and B; configuration mutation) from the same private
-   inputs, then package them with `scripts/prepare_phase4_products.py`.
+   inputs, then package them with `scripts/build/prepare_phase4_products.py`.
 3. Build the private body and non-completion G3 projection with
-   `scripts/build_phase4_private_evidence.py`, which reruns every pinned audit.
-4. Derive the G2 CPU case (`scripts/prepare_g2_cpu_case.py`) and close every
+   `scripts/evidence/build_phase4_private_evidence.py`, which reruns every pinned audit.
+4. Derive the G2 CPU case (`scripts/evidence/prepare_g2_cpu_case.py`) and close every
    G2 requirement with its own private evidence.
 5. Require [ADR 0003](../adr/0003-phase4-dependency-architecture.md) to be
-   accepted, then sign with `scripts/build_phase4_completion_manifest.py`,
+   accepted, then sign with `scripts/evidence/build_phase4_completion_manifest.py`,
    which refuses to overwrite an existing claim.
-6. Verify with `scripts/validate_phase4_manifest.py` against the manifest, both
+6. Verify with `scripts/validation/validate_phase4_manifest.py` against the manifest, both
    schemas, and the public and private G2 and Phase 4 bodies.
 
 Signing uses `ssh-keygen -Y` from fixed system locations with a staged,
@@ -96,8 +96,8 @@ cleanup.
 ## ROM-free checks
 
 ```sh
-python scripts/validate_project.py
-python scripts/validate_runtime_capabilities.py
-python scripts/validate_overlay_runtime_g2_contract.py
+python scripts/validation/validate_project.py
+python scripts/validation/validate_runtime_capabilities.py
+python scripts/validation/validate_overlay_runtime_g2_contract.py
 python -m unittest tests.test_phase3_cpu_overlays tests.test_runtime_capabilities tests.test_overlay_runtime_g2_contract
 ```

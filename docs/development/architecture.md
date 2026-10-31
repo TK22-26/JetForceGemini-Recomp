@@ -44,7 +44,7 @@ mode rejects unmatched or duplicate replacements. The
 [Phase 4 contract](../planning/phase4-acceptance.md) defines the denominators
 and the signed completion evidence.
 
-`GeneratedOverlayRuntime` (tests: `tests/generated_overlay_runtime_tests.cpp`)
+`GeneratedOverlayRuntime` (tests: `tests/runtime/generated_overlay_runtime_tests.cpp`)
 owns the generated overlay table and enforces the loader lifecycle:
 
 1. Validate section metadata, the exact text-plus-data input, a word-aligned
@@ -69,8 +69,12 @@ The native boot path starts at the original entry and reaches stable VI and
 scheduler activity ([Phase 6 contract](../planning/phase6-acceptance.md) and
 [record](../planning/phase6-native-boot-addendum.md)); the cartridge handoff is
 described in the [fix log](boot-gameplay-fix.md#cic-6105-boot-state-health-and-ammunition).
-The current runtime executes the original guest OS with a cache/device clock
-model; these notes define its contracts:
+Normal Play uses the native host-clock policy, including when the video FPS option is
+Original. The separate diagnostic instruction/device-clock path retains original-OS contracts
+but is not qualified as the default simulation clock; workload-dependent device time and
+loading audio remain open. See [the current timing investigation](issues/original-mode-simulation-parity.md)
+and [native audio policy](runtime/native-audio-playback.md). These reference notes describe the
+original-OS model and its bounded qualification:
 
 | Area | Reference |
 |---|---|

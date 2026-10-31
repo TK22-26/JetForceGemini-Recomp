@@ -113,7 +113,7 @@ and uses perspective interpolation for shade alpha. On the original captured
 large sky polygons, preserving signed z/w through an affine alpha gradient and
 clamping at the pixel shader closely reproduces the original low-level output.
 
-The candidate in [rt64_fog_fidelity.cmake](../../../cmake/rt64_fog_fidelity.cmake):
+The candidate in [rt64_fog_fidelity.cmake](../../../cmake/renderer/rt64_fog_fidelity.cmake):
 - preserves the signed fog coordinate through the vertex stage;
 - interpolates shade alpha in screen space, independently of existing RGB and UV
   interpolation;
@@ -205,7 +205,6 @@ the exact original osSpTaskLoad input/output tasks above, retaining native fog
 coefficients and gamma-off VI state. Dedicated private renderer probes force
 RT64 Original resolution; production preview settings and source are preserved.
 Results and source restoration receipts will be recorded below.
-
 
 ### Native-resolution result
 

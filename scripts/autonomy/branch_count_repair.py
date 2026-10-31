@@ -147,8 +147,8 @@ def queue_case(store, repo, state, agent_binary, case_path):
         raise SupervisorError("independent repair proof changed")
     proof_path.parent.mkdir(parents=True, exist_ok=True)
     _write_json_atomic(proof_path, proof)
-    checker = repo / "scripts/phase9_branch_count_check.py"
-    parser = repo / "scripts/phase9_cpu_branch_trace.py"
+    checker = repo / "scripts/diagnostics/phase9_branch_count_check.py"
+    parser = repo / "scripts/diagnostics/phase9_cpu_branch_trace.py"
     evidence = [diagnostic_seal, message, baseline_seal, build_record, oracle_path,
                 trace, proof_path, checker, parser, case_path.resolve()]
     implementation = {

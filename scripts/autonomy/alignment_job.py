@@ -18,15 +18,16 @@ from scripts.autonomy.supervisor import (
 
 
 TOOL_FILES = (
+    "scripts/__init__.py",
     "scripts/autonomy/alignment_job.py",
-    "scripts/phase95_oracle_replay.py",
-    "scripts/phase9_oracle_instruction_effects.py",
-    "scripts/phase9_point_probe.py",
-    "scripts/phase9_bizhawk_oracle.lua",
-    "scripts/phase9_poll_vi_alignment.py",
-    "scripts/phase95_poll_compare.py",
-    "scripts/phase95_bridge.py",
-    "scripts/compare_phase9_retrace_hashes.py",
+    "scripts/exploration/phase95_oracle_replay.py",
+    "scripts/diagnostics/phase9_oracle_instruction_effects.py",
+    "scripts/diagnostics/phase9_point_probe.py",
+    "scripts/diagnostics/phase9_bizhawk_oracle.lua",
+    "scripts/diagnostics/phase9_poll_vi_alignment.py",
+    "scripts/exploration/phase95_poll_compare.py",
+    "scripts/exploration/phase95_bridge.py",
+    "scripts/diagnostics/compare_phase9_retrace_hashes.py",
 )
 
 

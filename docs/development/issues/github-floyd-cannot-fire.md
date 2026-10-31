@@ -27,7 +27,6 @@ Ordinary character shooting tests do not establish Floyd mission compatibility.
 Record a same-state reproduction and actual mission completion before claiming a
 fix. No commit, build or owner acceptance for another issue resolves this report.
 
-
 ## Owner test tooling request (2026-10-21 UTC)
 Owner recalls Floyd firing previously working and will test manually. The initial
 save/diagnostic-launch request was replaced with an explicit Give Floyd action
@@ -173,11 +172,9 @@ Preview5 implements the approved [Modern M/K mission controls](modern-floyd-miss
 
 Owner reports preview5 mission mouse flight feels pretty good and requests A/D strafing. Preview6 implements lateral flight; native velocity/position tests pass. This feedback does not establish actual firing or mission completion; #37 remains pending those checks. See the mission control issue for coverage and preview identity.
 
-
 Preview7 adds the owner-requested [separate Modern controller flight inversion setting](modern-floyd-controller-flight-inversion.md), default On. Native flight and launcher checks pass; actual firing and mission completion still await owner verification. This does not close #37.
 
 Owner approved the preview7 controls on 2026-10-21. Controller flight preference and the delivered controls preview are accepted locally. The reply does not separately confirm actual firing or mission completion; retain those outstanding #37 checks. No GitHub closure, commit, push or release performed.
-
 
 ## Full owner acceptance for v1.4.0 (2026-10-21)
 

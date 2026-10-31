@@ -857,9 +857,9 @@ namespace JfgLauncher
                 }
                 Application.EnableVisualStyles();
                 string sourceFixture = Path.Combine(directory, "source with spaces");
-                Directory.CreateDirectory(Path.Combine(sourceFixture, "scripts"));
+                Directory.CreateDirectory(Path.Combine(sourceFixture, "scripts/build"));
                 File.WriteAllText(Path.Combine(sourceFixture, "CMakeLists.txt"), "# fixture");
-                File.WriteAllText(Path.Combine(sourceFixture, "scripts", "build_from_rom.py"), "# fixture");
+                File.WriteAllText(Path.Combine(sourceFixture, "scripts/build/build_from_rom.py"), "# fixture");
                 string nested = Path.Combine(sourceFixture, "build", "launcher");
                 Directory.CreateDirectory(nested);
                 Check(LocalSetup.FindSourceRoot(nested) == sourceFixture, "source root discovery failed");

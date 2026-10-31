@@ -42,7 +42,7 @@ durations, hashes, gate booleans, producer provenance, and dependency pins.
 The contract validator is run with:
 
 ```text
-python scripts/validate_phase8_acceptance.py
+python scripts/validation/validate_phase8_acceptance.py
 ```
 
 ## Current keyboard bindings

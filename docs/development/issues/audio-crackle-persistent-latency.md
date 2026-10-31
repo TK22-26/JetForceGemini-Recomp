@@ -124,7 +124,7 @@ normal game events, changing game speed or creating new crackles.
 
 [Earlier source crackle](intermittent-music-crackle.md),
 [playback starvation](walking-audio-interruptions.md), and
-[v1.3 qualification](../releases-1.3.0-qualification.md) describe distinct prior
+[v1.3 qualification](../../releases/qualification-1.3.0.md) describe distinct prior
 faults and bounded checks. Private source-review logs: v131-rnd-20261019.
 Do not label a new delay report as the old underrun fault without measurement.
 
@@ -162,14 +162,13 @@ with bounded analyzer step 021. Source review steps 015-019 cover the queue,
 pause and clock paths. No audio throttling, sample dropping, reset policy or
 dependency update has been applied.
 
-
 ## Reusable offline analysis
 
-Added [analyze_runtime_effects.py](../../../scripts/analyze_runtime_effects.py)
+Added [analyze_runtime_effects.py](../../../scripts/diagnostics/analyze_runtime_effects.py)
 to summarize actual changed-pixel calls and software audio queue age from an
 existing closed gameplay.tsv. Example:
 
-    python scripts/analyze_runtime_effects.py <closed-session>/gameplay.tsv
+    python scripts/diagnostics/analyze_runtime_effects.py <closed-session>/gameplay.tsv
 
 It excludes the first ten seconds by default; use --from-seconds 0 for startup.
 It keeps paused/prebuffer audio separate from active playback, validates sample
@@ -183,7 +182,6 @@ startup/paused buffers, and malformed evidence. Applying it to the historical
 full-run and wet-room captures reproduces the source-review measurements.
 No game executable or active user profile was modified.
 
-
 ### Limits of the v1.3 support ZIP
 
 The current SupportSession.SafeLine export grammar accepts original controller
@@ -196,7 +194,6 @@ missing fields. Improving this diagnostic coverage is a follow-up limitation;
 no support exporter behavior was changed during this R&D pass.
 
 Owner cannot reproduce the audio delay and agrees more reporter information is needed. Keep this open; no speculative audio correction is approved as a resolution.
-
 
 ## Reporter split and owner status (2026-10-21 UTC audit)
 
@@ -214,7 +211,6 @@ reproduced cause. No new audio remedy or gameplay experiment was attempted.
 Request an affected-session report and exact settings/device/connection/onset
 information when following up. The RTSS explanation applies to the reporter's
 crackling; it does not establish the cause of #35 latency or every audio fault.
-
 
 ## Guarded audio-backlog fault injection, October 23 UTC
 
@@ -381,7 +377,6 @@ underruns and bytes played. A healthy producer/consumer rate after a temporary
 disruption does not restore their earlier phase. Recovery must not introduce
 a second clock controlling gameplay or alter sound for healthy queues.
 
-
 Final source review caught a telemetry-only error: `support_event` deliberately
 rejects spaces, whereas the first fixture substituted a stdout logger. Recovery
 metrics now use its accepted slash-separated category format. The component
@@ -394,7 +389,6 @@ does not establish that ordinary packaged support logging works.
 The full native build started before this string-only correction. Its source
 consistency check will intentionally reject that changed input; final native
 qualification must rebuild/check the current source and identity afterward.
-
 
 The final normal-path refinement reuses the measurement already taken by
 `service()`/`queue()` rather than polling SDL again. The 48 comparison pairs now
@@ -448,7 +442,6 @@ The completed visible review reports zero host underruns/overruns; that does
 not rule out an audible defect. Any further hidden audio-capable fixture must
 use an explicit muted copied audio profile. Private stop receipt:
 flight-shot-analysis-20261024/camera-replay-stopped.json.
-
 
 ## Retest delivery note
 

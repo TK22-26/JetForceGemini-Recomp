@@ -49,7 +49,6 @@ qualified slot for this pinned body, with a separate negative test. The default
 boundary policy remains strict; no unchecked branch or changed instruction is
 admitted.
 
-
 ## Generation and focused execution checks
 
 Both recovered functions regenerate successfully through the normal context,
@@ -80,7 +79,6 @@ compiler was checked/cleaned up. The ordinary five-case execution test passes.
 The earlier diagnostic sanitizer run identified the harness's unset FP pointer,
 not an access fault in the normal initialized game runtime.
 
-
 ## Private build preparation failure and correction
 
 The first final optimized-runtime build stopped at the existing collision-source
@@ -95,7 +93,6 @@ finish before handoff. Fresh ordinary generation and private optimized generatio
 have distinct preparation requirements; reuse the exact selected configuration
 when replacing a generated root. This was an orchestration error, not evidence
 of a collision or flight-physics regression.
-
 
 ## Final native qualification
 

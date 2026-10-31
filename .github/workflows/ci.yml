@@ -35,15 +35,15 @@ jobs:
       - name: Install validation dependency
         run: python -m pip install --require-hashes -r requirements-dev.lock.txt
       - name: Reject private or forbidden material
-        run: python scripts/check_repository_hygiene.py --history
+        run: python scripts/validation/check_repository_hygiene.py --history
       - name: Validate schemas and manifests
-        run: python scripts/validate_project.py
+        run: python scripts/validation/validate_project.py
       - name: Run Python tests
         # JFG_QUARANTINE_TRAP_PROBE skips the environment-incompatible seccomp
-        # escape probe on the runner (see docs/development/test-quarantine.md).
+        # escape probe on the runner (see docs/maintenance/test-quarantine.md).
         env:
           JFG_QUARANTINE_TRAP_PROBE: "1"
-        run: python -m unittest discover -s tests -p "test_*.py" -v
+        run: python -m unittest discover -s tests -t . -p "test_*.py" -v
 
   build:
     name: Build (${{ matrix.os }})
@@ -69,7 +69,7 @@ jobs:
       - name: Build and test Linux
         if: runner.os == 'Linux'
         # -E excludes the quarantined trap-probe test by name without editing
-        # any build-closure-pinned file (see docs/development/test-quarantine.md); it
+        # any build-closure-pinned file (see docs/maintenance/test-quarantine.md); it
         # still builds and runs locally.
         run: |
           cmake --build --preset linux
@@ -80,13 +80,13 @@ jobs:
           ctest --preset linux-clang -E "^jfg\.g2_trap_probe_runtime$"
       - name: Build and test Windows Debug
         if: runner.os == 'Windows'
-        run: python scripts/build_windows.py --config Debug --test
+        run: python scripts/build/build_windows.py --config Debug --test
       - name: Build and test Windows Release
         # The trap-probe quarantine is Linux-runner-specific (see
-        # docs/development/test-quarantine.md); it passes on Windows and runs here.
+        # docs/maintenance/test-quarantine.md); it passes on Windows and runs here.
         if: runner.os == 'Windows'
         run: |
-          python scripts/build_windows.py --config Release --test
+          python scripts/build/build_windows.py --config Release --test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   renderer:
@@ -105,7 +105,7 @@ jobs:
       - name: Check out the pinned RT64 revision
         # RT64 vendors SDL2 and dxc for Windows, so the pinned checkout plus
         # its submodules is the whole dependency set for this lane.
-        run: python scripts/bootstrap_tools.py --only rt64
+        run: python scripts/build/bootstrap_tools.py --only rt64
       - name: Configure with the renderer enabled
         run: >
           cmake --preset windows-msvc
@@ -159,14 +159,14 @@ jobs:
           python-version: "3.11"
       - name: Compile and test the standalone launcher
         shell: powershell
-        run: ./scripts/build_launcher.ps1 -Test
+        run: ./scripts/build/build_launcher.ps1 -Test
       - name: Validate bootstrap derivation with ROM-free fixtures
         shell: powershell
-        run: python -m unittest discover -s tests -p test_rom_bootstrap.py
+        run: python -m unittest discover -s tests -t . -p test_rom_bootstrap.py
       - name: Verify prebuilt packaging with ROM-free fixtures
         shell: powershell
         run: |
-          python -m unittest discover -s tests -p test_package_beta.py
+          python -m unittest discover -s tests -t . -p test_package_beta.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m unittest discover -s tests -p test_release_prebuilt.py
+          python -m unittest discover -s tests -t . -p test_release_prebuilt.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

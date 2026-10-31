@@ -129,7 +129,6 @@ local reference paths, public-source hygiene, preservation of the guard
 instructions, and whitespace. Those checks establish reference integrity,
 not runtime correctness or copyright clearance.
 
-
 ## Later focused reviews
 
 - [VibinToast JFG source and v1.1.3 review, October 15](reference-review-2026-10-15-vibintoast.md): separate pinned evidence for the owner-requested combat/high-refresh comparison; does not change this review's historical baseline.

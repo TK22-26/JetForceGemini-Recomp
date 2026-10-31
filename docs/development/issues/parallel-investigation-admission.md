@@ -96,7 +96,6 @@ and `solution-admission-receipt.json`; the final guard state/charges remain in
 the authoritative production ledger. The original hard stop is retained as
 an informative failure, not reclassified as success.
 
-
 The renewed rain solution worker then completed normally with the guard enabled;
 its completion left the named cutscene peer guarded and the investigation active
 (attempts 64, activity 57, no-progress 6). The owner subsequently reported the

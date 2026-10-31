@@ -14,14 +14,12 @@ blocking rendering. Four rotating 16 MiB files bound each session's storage.
 Local preview defaults can be enabled through performance.ini next to video.ini.
 Tests must start muted and use copied profiles/saves. No slowdown fix claimed.
 
-
 Initial build caught a misspelled configuration field, corrected before replay.
 The first enabled replay failed before gameplay with 0xc0000409 in NVIDIA's
 nvwgf2umx.dll (Windows Application events 1000/1001, retained crash dump).
 The large glyph rectangle batch is a candidate trigger. The next candidate
 limits clear calls to sixteen rectangles and keeps non-Windows renderer builds
 behind a no-op diagnostics adapter. Failed run remains preserved; no delivery.
-
 
 The bounded rectangle batches pass subsequent Original and Custom 360/VSync
 replays. The initial driver failure did not recur in these checks; the exact
@@ -60,7 +58,6 @@ Private evidence: `fps-logging-qualification-v2/result.json` and per-mode CSV,
 frame captures, stdout/stderr; initial failed run and build receipts retained.
 This adds observability and does not claim to fix the newly reported slowdown.
 
-
 Implementation commit: `930c57517f31f624d2a05527cdcc1b5264ff4c72`.
 Machine-local package: `C:/JFG-builds/high-refresh-diagnostics-preview-20261012`.
 The existing preview shortcut now targets this package with the same profile;
@@ -76,7 +73,6 @@ FPS, different hardware or long sessions. [Aggregate evidence](../../../evidence
 links the observations to the qualified runtime. Implementation:
 [counter and bounded writer](../../../src/renderer/frame_diagnostics.hpp),
 [scene counters](../../../include/jfg/renderer/frame_diagnostics_state.hpp).
-
 
 ## Owner live regression, 2026-10-12
 
@@ -98,7 +94,6 @@ comparison with the pre-diagnostics runtime and scheduling evidence.
 Approved bounded work retains the production guard, investigation root and all
 existing counters. Automated tests remain muted and use isolated copied saves.
 
-
 ### Owner F8 comparison and cadence-transition candidate
 
 Owner confirms the stutter continues with F8 off. The raw comparison repeats
@@ -114,7 +109,6 @@ interval and existing motion/geometry continuity checks. Camera jumps, unsafe
 mixed-transform geometry, long gaps and other cadence changes retain their
 existing rejection. Focused transition tests and muted native comparisons are
 pending. This candidate does not change guest timers or force 30 Hz simulation.
-
 
 ### Completed-sequence replay candidate
 
@@ -135,7 +129,6 @@ completed capped sequences, with finite-array versus unlimited-ring indexing.
 No source updates or scene timing change. Native trace/pixel verification and
 regression checks are pending; this candidate is not yet delivered.
 
-
 ### Capped streaming experiment
 
 The completed-sequence correction verifies 505 repeat groups with at most one
@@ -149,7 +142,6 @@ the requested cap and VSync; the producer uses elapsed source-frame time and
 yields to new scene work. This avoids finite-batch restart and rate-transition
 phase resets without changing guest simulation. Tests and measurements pending.
 
-
 The initial capped-streaming replay preserves hashes and avoids sequence rewind,
 but its moving-window p99 is about 23 ms. Source review also identifies a capped
 producer/consumer mismatch: an unpaced producer can fill the ring with multiple
@@ -157,7 +149,6 @@ nearly identical early-time poses before the capped consumer displays them.
 The next bounded variant paces pose sampling to the cap while retaining the
 existing presentation cap and yielding at source-window end/new scene work.
 No streaming variant is qualified or delivered yet.
-
 
 ### Separate capped-sequence buffers
 
@@ -175,7 +166,6 @@ present-ID ordering protects bank reuse. Unlimited retains its two-slot ring.
 Completion/repeat-latest and normal 30/20 Hz transition corrections remain.
 Build, replay, memory/scene-speed and presentation checks are pending.
 
-
 The first two-bank replay preserves baseline wall time/state and holds about
 60 outputs/second with a moving-window maximum of 19.6 ms. Its 120/VSync request
 was actually clamped to 60: the desktop now exposes one 1920x1080 display and
@@ -189,7 +179,6 @@ the owner's desktop settings. The old delivered runtime is rerun under those
 same current conditions. Target-bank allocation and consumer lookup share a
 mutex so vector growth during cadence transitions does not race presentation.
 
-
 The two-bank candidate alone fails qualification: 120/VSync-off moving-window
 p99 is 25.05 ms versus the delivered build's 9.82 ms. Unlimited also fails
 the scene-progression gate. No desktop update was made. Actual swapchain
@@ -198,7 +187,6 @@ for consecutive VI presentations; the candidate holds only the final image.
 The next experiment preserves a finite repeat output window while repeating
 that final image, so removing rewinds does not introduce idle present gaps.
 Readback runs are visual evidence, not timing benchmarks.
-
 
 ## Qualified correction, 2026-10-12
 
@@ -251,7 +239,7 @@ Actual swapchain readback verifies completed groups contain only repeated latest
 pixels. Readback is excluded from timing benchmarks. Source/aggregate evidence:
 [comparison receipt](../../../evidence/frame-diagnostics-regression.json),
 [history](../../../include/jfg/renderer/interpolation_history.hpp),
-[presentation adapters](../../../cmake/rt64_video_settings.cmake),
+[presentation adapters](../../../cmake/renderer/rt64_video_settings.cmake),
 [counter](../../../src/renderer/frame_diagnostics.hpp). Private attempts and
 failed gates remain under `fps-regression-*`; no ROM, generated code or save is
 published. Dependency inputs remain pinned, with patches in build-tree copies.
@@ -268,7 +256,6 @@ validate image order as well as timing. Identical guest memory does not prove
 wall-time speed. Check source-scene throughput, compare observation on/off,
 verify effective VSync targets, and retain failed candidates and their costs.
 
-
 ### Local delivery receipt
 
 Implementation commit: `19fde3c7c0d5b102e4dd2c2d1fa6e0c9af4fbd67`.
@@ -282,7 +269,6 @@ controls, diagnostics preference and save hashes were unchanged by delivery.
 Close the existing launcher and reopen the desktop shortcut to load the candidate.
 No public release, push, owner desktop input or game launch occurred during
 handoff. The tests were muted; owner live acceptance remains pending.
-
 
 ## Source scene-rate investigation, owner approved 2026-10-12
 
@@ -304,14 +290,12 @@ input, audio deadlines and save correctness; do not accelerate game speed merely
 to raise the counter. Related prior combat work: [PERF-001](goldwood-combat-slowdown.md).
 All experiments use muted isolated profiles and guarded execution; no owner input.
 
-
 The original-policy bridge replay with low-volume update/cost tracing and input
 recording retains the exact baseline RAM/renderer/save hashes and 2,056 scenes.
 A second recorded-poll replay also preserves them. The next comparison switches
 only clock policy after an identical VI-3900 prefix; this is a diagnostic, not
 a delivered change. Retained source/evidence paths are recorded privately in
 `scene-rate-retained-timing.json`; no unrelated main files are changed.
-
 
 The baseline charges about 34.1 ms median modeled non-idle CPU work in the
 20-Hz bridge interval, crossing a 33.4 ms frame budget. Retained guest source
@@ -334,8 +318,6 @@ stall and pause observations for qualification. No guest frame-rate clamp, CPU
 span generation, unrelated main edits or audio DSP changes are imported.
 
 The first policy-check wrapper incorrectly expected a plain-text `retraces=4500` marker in JSON output. Its reference process exited normally and preserved all three reference hashes. Correct the parser in a new retained step; this is a harness failure, not a runtime failure.
-
-
 
 Qualification harness failures retained: the live trace-tail reader attempted to parse a partially flushed hexadecimal field; its hidden play child was stopped by the guarded worker. The follow-on analysis could not find the unfinished play window. The first startup probe requested an incompatible realtime flag and was rejected before starting. Fix the wrappers and rerun; these are not passing runtime checks. The interpolation-trace run overlapped the failed play child and cannot be used as an uncontended performance benchmark.
 
@@ -390,7 +372,6 @@ workload, preserving the bounded slot wait and original two-target ring. There
 is still no numeric FPS cap. Check both scene rate and output spacing rather
 than crediting a high repeated-frame count.
 
-
 ### Accepted implementation and remaining limits
 
 The private build enables JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING for --play.
@@ -430,7 +411,6 @@ Other levels, combat, long sessions, full actor interpolation and reported seams
 lighting remain outside this demonstrated correction. Tests were muted, hidden,
 and used copied saves. Every failed wrapper/candidate is retained privately.
 
-
 ### Committed runtime qualification
 
 Implementation `5c7df1bdee61778590fb3b7baa281958a9167870`; rebuilt runtime SHA-256 `a14d9d77fc98ef6be1999a3ea9492d60467a4b107e376c66d431fbfd70231259`.
@@ -448,7 +428,6 @@ tests pass. The longer startup/audio and Unlimited limits above remain open.
 [Aggregate qualification](../../../evidence/native-scene-timing.json) records
 artifact identities and distinguishes checks made on earlier binaries from the
 final runtime. No full-game parity or blanket stutter resolution is claimed.
-
 
 ### Local preview delivery (2026-10-12)
 
@@ -611,13 +590,11 @@ common complete `update-work` VI/input/Count/idle/instruction record, plus full
 RAM/save hashes. It records any terminal incomplete-row difference explicitly.
 Original failed reviews and raw telemetry remain preserved on D:.
 
-
 The explicit CPU-cost trace additionally reports `transport-wake-cost`: VI, input
 poll, number of baton receipts, summed publication-to-receipt nanoseconds, and
 cumulative maximum wake nanoseconds. It excludes guest-slice execution and is
 configured before participants exist. Ordinary Play performs no clock sampling
 for this diagnostic. Unit transport checks and exact recorded-state replay pass.
-
 
 ## Private comparison-rate label correction, 2026-10-14
 
@@ -638,7 +615,6 @@ writing/building code because its input retained CRLF line endings. The bounded
 replacement normalizes text before matching and restores the original generated
 source in a finally block. Preserve combat-cpu-sampling and sync-stage-probe.
 
-
 ## Logging-cost comparison, 2026-10-15 UTC
 
 After the stale overlay-cache correction, four reversed-order normal-clock
@@ -657,7 +633,6 @@ formatter prototype initially could not locate cl.exe despite its child environm
 the replacement resolves the compiler from the imported toolchain PATH. Failed
 requests/evidence remain retained; production behavior was unchanged.
 
-
 ## Optional trace formatting candidate, 2026-10-15 UTC
 
 The gameplay TSV formatter uses integer to_chars in place of one printf call
@@ -666,7 +641,6 @@ old-format differential cases cover signed timestamp extremes, full-width hex,
 name truncation, poisoned buffers and record limits. Existing byte-limit/drain
 tests pass. Private capture performance and exact replay are still pending;
 this does not establish a fix for combat FPS or change ordinary Play.
-
 
 The formatter candidate passes runtime qualification: all 4 MiB of physical game
 RAM, save data, 1,847 complete guest update records and 17,715 interpolation
@@ -680,7 +654,6 @@ recording qualification, not a stable-combat-FPS fix. The standalone format
 benchmark takes roughly 30% of the old formatter time; ordinary Play is unchanged.
 Evidence: trace-format-candidate, trace-format-dense-review and
 trace-format-native-review. Local delivery follows package qualification.
-
 
 ## Display-statistics availability probe, 2026-10-15 UTC
 
@@ -709,7 +682,6 @@ run after the first failed observer and was correctly resubmitted after restore.
 Evidence: private-dxgi-statistics, private-dxgi-statistics-mapped and
 dxgi-statistics-mapped-review.json. Neither private observer ships.
 
-
 ## Owner-requested deeper bottleneck profiling, 2026-10-15
 
 The owner requests finer cost percentages even if capture adds overhead. A
@@ -725,7 +697,6 @@ detailed-function-cost-profile and parallel-and-detailed-cost-decision.json on D
 The public desktop remains unchanged. Ordinary Play does not enable CPU_COSTS.
 This profiling is investigation support, not a fix or native FPS acceptance.
 
-
 The first normal-Play profiling attempt exits during setup because production
 CPU_COSTS intentionally rejects Play. It performs no gameplay and supplies no
 performance result. A private replacement permits profiling only with an input
@@ -736,7 +707,6 @@ Thread-cycle counts are inclusive on one host thread; overlapping entries must
 not be summed. The same-clock dense state check precedes normal-timing captures.
 Evidence: detailed-native-cost-captures, detailed-native-service-profile and
 its service-review.json. No public profiling setting or FPS fix is delivered.
-
 
 A lighter private observer measures each guarded MMIO page from guard-handler
 entry through single-step completion and guard rearm. It excludes the initial
@@ -749,7 +719,6 @@ The 120 FPS combat capture has median active update time 30.304 ms and
 median measured MMIO fault time 1.771 ms. Per-page counts and aggregate
 wall-time fractions are in mmio-fault-cost-probe/cost-review.json on D:.
 The original source and runtime were restored; this observer does not ship.
-
 
 ### Sparse CPU/wait attribution and controlled optimization comparison, 2026-10-15
 
@@ -789,8 +758,7 @@ they are not a pie chart. Microsoft explicitly advises against converting
 counts into elapsed time. Profiler results locate work; final FPS must be checked
 with expensive instrumentation removed.
 
-
-The reusable scripts/analyze_cpu_stage_trace.py analyzer reconstructs selected
+The reusable scripts/diagnostics/analyze_cpu_stage_trace.py analyzer reconstructs selected
 scope trees by host thread, subtracts child cycles once, and reports exclusive
 and inclusive CPU shares separately. Invalid child counters exclude an entire
 update; negative residuals fail validation instead of being clamped. Other
@@ -799,7 +767,6 @@ regressions cover nested/recursive scopes, siblings, different threads, truncate
 rows and VI-window boundaries. Real capture reports are retained under
 stage-analyzer-validation on D:. The private stage observer remains opt-in and
 is not part of the installed preview.
-
 
 ### Measured combat attribution and qualification limits, 2026-10-15
 
@@ -844,7 +811,6 @@ identify entity work, especially drone/pathfinding routines, as substantial
 CPU targets alongside renderer submission. Heavy profiling is removed for final
 FPS acceptance. All captures here were muted and hidden; desktop unchanged.
 
-
 A private periodic instruction-pointer sampler is qualified with a known busy
 integer loop and a sleeping thread. It records thread identity, instruction
 address and cycles advanced between checks; symbolization happens after target
@@ -854,7 +820,6 @@ No guest RAM, stack contents or register dump is written. Evidence:
 pc-sampler-fixture/result.json. This locates host-code hotspots without adding
 per-function callbacks, but its time-based observations are not precise CPU
 percentages and its captures cannot be used for uninstrumented FPS acceptance.
-
 
 The first combat sampler attached to JFG's waiting watchdog parent, collecting
 only five samples. Its sample-count assertion correctly rejects attribution;
@@ -866,7 +831,6 @@ Evidence: pc-sampling-combat (rejected parent capture) and pc-sampling-child
 (corrected child capture). No kernel permissions, guest memory changes, game
 function timing hooks or public profiler option are introduced.
 
-
 The all-thread child sampler reached its 300,000-observation limit before combat.
 Suspending sleeping threads also advanced their cycle counts, defeating the
 activity filter; those captures provide no combat attribution. The replacement
@@ -877,71 +841,53 @@ Evidence: pc-sampling-update-thread. Periodic RIP observations still include
 waiting and observer effects, so they are not exact CPU percentages or FPS
 acceptance. Earlier incomplete captures remain preserved.
 
-
 ### Optional per-update thread-cycle observation
 
 JFG_DIAGNOSTIC_UPDATE_CYCLES=1, together with JFG_GAMEPLAY_TRACE, requests one update-thread-cycles TSV row per measured game update. Fields are VI, controller poll, valid flag, execution participant ID, cycle delta and guest-instruction delta. Correlate with update-work by VI/poll. With the ordinary transport this measures the host thread running the root update. With the opt-in Windows fiber transport, participant IDs have the high bit set and the remaining bits identify the guest stack; cycles accumulate only while that stack executes. Parked time and other guest stacks are excluded. Function-profile rows use the same logical IDs. Submission-owner rows retain actual OS thread IDs and must not be joined to fiber IDs by numeric equality. Cycle counts must not be converted to CPU milliseconds. Invalid thread/query results report valid=0 and zero cycles. Ordinary FPS logging does not enable it. Source and replay qualification are tracked with PERF-001; this diagnostic does not establish a slowdown cause by itself.
 
-
-The repository analyzer scripts/analyze_update_cycle_trace.py reads the optional update-cycle timeline and reports the slowest updates with known wait, thread cycles, instruction counts, enclosed graphics submissions and time outside the measured root update. Outside-update time may contain both work and waits, so it is not automatically attributed to CPU execution. Example: python scripts/analyze_update_cycle_trace.py trace.tsv --first-vi 3500 --last-vi 6000 --output update-costs.json. It handles repeated VI/poll keys in event order, rejects invalid cycle joins, reports missing/truncated observations, and excludes boundary-crossing submissions from nested cost totals. Focused fixtures cover those cases; the final native capture has complete valid observations. Wall time is not CPU time; nested submission/full-sync costs are never added together. Evidence: update-cycle-analyzer. Hidden-window capture remains distinct from physical-display acceptance.
-
+The repository analyzer scripts/diagnostics/analyze_update_cycle_trace.py reads the optional update-cycle timeline and reports the slowest updates with known wait, thread cycles, instruction counts, enclosed graphics submissions and time outside the measured root update. Outside-update time may contain both work and waits, so it is not automatically attributed to CPU execution. Example: python scripts/diagnostics/analyze_update_cycle_trace.py trace.tsv --first-vi 3500 --last-vi 6000 --output update-costs.json. It handles repeated VI/poll keys in event order, rejects invalid cycle joins, reports missing/truncated observations, and excludes boundary-crossing submissions from nested cost totals. Focused fixtures cover those cases; the final native capture has complete valid observations. Wall time is not CPU time; nested submission/full-sync costs are never added together. Evidence: update-cycle-analyzer. Hidden-window capture remains distinct from physical-display acceptance.
 
 The detailed profiler correlation fixture initially failed because its synthetic baseline timestamp used a double-escaped tab; no real capture was reinterpreted as passing. Correcting that fixture passes the CPU/host/GPU join checks. The dependent review refused to run until that check passed. Evidence: hyper-profile-analyzer-correlations (failure), hyper-profile-correlation-fix and hyper-profile-correlated-review.
 
-
 The renderer-stage profiling build initially exposed a missing array include, omitted private/public diagnostic-field propagation, and MSVC getenv deprecation under warnings-as-errors. The corrected build retains strict warnings and copies the timing fields explicitly. Evidence: hyper-profile-renderer-stages (failed build) and hyper-profile-renderer-build-fixed. No failed executable was delivered.
-
 
 ### Qualified bounded function, graphics and scheduling profiler
 
-Owner-requested full function/caller profiling is implemented with a lower-overhead stage mode, per-update CPU/wall totals, maximum call cost, process cycles, guest-baton wake latency, GPU timestamps and interpolation-preparation/RDP-sync sub-stages. The memory trace is bounded to 256 MiB and drains at normal finish. Default behavior remains disabled. Full recorded comparisons preserve RAM/save, instruction counts and interpolation decisions; the final disabled runtime also passes the retained Original comparison. Native 120/360 diagnostic captures complete, but profiling changes frame cadence and does not qualify a slowdown fix. Full mode adds roughly 11 ms median cost in the recorded comparison, whereas stage mode adds roughly 1 ms in that observation. Captures and immutable failed/repaired fixture/build evidence remain on D:. The desktop preview still selects the earlier compact-timing package. See [capture controls and interpretation](../function-profiling.md) and [binary-bound evidence](../../../evidence/high-refresh-function-profile.json).
-
+Owner-requested full function/caller profiling is implemented with a lower-overhead stage mode, per-update CPU/wall totals, maximum call cost, process cycles, guest-baton wake latency, GPU timestamps and interpolation-preparation/RDP-sync sub-stages. The memory trace is bounded to 256 MiB and drains at normal finish. Default behavior remains disabled. Full recorded comparisons preserve RAM/save, instruction counts and interpolation decisions; the final disabled runtime also passes the retained Original comparison. Native 120/360 diagnostic captures complete, but profiling changes frame cadence and does not qualify a slowdown fix. Full mode adds roughly 11 ms median cost in the recorded comparison, whereas stage mode adds roughly 1 ms in that observation. Captures and immutable failed/repaired fixture/build evidence remain on D:. The desktop preview still selects the earlier compact-timing package. See [capture controls and interpretation](../runtime/function-profiling.md) and [binary-bound evidence](../../../evidence/high-refresh-function-profile.json).
 
 The combined resident-math/profiler runtime also passes the full instrumented recorded comparison and profiler-disabled Original/native checks. Detailed logging remains opt-in and its overhead remains explicit. The final binary and captures are linked in [combined qualification](../../../evidence/high-refresh-resident-math.json); this does not mark the underlying combat slowdown resolved.
 
-
 The combined profiled-math binary is now installed on both high-refresh desktop links. Detailed profiling remains an explicit developer-runtime option; ordinary F8 FPS logging does not activate per-function queries. Logs and captures remain private on D:. The delivered binary and source commit are in [the combined receipt](../../../evidence/high-refresh-resident-math.json).
-
 
 The first private synchronization patch rejected its single-site assertion because framebuffer fence waits occur at more than one pinned site. It changed no source/runtime and its dependent capture refused to run. The corrected patch accounts for every occurrence, retains all waits, and records per-kind call counts alongside durations. Snapshot, display-list submission and CPU-writeback timings accompany the six wait kinds without enabling broad interpolation tracing. Exact-state validation remains required. Evidence: submit-sync-breakdown-build (refused) and submit-sync-breakdown-build-fixed.
 
-
 The submission-owner diagnostic also preserves exact recorded RAM/save/instructions/interpolation. Native collection records valid same-thread cycles and OS CPU-time deltas for snapshot/decode/writeback, correlated by event order with six wait kinds. CPU-time tick quantization makes individual tiny substage deltas noisy; aggregate counters and wall/cycle patterns must be interpreted together. Evidence: submit-thread-attribution-captures and submit-thread-attribution-review.
-
 
 ### Submission profiler source integration
 The private six-wait and submission-owner diagnostics are now integrated as an opt-in, thread-local collector. The analyzer joins repeated submission keys in order, distinguishes root/other CPU owners, excludes boundary-crossing work, and reports unpaired, missing or invalid records. Nested collector scopes and exception restoration retain the previous state; worker counters remain separate. All waits and ordinary default behavior remain unchanged. Fixtures, rebuild, exact recorded correspondence and disabled runtime checks are required before delivery. Evidence: submission-profile-source.
-
 
 ### Private Windows thread-scheduling attribution
 An owned-thread fixture successfully enables Windows dispatch profiling without hardware counters or driver/system changes. It records context-switch counts, wait-reason bits and cycles excluding interruptions, and disables profiling before thread exit. A private runtime experiment samples only root-update and synchronous submission intervals. Actual thread identities remain explicit; wait-reason bits are since the last read, so any nested reader would make them incomplete and must be rejected in analysis. No hardware PMU access is claimed. Exact recorded validation and native correlation remain pending. Evidence: windows-thread-dispatch-fixture and thread-dispatch-profile-build-fixed. The first runtime build placed its private header before Windows declarations; it failed at compile time and restored source/runtime. Its dependent captures refused execution.
 API contracts: [EnableThreadProfiling](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-enablethreadprofiling), [ReadThreadProfilingData](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readthreadprofilingdata), [PERFORMANCE_DATA](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-performance_data).
 
-
 ### Submission profiler qualification checkpoint
 The integrated runtime passes all 13 analyzer fixtures, the nested/exception/thread-isolation C++ collector fixture, exact recorded combat with profiling disabled/enabled, and the retained 17,000-VI Original comparison. All final native 120/360 captures have valid submission-owner joins and zero audio under/overruns or unsupported accesses. The observed source cadence is zero three-VI intervals in the 120 stage capture and one in the 360 stage capture; different native paths and observer cost prevent a no-dip claim. Runtime SHA-256: 699502f5f4118366b9af349056ddc5eaa7d78f5e1986eb67e70674947280cb67. The desktop package remains the earlier profiled-math build. [Qualification receipt](../../../evidence/high-refresh-submission-profile.json).
-
 
 ### Nested scheduling readers corrected in private experiment
 The first runtime dispatch capture passed execution/state checks but rejected attribution: root and submission readers can share a thread. Windows resets the wait bitmap on each read. The corrected private collector accumulates every read into all enclosing scopes, while retaining cumulative cycle/context-switch deltas and RAII cleanup. Analysis keeps nested CPU cost inclusive and avoids adding same-thread submission cycles to root cycles. The failed capture and refusal remain preserved; this is not a gameplay regression. Evidence: thread-dispatch-profile-captures-fixed and thread-dispatch-profile-build-nested.
 
-
 A separate cadence analyzer now retains every missed update interval from ordinary route traces and separately reports rendered present-return stalls. It correlates root work/waits/cycles, native collision counters, level state and cold overlays without classifying correlations as proven causes. Missing, partial and queue-dropped evidence stays explicit. Synthetic tests and private route analyses are recorded under native-collision-cadence-analysis; full profiler overhead remains unnecessary for this report.
-
 
 The final collision preview integrates and qualifies the expanded submission profiler, update/present cadence analyzer and rare level/death transition markers. The analyzer retains every missed interval and flags partial evidence. Exact recorded, native profiled and default-Play captures are identified by binary hash in [combined qualification](../../../evidence/high-refresh-native-collision.json); delivery is a separate step.
 
-
 ### Bounded collision preview delivered locally
 Both High Refresh Preview and Jitter Capture desktop shortcuts now select source commit 8f94f148ec367e4a221679a40255f12e6353af07 and runtime SHA-256 34ce90c9a11bba75a9ae47f3ae3d8a40d635b20357bf8c52391f4bd015a6bff1. Package and launcher/runtime setup checks pass; shortcut arguments and all 40 checked profile files are preserved. Previous package and links remain available for rollback. The qualified collision optimization, expanded submission diagnostics, cadence analyzer and explicit transition markers are included. Detailed function profiling remains off for ordinary play. This is a local preview, not a release or universal no-20-FPS claim. Late crate/light/bridge jitter and shadow cadence still require owner visual review. [Current evidence](../../../evidence/high-refresh-native-collision.json).
-
 
 ### Final delivery audit
 
 The final binary also completes a muted capture-mode comparison with actor, interpolation, poll and progress logging enabled (recorded inputs replace live input recording). Its combat median active duration is 20.392 ms; extended update intervals are {'2': 1229}. No new audio-buffer errors or unsupported accesses occur. This bounded comparison does not remove the observer-cost caveat for full function profiling.
 
 The cadence analyzer now includes transition calls anywhere between consecutive update returns, including calls outside either measured root. Final normal-Play gap associations: [{"vi": 6588, "delta_vi": 64, "transition_kinds": [], "latest_transition": {"stamp_us": 109416093, "vi": 6494, "poll": 3170, "kind": "death_restart", "age_ms": 1568.366}}, {"vi": 6591, "delta_vi": 3, "transition_kinds": [], "latest_transition": {"stamp_us": 109416093, "vi": 6494, "poll": 3170, "kind": "death_restart", "age_ms": 1611.178}}]. These are actual observed transition entries, not causes inferred from a level number alone. Further owner visual review is still required for the reported late scenery/shadow jitter; a fresh route is also needed to judge combat under live inputs.
-
 
 A private full-function capture timed out because its stop monitor waited for VI rows in a trace intentionally buffered until shutdown. The forced stop lost that buffer; no measurements from that attempt are accepted. The corrected helper monitors the independent FPS CSV, requests normal window closure at its VI target, then analyzes the flushed trace. The recovery and narrower explosion capture pass profiler accounting checks. Evidence: residual-goldwood-profile-recovery and residual-goldwood-profile-late. This is a capture orchestration correction, not a runtime FPS fix.
 
@@ -951,26 +897,20 @@ The runtime-directory stage replay reached normal window closure and flushed its
 
 The first unprofiled draw-key replay supplied FUNCTION_PROFILE=0 and retained dependent profile flags; the parser rejected that unsupported configuration before gameplay. The recovery unsets the profiler, window and GPU-profile variables together. A nested-string setup was withdrawn before execution and replaced with direct setup. Failed setup is excluded from acceptance. Evidence: draw-key-native-late and draw-key-native-late-v2.
 
-
 ## Longer measurement coverage regression (2026-10-16)
 
 The owner trace capped at 256 MiB before Goldwood exit. Full frame records survived, but game-update timing was incorrectly gated by optional semantic hashing, and normal live exit health totals were only printed to stdout, which the launcher filters. Prior expectations of continuous game/audio coverage were false. Candidate remedy emits compact game-update rows whenever timing is enabled, includes cumulative audio counters in progress snapshots, and writes play-health on clean live exit. These use the existing asynchronous timing writer; no hash stream is enabled. Test verification and final long-run audio acceptance remain pending.
 
 The candidate passes interpolation and asynchronous writer checks; the latter initially lacked its required output-file argument and was rerun with the CTest argument. A muted live-mode replay with detailed trace and semantic hashing both disabled retained all 2,068 compact update rows, matching final play-health and native stdout audio counters (zero underruns/overruns), plus progress audio fields. This verifies independent compact coverage; it does not retroactively repair the owner capture or qualify the exit cutscene. Runtime candidate remains undelivered pending renderer qualification.
 
-
 ### Periodic screenshot contamination (2026-10-16)
 The owner long capture enabled a framebuffer readback every 60 native presentations. The first 18:27 contain 607 such calls: median 37.300 ms, p99 54.197 ms; 604 exceed 25 ms. The remaining 35,821 presentation calls have median 0.024 ms, p99 0.620 ms, maximum 9.538 ms. Of 357 coalesced-VI events, 355 are within 10 ms of the screenshot's completion. Present event counts agree with all 55,347 tick counters, so the periodic classification is independently checked. This is strong correlation, not yet a causal A/B proof, and does not cover the later exit cutscene. Candidate removes automatic screenshots from launcher route diagnostics while retaining inputs, compact timing, interpolation, actor traces and final RAM. Explicit developer framebuffer probes remain available. Private evidence: shuriken-reticle-20261016/capture-overhead-correlation.json.
 
-
 The controlled live-mode comparison confirms the periodic-readback cost: identical recorded inputs/profile, same binary and diagnostic streams, with only screenshots enabled/disabled. In the measured VI 3,500-4,500 window, screenshots produce 11 presentation calls above 25 ms (maximum 40.912 ms) and six three-VI/20-FPS updates. Without screenshots, all 501 game intervals are two VI/30 FPS and presentation calls stay below 0.095 ms. Both complete with zero audio underruns/overruns. This verifies the capture hitch remedy; it does not clear the Goldwood exit, which still needs a new capture with complete compact health coverage. Launcher checks pass with route screenshots disabled. The private analysis script first rejected the trace header as a number; its corrected event filter preserves the failed attempt and all raw evidence.
-
 
 The final reticle runtime repeats the normal Play-mode coverage check: 2,070 consecutive compact game-update rows, final play-health counters matching the native exit record, and progress audio fields, with detailed gameplay tracing and semantic hashing disabled. Both audio counters are zero. The revised launcher passes 641 managed checks and 15 setup checks. [Qualification](../../../evidence/high-refresh-reticle.json) retains the screenshot readback A/B result; a new long exit-cutscene capture is still required.
 
-
 The compact health logging and screenshot-free route capture are delivered locally with source `26295c75dd43848f59cdd1268518d7131861dbee` through both preview shortcuts. Earlier capture evidence remains intact; this does not retroactively supply missing final counters or resolve the Goldwood exit-cutscene report.
-
 
 ### Route replay coverage (2026-10-17)
 
@@ -982,7 +922,6 @@ cannot prove the exit was exercised. Scene coverage is now checked explicitly
 for the [ship-cutscene candidate](goldwood-exit-audio.md), alongside deterministic
 Original/Custom comparisons. The exact cause of native-route divergence remains
 unisolated; do not silently promote an input replay to complete route acceptance.
-
 
 ### Ichor route live-prefix coverage (2026-10-18)
 
@@ -998,7 +937,6 @@ or stale length while the files are readable: use an opened handle's end offset
 for live prefix bounds and reject incomplete last rows. No game restart or
 change to the active capture was made. Private evidence:
 issue20-ichor-controls-20261018/live-rescue-review-01 and live-rescue-sync-03.
-
 
 ## Multipass scene counter correction (candidate)
 

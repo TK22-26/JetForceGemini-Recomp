@@ -351,7 +351,6 @@ The owner confirms the Cerulean observation was still Original FPS. The precisio
 
 Owner then restarted at120FPS and confirms the Cerulean jitter is fixed. This adds an owner-verified high-refresh camera location; native Original-mode stepping remains intentional. No further camera-path change was needed for that report.
 
-
 ## Space backdrop jump report, 2026-10-24
 
 The owner isolated two frames of a jumping skybox in the otherwise smooth main-ship to Goldwood launch. Source video: owner recording `2026-10-24 18-26-21.mkv` (retained privately). This reopens the residual apparent hitch specifically as backdrop motion; the previously accepted ship/camera precision fixes remain in place. The current projectile-motion candidate is still awaiting separate live acceptance. Video timing and the sky draw/history path are under investigation; no cause or remedy is yet verified.

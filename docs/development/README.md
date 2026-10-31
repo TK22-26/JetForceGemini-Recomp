@@ -1,43 +1,18 @@
 # Development guide
 
-To play, start with [getting started](../getting-started.md); to report a
-problem, use [playtesting](../playtesting.md). Code changes follow
-[CONTRIBUTING.md](../../CONTRIBUTING.md); automated work follows
-[AGENTS.md](../../AGENTS.md).
+Start with [ROM-free setup and tests](setup.md) or [building the playable game](rom-bootstrap.md).
+The [repository layout](repository-layout.md) identifies each source and tool owner. Changes follow
+[CONTRIBUTING.md](../../CONTRIBUTING.md); autonomous work follows [AGENTS.md](../../AGENTS.md).
 
-## Build, test and release
-
-- [Development setup](setup.md): build and test the source without a ROM.
-- [ROM build](rom-bootstrap.md): produce the playable Windows runtime (shipped in the release ZIP).
-- [Launcher guide](launcher.md): the player-facing guide shipped as the ZIP's `README.md`.
-- [Releasing](releasing.md): package the launcher and publish a versioned release.
-- [Support diagnostics](support-diagnostics.md): crash/freeze capture, symbols and the gameplay trace.
-- [Test quarantine](test-quarantine.md): the documented Linux CI exclusion.
-
-## Engineering reference
-
-- [Experimental high-refresh rendering](../features/high-refresh-rendering.md): implementation, preview launchers, 60/240 FPS replay evidence and remaining limits.
-- [Runtime architecture](architecture.md): build pipeline, overlays, timing, graphics, audio and saves.
-- [Issue investigations and resolutions](issues/README.md): ongoing reports, attempted remedies and verified outcomes.
-- [Runtime fix log](boot-gameplay-fix.md): confirmed defects with cause, fix and validation.
-- [Feature pages](../features/): PC controls, live map and navigation mod, frontend.
-- [Automation](automation.md): the guarded supervisor and diagnostic workflow.
-- [Plans and acceptance contracts](../planning/README.md) and [project status](../status.md).
-
-## Source layout
-
-| Location | Purpose |
+| Work | Reference |
 |---|---|
-| `src/`, `include/jfg/` | Native runtime, boot, rendering, audio, frontend (`src/app`) and host interfaces |
-| `launcher/` | Frontend build and RmlUi resources; embedded Windows helper (C#, PowerShell setup) |
-| `scripts/` | Build orchestration, validation and diagnostic tools |
-| `scripts/autonomy/` | Guarded job scheduling and execution |
-| `tests/` | Source tests and synthetic fixtures |
-| `config/`, `schemas/`, `examples/` | Versioned contracts and validation fixtures |
-| `patches/` | Maintained dependency patches and upstream notices |
-| `evidence/` | Milestone aggregates and signatures |
-| `docs/` | Documentation ([index](../README.md)) |
+| Understand runtime boundaries | [Architecture](architecture.md), [runtime reference](runtime/) |
+| Diagnose a bug | [Issue records](issues/README.md), [support diagnostics](support-diagnostics.md), [runtime fix log](boot-gameplay-fix.md) |
+| Work on controls/UI | [Frontend](../features/frontend.md), [Modern controls design](runtime/modern-controls.md) |
+| Verify original-game behavior | [N64 catalog](../original-game/README.md), [pinned upstream review](../upstream/reference-review-2026-10-01.md) |
+| Package or maintain | [Maintainer guide](../maintenance/README.md) |
+| Plan future work | [Acceptance contracts](../planning/README.md), [project status](../status.md) |
 
-Generated output, dependencies, local inputs and job results use ignored
-directories (`tools/`, `build/`, local caches). Files under `examples/` are
-used by validation, and phase-numbered scripts can still be part of the build.
+The [launcher guide](launcher.md) and [ROM build guide](rom-bootstrap.md) ship in release packages;
+keep their public paths and absolute external links stable. Historical signed milestones remain
+revision-specific evidence and do not certify the current source tree.

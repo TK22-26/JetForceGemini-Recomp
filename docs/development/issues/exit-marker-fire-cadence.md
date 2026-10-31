@@ -79,7 +79,6 @@ persistent logical owner from their caller. Draw order, stack address and
 animated mesh topology are not stable effect identities. Keep this provenance
 separate from geometry correspondence and preserve lifetime/camera cut checks.
 
-
 ## Grenade-fire visual acceptance, 2026-10-25
 
 The owner explicitly confirms grenade fire visually and accepts the result.

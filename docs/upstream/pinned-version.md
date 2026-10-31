@@ -40,7 +40,7 @@ themselves are a maintainer attestation because the ROM-dependent artifacts are
 not tracked:
 
 ```text
-python3 scripts/compare_phase1_evidence.py --validate-aggregate docs/upstream/phase1-build-evidence.json
+python3 scripts/evidence/compare_phase1_evidence.py --validate-aggregate docs/upstream/phase1-build-evidence.json
 ```
 
 Project-owned Phase 1 helpers live in `scripts/` (`build_upstream.py`,

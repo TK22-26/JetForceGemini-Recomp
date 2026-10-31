@@ -223,7 +223,6 @@ portable Windows tree supplies the complete passing suite.
 Private evidence: flying-timing-fix-20261027 (reference inventories, component
 tests, native-v1/v2 results, and swamp-death-original-v2 trap/capture).
 
-
 ### Scope, reference and preliminary comparison
 
 The implementation is a runtime adapter around the shared squad movement class,
@@ -258,7 +257,6 @@ See [the separate record](sdk-printf-field-metadata.md). Preserve their failure
 evidence; the new generation adds only function metadata and validates all
 loaded bytes unchanged. Final gameplay reruns are pending.
 
-
 Final replay preparation initially used an invalid video configuration: the
 harness stored 30 in the remembered custom-FPS field, which the existing parser
 requires to remain 60-1000 even in Original mode. Startup correctly rejected
@@ -266,7 +264,6 @@ that file before loading a scene. The harness now retains 120 in that field
 while explicitly selecting mode=original, matching the prior valid fixtures
 and ordinary launcher serializer. The rejected capture is retained; no game
 parser rule or frame-rate behavior was changed to admit it.
-
 
 ### Final local qualification
 
@@ -303,7 +300,6 @@ review-ready.json and span-preparation-qualification.json. Earlier failed builds
 and runs remain preserved. The exact stable-reference and enemy-class limits
 above still apply; this is not bit-exact emulation of variable hardware slowdown.
 
-
 ## New Original-mode requirement
 
 After the local candidate handoff, the owner required Original FPS to match
@@ -314,7 +310,6 @@ flight adapter in Original is not a complete fix. See
 [the Original-mode investigation](original-mode-simulation-parity.md).
 Earlier finite candidate checks remain valid within their recorded scope.
 
-
 October 27 follow-up: the fresh instruction-timed Original/120 comparison
 matches all 4,939 tracked motion states and their relative VI timing. That
 reference path remains approximately 5-8% slower in matched VI spans than
@@ -323,7 +318,6 @@ has an N64/NA cartridge; hardware measurement and the exact Original-mode
 requirement remain open. See the linked Original-mode record for corrected
 interpretation, primary sources and finite evidence. No additional runtime
 change, publication or issue closure followed this comparison.
-
 
 The owner subsequently supplied a confirmed original N64 image capture.
 A matched Goldwood room-236 local route activates 14 flying actors and shows

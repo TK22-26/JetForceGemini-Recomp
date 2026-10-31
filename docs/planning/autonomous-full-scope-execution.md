@@ -45,7 +45,7 @@ equivalence remain open. Historical runs are not current ledger status.
 
 ## Operating constraints
 
-Follow the [automation guide](../development/automation.md), [AGENTS.md](../../AGENTS.md),
+Follow the [automation guide](../maintenance/automation.md), [AGENTS.md](../../AGENTS.md),
 and [progress guard](autonomy-progress-guard.md). Recover production state and
 allowance before each continuation. Stop at budget, integrity, or approval gates.
 Keep source writers isolated, bound resources and retries, and retain failures.

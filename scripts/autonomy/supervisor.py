@@ -557,7 +557,7 @@ def validate_comparison_packet(packet: dict[str, Any], repo: Path) -> None:
 
 def comparison_pins(packet: dict[str, Any], repo: Path) -> dict[str, str]:
     return {"source_commit": packet["source_commit"],
-            "tool_sha256": file_sha256(repo / "scripts" / "compare_phase9_retrace_hashes.py"),
+            "tool_sha256": file_sha256(repo / "scripts/diagnostics/compare_phase9_retrace_hashes.py"),
             **{key + "_sha256": file_sha256(Path(packet["pin_files"][key]))
                for key in PIN_FILES}}
 

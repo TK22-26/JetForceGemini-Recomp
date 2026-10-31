@@ -25,7 +25,6 @@ for acceptance records, commit and push. The production guard, investigation roo
 cumulative seconds cap and existing counters are retained; no new gameplay
 investigation is authorized.
 
-
 ## Tested preview candidate (2026-10-20)
 
 Desktop shortcut: **JFG - Modern Roll Direction Preview**.
