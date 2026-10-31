@@ -1,5 +1,6 @@
 // Offscreen native input routing check. No desktop input or gameplay.
 #include "../native_ui.cpp"
+#include "../../native/ui_capture_windows.hpp"
 #include <stdexcept>
 static fs::path output;
 static int checks=0;
@@ -10,6 +11,22 @@ static LPARAM point(const char* id) {
  auto* e=item(id);auto p=e->GetAbsoluteOffset(Rml::BoxArea::Border)+Rml::Vector2f(e->GetClientWidth()/2,e->GetClientHeight()/2);
  auto q=p;require(e->Project(q),"project target");p+=p-q;
  return MAKELPARAM(int(p.x),int(p.y));
+}
+static void captureMenuPixels() {
+ auto& s=*surface;frame();ComPtr<ID3D11Resource> resource;s.target->GetResource(&resource);
+ ComPtr<ID3D11Texture2D> target;check(resource.As(&target));D3D11_TEXTURE2D_DESC desc{};target->GetDesc(&desc);
+ desc.Usage=D3D11_USAGE_STAGING;desc.BindFlags=0;desc.CPUAccessFlags=D3D11_CPU_ACCESS_READ;desc.MiscFlags=0;
+ ComPtr<ID3D11Texture2D> staging;check(s.device->CreateTexture2D(&desc,nullptr,&staging));s.gpu->CopyResource(staging.Get(),target.Get());
+ D3D11_MAPPED_SUBRESOURCE mapped{};check(s.gpu->Map(staging.Get(),0,D3D11_MAP_READ,0,&mapped));
+ std::ofstream file(output/"menu.ppm",std::ios::binary);file<<"P6\n"<<desc.Width<<' '<<desc.Height<<"\n255\n";
+ unsigned bright=0;
+ for(unsigned y=0;y<desc.Height;++y)for(unsigned x=0;x<desc.Width;++x){
+  const auto* pixel=static_cast<const unsigned char*>(mapped.pData)+std::size_t(y)*mapped.RowPitch+x*4U;
+  const char rgb[]={static_cast<char>(pixel[2]),static_cast<char>(pixel[1]),static_cast<char>(pixel[0])};file.write(rgb,3);
+  if(pixel[0]>160&&pixel[1]>160&&pixel[2]>160)++bright;
+ }
+ s.gpu->Unmap(staging.Get(),0);
+ require(bright>500,"menu swapchain contains rendered text, not a blank background");
 }
 static void input(HWND source,UINT m,WPARAM w=0,LPARAM l=0) {
  FrontendUiMessage(m,w,l,source);
@@ -24,7 +41,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
   if(argc!=2){LocalFree(argv);return 2;}output=argv[1];LocalFree(argv);
   if(fs::exists(output))return 3;fs::create_directories(output);
   WNDCLASSW cls{};cls.lpfnWndProc=DefWindowProcW;cls.hInstance=instance;cls.lpszClassName=L"JfgMenuInputTests";RegisterClassW(&cls);
-  window=CreateWindowExW(WS_EX_TOOLWINDOW,cls.lpszClassName,L"Offscreen menu checks",WS_OVERLAPPEDWINDOW,-30000,-30000,1280,780,nullptr,nullptr,instance,nullptr);
+  window=CreateWindowExW(WS_EX_TOOLWINDOW,cls.lpszClassName,L"Offscreen menu checks",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,-30000,-30000,1280,780,nullptr,nullptr,instance,nullptr);
   HWND shield=CreateWindowExW(0,L"STATIC",L"",WS_CHILD,0,24,1200,700,window,nullptr,instance,nullptr);
   std::string action;fs::create_directories(output/"profile");
   require(FrontendUiInit(window,output/"profile",[&](const std::string& a){action=a;}),"initialize");ready=true;FrontendUiInputChild(shield);
@@ -40,6 +57,23 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
   surface->ui.controllerState=[](DWORD,XINPUT_STATE*)->DWORD{return ERROR_DEVICE_NOT_CONNECTED;};
   ShowWindow(window,SW_SHOWNOACTIVATE);FrontendUiResize();surface->context->SetDensityIndependentPixelRatio(1);frame();
   require(SUCCEEDED(surface->swap->Present(0,0)),"selected backend presents successfully");
+  HWND viewport=CreateWindowExW(0,L"STATIC",L"",WS_CHILD|WS_VISIBLE,0,24,1200,700,window,nullptr,instance,nullptr);
+  HWND game=CreateWindowExW(0,L"STATIC",L"",WS_CHILD|WS_VISIBLE,0,0,1200,700,viewport,nullptr,instance,nullptr);
+  // The same helper is used by the actual launcher, including repeated calls.
+  const bool overlays=FrontendUiCanOverlayGame();
+  require((GetWindowLongPtrW(window,GWL_STYLE)&WS_CLIPCHILDREN)!=0,"host clipping style matches launcher");
+  for(int cycle=0;cycle<3;++cycle) {
+    auto target=jfg::frontend::sync_ui_capture_windows(window,viewport,game,shield,overlays,true);
+    require(target==(overlays?shield:window),"capture selects a visible input surface");
+    require((IsWindowVisible(shield)!=FALSE)==overlays,"HWND UI is never clipped by the input shield");
+    require((IsWindowVisible(viewport)!=FALSE)==overlays,"fallback menu exposes root presentation");
+    if(cycle==0){press(window,"menu-video");captureMenuPixels();FrontendUiPanel("");frame();}
+    target=jfg::frontend::sync_ui_capture_windows(window,viewport,game,shield,overlays,false);
+    require(IsWindowVisible(viewport)&&!IsWindowVisible(shield),"closing menus restores hosted game");
+    require(target==window,"no hidden shield receives fallback focus");
+  }
+  DestroyWindow(viewport);
+
   SetWindowPos(window,nullptr,0,0,1024,700,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
   FrontendUiResize();frame();
   DXGI_SWAP_CHAIN_DESC1 resized{};RECT client{};GetClientRect(window,&client);

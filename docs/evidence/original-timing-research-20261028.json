@@ -1,0 +1,340 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-28",
+  "status": "causes_isolated_original_hardware_parity_open",
+  "scope": "Owner-authorized local research; not a released fix. No production clock policy, physics coefficient or device latency changed.",
+  "original_hardware_reference": "Original N64 image capture, North American cartridge with Expansion Pak. Exact matched internal state/cycle timing is unavailable.",
+  "findings": [
+    "In the tested native Play build, Original output selects presentation but leaves the host-elapsed simulation clock selected.",
+    "Legacy flight motion matches by update while occurring at different VI schedules.",
+    "The diagnostic instruction clock still substitutes short fixed SP/DP completion delays for real graphics/audio work.",
+    "Original-ROM traces include graphics yield, audio execution and graphics resumption; Clone passes can also yield.",
+    "Hardware-expectation tests demonstrate that functional emulator correctness does not establish timing accuracy."
+  ],
+  "causal_window": {
+    "anchor": "first matching selected flying-actor state",
+    "relative_VIs": [
+      300,
+      800
+    ],
+    "complete": true,
+    "counts": [
+      {
+        "experiment": "device-saturation-control",
+        "updates": 125
+      },
+      {
+        "experiment": "device-model-rsp64",
+        "updates": 135
+      },
+      {
+        "experiment": "device-model-rsp64-dma64",
+        "updates": 137
+      },
+      {
+        "experiment": "device-model-rsp2048-dma2048",
+        "updates": 141
+      },
+      {
+        "experiment": "device-only-rsp2048-dma2048",
+        "updates": 136
+      },
+      {
+        "experiment": "native-instruction-clock",
+        "updates": 140
+      }
+    ],
+    "limits": "Private interventions shorten actual original-microcode execution/DMA delays, preserving their functional execution. They are causal probes, not proposed multipliers or hardware settings. Separate anchors are not identical full-machine states."
+  },
+  "matched_boot_control": {
+    "intervention_starts_at_VI": 2100,
+    "CPU_model_changed": false,
+    "entry_RAM_and_image_equal": true,
+    "pre_intervention_matched_actor_samples": 267,
+    "pre_intervention_all_states_and_VIs_equal": true,
+    "absolute_VI_windows": {
+      "control": [
+        {
+          "first_VI": 1800,
+          "last_VI": 2000,
+          "updates": 54,
+          "delta_counts": {
+            "3": 15,
+            "4": 39
+          }
+        },
+        {
+          "first_VI": 2200,
+          "last_VI": 2500,
+          "updates": 75,
+          "delta_counts": {
+            "4": 75
+          }
+        },
+        {
+          "first_VI": 2300,
+          "last_VI": 2600,
+          "updates": 75,
+          "delta_counts": {
+            "4": 75
+          }
+        }
+      ],
+      "after2100": [
+        {
+          "first_VI": 1800,
+          "last_VI": 2000,
+          "updates": 54,
+          "delta_counts": {
+            "3": 15,
+            "4": 39
+          }
+        },
+        {
+          "first_VI": 2200,
+          "last_VI": 2500,
+          "updates": 80,
+          "delta_counts": {
+            "3": 19,
+            "4": 61
+          }
+        },
+        {
+          "first_VI": 2300,
+          "last_VI": 2600,
+          "updates": 81,
+          "delta_counts": {
+            "4": 57,
+            "3": 24
+          }
+        }
+      ]
+    }
+  },
+  "current_diagnostic_deadlines": {
+    "graphics_Count_ticks": 1000,
+    "audio_Count_ticks": 4000,
+    "Count_frequency_Hz": 46875000,
+    "DP": "same deadline as graphics SP; not independently workload-timed"
+  },
+  "observed_original_task_lifecycle": {
+    "125": {
+      "observed_successful_yield_queries": 229,
+      "completed_main_graphics_tasks": 232,
+      "segments_per_completed_task": {
+        "1": 4,
+        "2": 228
+      },
+      "task_wall_us": {
+        "n": 232,
+        "min": 20.501333333333335,
+        "median": 36439.61066666667,
+        "mean": 36277.7428045977,
+        "max": 38867.08266666667
+      },
+      "task_running_us": {
+        "n": 232,
+        "min": 20.501333333333335,
+        "median": 33431.888,
+        "mean": 33199.60252873563,
+        "max": 34350.336
+      },
+      "yield_resume_gap_us": {
+        "n": 228,
+        "min": 1206.4106666666667,
+        "median": 2751.9413333333287,
+        "mean": 3132.142736842105,
+        "max": 5379.7653333333365
+      },
+      "unfinished_at_capture_end": 1,
+      "limits": "Emulator observations. Main graphics timings combine actual yielded segments; descriptor data_size remains raw because graphics uses game-specific units. Physical RSP cycles are scheduler ticks divided by three."
+    },
+    "236": {
+      "observed_successful_yield_queries": 162,
+      "completed_main_graphics_tasks": 425,
+      "segments_per_completed_task": {
+        "1": 273,
+        "2": 152
+      },
+      "task_wall_us": {
+        "n": 425,
+        "min": 19.978666666666665,
+        "median": 18973.152,
+        "mean": 19145.581979607843,
+        "max": 25219.818666666666
+      },
+      "task_running_us": {
+        "n": 425,
+        "min": 19.978666666666665,
+        "median": 16925.76,
+        "mean": 18331.835708235296,
+        "max": 23084.725333333332
+      },
+      "yield_resume_gap_us": {
+        "n": 152,
+        "min": 1528.1493333333347,
+        "median": 2243.8560000000016,
+        "mean": 2275.277403508772,
+        "max": 2941.184000000001
+      },
+      "unfinished_at_capture_end": 0,
+      "limits": "Emulator observations. Main graphics timings combine actual yielded segments; descriptor data_size remains raw because graphics uses game-specific units. Physical RSP cycles are scheduler ticks divided by three."
+    }
+  },
+  "native_clock_conservation": {
+    "reference-cache-observer": {
+      "samples": 2532,
+      "residual_counts": {
+        "0": 1280,
+        "1": 626,
+        "-1": 625
+      },
+      "over_one_cycle": [],
+      "unknown_cache_ops_final": 0
+    },
+    "reference-detail-observer": {
+      "samples": 2530,
+      "residual_counts": {
+        "0": 1278,
+        "1": 626,
+        "-1": 625
+      },
+      "over_one_cycle": [],
+      "unknown_cache_ops_final": 0
+    }
+  },
+  "hardware_expectation_qualification": {
+    "source": "https://github.com/thelemmy/nemu64-test/tree/9a8b9f7d94ee2f6f57d7feed70c98c22cdc30e6c",
+    "artifact_run": "https://github.com/thelemmy/nemu64-test/actions/runs/34256763312",
+    "artifacts": [
+      {
+        "name": "n64-systemtest-base-z64",
+        "artifact_id": 10068208947,
+        "archive_sha256": "3c506be0b7b831578d6c34d073846fdd7849223ce5154438b304e1a15eaa2c69",
+        "rom_sha256": "6ca63a67baec3195b99160f3c3260b68bcc41d1a0a7bb5626c49c28a4eb09cc0"
+      },
+      {
+        "name": "n64-systemtest-base-cycle-timing-z64",
+        "artifact_id": 10068208099,
+        "archive_sha256": "97b1beff824f80cf41734c715372543db9e9cca222e0e7ae273949dbff53215a",
+        "rom_sha256": "a703a6b4fff02126482b3e9dc1dee5b74c710489f39c77f329ad61c512b9c2e0"
+      }
+    ],
+    "newer_Ares_base": {
+      "total": 4637,
+      "failed": 0
+    },
+    "newer_Ares_timing": {
+      "total": 1604,
+      "failed": 924
+    },
+    "newer_Ares_cycle": {
+      "total": 13,
+      "failed": 9
+    },
+    "failure_families": {
+      "icache: Self-modifying code within basic block (single write) (cycle accurate)": 2,
+      "icache: Modify target of branch (from within delay slot) (cycle accurate)": 1,
+      "icache: Self-modifying code within basic block (with explicit dcache HitWriteBack) (cycle accurate)": 1,
+      "icache: Self-modifying code within basic block (with implicit dcache write back) (cycle accurate)": 1,
+      "icache: Self-modifying code within basic block (with i-cache invalidation) (cycle accurate)": 1,
+      "icache: Self-modifying code within basic block (multiple writes)": 1,
+      "Random (decrement)": 1,
+      "Random (masking)": 1,
+      "Compare (signalling 2)": 7,
+      "Fire exception through CTC1 (followed by MFC1)": 1,
+      "Fire exception through CTC1 (followed by MFC2)": 1,
+      "Timing: Individual instructions (CPU)": 10,
+      "Timing: Exceptions": 135,
+      "Timing: Cached loads and store (with warm cache)": 19,
+      "Timing: COP1 instruction (32 bit)": 223,
+      "Timing: COP1 instruction (64 bit)": 244,
+      "Timing: CPU register dependency": 199,
+      "Timing: COP1 register dependency": 59,
+      "Timing: Likely branch has to count the skipped instruction": 4,
+      "Timing: Data cache Size": 1,
+      "Timing: Load Miss (with VI enabled)": 2,
+      "Timing: Load Miss (with VI disabled)": 8,
+      "Timing: Load from uncached (with VI enabled)": 2,
+      "Timing: Load from uncached (with VI disabled)": 9
+    },
+    "RSP_timing_scope": "Four passing tests cover clock ratio, read-only/mask behavior and scalar SLL, not full task, bus-contention or RDP timing.",
+    "native_selected_synthetic_cases": {
+      "total": 15,
+      "matched": 6,
+      "failed": 9
+    },
+    "EmuHawk_Mupen": "Both CPU interpreter choices remain in the public IPL3 PI_STATUS busy loop at PC A40001C4 in captured frames 2,61,121; full attempts timed out. No suite score.",
+    "EmuHawk_Ares138": "Public base suite did not complete; process exit C0000005 after captured frame 361. No suite score.",
+    "limits": "No synthetic ROM was run on the owner console. Published expected values and test coverage are finite; none of these numbers certify game-wide hardware timing."
+  },
+  "audio": {
+    "matched_window_audio_tasks_each": 250,
+    "samples_per_task_each": 736,
+    "total_samples_each": 184000,
+    "remaining_issue": "Diagnostic loading can starve the host queue even though normal guest sample production matches. Fiber/direct-SP experiments reduce host work but still have one measured loading underrun. Existing normal audio defaults unchanged."
+  },
+  "graphics_quality_control": {
+    "same_states_and_every_VI": true,
+    "common_actor_samples": 1635,
+    "scope": "Only the three sampled single-model flying actors; no changed CPU workload. Does not qualify actual LOD switching or a future timed RSP implementation."
+  },
+  "checks": [
+    {
+      "name": "host_count_clock",
+      "exit": 0
+    },
+    {
+      "name": "reference_event_commit",
+      "exit": 0
+    },
+    {
+      "name": "original_timing_runtime",
+      "exit": 0
+    },
+    {
+      "name": "original_timing_fast",
+      "exit": 0
+    },
+    {
+      "name": "flying_motion",
+      "exit": 0
+    },
+    {
+      "name": "flying_motion_adapter",
+      "exit": 0
+    },
+    {
+      "name": "function_profile",
+      "exit": 0
+    }
+  ],
+  "unqualified": [
+    "Original production policy switch",
+    "Physical N64 per-VI timing",
+    "Full CPU/cache/bus/device timing",
+    "Diagnostic loading audio/performance",
+    "Graphics enhancements independent of a future canonical workload clock"
+  ],
+  "source_reviews": [
+    {
+      "repository": "https://github.com/n64dev/cen64",
+      "revision": "e0641c8452a3ae8edcd2bf4e46794bb4eaafc076",
+      "license_files_sha256": {
+        "LICENSE": "61c30c158e2ec2755d6e84bb647854cdffc9177474f0c707a30a9576d130c1e9"
+      },
+      "scope": "Read-only architecture review; no code imported into product."
+    },
+    {
+      "repository": "https://github.com/libretro/parallel-rsp",
+      "revision": "9ab776a2ce28899769c4f911403234cac62fc799",
+      "license_files_sha256": {
+        "LICENSE": "b84bd6a9273c5185abd2f29e4aa53484d4ca7dbb7658a21284155acb125c0486",
+        "LICENSE.LESSER": "319917f5ccd09878db6f67c9a77dee846055644ca49eb535628b9e020a87261e",
+        "LICENSE.MIT": "4a2c26e184ea1937790a6a752e69ab90f09942d7cacc19e6729f8055d552e075"
+      },
+      "scope": "Read-only architecture review; no code imported into product."
+    }
+  ],
+  "private_evidence_basename": "original-timing-research-20261028"
+}

@@ -1550,7 +1550,12 @@ class Phase4ProductionHarnessTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "nt", "WSL trust-boundary test is Windows-only")
     def test_path_shadow_and_swap_cannot_replace_wsl_trust_anchor(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="phase4-shadow-wsl-") as temp:
+        # Test the fixed path, pin and copy boundary independently of Windows
+        # servicing. The production pin is never changed by this fixture.
+        payload = b"isolated WSL trust-boundary fixture"
+        with tempfile.TemporaryDirectory(prefix="phase4-shadow-wsl-") as temp, \
+            mock.patch.object(harness, "_read_system_executable", return_value=payload), \
+            mock.patch.dict(harness.WINDOWS_BUILD_TOOL_SHA256, {"wsl.exe": self.digest(payload)}):
             fake = Path(temp) / "wsl.exe"
             fake.write_bytes(b"fake WSL")
             with mock.patch.dict(os.environ, {"PATH": temp}):
@@ -1567,7 +1572,10 @@ class Phase4ProductionHarnessTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "nt", "fixed sanitizer replay uses Ubuntu-24.04 WSL")
     def test_harness_compiles_and_executes_bound_bridge_with_gcc_sanitizers(self) -> None:
-        wsl = Path("C:/Windows/System32/wsl.exe")
+        try:
+            wsl = harness._fixed_wsl()
+        except harness.AuditError as error:
+            self.skipTest(f"pinned WSL replay boundary is unavailable: {error}")
         identity = subprocess.run(
             [
                 str(wsl),

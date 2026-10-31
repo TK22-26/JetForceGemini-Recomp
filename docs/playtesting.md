@@ -51,6 +51,9 @@ add crash stacks, recent progress, build metadata and freeze capture.
 | `crash.log` | Fault code and best-effort fault-thread stack: module names, PE identities and relative instruction offsets |
 | `hang.log` | On-demand thread stacks from the running native child; capture has a 12-second timeout |
 | `breadcrumbs.log` | Up to 60 recent one-second samples of frame, retrace and controller-poll progress |
+| mouse.log | Mouse delivery counts and effective input settings; no pointer coordinates or key history |
+| presentation.log | Backend, composition result, and bounded window visibility/size/parent flags; no titles or handles |
+| README.txt | Instructions for reviewing and reporting the selected session |
 
 Each file is limited to 64 KiB and filtered again on export. Empty files mean
 the evidence was unavailable. Capture can be incomplete after stack corruption,

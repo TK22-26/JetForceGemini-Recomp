@@ -1345,11 +1345,34 @@ inline PcFloydContext pc_floyd_context(const Memory& m) {
   return {actor,control,owner,port,mission};
 }
 
+// Same racing selector as controlPlayer / hovershipControl. A stale
+// multiGameType outside multiplayer must not turn ordinary play into racing.
+inline bool pc_race_session(const Memory& m) {
+  return m.u8(0x800A4FB4U)!=0 ||
+    (m.u8(0x800A4FC4U)!=0 && m.u8(0x800A4FD8U)==4U);
+}
+inline bool pc_race_gameplay_active(const Memory& m,std::uint32_t actor,unsigned port) {
+  if(!pc_race_session(m) || pc_player_for_port(m,port)!=actor || !actor ||
+     m.u8(0x800FD7BDU) || m.u32(0x800FD7C4U) ||
+     m.u32(0x801045B8U) || scripted_camera_active(m,actor))return false;
+  const auto c=m.u32(actor+0x68U);
+  return m.valid(c,0x5F0U) && !m.u32(c+0x5C0U);
+}
+template<class OverlayMemory>
+inline bool pc_floyd_pause_screen(const OverlayMemory& m,std::uint32_t base) {
+  // robotPauseInit/Update, module 22 (generated section 21). It has its own
+  // pause screen and never enters the character pause-menu manager.
+  return m.valid(base,0x3444U) &&
+    m.u32(base+0x2A34U)==0x27BDFFC8U &&
+    m.u32(base+0x2B14U)==0x306E2000U &&
+    m.u16(base+0x342CU)!=0 && m.u8(base+0x3438U)==2U;
+}
+
 // PC view ownership must honor the character's own input locks before its
 // update publishes 0x800F6DBC. Pickups/dialogue and scripted actor control can
 // leave the general gameplay/camera flags clear at the outer player boundary.
 inline bool pc_gameplay_active(const Memory &m, std::uint32_t player) {
-  if(!pc_session_active(m,player) || scripted_camera_active(m,player))return false;
+  if(pc_race_session(m) || !pc_session_active(m,player) || scripted_camera_active(m,player))return false;
   const auto control=m.u32(player+0x68U);
   if(!m.valid(control,0x5F0U) || m.u32(control+0xFCU)!=0U)return false;
   // Shared by Vela, Juno and Lupus before their native read-input call.

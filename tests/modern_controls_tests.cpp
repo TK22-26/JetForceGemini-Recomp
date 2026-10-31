@@ -61,7 +61,7 @@ int main(int argc,char **argv) {
     invalid("");invalid(std::string(8193,'x'));invalid(custom+"enabled=0\n");invalid(custom+"unknown=0\n");
     invalid(custom.substr(custom.find('\n')+1));
     for(auto pair:std::array<std::pair<std::string,std::string>,10>{{
-        {"version=7","version=8"},{"enabled=1","enabled=2"},{"aim_toggle=1","aim_toggle=-1"},
+        {"version=8","version=9"},{"enabled=1","enabled=2"},{"aim_toggle=1","aim_toggle=-1"},
         {"pad.jump=10","pad.jump=27"},{"key.fire=70","key.fire=258"},
         {"movement_stick=0","movement_stick=2"},{"movement_deadzone=7849","movement_deadzone=32768"},
         {"axis_threshold=8689","axis_threshold=0"},{"look.modern=1","look.modern=0"},
@@ -75,7 +75,13 @@ int main(int argc,char **argv) {
     auto flightConfig=config;flightConfig.pad_floyd_flight_invert_y=false;
     check(parse_modern_controls(serialize_modern_controls(flightConfig),parsed) && !parsed.pad_floyd_flight_invert_y && parsed.look.aim_invert_y==config.look.aim_invert_y,"flight saves independently of look inversion");
     const std::string flightField="pad_floyd_flight_invert_y=1\n";
-    auto legacyDefaults=defaults;legacyDefaults.erase(legacyDefaults.find(flightField),flightField.size());
+    auto version7=defaults;
+    for(const std::string field:{"movement.free=0\n","combat.transparency=1\n","pad.movement_toggle=-1\n","key.movement_toggle=0\n"})
+        version7.erase(version7.find(field),field.size());
+    version7.replace(0,9,"version=7");
+    check(parse_modern_controls(version7,parsed) && !parsed.free_movement && parsed.combat_transparency,"v7 preserves strafe and combat opacity defaults");
+    invalid(version7+"movement.free=0\n");
+    auto legacyDefaults=version7;legacyDefaults.erase(legacyDefaults.find(flightField),flightField.size());
     auto version6=legacyDefaults;version6.replace(0,9,"version=6");
     check(parse_modern_controls(version6,parsed) && parsed.pad_floyd_flight_invert_y,"v6 preserves original flight steering");
     invalid(version6+flightField);invalid(legacyDefaults);invalid(defaults+flightField);
@@ -165,6 +171,21 @@ int main(int argc,char **argv) {
     PcScopeMotion magnification;
     const auto tuned=tuning.take({100,-100},true,50,1);
     check(magnification.take(tuned,5,1)==PcLookDelta{10,-10},"scope multiplier composes with zoom-aware scaling");
+    {
+      auto options=ModernControlsConfig{};options.free_movement=true;options.combat_transparency=false;
+      options.pad[index(ModernAction::movement_toggle)]=7;options.keys[index(ModernAction::movement_toggle)]='F';
+      check(parse_modern_controls(serialize_modern_controls(options),parsed) && parsed.free_movement && !parsed.combat_transparency &&
+        parsed.pad[index(ModernAction::movement_toggle)]==7 && parsed.keys[index(ModernAction::movement_toggle)]=='F',"movement and opacity preferences/bindings roundtrip");
+      ModernMovementLatch movement;
+      check(!movement.sample(false,false,true,0),"movement defaults strafe");
+      check(movement.sample(true,false,true,0)&&movement.sample(true,false,true,0),"one toggle per press");
+      check(movement.sample(false,false,false,0),"pause retains movement preference");
+      check(movement.sample(true,false,false,0)&&movement.sample(true,false,true,0),"blocked press cannot toggle on focus return");
+      movement.sample(false,false,true,0);
+      check(!movement.sample(true,false,true,0),"next released press toggles back");
+      check(movement.sample(false,true,true,0),"changed default reseeds");
+      check(movement.sample(true,true,false,-3)&&movement.sample(true,true,true,-3),"new device starts at default without phantom press");
+    }
     config={};
     check(modern_action("scope_cycle")==ModernAction::scope_cycle && !modern_action("C_up"),"semantic action lookup");
     check(!modern_binding_conflicts(ModernAction::jump,ModernAction::menu_confirm),"gameplay/menu reuse allowed");
@@ -179,6 +200,20 @@ int main(int argc,char **argv) {
     auto sample=sample_modern_pad(config,pad);
     check(map_modern_actions(sample,false).buttons==8,"A/Cross jumps");
     check(map_modern_actions(sample,true).buttons==0x8000,"A/Cross confirms without jumping in menus");
+    {
+      ModernActionSample input;input.move={-62,47};
+      input.held=modern_bit(ModernAction::fire);
+      check(map_modern_actions(input,true,false,true).buttons==0x2000,"mission objectives receives Fire as Z");
+      check(!map_modern_actions(input,true,false,false).buttons,"Fire remains suppressed in ordinary menus");
+      input.held|=modern_bit(ModernAction::jump)|modern_bit(ModernAction::aim);
+      const auto racing=map_modern_race_actions(input);
+      check(racing.buttons==0xA000 && racing.x==-62 && racing.y==47,"racing preserves boost plus traps and analog steering");
+      check(map_modern_actions(input,false).buttons!=racing.buttons,"racing does not use character jump or aim masks");
+      input.held=0;check(!map_modern_race_actions(input).buttons,"racing release preserves native press edges");
+      config={};StandardControllerSample racePad;racePad.axes[5]=32767;
+      check(map_modern_race_actions(sample_modern_pad(config,racePad)).buttons==0x2000,"default pad trigger deploys trap");
+      check(map_modern_race_actions(sample_modern_keyboard(config,[](int key){return key==1;})).buttons==0x2000,"default mouse fire deploys trap");
+    }
     // Boss combat keeps the configured actions and separates strafe from aim.
     pad={};pad.axes[0]=-32767;pad.axes[1]=-32767;pad.axes[5]=32767;
     auto boss_input=sample_modern_pad(config,pad);
@@ -324,6 +359,24 @@ int main(int argc,char **argv) {
       check(map_modern_actions(input,false).buttons==0x8000,"ordinary Interact still enters the mission pad");
       check(map_modern_floyd_actions(input,true,false).buttons==0x8000,"controller mission retains original acceleration binding");
 
+    }
+    // Exercise the real keyboard sampler and native-Z mapping with remapped
+    // mouse Fire, while ensuring unrelated menu clicks stay suppressed.
+    for(const int fire : {1,2,int('F')}) {
+      ModernControlsConfig remapped;
+      remapped.keys[index(ModernAction::fire)]=fire;
+      remapped.keys[index(ModernAction::aim)]=0;
+      for(const bool objectives : {false,true}) {
+        const auto actions=sample_modern_keyboard(remapped,[&](int key) {
+          return key==fire && modern_menu_key_allowed(remapped,key,objectives);
+        });
+        const auto native=map_modern_actions(actions,true,false,objectives);
+        check((native.buttons&0x2000U)==(objectives?0x2000U:0U),
+          "configured mouse/keyboard Fire cycles only Floyd objectives");
+      }
+      for(const int click : {1,2})
+        check(modern_menu_key_allowed(remapped,click,true)==(click==fire),
+          "Floyd pointer gate admits only the configured mouse Fire button");
     }
     std::cout<<checks<<" modern controls checks passed\n";
 }

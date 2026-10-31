@@ -263,3 +263,11 @@ history, but full fire confirmation remains open. The earlier pending statuses
 above record the progression of the investigation, not the final result.
 No release containing this batch is claimed. Muzzle-flash animation, character
 shadows and floor reflections are separate paths, not verified fixes here.
+
+
+### Subsequent fire acceptance, 2026-10-25
+
+The owner confirms grenade fire visually. Its transform-continuity correction
+in d98d7fc is now resolved locally alongside the accepted marker correction.
+This supersedes the full-fire verification pending status above. No additional
+memory proof or claim about native sprite frame cadence is implied.

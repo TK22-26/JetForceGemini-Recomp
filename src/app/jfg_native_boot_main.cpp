@@ -382,7 +382,18 @@ int wmain(int argc, wchar_t **argv) {
       {"JFG_DIAGNOSTIC_BUFFER_RESERVATION", "1"},
       {"JFG_DIAGNOSTIC_TEXTURE_UPLOAD_RESERVE", "1"},
     };
+    char reference_play_flag[2]{};
+    const bool reference_play_clock = GetEnvironmentVariableA(
+        "JFG_DIAGNOSTIC_REFERENCE_PLAY_CLOCK", reference_play_flag, 2U) == 1U &&
+        reference_play_flag[0] == '1';
     for (const auto &setting : settings) {
+      // Reference-clock Play must execute the modeled guest CPU paths.
+      // Keep presentation upload optimizations independent of that choice.
+      if (reference_play_clock &&
+          (std::strcmp(setting.name, "JFG_DIAGNOSTIC_NATIVE_SHADOW_FILTER") == 0 ||
+           std::strcmp(setting.name, "JFG_DIAGNOSTIC_NATIVE_CACHE_ALL") == 0 ||
+           std::strcmp(setting.name, "JFG_DIAGNOSTIC_DIRECT_SP_ACCESS") == 0))
+        continue;
       char *existing = nullptr;
       std::size_t length = 0;
       if (_dupenv_s(&existing, &length, setting.name) != 0) return 2;

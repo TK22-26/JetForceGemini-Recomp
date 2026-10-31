@@ -2,6 +2,7 @@
 // Build-tree RT64 adapters share immutable host metadata with the decoder.
 #include "jfg/renderer/interpolation_history.hpp"
 #include "jfg/renderer/presentation_policy.hpp"
+#include "jfg/renderer/enhanced_shadow_capture.hpp"
 #include "jfg/runtime/async_diagnostic_file.hpp"
 #include <algorithm>
 #include <array>
@@ -224,6 +225,7 @@ inline InterpolationTraceFile& interpolation_trace_file() {
 }
 inline void finish_interpolation_trace() noexcept {
     interpolation_trace_file().finish();
+    finish_enhanced_shadow_capture();
 }
 inline void trace_interpolation(const char* event, std::uint64_t id,
         unsigned source, unsigned target, unsigned frame, unsigned count,

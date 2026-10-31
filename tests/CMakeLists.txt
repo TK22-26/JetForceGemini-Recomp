@@ -908,3 +908,21 @@ target_include_directories(jfg_latency_recovery_tests PRIVATE "${PROJECT_SOURCE_
 target_compile_features(jfg_latency_recovery_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_latency_recovery_tests)
 add_test(NAME jfg.latency_recovery COMMAND jfg_latency_recovery_tests)
+
+add_executable(jfg_flying_motion_tests flying_motion_tests.cpp)
+target_include_directories(jfg_flying_motion_tests PRIVATE "../include")
+target_compile_features(jfg_flying_motion_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_flying_motion_tests)
+add_test(NAME jfg.flying_motion COMMAND jfg_flying_motion_tests)
+
+add_executable(jfg_flying_motion_adapter_tests flying_motion_adapter_tests.cpp)
+target_include_directories(jfg_flying_motion_adapter_tests PRIVATE "../include")
+target_compile_features(jfg_flying_motion_adapter_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_flying_motion_adapter_tests)
+add_test(NAME jfg.flying_motion_adapter COMMAND jfg_flying_motion_adapter_tests)
+
+add_executable(jfg_flight_transition_music_tests flight_transition_music_tests.cpp)
+target_include_directories(jfg_flight_transition_music_tests PRIVATE "../include")
+target_compile_features(jfg_flight_transition_music_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_flight_transition_music_tests)
+add_test(NAME jfg.flight_transition_music COMMAND jfg_flight_transition_music_tests)

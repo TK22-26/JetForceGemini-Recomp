@@ -13,7 +13,7 @@ struct MenuPointerFrame {
   bool valid{}, moved{}, left_press{}, right_press{};
   int press_x{},press_y{};
 };
-enum class GuestMenuKind { none, title, start, saves, save_actions, pause_root, pause_info, pause_character, options, option_detail, pause_map };
+enum class GuestMenuKind { none, title, start, saves, save_actions, pause_root, pause_info, pause_character, options, option_detail, pause_map, floyd_pause };
 struct GuestMenuState {
   GuestMenuKind kind{};
   int selected{};

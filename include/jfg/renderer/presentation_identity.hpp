@@ -1,5 +1,7 @@
 #pragma once
 #include "jfg/renderer/rigid_camera.hpp"
+#include "jfg/renderer/shadow_geometry.hpp"
+#include "jfg/renderer/enhanced_shadow.hpp"
 #include <array>
 #include <algorithm>
 #include <bitset>
@@ -31,6 +33,18 @@ struct PresentationCameraIdentity {
   bool pose_valid = false;
   // Sky uses native operands for byte validation, folded model/view only for motion.
   std::optional<RigidPresentationPose> motion_pose;
+};
+// realReflectPrint emits an actor-specific adjusted camera for skinned models.
+// Keep its mirror transform in world space and its ordinary camera separate.
+struct PresentationReflectionIdentity {
+  std::uint32_t matrix=0, actor=0;
+  std::uint64_t lifetime=0;
+  std::array<float,16> adjustment{};
+  PresentationCameraIdentity camera;
+  // Reflections appear/disappear independently of the directly drawn actor.
+  // A separate presentation lifetime prevents a new mirror pass from freezing
+  // ordinary model animation through the whole-actor history safeguard.
+  std::uint64_t presentation_lifetime() const { return lifetime | (1ULL<<63U); }
 };
 struct PresentationSpriteIdentity {
   std::uint32_t anchor = 0, actor = 0, sprite = 0;
@@ -93,12 +107,29 @@ struct PresentationTracerIdentity {
   std::uint32_t actor=0, control=0, header=0, vertices=0, matrix=0;
   RigidPresentationPose pose{};
 };
+struct PresentationShadowIdentity {
+  EnhancedShadowProxy sprite_caster;
+  std::uint64_t lifetime=0, receiver=0, projection=0;
+  std::uint32_t actor=0, vertices=0, texture=0;
+  std::vector<unsigned> corners;
+  // Unquantized X/Z used by the native projector when it computes UVs.
+  std::vector<std::array<float,2>> uv_positions;
+  std::vector<std::array<float,3>> precise_positions;
+  float receiver_lift=0;
+  std::array<float,2> light_shear{};
+  bool light_valid=true;
+  // Exact producer ownership survives missing clip-corner history.
+  bool history_valid=true;
+  float opacity=1;
+};
 struct PresentationCameraFade { std::uint32_t actor=0; float opacity=0; };
 struct PresentationSceneIdentity {
   std::vector<PresentationCameraFade> camera_fades;
+  std::vector<PresentationShadowIdentity> shadows;
   std::vector<PresentationModelIdentity> models;
   std::vector<PresentationConeIdentity> cones;
   std::vector<PresentationCameraIdentity> cameras;
+  std::vector<PresentationReflectionIdentity> reflections;
   std::vector<PresentationSpriteIdentity> sprites;
   std::vector<PresentationRigidIdentity> rigids;
   std::vector<PresentationBeamIdentity> beams;
@@ -107,6 +138,31 @@ struct PresentationSceneIdentity {
   std::vector<PresentationGlassIdentity> glass;
   std::vector<PresentationLimbIdentity> limbs;
 };
+// capture() emits nonoverlapping ranges in address order. The address only
+// finds this scene's polygon; its actor/receiver lifetime owns history.
+inline const PresentationShadowIdentity* presentation_shadow_vertex(
+    const PresentationSceneIdentity& scene,std::uint32_t source) {
+  auto it=std::upper_bound(scene.shadows.begin(),scene.shadows.end(),source,
+      [](std::uint32_t address,const auto& shadow){return address<shadow.vertices;});
+  if(it==scene.shadows.begin())return nullptr;
+  --it;
+  return (source-it->vertices)%10U==0U &&
+      (source-it->vertices)/10U<it->corners.size()?&*it:nullptr;
+}
+// Gameplay can retain a copied camera matrix in overlay storage. Accept it
+// only when the complete decoded product matches one unambiguous captured
+// camera pose; equal buffer copies are not different cameras.
+inline const PresentationCameraIdentity* presentation_shadow_camera(
+    const PresentationSceneIdentity& scene,const std::array<float,16>& matrix) {
+  const PresentationCameraIdentity* result=nullptr;
+  for(const auto& camera:scene.cameras) {
+    if(!camera.pose_valid || !rigid_pose_matches_matrix(camera.pose,matrix))continue;
+    if(result && (result->identity!=camera.identity ||
+       result->generation!=camera.generation || result->pose!=camera.pose))return nullptr;
+    result=&camera;
+  }
+  return result;
+}
 // A reduced-detail mesh can use the main model's bone palette. Resolve
 // palette ownership first, then the vertex stream within that same actor.
 struct PresentationVertexIdentity {
@@ -393,6 +449,12 @@ class PresentationIdentityTracker {
 public:
   void retire(std::uint32_t actor) {
     actors_.erase(actor);
+    for(auto it=shadows_.begin();it!=shadows_.end();)
+      if(it->second.identity.actor==actor)it=shadows_.erase(it);else ++it;
+    for(auto it=shadow_lifetimes_.begin();it!=shadow_lifetimes_.end();)
+      if(it->first[0]==actor)it=shadow_lifetimes_.erase(it);else ++it;
+    for(auto it=reflections_.begin();it!=reflections_.end();)
+      if(it->second.identity.actor==actor)it=reflections_.erase(it);else ++it;
     if(sky_actor_==actor){sky_actor_=0;sky_lifetime_={};}
     for(auto it=tracers_.begin();it!=tracers_.end();)
       if(it->second.identity.actor==actor)it=tracers_.erase(it);else ++it;
@@ -547,6 +609,157 @@ public:
     }
     tracers_[vertices]=record;
   }
+  // US shadow projection clips each receiver triangle, then packs all
+  // resulting polygons into alternating shared DMA buffers. Observe the
+  // original triangle before clipping overwrites its stack scratch storage.
+  void shadow_begin(std::span<const std::uint8_t> data) {
+    level(PresentationGuestView(data).u32(0x800FB114U));shadow_clips_.clear();
+  }
+  std::optional<ShadowClipGeometry> shadow_clip(std::span<const std::uint8_t> data,
+      std::uint32_t descriptor, std::uint32_t points, unsigned count,
+      std::uint32_t projector, unsigned sides) const {
+    const PresentationGuestView ram(data);
+    if(count!=3U || sides!=4U || !ram.valid(points,48U) ||
+       !ram.valid(projector,32U) || !ram.valid(descriptor,12U))return {};
+    ShadowClipGeometry clip;
+    for(unsigned i=0;i<3;++i)for(unsigned j:{0U,2U})
+      clip.receiver[i][j]=std::bit_cast<float>(ram.u32(points+i*16U+j*4U));
+    for(unsigned i=0;i<4;++i)for(unsigned j=0;j<2;++j) {
+      clip.projector[i][j]=std::bit_cast<float>(ram.u32(projector+i*8U+j*4U));
+      if(!std::isfinite(clip.projector[i][j]))return {};
+    }
+    clip.receiver_key=shadow_receiver_key(clip,ram.u32(descriptor+8U));
+    if(!clip.receiver_key)return {};
+    return clip;
+  }
+  void shadow_clipped(std::span<const std::uint8_t> data,
+      const ShadowClipGeometry& clip,unsigned count) {
+    const PresentationGuestView ram(data);
+    const auto polygon=ram.u32(0x800F45E8U);
+    if(count>=3U && count<=8U && polygon<256U)shadow_clips_[polygon]=clip;
+  }
+  std::size_t shadow_record_count(std::uint32_t actor) const {
+    return std::count_if(shadows_.begin(),shadows_.end(),[&](const auto& r){return r.second.identity.actor==actor;});
+  }
+  void shadow(std::span<const std::uint8_t> data,std::uint32_t descriptor,
+      std::uint32_t control,std::uint32_t light,std::uint32_t first,
+      std::uint64_t tick) {
+    const PresentationGuestView ram(data);
+    level(ram.u32(0x800FB114U));
+    const auto actor=ram.u32(descriptor),base=ram.u32(0x800A0EB0U);
+    const auto last=ram.u32(0x800A0EBCU),polygons=ram.u32(0x800F45E8U);
+    if(last<first || last-first>256U || polygons>256U || (base&1U) ||
+       first>10000U || !ram.valid(base,static_cast<std::size_t>(last)*10U) ||
+       !ram.valid(actor,0xA1U) || !ram.valid(control,0x10U))return;
+    // Reused vertex bytes must never retain another actor's provenance.
+    const auto begin=PresentationGuestView::physical(base)+first*10U,end=begin+(last-first)*10U;
+    for(auto it=shadows_.begin();it!=shadows_.end();) {
+      const auto a=it->first;const auto b=a+it->second.bytes.size();
+      if(a<end && begin<b)it=shadows_.erase(it);else ++it;
+    }
+    unsigned cursor=first;
+    for(unsigned i=0;i<polygons;++i) {
+      const auto polygon=0x800F45F0U+i*12U;
+      const auto count=ram.u8(polygon),flags=ram.u8(polygon+1U);
+      if(count<3U || count>8U || cursor>last || count>last-cursor)return;
+      const auto found=shadow_clips_.find(i);
+      {
+        Shadow record;
+        record.tick=tick;record.header=ram.u32(actor+0x40U);record.models=ram.u32(actor+0x6CU);
+        record.control=control;
+        auto& id=record.identity;
+        id.actor=actor;id.vertices=PresentationGuestView::physical(base)+cursor*10U;
+        id.opacity=float(ram.u8(id.vertices+9U))/255.0f;
+        id.texture=ram.u32(descriptor+4U);
+        id.receiver=found!=shadow_clips_.end()?found->second.receiver_key:0;
+        id.receiver_lift=std::bit_cast<float>(ram.u32(descriptor+0x14U));
+        id.projection=(std::uint64_t(control)<<32U)|light;
+        // US objPrint dispatches header+0x1E == 1 to the sprite renderer
+        // (0x8000DEA0..0x8000DED8). These actors have no model instances.
+        // shadowProject uses control.scale * 10 for the horizontal extent
+        // (0x8001E288..0x8001E2AC). Sprite objects have no volumetric mesh:
+        // Enhanced defines a spherical shadow proxy at the native sprite origin,
+        // with that authored footprint radius. Header+0x6C/+0x6E are receiver
+        // search limits, NOT caster dimensions; they must not shape this proxy.
+        if(ram.valid(record.header,0x70U) && ram.u8(record.header+0x1EU)==1U &&
+           (ram.u8(control+0xCU)&4U)) {
+          auto& proxy=id.sprite_caster;proxy.actor=actor;proxy.projection=id.projection;
+          for(unsigned c=0;c<3U;++c)proxy.current[c]=std::bit_cast<float>(ram.u32(actor+0xCU+c*4U));
+          proxy.current[3]=std::bit_cast<float>(ram.u32(control))*10.0f;
+          proxy.vertical=proxy.current[3];
+          proxy.previous=proxy.current;proxy.previous_vertical=proxy.vertical;
+          proxy.valid=proxy.vertical>0.0f && proxy.vertical<10000.0f &&
+              proxy.current[3]>0.0f && proxy.current[3]<10000.0f;
+          for(const auto x:proxy.current)proxy.valid=proxy.valid&&std::isfinite(x)&&std::abs(x)<1000000.0f;
+        }
+        id.light_valid=!light||ram.valid(light,6U);
+        if(light&&id.light_valid)id.light_shear=shadow_light_shear(ram.u16(light),ram.u16(light+2U));
+        bool valid=found!=shadow_clips_.end();
+        for(unsigned v=0;v<count;++v) {
+          const auto index=ram.u8(polygon+2U+v);
+          const auto point=(flags&(1U<<v))?0x800F35E8U+index*32U:0x800F33D8U+index*16U;
+          std::array<float,3> position{};
+          for(unsigned c=0;c<3;++c)position[c]=std::bit_cast<float>(ram.u32(point+c*4U));
+          const auto corner=found!=shadow_clips_.end()?shadow_corner_identity(found->second,position):0U;
+          id.corners.push_back(corner);valid=valid && corner!=0;
+          id.uv_positions.push_back({position[0],position[2]});
+          const auto vertex=base+(cursor+v)*10U;
+          const std::array<float,3> packed{
+              static_cast<float>(static_cast<std::int16_t>(ram.u16(vertex))),
+              static_cast<float>(static_cast<std::int16_t>(ram.u16(vertex+2U))),
+              static_cast<float>(static_cast<std::int16_t>(ram.u16(vertex+4U)))};
+          const auto precise=shadow_precise_position(position,
+              std::bit_cast<float>(ram.u32(descriptor+0x14U)),packed);
+          id.precise_positions.push_back(precise.value_or(packed));
+        }
+        id.history_valid=valid;
+        record.bytes.resize(count*10U);
+        for(unsigned b=0;b<record.bytes.size();++b)record.bytes[b]=ram.u8(id.vertices+b);
+        shadows_[id.vertices]=std::move(record);
+      }
+      cursor+=count;
+    }
+  }
+  // Observe the pinned US realReflectPrint skeletal conversion after it
+  // emits fixed output. The inverse actor and mirrored actor operands still
+  // live in that call's stack frame. No simulation bytes are changed.
+  void reflection(std::span<const std::uint8_t> data, std::uint32_t matrix,
+      std::uint32_t actor, std::uint32_t inverse_actor,
+      std::uint32_t mirrored_actor, std::uint64_t tick) {
+    const PresentationGuestView ram(data);
+    level(ram.u32(0x800FB114U));
+    const auto physical=PresentationGuestView::physical(matrix);
+    reflections_.erase(physical);
+    const auto number=ram.u32(0x800FA634U), mode=ram.u32(0x800FA630U);
+    if(number>3U || (matrix&3U) || (inverse_actor&3U) || (mirrored_actor&3U) ||
+       !ram.valid(matrix,64U) || !ram.valid(inverse_actor,64U) ||
+       !ram.valid(mirrored_actor,64U) || !ram.valid(actor,0xA1U))return;
+    if(reflections_.size()>=4096U)reflections_.clear();
+    Reflection record{};
+    record.header=ram.u32(actor+0x40U);record.models=ram.u32(actor+0x6CU);record.tick=tick;
+    auto& id=record.identity;id.matrix=physical;id.actor=actor;
+    id.camera.identity=0x5246000000000000ULL | (std::uint64_t(mode)<<32U) | (number+1U);
+    id.camera.generation=camera_generation_;id.camera.pose_valid=true;
+    id.camera.pose.world={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+    std::array<float,16> inverse{},mirrored{};
+    for(unsigned i=0;i<16U;++i) {
+      record.words[i]=ram.u32(matrix+i*4U);
+      inverse[i]=std::bit_cast<float>(ram.u32(inverse_actor+i*4U));
+      mirrored[i]=std::bit_cast<float>(ram.u32(mirrored_actor+i*4U));
+      id.camera.pose.view[i]=std::bit_cast<float>(ram.u32(0x800FAF78U+i*4U));
+      id.camera.pose.projection[i]=std::bit_cast<float>(ram.u32(0x800FAA70U+i*4U));
+    }
+    // Preserve the guest's single-precision multiply/add grouping.
+    for(unsigned row=0;row<4U;++row)for(unsigned col=0;col<4U;++col) {
+      const volatile float t0=inverse[row*4]*mirrored[col],
+          t1=inverse[row*4+1]*mirrored[4+col],
+          t2=inverse[row*4+2]*mirrored[8+col],
+          t3=inverse[row*4+3]*mirrored[12+col];
+      const volatile float left=t1+t2,right=t0+t3;
+      id.adjustment[row*4+col]=left+right;
+    }
+    reflections_[physical]=record;
+  }
   // camSetProjMtx writes one camera MVP at *a1 and emits its DMA command.
   // Observe before the guest call; bind the record to the eventual task copy.
   void camera(std::span<const std::uint8_t> data, std::uint32_t output_pointer,
@@ -598,7 +811,7 @@ public:
         for(unsigned i=0;i<16 && unchanged;++i)
           unchanged=ram.u32(it->first+i*4U)==it->second.words[i];
         result.cameras.push_back({it->first,it->second.identity,camera_generation_,
-                                  it->second.pose,unchanged});
+                                  it->second.pose,unchanged,std::nullopt});
         ++it;
       }
     }
@@ -749,6 +962,38 @@ public:
       }
     }
     actors_ = std::move(live);
+    for(auto it=shadows_.begin();it!=shadows_.end();) {
+      auto& record=it->second;auto& id=record.identity;
+      const auto actor=actors_.find(id.actor);
+      bool unchanged=true;
+      for(unsigned i=0;i<record.bytes.size() && unchanged;++i)
+        unchanged=ram.u8(id.vertices+i)==record.bytes[i];
+      if(tick<record.tick || tick-record.tick>6U || !unchanged || actor==actors_.end() ||
+         actor->second.header!=record.header || actor->second.models!=record.models) {
+        it=shadows_.erase(it);continue;
+      }
+      const std::array<std::uint64_t,3> key{id.actor,id.projection,id.receiver};
+      auto& lifetime=shadow_lifetimes_[key];
+      if(lifetime.actor!=actor->second.serial)lifetime={actor->second.serial,++serial_,tick};
+      lifetime.tick=tick;id.lifetime=lifetime.serial;
+      id.sprite_caster.lifetime=actor->second.serial;
+      result.shadows.push_back(id);++it;
+    }
+    for(auto it=shadow_lifetimes_.begin();it!=shadow_lifetimes_.end();)
+      if(tick<it->second.tick || tick-it->second.tick>6U)it=shadow_lifetimes_.erase(it);else ++it;
+    for(auto it=reflections_.begin();it!=reflections_.end();) {
+      const auto& record=it->second;const auto actor=actors_.find(record.identity.actor);
+      bool unchanged=true;
+      for(unsigned i=0;i<16U;++i)unchanged=unchanged && ram.u32(it->first+i*4U)==record.words[i];
+      if(tick<record.tick || tick-record.tick>6U || !unchanged || actor==actors_.end() ||
+         actor->second.header!=record.header || actor->second.models!=record.models)
+        it=reflections_.erase(it);
+      else {
+        auto retained=record.identity;retained.lifetime=actor->second.serial;
+        result.reflections.push_back(retained);++it;
+      }
+    }
+
     for(auto it=tracers_.begin();it!=tracers_.end();) {
       const auto& record=it->second;const auto& id=record.identity;
       const auto actor=actors_.find(id.actor);
@@ -860,6 +1105,23 @@ private:
     std::array<std::uint32_t, 16> words;
     RigidPresentationPose pose{};
   };
+  struct Shadow {
+    PresentationShadowIdentity identity;
+    std::uint32_t header=0,models=0,control=0;
+    std::uint64_t tick=0;
+    std::vector<std::uint8_t> bytes;
+  };
+  struct ShadowLifetime { std::uint64_t actor=0,serial=0,tick=0; };
+  std::map<std::uint32_t,Shadow> shadows_;
+  std::map<unsigned,ShadowClipGeometry> shadow_clips_;
+  std::map<std::array<std::uint64_t,3>,ShadowLifetime> shadow_lifetimes_;
+  struct Reflection {
+    PresentationReflectionIdentity identity;
+    std::uint32_t header=0,models=0;
+    std::uint64_t tick=0;
+    std::array<std::uint32_t,16> words{};
+  };
+  std::map<std::uint32_t,Reflection> reflections_;
   struct Tracer {
     PresentationTracerIdentity identity{};
     std::uint32_t models=0;
@@ -888,6 +1150,8 @@ private:
       actors_.clear();
       sky_actor_=0;sky_lifetime_={};
       rigids_.clear();
+      reflections_.clear();
+      shadows_.clear();shadow_clips_.clear();shadow_lifetimes_.clear();
       tracers_.clear();
       cameras_.clear();
       sprites_.clear();

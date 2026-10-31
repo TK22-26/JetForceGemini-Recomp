@@ -51,17 +51,35 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
+| VERIFY-EMU-20261027 | Original-ROM reference qualification of local batch | Scoped original-ROM comparisons and full available regression checks complete; limits recorded | [Matrix and limits](emuhawk-reference-verification-20261027.md) |
+| SUPPORT-ZIP-20261027 | Added presentation diagnostics and upload sanitization | Final rebuilt exporter passes actual ZIP privacy/bounds checks; unreleased | [Report](support-zip-presentation-sanitization.md) |
+| TOOLING-PORTABILITY-20261027 | Local batch GCC warnings and updated WSL trust-boundary fixture | GCC Release build and 108 tests pass; pinned WSL sanitizer coverage unavailable | [Report](local-batch-portability-validation.md) |
+| SDK-PRINTF-20261027 | Missing original SDK formatting functions crash sound warnings | Original-byte metadata recovery, actual formatting and final native replays pass; unreleased | [Report](sdk-printf-field-metadata.md) |
+| ORIGINAL-TIMING-20261027 | Original FPS does not select original simulation timing | Open: host-clock and omitted device-time causes isolated; yielding measured; reference timing and diagnostic loading audio remain unqualified | [Report](original-mode-simulation-parity.md) |
+| GH-048 | [Playtest] In high framerates flying enemies move faster | Open: native host-clock cadence affects Original too; stable elapsed-VI candidate is not an exact Original remedy | [Report](github-flying-enemy-speed.md) |
+| GH-049 | [Playtest] With Modern Controls can't view objectives during Floyd Challanges | local candidate; component and actual native handler verified; owner batch review pending | [Report](github-floyd-objectives-controls.md) |
+| GH-050 | [Playtest] With Modern Controls can't use trap items in Jeff's Arcade race | local candidate; actual native racing trap execution verified; owner batch review pending | [Report](github-arcade-trap-controls.md) |
+| GH-051 | [Playtest] Lupus' Nightvision in Mizar's Palace is pixelated | local resolution and temporal candidate verified; owner route review pending | [Report](github-nightvision-damage-presentation.md) |
+| GH-052 | [Playtest] With Modern Controls the character turns transparent during combat | local candidate; configuration/UI and actual native fade verified; owner batch review pending | [Report](github-combat-player-transparency.md) |
+| GH-053 | [Proposal] With Modern Controls a toggle for free movement (like with Classic) with a button press | local candidate; configuration/UI/native movement and Aim checks passed; owner batch review pending | [Report](github-modern-free-movement.md) |
+| GH-054 | Erro open app driver video intel | reported version belongs to another project; reporter confirmation needed | [Report](github-intel-launch-version-mismatch.md) |
+| GH-055 | [proposal] Question for camera control | local candidate; configuration/UI/native movement and Aim checks passed; owner batch review pending | [Report](github-modern-free-camera.md) |
+| GH-057 | Menu icons show grey boxes in widescreen; title vignette edge is stepped instead of smooth | local icon and vignette candidates; GPU and actual menu captures verified; owner batch review pending | [Report](github-menu-icon-vignette.md) |
+| GH-058 | [Playtest] Game starts but only shows black screen | cause unverified; bounded presentation diagnostics locally tested; reporter evidence needed | [Report](github-black-screen-audio.md) |
 | RENDER-VELA-SKIRT | Vela skirt transparency artifact on slopes | Resolved locally: skirt/focus repair and smooth transparency owner-verified; unreleased | [Report](vela-skirt-focus-tearing.md) |
 | RENDER-CAMERA-CADENCE | Pulsing flight camera and ship motion | Camera/ship/startup corrections owner-verified locally; separate skybox correction passes replay and owner review | [Report](cutscene-camera-cadence.md) |
-| AUDIO-FLIGHT-045 | Missing music in specific flight transitions | Closed: owner confirms all three routes match original N64; #45 closed, no code change | [Report](flight-transition-missing-music.md) |
-| RENDER-SHOT-001 | Low-FPS effects at high output rates | Ship beams, travelling shots and grenade shockwaves owner-verified locally; opening marker owner-verified locally; fire improved but still open; unreleased | [Report](high-refresh-shot-effects.md) |
-| GH-046 | Character shadows jitter at high FPS | Report intake recorded; reproduction/source cause pending | [Report](github-character-shadow-jitter.md) |
+| UI-AUDIO-SETTINGS | Audio Settings opens as an old modal with about 20 seconds delay | Resolved locally: owner confirms immediate opening; original delay cause unknown; unreleased | [Report](audio-settings-window-delay.md) |
+| AUDIO-FLIGHT-045 | Missing music in specific flight transitions | Music selection and continuous handoff candidate tested on all three departures; owner/hardware listening pending; #45 remains open | [Report](flight-transition-missing-music.md) |
+| RENDER-SHOT-001 | Low-FPS effects at high output rates | Ship beams, travelling shots and grenade shockwaves owner-verified locally; opening marker and fire owner-verified locally; unreleased | [Report](high-refresh-shot-effects.md) |
+| GH-047 | [Playtest] In high framerates the floor reflections are animated in lower frames | owner-approved local reflected geometry and motion corrections; unreleased | [Report](floor-reflection-geometry.md) |
+| GH-046 | [Playtest] In high framerate character shadows jitter while moving | owner-approved local Enhanced Shadows v26; unreleased | [Report](github-character-shadow-jitter.md) |
+| RENDER-020 | Bridge environmental shadow and Enhanced scope | Classified: dark strip is pre-existing ground vertex shading; bridge has no projected-shadow control; environment replacement is separate work | [Evidence and compatibility](enhanced-shadow-environment-scope.md) |
 | META-001 | GitHub merge identity differs from local no-reply/UTC policy | PR #42 server metadata observed; owner informed; history preserved; publication commit/tag identity checked locally | [Report](github-merge-metadata.md) |
 | BUILD-V14 | Clean CI: GCC rain initializer and RT64 checkout line endings | All supported-platform and merged-main CI jobs pass; included in v1.4.0 | [Report](v14-clean-ci-portability.md) |
 | RENDER-CHIEF | Tawfret chief cutscene camera motion and floating square | Both corrections owner-verified; original N64 helper artifact removed in v1.4.0 | [Report](tawfret-chief-camera-and-square.md) |
-| GH-041 | Cutscene skip completion time (#41) | Owner requests faster completion for some scenes; measurement and optimization pending | [Follow-up](cutscene-skip-completion-time.md) |
+| GH-041 | [Enhancement] Reduce cutscene skip completion time | local candidate; three native routes complete; owner batch review pending | [Report](cutscene-skip-completion-time.md) |
 | UI-009 | Live map Mods redesign disabled/focus states | Owner-approved 2026-10-21; visible badges and reference padlock accepted locally; 973 native checks pass; included in v1.4.0 | [Review](live-map-mods-layout.md) |
-| GH-040 | Steam Deck Proton startup and blank launcher menus (#40) | Reporter confirms v1.4.0 boots and shows gameplay; menus still blank. Proton details/log pending; local Hyper-V access denied, no Proton execution; native port deferred | [Report](github-steam-deck-proton-startup.md) |
+| GH-040 | Does not run through Proton on the Steam Deck | local candidate; Windows and actual Proton UI verified; Steam Deck reporter review pending | [Report](github-steam-deck-proton-startup.md) |
 | GH-039 | Give all weapons leaves inventory unchanged (#39) | Reproduced: paused Mods dialog expires requests. Candidate processes grants while paused and confirms application; native/runtime/launcher checks passed and owner confirms actual UI grant; released in v1.4.0; #39 closed with reporter retest requested | [Report](github-give-all-weapons.md) |
 | GH-038 | Fet-Bubb crashes shortly after attacking (#38) | Dump exactly matches VibinToast v1.1.8, a different project; our v1.3.0 passes bounded boss comparison; local defect unestablished; #38 closed and reporter redirected | [Report](github-fet-bubb-crash.md) |
 | GH-037 | Floyd cannot fire (#37) | Fully approved locally by owner for v1.4.0; reporter re-verification after delivery pending | [Report](github-floyd-cannot-fire.md) |
@@ -69,7 +87,7 @@ Detailed per-issue records are added as those issues receive further work.
 | GH-034 | Modern boss aim range, including both Mizar fights (#34) | Owner-approved after live Twin Mantis review; five boss fixtures match EmuHawk in both Modern paths; included in v1.4.0; reporter retest after delivery | [Report](github-twin-mantis-aim-range.md) |
 | DIAG-003 | Cutscene selector rejects a running game | Normal native parent/child pair miscounted as two games; corrected detection owner-confirmed; character ID swap corrected awaiting review; room45 direct-entry crash and stale-request startup open | [Report](cutscene-review-selector-loading.md) |
 | UI-008 | Launcher menu hover remains highlighted over game | Initial hover fix regressed dropdown selection; corrected routing passes 55 menu and 790 controls checks; owner confirms fixed; included in v1.4.0 | [Report](launcher-menu-hover-stuck.md) |
-| GH-032 | Intermittent mouse look and ineffective vertical inversion (#32) | Official v1.3.0 verified; cause unproved; bounded mouse diagnostics implemented and tested, package/live capture pending; default/reset-Off separately accepted, included in v1.4.0 | [Report and review](github-mouse-look-and-inversion.md) |
+| GH-032 | [Playtest] Mouselook not working. | hosted-window delivery candidate; exact reporter reproduction unavailable | [Report](github-mouse-look-and-inversion.md) |
 | GH-033 | Modern Controls missing sideways roll (#33) | Roll bindings, automatic-roll setting, prone direction and backward-crawl fixes owner-accepted; included in v1.4.0 | [Cause, evidence and selected policy](github-modern-controls-side-roll.md) |
 | PERF-005 | SS Anubis ledge-testing stutter in Lighting Preview | Earlier gaps measured; repeat Anubis capture steady, intermittent cause open | [Report](tawfret-lighting-preview-stutter.md) |
 | RENDER-019 | Tawfret brightness and distant haze differ from N64 | Fog candidate checked against original tasks; owner approved locally; included in v1.4.0 | [Report](tawfret-brightness-fog-fidelity.md) |
@@ -119,7 +137,7 @@ Detailed per-issue records are added as those issues receive further work.
 | AUTO-001 | Pending request withdrawal aborts a worker | Cached withdrawals survive live recovery; successor resume handling passes isolated corruption/cancellation fixtures | [Cause and recovery](high-refresh-queue-cancellation.md) |
 | NATIVE-001 | Access violation during extended native Play replay | Fresh overlay reset fixes captured stale path-cache write; targeted return/native respawn tests pass; local preview installed, live verification pending | [Crash evidence](native-play-access-violation.md) |
 | BUILD-001 | Restored source and stale generated renderer disagree | Coherent rebuild qualified in exact-state replay with sane renderer rates; desktop baseline unaffected | [Cause and safeguards](stale-generated-renderer.md) |
-| STORAGE-001 | Historical diagnostics fill the working volume | Local recovery; retention policy open | [Cause and verified archive](diagnostic-storage-exhaustion.md) |
+| STORAGE-001 | Historical diagnostics fill the working volume | October 28 bulk cleanup verified (~299.5 GB freed); current timing set retained; three small policy-blocked leftovers | [Cause, retention and cleanup](diagnostic-storage-exhaustion.md) |
 | PERF-005 | GitHub #19 invasion replay at 1-2 FPS | Original reporter confirms resolved and requests closure; explicit closeout TODO; GitHub still open | [Report and comparisons](github-invasion-replay-stutter.md) |
 | PERF-004 / DISPLAY-002 | Opening village cadence / cutscenes ignore 4:3 option | Combined private candidate passes active-shot cadence at 120/360; aspect checks pass; loading, presentation and live review remain separate | [Evidence and progress](opening-village-and-cutscene-aspect.md) |
 | AUDIO-003 | Ship-cutscene stutter and Goldwood exit audio | Included in v1.3; both ship scenes owner-accepted and final route has zero audio underruns | [Exit investigation](goldwood-exit-audio.md) |
@@ -256,7 +274,11 @@ source scope and limitations. No released-resolution claim.
 
 - [Actor jumps while rotating the camera](camera-turn-actor-jumps.md): camera continuity correction owner-verified at 120 FPS; unreleased.
 
-- [Actor LOD option](actor-lod-option.md): live Original/High behavior owner-verified; controls moved to Video Settings > Rendering with UI checks passing.
-- [Exit marker and grenade fire cadence](exit-marker-fire-cadence.md): marker sparkle identity repair owner-verified locally; fire partially improved and remains open; unreleased.
+- [Actor LOD option](actor-lod-option.md): live Original/High behavior owner-verified; controls moved to Video Settings > Enhancements with UI checks passing.
+- [Exit marker and grenade fire cadence](exit-marker-fire-cadence.md): marker sparkle identity repair and grenade fire owner-verified locally; unreleased.
 
 - [Drone buried after hut collision](drone-buried-after-hut-collision.md): open; saved actor position is below the floor, but the collision sequence and original-game parity remain unconfirmed.
+
+- [Gems visible through hanging vines](vine-gem-occlusion.md): captured cause identified; solid-core material correction passes component/GPU/gameplay checks; owner batch review pending.
+
+Owner review on October 27: Enhanced Shadows preview v26 visually approved ("shadows look good now"); unreleased. See [shadow investigation](github-character-shadow-jitter.md).

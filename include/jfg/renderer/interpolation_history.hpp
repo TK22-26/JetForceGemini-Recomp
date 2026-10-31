@@ -1,4 +1,5 @@
 #pragma once
+#include "jfg/renderer/enhanced_shadow.hpp"
 #include "jfg/renderer/rigid_camera.hpp"
 #include <array>
 #include <algorithm>
@@ -91,6 +92,7 @@ struct PresentationTransform {
     PresentationMatrix current_world{}, previous_camera{}, current_camera{};
 };
 struct PresentationHistoryFrame {
+    std::shared_ptr<const EnhancedShadowFrame> enhanced_shadows;
     std::vector<PresentationTransform> transforms;
     std::uint64_t tick = 0;
     unsigned source_rate = 0;

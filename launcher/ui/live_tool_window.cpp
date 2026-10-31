@@ -58,8 +58,8 @@ LRESULT CALLBACK liveProcedure(HWND w, UINT m, WPARAM p, LPARAM l) {
   case WM_GETMINMAXINFO: {
     auto *info = reinterpret_cast<MINMAXINFO *>(l);
     int dpi = static_cast<int>(GetDpiForWindow(w));
-    info->ptMinTrackSize = {MulDiv(live.kind == "settings" ? 620 : live.kind == "video" ? 760 : live.kind == "map" || live.kind == "controllers" ? 720 : 440, dpi, 96),
-                            MulDiv(live.kind == "settings" ? 300 : live.kind == "map" ? 500 : 540, dpi, 96)};
+    info->ptMinTrackSize = {MulDiv(live.kind == "audio" ? 440 : live.kind == "settings" ? 620 : live.kind == "video" ? 760 : live.kind == "map" || live.kind == "controllers" ? 720 : 440, dpi, 96),
+                            MulDiv(live.kind == "audio" ? 300 : live.kind == "settings" ? 300 : live.kind == "map" ? 500 : 540, dpi, 96)};
     return 0;
   }
   case WM_SIZE:
@@ -116,6 +116,7 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
       live.kind = name == L"map"         ? "map"
                   : name == L"inventory" ? "inventory"
                   : name == L"controllers" ? "controllers"
+                  : name == L"audio" ? "audio"
                   : name == L"video" ? "video"
                   : name == L"settings" ? "settings"
                                          : "";
@@ -149,10 +150,10 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
   RegisterClassW(&cls);
   int density = static_cast<int>(IsWindow(live.owner) ? GetDpiForWindow(live.owner) : GetDpiForSystem());
   int initialX = CW_USEDEFAULT, initialY = CW_USEDEFAULT;
-  RECT size{0, 0, MulDiv(live.kind == "settings" ? 720 : live.kind == "video" ? 840 : live.kind == "map" ? 1200 : live.kind == "controllers" ? 1280 : 486, density, 96),
-            MulDiv(live.kind == "settings" ? 320 : live.kind == "video" ? 576 : live.kind == "map" ? 740 : live.kind == "controllers" ? 920 : 716, density, 96)};
+  RECT size{0, 0, MulDiv(live.kind == "audio" ? 520 : live.kind == "settings" ? 720 : live.kind == "video" ? 840 : live.kind == "map" ? 1200 : live.kind == "controllers" ? 1280 : 486, density, 96),
+            MulDiv(live.kind == "audio" ? 320 : live.kind == "settings" ? 320 : live.kind == "video" ? 576 : live.kind == "map" ? 740 : live.kind == "controllers" ? 920 : 716, density, 96)};
   AdjustWindowRectExForDpi(&size, WS_OVERLAPPEDWINDOW, FALSE, 0, density);
-  if(live.kind=="controllers" || live.kind=="video" || live.kind=="settings") {
+  if(live.kind=="controllers" || live.kind=="video" || live.kind=="audio" || live.kind=="settings") {
     MONITORINFO monitor{sizeof(MONITORINFO)};
     if(GetMonitorInfoW(MonitorFromWindow(live.owner,MONITOR_DEFAULTTONEAREST),&monitor)) {
       const auto& work=monitor.rcWork;
@@ -167,9 +168,9 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
   }
   live.window = CreateWindowExW(
       0, cls.lpszClassName,
-      live.kind == "settings" ? L"Settings" : live.kind == "video" ? L"Video Settings" : live.kind == "map" ? L"JFG Live Map" : live.kind == "controllers" ? L"JFG Controller Mapping" : L"JFG Live Inventory",
+      live.kind == "audio" ? L"Audio Settings" : live.kind == "settings" ? L"Settings" : live.kind == "video" ? L"Video Settings" : live.kind == "map" ? L"JFG Live Map" : live.kind == "controllers" ? L"JFG Controller Mapping" : L"JFG Live Inventory",
       WS_OVERLAPPEDWINDOW, initialX, initialY, size.right - size.left,
-      size.bottom - size.top, (live.kind=="controllers" || live.kind=="video" || live.kind=="settings")?live.owner:nullptr, nullptr, instance, nullptr);
+      size.bottom - size.top, (live.kind=="controllers" || live.kind=="video" || live.kind=="audio" || live.kind=="settings")?live.owner:nullptr, nullptr, instance, nullptr);
   if (!live.window)
     return 3;
   jfg::frontend::apply_window_chrome(live.window);
@@ -207,7 +208,7 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
     DestroyWindow(live.window);
     return 3;
   }
-  if(live.kind!="controllers" && live.kind!="video" && live.kind!="settings") {
+  if(live.kind!="controllers" && live.kind!="video" && live.kind!="audio" && live.kind!="settings") {
   std::wstring command =
       quoteLive(live.helper.wstring()) + L" --frontend-worker " +
       (live.kind == "map" ? std::wstring(L"map-data")
@@ -248,7 +249,7 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
   CloseHandle(child.hThread);
   }
   if(live.kind=="video" || live.kind=="settings")EnableWindow(live.owner,FALSE);
-  if(live.kind=="controllers" || live.kind=="video" || live.kind=="settings"){SetPropW(live.window,L"JfgLiveModal",reinterpret_cast<HANDLE>(1));notifyModal();}
+  if(live.kind=="controllers" || live.kind=="video" || live.kind=="audio" || live.kind=="settings"){SetPropW(live.window,L"JfgLiveModal",reinterpret_cast<HANDLE>(1));notifyModal();}
   FrontendUiFrame({});
   ShowWindow(live.window, show);
   UpdateWindow(live.window);

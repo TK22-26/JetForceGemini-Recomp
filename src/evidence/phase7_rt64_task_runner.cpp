@@ -343,9 +343,15 @@ int replay_live_snapshot(const int argc, const char* const* argv) {
         return 3;
     }
     jfg::Rt64ShellError error = jfg::Rt64ShellError::none;
+    char mask_evidence[8]{};
+    const bool cpu_masks=GetEnvironmentVariableA("JFG_EVIDENCE_CPU_MASKS",
+        mask_evidence,sizeof(mask_evidence))==1 && mask_evidence[0]=='1';
+    std::vector<std::byte> submitted_words(rdram.size()),live_words(rdram.size());
+    for(std::size_t n=0;n<rdram.size();++n)submitted_words[n^3U]=rdram[n];
+    live_words=submitted_words;
     std::unique_ptr<jfg::Rt64Shell> shell = jfg::Rt64Shell::create(
         {window.get(), GetCurrentThreadId(), header, rdram, &vi, true,
-         jfg::Rt64MemoryLayout::big_endian},
+         jfg::Rt64MemoryLayout::big_endian,false,cpu_masks},
         error);
     if (shell == nullptr) {
         std::cerr << "RT64 setup failed: "
@@ -367,6 +373,8 @@ int replay_live_snapshot(const int argc, const char* const* argv) {
             task.cutscene_prompt = {true, false, std::strtof(prompt, nullptr), vi.width, 240};
         }
         error = shell->submit(task);
+        if(error==jfg::Rt64ShellError::none && cpu_masks)
+            error=shell->commit_cpu_writeback(submitted_words,live_words);
         if (error != jfg::Rt64ShellError::none) {
             break;
         }

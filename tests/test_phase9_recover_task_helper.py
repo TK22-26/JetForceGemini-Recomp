@@ -1,10 +1,35 @@
 from collections import Counter
 import unittest
 from scripts.phase9_recover_task_helper import (validate_cfg, validate_pi_init,
-    validate_loop_cfg, validate_thread_entry_reference, validate_returning_loop)
+    validate_loop_cfg, validate_thread_entry_reference, validate_returning_loop, validate_switch_boundary)
 
 
 class HelperBoundaryTests(unittest.TestCase):
+
+    def test_switch_boundary_and_callees(self):
+        words = [0x01000008, 0, 0x0c000040, 0, 0x03e00008, 0]
+        self.assertEqual(validate_switch_boundary(words, self.entry, {self.callee},
+                         {0: [self.entry + 8]}), Counter({self.callee: 1}))
+        for table, allowed in (({}, {self.callee}), ({0: []}, {self.callee}),
+            ({0: [self.entry + 4]}, {self.callee}),
+            ({0: [self.entry + 24]}, {self.callee}),
+            ({0: [self.entry + 9]}, {self.callee}), ({0: [self.entry + 8]}, set())):
+            with self.subTest(table=table, allowed=allowed), self.assertRaises(ValueError):
+                validate_switch_boundary(words, self.entry, allowed, table)
+        for index, word in ((0, 0x0100f809), (1, 0x10000001), (4, 0)):
+            invalid = words.copy()
+            invalid[index] = word
+            with self.subTest(index=index), self.assertRaises(ValueError):
+                validate_switch_boundary(invalid, self.entry, {self.callee}, {0: [self.entry + 8]})
+
+    def test_explicit_shared_delay_slot_entry(self):
+        words = [0x01000008, 0, 0x0c000040, 0, 0x03e00008, 0]
+        self.assertEqual(validate_switch_boundary(words, self.entry, {self.callee},
+                         {0: [self.entry + 4]}, shared_slots={1}), Counter({self.callee: 1}))
+        with self.assertRaises(ValueError):
+            validate_switch_boundary(words, self.entry, {self.callee},
+                                     {0: [self.entry + 8]}, shared_slots={1})
+
     def test_returning_leaf_loop(self):
         words = [0x24080001, 0x15000003, 0, 0x1000fffc, 0, 0x03e00008, 0xa0400000, 0, 0]
         self.assertEqual(validate_returning_loop(words, self.entry), Counter())

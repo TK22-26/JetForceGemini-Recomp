@@ -4,6 +4,11 @@
 #include "jfg/runtime/cutscene_skip_label.hpp"
 #include "jfg/renderer/glass_uv_history.hpp"
 #include "jfg/renderer/beam_uv_history.hpp"
+#include "jfg/renderer/shadow_uv_history.hpp"
+#include "jfg/renderer/shadow_presentation.hpp"
+#include "jfg/renderer/shadow_settings.hpp"
+#include "enhanced_shadow_collect.hpp"
+#include "jfg/renderer/enhanced_shadow_caster.hpp"
 #include "rt64_f3ddkr.hpp"
 #include "rt64_blur_pairing.hpp"
 #include "jfg/renderer/blur_source_audit.hpp"
@@ -17,6 +22,7 @@
 #include "jfg/renderer/attached_effect_history.hpp"
 #include <bit>
 #include "jfg/renderer/rt64_f3ddkr_address.hpp"
+#include "jfg/renderer/level_solid_core.hpp"
 
 #include "gbi/rt64_gbi_f3d.h"
 #include "gbi/rt64_gbi_rdp.h"
@@ -32,6 +38,8 @@
 #include <cstdint>
 #include <mutex>
 #include <future>
+#include <fstream>
+#include <string>
 #include "jfg/renderer/floating_environment.hpp"
 #include <unordered_map>
 
@@ -70,6 +78,7 @@ constexpr std::uint32_t kMaximumMoveMemBytes = 64U;
 
 struct SemanticVertexState {
     SemanticPresentationSample sample;
+    SemanticPresentationSample shadow_caster;
     PresentationMatrix world{};
     std::uint32_t source = 0;
     std::uint32_t uv_source = 0; // Exact DMA triangle corner, independent of vertex clones.
@@ -106,6 +115,7 @@ struct Context {
     std::bitset<kVertexCount> loaded_vertices{};
     std::span<const std::uint8_t> simulation_rdram{};
     bool interpolate = false;
+    bool enhanced_shadows = false;
     std::uint64_t vi_tick = 0U;
     PresentationHistory presentation_history;
     std::optional<NativeBlurPass> blur_pass;
@@ -120,15 +130,20 @@ struct Context {
     PresentationHistory shared_matrix_baseline_history; // Same-input old-policy diagnostic.
     PresentationHistory camera_shape_baseline_history; // Explicit comparison only.
     SemanticPresentationHistory semantic_history;
+    SemanticPresentationHistory shadow_caster_history;
+    SemanticPresentationHistory shadow_proxy_history;
     AttachedEffectHistory attached_effect_history;
     EffectAttachmentFrames attachment_frames;
     GlassUvHistory glass_uv_history;
     BeamUvHistory beam_uv_history;
+    ShadowUvHistory shadow_uv_history;
     std::shared_ptr<const PresentationSceneIdentity> identities;
-    std::array<hlslpp::float4x4,kMatrixCount> model_matrices{}, camera_matrices{};
+    std::array<hlslpp::float4x4,kMatrixCount> model_matrices{}, camera_matrices{}, caster_matrices{};
+    std::array<bool,kMatrixCount> caster_matrix_valid{};
     std::array<std::uint64_t,kMatrixCount> camera_ids{};
     std::array<const PresentationCameraIdentity*,kMatrixCount> camera_owners{};
     std::array<bool,kMatrixCount> model_finite{};
+    std::array<const PresentationReflectionIdentity*,kMatrixCount> reflection_owners{};
     bool semantic_target = false;
     std::vector<SemanticVertexState> semantic_vertices;
     // Synchronous interpreter scratch only. Published frames own their data;
@@ -140,7 +155,12 @@ struct Context {
     std::vector<std::size_t> vertex_counts;
     std::vector<hlslpp::float4x4> inverse_worlds;
     std::vector<bool> inverse_ready;
+    std::vector<LevelSolidCoreRange> level_solid_cores;
     bool billboard = false;
+    // Preserve the guest G_SET/CLEARGEOMETRYMODE state independently of the
+    // per-triangle cull mode installed in RT64. Reflected model passes set
+    // G_CULL_FRONT to reverse the winding of their mirrored transforms.
+    std::uint32_t guest_geometry_mode = 0U;
     bool failed = false;
 };
 
@@ -274,6 +294,7 @@ void no_op(RT64::State*, RT64::DisplayList**) {
 }
 
 PresentationMatrix presentation_matrix(const hlslpp::float4x4& value);
+hlslpp::float4x4 presentation_matrix(const PresentationMatrix& value);
 
 void dma_matrix(RT64::State* state, RT64::DisplayList** dl) {
     Context* context = find_context(state);
@@ -315,13 +336,23 @@ void dma_matrix(RT64::State* state, RT64::DisplayList** dl) {
         // already-combined camera MVP. RT64 uses row-vector matrices here.
         decoded = hlslpp::mul(decoded, context->matrices[0U]);
     }
+    context->reflection_owners[index] = nullptr;
+    context->caster_matrix_valid[index] = false;
     context->camera_ids[index] = 0U;
     context->camera_owners[index] = nullptr;
-    if (multiply && index != 0U && context->interpolate && context->identities) {
+    if (multiply && index != 0U && (context->interpolate || context->enhanced_shadows) && context->identities) {
         context->model_matrices[index] = model_matrix;
+        context->caster_matrices[index] = model_matrix;
+        context->caster_matrix_valid[index] = true;
         context->camera_matrices[index] = context->matrices[0U];
         context->camera_ids[index] = context->camera_ids[0U];
         context->camera_owners[index] = context->camera_owners[0U];
+        if(const auto* reflection=context->reflection_owners[0U]) {
+            context->reflection_owners[index]=reflection;
+            context->model_matrices[index]=hlslpp::mul(model_matrix,presentation_matrix(reflection->adjustment));
+            const auto& pose=reflection->camera.pose;
+            context->camera_matrices[index]=hlslpp::mul(presentation_matrix(pose.view),presentation_matrix(pose.projection));
+        }
         const auto inverse = hlslpp::inverse(model_matrix);
         bool finite = true;
         for(int r=0;r<4;++r) for(int c=0;c<4;++c)
@@ -354,6 +385,23 @@ void dma_matrix(RT64::State* state, RT64::DisplayList** dl) {
                     context->camera_owners[index] = &camera;
             }
         if(ambiguous)context->camera_owners[index]=nullptr;
+        const PresentationReflectionIdentity* reflected=nullptr;
+        bool reflection_ambiguous=false;
+        for(const auto& reflection:context->identities->reflections) {
+            if(reflection.matrix!=address)continue;
+            auto pose=reflection.camera.pose;pose.world=reflection.adjustment;
+            if(!rigid_pose_matches_matrix(pose,presentation_matrix(decoded)))continue;
+            if(reflected)reflection_ambiguous=true;
+            reflected=&reflection;
+        }
+        if(reflected && !reflection_ambiguous && !context->camera_ids[index]) {
+            context->reflection_owners[index]=reflected;
+            context->camera_ids[index]=reflected->camera.identity;
+            context->camera_owners[index]=&reflected->camera;
+        }
+        if(reflected && interpolation_trace_enabled())
+            trace_interpolation("reflection-bind",context->vi_tick,0U,address,reflected->actor,
+                context->reflection_owners[index]?1U:0U,0.0F,reflected->lifetime,0U);
     }
     context->matrices[index] = decoded;
     context->loaded_matrices.set(index);
@@ -361,6 +409,18 @@ void dma_matrix(RT64::State* state, RT64::DisplayList** dl) {
     context->matrix_physical_addresses[index] = address;
     context->selected_matrix = index;
     select_matrix(*context);
+}
+
+void set_geometry_mode(RT64::State* state, RT64::DisplayList** dl) {
+    if (auto* context = find_context(state))
+        context->guest_geometry_mode |= (*dl)->w1;
+    RT64::GBI_F3D::setGeometryMode(state, dl);
+}
+
+void clear_geometry_mode(RT64::State* state, RT64::DisplayList** dl) {
+    if (auto* context = find_context(state))
+        context->guest_geometry_mode &= ~(*dl)->w1;
+    RT64::GBI_F3D::clearGeometryMode(state, dl);
 }
 
 void dma_texture_offset(RT64::State* state, RT64::DisplayList** dl) {
@@ -488,6 +548,12 @@ SemanticVertexState semantic_vertex(const Context& context,std::uint32_t source,
     result.source = source;
     if(!context.identities || context.billboard) return result;
     const auto slot=context.selected_matrix;
+    if(context.enhanced_shadows && context.caster_matrix_valid[slot])
+        result.shadow_caster=enhanced_shadow_caster(identity,
+            presentation_matrix(context.caster_matrices[slot]),local);
+    if(context.enhanced_shadows && rigid && !result.shadow_caster.valid)
+        result.shadow_caster=enhanced_shadow_rigid_caster(*context.identities,*rigid,
+            source,presentation_matrix(context.matrices[slot]),local);
     if(tracer) {
         if(const auto vertex=tracer_presentation_vertex(*tracer,source,
                 presentation_matrix(context.matrices[slot]),local)) {
@@ -531,15 +597,27 @@ SemanticVertexState semantic_vertex(const Context& context,std::uint32_t source,
             std::abs(float(world.w)-1.0f)<0.001f;
         return result;
     }
+    if(!identity.owner && !context.identities->shadows.empty()) {
+        if(const auto shadow=shadow_presentation_vertex(*context.identities,source,
+                presentation_matrix(context.matrices[slot]),local)) {
+            result.sample=shadow->sample;result.camera_owner=shadow->camera;
+            result.world={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+            return result;
+        }
+    }
     if(context.camera_ids[slot]==0U) return result;
     if (!identity.owner)
         return result;
     const auto &owner = *identity.owner;
+    if(const auto* reflection=context.reflection_owners[slot])
+        if(owner.actor!=reflection->actor || owner.lifetime!=reflection->lifetime)return result;
     const auto &geometry = identity.geometry ? *identity.geometry : owner;
     result.sample.key = {
         owner.lifetime, (std::uint64_t(owner.actor) << 32U) | geometry.instance,
         geometry.model, context.camera_ids[slot],
         identity.joint, identity.vertex};
+    if(const auto* reflection=context.reflection_owners[slot])
+        result.sample.key[0]=reflection->presentation_lifetime();
     if (identity.cone) {
         result.cone_owner=identity.cone;result.cone_model=identity.owner;
         // Keep the actor's coherence group but distinguish each engine and
@@ -609,13 +687,13 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
     hlslpp::float4x4 unanchored_matrix{};
     bool anchored_billboard = false;
     std::array<std::uint64_t, 4> billboard_key{};
-    const auto rigid_key = context->interpolate && context->identities &&
+    const auto rigid_key = (context->interpolate || context->enhanced_shadows) && context->identities &&
             context->semantic_target && !context->billboard
         ? presentation_rigid_key(*context->identities,
             context->matrix_physical_addresses[context->selected_matrix], address,
             static_cast<std::uint32_t>(count))
         : std::array<std::uint64_t, 4>{};
-    const auto* rigid_owner = context->interpolate && context->identities &&
+    const auto* rigid_owner = (context->interpolate || context->enhanced_shadows) && context->identities &&
         (rigid_key[0] || !context->identities->beams.empty() || !context->identities->shockwaves.empty())
         ? presentation_rigid_owner(*context->identities,
             context->matrix_physical_addresses[context->selected_matrix]) : nullptr;
@@ -690,17 +768,28 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
         vertex.color.b = guest_byte(*context, *state, source + 8U);
         vertex.color.a = guest_byte(*context, *state, source + 9U);
     }
+    // Shadows share a native camera matrix with scenery, but their clipped
+    // geometry has its own history eligibility. Do not let a newly visible
+    // shadow corner hold the surrounding room's camera transform.
+    bool shadow_batch=false;
+    if((context->interpolate || context->enhanced_shadows) && context->identities && context->semantic_target)
+        for(const auto& shadow:context->identities->shadows)
+            if((shadow.history_valid || context->enhanced_shadows) &&
+               address<shadow.vertices+shadow.corners.size()*10U &&
+               shadow.vertices<address+count*10U) {shadow_batch=true;break;}
+    if(shadow_batch)select_matrix(*context);
     state->rsp->setVertex(
         kScratchAddress,
         static_cast<std::uint32_t>(count),
         static_cast<std::uint32_t>(first));
+    if(shadow_batch)select_matrix(*context);
     {
         const int workload_cursor = state->ext.workloadQueue->writeCursor;
         RT64::Workload& workload =
             state->ext.workloadQueue->workloads[workload_cursor];
         std::array<PresentationVertexIdentity,32> vertex_identities{};
         if(context->identities && context->semantic_target && !context->billboard &&
-           ((context->interpolate && context->camera_ids[context->selected_matrix]!=0U) ||
+           ((context->enhanced_shadows || (context->interpolate && context->camera_ids[context->selected_matrix]!=0U)) ||
             !context->identities->camera_fades.empty()))
             presentation_vertex_identities(*context->identities,
                 context->matrix_physical_addresses[context->selected_matrix],address,
@@ -711,7 +800,7 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
                 continue;
             }
             if(context->identities && context->semantic_target &&
-               (context->interpolate || !context->identities->camera_fades.empty())) {
+               (context->interpolate || context->enhanced_shadows || !context->identities->camera_fades.empty())) {
                 context->semantic_vertices.resize(workload.drawData.worldIndices.size());
                 const auto& positions=workload.drawData.posFloats;
                 context->semantic_vertices[global]=semantic_vertex(*context,
@@ -846,7 +935,7 @@ void dma_vertex(RT64::State* state, RT64::DisplayList** dl) {
         draw.posTransformed.emplace_back(transformed);
         draw.posScreen.emplace_back(screen);
         if(context.identities && context.semantic_target &&
-           (context.interpolate || !context.identities->camera_fades.empty())) {
+           (context.interpolate || context.enhanced_shadows || !context.identities->camera_fades.empty())) {
             const auto semantic=global<context.semantic_vertices.size() ? context.semantic_vertices[global] : SemanticVertexState{};
             context.semantic_vertices.resize(draw.worldIndices.size());
             context.semantic_vertices[replacement]=semantic;
@@ -936,9 +1025,37 @@ void dma_triangles(RT64::State* state, RT64::DisplayList** dl) {
     const auto& color = state->rdp->colorImage;
     const auto& combiner = state->rdp->colorCombinerStack[state->rdp->colorCombinerStackSize - 1];
     const auto mode = state->rsp->otherModeStack[state->rsp->otherModeStackSize - 1];
+    const auto material_mode=state->rdp->otherMode;
+    if(interpolation_trace_enabled() && combiner.L==0xFC121624U &&
+       combiner.H==0xFF2FFFFFU && material_mode.L==0x00504340U) {
+        static bool reported=false;
+        if(!reported) {
+            reported=true;
+            const auto& tile=state->rdp->tiles[state->rsp->textureState.tile];
+            const std::uint64_t bounds=(std::uint64_t(tile.uls)<<48U)|
+                (std::uint64_t(tile.ult)<<32U)|(std::uint64_t(tile.lrs)<<16U)|tile.lrt;
+            trace_interpolation("title-mask-material",context->vi_tick,
+                material_mode.H,material_mode.L,tile.fmt,tile.siz,
+                static_cast<float>(color.width),bounds,
+                (std::uint64_t(tile.line)<<32U)|state->rsp->textureState.tile);
+        }
+    }
+    const bool solid_core = context->semantic_target && !context->billboard &&
+        texture && material_mode.L == 0xC8104A50U &&
+        combiner.L == 4229043715U && combiner.H == 0xFFFFFFF8U &&
+        level_solid_core_batch(context->level_solid_cores,address,static_cast<std::uint32_t>(count)) &&
+        state->rdp->blendColorStackSize < RDP_EXTENDED_STACK_SIZE-1;
     bool unused_coordinates = !context->semantic_target && color.width == 64U &&
         color.fmt == G_IM_FMT_I && color.siz == G_IM_SIZ_8b &&
         !combiner.usesTexture(mode, 0U, true) && !combiner.usesTexture(mode, 1U, true);
+    if(interpolation_trace_enabled() && unused_coordinates) {
+        static std::uint64_t last_tick=UINT64_MAX;
+        if(last_tick!=context->vi_tick) {
+            trace_interpolation("shadow-mask-mode",context->vi_tick,mode.L,mode.H,
+                color.address,color.width,0.0f,combiner.L,combiner.H);
+            last_tick=context->vi_tick;
+        }
+    }
     for (unsigned cycle = 0; unused_coordinates && cycle < 2; ++cycle)
         for (unsigned input = 0; input < 4; ++input)
             if (combiner.decodeColorInput(input, cycle != 0) == interop::ColorCombiner::C_LOD_FRACTION ||
@@ -985,12 +1102,15 @@ void dma_triangles(RT64::State* state, RT64::DisplayList** dl) {
         // still sees this triangle. Clip interpolated scene geometry on the
         // GPU at its presentation pose; keep original/offscreen behavior.
         if (common_clip != 0U &&
-            !(context->interpolate && context->semantic_target))
+            !((context->interpolate || context->enhanced_shadows) && context->semantic_target))
             continue;
+        const bool reflected =
+            (context->guest_geometry_mode & state->rsp->cullFrontMask) != 0U;
+        const bool positive_viewport = state->rsp->viewportStack[
+            state->rsp->viewportStackSize - 1U].scale.x > 0.0F;
         const std::uint32_t cull_mode = (flags & 0x40U) != 0U
             ? 0U
-            : (state->rsp->viewportStack[
-                    state->rsp->viewportStackSize - 1U].scale.x > 0.0F
+            : (positive_viewport != reflected
                 ? state->rsp->cullBothMask ^ state->rsp->cullFrontMask
                 : state->rsp->cullFrontMask);
         state->rsp->modifyGeometryMode(
@@ -1027,6 +1147,20 @@ void dma_triangles(RT64::State* state, RT64::DisplayList** dl) {
         }
         fade_scope.set(fade,fade_actor);
         state->rsp->drawIndexedTri(vertices[0U], vertices[1U], vertices[2U]);
+        if(solid_core && fade==0.0F) {
+            // Draw exactly the same colour only where the native texture is
+            // fully opaque. Alpha testing protects every transparent hole;
+            // soft edges retain the untouched native blended pass above.
+            // Disable alpha dither only for this exact-alpha depth contribution.
+            state->rdp->pushBlendColor();
+            state->rdp->setBlendColor(0x000000FFU);
+            state->rsp->setOtherMode((material_mode.H & ~(3U<<4U)) | (3U<<4U),
+                (material_mode.L & ~(3U | ZMODE_MASK)) | G_AC_THRESHOLD | Z_UPD);
+            state->rsp->drawIndexedTri(vertices[0U], vertices[1U], vertices[2U]);
+            state->rsp->setOtherMode(mode.H,mode.L);
+            state->rdp->setOtherMode(material_mode.H,material_mode.L);
+            state->rdp->popBlendColor();
+        }
 
         ++context->stats.triangles_drawn;
     }
@@ -1244,8 +1378,12 @@ bool detailed_function_profile_enabled() {
     return enabled;
 }
 
+
+
+
+
 void prepare_interpolation(Context& context, RT64::State& state) {
-    if (!context.interpolate) return;
+    if (!context.interpolate && !context.enhanced_shadows) return;
     // Every synchronization consumes the preceding offer, including offscreen
     // or unrecognized work. A later effect cannot revive stale world history.
     const auto previous_world = context.pending_blur_world;
@@ -1351,6 +1489,91 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             }
         }
     }
+    std::vector<EnhancedShadowReceiver> enhanced_receivers;
+    if(context.enhanced_shadows && context.identities) {
+        enhanced_receivers.resize(context.semantic_vertices.size());
+        for(std::size_t v=0;v<context.semantic_vertices.size();++v) {
+            const auto source=context.semantic_vertices[v].source;
+            if(const auto* shadow=presentation_shadow_vertex(*context.identities,source)) {
+                auto& receiver=enhanced_receivers[v];receiver.actor=shadow->actor;
+                receiver.lift=shadow->receiver_lift;
+                receiver.projection=shadow->projection;receiver.light=shadow->light_shear;
+                receiver.opacity=v*4U+3U<data.normColBytes.size()?float(data.normColBytes[v*4U+3U])/255.0f:shadow->opacity;
+                receiver.world={data.posFloats[v*3U],data.posFloats[v*3U+1U],data.posFloats[v*3U+2U]};
+                const auto corner=(source-shadow->vertices)/10U;
+                if(corner<shadow->precise_positions.size()) {
+                    const auto& point=shadow->precise_positions[corner];
+                    bool consistent=true;
+                    for(unsigned c=0;c<3;++c)consistent=consistent&&
+                        std::isfinite(point[c])&&std::trunc(point[c])==receiver.world[c];
+                    if(consistent)receiver.world=point;
+                }
+                receiver.valid=shadow->light_valid&&std::isfinite(receiver.opacity)&&receiver.opacity>=0&&receiver.opacity<=1&&std::isfinite(receiver.lift)&&receiver.lift>=0&&receiver.lift<=32&&
+                    std::all_of(receiver.world.begin(),receiver.world.end(),
+                        [](float x){return std::isfinite(x)&&std::abs(x)<1000000.0f;});
+            }
+        }
+    }
+    std::vector<SemanticPresentationSample> caster_samples;
+    std::vector<SemanticPresentationPrevious> caster_previous;
+    if(context.enhanced_shadows) {
+        caster_samples.reserve(context.semantic_vertices.size());
+        for(const auto& vertex:context.semantic_vertices)caster_samples.push_back(vertex.shadow_caster);
+        const auto world_frame=enhanced_shadow_world_frame();
+        context.shadow_caster_history.record_into(caster_samples,context.vi_tick,true,
+            context.interpolate,caster_previous,nullptr,nullptr,&world_frame);
+        if(interpolation_trace_enabled()) {
+            unsigned owned=0,matched=0,moving=0,reflected=0;
+            for(std::size_t i=0;i<caster_samples.size();++i)if(caster_samples[i].valid) {
+                ++owned;matched+=caster_previous[i].matched;
+                moving+=caster_previous[i].matched&&caster_previous[i].world!=caster_samples[i].world;
+                reflected+=(context.semantic_vertices[i].sample.key[0]>>63U)!=0;
+            }
+            trace_interpolation("enhanced-caster-motion",context.vi_tick,owned,matched,moving,reflected,0,0,0);
+        }
+    }
+    std::vector<EnhancedShadowProxy> shadow_proxies;
+    if(context.enhanced_shadows && context.identities) {
+        std::map<std::pair<std::uint32_t,std::uint64_t>,EnhancedShadowProxy> unique;
+        // Bind sprite poses to receiver packets used by this workload. The
+        // identity snapshot also retains untouched alternating buffers; those
+        // older packets must not overwrite the current actor position.
+        for(const auto& vertex:context.semantic_vertices)
+            if(const auto* shadow=presentation_shadow_vertex(*context.identities,vertex.source);
+               shadow && shadow->sprite_caster.valid) {
+                const auto& proxy=shadow->sprite_caster;
+                const auto [it,inserted]=unique.emplace(
+                    std::make_pair(shadow->actor,shadow->projection),proxy);
+                if(!inserted && (it->second.current!=proxy.current ||
+                    it->second.vertical!=proxy.vertical || it->second.lifetime!=proxy.lifetime))
+                    throw std::runtime_error("Enhanced shadows: conflicting sprite producer poses");
+            }
+        std::vector<SemanticPresentationSample> proxy_samples;
+        for(const auto& [id,proxy]:unique) {
+            shadow_proxies.push_back(proxy);
+            for(unsigned part=0;part<2;++part) {
+                SemanticPresentationSample sample;
+                sample.key={proxy.lifetime,(std::uint64_t(proxy.actor)<<32U)|(proxy.projection>>32U),
+                    proxy.projection,1U,1022U,part};
+                sample.camera={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+                sample.world=part==0?std::array<float,3>{proxy.current[0],proxy.current[1],proxy.current[2]}
+                    :std::array<float,3>{proxy.current[3],proxy.vertical,0};
+                sample.valid=proxy.valid&&proxy.lifetime!=0;proxy_samples.push_back(sample);
+            }
+        }
+        std::vector<SemanticPresentationPrevious> proxy_previous;
+        const auto reference=enhanced_shadow_world_frame();
+        context.shadow_proxy_history.record_into(proxy_samples,context.vi_tick,true,
+            context.interpolate,proxy_previous,nullptr,nullptr,&reference);
+        for(std::size_t i=0;i<shadow_proxies.size();++i) {
+            auto& proxy=shadow_proxies[i];const auto& center=proxy_previous[i*2];
+            const auto& size=proxy_previous[i*2+1];
+            if(center.matched&&size.matched) {
+                for(unsigned c=0;c<3;++c)proxy.previous[c]=center.world[c];
+                proxy.previous[3]=size.world[0];proxy.previous_vertical=size.world[1];
+            }
+        }
+    }
     const auto collapsed_count=exclude_collapsed_semantic_samples(semantic_samples,data.faceIndices);
     if(collapsed_count && interpolation_trace_enabled()) {
         std::map<std::uint32_t,unsigned> actors;
@@ -1360,6 +1583,17 @@ void prepare_interpolation(Context& context, RT64::State& state) {
                 ++actors[static_cast<unsigned>(context.semantic_vertices[v].sample.key[1]>>32U)];
         for(const auto& [actor,count]:actors)
             trace_interpolation("semantic-collapsed",context.vi_tick,actor,0,0,count,0,0,0);
+    }
+    if(!context.interpolate) {
+        auto frame=std::make_shared<PresentationHistoryFrame>();
+        frame->tick=context.vi_tick;frame->scene=scene;
+        frame->transforms.resize(data.worldTransforms.size());
+        std::vector<SemanticPresentationPrevious> endpoints(semantic_samples.size());
+        frame->enhanced_shadows=collect_enhanced_shadows(workload,semantic_samples,endpoints,enhanced_receivers,caster_samples,caster_previous,shadow_proxies);
+        capture_enhanced_shadow_geometry(frame->enhanced_shadows,context.vi_tick);
+        state.setRefreshRate(0U);
+        publish_presentation_snapshot(&workload,std::move(frame));
+        context.semantic_vertices.clear();return;
     }
     SemanticRigidPoses semantic_rigid_poses;
     std::set<std::uint64_t> semantic_pose_conflicts;
@@ -1805,6 +2039,12 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         transform.matched=false; // Hold all parts together on an invalid sample.
         if(!history[v].matched && !history[v].camera_only) continue;
         const auto& vertex=context.semantic_vertices[v];
+        // Shadow history is in world coordinates. Its matrix is identity here;
+        // upload the same fractional current endpoint used by that history.
+        // Otherwise each interpolation interval would end at the old integer
+        // coordinate and jump back to the fractional point on the next frame.
+        if(samples[v].key[4]==0x53484144U)
+            for(unsigned c=0;c<3U;++c)data.posFloats[v*3U+c]=samples[v].world[c];
         if(!history[v].camera_only && !inverse_ready[m]) {
             inverse_worlds[m]=hlslpp::inverse(presentation_matrix(vertex.world));
             inverse_ready[m]=true;
@@ -1831,6 +2071,14 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             ++camera_only[static_cast<unsigned>(samples[v].key[1]>>32U)];
         for(const auto& [actor,count]:camera_only)trace_interpolation("semantic-camera-only",
             context.vi_tick,actor,count,0,0,0.0f,0,0);
+        std::map<unsigned,std::array<unsigned,3>> shadows;
+        for(std::size_t v=0;v<samples.size();++v)if(samples[v].key[4]==0x53484144U) {
+            auto& counts=shadows[static_cast<unsigned>(samples[v].key[1]>>32U)];
+            ++counts[0];counts[1]+=history[v].matched;
+            counts[2]+=history[v].matched && samples[v].world!=history[v].world;
+        }
+        for(const auto& [actor,counts]:shadows)trace_interpolation("shadow-history",
+            context.vi_tick,actor,counts[0],counts[1],counts[2],0.0f,0,0);
         std::map<unsigned,std::array<unsigned,3>> waves;
         for(std::size_t v=0;v<samples.size();++v)if(samples[v].key[4]==0x53484f43U) {
             auto& counts=waves[static_cast<unsigned>(samples[v].key[1]>>32U)];
@@ -1939,6 +2187,43 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         data.tcVelFloats[v*2U]=beam_velocity[i][0];
         data.tcVelFloats[v*2U+1U]=beam_velocity[i][1];
     }
+    std::vector<ShadowUvSample> shadow_uv;
+    std::vector<std::size_t> shadow_vertices;
+    for(std::size_t v=0;v<samples.size();++v) {
+        if(samples[v].key[4]!=0x53484144U || v*2U+1U>=data.tcFloats.size() ||
+           v*2U+1U>=data.tcVelFloats.size())continue;
+        ShadowUvSample uv{samples[v].key,{data.tcFloats[v*2U],data.tcFloats[v*2U+1U]},history[v].matched};
+        uv.camera_only=history[v].camera_only;
+        if(context.identities)if(const auto* shadow=presentation_shadow_vertex(
+                *context.identities,context.semantic_vertices[v].source)) {
+            const auto corner=(context.semantic_vertices[v].source-shadow->vertices)/10U;
+            if(corner<shadow->uv_positions.size()) {
+                uv.position=shadow->uv_positions[corner];uv.position_valid=true;
+            }
+        }
+        shadow_uv.push_back(uv);
+        shadow_vertices.push_back(v);
+    }
+    if(interpolation_trace_enabled() && !shadow_vertices.empty()) {
+        unsigned fractional=0;
+        for(const auto v:shadow_vertices)
+            fractional+=std::any_of(samples[v].world.begin(),samples[v].world.end(),
+                [](float x){return std::trunc(x)!=x;});
+        trace_interpolation("shadow-precision",context.vi_tick,
+            static_cast<unsigned>(shadow_vertices.size()),fractional,0,0,0.0f,0,0);
+    }
+    const auto shadow_velocity=context.shadow_uv_history.record(shadow_uv,context.vi_tick,semantic_cadence);
+    unsigned moving_shadow_uv=0, moving_shadow_birth_uv=0;
+    for(std::size_t i=0;i<shadow_vertices.size();++i) {
+        const auto v=shadow_vertices[i],m=static_cast<std::size_t>(data.worldIndices[v]);
+        if(m>=frame->transforms.size() || !frame->transforms[m].matched)continue;
+        data.tcVelFloats[v*2U]=shadow_velocity[i][0];data.tcVelFloats[v*2U+1U]=shadow_velocity[i][1];
+        moving_shadow_uv+=shadow_velocity[i][0]!=0 || shadow_velocity[i][1]!=0;
+        moving_shadow_birth_uv+=shadow_uv[i].camera_only && (shadow_velocity[i][0]!=0 || shadow_velocity[i][1]!=0);
+    }
+    if(interpolation_trace_enabled() && !shadow_vertices.empty())
+        trace_interpolation("shadow-uv",context.vi_tick,static_cast<unsigned>(shadow_vertices.size()),
+            moving_shadow_uv,moving_shadow_birth_uv,0,0.0f,0,0);
     // Read-only bounded beam/cone diagnostics, including exit markers.
     // Runtime matching/fading never depends on this flag or these counters.
     if(interpolation_trace_enabled() && context.identities) {
@@ -1979,6 +2264,16 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     if(scene) trace_interpolation("semantic",context.vi_tick,frame->source_rate,0U,0U,
         static_cast<unsigned>(semantic_count),0.0f,matched_count,moving_count);
     if (scene && interpolation_trace_enabled()) {
+        std::map<std::uint32_t,std::array<unsigned,3>> reflections;
+        for(std::size_t v=0;v<samples.size();++v)
+            if((samples[v].key[3]>>48U)==0x5246U) {
+                auto& count=reflections[static_cast<std::uint32_t>(samples[v].key[1]>>32U)];
+                ++count[0];count[1]+=history[v].matched;
+                count[2]+=history[v].matched && samples[v].world!=history[v].world;
+            }
+        for(const auto& [actor,count]:reflections)
+            trace_interpolation("reflection-owned",context.vi_tick,actor,0U,0U,
+                count[0],0.0F,count[1],count[2]);
         std::map<std::uint32_t,std::array<unsigned,3>> bridges;
         for (std::size_t v=0;v<samples.size();++v) if(samples[v].key[4]==0x42524944U) {
             auto& count=bridges[static_cast<std::uint32_t>(samples[v].key[1]>>32U)];
@@ -2069,6 +2364,14 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             }
         }
     }
+    if(context.enhanced_shadows) {
+        frame->enhanced_shadows=collect_enhanced_shadows(workload,samples,history,enhanced_receivers,caster_samples,caster_previous,shadow_proxies);
+        capture_enhanced_shadow_geometry(frame->enhanced_shadows,context.vi_tick);
+        if(interpolation_trace_enabled())trace_interpolation("enhanced-shadow-scene",context.vi_tick,
+            frame->enhanced_shadows?static_cast<unsigned>(frame->enhanced_shadows->actors.size()):0U,
+            frame->enhanced_shadows?static_cast<unsigned>(frame->enhanced_shadows->draws.size()):0U,
+            0U,0U,0.0f,0U,0U);
+    }
     state.setRefreshRate(static_cast<std::uint16_t>(frame->defer_to_blur ? 0U : frame->source_rate));
     publish_presentation_snapshot(&workload, std::move(frame));
     context.semantic_vertices.clear();
@@ -2082,6 +2385,37 @@ bool native_blur_color_command(Context* context, RT64::State* state,
     return cursor == reinterpret_cast<std::uintptr_t>(context->simulation_rdram.data()) + address ||
            cursor == reinterpret_cast<std::uintptr_t>(state->RDRAM) + address;
 }
+// The four native menu icons use copy mode in 4:3, but a scaled one-cycle
+// rectangle in widescreen. That material has alpha-zero grey border texels and
+// no alpha test. Preserve the copy-mode cutout for this exact icon material.
+// Source observation: GH #57 (lukedeardoff); bounded implementation here also
+// owns/restores its threshold instead of inheriting a preceding blend color.
+void draw_menu_icon_rectangle(RT64::State* state,RT64::DisplayList** dl,bool flip) {
+    auto& rdp=*state->rdp;
+    const auto mode=rdp.otherMode;
+    const auto& tile=rdp.tiles[((**dl).w1>>24U)&7U];
+    const auto& combiner=rdp.colorCombinerStack[rdp.colorCombinerStackSize-1];
+    const bool icon=(mode.H&(3U<<20U))==0 && mode.L==0x00552048U &&
+        combiner.L==0xFC119623U && combiner.H==0xFF2FFFFFU &&
+        tile.fmt==G_IM_FMT_RGBA && tile.siz==G_IM_SIZ_16b &&
+        tile.lrs-tile.uls==172U && tile.lrt-tile.ult==172U &&
+        rdp.blendColorStackSize<RDP_EXTENDED_STACK_SIZE-1;
+    if(icon) {
+        rdp.pushBlendColor();
+        rdp.setBlendColor(1U); // Reject alpha zero; retain antialiased edge samples.
+        rdp.setOtherMode(mode.H,mode.L|G_AC_THRESHOLD);
+    }
+    if(flip)RT64::GBI_RDP::texrectFlip(state,dl);
+    else RT64::GBI_RDP::texrect(state,dl);
+    if(icon) {rdp.popBlendColor();rdp.setOtherMode(mode.H,mode.L);}
+}
+void menu_icon_texrect(RT64::State* state,RT64::DisplayList** dl) {
+    draw_menu_icon_rectangle(state,dl,false);
+}
+void menu_icon_texrect_flip(RT64::State* state,RT64::DisplayList** dl) {
+    draw_menu_icon_rectangle(state,dl,true);
+}
+
 void set_blur_blend_color(RT64::State* state, RT64::DisplayList** dl) {
     auto color = (**dl).w1;
     auto* context = find_context(state);
@@ -2370,11 +2704,14 @@ void reset(RT64::State* state) {
         context->matrix_segmented_addresses.fill(0U);
         context->matrix_physical_addresses.fill(0U);
         context->loaded_matrices.reset();
+        context->caster_matrix_valid.fill(false);
         context->camera_ids.fill(0U);
         context->camera_owners.fill(nullptr);
+        context->reflection_owners.fill(nullptr);
         context->model_finite.fill(false);
         context->semantic_target=false;
         context->billboard = false;
+        context->guest_geometry_mode = 0U;
     }
 }
 
@@ -2413,10 +2750,12 @@ void Rt64F3ddkr::begin(
     impl_->context.cutscene_prompt=prompt;
     impl_->context.cutscene_prompt_drawn=false;
     impl_->context.identities=std::move(identities);
+    impl_->context.enhanced_shadows=shadow_quality_preference().load(std::memory_order_relaxed)==ShadowQuality::enhanced;
     impl_->context.semantic_vertices.clear();
     impl_->context.attachment_frames.clear();
     impl_->context.vi_tick = vi_tick;
     impl_->context.simulation_rdram = simulation_rdram;
+    impl_->context.level_solid_cores=level_solid_core_ranges(PresentationGuestView(simulation_rdram.first(std::min<std::size_t>(simulation_rdram.size(),4U*1024U*1024U))));
     impl_->context.commands = 0U;
     impl_->context.stats = {};
     impl_->context.failed = false;
@@ -2448,6 +2787,8 @@ void Rt64F3ddkr::install() noexcept {
             function = &unsupported;
         }
     }
+    context.gbi.map[F3D_G_SETGEOMETRYMODE] = &set_geometry_mode;
+    context.gbi.map[F3D_G_CLEARGEOMETRYMODE] = &clear_geometry_mode;
     context.gbi.map[kOpDmaMatrix] = &dma_matrix;
     context.gbi.map[kOpDmaTextureOffset] = &dma_texture_offset;
     context.gbi.map[kOpDmaVertex] = &dma_vertex;
@@ -2466,6 +2807,8 @@ void Rt64F3ddkr::install() noexcept {
     context.gbi.map[kOpSetDepthImage] = &set_depth_image;
     context.gbi.map[kOpSetColorImage] = &set_color_image;
     context.gbi.map[G_LOADBLOCK] = &load_block;
+    context.gbi.map[G_TEXRECT] = &menu_icon_texrect;
+    context.gbi.map[G_TEXRECTFLIP] = &menu_icon_texrect_flip;
     context.gbi.map[F3D_G_MOVEMEM] = &move_mem;
     // F3DDKR has no sprite microcode; stock F3D would interpret 0x09 as a
     // Sprite2D base pointer and dereference it unchecked.

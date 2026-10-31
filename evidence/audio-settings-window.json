@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "issue": "UI-AUDIO-SETTINGS",
+  "status": "resolved_locally_owner_verified_unreleased",
+  "launcher_sha256": "35766bc89c99d4a9e22e839070c4162bd7d97f99fb24983129790ea60103ae3f",
+  "runtime_sha256": "7545c322bb20295acba31b1e105c2af44246fc2209547aec61e595cf2e3092e2",
+  "runtime_unchanged_from_issue45_v2": true,
+  "source_inputs": {
+    "src/app/frontend_win32.cpp": "02417d2cf7da4de9c1db9b2f0b1d4972f2fbd469d025a812bffb6b90f7624fc8",
+    "launcher/ui/native_ui.cpp": "83727f4117b77c1f9c32f5b0c5c729691fa42589c3f8c49dc743ece16cc7126d",
+    "launcher/ui/live_tool_window.cpp": "0474729ee7eb260e77bd8d29ab833394235cedd8913d048a107f04b26800d91e",
+    "launcher/ui/CMakeLists.txt": "1e783491cef556000b8cde9b8c02763d93298846ac4921ff4b5fd6d5d813c736",
+    "launcher/ui/audio_settings_ui.hpp": "bcbaabe0fff8e3acc1095e8e6992e3a5bce517fde2d102b127ae5ece15d2db55",
+    "launcher/ui/assets/audio-settings.rml": "56ad841a4e143714ff7daf60eb060384427fc047bb6bd3db714a4d705cb7469f",
+    "launcher/ui/assets/audio-settings.rcss": "d734c51c904c296ca61162f2325a5c1c5c596dfeac0dd2f2ebda4af2efe78429",
+    "launcher/ui/tests/audio_settings_ui_tests.cpp": "a87e11ad64937c1f905897fc76fa547e7ebe85f7921229b24f097f4d164ea06b"
+  },
+  "build_method": "Native launcher and UI built from current source with pinned RmlUi/FreeType, retained embedded setup helper; game runtime unchanged.",
+  "checks": {
+    "audio_ui": 64,
+    "menu_input_ui": 104,
+    "video_ui": 247
+  },
+  "first_audio_ui_open_ms": 236.977,
+  "standalone_launches_ms": [
+    316.41769999987446,
+    277.626600000076,
+    267.66309999948135
+  ],
+  "menu_to_window_ms": 557.2934000010719,
+  "qualification": {
+    "inactive_desktop": true,
+    "physical_user_input_injected": false,
+    "real_menu_to_host_to_window": true,
+    "volume_mute_and_persistence": true,
+    "malformed_and_failed_saves": true,
+    "normal_caption_and_resize_frame": true,
+    "host_remains_enabled": true,
+    "helper_absent_during_standalone_tests": true
+  },
+  "limits": [
+    "Original owner-reported 20-second delay was not independently reproduced or attributed to a measured bottleneck.",
+    "Existing running launcher keeps its original menu until restarted.",
+    "No commit, release, push, or external message."
+  ],
+  "guard": {
+    "enabled": true,
+    "investigation": "high-refresh-rendering-20261011",
+    "no_root_counter_or_allowance_reset": true
+  },
+  "owner_acceptance": {
+    "date": "2026-10-31",
+    "confirmation": "the replacement path does open immediatly so it is fixed - cause unknown",
+    "replacement_opens_immediately": true,
+    "bug_fixed": true,
+    "original_delay_cause": "unknown",
+    "scope": "Audio Settings window and opening delay only; separate issue45 music remains unaccepted."
+  }
+}

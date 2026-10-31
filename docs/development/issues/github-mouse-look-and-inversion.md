@@ -277,7 +277,7 @@ Lesson: distinguish controller and mouse defaults, explicit saved preferences,
 and reset behavior. Cursor hiding is a useful observation, not proof that mouse
 motion reached the game.
 
-- Status: mouse default/reset corrected to Off and verified in source tests; unreleased. Intermittent capture and ineffective Off remain unreproduced and unresolved.
+- Status: hosted-window delivery candidate; exact reporter reproduction unavailable.
 - Severity: high usability impact when mouse camera/aim input is unavailable.
 - Affected report: v1.3.0, Windows 11, RTX 5070 Ti, keyboard/mouse, multiple monitors.
 - Source: [GitHub #32](https://github.com/TK22-26/JetForceGemini-Recomp/issues/32),
@@ -365,3 +365,35 @@ support ZIP and cursor-capture details. This audit sends no new public reply.
 ## Relation to the new Floyd regression (2026-10-21)
 
 Owner asks whether the new Floyd inversion with Off explains this report. Its saved P2 mouse preference was correctly Off. The newly introduced Floyd adapter omitted a native coordinate conversion; the corrected adapter passes the original native reticle consumer. That adapter did not exist in the reported v1.3.0 build and cannot be this report's exact cause. A similar conversion error in an untested older path remains possible, not established. Reporter retest/support capture are still required; this does not close #32.
+
+## October 27 hosted-window delivery investigation
+
+Status: local candidate; affected reporter verification remains pending.
+
+The supplied ZIP was downloaded and inspected. It contains an Original controller
+map selecting keyboard/mouse and normal boot breadcrumbs, but no Modern profile
+or raw-input diagnostics. It cannot prove the reporter's raw-motion delivery or
+inversion setting at the time of failure. The paired videos show gameplay and
+buttons working while view motion is absent.
+
+A real two-process Win32 fixture reproduced a delivery gap: with the launcher root
+foreground and the pointer outside the render child, foreground-only registration
+delivered 0/12 relative motion packets to the game child. With the pointer inside
+the visible child, it delivered 12/12. Thus separate processes alone do not explain
+every failure; the first offscreen fixture would have overstated that conclusion.
+RIDEV_INPUTSINK delivered 12/12 in both ownership cases. With another root foreground,
+the foreground gate consumed 0/12. Private fixtures and results:
+remaining-gh-issues-20261027/raw-hosted-result.json and raw-visible-result.json.
+
+The candidate registers the native render child for explicit raw-input delivery
+and consumes relative motion only while its existing capture flag is true, its
+launcher/game root is foreground, and launcher settings are closed. This removes
+dependence on the pointer hitting the child process without admitting background
+motion or requiring legacy cursor-position deltas. Existing mappings, inversion
+math and saved settings are unchanged.
+
+API basis: [Microsoft raw-input overview](https://learn.microsoft.com/en-us/windows/win32/inputdev/about-raw-input)
+and [RAWINPUTDEVICE flags](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-rawinputdevice).
+The fixture validates this delivery defect and remedy, not the reporter's exact
+machine. A failed cursor clip or a hosted overlay could expose it; neither was
+established in their limited ZIP. Do not claim a reporter-confirmed resolution.

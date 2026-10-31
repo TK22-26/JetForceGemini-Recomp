@@ -16,6 +16,7 @@
 #include <vector>
 #include "../../launcher/native/graphics_check.hpp"
 #include "../../launcher/native/game_viewport.hpp"
+#include "../../launcher/native/ui_capture_windows.hpp"
 #include "../../launcher/native/video_settings_dialog.hpp"
 #include "../../launcher/native/video_settings_protocol.hpp"
 #include "../../launcher/native/storage_settings.hpp"
@@ -133,6 +134,24 @@ bool write(const wchar_t *name, const std::wstring &value) {
                      MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) !=
          FALSE;
 }
+// Bounded, path-free window state for black-video support reports.
+std::wstring presentationWindowHistory, presentationWindowLast;
+void recordPresentationWindow() {
+  if (!app.render) return;
+  RECT game{}, viewport{};
+  GetClientRect(app.render, &game); GetClientRect(app.viewport, &viewport);
+  const auto bit=[](BOOL value){return value ? L"1" : L"0";};
+  const auto size=[](LONG value){return std::to_wstring(std::clamp<LONG>(value,0,99999));};
+  const std::wstring line=std::wstring(L"frontend_window=")+bit(IsWindow(app.render))+L"/"+
+      bit(IsWindowVisible(app.render))+L"/"+bit(GetParent(app.render)==app.viewport)+L"/"+
+      size(game.right)+L"/"+size(game.bottom)+L"/"+bit(IsWindowVisible(app.viewport))+L"/"+
+      size(viewport.right)+L"/"+size(viewport.bottom)+L"/"+bit(IsWindowVisible(app.window))+L"/"+
+      bit(IsIconic(app.window))+L"/"+bit(IsWindowVisible(app.shield))+L"/"+bit(app.setting)+L"\n";
+  if (line!=presentationWindowLast && presentationWindowHistory.size()<8192) {
+    presentationWindowLast=line; presentationWindowHistory+=line;
+    write(L"frontend-window.log",presentationWindowHistory);
+  }
+}
 std::wstring text(HWND control) {
   int n = GetWindowTextLengthW(control);
   std::wstring value(static_cast<std::size_t>(n + 1), L'\0');
@@ -181,7 +200,7 @@ bool launch(Process &process, const wchar_t *action, HWND owner) {
   }
   fs::path executable=app.helper;
 #ifdef JFG_RML_UI
-  if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory" || std::wstring(action)==L"controllers" || std::wstring(action)==L"video" || std::wstring(action)==L"settings") {
+  if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory" || std::wstring(action)==L"controllers" || std::wstring(action)==L"video" || std::wstring(action)==L"audio" || std::wstring(action)==L"settings") {
     wchar_t module[32768]{};GetModuleFileNameW(nullptr,module,32768);executable=module;
     command=quote(executable.wstring())+L" --live-tool "+action+L" --profile "+quote(app.profile.wstring())+L" --helper "+quote(app.helper.wstring())+L" --owner "+std::to_wstring(reinterpret_cast<std::uintptr_t>(owner));
   }
@@ -428,7 +447,8 @@ void persist() {
 }
 bool applyVideo(const jfg::frontend::VideoDialogSettings &settings,
                 std::wstring &error) {
-  if (!write(L"game-settings.ini",wide(jfg::serialize_actor_lod(settings.actor_lod))) ||
+  if (!write(L"shadows.ini",wide(jfg::serialize_shadow_quality(settings.shadows))) ||
+      !write(L"game-settings.ini",wide(jfg::serialize_actor_lod(settings.actor_lod))) ||
       !write(L"video.ini",
              wide(jfg::serialize_video_settings(settings.rendering))) ||
       !write(L"frontend-pause-inactive.txt",
@@ -439,6 +459,7 @@ bool applyVideo(const jfg::frontend::VideoDialogSettings &settings,
   if(app.render && IsWindow(app.render)) {
     PostMessageW(app.render, WM_APP+26, settings.rendering.fog_percent, reinterpret_cast<LPARAM>(app.window));
     PostMessageW(app.render, WM_APP+27,settings.actor_lod==jfg::ActorLod::high?1U:0U,reinterpret_cast<LPARAM>(app.window));
+    PostMessageW(app.render, WM_APP+28,settings.shadows==jfg::ShadowQuality::enhanced?1U:0U,reinterpret_cast<LPARAM>(app.window));
   }
   app.pauseInactive = settings.pause_inactive;
   if (app.fullscreen != settings.fullscreen)
@@ -555,6 +576,8 @@ void uiAction(const std::string &a) {
     command = Fullscreen;
   else if (a == "video")
     command = Video;
+  else if (a == "audio")
+    command = Audio;
   else if (a == "settings")
     command = Settings;
   else if (a == "controllers")
@@ -606,22 +629,13 @@ void syncUiCapture() {
       status(L"Ctrl+M is already in use. Mute is available in the Audio menu.");
   }
   bool enabled = FrontendUiCapturing() || app.dialog.running() || app.videoDialogOpen;
-  if (!FrontendUiCanOverlayGame() && app.viewport) {
-    // HWND presentation stays behind the game child. Expose the UI while a
-    // menu/dialog captures input, then restore the same game without restarting.
-    const bool showGame = app.render && IsWindow(app.render) && !enabled;
-    if ((IsWindowVisible(app.viewport) != FALSE) != showGame)
-      ShowWindow(app.viewport, showGame ? SW_SHOWNOACTIVATE : SW_HIDE);
-  }
+  const HWND inputWindow=jfg::frontend::sync_ui_capture_windows(
+      app.window,app.viewport,app.render,app.shield,FrontendUiCanOverlayGame(),enabled);
   if (enabled != app.setting) {
     capture(enabled);
-    ShowWindow(app.shield, enabled ? SW_SHOW : SW_HIDE);
-    if (enabled) {
-      SetWindowPos(app.shield, HWND_TOP, 0, 0, 0, 0,
-                   SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-      SetFocus(app.shield);
-    }
+    if (enabled) SetFocus(inputWindow);
   }
+  recordPresentationWindow();
   // Manual pause, focus pause and modal capture are independent reasons. Regaining focus
   // must not resume a game while a settings dialog is still open.
   const bool inactive = GetForegroundWindow() != app.window || IsIconic(app.window);
@@ -704,6 +718,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     jfg::frontend::VideoDialogSettings settings;
     settings.rendering={static_cast<jfg::FrameRateMode>(request.mode),request.fps,request.vsync!=0,static_cast<jfg::BlurMode>(request.blur),request.fog_percent};
     settings.actor_lod=request.actor_lod?jfg::ActorLod::high:jfg::ActorLod::original;
+    settings.shadows=request.shadows?jfg::ShadowQuality::enhanced:jfg::ShadowQuality::original;
     settings.fullscreen=request.fullscreen!=0;settings.window_size=request.window_size;settings.pause_inactive=request.pause_inactive!=0;
     std::wstring error;return applyVideo(settings,error)?1:0;
   }
@@ -939,6 +954,8 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       app.playing = LOWORD(wparam) == Play;
       app.manualPause = false;
       app.stopRequested = false;
+      presentationWindowHistory.clear(); presentationWindowLast.clear();
+      write(L"frontend-window.log",L"");
       app.startedAt = GetTickCount64();
       {
         const auto starting = app.playing ? L"Starting game..." : L"Verifying files...";
@@ -993,6 +1010,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       jfg::frontend::VideoDialogModel model;
       model.settings = {*saved,app.fullscreen,app.pauseInactive,0};
       model.settings.actor_lod=jfg::load_actor_lod(app.profile).value_or(jfg::ActorLod::original);
+      model.settings.shadows=jfg::load_shadow_quality(app.profile).value_or(jfg::ShadowQuality::original);
       model.apply = applyVideo;
       app.videoDialogOpen=true;
       capture(true);

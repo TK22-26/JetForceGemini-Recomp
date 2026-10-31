@@ -1,5 +1,31 @@
 # PC controls
 
+## Local review additions (2026-10-27, unreleased)
+
+Modern Controls > Advanced adds **Free movement by default** and **Combat
+transparency**. Existing profiles retain strafing and combat transparency.
+Free movement lets the character turn with movement while the mouse/right stick
+controls the camera independently. Aim temporarily restores the existing Modern
+aiming behavior. **Toggle movement** can be assigned in either action picker and
+starts unbound. The current movement choice survives focus/menu suspension;
+the saved default is used on a new session or device assignment.
+
+Turning Combat transparency Off removes the ordinary aim/combat fade while
+retaining camera-proximity fading. Original controls, cinematics and other actors
+retain their own opacity paths. Both options are per-player Modern preferences,
+shared by controller and mouse/keyboard. Saved profiles use schema 8; versions
+1–7 migrate with existing bindings and behavior preserved.
+
+In a paused Floyd challenge, configured **Fire** cycles objective pages. In
+Jeff's Arcade races, movement steers, **Jump** or **Interact** boosts, **Fire**
+uses the held trap, and **Crouch** maps the native brake. Racing retains its
+native camera. These candidates have component/native-handler coverage and await
+owner batch review; see [Floyd objectives](../development/issues/github-floyd-objectives-controls.md),
+[arcade traps](../development/issues/github-arcade-trap-controls.md),
+[free movement](../development/issues/github-modern-free-movement.md), and
+[combat transparency](../development/issues/github-combat-player-transparency.md).
+
+
 ## Roll binding preview (2026-10-20)
 
 In the Modern Roll Direction Preview, bind **Roll Left** and **Roll Right** in

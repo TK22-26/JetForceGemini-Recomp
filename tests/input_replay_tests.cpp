@@ -160,7 +160,7 @@ void test_modern_action_recording() {
     check(replay.sample_at(120).modern_flags==128 && replay.sample_at(120).buttons==0x8000,"modern menus do not require captured mouse look");
     check(replay.sample_at(121).neutral(),"modern actions release at EOF");
     const auto before=replay.events();
-    for(const auto *row:{"1,2,1,0,0,0,0,0,0,1","1,2,1,0,0,0,0,0,0,160",
+    for(const auto *row:{"1,2,1,0,0,0,0,0,0,1","1,2,1,0,0,0,0,0,0,192",
         "1,2,0,0,0,0,0,0,0,128","1,2,1,0,0,0,0,0,0,256",
         "1,2,1,0,0,0,0,0,0","1,2,1,0,0,0,0,0,0,128,0"}) {
         const TemporaryReplay bad(std::string("jfg-phase8-input-v5\n")+row+"\n");
@@ -177,7 +177,8 @@ void test_modern_roll_recording() {
         "1,2,1,0,-80,0,3,12,-9,136,0,0\n"
         "2,3,1,0,80,0,5,-12,9,144,0,0\n"
         "3,4,1,0,-80,0,3,0,0,128,0,0\n"
-        "4,5,1,0,-80,0,3,0,0,143,0,0\n");
+        "4,5,1,0,-80,0,3,0,0,143,0,0\n"
+        "5,6,1,0,0,80,5,0,0,160,0,0\n");
     jfg::DeterministicInputReplay replay;
     check(jfg::DeterministicInputReplay::load(valid.path(),replay)==jfg::InputReplayError::none,
         "explicit roll intent loads without a format rewrite");
@@ -188,6 +189,7 @@ void test_modern_roll_recording() {
         replay.sample_by_poll(2).stick_x==-80,"old/no-intent frames never derive a roll from lateral axes");
     check((replay.sample_by_poll(3).modern_flags&7U)==7U &&
         jfg::modern_roll_side_buttons(replay.sample_by_poll(3).modern_flags)==2,"scope flags coexist with roll intent");
+    check(replay.sample_by_poll(4).modern_flags==160,"free movement preference survives recording");
     const auto before=replay.events();
     std::ostringstream serialized;serialized<<jfg::kInputReplayHeaderV8<<'\n';
     for(const auto &event:before) {
@@ -201,7 +203,7 @@ void test_modern_roll_recording() {
     check(jfg::DeterministicInputReplay::load(roundtrip.path(),replay)==jfg::InputReplayError::none &&
         replay.events()==before,"current packet serialization roundtrips roll intent and other fields");
     for(const auto *row:{"1,2,1,0,0,0,3,0,0,8,0,0","1,2,1,0,0,0,5,0,0,16,0,0",
-        "1,2,1,0,0,0,3,0,0,160,0,0","1,2,1,0,0,0,3,0,0,192,0,0",
+        "1,2,1,0,0,0,3,0,0,32,0,0","1,2,1,0,0,0,3,0,0,192,0,0",
         "1,2,0,0,0,0,0,0,0,136,0,0","1,2,1,0,0,0,3,0,0,384,0,0"}) {
         const TemporaryReplay bad(std::string("jfg-phase8-input-v8\n")+row+"\n");
         check(jfg::DeterministicInputReplay::load(bad.path(),replay)==jfg::InputReplayError::invalid_record &&

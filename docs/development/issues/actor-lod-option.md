@@ -27,3 +27,6 @@ draft/Apply/Cancel flow. Apply sends the choice to the running game without a
 restart; Cancel preserves the saved choice. Relocation passes 228 Video Settings UI checks, including draft/Apply/Cancel, persistence, invalid protocol rejection and no restart notice. The storage UI suite also passes.
 The accepted rendering behavior is unreleased. No broad performance guarantee
 is made for every scene or machine.
+
+
+October 25 follow-up: at the owner request, Actor LOD now belongs to Video Settings > Enhancements alongside optional Enhanced shadows. Search results, unsaved-change indicators, live Apply and persistence checks follow the new category. Original remains the default.

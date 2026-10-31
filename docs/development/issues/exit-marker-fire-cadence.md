@@ -1,6 +1,6 @@
 # Exit marker and grenade fire cadence
 
-Status: exit marker owner-verified locally, unreleased; grenade fire improved but not fully confirmed, 2026-10-24.
+Status: exit marker and grenade fire owner-verified locally; unreleased. Fire acceptance confirmed 2026-10-25.
 
 In Projectile Motion Fix Preview at120FPS the owner accepts bullets, shockwaves and actor motion but reports grenade fire still appears30FPS and the exit marker opening jitters while turning the camera. Screenshot: owner screenshot codex-clipboard-HVugRl.png (retained privately). The original travelling-shot capture includes effects, but this normal preview has logging off. Separate local shape/texture animation from anchor/camera interpolation before altering authored behavior. No cause or remedy verified yet. Related: high-refresh-shot-effects.md.
 
@@ -78,3 +78,13 @@ Transferable lesson: effects emitted through temporary transforms need the
 persistent logical owner from their caller. Draw order, stack address and
 animated mesh topology are not stable effect identities. Keep this provenance
 separate from geometry correspondence and preserve lifetime/camera cut checks.
+
+
+## Grenade-fire visual acceptance, 2026-10-25
+
+The owner explicitly confirms grenade fire visually and accepts the result.
+This resolves the remaining visual acceptance item; another memory capture is
+not required to establish that reported result. The earlier source/capture
+findings and targeted checks remain supporting evidence, with native texture
+and shape animation cadence unchanged. Fire and the exit marker are resolved
+locally in development commit d98d7fc, not a published release.

@@ -37,22 +37,24 @@ LINKED_KSEG0_BASE = 0x80000000
 RDRAM_END = 0x80800000
 EXPECTED_R26_RELOCATION_COUNT = 8980
 EXPECTED_SUPPORT_THUNK_COUNT = 30
+# SDK printf recovery adds two bodies, ten direct calls, three returns and
+# one checked switch; both former unresolved callers now resolve to bodies.
 # Revised input inventory: independently boundary-validated OS helpers are
 # a required body, not a support thunk. Older Phase 4 inputs deliberately fail
 # these closed counts; their signed evidence is not evidence for this revision.
-EXPECTED_DIRECT_CALL_CANDIDATE_COUNT = 14053
-EXPECTED_DIRECT_LINKED_CALL_CANDIDATE_COUNT = 13964
+EXPECTED_DIRECT_CALL_CANDIDATE_COUNT = 14063
+EXPECTED_DIRECT_LINKED_CALL_CANDIDATE_COUNT = 13974
 EXPECTED_DIRECT_TAIL_CANDIDATE_COUNT = 89
-EXPECTED_DIRECT_GENERATED_TARGET_CANDIDATE_COUNT = 13867
-EXPECTED_DIRECT_UNRESOLVED_TARGET_CANDIDATE_COUNT = 186
-EXPECTED_EXECUTABLE_SYMBOL_COUNT = 3733
+EXPECTED_DIRECT_GENERATED_TARGET_CANDIDATE_COUNT = 13879
+EXPECTED_DIRECT_UNRESOLVED_TARGET_CANDIDATE_COUNT = 184
+EXPECTED_EXECUTABLE_SYMBOL_COUNT = 3735
 EXPECTED_COVERED_ALIAS_COUNT = 824
 EXPECTED_COVERED_ALIAS_BODY_START_COUNT = 805
 EXPECTED_COVERED_ALIAS_INTERIOR_COUNT = 19
-EXPECTED_MANUAL_SIZE_RECOVERY_COUNT = 10
-EXPECTED_INDIRECT_TRANSFER_SITE_COUNT = 3624
-EXPECTED_NATIVE_RETURN_SITE_COUNT = 3419
-EXPECTED_INDIRECT_DECISION_SITE_COUNT = 205
+EXPECTED_MANUAL_SIZE_RECOVERY_COUNT = 12
+EXPECTED_INDIRECT_TRANSFER_SITE_COUNT = 3628
+EXPECTED_NATIVE_RETURN_SITE_COUNT = 3422
+EXPECTED_INDIRECT_DECISION_SITE_COUNT = 206
 
 
 @dataclass(frozen=True)
@@ -610,9 +612,9 @@ def find_direct_call_candidates(
         len(r26_targets_by_site) != EXPECTED_R26_RELOCATION_COUNT
         or not set(r26_targets_by_site).issubset(candidate_sites)
         or transfer_role_counts
-        != {"linked-call": 13964, "direct-tail": 89}
+        != {"linked-call": 13974, "direct-tail": 89}
         or instruction_class_counts
-        != {"jal": 13963, "bgezal": 1, "j": 76, "conditional-branch": 13}
+        != {"jal": 13973, "bgezal": 1, "j": 76, "conditional-branch": 13}
     ):
         raise ValueError(
             "R_MIPS_26 sites do not reconcile with call candidates: "

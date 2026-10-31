@@ -401,8 +401,13 @@ internal static class FrontendBridge
                         : "Recording diagnostics. F11 fullscreen. Esc settings.");
                     string captureRequest = Path.Combine(root, "frontend-capture.request");
                     if (File.Exists(captureRequest)) File.Delete(captureRequest);
+                    DateTime presentationDue = DateTime.MinValue;
                     while (!process.HasExited)
                     {
+                        if (DateTime.UtcNow >= presentationDue) {
+                            support.Session.PresentationDetails(root);
+                            presentationDue = DateTime.UtcNow.AddSeconds(5);
+                        }
                         if (File.Exists(captureRequest))
                         {
                             File.Delete(captureRequest);
@@ -415,6 +420,7 @@ internal static class FrontendBridge
                         }
                         await Task.Delay(200);
                     }
+                    support.Session.PresentationDetails(root);
                     await Task.WhenAll(stdout, stderr);
                     support.Session.Exit(process.ExitCode);
                     State(process.ExitCode == 0 ? "Game stopped. Your saves are ready for next time."

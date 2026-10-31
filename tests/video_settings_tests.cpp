@@ -3,6 +3,7 @@
 #include "jfg/renderer/video_settings.hpp"
 #include <iostream>
 #include "jfg/renderer/actor_lod_settings.hpp"
+#include "jfg/renderer/shadow_settings.hpp"
 #include "jfg/renderer/native_blur_mode.hpp"
 #include "jfg/renderer/fog_settings.hpp"
 int main() {
@@ -11,6 +12,11 @@ int main() {
     if (!ok)
       ++failures;
   };
+  check(jfg::load_shadow_quality({})==jfg::ShadowQuality::original);
+  check(jfg::parse_shadow_quality("version=1\nshadow_quality=enhanced\n")==jfg::ShadowQuality::enhanced);
+  check(jfg::parse_shadow_quality(jfg::serialize_shadow_quality(jfg::ShadowQuality::enhanced))==jfg::ShadowQuality::enhanced);
+  check(!jfg::parse_shadow_quality("version=1\nshadow_quality=enhanced\nshadow_quality=original\n"));
+  check(!jfg::parse_shadow_quality("version=2\nshadow_quality=enhanced\n"));
   check(jfg::load_actor_lod({})==jfg::ActorLod::original);
   for(auto value:{jfg::ActorLod::original,jfg::ActorLod::high}) {
     check(jfg::parse_actor_lod(jfg::serialize_actor_lod(value))==value);

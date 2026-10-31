@@ -9,6 +9,7 @@
 #include "live_tools.hpp"
 #include "video_settings_ui.hpp"
 #include "storage_settings_ui.hpp"
+#include "audio_settings_ui.hpp"
 #include <iomanip>
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Elements/ElementFormControlInput.h>
@@ -1191,8 +1192,8 @@ struct Ui : Rml::EventListener {
     }
     if (a == "show-update") { modal("updates"); return; }
     if (a == "audio") {
-      loadAudio();
-      modal(a);
+      close();
+      action(a);
     } else if (a == "controllers") {
       if(controllerWindow){loadControllers();modal(a);}
       else {close();action("controllers");}
@@ -1231,7 +1232,7 @@ struct Resources : Rml::FileInterface {
                                  {"theme.rcss", 202},
                                  {"Barlow-Regular.ttf", 203},
                                  {"Barlow-SemiBold.ttf", 204},
-                                 {"ChakraPetch-Bold.ttf", 205}, {"live-map.rml", 206}, {"live-inventory.rml", 207}, {"live-tools.rcss", 208}, {"about.rml", 209}, {"about.rcss", 210}, {"modern-controls.rcss",211}, {"xbox.tga",212}, {"dualsense.tga",213}, {"mouse.tga",214}, {"generic.tga",215}, {"chips.tga",216}, {"highlights.tga",217},{"toolbar-pad.tga",218},{"ui-details.tga",219},{"video-settings.rml",220},{"video-settings.rcss",221},{"settings.rml",222},{"settings.rcss",223},{"video-icons.tga",224},{"mods-icons.tga",225}};
+                                 {"ChakraPetch-Bold.ttf", 205}, {"live-map.rml", 206}, {"live-inventory.rml", 207}, {"live-tools.rcss", 208}, {"about.rml", 209}, {"about.rcss", 210}, {"modern-controls.rcss",211}, {"xbox.tga",212}, {"dualsense.tga",213}, {"mouse.tga",214}, {"generic.tga",215}, {"chips.tga",216}, {"highlights.tga",217},{"toolbar-pad.tga",218},{"ui-details.tga",219},{"video-settings.rml",220},{"video-settings.rcss",221},{"settings.rml",222},{"settings.rcss",223},{"video-icons.tga",224},{"mods-icons.tga",225},{"audio-settings.rml",226},{"audio-settings.rcss",227}};
     for (auto &e : entries)
       if (fs::path(path).filename() == e.name) {
         auto r = FindResourceW(nullptr, MAKEINTRESOURCEW(e.id), RT_RCDATA);
@@ -1298,6 +1299,7 @@ struct Surface {
   std::unique_ptr<jfg_live::ToolUi> live;
   std::unique_ptr<jfg_video::Ui> video;
   std::unique_ptr<jfg_storage::Ui> storage;
+  std::unique_ptr<jfg_audio::Ui> audio;
   std::unique_ptr<LogSystem> log;
   std::unique_ptr<RenderInterface_DX11> renderer;
   Rml::Context *context = nullptr;
@@ -1451,9 +1453,13 @@ bool FrontendUiInit(HWND w, const fs::path &profile,
     s.ui.updatePreview = previewUpdate;
     s.ui.action = std::move(action);
     s.ui.controllerWindow=tool=="controllers";
-    s.ui.doc = s.context->LoadDocument(tool=="settings"?"settings.rml":tool=="video"?"video-settings.rml":tool.empty() || s.ui.controllerWindow?"main.rml":tool=="map"?"live-map.rml":"live-inventory.rml");
+    s.ui.doc = s.context->LoadDocument(tool=="audio"?"audio-settings.rml":tool=="settings"?"settings.rml":tool=="video"?"video-settings.rml":tool.empty() || s.ui.controllerWindow?"main.rml":tool=="map"?"live-map.rml":"live-inventory.rml");
     if (!s.ui.doc)
       throw std::runtime_error("Cannot load UI document");
+    if(tool=="audio") {
+      s.audio=std::make_unique<jfg_audio::Ui>();s.audio->init(w,s.ui.doc,profile);
+      s.ui.doc->Show();FrontendUiResize();return true;
+    }
     if(tool=="settings") {
       s.storage=std::make_unique<jfg_storage::Ui>();s.storage->init(w,s.ui.doc);
       s.ui.doc->Show();FrontendUiResize();return true;
@@ -1519,8 +1525,8 @@ void FrontendUiFrame(const FrontendUiState &state) {
   auto &s = *surface;
   auto &ui = s.ui;
   if(ui.modernDeferredRefresh){ui.modernDeferredRefresh=false;if(ui.current=="controllers")ui.modal("controllers");}
-  if (s.live || s.video || s.storage) {
-    if(s.live)s.live->tick();s.context->Update();const float clear[]={0,0,0,0};s.gpu->ClearRenderTargetView(s.target.Get(),clear);s.renderer->BeginFrame();s.context->Render();s.renderer->EndFrame(s.target.Get());s.swap->Present(1,0);return;
+  if (s.live || s.video || s.storage || s.audio) {
+    if(s.live)s.live->tick();if(s.audio)s.audio->tick();s.context->Update();const float clear[]={0,0,0,0};s.gpu->ClearRenderTargetView(s.target.Get(),clear);s.renderer->BeginFrame();s.context->Render();s.renderer->EndFrame(s.target.Get());s.swap->Present(1,0);return;
   }
   ui.pollUpdateCheck();
   const bool wasOperationBusy = ui.state.busy && !ui.state.playing;
@@ -1627,6 +1633,10 @@ void FrontendUiMessage(UINT m, WPARAM w, LPARAM l, HWND source) {
     else surface->mouseLeave(source);
     return;
   }
+  if(surface && surface->audio) {
+    if(surface->audio->keyboard(m,w))return;
+    RmlWin32::WindowProcedure(surface->context,surface->ime,surface->window,m,w,l);return;
+  }
   if(surface && surface->storage) {
     if(surface->storage->keyboard(m,w))return;
     RmlWin32::WindowProcedure(surface->context,surface->ime,surface->window,m,w,l);return;
@@ -1722,14 +1732,14 @@ void FrontendUiPanel(const std::string &name) {
         surface->ui.modal("controllers");
       } else
         surface->ui.close();
-    } else if (name == "video") {
+    } else if (name == "video" || name == "audio") {
       surface->ui.close();
-      surface->ui.action("video");
+      surface->ui.action(name);
     } else
       surface->ui.modal(name == "game" ? "menu-game" : name);
   }
 }
-void FrontendUiToggleMute() { if (surface && !surface->live) surface->ui.toggleMute(); }
+void FrontendUiToggleMute() { if(surface && surface->audio)surface->audio->toggleMute();else if (surface && !surface->live) surface->ui.toggleMute(); }
 bool FrontendUiCapturing() { return surface && !surface->ui.current.empty(); }
 
 bool FrontendUiModalOpen() { return surface && !surface->ui.current.empty() && !surface->ui.popup(); }

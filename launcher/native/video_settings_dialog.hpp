@@ -1,6 +1,7 @@
 #pragma once
 #include "../../include/jfg/renderer/video_settings.hpp"
 #include "../../include/jfg/renderer/actor_lod_settings.hpp"
+#include "../../include/jfg/renderer/shadow_settings.hpp"
 #include <functional>
 #include <string>
 #include <windows.h>
@@ -12,6 +13,7 @@ struct VideoDialogSettings {
   // 0 retains the current size; 1/2 select 1280x720 / 1920x1080.
   unsigned window_size = 0;
   ActorLod actor_lod = ActorLod::original;
+  ShadowQuality shadows = ShadowQuality::original;
 };
 struct VideoDialogModel {
   VideoDialogSettings settings;

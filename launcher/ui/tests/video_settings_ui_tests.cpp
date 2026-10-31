@@ -29,9 +29,9 @@ static void pointer(const char *id) {
     const auto card=parent->GetId();
     const char* tab=nullptr;
     if(card=="video-card-mode"||card=="video-card-size"||card=="video-card-pause")tab="video-tab-display";
-    else if(card=="video-card-vsync"||card=="video-card-blur"||card=="video-card-lod")tab="video-tab-rendering";
+    else if(card=="video-card-vsync"||card=="video-card-blur")tab="video-tab-rendering";
     else if(card=="video-card-fps"||card=="video-card-cap")tab="video-tab-framerate";
-    else if(card=="video-card-fog")tab="video-tab-enhance";
+    else if(card=="video-card-fog"||card=="video-card-lod"||card=="video-card-shadows")tab="video-tab-enhance";
     if(tab&&!parent->IsVisible(true)){click(tab);break;}
   }
   e->ScrollIntoView();
@@ -136,6 +136,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         std::ofstream(profile / "video.ini")
             << jfg::serialize_video_settings(value.rendering);
         std::ofstream(profile / "game-settings.ini") << jfg::serialize_actor_lod(value.actor_lod);
+        std::ofstream(profile / "shadows.ini") << jfg::serialize_shadow_quality(value.shadows);
         return true;
       };
     };
@@ -196,11 +197,14 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     demand(!ui.dirty(), "return to initial Reduced clears dirty state");
     jfg::frontend::VideoRequest request;
     demand(jfg::frontend::valid_video_request(request), "default blur protocol valid");
+    request.shadows = 2;
+    demand(!jfg::frontend::valid_video_request(request), "invalid shadow mode accepted");
+    request.shadows = 0;
     request.actor_lod = 2;
     demand(!jfg::frontend::valid_video_request(request), "reject invalid LOD protocol");
     request.actor_lod = 0; request.version = 4;
     demand(!jfg::frontend::valid_video_request(request), "reject pre-LOD protocol");
-    request.version = 5;
+    request.version = 6;
     request.blur = 3;
     demand(!jfg::frontend::valid_video_request(request), "reject invalid blur protocol");
     request.blur = 1; request.version = 1;
@@ -216,12 +220,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     accepted();
     ui.running = true;
     pointer("video-lod-high");
+    demand(ui.activeTab==3 && element("video-dirty-enhance")->IsVisible(true) &&
+           !element("video-dirty-rendering")->IsVisible(true),
+           "LOD belongs to Enhancements including unsaved change marker");
     demand(ui.draft.actor_lod == jfg::ActorLod::high && ui.dirty(),
-           "High LOD changes Rendering draft");
+           "High LOD changes Enhancements draft");
     demand(element("video-card-lod")->IsVisible(true) &&
                !element("video-restart")->IsVisible(true),
-           "LOD appears in Rendering and applies without restart");
-    capture("rendering-lod.tga");
+           "LOD appears in Enhancements and applies without restart");
+    capture("enhancements-lod.tga");
     demand(jfg::load_actor_lod(profile) == jfg::ActorLod::original,
            "LOD choice does not write before Apply");
     pointer("video-apply");
@@ -243,6 +250,20 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
                !PeekMessageW(&close, window, WM_CLOSE, WM_CLOSE, PM_REMOVE),
            "failed LOD Apply preserves saved value and keeps dialog open");
     ui.save = goodSave; ui.draft = ui.saved; ui.error.clear(); ui.refresh();
+    demand(jfg::load_shadow_quality(profile)==jfg::ShadowQuality::original,
+           "Original shadows remain the default");
+    pointer("video-shadow-enhanced");
+    demand(ui.draft.shadows==jfg::ShadowQuality::enhanced && ui.dirty() &&
+           jfg::load_shadow_quality(profile)==jfg::ShadowQuality::original,
+           "Enhanced shadows remain a draft until Apply");
+    pointer("video-apply");accepted();
+    demand(jfg::load_shadow_quality(profile)==jfg::ShadowQuality::enhanced &&
+           !ui.pendingRestart, "Enhanced shadows persist and apply live");
+    pointer("video-shadow-original");pointer("video-cancel");
+    demand(PeekMessageW(&close,window,WM_CLOSE,WM_CLOSE,PM_REMOVE)!=0 &&
+           jfg::load_shadow_quality(profile)==jfg::ShadowQuality::enhanced,
+           "Cancel must not change the active shadow renderer");
+    ui.draft=ui.saved;ui.refresh();settle();capture("enhancements-shadows.tga");
     ui.running = false;
     pointer("video-preset-360");
     demand(ui.draft.rendering.fps == 360, "360 preset");

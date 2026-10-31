@@ -59,6 +59,21 @@ static void modern_player_context_tests() {
     for(unsigned mode:{2U,3U,4U,255U}){put8(oc+0x10DU,static_cast<std::uint8_t>(mode));check(!pc_floyd_context(m));}
     put8(oc+0x10DU,1);put8(oc,3);check(pc_floyd_context(m).port==3);
     put8(oc,4);check(!pc_floyd_context(m));put8(oc,0);
+    put8(oc,0);put8(oc+0x10DU,0);
+    check(!pc_race_session(m));
+    put8(0x800A4FD8U,4);check(!pc_race_session(m)); // Stale multiplayer type.
+    put8(0x800A4FB4U,1);check(pc_race_gameplay_active(m,owner,0));
+    check(!pc_gameplay_active(m,owner)); // Racing never owns the Modern camera.
+    check(!pc_race_gameplay_active(m,owner,1));
+    put8(0x800FD7BDU,1);check(!pc_race_gameplay_active(m,owner,0));put8(0x800FD7BDU,0);
+    put8(0x800A4FB4U,0);put8(0x800A4FC4U,1);check(pc_race_gameplay_active(m,owner,0));
+    put8(0x800A4FC4U,0);put8(0x800A4FD8U,0);
+    constexpr auto menu=0x80160000U;
+    put32(menu+0x2A34U,0x27BDFFC8U);put32(menu+0x2B14U,0x306E2000U);
+    put8(menu+0x342DU,1);put8(menu+0x3438U,2);check(pc_floyd_pause_screen(m,menu));
+    put8(menu+0x3438U,5);check(!pc_floyd_pause_screen(m,menu));put8(menu+0x3438U,2);
+    put8(menu+0x342DU,0);check(!pc_floyd_pause_screen(m,menu));
+    put8(menu+0x342DU,1);put32(menu+0x2B14U,0);check(!pc_floyd_pause_screen(m,menu));
     put32(fc+0x24U,0x80400000U);check(!pc_floyd_context(m));put32(fc+0x24U,owner);
     put32(0x8002F85CU,0);check(!pc_floyd_context(m));
   }

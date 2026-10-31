@@ -77,7 +77,7 @@ Do not apply periodic audio flushing or blame the Audigy without that evidence.
 No execution or new fix was attempted; the existing guarded allowance remains
 exhausted and the requested continuation has not yet been granted.
 
-- Status: #29 closed by its reporter after attributing crackling to RTSS. Remaining latency reported separately as #35; owner cannot reproduce; awaiting affected-session evidence, no qualified latency fix.
+- Status: local backlog recovery accepted for owner regression route; affected reporter retest pending.
 - Severity: high; sound effects reportedly remain 1-2 seconds behind gameplay.
 - Report: [GitHub #29](https://github.com/TK22-26/JetForceGemini-Recomp/issues/29), 2026-10-19.
 - Reporter: Windows 10, RTX 5060 Ti, Xbox One controller.
@@ -456,3 +456,11 @@ On 2026-10-24 the owner requests that #35 be carried as a changelog retest
 request for the affected user. The Unreleased changelog now states that scope.
 The ordinary SS Anubis listening pass remains accepted; this does not establish
 resolution on the affected machine, close #35 or authorize a GitHub reply.
+
+## October 27 local batch audit
+
+Status: local backlog recovery accepted for owner regression route; affected reporter retest pending.
+
+Recover a sustained host audio backlog after a temporary output stall without changing healthy buffering; retain the changelog request to retest.
+
+Verification: Existing eight audio suites and fault/parity checks passed; Owner SS Anubis listening pass reported no regression; owner did not originally have the fault; No affected-machine retest or new root trigger established. No GitHub action was performed.

@@ -209,6 +209,63 @@ def validate_returning_loop(words, entry):
     return Counter()
 
 
+
+def validate_switch_boundary(words, entry, allowed_calls, switches, *, shared_slots=()):
+    """Check every transfer in a pinned routine, including compiler padding.
+
+    This is boundary validation, not a claim that every instruction is reachable.
+    Each indirect branch must have an explicitly qualified complete jump table.
+    The caller separately pins the full ROM and compares ELF body/table bytes.
+    """
+    if not words or entry % 4 or len(words) < 2 or words[-2] != 0x03e00008:
+        raise ValueError("invalid switch routine boundary")
+    def transfer(word):
+        op = word >> 26
+        return (op in (1, 2, 3, 4, 5, 6, 7, 20, 21, 22, 23) or
+                (op == 0 and word & 63 in (8, 9)) or
+                (op == 17 and (word >> 21) & 31 == 8))
+    calls, targets, slots, returns, seen_switches = Counter(), set(), set(), 0, set()
+    for index, word in enumerate(words):
+        if not transfer(word):
+            continue
+        op, pc = word >> 26, entry + index * 4
+        if index + 1 >= len(words) or transfer(words[index + 1]):
+            raise ValueError("missing or branching delay slot")
+        slots.add(index + 1)
+        if op == 3:
+            target = ((pc + 4) & 0xf0000000) | ((word & 0x3ffffff) << 2)
+            if target not in allowed_calls:
+                raise ValueError("unqualified switch callee")
+            calls[target] += 1
+        elif word == 0x03e00008:
+            if index != len(words) - 2:
+                raise ValueError("unexpected switch return boundary")
+            returns += 1
+        elif op == 0:
+            if word & 63 != 8 or index not in switches or not switches[index]:
+                raise ValueError("unqualified indirect transfer")
+            targets.update(switches[index])
+            seen_switches.add(index)
+        elif op == 2:
+            targets.add(((pc + 4) & 0xf0000000) | ((word & 0x3ffffff) << 2))
+        else:
+            if op == 1 and (word >> 16) & 31 not in (0, 1, 2, 3):
+                raise ValueError("unqualified regimm transfer")
+            immediate = word & 0xffff
+            if immediate & 0x8000:
+                immediate -= 0x10000
+            targets.add(pc + 4 + immediate * 4)
+    if returns != 1 or seen_switches != switches.keys():
+        raise ValueError("incomplete switch boundary")
+    shared_slots = set(shared_slots)
+    if not shared_slots <= slots or any(entry + i * 4 not in targets for i in shared_slots):
+        raise ValueError("unqualified shared delay-slot entry")
+    if any(target % 4 or not entry <= target < entry + 4 * len(words) or
+           ((target - entry) // 4 in slots - shared_slots) for target in targets):
+        raise ValueError("switch or branch leaves body or enters delay slot")
+    return calls
+
+
 def run(output, elf, elf_sha256, rom, helper='task'):
     if helper == 'task':
         entry, end, caller, name = ENTRY, END, CALLER, NAME
@@ -218,6 +275,10 @@ def run(output, elf, elf_sha256, rom, helper='task'):
         entry, end, caller, name = 0x80098bb8, 0x80098d50, 0x80098b30, '_ObservedViManagerMain'
     elif helper == 'cont-read-pack':
         entry, end, caller, name = 0x80097e7c, 0x80097f70, 0x80097d38, '_ObservedControllerReadPack'
+    elif helper == 'printf-float':
+        entry, end, caller, name = 0x8009cdc0, 0x8009d330, 0x8009d84c, '_ObservedPrintfFloat'
+    elif helper == 'printf-field':
+        entry, end, caller, name = 0x8009be20, 0x8009c490, 0x8009c768, '_ObservedPrintfField'
     else:
         raise ValueError('unknown helper')
     output_exists = output.exists() or output.is_symlink()
@@ -254,7 +315,8 @@ def run(output, elf, elf_sha256, rom, helper='task'):
         raise ValueError("ELF and original ROM helper bytes differ")
     call_targets = {}
     callees = {'task': ('_bcopy', 'osVirtualToPhysical'), 'pi-init': (),
-        'cont-read-pack': (),
+        'cont-read-pack': (), 'printf-field': ('_Litob', '_Ldtob', 'strlen'),
+        'printf-float': ('memcpy',),
         'vi-main': ('__osViGetCurrentContext', 'osRecvMesg', '__osViSwapContext',
                     'osSendMesg', 'osGetCount', '__osTimerInterrupt')}[helper]
     for callee_name in callees:
@@ -269,6 +331,40 @@ def run(output, elf, elf_sha256, rom, helper='task'):
         calls = validate_pi_init(words)
     elif helper == 'cont-read-pack':
         calls = validate_returning_loop(words, entry)
+    elif helper == 'printf-float':
+        # Static _Genld, reached by the restored field formatter's floating
+        # conversion path. The final return/NOP is an unreachable SDK suffix.
+        # Pinned instruction 22 is a legal shared SLTI delay-slot entry, reached
+        # directly by the general-format branch as well as its preceding BNE.
+        if (digest(body) != 'f46c3799a2536e3fb29151c2db7a1134705df4c890492118c365cba910ff0060' or
+            words[-2:] != (0x03e00008, 0)):
+            raise ValueError('printf float body differs from qualified ROM')
+        calls = validate_switch_boundary(words[:-2], entry, set(call_targets.values()), {},
+                                         shared_slots={22})
+        if calls != Counter({call_targets['memcpy']: 5}):
+            raise ValueError('unexpected printf float call graph')
+    elif helper == 'printf-field':
+        # The static _Putfld has no FUNC metadata in the pinned upstream ELF.
+        # Its switch table is data, not an additional executable function.
+        table_address, table_size = 0x800afad4, 52 * 4
+        table_sections = [s for s in sections if s.allocated and s.section_type != 'NOBITS'
+                          and s.address <= table_address
+                          and table_address + table_size <= s.address + s.size]
+        if len(table_sections) != 1:
+            raise ValueError('missing unique printf switch table')
+        section = table_sections[0]
+        table = original[section.offset + table_address - section.address:
+                         section.offset + table_address - section.address + table_size]
+        rom_table = 0x1000 + table_address - 0x80000400
+        if (table != image[rom_table:rom_table + table_size] or
+            digest(body) != '345ec57026773ced526589ec8fc2379375e2bd7a6c7315e24528335da4012eac' or
+            digest(table) != '4ee2d8b8d3108914e6d0012d6d6bef6c86a2e5a134210e3cb90431c86a9ef77c'):
+            raise ValueError('printf body or switch table differs from qualified ROM')
+        calls = validate_switch_boundary(words, entry, set(call_targets.values()),
+                                         {21: struct.unpack('>52I', table)})
+        if calls != Counter({call_targets['_Litob']: 3, call_targets['_Ldtob']: 1,
+                             call_targets['strlen']: 1}):
+            raise ValueError('unexpected printf field call graph')
     else:
         calls = validate_loop_cfg(words, entry, set(call_targets.values()), (0x80098d08 - entry) // 4)
         expected = Counter(call_targets.values())
@@ -319,11 +415,14 @@ def run(output, elf, elf_sha256, rom, helper='task'):
               "output_elf_sha256": digest(modified), "helper_sha256": digest(body),
               "recovered_bytes": len(body), "direct_calls": sum(calls.values()),
               "loaded_sections_unchanged": True, "source_elf_unchanged": True,
-              "size_policy": ('closed loop CFG; explicit unreachable epilogue/padding; next executable boundary'
+              "size_policy": ('pinned ROM formatter; checked branches, switch table and calls; terminal return'
+                              if helper == 'printf-field' else
+                              'pinned ROM float formatter; checked branches/calls; explicit return suffix'
+                              if helper == 'printf-float' else 'closed loop CFG; explicit unreachable epilogue/padding; next executable boundary'
                               if helper == 'vi-main' else 'validated integer CFG; terminal return; next executable boundary'),
               "phase4_denominator_refresh_required": True,
               "script_sha256": digest(Path(__file__).read_bytes())}
-    (output / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+    (output / "result.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
 
 
@@ -333,6 +432,6 @@ if __name__ == "__main__":
     parser.add_argument("--elf", type=Path, required=True)
     parser.add_argument("--elf-sha256", required=True)
     parser.add_argument("--rom", type=Path, required=True)
-    parser.add_argument("--helper", choices=('task', 'pi-init', 'vi-main', 'cont-read-pack'), default='task')
+    parser.add_argument("--helper", choices=('task', 'pi-init', 'vi-main', 'cont-read-pack', 'printf-field', 'printf-float'), default='task')
     args = parser.parse_args()
     print(json.dumps(run(args.output, args.elf, args.elf_sha256, args.rom, args.helper)))

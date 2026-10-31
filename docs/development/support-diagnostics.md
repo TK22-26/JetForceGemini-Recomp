@@ -6,7 +6,7 @@ capture, symbol resolution and the opt-in gameplay trace. Testers should use
 
 ## Support sessions and export
 
-The launcher selects a session explicitly and exports eight bounded text files
+The launcher selects a session explicitly and exports ten bounded text files
 plus instructions. It accepts only the grammar in `SupportSession.SafeLine`,
 both when recording and when exporting, and never archives a whole directory.
 Game data, raw stack/register contents, personal paths and symbol files are
@@ -29,6 +29,24 @@ excluded. GitHub issue attachments are the intake; nothing uploads automatically
 - **Recent progress.** A rolling 60-sample window of elapsed milliseconds since
   the first VI sample, frame, retrace and controller-poll counts. It
   distinguishes stalled emulation from continuing progress.
+
+- **Mouse delivery.** Counts and effective input settings, without coordinates,
+  window handles, titles or key histories.
+- **Presentation.** The fixed backend enum, composition HRESULT, and bounded
+  window visibility/size/parent flags help investigate an audible but black
+  game window. No window titles, handles, paths or screenshots are exported.
+  The presentation log is filtered at collection and again at export.
+
+The ZIP has eleven fixed, flat entries: the ten logs listed in playtesting plus
+README.txt. Each log is capped at 64 KiB; only lines of at most 256 characters
+matching the grammar survive. Unknown files and nested folders are not included;
+reparse files and selected reparse sessions are rejected. Technical timestamps,
+build hashes, device/driver IDs and module basenames remain intentionally
+shareable diagnostics; this is not an anonymous report.
+
+The private review launcher folder is a different artifact. It can contain a
+copied ROM, personal save and private captures, and must not be uploaded.
+See the [2026-10-27 export audit](issues/support-zip-presentation-sanitization.md).
 
 ## Build identity and symbols
 

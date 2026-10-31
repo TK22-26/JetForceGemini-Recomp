@@ -479,7 +479,7 @@ struct PcShoulder {
   unsigned movement_before_state=0;
   int movement_before_yaw=0;
   bool active=false,aiming=false,air_aim=false,landing_recovery=false;
-  bool water_origin=false;
+  bool water_origin=false,free_movement=false;
   std::uint32_t actor=0,control=0;
   std::uint64_t retrace=0;
   int yaw=0,pitch=0;

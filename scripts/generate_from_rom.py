@@ -174,10 +174,10 @@ def main() -> int:
     run("build-recompiler", ["cmake", "--build", str(recomp / "build"), "--target", "N64RecompCLI", "RSPRecomp", "-j", str(args.jobs)])
     cpu, rsp = recomp / "build/N64Recomp", recomp / "build/RSPRecomp"
     elf = decomp / "build/jfg.us.elf"
-    # The current CPU root includes four OS routines missing FUNC metadata in
+    # The current CPU root includes six SDK routines missing FUNC metadata in
     # the upstream ELF. Existing recovery validates their control flow and
     # callers against this ROM and proves all allocated ELF bytes unchanged.
-    for helper in ("task", "pi-init", "vi-main", "cont-read-pack"):
+    for helper in ("task", "pi-init", "vi-main", "cont-read-pack", "printf-field", "printf-float"):
         recovered = workspace / ("helper-" + helper)
         run("recover-" + helper, [sys.executable, "-m", "scripts.phase9_recover_task_helper",
             str(recovered), "--elf", str(elf), "--elf-sha256", hashlib.sha256(elf.read_bytes()).hexdigest(),

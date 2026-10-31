@@ -26,7 +26,8 @@ inline std::optional<ActorLod> parse_actor_lod(std::string_view text) {
     if(line.empty())continue;
     if(line=="version=1") {if(seen&1)return std::nullopt;seen|=1;}
     else if(line=="actor_lod=original" || line=="actor_lod=high") {
-      if(seen&2)return std::nullopt;seen|=2;
+      if(seen&2)return std::nullopt;
+      seen|=2;
       result=line=="actor_lod=high"?ActorLod::high:ActorLod::original;
     } else return std::nullopt;
   }
@@ -36,7 +37,8 @@ inline std::optional<ActorLod> load_actor_lod(const std::filesystem::path& profi
   if(profile.empty())return ActorLod::original;
   const auto path=profile/"game-settings.ini";std::error_code ec;
   const bool exists=std::filesystem::exists(path,ec);
-  if(ec)return std::nullopt;if(!exists)return ActorLod::original;
+  if(ec)return std::nullopt;
+  if(!exists)return ActorLod::original;
   std::ifstream file(path,std::ios::binary|std::ios::ate);
   if(!file || file.tellg()<0 || file.tellg()>1024)return std::nullopt;
   const auto size=static_cast<std::size_t>(file.tellg());file.seekg(0);

@@ -783,16 +783,39 @@ namespace JfgLauncher
                 string mousePath = Path.Combine(support.DirectoryPath, "mouse.log");
                 File.WriteAllText(mousePath, mouseEvidence + "mouse_schema=2\nmouse_counts=1/2\nmouse_flow=-1/0/0/0/0/0\nmouse_player=0/1/1/1/1/100/80/120/0/0/1/1/3/9\nmouse_path=PRIVATE-PATH-CANARY\nmouse_counts=" + new string('9', 21) + "/0/0/0/0/0/0/0\n");
                 Check(SupportSession.SanitizeFile(mousePath) == mouseEvidence, "bounded mouse diagnostics rejected or private/malformed data accepted");
+                File.WriteAllText(Path.Combine(directory, "frontend-presentation.log"),
+                    "backend=window\ncomposition_hresult=0x80004001\nbackend=PRIVATE-PATH-CANARY\n");
+                const string windowState = "frontend_window=1/1/1/1280/720/1/1280/720/1/0/0/0\n";
+                File.WriteAllText(Path.Combine(directory, "frontend-window.log"),
+                    windowState + "frontend_window=PRIVATE-PATH-CANARY\nfrontend_window=1/1/1/100000/720/1/1280/720/1/0/0/0\n");
+                support.PresentationDetails(directory);
+                string presentationEvidence = SupportSession.SanitizeFile(Path.Combine(support.DirectoryPath, "presentation.log"));
+                Check(presentationEvidence == "frontend_backend=window\nfrontend_composition_hresult=0x80004001\n" + windowState,
+                    "presentation support fields lost or unbounded/private fields accepted");
+                // A valid last line without LF can exactly fill the input cap.
+                // Adding its output LF must not grow the sanitized report past 64 KiB.
+                string boundaryPath=Path.Combine(directory,"support-boundary.log");
+                string boundary=new string('x',0);
+                for(int i=0;i<5040;++i) boundary+="stage=closed\n";
+                boundary+="omitted=12345678";
+                Check(Encoding.ASCII.GetByteCount(boundary)==SupportSession.MaximumBytes,"invalid support boundary fixture");
+                File.WriteAllText(boundaryPath,boundary,Encoding.ASCII);
+                string boundedSupport=SupportSession.SanitizeFile(boundaryPath);
+                Check(Encoding.UTF8.GetByteCount(boundedSupport)<=SupportSession.MaximumBytes &&
+                    !boundedSupport.Contains("omitted=") && boundedSupport.EndsWith("stage=closed\n",StringComparison.Ordinal),
+                    "sanitizer exceeds cap by appending LF or truncates a diagnostic value");
                 string zipPath = SupportSession.Export(reportRoot, Path.Combine(directory, "exports"));
                 using (FileStream file = File.OpenRead(zipPath))
                 using (System.IO.Compression.ZipArchive zip = new System.IO.Compression.ZipArchive(file)) {
-                    Check(zip.Entries.Count == 10, "unexpected support archive members");
+                    Check(zip.Entries.Count == 11, "unexpected support archive members");
                     Check(zip.GetEntry("mouse.log") != null, "mouse diagnostics omitted from support archive");
+                    Check(zip.GetEntry("presentation.log") != null, "presentation diagnostics omitted from support archive");
                     string combined = "";
                     foreach (var entry in zip.Entries) using (StreamReader reader = new StreamReader(entry.Open())) combined += reader.ReadToEnd();
                     Check(!combined.Contains("CANARY") && !combined.Contains(directory), "private contents leaked into support report");
                     Check(combined.Contains("exit=0x00000011") && combined.Contains("native_exit=0xc0000005") && combined.Contains("failure=runlink/guest-overlay-load"), "crash evidence lost");
                     Check(combined.Contains("mod=navigation-enabled"), "mod context lost from support report");
+                    Check(combined.Contains(presentationEvidence), "presentation evidence lost during export");
                     Check(combined.Contains(mouseEvidence), "effective mouse settings or delivery counters lost during export");
                     if (!String.IsNullOrEmpty(diagnosticFixture)) {
                         Check(combined.Contains("snapshot=crash-v1") && combined.Contains("snapshot=hang-v1") && combined.Contains("/jfg-support-fixture.exe/"), "native stack evidence lost during ZIP export");

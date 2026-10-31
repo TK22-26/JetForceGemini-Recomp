@@ -186,6 +186,18 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
       demand(ui.modern[0].pad_floyd_flight_invert_y,"controller reset restores original flight pitch");
       demand(ui.saveModern(flightProfile),"restore flight test profile");ui.modal("controllers");settle();click("action-mc-tab-advanced");
     }
+    {
+      const auto options=ui.modern[0];const auto other=ui.read("modern-controls-2.ini");
+      demand(ui.el("action-mc-movement-default")&&ui.el("action-mc-combat-transparency"),"controller movement and opacity options are exposed");
+      click("action-mc-movement-default");click("action-mc-combat-transparency");ui.loadModern();
+      demand(ui.modern[0].free_movement&&!ui.modern[0].combat_transparency,"movement and opacity options persist");
+      ui.assignDevice(-3);settle();click("action-mc-tab-advanced");
+      demand(ui.modern[0].free_movement&&!ui.modern[0].combat_transparency&&ui.el("action-mc-movement-default"),"keyboard shares chosen behavior");
+      demand(ui.read("modern-controls-2.ini")==other,"new options preserve other player");
+      click("action-mc-reset");click("action-mc-reset-confirm");ui.loadModern();
+      demand(!ui.modern[0].free_movement&&ui.modern[0].combat_transparency,"reset retains existing default behavior");
+      demand(ui.saveModern(options),"restore options profile");ui.assignDevice(0);ui.modal("controllers");settle();click("action-mc-tab-advanced");
+    }
     // Explicit roll bindings and the automatic gesture preference use the same
     // persisted profile while keyboard and controller bindings stay independent.
     {

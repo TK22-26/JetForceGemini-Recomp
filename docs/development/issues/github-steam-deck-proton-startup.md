@@ -58,7 +58,7 @@ the proposed information request; no response is authorized. The local test
 plan and its access/guard blockers above remain in effect.
 
 - Severity: high for the reported platform; launch is blocked.
-- Status: source-confirmed startup incompatibility; HWND presentation candidate implemented. Windows build and both backend UI suites passed; actual Proton/Deck and reporter verification pending.
+- Status: local candidate; Windows and actual Proton UI verified; Steam Deck reporter review pending.
 - Reported and reviewed: 2026-10-21 UTC.
 - Source: [GitHub #40](https://github.com/TK22-26/JetForceGemini-Recomp/issues/40),
   by @chaberl-art, created 17:18 UTC.
@@ -234,3 +234,23 @@ compatibility remain untested. There is no released resolution or commit yet.
 The owner has no Steam Deck. Hardware verification must involve the reporter;
 a draft requesting Proton/SteamOS details and willingness to test is saved
 privately for owner review. No GitHub comment, closure or upload is authorized.
+
+## October 27 blank-menu follow-up
+
+The reporter now reaches gameplay in v1.4.0, but opening launcher menus shows a blank grey/blue region until closed. Local source review identified that the non-composited HWND swap chain still receives a visible input-shield child over the client area. The root has WS_CLIPCHILDREN; that shield is useful only when DirectComposition can place UI above child windows. A backend-aware input surface is being qualified. This is a source-supported candidate, not yet reporter verification. An isolated GE-Proton 11-11 / umu 1.4.4 environment is being prepared on D:; this machine is not Steam Deck hardware.
+
+### October 27 local qualification
+
+The candidate now uses a shared backend-aware capture-window helper. The HWND backend hides its unpainted input shield and sends menu input to the root; DirectComposition retains its shield. Visibility is synchronized even if the settings state was changed before the synchronization call. Closing the menu restores the same hosted viewport and game focus.
+
+Windows Release suites passed 100 normal-composition and 101 HWND-fallback checks, including real hosted game/shield children across repeated menu open/close. The launcher rebuilt successfully. Under actual GE-Proton11-11, umu 1.4.4 and steamrt4 4.0.20261021.265997 on WSL2 Ubuntu 24.04, a natural probe returned DComposition E_NOTIMPL and selected window presentation. The fallback integration suite then passed all 101 checks, including presentation, resize, menu selection and host-window visibility.
+
+The first natural Proton test failed only its Windows-specific assertion requiring composition; initialization itself succeeded. That informative failure and the passing fallback run are retained in remaining-gh-issues-20261027/proton evidence. The isolated Linux prefix/runtime/cache resides in a D: backed ext4 image, runs as an unprivileged account, and does not replace the owner's launcher or profile.
+
+This validates the concrete menu host defect in an actual Proton runtime, not Steam Deck hardware, the managed launch helper, full game compatibility, or every Proton release. Reporter verification remains pending. No GitHub action was taken.
+
+Transferable lesson: a child used only to intercept input for composited content must not cover a non-composited swap chain; integration tests need the host's actual child hierarchy, not only the UI renderer.
+
+### Host-style and pixel qualification
+
+The integration fixture now includes the launcher's WS_CLIPCHILDREN style, which the earlier simplified window omitted. It also reads back menu pixels and checks for rendered text, retaining the three-cycle child visibility/focus checks. Windows composition passes 104 checks; Windows HWND fallback and actual GE-Proton pass 105 each. Captured menu images are retained privately for review. These checks establish rendered menu content and the correct host hierarchy; they still do not substitute for a Steam Deck hardware pass.

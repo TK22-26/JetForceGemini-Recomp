@@ -20,6 +20,9 @@ struct SemanticPresentationSample {
   // Decoder proved the affine bone matrix collapses every local vertex to
   // one finite world point. Topology must still prove it is non-rendering.
   bool point_collapsed = false;
+  float shadow_lift = 0; // Receiver depth offset; not physical floor height.
+  std::array<float,2> shadow_light{};
+  float shadow_opacity=1;
 };
 
 // Native death animations hide bones by scaling them exactly to zero.
@@ -75,6 +78,9 @@ struct SemanticPresentationPrevious {
   // New visibility/topology has no old vertex pose, but a verified continuous
   // camera can still present its current pose in phase with the scenery.
   bool camera_only = false;
+  float shadow_lift = 0;
+  std::array<float,2> shadow_light{};
+  float shadow_opacity=1;
 };
 using SemanticBirthEndpoints=std::map<PresentationVertexKey,SemanticPresentationPrevious>;
 inline bool semantic_motion_continuous(const SemanticPresentationSample &a,
@@ -285,7 +291,8 @@ public:
       if (inserted) {
         (*it) = {s, i};
       } else if ((*it).sample.world == s.world &&
-                 (*it).sample.camera == s.camera) {
+                 (*it).sample.camera == s.camera && (*it).sample.shadow_lift == s.shadow_lift &&
+                 (*it).sample.shadow_light==s.shadow_light && (*it).sample.shadow_opacity==s.shadow_opacity) {
         result[i] = result[(*it).first];
         continue;
       } else {
@@ -322,7 +329,7 @@ public:
           blocked.insert(actor);camera_ineligible.insert(actor);
           if(diagnostics)++(*diagnostics)[actor][4];
         } else {
-          result[i] = {old->sample.world, old->sample.camera, true};
+          result[i] = {old->sample.world, old->sample.camera, true, false, old->sample.shadow_lift, old->sample.shadow_light, old->sample.shadow_opacity};
           if(diagnostics) {
             ++(*diagnostics)[actor][5];
             (*diagnostics)[actor][7]+=birth;

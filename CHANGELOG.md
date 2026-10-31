@@ -2,7 +2,58 @@
 
 ## Unreleased
 
-- Add Actor LOD Original/High under Video Settings > Rendering. High retains
+- Fix Audio Settings opening as an inline modal: use a separate native window
+  with live volume/mute controls. Focused UI and menu-route tests pass; on
+  October 31 the owner confirms immediate opening and accepts the fix. The
+  original delay's cause remains unknown.
+  [Record](docs/development/issues/audio-settings-window-delay.md).
+
+- Add a local candidate for flying-enemy timing (#48): advance the shared flight
+  and falling movement by elapsed game time, using a three-VI reference measured
+  across two original-ROM encounters. Keep output FPS independent, preserve
+  native velocity units and leave existing elapsed-time AI/animation clocks
+  unchanged. Finite native replay checks pass; owner visual review is pending.
+  Follow-up found variable pacing in a matched loaded encounter, so this does
+  not satisfy exact Original FPS timing. Controlled tests isolate the native
+  host-clock policy, which also applies to Original output; removing the flight
+  correction alone restores the old speed-up. The separate diagnostic clock remains
+  unqualified for default use: it also omits workload-dependent RSP/DMA time
+  and still has loading-time audio gaps. Controlled original-ROM interventions
+  isolate the device-time effect; reference-core timing tests prevent treating
+  emulator agreement as hardware qualification.
+  [Original timing follow-up](docs/development/issues/original-mode-simulation-parity.md).
+  [Reference, implementation and limits](docs/development/issues/github-flying-enemy-speed.md).
+- Recover omitted original SDK formatting functions in the generation pipeline.
+  A sound-allocation warning exposed the missing integer-field helper; the
+  transitive audit also recovered its floating conversion dependency. Loaded
+  game bytes remain unchanged. Formatter execution and final native replays pass.
+  [Cause and recovery](docs/development/issues/sdk-printf-field-metadata.md).
+
+- Local review candidates for the remaining issue batch: restore Floyd objective
+  cycling and Jeff's Arcade trap controls in Modern mode; add optional free
+  movement and combat transparency settings; correct Proton fallback menu
+  visibility and hosted mouse delivery. Defaults preserve existing behavior.
+- Shorten qualified cutscene-skip fade waits while retaining native scene
+  completion, loading and video-readiness checks. Three-part flight timing
+  improves in normal Play; final owner review is pending.
+- Preserve high-resolution screen sampling for native night vision and damage
+  tint while keeping CPU shadow-mask ownership. Captured-frame GPU comparison,
+  four-phase motion and ownership checks pass; owner route review is pending.
+- Remove transparent icon borders in widescreen menus and smooth the authored
+  title vignette without replacing game assets. Decoder/GPU and actual menu
+  captures pass; owner batch review is pending.
+- Include bounded launcher presentation details in support reports for black
+  video with working audio. The reported Windows 10 failure remains unverified.
+  Actual support-ZIP exports pass real-session and contaminated-file privacy
+  checks. Keep each sanitized log within 64 KiB even when the input ends in a
+  valid unterminated line at the exact limit.
+
+- Prevent gems from drawing through fully opaque vine pixels while preserving
+  transparent gaps and blended edges. Captured-frame GPU, material-state and
+  normal-game checks pass; owner batch review is pending.
+  [Cause and verification](docs/development/issues/vine-gem-occlusion.md).
+
+- Add Actor LOD Original/High under Video Settings > Enhancements. High retains
   detailed actor models at a distance and applies live when saved. Original
   remains the default; Apply/Cancel, persistence and aligned help text are covered
   by launcher checks. High may increase rendering cost in crowded scenes.
@@ -39,8 +90,8 @@
   earlier pose. [Owner-verified correction](docs/development/issues/camera-turn-actor-jumps.md).
 - Improve grenade-fire motion by keeping known sprite-transform identity stable
   when animated local mesh topology changes. Native texture/shape frame cadence
-  is unchanged. Owner review found improvement; full fire confirmation remains
-  pending.
+  is unchanged. The owner subsequently confirmed grenade fire visually; resolved
+  locally and unreleased.
 - Smooth opening exit-marker sparkles while turning the camera. The native marker
   sorts 20 persistent sparkles by camera distance and draws them through temporary
   transforms; tracking their logical slots prevents draw order from breaking
@@ -53,10 +104,32 @@
   should retest when this change is available; affected-machine verification and
   the original trigger remain open.
 
+- Correct reflected-model face culling and track mirrored skeletal poses separately
+  from normal actor draws. Native checks and Goldwood replays pass at 120 FPS and
+  Original FPS, and owner visual review passed. [Reflection findings](docs/development/issues/floor-reflection-geometry.md).
+
+- Add Original/Enhanced Shadows under Video Settings > Enhancements. Enhanced
+  uses filtered 512x512 maps from interpolated actor poses and authored light
+  directions at each output frame. Shared pose bounds, sprite/detached-body
+  casters and actual receiving geometry prevent the reproduced clipping, combat
+  crash and double-shadow defects. It has no automatic Original fallback.
+  Original remains the default and retains native silhouette cadence. The owner
+  approved v26 visually; broader campaign/performance coverage remains open.
+  [Evidence and limits](docs/development/issues/github-character-shadow-jitter.md).
+
 ### Findings and remaining verification
 
-- All three reported silent flight transitions match original N64 hardware in
-  the owner's comparison. #45 is closed as original behavior; no music was added.
+- The Goldwood wooden bridge’s dark ground strip is built into level vertex shading,
+  using the same texture as brighter adjacent ground. The bridge has no native
+  projected-shadow component; Enhanced actor shadows do not replace that static
+  environmental shading. [Evidence and scope](docs/development/issues/enhanced-shadow-environment-scope.md).
+
+- Reopen the local #45 assessment: on October 30 the owner confirms the reporter
+  was correct after a new playthrough and original-hardware verification.
+  The earlier original-behavior closure is superseded. An October 31 candidate
+  restores the native flight theme and continuous handoff in all three reported
+  departure shots; focused tests and copied-profile route/PCM checks pass. Owner/hardware
+  listening remains pending, so #45 stays open. No release is claimed.
   [Comparison record](docs/development/issues/flight-transition-missing-music.md).
 - The #25 reporter confirms their rain, reticle and performance complaints are
   resolved in v1.4.0. The #40 reporter confirms Proton startup now works, but
@@ -67,8 +140,8 @@
   state supports a native position/collision displacement, but the collision
   sequence and any difference from the original game remain unproved. No collision
   patch is included. [Evidence](docs/development/issues/drone-buried-after-hut-collision.md).
-- Grenade-fire completion, suspected muzzle-flash jitter, character shadows (#46),
-  floor reflections (#47) and the separate camera-fade activation report (#52)
+- Suspected muzzle-flash jitter, character shadows (#46),
+  and the separate camera-fade activation report (#52)
   are not claimed resolved by these rendering fixes. See the
   [issue index](docs/development/issues/README.md) and [known issues](docs/known-issues.md).
 
@@ -265,3 +338,5 @@ Initial stable release with the unified launcher, configurable controllers,
 live map and inventory, and the recorded rendering and audio fixes. The v1.0.0
 installer built the game locally from the player's ROM and required developer
 tools. See the [v1.0.0 release](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.0.0).
+
+Owner review on October 27: Enhanced Shadows preview v26 visually approved ("shadows look good now"); unreleased. See [shadow investigation](docs/development/issues/github-character-shadow-jitter.md).
