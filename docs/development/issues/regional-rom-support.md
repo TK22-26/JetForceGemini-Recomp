@@ -1,6 +1,6 @@
 # ROM-REGIONS: PAL and Japanese ROM support
 
-- Status: all three original-OS candidates reach new-slot/reloaded Goldwood; current shared enhanced architecture is building and remains under qualification (2026-11-01).
+- Status: shared architecture candidate committed; all-three original-OS Goldwood checks pass; enhanced build/qualification and remaining implementation are unfinished at the four-hour stop (2026-11-01).
 - Severity: compatibility limitation; the native game still supports only the pinned US revision.
 - Affected: ROM generation, regional host address/timing assumptions, launcher/runtime admission and gameplay qualification.
 
@@ -9,6 +9,19 @@
 The owner approved four additional hours on 2026-11-01. The same production
 investigation retains all prior charges and failures; the guard remains enabled.
 Private evidence root: `regional-architecture-20261101-continuation`.
+
+The source candidate is committed locally on `develop` as
+`6ef37e9ec1f5168da1f406bc5765a79e48ba6d1f` (2026-11-01 17:31:15 UTC).
+This commit is not a released resolution or completion of the regional plan.
+
+Current v23 live validation uses the independently inspected v16 same-revision
+private saves as inputs to ordinary enhanced Play. Each result must carry the
+current executable identity and the prior save's provenance. Current new-slot
+creation and the separate 8,000-VI original-OS reload are not being rerun or
+reported as v23 passes. v23 still requires its own native boot, exact-poll and
+wrong-ROM/storage rejection checks, normal Play close and captured-frame review.
+The original v23 waiter was replaced before execution to focus on that changed
+profile; its phase bound remains inside the unchanged four-hour supervisor limit.
 
 | Evidence | US | PAL | JP | Scope |
 |---|---|---|---|---|
@@ -20,7 +33,9 @@ Private evidence root: `regional-architecture-20261101-continuation`.
 | Current original code/data/instruction qualification | Pass | Pass | Pass | 435 code, 225 data and 210 instruction references per revision |
 | Original ROM NPC asset parser | Pass | Pass | Pass | 45 groups and 19 choices; no imported US tables |
 | v21 enhanced native compile preflight | Pass | Pass | Pass | Superseded after audit found nominal PAL clock assumptions; no full-build acceptance |
-| v22 enhanced candidate build and native checks | Running | Running | Running | Frozen clock/qualified-member corrections; verified original generation and new source identity |
+| v22 enhanced candidate build | Link failed | Link failed | Link failed | Generated game compilation completed; stale host caller objects requested the old audio ABI |
+| v23 forced host rebuild | Incomplete | Incomplete | Incomplete | Original generation and native identity verification pass; rebuild stopped inside approved window |
+| v23 enhanced Play and launcher handoff | Not run | Not run | Not run | Insufficient remaining time; PAL/JP product admission stays closed |
 | Campaign/manual feature acceptance | Pending | Pending | Pending | Owner will playtest; no unrun check is a pass |
 
 The v16 results verify the PAL exception-entry and JP matrix-body corrections,
@@ -66,6 +81,23 @@ candidate can be built through the existing `--candidate` path. Pending work
 includes current enhanced native qualification, product handoff, the remaining
 feature/layout matrix and manual gameplay. Previous checkpoints below are
 historical; they intentionally retain their failures and then-current status.
+
+## End of the four-hour continuation
+
+The guarded run stopped within the approved window. The current v23 original
+CPU/audio generation receipt and native source identity checks pass for all three.
+Its forced native host rebuild was interrupted before complete native acceptance;
+no current enhanced Play result or launcher handoff is claimed. Completed generated
+C objects, partial host objects, source snapshots, failed linker logs and receipts
+remain private for a properly admitted continuation. The final private checkpoint
+is `continuation-final-status.json`. The guard remains enabled and all charges
+and counters remain intact.
+
+Still required: finish the current enhanced build/boot/Play qualification; complete
+remaining actor/control/model/scene field ownership; implement exact fractional
+PAL presentation duration; finish product setup/upgrade/direct-launch checks and
+owner campaign/feature playtesting. These are not all manual-verification items.
+PAL/JP ordinary product admission remains closed. No release was published.
 
 ## Shared host migration and discovered regional differences
 
@@ -133,6 +165,25 @@ must be qualified against original owners before changing them; the retrace
 correction is not evidence that every game timer should be divided by 50.
 The existing conservative interpolation policy still uses endpoints when the
 observed VI interval does not produce an integer source rate.
+
+### Full-build linker failure and timestamp remedy
+
+All three v22 generated-game compilations completed, but native linking failed:
+`live_frontend.obj` and `guest_execution.obj` requested the old
+`HostAudioDevice::service(bool, bool)` while the current implementation declares
+an unsigned VI-rate argument. The private workspace synchronization used `copy2`,
+retaining source edit timestamps older than objects created by the preceding
+preflight. Source hashes alone did not make those stale objects rebuild.
+
+The v23 attempt preserves the failed logs and native identity inputs, copies
+changed content with current timestamps, and invalidates the affected C++ ABI
+headers and all native host source timestamps. Ordinary dependency rebuilding
+must now rebuild their consumers. Completed generated C objects remain reusable:
+their source, headers and compiler flags did not change. No old-signature shim or
+runtime behavior workaround is added. v23 link and live results remain separate
+acceptance requirements. The transferable lesson is to reconcile content identity
+with build-system invalidation when populating a reused workspace; a frozen source
+manifest cannot by itself prove that every linked object used those bytes.
 
 ### Remaining PAL interpolation duration contract
 

@@ -28,13 +28,14 @@ No aggregate completion percentage substitutes for its remaining gates.
 | M1 | Common catalog, typed descriptors/bindings, immutable bundle identity and revision storage | Current product installation/upgrade/direct-launch qualification |
 | M2 | All three exact original reconstructions and CPU/audio generation; original asset directories qualified | Full required-layout review; exact v19 generation passes current producer verification |
 | M3 | US uses common resident/overlay/member/renderer/math contracts; original-OS new-slot/reload passes | Current enhanced regression and residual fixed-schema qualification |
-| M4 | All three v16 candidates boot, create saves and reload into Goldwood | Current v22 enhanced build, native checks and live routes |
+| M4 | All three v16 candidates boot, create saves and reload into Goldwood | Finish v23 rebuild after stale-object link failure, then native checks and live routes |
 | M5 | Matching bundle routing and isolated storage contracts; shared feature inputs migrated | Product handoff, exact fractional presentation duration, live spatial-wipe comparison, full feature matrix |
 | M6 | Exact historical failures and scoped validation retained | Owner campaign/feature playtests, performance/platform coverage and release review |
 
 The v16 qualification explicitly disables enhanced native timing, collision and
-optimizations. v22 is a frozen corrected candidate with those flags enabled; its
-build and tests must earn separate evidence. It reuses the exact v19 original
+optimizations. v22 enabled those flags but failed linking because cached host callers retained
+the old audio ABI. v23 forces their rebuild; it remains incomplete at the approved
+four-hour stop. Its build and tests must earn separate evidence. It reuses the exact v19 original
 generation only after the current producer and complete receipt validate. v18 was superseded after discovering
 US math-table assumptions. Source snapshots, generated corpora, executables and
 receipts stay separately identified. PAL/JP ordinary product admission remains

@@ -72,7 +72,7 @@ math-reference selection. The generated manifest requires the map.
 The [three-region plan](../planning/regional-runtime-architecture.md) owns migration
 and acceptance gates. The [regional issue](issues/regional-rom-support.md) records
 current build results and the remaining binary-schema/feature matrix. v16 reaches
-Goldwood after new-slot/reload on all three original-OS candidates; current v22
+Goldwood after new-slot/reload on all three original-OS candidates; current v23
 enhanced source has separate pending qualification. Generation and helper tests
 do not establish campaign or released gameplay support.
 
@@ -263,3 +263,6 @@ The fast and slow instruction paths share that address translator. Source
 identity captures every non-cache file in its declared source roots, including
 inline implementation and shader inputs. Both corrections pass component checks;
 the current native build/qualification status remains in the regional issue.
+
+The four-hour continuation stopped with v23 host rebuilding incomplete after a
+stale-object linker failure. See the [final checkpoint](issues/regional-rom-support.md#end-of-the-four-hour-continuation); no enhanced Play or product handoff is claimed.

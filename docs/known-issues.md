@@ -54,7 +54,7 @@ imports and save namespaces also pass scoped checks. Native integration and game
 remain open; PAL/JP Play admission is still closed. Released packages support their pinned US ROM.
 All three v16 candidates now compile, boot, create a new slot and reload into
 Goldwood in the original-OS profile. That verifies the corrected PAL exception
-entry and JP matrix body. Current v22 includes further shared renderer, module,
+entry and JP matrix body. The current candidate includes further shared renderer, module,
 member, math, sound and asset changes, and is undergoing a fresh enhanced build.
 Its gameplay, feature and release qualification remains open. The regional issue
 retains exact historical failures and the current feature acceptance matrix.
