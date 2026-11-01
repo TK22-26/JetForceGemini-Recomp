@@ -9,11 +9,12 @@
   [Runtime validation](docs/development/issues/native-runtime-modularization.md).
 - Build a shared US/PAL/Japanese program architecture: exact original reconstruction,
   common CPU/audio generation, typed resident/overlay/member bindings, strict native
-  bundle identity and revision save storage. Earlier original-OS builds create saves
-  and reload into Goldwood on all three revisions. Enhanced native builds and
-  bounded Play also pass. Add exact fractional PAL presentation cadence, shared
-  display units, qualified record schemas and local all-three build admission.
-  Final product checks and owner campaign/feature acceptance remain separate.
+  bundle identity and revision save storage. Final builds pass fresh save/reload
+  probes and bounded enhanced Goldwood Play for all three revisions. Add exact
+  fractional PAL cadence, shared display units, qualified record schemas and local
+  all-three build admission. Actual launcher import/setup/direct Play, clean exit,
+  save isolation and support exports pass; development-profile upgrades preserve
+  saves/settings. Owner campaign/feature and release acceptance remain open.
   [Regional implementation and evidence](docs/development/issues/regional-rom-support.md).
 - Finish owner-approved local Git cleanup after verifying an independent retained
   database of all original objects and six stashes. Keep main/develop and public

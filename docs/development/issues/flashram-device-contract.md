@@ -1,7 +1,7 @@
 # FlashRAM sector and command semantics
 
 - ID: FLASH-CONTRACT-20261101.
-- Status: shared-device candidate passes synthetic regressions and all three original-OS new-slot/save/reload checks; current enhanced candidate and owner persistence acceptance pending.
+- Status: shared-device candidate passes synthetic regressions, final all-three original-OS new-slot/reload probes and enhanced reload checks; broader owner persistence acceptance pending.
 - Severity: moderate persistence correctness; gameplay impact has not been measured.
 - Affected: current cooperative HLE FlashRAM boundary and original-OS reference Flash bus; all prospective regional native targets share these services.
 - Release: no fix published or owner save retest recorded.
@@ -119,3 +119,18 @@ v16 saves into Goldwood during bounded Play. This adds enhanced-runtime reload
 evidence without relabeling the earlier new-slot tests as current. The final
 source/product checkpoint is in the regional issue. Broader campaign saves,
 interrupted persistence and owner acceptance remain open.
+
+## Final five-hour continuation checkpoint
+
+Final v28 binaries now independently create fresh populated 131,072-byte
+private saves during 6,000-VI original-OS probes for US, PAL and JP. Separate
+8,000-VI processes load each same-region save into Goldwood with unchanged
+save hashes and zero unsupported accesses. New-slot ship frames and reload
+walkway frames were inspected for all three. Current enhanced Play also
+reloads the earlier v16 test saves; those input provenances remain separate.
+
+Implementation commit: `5bac0c896c3e4a47456b2973994bbe7151062e77`. Private
+receipt: `regional-architecture-20261101-owner5h/regional-save-v28-qualified.result.json`.
+Actual launcher Play confirms other-region saves remain unchanged. This is
+bounded game-save evidence on final binaries, not all-character campaign,
+enhanced new-slot feature, power-loss or physical-device acceptance.

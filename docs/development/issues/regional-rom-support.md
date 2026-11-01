@@ -1,6 +1,6 @@
 # ROM-REGIONS: PAL and Japanese ROM support
 
-- Status: shared three-region implementation and bounded enhanced Play qualified through v27; final v28 native build qualified; final Play/product handoff in progress; unreleased.
+- Status: shared three-region implementation, final native/Play, fresh save/reload and launcher handoff checks pass; owner feature/campaign acceptance open; unreleased.
 - Severity: regional compatibility and acceptance limitation. Development build admission includes US/PAL/JP; the published v1.4.0 package remains US-only.
 - Affected: ROM generation, regional host address/timing assumptions, launcher/runtime admission and gameplay qualification.
 
@@ -13,25 +13,40 @@ Private evidence root: `regional-architecture-20261101-owner5h`.
 
 | Evidence | US | PAL | JP | Scope |
 |---|---|---|---|---|
-| v27 fresh original reconstruction and CPU/audio generation | Pass | Pass | Pass | Current producer verified; no relabeled earlier generation |
-| v27 enhanced native compile/link and immutable bundle | Pass | Pass | Pass | Shared runtime, native timing/collision/optimizations enabled |
-| v27 200-VI boot, 32-poll stop, wrong-ROM/storage rejection | Pass | Pass | Pass | Bounded execution and revision isolation |
-| v27b 150-second enhanced Play, requested 120 Hz | Pass | Pass | Pass | Same-revision v16 save reload; normal window close; zero unsupported accesses |
-| v27b final-frame review | Pass | Pass | Pass | Goldwood walkway, Juno, tribal and HUD visible; PAL side borders corrected |
+| v28 fresh original reconstruction and CPU/audio generation | Pass | Pass | Pass | Current producer verified; no relabeled earlier generation |
+| v28 enhanced native compile/link and immutable bundle | Pass | Pass | Pass | Shared runtime, native timing/collision/optimizations enabled |
+| v28 200-VI boot, 32-poll stop, wrong-ROM/storage rejection | Pass | Pass | Pass | Bounded execution and revision isolation |
+| v28 150-second enhanced Play, requested 120 Hz | Pass | Pass | Pass | Same-revision v16 save reload; normal window close; zero unsupported accesses |
+| v28 final-frame review | Pass | Pass | Pass | Goldwood walkway, Juno, tribal and HUD visible; PAL side borders corrected |
 | Latest original instruction qualification | Pass | Pass | Pass | 379 instruction bindings per revision, including 169 additional member contracts |
 | Latest host and pipeline contracts | Pass | Pass | Pass | Shared suites: 111 CTests and 138 Python tests; not three independent campaign runs |
 | Local native-build admission and launcher tests | Pass | Pass | Pass | All three admitted; 39 focused policy/bundle tests plus launcher/setup/native-UI tests |
-| Frozen v28 fresh generation/native build | Pass | Pass | Pass | Final record contracts, exact native source closure, bundle identity, 200-VI boot, 32-poll stop and wrong-ROM/storage rejection |
-| Current launcher import/direct-Play handoff | Pending | Pending | Pending | Requires the final verified bundles and actual setup checks |
+| v28 fresh new slot, 6,000 VI; separate reload, 8,000 VI | Pass | Pass | Pass | Final binaries in original-OS probe mode; populated private saves; Goldwood frames inspected |
+| v30 launcher import/setup/direct Play and clean shutdown | Pass | Pass | Pass | Actual installed regional bundles; exact source identity; other-region saves unchanged |
+| Development-profile upgrade v28 to v29 | Pass | Pass | Pass | Actual init/setup; save and settings hashes unchanged; not a historical-release upgrade |
+| v30 native-session support ZIP export | Pass | Pass | Pass | Actual installed exporter; revision/build identity retained; bounded sanitized text only |
 | Campaign, feature and hardware acceptance | Pending | Pending | Pending | Owner playtesting; no unrun manual check is a pass |
+
+Implementation commit on `develop`:
+`5bac0c896c3e4a47456b2973994bbe7151062e77`. All three final v28 enhanced
+Play replays pass with normal window close, zero unsupported accesses and
+zero audio underruns/overruns. All final frames were inspected in Goldwood.
+The sequential JP run does not reproduce the two earlier concurrent-run
+underruns; their cause and audible effect remain unmeasured. Fractional alpha
+and moving-presentation observations are present for every region. Requested
+120-Hz output remains distinct from measured presentation performance.
+The v30 handoff launcher is rebuilt from this commit with its actual source
+identity; product and save results remain separately recorded below.
 
 Final native evidence: `regional-snapshot-v28.result.json`, with common native
 source closure `0993b4454d750dc684643768dd982498317e24dfcfd13c4befe7ea605885679b`
 and producer `179b39c194ce2520111ab0f75f337bf21fb1163b347d869673c29c4af7d046cf`.
-All 593 native source inputs match the checkout. The rebuilt v29 launcher has
-145 matching production inputs. Subsequent product/docs changes do not alter
-the native closure. These identities are private candidate evidence, not a
-release tag or a console-parity claim.
+All 593 native source inputs match the committed implementation. The v30
+launcher records that commit and its 145 production inputs. The final
+correspondence audit verifies those inputs against the checkout. Subsequent
+documentation changes do not alter the native or launcher source closure.
+These identities are private candidate evidence, not a release tag or a
+console-parity claim.
 
 The latest source qualifies actor/player, camera, NPC, door, sidekick, flight,
 effect, cutscene, inventory, exit, model-instance and track-geometry members
@@ -71,8 +86,12 @@ Concrete corrections in this window:
 The final complete Python regression passes: 1,933 tests discovered, 49
 explicitly skipped, no failures or errors (`regional-all-python-v29`). Skips
 retain their individual missing compiler, platform or private-fixture reasons
-in the private result; they are not passes. The first broad run loaded the
-release fixture before its destination-isolation correction and retained that
+in the private result; they are not passes. Three directly relevant compiler
+checks that skipped on Windows subsequently pass under WSL with no skips:
+entry identity across reload, success-only initializer storage, and compiled
+RAM/MMIO/poll timing equivalence (`regional-wsl-abi-v30`). That does not
+qualify Linux live gameplay or the separately pinned replay core.
+The first broad run loaded the release fixture before its destination-isolation correction and retained that
 one failure. The subsequent 38-test release run and final full run both pass.
 
 The final product audit found two additional downstream omissions. The
@@ -82,8 +101,41 @@ tests passing. The [support sanitizer](regional-support-identity.md) dropped
 the selected ROM revision; the rebuilt v29 launcher preserves its verified
 revision and program hashes, with all-three ZIP export/privacy tests among
 748 passing launcher checks. These product-only changes do not alter the
-frozen v28 native runtime closure. Actual installed-bundle Play is recorded
-separately from synthetic package and launcher tests.
+frozen v28 native runtime closure. Final installed-bundle Play and native-session
+support exports also pass, separately from those synthetic tests.
+
+### Final local handoff
+
+The private `owner-review-v30` folder contains the launcher built from
+`5bac0c8`, all three verified v28 runtime bundles, imported local ROM copies
+and isolated test profiles. `Play-US.ps1`, `Play-PAL.ps1` and `Play-JPN.ps1`
+start normal game flow through the actual launcher. Choose the supplied
+save at file select; the scripts do not warp the game. The supplied saves
+retain their earlier v16 provenance, with current enhanced reload evidence.
+Original ROM hashes are unchanged; no personal save was copied or edited.
+The folder contains private game inputs and is not a distributable release.
+
+Final receipts under the private evidence root:
+
+- `owner-review-v30.result.json` and `launcher-product-v30.result.json`: actual
+  import, setup, verified runtime selection, Playing status, clean shutdown and
+  save isolation for each region.
+- `launcher-upgrade-v29.result.json`: earlier development profiles retain every
+  save/settings hash while selecting the newer bundle.
+- `actual-support-exports-v30.result.json`: actual installed support exporter
+  retains exact identities in all three native-session ZIPs; no upload occurred.
+- `regional-save-v28-qualified.result.json`: fresh populated 131,072-byte slots
+  and separate-process reload on final binaries. New-slot ship frames and
+  reload Goldwood frames were inspected. This is original-OS probe evidence,
+  separate from the enhanced Play replay.
+
+Remaining acceptance covers campaign progression with all characters; Modern
+controls, Floyd/co-op, flight, bosses, transitions and cinematics; Japanese
+text and PAL languages; physical controllers, listening and sustained
+performance. Optional PAL/JP flying-motion correction still needs its own
+reference before enablement; original regional movement is active. Broad
+historical-install migration, other platforms/hardware and public-release
+qualification remain open. No unrun check is assumed passed.
 
 Retained failures and limits:
 
@@ -106,11 +158,13 @@ Retained failures and limits:
   retained; no failed script or partial build is counted as qualification.
 - v27b US/PAL report zero audio underruns/overruns. JP reports two underruns and
   zero overruns during three concurrent Play processes. Cause and audible impact
-  are unmeasured; current-build replay without concurrent games remains pending.
+  are unmeasured. The final sequential v28 run reports zero underruns/overruns
+  for all three; that is a bounded non-reproduction, not a proven audio remedy.
 - Normal Play replays use Classic controls and existing same-revision test saves.
   They do not cover Modern controls, Floyd, bosses, transitions, all languages,
-  campaign completion or current-build new-slot creation. Earlier v16 new-slot
-  and reload evidence remains explicitly historical.
+  or campaign completion. Current-build new-slot creation and reload pass the
+  separately recorded original-OS probes; they are not enhanced feature
+  acceptance. Earlier v16 evidence remains explicitly historical.
 
 The following four-hour and eight-hour sections preserve their then-current
 status and failures. They do not override this current checkpoint.

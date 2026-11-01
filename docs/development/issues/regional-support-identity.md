@@ -1,7 +1,7 @@
 # Regional identity omitted from support reports
 
 - ID: ROM-SUPPORT-IDENTITY.
-- Status: candidate passes actual support-ZIP export tests in the rebuilt launcher; native-session report check pending; unreleased.
+- Status: candidate passes synthetic and actual all-three native-session support-ZIP exports in the committed launcher; unreleased.
 - Affected: development launcher support reports for all three regional runtimes.
 - Severity: diagnostic limitation; does not itself change gameplay.
 
@@ -23,8 +23,17 @@ Synthetic all-three export tests exercise the actual support ZIP writer, exact
 revision and hash retention, malformed/private canary rejection and invalid
 identity rejection without partial output. All 748 launcher checks, 28 setup
 checks, graphics/viewport tests and 23 storage checks pass in the v29 launcher
-build. The actual regional native-session report checks are still pending.
-Release availability remains separate.
+build. Implementation commit: `5bac0c896c3e4a47456b2973994bbe7151062e77`.
+
+The final v30 launcher was built from that commit. After actual installed-bundle
+Play for each region, the installed setup assembly exported each native session
+through its real support ZIP writer. All three archives retain the exact
+revision, source commit and program hashes. Each contains the 11 allowed text
+members, bounded sanitized logs and no private paths, ROMs or save data.
+Private receipt: `regional-architecture-20261101-owner5h/actual-support-exports-v30.result.json`.
+The exporter was invoked locally without UI interaction or upload. This
+qualifies report contents, not every support-dialog interaction or release
+availability.
 
 ## Lesson
 

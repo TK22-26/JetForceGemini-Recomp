@@ -50,9 +50,10 @@ still contain the superseded insertion.
 [Issue #45's record](development/issues/flight-transition-missing-music.md) retains that correction.
 PAL hardware and Japanese behavior are untested; [PAL/JP recomp support](development/issues/regional-rom-support.md)
 now uses one generation/runtime architecture and admits all three exact revisions for local
-builds. All three original-OS candidates create/reload saves, and later enhanced candidates pass
-native builds and bounded Goldwood Play. The latest source is in final native/product
-qualification. Campaign, feature, language, hardware and release acceptance remain open;
+builds. Final native candidates pass fresh save/reload probes and bounded enhanced
+Goldwood Play. The committed launcher passes actual import/setup/direct Play, clean
+exit, save isolation and support exports for all three. Campaign, feature, language,
+hardware and release acceptance remain open;
 published v1.4.0 packages support their pinned US ROM. The regional issue retains historical
 failures, exact build identities and the current acceptance matrix.
 [Named overlay owners](development/issues/regional-overlay-ownership.md) and

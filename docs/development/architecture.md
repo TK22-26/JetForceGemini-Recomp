@@ -72,11 +72,12 @@ math-reference selection. The generated manifest requires the map.
 
 The [three-region plan](../planning/regional-runtime-architecture.md) owns migration
 and acceptance gates. The [regional issue](issues/regional-rom-support.md) records
-current build results and the feature acceptance matrix. All three v16 original-OS
-candidates create and reload private slots into Goldwood. All three v27 enhanced
-candidates pass native builds and bounded 120-Hz-requested Goldwood Play. The final
-v28 source is undergoing fresh generation and native/product qualification. These
-checks do not establish campaign or released gameplay support.
+current build results and the feature acceptance matrix. All three final v28
+candidates pass fresh generation, native builds and bounded 120-Hz-requested
+enhanced Goldwood Play. Fresh original-OS new-slot/reload probes on those
+binaries also reach Goldwood. The committed v30 launcher passes actual
+import/setup/direct Play, clean exit, save isolation and support exports.
+These checks do not establish campaign or released gameplay support.
 
 `record_layouts.hpp` names common packed-array strides only after original
 constructor and consumer arithmetic passes generation guards for each revision.

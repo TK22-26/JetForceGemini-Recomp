@@ -1,6 +1,6 @@
 # Regional overlay ownership migration
 
-- Status: original qualification and descriptor tests pass; all three original-OS new-slot/reload checks pass; complete feature validation pending.
+- Status: original qualification, final native/Play and fresh original-OS new-slot/reload checks pass for all three; complete feature validation pending.
 - Affected: regional native architecture candidate on develop, original and host feature observers.
 - Severity: compatibility blocker for regional feature qualification.
 
@@ -57,10 +57,11 @@ door, sidekick, flight, effects, cutscene, inventory, exit, model-instance and
 track-geometry members now use original-qualified operands. Common packed
 arrays and sound queue layouts have independent original-code guards.
 
-All three v16 original-OS candidates create and reload a private save into
-Goldwood. All three v27 enhanced candidates pass full native builds and
-bounded enhanced Play with fractional interpolation. Final v28 source/product
-qualification is recorded in the [regional issue](regional-rom-support.md).
+All three final v28 candidates pass native builds, bounded enhanced Play
+with fractional interpolation, and fresh original-OS new-slot/reload probes
+into Goldwood. The v30 launcher from implementation commit `5bac0c8` passes
+actual product checks. Exact source/product qualification is recorded in
+the [regional issue](regional-rom-support.md).
 These checks do not close every overlay feature, campaign transition or
 owner gameplay acceptance. Earlier pending statements above describe their
 historical checkpoints, not the current build status.

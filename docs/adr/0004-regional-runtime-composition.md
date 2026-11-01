@@ -63,11 +63,12 @@ Optional enhancements require declared bindings and qualification of their
 actual consumers. Unqualified capabilities cannot be advertised as supported.
 
 Shared generation, typed record contracts and exact VI presentation intervals
-now serve all three revisions. All three original-OS candidates create saves
-and reload into Goldwood; later enhanced candidates also pass native builds
-and bounded Play. Development build admission is enabled for all three exact
-revisions. The regional issue owns final source/product qualification and the
-remaining feature matrix. These checks do not close campaign acceptance or
+now serve all three revisions. Final native candidates pass fresh original-OS
+save/reload probes and bounded enhanced Play for all three. The committed
+launcher passes actual import/setup/direct Play, clean exit, isolation and
+support exports. Development build admission is enabled for all three exact
+revisions. The regional issue owns those scoped receipts and the remaining
+feature matrix. These checks do not close campaign acceptance or
 publish a supported release.
 
 The [architecture plan](../planning/regional-runtime-architecture.md) owns the

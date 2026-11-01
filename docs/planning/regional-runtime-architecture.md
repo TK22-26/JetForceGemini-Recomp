@@ -1,7 +1,7 @@
 # Architecture plan: US, PAL and Japanese native support
 
 - Date: 2026-11-01.
-- Status: common implementation in final build/product qualification under the owner’s five-hour continuation; campaign and release acceptance remain open.
+- Status: common implementation and bounded three-region local qualification complete; feature, campaign and release acceptance remain open.
 - Source baseline: `54a8b54` on `develop`.
 - Scope: the three exact original ROM revisions currently identified as `us`, `pal` and `jpn`.
 - Outcome: one maintained architecture that generates, runs, packages and validates all three revisions through the same contracts.
@@ -23,20 +23,27 @@ owns current source/build identities, exact evidence and historical failures.
 
 | Gate | Implemented or observed | Remaining acceptance |
 |---|---|---|
-| M0 | Reference inventory, code/data ownership, required record members and common packed schemas reviewed | Final source/build correspondence and owner feature acceptance |
-| M1 | Common catalog, typed bindings, immutable bundles and revision-isolated storage | Actual final launcher import/setup/direct-Play handoff |
-| M2 | All three final v28 original reconstructions, CPU/audio generation and native builds pass | Final Play/product and owner feature acceptance |
-| M3 | US uses the common pipeline; original-reference native differentials and enhanced Goldwood replay pass | Final-build US regression and owner campaign checks |
-| M4 | PAL/JP boot, create/reload earlier saves and run enhanced Goldwood replays | Final-build regression and owner regional campaign checks |
-| M5 | All-three build admission, launcher routing, exact fractional cadence and shared PAL display units implemented | Final product handoff; live Modern/Floyd/flight/boss/spatial-wipe and other feature matrix |
+| M0 | Reference inventory, code/data ownership, record schemas and final source/build correspondence reviewed | Owner feature acceptance |
+| M1 | Common catalog, typed bindings, immutable bundles, isolated storage and actual final launcher handoff pass | Broader historical-install migration |
+| M2 | All three final v28 reconstructions, generation, native builds, boot and bounded enhanced Play pass | Owner feature acceptance |
+| M3 | US uses the common pipeline; final regressions, enhanced Goldwood replay and fresh save/reload pass | Owner campaign checks |
+| M4 | PAL/JP final builds boot, create/reload fresh saves and pass enhanced Goldwood replays | Owner regional language/feature/campaign checks |
+| M5 | All-three build admission, actual launcher/setup/direct Play/support exports and development-profile upgrades pass; exact fractional cadence and PAL display units implemented | Live Modern/Floyd/flight/boss/spatial-wipe and other feature matrix |
 | M6 | Scoped evidence, failures and compatibility limits retained | Campaign, performance/platform coverage and release review |
 
 v27 native and enhanced Play results apply to its frozen source. v28 includes
-later record contracts and build-admission changes; fresh original generation
-and native qualification now pass for all three. Final Play/product checks
-remain in progress. Build admission permits local
-builds; it does not certify every feature or a public release. Earlier v16
-original-OS new-slot/reload results are not relabeled as final-build results.
+later record contracts and build-admission changes; fresh generation, native
+qualification, enhanced Play and fresh original-OS new-slot/reload checks pass
+for all three. The v30 launcher from implementation commit `5bac0c8` passes
+actual import/setup/direct Play, clean exit and native-session support export.
+Local development-profile upgrade checks preserve saves/settings. Build
+admission does not certify every feature or a public release. Earlier v16
+results remain separate from the final-build receipts.
+
+The broader checklist below remains open where it includes unrun language,
+feature, campaign, historical-install migration or release acceptance. The
+current local handoff is ready for those owner checks; aggregate test totals
+do not replace them.
 
 ## 1. Starting point and scope
 
@@ -526,9 +533,9 @@ cannot replace the acceptance matrix or yield a meaningful overall completion pe
 
 - [x] One catalog supplies every build/runtime/launcher consumer.
 - [x] All three exact revisions pass the shared model and generation contracts.
-- [ ] US runs entirely through the same architecture as PAL and Japan.
-- [ ] Required hooks use qualified typed bindings; unknown or mismatched bindings fail closed.
-- [ ] Shared device, scheduler, timing and task-completion ownership remains singular.
+- [x] US runs entirely through the same architecture as PAL and Japan.
+- [x] Required hooks use qualified typed bindings; unknown or mismatched bindings fail closed.
+- [x] Shared device, scheduler, timing and task-completion ownership remains singular.
 - [ ] PAL timing, Japanese assets/text and original regional behavior have scoped evidence.
 - [ ] Launcher, direct launch, packages, save isolation and upgrade/migration pass for all three.
 - [ ] Every advertised feature has completed regional qualification or documented non-applicability.
@@ -543,9 +550,9 @@ overlay lifecycle; JFG-UP-020-023 concern saves/controller semantics; JFG-UP-024
 scheduling. They are observations and pending validation work, not permission to copy code,
 change dependency pins or assume the cited behavior has been qualified locally.
 
-Implementation is currently executing under the owner's eight-hour approval, four-hour continuation
-and five-hour continuation
-in the same guarded investigation. The initial ledger observation below is
+Implementation and local qualification used the owner's eight-hour approval,
+four-hour continuation and five-hour continuation in the same guarded
+investigation. The initial ledger observation below is
 historical. Shared generation, typed resident bindings/memory, original module
 ownership, device clocks/FlashRAM, regional bundles and launcher resolution are
 implemented candidates; the issue record distinguishes passed tests, preserved
