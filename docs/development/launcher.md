@@ -324,12 +324,19 @@ launcher identifies the imported ROM, validates the selected manifest hash,
 then checks the executable identity and locks its declared files for launch.
 A missing matching revision cannot select another runtime. Source-built flat
 bundles retain their own program manifest and the same session validation.
-PAL and JP product admission remains closed while qualification is incomplete.
+Development build admission includes all three exact catalog revisions.
+Published v1.4.0 packages remain US-only; the [regional issue](issues/regional-rom-support.md)
+records final candidate qualification and remaining gameplay/release checks.
 
 The regional architecture candidate also checks `rom-revision.txt` inside the
 native startup boundary, before opening either save device. A valid ROM does
 not permit direct launch against a profile marked for another revision. PAL/JP
 normal Play requires a marked persistent profile; the launcher/build tool owns
 its creation. Bounded private probes can use unmarked inputs, and legacy US
-raw files remain readable without guessing their region. This source candidate
-does not enable the currently closed PAL/JP product admission gates.
+raw files remain readable without guessing their region. Regional imports never
+convert another revision's save.
+
+Support reports retain the verified catalog revision and program build/model/
+generation hashes from the active session lease. The sanitizer accepts only
+catalog IDs and fixed-size hashes; ROM paths, bytes and save contents remain
+excluded. [Support identity evidence](issues/regional-support-identity.md).

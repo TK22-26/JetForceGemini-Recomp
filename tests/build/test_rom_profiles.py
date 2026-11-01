@@ -27,13 +27,19 @@ class RegionalRomTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "checksum"):
             identify_rom(bytes.fromhex("80371240") + bytes(32*1024*1024-4))
 
-    def test_recognized_regional_roms_cannot_enter_us_native_runtime(self):
-        for profile in (PAL_ROM, JAPAN_ROM):
+    def test_admitted_original_revisions_can_build(self):
+        for profile in ROM_PROFILES:
             with self.subTest(region=profile.code), patch("scripts.rom_profiles.identify_rom",
                     return_value=(profile, b"", "big-endian")):
+                self.assertEqual(require_native_rom(b""), profile)
+
+    def test_recognition_does_not_override_closed_admission(self):
+        for profile in ROM_PROFILES:
+            with self.subTest(region=profile.code), patch("scripts.rom_profiles.identify_rom",
+                    return_value=(profile, b"", "big-endian")), patch.dict(
+                    "scripts.rom_profiles.NATIVE_ADMISSION", {profile.revision_id: False}):
                 with self.assertRaisesRegex(ValueError, "native runtime is not supported"):
                     require_native_rom(b"")
-        self.assertEqual([p.code for p in ROM_PROFILES if p.native_supported], [US_ROM.code])
 
     def test_japanese_opaque_executable_prefix_keeps_text_order(self):
         source = "sha1: " + JAPAN_ROM.sha1 + "\n  - [0x1000, c, first]\n  - [0x9E4D0, bin]\n  - [0x9E620, textbin]\n  - [0xA1120, data]\n"

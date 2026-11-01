@@ -2740,6 +2740,279 @@
           "body_sha256": "0b46772a2004741afc1e11926923a140ed2cc815df88a8e9f7d50855ab501359",
           "body_size": 168,
           "entry_offset": 0
+        },
+        "owner.layout.objSetupObject": {
+          "section_kind": "main",
+          "body_sha256": "b7a1bcb59bc3fad57e88a52b2d328650eccdbd3121091167f733bc66588dbf4d",
+          "body_size": 3848,
+          "entry_offset": 0
+        },
+        "owner.layout.doorUnlock": {
+          "section_kind": "main",
+          "body_sha256": "0448f9fe7f2bea412926d6e7a07d80980bcd51cda90d71e37c96ce32adf60145",
+          "body_size": 504,
+          "entry_offset": 0
+        },
+        "owner.layout.doorSwitchControl": {
+          "section_kind": "main",
+          "body_sha256": "e827d79f2e8437790fabc5647ddbf7b62fb184d90190100f2f9cf657085484c1",
+          "body_size": 604,
+          "entry_offset": 0
+        },
+        "owner.layout.modGenAnimMatrices": {
+          "section_kind": "main",
+          "body_sha256": "9dbcfc902fe08912f44efbe5ce02099e9ddf09e7824999e7cdd95538dcdc7028",
+          "body_size": 2976,
+          "entry_offset": 0
+        },
+        "owner.layout.hitModelInit": {
+          "section_kind": "main",
+          "body_sha256": "e01963281053c6368d830fc669e17a484518fbdb4829931845d471f07db010e4",
+          "body_size": 100,
+          "entry_offset": 0
+        },
+        "owner.layout.modelCompactInstance": {
+          "section_kind": "main",
+          "body_sha256": "d76393b9676653db87e4a827c66b262197232bf8c57e5c555602203606835d77",
+          "body_size": 136,
+          "entry_offset": 0
+        },
+        "owner.layout.objGetObjdef": {
+          "section_kind": "main",
+          "body_sha256": "a5b5169475e2317853c7118ab440604674290b9cfb7dfa5b8500baf946c14c24",
+          "body_size": 656,
+          "entry_offset": 0
+        },
+        "owner.layout.modLoadModel": {
+          "section_kind": "main",
+          "body_sha256": "7ef301379cf8d4bca938f567b4a8cd253748aa821658a60ff6f9772d06a2d644",
+          "body_size": 1756,
+          "entry_offset": 0
+        },
+        "owner.layout.boyBossControl": {
+          "section_kind": "overlay",
+          "overlay_slot": 50,
+          "body_sha256": "418849ce8e94c6cba2bfed1b3ebc1ae5efb9ca3c28e7bc5328c170772f812016",
+          "body_size": 3136,
+          "entry_offset": 0
+        },
+        "owner.layout.controlPlayerInit": {
+          "section_kind": "main",
+          "body_sha256": "9928d35b2c424f46d819691bad727f9a66cce833efe30114eaf7da933f8f8c05",
+          "body_size": 2328,
+          "entry_offset": 0
+        },
+        "owner.layout.modelInstance": {
+          "section_kind": "main",
+          "body_sha256": "820baa6c5cb207760ec2567a94705217d3518b0cc4939571549906567eecd752",
+          "body_size": 1552,
+          "entry_offset": 0
+        },
+        "owner.layout.makeModelGfx": {
+          "section_kind": "main",
+          "body_sha256": "54de85d44debb62c86da47f117dd9395b8a831dcee952827fe3c7fc6835a3901",
+          "body_size": 1412,
+          "entry_offset": 0
+        },
+        "owner.layout.npcInitialize": {
+          "section_kind": "overlay",
+          "body_sha256": "f27f6c093f9d1d6379964841c38f2ed82cb938a5ea103064056f460f20767fd9",
+          "body_size": 744,
+          "entry_offset": 0,
+          "overlay_slot": 32
+        },
+        "owner.layout.npcControl": {
+          "section_kind": "overlay",
+          "body_sha256": "da16ff7929111fb0d051d324945c0a23c96740d985fc33f37007b9835ac443b8",
+          "body_size": 6724,
+          "entry_offset": 0,
+          "overlay_slot": 32
+        },
+        "owner.layout.prepareSquad": {
+          "section_kind": "overlay",
+          "body_sha256": "d6a9cb4d487f6d4d0803a14c489b5dddb9d1aff508d4e43dcb4e1a46c70fe6e5",
+          "body_size": 284,
+          "entry_offset": 0,
+          "overlay_slot": 3
+        },
+        "owner.layout.squadronInit": {
+          "section_kind": "overlay",
+          "body_sha256": "c644213bf9b21429ce62468c57cc7e575ecdd5d0648bba4a7ac8d6bfbe1fb616",
+          "body_size": 1108,
+          "entry_offset": 0,
+          "overlay_slot": 136
+        },
+        "owner.layout.bridgeMatrices": {
+          "section_kind": "main",
+          "body_sha256": "2e707783783b0d1c0691abc43008f5c059556ae08f523c7281940b15d4979886",
+          "body_size": 424,
+          "entry_offset": 0
+        },
+        "owner.layout.bridgeBounds": {
+          "section_kind": "main",
+          "body_sha256": "bda416fa0b47df2f58f318474e084e54ad784108258b03374daef704341ba403",
+          "body_size": 588,
+          "entry_offset": 0
+        },
+        "owner.layout.chestInit": {
+          "section_kind": "overlay",
+          "body_sha256": "725f1a214292118f0af01403f4e9c11ebe98b15518c3f7f10b749333329b4879",
+          "body_size": 348,
+          "entry_offset": 0,
+          "overlay_slot": 82
+        },
+        "owner.layout.chestAccess": {
+          "section_kind": "overlay",
+          "body_sha256": "a68b880e947f1d368e39f363022e2b5bfd27385a3697055a0d162b803756b42d",
+          "body_size": 312,
+          "entry_offset": 0,
+          "overlay_slot": 82
+        },
+        "owner.layout.targetInitialize": {
+          "section_kind": "overlay",
+          "body_sha256": "269cf21a169ec83dd5bf963a78ca591941ade9610186a697573dfce3becead3a",
+          "body_size": 288,
+          "entry_offset": 0,
+          "overlay_slot": 125
+        },
+        "owner.layout.mainPlayerHasWeapon": {
+          "section_kind": "main",
+          "body_sha256": "50791b7d0b3dfc7b0ffe913023141d4126b6b443a1befc0317f3b0d90f8efc89",
+          "body_size": 72,
+          "entry_offset": 0
+        },
+        "owner.layout.mainPlayerHas": {
+          "section_kind": "main",
+          "body_sha256": "a93e2149632edd29eec464a3bb0b5a537df3e878f0894b9e4fa62369fb72a356",
+          "body_size": 88,
+          "entry_offset": 0
+        },
+        "owner.layout.mainGetGameFlagGamePtr": {
+          "section_kind": "main",
+          "body_sha256": "03cf61c019e4b6b34762252c9c81fbf659e6f61aa796348daec200c36f548b76",
+          "body_size": 68,
+          "entry_offset": 0
+        },
+        "owner.layout.mainGetGameCharacter": {
+          "section_kind": "main",
+          "body_sha256": "ef83d255b5c1df1374a15836bc1240f3624b9e4fb3a090b33904abd9ebc082cf",
+          "body_size": 128,
+          "entry_offset": 0
+        },
+        "owner.layout.regionidInit": {
+          "section_kind": "overlay",
+          "body_sha256": "db4e0e988d4655a87e9892f3e6c147bd5d8ba39220a95827a1ab560b036ec576",
+          "body_size": 676,
+          "entry_offset": 0,
+          "overlay_slot": 117
+        },
+        "owner.layout.severedLimbInit": {
+          "section_kind": "main",
+          "body_sha256": "69445c4c0149b01c14b874c08defb66081fa740d5576f732c00bbc1b7a3a2eca",
+          "body_size": 604,
+          "entry_offset": 0
+        },
+        "owner.layout.objPrintSeveredLimb": {
+          "section_kind": "main",
+          "body_sha256": "9b702202b4614440861379c6ecd2e8590515339ce39cd073ce00b39c8ea6c542",
+          "body_size": 416,
+          "entry_offset": 0
+        },
+        "owner.layout.objDrawShockWave": {
+          "section_kind": "main",
+          "body_sha256": "7b177e21758dae94f8191e34688b9f98981005ecdc72dec02f06ae28d7c6616d",
+          "body_size": 692,
+          "entry_offset": 0
+        },
+        "owner.layout.beamDraw": {
+          "section_kind": "overlay",
+          "body_sha256": "c5345fd28fe6426e84a564eba9f6c19be71abe4e4db87f2fcba68459a2cdd7cc",
+          "body_size": 732,
+          "entry_offset": 0,
+          "overlay_slot": 76
+        },
+        "owner.layout.beamInit": {
+          "section_kind": "overlay",
+          "body_sha256": "1d95dc28d52168ef9600f5534c820224216567cb726f6a597be8e7d059bd1b29",
+          "body_size": 680,
+          "entry_offset": 0,
+          "overlay_slot": 76
+        },
+        "owner.layout.glassInit": {
+          "section_kind": "overlay",
+          "body_sha256": "2a9b8c05d08542d0d9c134904455a42194db39615ddd422f0976ca9ef4024e7b",
+          "body_size": 364,
+          "entry_offset": 0,
+          "overlay_slot": 101
+        },
+        "owner.audio.soundPlayerConstructor": {
+          "section_kind": "main",
+          "body_sha256": "d0e6103953de93cd29d9d5be6f87480c4b7d42080e225fda7b76a7ba95cc5374",
+          "body_size": 616,
+          "entry_offset": 0
+        },
+        "owner.audio.eventQueueConstructor": {
+          "section_kind": "main",
+          "body_sha256": "b3526c6093458709fdfa014a257b932bb28b69f3712090f4716d4c8dc1d16d39",
+          "body_size": 172,
+          "entry_offset": 0
+        },
+        "owner.layout.levelInit": {
+          "section_kind": "main",
+          "body_sha256": "09c6739387ad86db3ba6edf038c3953ac44f0ba3e3b26fcff030f55497d54e33",
+          "body_size": 1824,
+          "entry_offset": 0
+        },
+        "owner.audio.eventQueuePost": {
+          "section_kind": "main",
+          "body_sha256": "16c28efd5c75db9aeedca8a01635f35ba0df55b4051df53829fb6ceef8100815",
+          "body_size": 476,
+          "entry_offset": 0
+        },
+        "owner.layout.mainSetDefaultCharacter": {
+          "section_kind": "main",
+          "body_sha256": "7124010df43ce458892ddbd1898f17163766cec04aabe70180486f662f7f764a",
+          "body_size": 300,
+          "entry_offset": 0
+        },
+        "owner.layout.mainSetDefaultGame": {
+          "section_kind": "main",
+          "body_sha256": "4c14a2606278cfe323451c7d1171288ab2a469c6e1e3e3bd2f14848a74eb0433",
+          "body_size": 376,
+          "entry_offset": 0
+        },
+        "owner.layout.weaponPickupInit": {
+          "section_kind": "overlay",
+          "body_sha256": "32472b754f3b181108c04a946c3753c3d8a5fae18877caefbc5cca2d16ab4eb1",
+          "body_size": 228,
+          "entry_offset": 0,
+          "overlay_slot": 132
+        },
+        "owner.layout.doorControl": {
+          "section_kind": "main",
+          "body_sha256": "28186ada37370ae52b8ff5a52e03cd58a6f3fd805008303b8df516ef897733d8",
+          "body_size": 3108,
+          "entry_offset": 0
+        },
+        "owner.layout.trackLoader": {
+          "section_kind": "overlay",
+          "body_sha256": "fef56a8706969122fc097a9904fe157f914fcb57edb22501a7e9bbfca858b7bf",
+          "body_size": 1808,
+          "entry_offset": 0,
+          "overlay_slot": 24
+        },
+        "owner.layout.trackPlanes": {
+          "section_kind": "overlay",
+          "body_sha256": "d1b4647e3d65d5b989e1f1a02f6da1ac156514056e4824a2d679f0d40d470a0d",
+          "body_size": 2556,
+          "entry_offset": 0,
+          "overlay_slot": 24
+        },
+        "owner.layout.trackLightAllocate": {
+          "section_kind": "main",
+          "body_sha256": "c2024ca0916cc716a9ae7e53214d9181850d0777b79169e626417523dc27f804",
+          "body_size": 456,
+          "entry_offset": 0
         }
       },
       "data": {
@@ -5400,6 +5673,682 @@
         "rom.assets.data_lo": {
           "source": "rom.assets.initialize",
           "instruction_offset": 96
+        },
+        "layout.playerControl.port": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 40
+        },
+        "layout.playerControl.characterFlags": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 3556
+        },
+        "layout.playerControl.forwardVelocity": {
+          "source": "game.controlUpdateCamera",
+          "instruction_offset": 44
+        },
+        "layout.playerControl.verticalVelocity": {
+          "source": "overlay.juno.update",
+          "instruction_offset": 272
+        },
+        "layout.playerControl.sideVelocity": {
+          "source": "overlay.juno.movement",
+          "instruction_offset": 108
+        },
+        "layout.playerControl.boss": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 1424
+        },
+        "layout.playerControl.aimInhibited": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 548
+        },
+        "layout.playerControl.cameraDistance": {
+          "source": "game.controlGetManualAim",
+          "instruction_offset": 1064
+        },
+        "layout.playerControl.cameraSpring": {
+          "source": "game.controlGetManualAim",
+          "instruction_offset": 300
+        },
+        "layout.playerControl.viewImpulseActive": {
+          "source": "game.controlUpdatePlayerAim",
+          "instruction_offset": 80
+        },
+        "layout.playerControl.viewImpulseTimer": {
+          "source": "game.controlUpdatePlayerAim",
+          "instruction_offset": 96
+        },
+        "layout.playerControl.animationLock": {
+          "source": "overlay.juno.update",
+          "instruction_offset": 1116
+        },
+        "layout.playerControl.fireCounter": {
+          "source": "game.controlFireDummyShot",
+          "instruction_offset": 104
+        },
+        "layout.playerControl.weaponCounter": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 2748
+        },
+        "layout.playerControl.weaponState": {
+          "source": "game.controlFadePlayer",
+          "instruction_offset": 16
+        },
+        "layout.playerControl.animationTimer": {
+          "source": "overlay.juno.movement_handler",
+          "instruction_offset": 128
+        },
+        "layout.playerControl.actionLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 312
+        },
+        "layout.playerControl.damageLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 176
+        },
+        "layout.playerControl.dialogueLock": {
+          "source": "game.controlUpdateCamera",
+          "instruction_offset": 3696
+        },
+        "layout.playerControl.transitionLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 244
+        },
+        "layout.playerControl.sidekickMode": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 2692
+        },
+        "layout.playerControl.scriptLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 740
+        },
+        "layout.actor.velocityX": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 204
+        },
+        "layout.actor.velocityY": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 200
+        },
+        "layout.actor.velocityZ": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 196
+        },
+        "layout.actor.alpha": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 2496
+        },
+        "layout.doorControl.state": {
+          "source": "game.doorControl",
+          "instruction_offset": 460
+        },
+        "layout.doorControl.radius": {
+          "source": "game.doorControl",
+          "instruction_offset": 100
+        },
+        "layout.doorControl.kind": {
+          "source": "game.doorControl",
+          "instruction_offset": 824
+        },
+        "layout.doorControl.condition": {
+          "source": "game.doorControl",
+          "instruction_offset": 440
+        },
+        "layout.doorControl.id": {
+          "source": "owner.layout.doorUnlock",
+          "instruction_offset": 112
+        },
+        "layout.doorControl.pendingOpeners": {
+          "source": "owner.layout.doorUnlock",
+          "instruction_offset": 128
+        },
+        "layout.doorControl.restrictions": {
+          "source": "game.doorControl",
+          "instruction_offset": 532
+        },
+        "layout.sidekickControl.owner": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 44
+        },
+        "layout.sidekickControl.aimX": {
+          "source": "game.controlUpdateFloyd",
+          "instruction_offset": 308
+        },
+        "layout.sidekickControl.aimY": {
+          "source": "game.controlUpdateFloyd",
+          "instruction_offset": 324
+        },
+        "layout.sidekickControl.headingYaw": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 908
+        },
+        "layout.sidekickControl.headingPitch": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 1168
+        },
+        "layout.sidekickControl.turnYaw": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 792
+        },
+        "layout.sidekickControl.turnPitch": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 1032
+        },
+        "layout.sidekickControl.flags": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 148
+        },
+        "layout.flightControl.flags": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 24
+        },
+        "layout.flightControl.speed": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 112
+        },
+        "layout.flightControl.health": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 3472
+        },
+        "layout.flightRecord.dragThreshold": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 36
+        },
+        "layout.flightRecord.flags": {
+          "source": "overlay.collision.death_move",
+          "instruction_offset": 1376
+        },
+        "layout.flightDescriptor.maxSpeed": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 28
+        },
+        "layout.flightDescriptor.minSpeed": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 32
+        },
+        "layout.objectHeader.renderKind": {
+          "source": "owner.layout.objSetupObject",
+          "instruction_offset": 692
+        },
+        "layout.objectHeader.modelCount": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 1996
+        },
+        "layout.objectHeader.lodThreshold": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 1908
+        },
+        "layout.model.skinned": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 2124
+        },
+        "layout.playerControl.race": {
+          "source": "overlay.juno.movement_handler",
+          "instruction_offset": 660
+        },
+        "layout.flightControl.spinYaw": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6288
+        },
+        "layout.flightControl.spinPitch": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6316
+        },
+        "layout.flightControl.spinRoll": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6344
+        },
+        "layout.flightRecord.deathMode": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 5176
+        },
+        "layout.flightRecord.movementMode": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 8824
+        },
+        "layout.actor.yaw": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6284
+        },
+        "layout.actor.pitch": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6312
+        },
+        "layout.actor.roll": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6340
+        },
+        "layout.playerControl.secondaryAnimationTimer": {
+          "source": "owner.layout.boyBossControl",
+          "instruction_offset": 392
+        },
+        "layout.playerControl.missionLock": {
+          "source": "owner.layout.controlPlayerInit",
+          "instruction_offset": 2272
+        },
+        "layout.actor.state": {
+          "source": "owner.layout.hitModelInit",
+          "instruction_offset": 12
+        },
+        "layout.objectHeader.assets": {
+          "source": "owner.layout.objGetObjdef",
+          "instruction_offset": 272
+        },
+        "layout.model.vertexCount": {
+          "source": "owner.layout.modelCompactInstance",
+          "instruction_offset": 12
+        },
+        "layout.model.boneCount": {
+          "source": "owner.layout.modGenAnimMatrices",
+          "instruction_offset": 944
+        },
+        "layout.model.batchCount": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 1116
+        },
+        "layout.model.faces": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 696
+        },
+        "layout.model.batches": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 700
+        },
+        "layout.model.collision": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 852
+        },
+        "layout.instance.model": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 120
+        },
+        "layout.instance.vertices": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 2104
+        },
+        "layout.instance.collision": {
+          "source": "owner.layout.modelCompactInstance",
+          "instruction_offset": 80
+        },
+        "layout.instance.palette0": {
+          "source": "owner.layout.modelInstance",
+          "instruction_offset": 376
+        },
+        "layout.instance.palette1": {
+          "source": "owner.layout.modelInstance",
+          "instruction_offset": 380
+        },
+        "layout.levelHeader.kind": {
+          "source": "owner.globals.levelHeader",
+          "instruction_offset": 12
+        },
+        "layout.doorIndicator.linkedDoor": {
+          "source": "owner.layout.doorSwitchControl",
+          "instruction_offset": 24
+        },
+        "layout.doorIndicator.state": {
+          "source": "owner.layout.doorSwitchControl",
+          "instruction_offset": 28
+        },
+        "layout.doorIndicator.condition": {
+          "source": "owner.layout.doorSwitchControl",
+          "instruction_offset": 224
+        },
+        "layout.bridgeState.modelIndex": {
+          "source": "owner.layout.hitModelInit",
+          "instruction_offset": 36
+        },
+        "layout.objectHeader.collisionVariant": {
+          "source": "owner.layout.hitModelInit",
+          "instruction_offset": 16
+        },
+        "layout.actor.viewVisibility": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 388
+        },
+        "layout.npcControl.state": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 444
+        },
+        "layout.npcControl.firstConversation": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 652
+        },
+        "layout.npcControl.radius": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 184
+        },
+        "layout.npcControl.upper": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 220
+        },
+        "layout.npcControl.lower": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 252
+        },
+        "layout.npcControl.dialogue": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 264
+        },
+        "layout.npcControl.encounter": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 508
+        },
+        "layout.properties.health": {
+          "source": "owner.layout.npcControl",
+          "instruction_offset": 200
+        },
+        "layout.squadControl.squad": {
+          "source": "owner.layout.prepareSquad",
+          "instruction_offset": 108
+        },
+        "layout.squadRecord.type": {
+          "source": "owner.layout.squadronInit",
+          "instruction_offset": 96
+        },
+        "layout.bridgeState.matrixIndex": {
+          "source": "owner.layout.bridgeMatrices",
+          "instruction_offset": 192
+        },
+        "layout.bridgeState.lowerX": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 40
+        },
+        "layout.bridgeState.lowerY": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 52
+        },
+        "layout.bridgeState.lowerZ": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 64
+        },
+        "layout.bridgeState.upperX": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 72
+        },
+        "layout.bridgeState.upperY": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 76
+        },
+        "layout.bridgeState.upperZ": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 80
+        },
+        "layout.chestControl.state": {
+          "source": "owner.layout.chestInit",
+          "instruction_offset": 168
+        },
+        "layout.chestControl.content": {
+          "source": "owner.layout.chestInit",
+          "instruction_offset": 140
+        },
+        "layout.chestControl.offsetX": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 220
+        },
+        "layout.chestControl.offsetY": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 224
+        },
+        "layout.chestControl.offsetZ": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 256
+        },
+        "layout.chestControl.radius": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 168
+        },
+        "layout.chestControl.height": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 180
+        },
+        "layout.targetControl.cooldown": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 128
+        },
+        "layout.targetControl.condition": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 184
+        },
+        "layout.targetControl.maxHealth": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 144
+        },
+        "layout.targetControl.doorId": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 172
+        },
+        "layout.targetControl.active": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 152
+        },
+        "layout.saveCharacter.weapons": {
+          "source": "owner.layout.mainPlayerHasWeapon",
+          "instruction_offset": 32
+        },
+        "layout.saveCharacter.items": {
+          "source": "owner.layout.mainPlayerHas",
+          "instruction_offset": 40
+        },
+        "layout.saveGame.flags": {
+          "source": "owner.layout.mainGetGameFlagGamePtr",
+          "instruction_offset": 20
+        },
+        "layout.levelHeader.music": {
+          "source": "game.levelTunePlay",
+          "instruction_offset": 20
+        },
+        "layout.regionControl.active": {
+          "source": "owner.layout.regionidInit",
+          "instruction_offset": 296
+        },
+        "layout.limbControl.vertices": {
+          "source": "owner.layout.severedLimbInit",
+          "instruction_offset": 292
+        },
+        "layout.limbControl.opaqueCommands": {
+          "source": "owner.layout.objPrintSeveredLimb",
+          "instruction_offset": 244
+        },
+        "layout.limbControl.transparentCommands": {
+          "source": "owner.layout.objPrintSeveredLimb",
+          "instruction_offset": 292
+        },
+        "layout.shockwaveControl.texture": {
+          "source": "owner.layout.objDrawShockWave",
+          "instruction_offset": 100
+        },
+        "layout.shockwaveControl.bank": {
+          "source": "owner.layout.objDrawShockWave",
+          "instruction_offset": 392
+        },
+        "layout.beamControl.active": {
+          "source": "owner.layout.beamDraw",
+          "instruction_offset": 60
+        },
+        "layout.beamControl.bank": {
+          "source": "owner.layout.beamDraw",
+          "instruction_offset": 232
+        },
+        "layout.beamControl.flags": {
+          "source": "owner.layout.beamInit",
+          "instruction_offset": 652
+        },
+        "layout.glassActor.health": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 136
+        },
+        "layout.glassControl.texture": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 212
+        },
+        "layout.glassControl.vertices": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 192
+        },
+        "layout.glassControl.commands0": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 184
+        },
+        "layout.glassControl.commands1": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 188
+        },
+        "layout.cutsceneActor.soundHandle": {
+          "source": "game.animseqProcessCommandList",
+          "instruction_offset": 1548
+        },
+        "layout.objectHeader.animationEvents": {
+          "source": "owner.layout.objGetObjdef",
+          "instruction_offset": 556
+        },
+        "layout.camera.x": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 428
+        },
+        "layout.camera.y": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 480
+        },
+        "layout.camera.z": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 516
+        },
+        "layout.camera.yaw": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 748
+        },
+        "layout.camera.pitch": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 784
+        },
+        "layout.camera.roll": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 816
+        },
+        "layout.exitControl.radius": {
+          "source": "game.exitControl",
+          "instruction_offset": 164
+        },
+        "layout.exitControl.condition": {
+          "source": "game.exitControl",
+          "instruction_offset": 24
+        },
+        "layout.exitControl.directional": {
+          "source": "game.exitControl",
+          "instruction_offset": 244
+        },
+        "layout.exitControl.normalX": {
+          "source": "game.exitControl",
+          "instruction_offset": 260
+        },
+        "layout.exitControl.normalY": {
+          "source": "game.exitControl",
+          "instruction_offset": 268
+        },
+        "layout.exitControl.normalZ": {
+          "source": "game.exitControl",
+          "instruction_offset": 280
+        },
+        "layout.exitControl.planeD": {
+          "source": "game.exitControl",
+          "instruction_offset": 308
+        },
+        "layout.shadowControl.flags": {
+          "source": "game.shadowGenerate",
+          "instruction_offset": 348
+        },
+        "layout.shadowControl.scale": {
+          "source": "game.shadowGenerate",
+          "instruction_offset": 512
+        },
+        "layout.levelHeader.sceneAsset": {
+          "source": "owner.layout.levelInit",
+          "instruction_offset": 556
+        },
+        "layout.instance.textures": {
+          "source": "owner.layout.modelInstance",
+          "instruction_offset": 704
+        },
+        "layout.saveCharacter.ammo": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 112
+        },
+        "layout.saveCharacter.ammoCapacity": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 124
+        },
+        "layout.saveCharacter.weaponCount": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 176
+        },
+        "layout.saveCharacter.selectedWeapon": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 180
+        },
+        "layout.saveCharacter.tokens": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 204
+        },
+        "layout.saveGame.storyFlags": {
+          "source": "owner.layout.mainSetDefaultGame",
+          "instruction_offset": 192
+        },
+        "layout.actor.objectId": {
+          "source": "game.shadowGenerate",
+          "instruction_offset": 440
+        },
+        "layout.playerControl.doorCapability": {
+          "source": "owner.layout.doorControl",
+          "instruction_offset": 588
+        },
+        "layout.exitDefinition.levelLow": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 396
+        },
+        "layout.exitDefinition.levelHigh": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 392
+        },
+        "layout.track.blocks": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 516
+        },
+        "layout.track.blockCount": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 636
+        },
+        "layout.trackBlock.vertices": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 664
+        },
+        "layout.trackBlock.faces": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 700
+        },
+        "layout.trackBlock.batches": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 736
+        },
+        "layout.trackBlock.planeIndices": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 772
+        },
+        "layout.trackBlock.planes": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 1028
+        },
+        "layout.trackBlock.vertexCount": {
+          "source": "owner.layout.trackLightAllocate",
+          "instruction_offset": 264
+        },
+        "layout.trackBlock.faceCount": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 892
+        },
+        "layout.trackBlock.batchCount": {
+          "source": "owner.layout.trackPlanes",
+          "instruction_offset": 92
         }
       }
     },
@@ -8140,6 +9089,279 @@
           "body_sha256": "d4d221acaa51d444b21409857f593af7a3589f3a95e1ee8c60a55c21a8224a9e",
           "body_size": 168,
           "entry_offset": 0
+        },
+        "owner.layout.objSetupObject": {
+          "section_kind": "main",
+          "body_sha256": "1734de1c9aee735bdd0e5bdf0b75a0ead6a80c8a8c50f8138d2196d71ce2f493",
+          "body_size": 3848,
+          "entry_offset": 0
+        },
+        "owner.layout.doorUnlock": {
+          "section_kind": "main",
+          "body_sha256": "7fa530ad04f9562569447de702ccd6dd3e93f3903443a93b25e9cbacbc452355",
+          "body_size": 504,
+          "entry_offset": 0
+        },
+        "owner.layout.doorSwitchControl": {
+          "section_kind": "main",
+          "body_sha256": "cdf81226e0ced82de058a6b2678ef67b2150d8937c7e3bb58099de9fd5555fa3",
+          "body_size": 604,
+          "entry_offset": 0
+        },
+        "owner.layout.modGenAnimMatrices": {
+          "section_kind": "main",
+          "body_sha256": "85dd6ef0890f214f5b6350cbe02ab34d8e9477248124b50ca6a291e5237ffbb9",
+          "body_size": 2976,
+          "entry_offset": 0
+        },
+        "owner.layout.hitModelInit": {
+          "section_kind": "main",
+          "body_sha256": "44ccbde36833a76c5295490f150251e79b413a9bc109a04ee1b540f05f2a90ce",
+          "body_size": 100,
+          "entry_offset": 0
+        },
+        "owner.layout.modelCompactInstance": {
+          "section_kind": "main",
+          "body_sha256": "6995aaa44b244fc79df8005e92c5791b770efb93b664b4ba24166a13cc1f09e0",
+          "body_size": 136,
+          "entry_offset": 0
+        },
+        "owner.layout.objGetObjdef": {
+          "section_kind": "main",
+          "body_sha256": "ec353a1d32f6bda450ce549188549891c481629df2dac1ea1a48c85fdb8c875b",
+          "body_size": 656,
+          "entry_offset": 0
+        },
+        "owner.layout.modLoadModel": {
+          "section_kind": "main",
+          "body_sha256": "a9d8af1f2693afeacdb7fb7becfd479a382b8d48cede62e07cf130e6aa95c9d3",
+          "body_size": 1756,
+          "entry_offset": 0
+        },
+        "owner.layout.boyBossControl": {
+          "section_kind": "overlay",
+          "overlay_slot": 50,
+          "body_sha256": "41c7c38a0ed3a0fa0fe3a8724b30014bd39378297314d1aa9bea2f9e7a91e463",
+          "body_size": 3136,
+          "entry_offset": 0
+        },
+        "owner.layout.controlPlayerInit": {
+          "section_kind": "main",
+          "body_sha256": "2cd100bb8916e396b9b31595256639b47e947504dfe0c0bd016c1a9ecc115051",
+          "body_size": 2328,
+          "entry_offset": 0
+        },
+        "owner.layout.modelInstance": {
+          "section_kind": "main",
+          "body_sha256": "744015e5dac002e89f8e01d226adc31fe093f20e488642e3aa3851f0ff68b577",
+          "body_size": 1552,
+          "entry_offset": 0
+        },
+        "owner.layout.makeModelGfx": {
+          "section_kind": "main",
+          "body_sha256": "62f938ddf2a60286862c1df485e697cadf487dab1fe0556ee475c10ba865069d",
+          "body_size": 1412,
+          "entry_offset": 0
+        },
+        "owner.layout.npcInitialize": {
+          "section_kind": "overlay",
+          "body_sha256": "499c27c815aa5f25f93e43d9e24ecd187ac41d985551b130faaf8f11080932f9",
+          "body_size": 744,
+          "entry_offset": 0,
+          "overlay_slot": 32
+        },
+        "owner.layout.npcControl": {
+          "section_kind": "overlay",
+          "body_sha256": "4687482dd9877b3feda653352200dcb98075496d9475e2ff0fbababaf1e9fccb",
+          "body_size": 7172,
+          "entry_offset": 0,
+          "overlay_slot": 32
+        },
+        "owner.layout.prepareSquad": {
+          "section_kind": "overlay",
+          "body_sha256": "d6a9cb4d487f6d4d0803a14c489b5dddb9d1aff508d4e43dcb4e1a46c70fe6e5",
+          "body_size": 284,
+          "entry_offset": 0,
+          "overlay_slot": 3
+        },
+        "owner.layout.squadronInit": {
+          "section_kind": "overlay",
+          "body_sha256": "c644213bf9b21429ce62468c57cc7e575ecdd5d0648bba4a7ac8d6bfbe1fb616",
+          "body_size": 1108,
+          "entry_offset": 0,
+          "overlay_slot": 136
+        },
+        "owner.layout.bridgeMatrices": {
+          "section_kind": "main",
+          "body_sha256": "53f2a991af4b3e6c2b91897798b6b3d40972d474b4e04b42c6c06e52e199f2c8",
+          "body_size": 424,
+          "entry_offset": 0
+        },
+        "owner.layout.bridgeBounds": {
+          "section_kind": "main",
+          "body_sha256": "bda416fa0b47df2f58f318474e084e54ad784108258b03374daef704341ba403",
+          "body_size": 588,
+          "entry_offset": 0
+        },
+        "owner.layout.chestInit": {
+          "section_kind": "overlay",
+          "body_sha256": "2fd0d42a9ca4727d24019298ce18dc1c3b74793beccd4063f4cc52cbe5d8d194",
+          "body_size": 348,
+          "entry_offset": 0,
+          "overlay_slot": 82
+        },
+        "owner.layout.chestAccess": {
+          "section_kind": "overlay",
+          "body_sha256": "05a9b87abdf3d3db331b8671b4f102f24b8d434ec6a5d443de056284f3d4c987",
+          "body_size": 312,
+          "entry_offset": 0,
+          "overlay_slot": 82
+        },
+        "owner.layout.targetInitialize": {
+          "section_kind": "overlay",
+          "body_sha256": "269cf21a169ec83dd5bf963a78ca591941ade9610186a697573dfce3becead3a",
+          "body_size": 288,
+          "entry_offset": 0,
+          "overlay_slot": 125
+        },
+        "owner.layout.mainPlayerHasWeapon": {
+          "section_kind": "main",
+          "body_sha256": "fae6f6e921b3e76c727ade04bf38ac4014de7de1e89a82b8bb4c88ca4965ccaf",
+          "body_size": 72,
+          "entry_offset": 0
+        },
+        "owner.layout.mainPlayerHas": {
+          "section_kind": "main",
+          "body_sha256": "40558e4f57407ec2d8e68ac2527696f3b008de743737330015fe2b87154e1b91",
+          "body_size": 88,
+          "entry_offset": 0
+        },
+        "owner.layout.mainGetGameFlagGamePtr": {
+          "section_kind": "main",
+          "body_sha256": "03cf61c019e4b6b34762252c9c81fbf659e6f61aa796348daec200c36f548b76",
+          "body_size": 68,
+          "entry_offset": 0
+        },
+        "owner.layout.mainGetGameCharacter": {
+          "section_kind": "main",
+          "body_sha256": "edf6a9158fd05c5406b00fd852a87cece6b1ab93d0bdf68e56a4fcbb49954ea0",
+          "body_size": 128,
+          "entry_offset": 0
+        },
+        "owner.layout.regionidInit": {
+          "section_kind": "overlay",
+          "body_sha256": "db4e0e988d4655a87e9892f3e6c147bd5d8ba39220a95827a1ab560b036ec576",
+          "body_size": 676,
+          "entry_offset": 0,
+          "overlay_slot": 117
+        },
+        "owner.layout.severedLimbInit": {
+          "section_kind": "main",
+          "body_sha256": "8df42c83119a05b0d63e65bb47339a6b58a91cc39a8b30355d8c4d1f5c9f8214",
+          "body_size": 604,
+          "entry_offset": 0
+        },
+        "owner.layout.objPrintSeveredLimb": {
+          "section_kind": "main",
+          "body_sha256": "b00c1465a883ae299234fc2a8fd1399721c43d963db2873d82c557633f433425",
+          "body_size": 416,
+          "entry_offset": 0
+        },
+        "owner.layout.objDrawShockWave": {
+          "section_kind": "main",
+          "body_sha256": "b716cc50796eff979881e8868a0a388123ad24ba009f4d2da371d87eab7f120e",
+          "body_size": 692,
+          "entry_offset": 0
+        },
+        "owner.layout.beamDraw": {
+          "section_kind": "overlay",
+          "body_sha256": "c5345fd28fe6426e84a564eba9f6c19be71abe4e4db87f2fcba68459a2cdd7cc",
+          "body_size": 732,
+          "entry_offset": 0,
+          "overlay_slot": 76
+        },
+        "owner.layout.beamInit": {
+          "section_kind": "overlay",
+          "body_sha256": "1d95dc28d52168ef9600f5534c820224216567cb726f6a597be8e7d059bd1b29",
+          "body_size": 680,
+          "entry_offset": 0,
+          "overlay_slot": 76
+        },
+        "owner.layout.glassInit": {
+          "section_kind": "overlay",
+          "body_sha256": "2a9b8c05d08542d0d9c134904455a42194db39615ddd422f0976ca9ef4024e7b",
+          "body_size": 364,
+          "entry_offset": 0,
+          "overlay_slot": 101
+        },
+        "owner.audio.soundPlayerConstructor": {
+          "section_kind": "main",
+          "body_sha256": "fd0031921dcf69d3e477755217557972ee133a578da46e3292e5d2033c2d521c",
+          "body_size": 616,
+          "entry_offset": 0
+        },
+        "owner.audio.eventQueueConstructor": {
+          "section_kind": "main",
+          "body_sha256": "904a00678145b9f05005555228d0614f20fec2b46332881332379c0401a048d5",
+          "body_size": 172,
+          "entry_offset": 0
+        },
+        "owner.layout.levelInit": {
+          "section_kind": "main",
+          "body_sha256": "81898da1e4198445e4f6b6963528a67bb0d0d46e53c61feabd24bdccb27c750c",
+          "body_size": 1832,
+          "entry_offset": 0
+        },
+        "owner.audio.eventQueuePost": {
+          "section_kind": "main",
+          "body_sha256": "c8c3d2f8f72be119d63866c0af8929b6458d51290d7b95f5f15881529d772058",
+          "body_size": 476,
+          "entry_offset": 0
+        },
+        "owner.layout.mainSetDefaultCharacter": {
+          "section_kind": "main",
+          "body_sha256": "93c1d54fc0fd149c5b4d0149b4cd4195e0c38d6e4eef71c54cd0c663c02261e8",
+          "body_size": 300,
+          "entry_offset": 0
+        },
+        "owner.layout.mainSetDefaultGame": {
+          "section_kind": "main",
+          "body_sha256": "fa44fe628e21e9d168eae4ac1137eb61e932f92cb036aedb2068ac6afe503517",
+          "body_size": 376,
+          "entry_offset": 0
+        },
+        "owner.layout.weaponPickupInit": {
+          "section_kind": "overlay",
+          "body_sha256": "32472b754f3b181108c04a946c3753c3d8a5fae18877caefbc5cca2d16ab4eb1",
+          "body_size": 228,
+          "entry_offset": 0,
+          "overlay_slot": 132
+        },
+        "owner.layout.doorControl": {
+          "section_kind": "main",
+          "body_sha256": "4ba5f562da9db5fd538ed044c255ff2219fb7f248c5f22727f591fcb4acaf53b",
+          "body_size": 3108,
+          "entry_offset": 0
+        },
+        "owner.layout.trackLoader": {
+          "section_kind": "overlay",
+          "body_sha256": "fef56a8706969122fc097a9904fe157f914fcb57edb22501a7e9bbfca858b7bf",
+          "body_size": 1808,
+          "entry_offset": 0,
+          "overlay_slot": 24
+        },
+        "owner.layout.trackPlanes": {
+          "section_kind": "overlay",
+          "body_sha256": "d1b4647e3d65d5b989e1f1a02f6da1ac156514056e4824a2d679f0d40d470a0d",
+          "body_size": 2556,
+          "entry_offset": 0,
+          "overlay_slot": 24
+        },
+        "owner.layout.trackLightAllocate": {
+          "section_kind": "main",
+          "body_sha256": "07063fd647e61e9593d94152f65e5e35b89ef175619239114deff77f0e3ec0a6",
+          "body_size": 456,
+          "entry_offset": 0
         }
       },
       "data": {
@@ -10800,6 +12022,682 @@
         "rom.assets.data_lo": {
           "source": "rom.assets.initialize",
           "instruction_offset": 96
+        },
+        "layout.playerControl.port": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 40
+        },
+        "layout.playerControl.characterFlags": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 3556
+        },
+        "layout.playerControl.forwardVelocity": {
+          "source": "game.controlUpdateCamera",
+          "instruction_offset": 44
+        },
+        "layout.playerControl.verticalVelocity": {
+          "source": "overlay.juno.update",
+          "instruction_offset": 284
+        },
+        "layout.playerControl.sideVelocity": {
+          "source": "overlay.juno.movement",
+          "instruction_offset": 108
+        },
+        "layout.playerControl.boss": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 1424
+        },
+        "layout.playerControl.aimInhibited": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 548
+        },
+        "layout.playerControl.cameraDistance": {
+          "source": "game.controlGetManualAim",
+          "instruction_offset": 1108
+        },
+        "layout.playerControl.cameraSpring": {
+          "source": "game.controlGetManualAim",
+          "instruction_offset": 300
+        },
+        "layout.playerControl.viewImpulseActive": {
+          "source": "game.controlUpdatePlayerAim",
+          "instruction_offset": 80
+        },
+        "layout.playerControl.viewImpulseTimer": {
+          "source": "game.controlUpdatePlayerAim",
+          "instruction_offset": 96
+        },
+        "layout.playerControl.animationLock": {
+          "source": "overlay.juno.update",
+          "instruction_offset": 1128
+        },
+        "layout.playerControl.fireCounter": {
+          "source": "game.controlFireDummyShot",
+          "instruction_offset": 104
+        },
+        "layout.playerControl.weaponCounter": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 2748
+        },
+        "layout.playerControl.weaponState": {
+          "source": "game.controlFadePlayer",
+          "instruction_offset": 16
+        },
+        "layout.playerControl.animationTimer": {
+          "source": "overlay.juno.movement_handler",
+          "instruction_offset": 128
+        },
+        "layout.playerControl.actionLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 312
+        },
+        "layout.playerControl.damageLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 176
+        },
+        "layout.playerControl.dialogueLock": {
+          "source": "game.controlUpdateCamera",
+          "instruction_offset": 3752
+        },
+        "layout.playerControl.transitionLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 244
+        },
+        "layout.playerControl.sidekickMode": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 2692
+        },
+        "layout.playerControl.scriptLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 740
+        },
+        "layout.actor.velocityX": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 204
+        },
+        "layout.actor.velocityY": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 200
+        },
+        "layout.actor.velocityZ": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 196
+        },
+        "layout.actor.alpha": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 2496
+        },
+        "layout.doorControl.state": {
+          "source": "game.doorControl",
+          "instruction_offset": 460
+        },
+        "layout.doorControl.radius": {
+          "source": "game.doorControl",
+          "instruction_offset": 100
+        },
+        "layout.doorControl.kind": {
+          "source": "game.doorControl",
+          "instruction_offset": 824
+        },
+        "layout.doorControl.condition": {
+          "source": "game.doorControl",
+          "instruction_offset": 440
+        },
+        "layout.doorControl.id": {
+          "source": "owner.layout.doorUnlock",
+          "instruction_offset": 112
+        },
+        "layout.doorControl.pendingOpeners": {
+          "source": "owner.layout.doorUnlock",
+          "instruction_offset": 128
+        },
+        "layout.doorControl.restrictions": {
+          "source": "game.doorControl",
+          "instruction_offset": 532
+        },
+        "layout.sidekickControl.owner": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 44
+        },
+        "layout.sidekickControl.aimX": {
+          "source": "game.controlUpdateFloyd",
+          "instruction_offset": 308
+        },
+        "layout.sidekickControl.aimY": {
+          "source": "game.controlUpdateFloyd",
+          "instruction_offset": 324
+        },
+        "layout.sidekickControl.headingYaw": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 952
+        },
+        "layout.sidekickControl.headingPitch": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 1196
+        },
+        "layout.sidekickControl.turnYaw": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 836
+        },
+        "layout.sidekickControl.turnPitch": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 1060
+        },
+        "layout.sidekickControl.flags": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 148
+        },
+        "layout.flightControl.flags": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 24
+        },
+        "layout.flightControl.speed": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 112
+        },
+        "layout.flightControl.health": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 3472
+        },
+        "layout.flightRecord.dragThreshold": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 36
+        },
+        "layout.flightRecord.flags": {
+          "source": "overlay.collision.death_move",
+          "instruction_offset": 1376
+        },
+        "layout.flightDescriptor.maxSpeed": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 28
+        },
+        "layout.flightDescriptor.minSpeed": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 32
+        },
+        "layout.objectHeader.renderKind": {
+          "source": "owner.layout.objSetupObject",
+          "instruction_offset": 692
+        },
+        "layout.objectHeader.modelCount": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 1996
+        },
+        "layout.objectHeader.lodThreshold": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 1908
+        },
+        "layout.model.skinned": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 2124
+        },
+        "layout.playerControl.race": {
+          "source": "overlay.juno.movement_handler",
+          "instruction_offset": 752
+        },
+        "layout.flightControl.spinYaw": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6288
+        },
+        "layout.flightControl.spinPitch": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6316
+        },
+        "layout.flightControl.spinRoll": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6344
+        },
+        "layout.flightRecord.deathMode": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 5176
+        },
+        "layout.flightRecord.movementMode": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 8824
+        },
+        "layout.actor.yaw": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6284
+        },
+        "layout.actor.pitch": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6312
+        },
+        "layout.actor.roll": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6340
+        },
+        "layout.playerControl.secondaryAnimationTimer": {
+          "source": "owner.layout.boyBossControl",
+          "instruction_offset": 392
+        },
+        "layout.playerControl.missionLock": {
+          "source": "owner.layout.controlPlayerInit",
+          "instruction_offset": 2272
+        },
+        "layout.actor.state": {
+          "source": "owner.layout.hitModelInit",
+          "instruction_offset": 12
+        },
+        "layout.objectHeader.assets": {
+          "source": "owner.layout.objGetObjdef",
+          "instruction_offset": 272
+        },
+        "layout.model.vertexCount": {
+          "source": "owner.layout.modelCompactInstance",
+          "instruction_offset": 12
+        },
+        "layout.model.boneCount": {
+          "source": "owner.layout.modGenAnimMatrices",
+          "instruction_offset": 944
+        },
+        "layout.model.batchCount": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 1116
+        },
+        "layout.model.faces": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 696
+        },
+        "layout.model.batches": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 700
+        },
+        "layout.model.collision": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 852
+        },
+        "layout.instance.model": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 120
+        },
+        "layout.instance.vertices": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 2104
+        },
+        "layout.instance.collision": {
+          "source": "owner.layout.modelCompactInstance",
+          "instruction_offset": 80
+        },
+        "layout.instance.palette0": {
+          "source": "owner.layout.modelInstance",
+          "instruction_offset": 376
+        },
+        "layout.instance.palette1": {
+          "source": "owner.layout.modelInstance",
+          "instruction_offset": 380
+        },
+        "layout.levelHeader.kind": {
+          "source": "owner.globals.levelHeader",
+          "instruction_offset": 12
+        },
+        "layout.doorIndicator.linkedDoor": {
+          "source": "owner.layout.doorSwitchControl",
+          "instruction_offset": 24
+        },
+        "layout.doorIndicator.state": {
+          "source": "owner.layout.doorSwitchControl",
+          "instruction_offset": 28
+        },
+        "layout.doorIndicator.condition": {
+          "source": "owner.layout.doorSwitchControl",
+          "instruction_offset": 224
+        },
+        "layout.bridgeState.modelIndex": {
+          "source": "owner.layout.hitModelInit",
+          "instruction_offset": 36
+        },
+        "layout.objectHeader.collisionVariant": {
+          "source": "owner.layout.hitModelInit",
+          "instruction_offset": 16
+        },
+        "layout.actor.viewVisibility": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 388
+        },
+        "layout.npcControl.state": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 444
+        },
+        "layout.npcControl.firstConversation": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 652
+        },
+        "layout.npcControl.radius": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 184
+        },
+        "layout.npcControl.upper": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 220
+        },
+        "layout.npcControl.lower": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 252
+        },
+        "layout.npcControl.dialogue": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 264
+        },
+        "layout.npcControl.encounter": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 508
+        },
+        "layout.properties.health": {
+          "source": "owner.layout.npcControl",
+          "instruction_offset": 200
+        },
+        "layout.squadControl.squad": {
+          "source": "owner.layout.prepareSquad",
+          "instruction_offset": 108
+        },
+        "layout.squadRecord.type": {
+          "source": "owner.layout.squadronInit",
+          "instruction_offset": 96
+        },
+        "layout.bridgeState.matrixIndex": {
+          "source": "owner.layout.bridgeMatrices",
+          "instruction_offset": 192
+        },
+        "layout.bridgeState.lowerX": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 40
+        },
+        "layout.bridgeState.lowerY": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 52
+        },
+        "layout.bridgeState.lowerZ": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 64
+        },
+        "layout.bridgeState.upperX": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 72
+        },
+        "layout.bridgeState.upperY": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 76
+        },
+        "layout.bridgeState.upperZ": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 80
+        },
+        "layout.chestControl.state": {
+          "source": "owner.layout.chestInit",
+          "instruction_offset": 168
+        },
+        "layout.chestControl.content": {
+          "source": "owner.layout.chestInit",
+          "instruction_offset": 140
+        },
+        "layout.chestControl.offsetX": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 220
+        },
+        "layout.chestControl.offsetY": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 224
+        },
+        "layout.chestControl.offsetZ": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 256
+        },
+        "layout.chestControl.radius": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 168
+        },
+        "layout.chestControl.height": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 180
+        },
+        "layout.targetControl.cooldown": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 128
+        },
+        "layout.targetControl.condition": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 184
+        },
+        "layout.targetControl.maxHealth": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 144
+        },
+        "layout.targetControl.doorId": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 172
+        },
+        "layout.targetControl.active": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 152
+        },
+        "layout.saveCharacter.weapons": {
+          "source": "owner.layout.mainPlayerHasWeapon",
+          "instruction_offset": 32
+        },
+        "layout.saveCharacter.items": {
+          "source": "owner.layout.mainPlayerHas",
+          "instruction_offset": 40
+        },
+        "layout.saveGame.flags": {
+          "source": "owner.layout.mainGetGameFlagGamePtr",
+          "instruction_offset": 20
+        },
+        "layout.levelHeader.music": {
+          "source": "game.levelTunePlay",
+          "instruction_offset": 20
+        },
+        "layout.regionControl.active": {
+          "source": "owner.layout.regionidInit",
+          "instruction_offset": 296
+        },
+        "layout.limbControl.vertices": {
+          "source": "owner.layout.severedLimbInit",
+          "instruction_offset": 292
+        },
+        "layout.limbControl.opaqueCommands": {
+          "source": "owner.layout.objPrintSeveredLimb",
+          "instruction_offset": 244
+        },
+        "layout.limbControl.transparentCommands": {
+          "source": "owner.layout.objPrintSeveredLimb",
+          "instruction_offset": 292
+        },
+        "layout.shockwaveControl.texture": {
+          "source": "owner.layout.objDrawShockWave",
+          "instruction_offset": 100
+        },
+        "layout.shockwaveControl.bank": {
+          "source": "owner.layout.objDrawShockWave",
+          "instruction_offset": 392
+        },
+        "layout.beamControl.active": {
+          "source": "owner.layout.beamDraw",
+          "instruction_offset": 60
+        },
+        "layout.beamControl.bank": {
+          "source": "owner.layout.beamDraw",
+          "instruction_offset": 232
+        },
+        "layout.beamControl.flags": {
+          "source": "owner.layout.beamInit",
+          "instruction_offset": 652
+        },
+        "layout.glassActor.health": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 136
+        },
+        "layout.glassControl.texture": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 212
+        },
+        "layout.glassControl.vertices": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 192
+        },
+        "layout.glassControl.commands0": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 184
+        },
+        "layout.glassControl.commands1": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 188
+        },
+        "layout.cutsceneActor.soundHandle": {
+          "source": "game.animseqProcessCommandList",
+          "instruction_offset": 1548
+        },
+        "layout.objectHeader.animationEvents": {
+          "source": "owner.layout.objGetObjdef",
+          "instruction_offset": 556
+        },
+        "layout.camera.x": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 428
+        },
+        "layout.camera.y": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 480
+        },
+        "layout.camera.z": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 516
+        },
+        "layout.camera.yaw": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 748
+        },
+        "layout.camera.pitch": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 784
+        },
+        "layout.camera.roll": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 816
+        },
+        "layout.exitControl.radius": {
+          "source": "game.exitControl",
+          "instruction_offset": 164
+        },
+        "layout.exitControl.condition": {
+          "source": "game.exitControl",
+          "instruction_offset": 24
+        },
+        "layout.exitControl.directional": {
+          "source": "game.exitControl",
+          "instruction_offset": 244
+        },
+        "layout.exitControl.normalX": {
+          "source": "game.exitControl",
+          "instruction_offset": 260
+        },
+        "layout.exitControl.normalY": {
+          "source": "game.exitControl",
+          "instruction_offset": 268
+        },
+        "layout.exitControl.normalZ": {
+          "source": "game.exitControl",
+          "instruction_offset": 280
+        },
+        "layout.exitControl.planeD": {
+          "source": "game.exitControl",
+          "instruction_offset": 308
+        },
+        "layout.shadowControl.flags": {
+          "source": "game.shadowGenerate",
+          "instruction_offset": 348
+        },
+        "layout.shadowControl.scale": {
+          "source": "game.shadowGenerate",
+          "instruction_offset": 512
+        },
+        "layout.levelHeader.sceneAsset": {
+          "source": "owner.layout.levelInit",
+          "instruction_offset": 556
+        },
+        "layout.instance.textures": {
+          "source": "owner.layout.modelInstance",
+          "instruction_offset": 704
+        },
+        "layout.saveCharacter.ammo": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 112
+        },
+        "layout.saveCharacter.ammoCapacity": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 124
+        },
+        "layout.saveCharacter.weaponCount": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 176
+        },
+        "layout.saveCharacter.selectedWeapon": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 180
+        },
+        "layout.saveCharacter.tokens": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 204
+        },
+        "layout.saveGame.storyFlags": {
+          "source": "owner.layout.mainSetDefaultGame",
+          "instruction_offset": 192
+        },
+        "layout.actor.objectId": {
+          "source": "game.shadowGenerate",
+          "instruction_offset": 440
+        },
+        "layout.playerControl.doorCapability": {
+          "source": "owner.layout.doorControl",
+          "instruction_offset": 588
+        },
+        "layout.exitDefinition.levelLow": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 396
+        },
+        "layout.exitDefinition.levelHigh": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 392
+        },
+        "layout.track.blocks": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 516
+        },
+        "layout.track.blockCount": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 636
+        },
+        "layout.trackBlock.vertices": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 664
+        },
+        "layout.trackBlock.faces": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 700
+        },
+        "layout.trackBlock.batches": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 736
+        },
+        "layout.trackBlock.planeIndices": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 772
+        },
+        "layout.trackBlock.planes": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 1028
+        },
+        "layout.trackBlock.vertexCount": {
+          "source": "owner.layout.trackLightAllocate",
+          "instruction_offset": 264
+        },
+        "layout.trackBlock.faceCount": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 892
+        },
+        "layout.trackBlock.batchCount": {
+          "source": "owner.layout.trackPlanes",
+          "instruction_offset": 92
         }
       }
     },
@@ -13540,6 +15438,279 @@
           "body_sha256": "e7adc3b06a3e29c31ee274d74307cc7652fb70b5efd43071776919be45321d5b",
           "body_size": 168,
           "entry_offset": 0
+        },
+        "owner.layout.objSetupObject": {
+          "section_kind": "main",
+          "body_sha256": "14890859f412e4e2bc29bde50cdd74e07f7145d22df6e11f03a48e70606ca743",
+          "body_size": 3848,
+          "entry_offset": 0
+        },
+        "owner.layout.doorUnlock": {
+          "section_kind": "main",
+          "body_sha256": "0448f9fe7f2bea412926d6e7a07d80980bcd51cda90d71e37c96ce32adf60145",
+          "body_size": 504,
+          "entry_offset": 0
+        },
+        "owner.layout.doorSwitchControl": {
+          "section_kind": "main",
+          "body_sha256": "2216336723edfe4aec287e4d1739f52f29b2712d4c5930da56cfdeb81ee76a30",
+          "body_size": 604,
+          "entry_offset": 0
+        },
+        "owner.layout.modGenAnimMatrices": {
+          "section_kind": "main",
+          "body_sha256": "32ee67855a09b478adeee64179bdc1d75f79694d887c74f4903bdd18828e0686",
+          "body_size": 2976,
+          "entry_offset": 0
+        },
+        "owner.layout.hitModelInit": {
+          "section_kind": "main",
+          "body_sha256": "42f6c8b1ec48da0da7d9f6f786ae12f8cf350c7ceef45659537d36ae10fc9e31",
+          "body_size": 100,
+          "entry_offset": 0
+        },
+        "owner.layout.modelCompactInstance": {
+          "section_kind": "main",
+          "body_sha256": "bf5660961ed889ae5e1c577d49ca8533765c707a66659b156d2a5806f29abf09",
+          "body_size": 136,
+          "entry_offset": 0
+        },
+        "owner.layout.objGetObjdef": {
+          "section_kind": "main",
+          "body_sha256": "5419cddb8fe4275f6dcfd1ed0e98633f9e3e408c58315680ac90c53b78b9e986",
+          "body_size": 656,
+          "entry_offset": 0
+        },
+        "owner.layout.modLoadModel": {
+          "section_kind": "main",
+          "body_sha256": "ee80c6316aa7176207438f6dfdc0ffeaab98eaa6209f60a7361c94ae7f2a3055",
+          "body_size": 1756,
+          "entry_offset": 0
+        },
+        "owner.layout.boyBossControl": {
+          "section_kind": "overlay",
+          "overlay_slot": 50,
+          "body_sha256": "418849ce8e94c6cba2bfed1b3ebc1ae5efb9ca3c28e7bc5328c170772f812016",
+          "body_size": 3136,
+          "entry_offset": 0
+        },
+        "owner.layout.controlPlayerInit": {
+          "section_kind": "main",
+          "body_sha256": "84f7a88fdbeb499653142d4ee7292c69e2bc7690fe318b0fbccb95bf40345bb0",
+          "body_size": 2328,
+          "entry_offset": 0
+        },
+        "owner.layout.modelInstance": {
+          "section_kind": "main",
+          "body_sha256": "b8a83c565465ac00067d82445e1c9ea6d295970f74421108ba7ef4e11390a0f8",
+          "body_size": 1552,
+          "entry_offset": 0
+        },
+        "owner.layout.makeModelGfx": {
+          "section_kind": "main",
+          "body_sha256": "53d645bfd8106285f84fd39ffeb79283d3917dda8e86be3c207196e6a724f6ad",
+          "body_size": 1412,
+          "entry_offset": 0
+        },
+        "owner.layout.npcInitialize": {
+          "section_kind": "overlay",
+          "body_sha256": "bf46fd17357eafd0b853e9e73b3df9a219df0ac325f0d7b4af50df9b376ca90c",
+          "body_size": 744,
+          "entry_offset": 0,
+          "overlay_slot": 32
+        },
+        "owner.layout.npcControl": {
+          "section_kind": "overlay",
+          "body_sha256": "e2dfebec83ae81c0457606ccfe8283378903bdc5fbe1d815419e6c3c9e01b75a",
+          "body_size": 6728,
+          "entry_offset": 0,
+          "overlay_slot": 32
+        },
+        "owner.layout.prepareSquad": {
+          "section_kind": "overlay",
+          "body_sha256": "d6a9cb4d487f6d4d0803a14c489b5dddb9d1aff508d4e43dcb4e1a46c70fe6e5",
+          "body_size": 284,
+          "entry_offset": 0,
+          "overlay_slot": 3
+        },
+        "owner.layout.squadronInit": {
+          "section_kind": "overlay",
+          "body_sha256": "c644213bf9b21429ce62468c57cc7e575ecdd5d0648bba4a7ac8d6bfbe1fb616",
+          "body_size": 1108,
+          "entry_offset": 0,
+          "overlay_slot": 136
+        },
+        "owner.layout.bridgeMatrices": {
+          "section_kind": "main",
+          "body_sha256": "41983d82e30b02faba0f13c1ee614346213921b7214d50143a9fa4103b0f359f",
+          "body_size": 424,
+          "entry_offset": 0
+        },
+        "owner.layout.bridgeBounds": {
+          "section_kind": "main",
+          "body_sha256": "bda416fa0b47df2f58f318474e084e54ad784108258b03374daef704341ba403",
+          "body_size": 588,
+          "entry_offset": 0
+        },
+        "owner.layout.chestInit": {
+          "section_kind": "overlay",
+          "body_sha256": "1110a99aad42f42e9f486dd0996257e637df8d38f24cc10782279d463360bcae",
+          "body_size": 348,
+          "entry_offset": 0,
+          "overlay_slot": 82
+        },
+        "owner.layout.chestAccess": {
+          "section_kind": "overlay",
+          "body_sha256": "a68b880e947f1d368e39f363022e2b5bfd27385a3697055a0d162b803756b42d",
+          "body_size": 312,
+          "entry_offset": 0,
+          "overlay_slot": 82
+        },
+        "owner.layout.targetInitialize": {
+          "section_kind": "overlay",
+          "body_sha256": "269cf21a169ec83dd5bf963a78ca591941ade9610186a697573dfce3becead3a",
+          "body_size": 288,
+          "entry_offset": 0,
+          "overlay_slot": 125
+        },
+        "owner.layout.mainPlayerHasWeapon": {
+          "section_kind": "main",
+          "body_sha256": "bee728fd3262170b935571c83e7bfba0111456ba4c77f6656154772879d0186c",
+          "body_size": 72,
+          "entry_offset": 0
+        },
+        "owner.layout.mainPlayerHas": {
+          "section_kind": "main",
+          "body_sha256": "1607a4933d0ff411314fc21c8bc7e0b4992b9349064187e092d04e536d6925ff",
+          "body_size": 88,
+          "entry_offset": 0
+        },
+        "owner.layout.mainGetGameFlagGamePtr": {
+          "section_kind": "main",
+          "body_sha256": "03cf61c019e4b6b34762252c9c81fbf659e6f61aa796348daec200c36f548b76",
+          "body_size": 68,
+          "entry_offset": 0
+        },
+        "owner.layout.mainGetGameCharacter": {
+          "section_kind": "main",
+          "body_sha256": "369aaf47db2d59b4a11b0a1c2f474ded87b35bcc61dc643555561fd96d3e4f27",
+          "body_size": 128,
+          "entry_offset": 0
+        },
+        "owner.layout.regionidInit": {
+          "section_kind": "overlay",
+          "body_sha256": "db4e0e988d4655a87e9892f3e6c147bd5d8ba39220a95827a1ab560b036ec576",
+          "body_size": 676,
+          "entry_offset": 0,
+          "overlay_slot": 117
+        },
+        "owner.layout.severedLimbInit": {
+          "section_kind": "main",
+          "body_sha256": "f83846e66edf50b331439ddf26d450c7821ed027ba6edbc2f3434c733f4c18cc",
+          "body_size": 604,
+          "entry_offset": 0
+        },
+        "owner.layout.objPrintSeveredLimb": {
+          "section_kind": "main",
+          "body_sha256": "11738d3e17c0394fe4884ac2dafdb5e5391ea2329bd3b5118a29aed8e631c541",
+          "body_size": 416,
+          "entry_offset": 0
+        },
+        "owner.layout.objDrawShockWave": {
+          "section_kind": "main",
+          "body_sha256": "d426da67d1659e4512a320669370669cdaee219f0435602f0fd7934b662e93f9",
+          "body_size": 692,
+          "entry_offset": 0
+        },
+        "owner.layout.beamDraw": {
+          "section_kind": "overlay",
+          "body_sha256": "c5345fd28fe6426e84a564eba9f6c19be71abe4e4db87f2fcba68459a2cdd7cc",
+          "body_size": 732,
+          "entry_offset": 0,
+          "overlay_slot": 76
+        },
+        "owner.layout.beamInit": {
+          "section_kind": "overlay",
+          "body_sha256": "1d95dc28d52168ef9600f5534c820224216567cb726f6a597be8e7d059bd1b29",
+          "body_size": 680,
+          "entry_offset": 0,
+          "overlay_slot": 76
+        },
+        "owner.layout.glassInit": {
+          "section_kind": "overlay",
+          "body_sha256": "2a9b8c05d08542d0d9c134904455a42194db39615ddd422f0976ca9ef4024e7b",
+          "body_size": 364,
+          "entry_offset": 0,
+          "overlay_slot": 101
+        },
+        "owner.audio.soundPlayerConstructor": {
+          "section_kind": "main",
+          "body_sha256": "da2b1e35174d62e47b138959b7ec40cdc9cee7e1fec02fe066f12a19ac987420",
+          "body_size": 616,
+          "entry_offset": 0
+        },
+        "owner.audio.eventQueueConstructor": {
+          "section_kind": "main",
+          "body_sha256": "3aa4a3732b1877e5dc27413daeb1b5ff9fe8fd7b350b6bf307cad4855ffab29b",
+          "body_size": 172,
+          "entry_offset": 0
+        },
+        "owner.layout.levelInit": {
+          "section_kind": "main",
+          "body_sha256": "fee8a7c5f9ec2ed69a037eae5c8afb28e54f237fc66b4e796131f9b5a630de8b",
+          "body_size": 1824,
+          "entry_offset": 0
+        },
+        "owner.audio.eventQueuePost": {
+          "section_kind": "main",
+          "body_sha256": "0007141729fe682dd4501ce411ead2bb51258e4bd8686909d8040e76da832f3a",
+          "body_size": 476,
+          "entry_offset": 0
+        },
+        "owner.layout.mainSetDefaultCharacter": {
+          "section_kind": "main",
+          "body_sha256": "a2d8aea10a636a4411be5e8196c966a5cc532da8eb938cc6be2afaf303d46347",
+          "body_size": 300,
+          "entry_offset": 0
+        },
+        "owner.layout.mainSetDefaultGame": {
+          "section_kind": "main",
+          "body_sha256": "81488b9a1a4e4e776aeb49750ed661a056b996306cc8e04b89e1bffb161f2ae5",
+          "body_size": 384,
+          "entry_offset": 0
+        },
+        "owner.layout.weaponPickupInit": {
+          "section_kind": "overlay",
+          "body_sha256": "32472b754f3b181108c04a946c3753c3d8a5fae18877caefbc5cca2d16ab4eb1",
+          "body_size": 228,
+          "entry_offset": 0,
+          "overlay_slot": 132
+        },
+        "owner.layout.doorControl": {
+          "section_kind": "main",
+          "body_sha256": "8e8aa161b111b4c673cb4796f7c60f7906d3c0f935be7fffdf28928b7d6dac72",
+          "body_size": 3108,
+          "entry_offset": 0
+        },
+        "owner.layout.trackLoader": {
+          "section_kind": "overlay",
+          "body_sha256": "fef56a8706969122fc097a9904fe157f914fcb57edb22501a7e9bbfca858b7bf",
+          "body_size": 1808,
+          "entry_offset": 0,
+          "overlay_slot": 24
+        },
+        "owner.layout.trackPlanes": {
+          "section_kind": "overlay",
+          "body_sha256": "d1b4647e3d65d5b989e1f1a02f6da1ac156514056e4824a2d679f0d40d470a0d",
+          "body_size": 2556,
+          "entry_offset": 0,
+          "overlay_slot": 24
+        },
+        "owner.layout.trackLightAllocate": {
+          "section_kind": "main",
+          "body_sha256": "2f7ae84990dd00a750ddc0c955f5eb4af0979f322815f07f590d2d7f71137fa3",
+          "body_size": 456,
+          "entry_offset": 0
         }
       },
       "data": {
@@ -16200,6 +18371,682 @@
         "rom.assets.data_lo": {
           "source": "rom.assets.initialize",
           "instruction_offset": 96
+        },
+        "layout.playerControl.port": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 48
+        },
+        "layout.playerControl.characterFlags": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 3564
+        },
+        "layout.playerControl.forwardVelocity": {
+          "source": "game.controlUpdateCamera",
+          "instruction_offset": 44
+        },
+        "layout.playerControl.verticalVelocity": {
+          "source": "overlay.juno.update",
+          "instruction_offset": 272
+        },
+        "layout.playerControl.sideVelocity": {
+          "source": "overlay.juno.movement",
+          "instruction_offset": 108
+        },
+        "layout.playerControl.boss": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 1432
+        },
+        "layout.playerControl.aimInhibited": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 548
+        },
+        "layout.playerControl.cameraDistance": {
+          "source": "game.controlGetManualAim",
+          "instruction_offset": 1064
+        },
+        "layout.playerControl.cameraSpring": {
+          "source": "game.controlGetManualAim",
+          "instruction_offset": 300
+        },
+        "layout.playerControl.viewImpulseActive": {
+          "source": "game.controlUpdatePlayerAim",
+          "instruction_offset": 80
+        },
+        "layout.playerControl.viewImpulseTimer": {
+          "source": "game.controlUpdatePlayerAim",
+          "instruction_offset": 96
+        },
+        "layout.playerControl.animationLock": {
+          "source": "overlay.juno.update",
+          "instruction_offset": 1116
+        },
+        "layout.playerControl.fireCounter": {
+          "source": "game.controlFireDummyShot",
+          "instruction_offset": 104
+        },
+        "layout.playerControl.weaponCounter": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 2756
+        },
+        "layout.playerControl.weaponState": {
+          "source": "game.controlFadePlayer",
+          "instruction_offset": 16
+        },
+        "layout.playerControl.animationTimer": {
+          "source": "overlay.juno.movement_handler",
+          "instruction_offset": 128
+        },
+        "layout.playerControl.actionLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 312
+        },
+        "layout.playerControl.damageLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 176
+        },
+        "layout.playerControl.dialogueLock": {
+          "source": "game.controlUpdateCamera",
+          "instruction_offset": 3696
+        },
+        "layout.playerControl.transitionLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 244
+        },
+        "layout.playerControl.sidekickMode": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 2700
+        },
+        "layout.playerControl.scriptLock": {
+          "source": "game.controlApplyPose",
+          "instruction_offset": 740
+        },
+        "layout.actor.velocityX": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 204
+        },
+        "layout.actor.velocityY": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 200
+        },
+        "layout.actor.velocityZ": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 196
+        },
+        "layout.actor.alpha": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 2496
+        },
+        "layout.doorControl.state": {
+          "source": "game.doorControl",
+          "instruction_offset": 460
+        },
+        "layout.doorControl.radius": {
+          "source": "game.doorControl",
+          "instruction_offset": 100
+        },
+        "layout.doorControl.kind": {
+          "source": "game.doorControl",
+          "instruction_offset": 824
+        },
+        "layout.doorControl.condition": {
+          "source": "game.doorControl",
+          "instruction_offset": 440
+        },
+        "layout.doorControl.id": {
+          "source": "owner.layout.doorUnlock",
+          "instruction_offset": 112
+        },
+        "layout.doorControl.pendingOpeners": {
+          "source": "owner.layout.doorUnlock",
+          "instruction_offset": 128
+        },
+        "layout.doorControl.restrictions": {
+          "source": "game.doorControl",
+          "instruction_offset": 532
+        },
+        "layout.sidekickControl.owner": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 44
+        },
+        "layout.sidekickControl.aimX": {
+          "source": "game.controlUpdateFloyd",
+          "instruction_offset": 308
+        },
+        "layout.sidekickControl.aimY": {
+          "source": "game.controlUpdateFloyd",
+          "instruction_offset": 324
+        },
+        "layout.sidekickControl.headingYaw": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 908
+        },
+        "layout.sidekickControl.headingPitch": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 1168
+        },
+        "layout.sidekickControl.turnYaw": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 792
+        },
+        "layout.sidekickControl.turnPitch": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 1032
+        },
+        "layout.sidekickControl.flags": {
+          "source": "game.sidekickControl",
+          "instruction_offset": 148
+        },
+        "layout.flightControl.flags": {
+          "source": "overlay.collision.collision_move",
+          "instruction_offset": 24
+        },
+        "layout.flightControl.speed": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 112
+        },
+        "layout.flightControl.health": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 3516
+        },
+        "layout.flightRecord.dragThreshold": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 36
+        },
+        "layout.flightRecord.flags": {
+          "source": "overlay.collision.death_move",
+          "instruction_offset": 1376
+        },
+        "layout.flightDescriptor.maxSpeed": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 28
+        },
+        "layout.flightDescriptor.minSpeed": {
+          "source": "overlay.collision.move",
+          "instruction_offset": 32
+        },
+        "layout.objectHeader.renderKind": {
+          "source": "owner.layout.objSetupObject",
+          "instruction_offset": 692
+        },
+        "layout.objectHeader.modelCount": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 1996
+        },
+        "layout.objectHeader.lodThreshold": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 1908
+        },
+        "layout.model.skinned": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 2124
+        },
+        "layout.playerControl.race": {
+          "source": "overlay.juno.movement_handler",
+          "instruction_offset": 752
+        },
+        "layout.flightControl.spinYaw": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6332
+        },
+        "layout.flightControl.spinPitch": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6360
+        },
+        "layout.flightControl.spinRoll": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6388
+        },
+        "layout.flightRecord.deathMode": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 5220
+        },
+        "layout.flightRecord.movementMode": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 8868
+        },
+        "layout.actor.yaw": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6328
+        },
+        "layout.actor.pitch": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6356
+        },
+        "layout.actor.roll": {
+          "source": "overlay.collision.squaddie_control",
+          "instruction_offset": 6384
+        },
+        "layout.playerControl.secondaryAnimationTimer": {
+          "source": "owner.layout.boyBossControl",
+          "instruction_offset": 392
+        },
+        "layout.playerControl.missionLock": {
+          "source": "owner.layout.controlPlayerInit",
+          "instruction_offset": 2272
+        },
+        "layout.actor.state": {
+          "source": "owner.layout.hitModelInit",
+          "instruction_offset": 12
+        },
+        "layout.objectHeader.assets": {
+          "source": "owner.layout.objGetObjdef",
+          "instruction_offset": 272
+        },
+        "layout.model.vertexCount": {
+          "source": "owner.layout.modelCompactInstance",
+          "instruction_offset": 12
+        },
+        "layout.model.boneCount": {
+          "source": "owner.layout.modGenAnimMatrices",
+          "instruction_offset": 944
+        },
+        "layout.model.batchCount": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 1116
+        },
+        "layout.model.faces": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 696
+        },
+        "layout.model.batches": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 700
+        },
+        "layout.model.collision": {
+          "source": "owner.layout.modLoadModel",
+          "instruction_offset": 852
+        },
+        "layout.instance.model": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 120
+        },
+        "layout.instance.vertices": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 2104
+        },
+        "layout.instance.collision": {
+          "source": "owner.layout.modelCompactInstance",
+          "instruction_offset": 80
+        },
+        "layout.instance.palette0": {
+          "source": "owner.layout.modelInstance",
+          "instruction_offset": 376
+        },
+        "layout.instance.palette1": {
+          "source": "owner.layout.modelInstance",
+          "instruction_offset": 380
+        },
+        "layout.levelHeader.kind": {
+          "source": "owner.globals.levelHeader",
+          "instruction_offset": 12
+        },
+        "layout.doorIndicator.linkedDoor": {
+          "source": "owner.layout.doorSwitchControl",
+          "instruction_offset": 24
+        },
+        "layout.doorIndicator.state": {
+          "source": "owner.layout.doorSwitchControl",
+          "instruction_offset": 28
+        },
+        "layout.doorIndicator.condition": {
+          "source": "owner.layout.doorSwitchControl",
+          "instruction_offset": 224
+        },
+        "layout.bridgeState.modelIndex": {
+          "source": "owner.layout.hitModelInit",
+          "instruction_offset": 36
+        },
+        "layout.objectHeader.collisionVariant": {
+          "source": "owner.layout.hitModelInit",
+          "instruction_offset": 16
+        },
+        "layout.actor.viewVisibility": {
+          "source": "game.objPrintModelObject",
+          "instruction_offset": 388
+        },
+        "layout.npcControl.state": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 444
+        },
+        "layout.npcControl.firstConversation": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 652
+        },
+        "layout.npcControl.radius": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 184
+        },
+        "layout.npcControl.upper": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 220
+        },
+        "layout.npcControl.lower": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 252
+        },
+        "layout.npcControl.dialogue": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 264
+        },
+        "layout.npcControl.encounter": {
+          "source": "owner.layout.npcInitialize",
+          "instruction_offset": 508
+        },
+        "layout.properties.health": {
+          "source": "owner.layout.npcControl",
+          "instruction_offset": 200
+        },
+        "layout.squadControl.squad": {
+          "source": "owner.layout.prepareSquad",
+          "instruction_offset": 108
+        },
+        "layout.squadRecord.type": {
+          "source": "owner.layout.squadronInit",
+          "instruction_offset": 96
+        },
+        "layout.bridgeState.matrixIndex": {
+          "source": "owner.layout.bridgeMatrices",
+          "instruction_offset": 192
+        },
+        "layout.bridgeState.lowerX": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 40
+        },
+        "layout.bridgeState.lowerY": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 52
+        },
+        "layout.bridgeState.lowerZ": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 64
+        },
+        "layout.bridgeState.upperX": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 72
+        },
+        "layout.bridgeState.upperY": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 76
+        },
+        "layout.bridgeState.upperZ": {
+          "source": "owner.layout.bridgeBounds",
+          "instruction_offset": 80
+        },
+        "layout.chestControl.state": {
+          "source": "owner.layout.chestInit",
+          "instruction_offset": 168
+        },
+        "layout.chestControl.content": {
+          "source": "owner.layout.chestInit",
+          "instruction_offset": 140
+        },
+        "layout.chestControl.offsetX": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 220
+        },
+        "layout.chestControl.offsetY": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 224
+        },
+        "layout.chestControl.offsetZ": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 256
+        },
+        "layout.chestControl.radius": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 168
+        },
+        "layout.chestControl.height": {
+          "source": "owner.layout.chestAccess",
+          "instruction_offset": 180
+        },
+        "layout.targetControl.cooldown": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 128
+        },
+        "layout.targetControl.condition": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 184
+        },
+        "layout.targetControl.maxHealth": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 144
+        },
+        "layout.targetControl.doorId": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 172
+        },
+        "layout.targetControl.active": {
+          "source": "owner.layout.targetInitialize",
+          "instruction_offset": 152
+        },
+        "layout.saveCharacter.weapons": {
+          "source": "owner.layout.mainPlayerHasWeapon",
+          "instruction_offset": 32
+        },
+        "layout.saveCharacter.items": {
+          "source": "owner.layout.mainPlayerHas",
+          "instruction_offset": 40
+        },
+        "layout.saveGame.flags": {
+          "source": "owner.layout.mainGetGameFlagGamePtr",
+          "instruction_offset": 20
+        },
+        "layout.levelHeader.music": {
+          "source": "game.levelTunePlay",
+          "instruction_offset": 20
+        },
+        "layout.regionControl.active": {
+          "source": "owner.layout.regionidInit",
+          "instruction_offset": 296
+        },
+        "layout.limbControl.vertices": {
+          "source": "owner.layout.severedLimbInit",
+          "instruction_offset": 292
+        },
+        "layout.limbControl.opaqueCommands": {
+          "source": "owner.layout.objPrintSeveredLimb",
+          "instruction_offset": 244
+        },
+        "layout.limbControl.transparentCommands": {
+          "source": "owner.layout.objPrintSeveredLimb",
+          "instruction_offset": 292
+        },
+        "layout.shockwaveControl.texture": {
+          "source": "owner.layout.objDrawShockWave",
+          "instruction_offset": 100
+        },
+        "layout.shockwaveControl.bank": {
+          "source": "owner.layout.objDrawShockWave",
+          "instruction_offset": 392
+        },
+        "layout.beamControl.active": {
+          "source": "owner.layout.beamDraw",
+          "instruction_offset": 60
+        },
+        "layout.beamControl.bank": {
+          "source": "owner.layout.beamDraw",
+          "instruction_offset": 232
+        },
+        "layout.beamControl.flags": {
+          "source": "owner.layout.beamInit",
+          "instruction_offset": 652
+        },
+        "layout.glassActor.health": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 136
+        },
+        "layout.glassControl.texture": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 212
+        },
+        "layout.glassControl.vertices": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 192
+        },
+        "layout.glassControl.commands0": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 184
+        },
+        "layout.glassControl.commands1": {
+          "source": "owner.layout.glassInit",
+          "instruction_offset": 188
+        },
+        "layout.cutsceneActor.soundHandle": {
+          "source": "game.animseqProcessCommandList",
+          "instruction_offset": 1544
+        },
+        "layout.objectHeader.animationEvents": {
+          "source": "owner.layout.objGetObjdef",
+          "instruction_offset": 556
+        },
+        "layout.camera.x": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 428
+        },
+        "layout.camera.y": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 480
+        },
+        "layout.camera.z": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 516
+        },
+        "layout.camera.yaw": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 748
+        },
+        "layout.camera.pitch": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 784
+        },
+        "layout.camera.roll": {
+          "source": "owner.globals.controlledCamera",
+          "instruction_offset": 816
+        },
+        "layout.exitControl.radius": {
+          "source": "game.exitControl",
+          "instruction_offset": 164
+        },
+        "layout.exitControl.condition": {
+          "source": "game.exitControl",
+          "instruction_offset": 24
+        },
+        "layout.exitControl.directional": {
+          "source": "game.exitControl",
+          "instruction_offset": 244
+        },
+        "layout.exitControl.normalX": {
+          "source": "game.exitControl",
+          "instruction_offset": 260
+        },
+        "layout.exitControl.normalY": {
+          "source": "game.exitControl",
+          "instruction_offset": 268
+        },
+        "layout.exitControl.normalZ": {
+          "source": "game.exitControl",
+          "instruction_offset": 280
+        },
+        "layout.exitControl.planeD": {
+          "source": "game.exitControl",
+          "instruction_offset": 308
+        },
+        "layout.shadowControl.flags": {
+          "source": "game.shadowGenerate",
+          "instruction_offset": 348
+        },
+        "layout.shadowControl.scale": {
+          "source": "game.shadowGenerate",
+          "instruction_offset": 512
+        },
+        "layout.levelHeader.sceneAsset": {
+          "source": "owner.layout.levelInit",
+          "instruction_offset": 556
+        },
+        "layout.instance.textures": {
+          "source": "owner.layout.modelInstance",
+          "instruction_offset": 704
+        },
+        "layout.saveCharacter.ammo": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 112
+        },
+        "layout.saveCharacter.ammoCapacity": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 124
+        },
+        "layout.saveCharacter.weaponCount": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 176
+        },
+        "layout.saveCharacter.selectedWeapon": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 180
+        },
+        "layout.saveCharacter.tokens": {
+          "source": "owner.layout.mainSetDefaultCharacter",
+          "instruction_offset": 204
+        },
+        "layout.saveGame.storyFlags": {
+          "source": "owner.layout.mainSetDefaultGame",
+          "instruction_offset": 192
+        },
+        "layout.actor.objectId": {
+          "source": "game.shadowGenerate",
+          "instruction_offset": 440
+        },
+        "layout.playerControl.doorCapability": {
+          "source": "owner.layout.doorControl",
+          "instruction_offset": 588
+        },
+        "layout.exitDefinition.levelLow": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 404
+        },
+        "layout.exitDefinition.levelHigh": {
+          "source": "game.controlPlayer",
+          "instruction_offset": 400
+        },
+        "layout.track.blocks": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 516
+        },
+        "layout.track.blockCount": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 636
+        },
+        "layout.trackBlock.vertices": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 664
+        },
+        "layout.trackBlock.faces": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 700
+        },
+        "layout.trackBlock.batches": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 736
+        },
+        "layout.trackBlock.planeIndices": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 772
+        },
+        "layout.trackBlock.planes": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 1028
+        },
+        "layout.trackBlock.vertexCount": {
+          "source": "owner.layout.trackLightAllocate",
+          "instruction_offset": 264
+        },
+        "layout.trackBlock.faceCount": {
+          "source": "owner.layout.trackLoader",
+          "instruction_offset": 892
+        },
+        "layout.trackBlock.batchCount": {
+          "source": "owner.layout.trackPlanes",
+          "instruction_offset": 92
         }
       }
     }

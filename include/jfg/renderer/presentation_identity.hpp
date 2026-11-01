@@ -1,4 +1,5 @@
 #pragma once
+#include "jfg/game/record_layouts.hpp"
 #include "jfg/renderer/game_layout.hpp"
 #include "jfg/renderer/rigid_camera.hpp"
 #include "jfg/renderer/shadow_geometry.hpp"
@@ -528,7 +529,7 @@ public:
     sprites_[PresentationGuestView::physical(address)] = {
         actor, asset, ram.u32(actor + layout_.actor_header), ram.u32(actor + layout_.actor_models), tick};
   }
-  // US regionidDraw sorts 20 persistent sparkle slots by distance, then
+  // Qualified regionidDraw sorts 20 persistent sparkle slots by distance, then
   // calls camDoSprite with a temporary ObjectTransform on its stack. The
   // sorted slot, not draw order or that temporary address, owns the sprite.
   void region_sprite(std::span<const std::uint8_t> data,
@@ -542,9 +543,9 @@ public:
     sprites_.erase(physical); // Scratch reuse cannot retain a prior owner.
     if(index>=20U || !ram.valid(address,10U) || !ram.valid(actor,0xA1U) ||
        ram.u16(actor+layout_.actor_type)!=136U || ram.u32(actor+layout_.actor_control)!=control ||
-       (control&3U) || !ram.valid(control,0x154U) || !ram.u8(control+0xFU))return;
+       (control&3U) || !ram.valid(control,0x154U) || !ram.u8(control+layout_.regionControl_active))return;
     const auto header=ram.u32(actor+layout_.actor_header);
-    const auto assets=ram.u32(header+0xACU);
+    const auto assets=ram.u32(header+layout_.objectHeader_assets);
     if(!ram.valid(header,0xB0U) || !ram.valid(assets,4U) ||
        !ram.valid(asset,8U) || ram.u32(assets)!=asset)return;
     if(sprites_.size()>=4096U)sprites_.clear();
@@ -684,11 +685,11 @@ public:
         // Enhanced defines a spherical shadow proxy at the native sprite origin,
         // with that authored footprint radius. Header+0x6C/+0x6E are receiver
         // search limits, NOT caster dimensions; they must not shape this proxy.
-        if(ram.valid(record.header,0x70U) && ram.u8(record.header+0x1EU)==1U &&
-           (ram.u8(control+0xCU)&4U)) {
+        if(ram.valid(record.header,0x70U) && ram.u8(record.header+layout_.header_renderKind)==1U &&
+           (ram.u8(control+layout_.shadowControl_flags)&4U)) {
           auto& proxy=id.sprite_caster;proxy.actor=actor;proxy.projection=id.projection;
           for(unsigned c=0;c<3U;++c)proxy.current[c]=std::bit_cast<float>(ram.u32(actor+layout_.actor_x+c*4U));
-          proxy.current[3]=std::bit_cast<float>(ram.u32(control))*10.0f;
+          proxy.current[3]=std::bit_cast<float>(ram.u32(control+layout_.shadowControl_scale))*10.0f;
           proxy.vertical=proxy.current[3];
           proxy.previous=proxy.current;proxy.previous_vertical=proxy.vertical;
           proxy.valid=proxy.vertical>0.0f && proxy.vertical<10000.0f &&
@@ -831,7 +832,7 @@ public:
         continue;
       const auto header = ram.u32(actor + layout_.actor_header),
                  models = ram.u32(actor + layout_.actor_models);
-      const auto model_count = ram.u8(header + 0x1FU);
+      const auto model_count = ram.u8(header + layout_.header_modelCount);
       if (!ram.valid(header, 0x20U) || model_count > 16U ||
           (model_count != 0U && !ram.valid(models, model_count * 4U)))
         continue;
@@ -842,42 +843,42 @@ public:
                               ? old->second.serial
                               : ++serial_;
       live[actor] = {serial, header, models};
-      // Verified US objPrintCustomObject case 68 calls beamDraw. Its control
+      // Qualified objPrintCustomObject case 68 calls beamDraw. Its control
       // allocation contains 2 * 80 vertex bytes followed by state at +0xCC.
       // A malformed/disabled beam gets no procedural interpolation identity.
       const auto control=ram.u32(actor+layout_.actor_control);
       if (ram.u16(actor+layout_.actor_type)==64U && model_count==0U &&
           !(control&3U) && ram.valid(control,0x20U)) {
-        const auto vertices=ram.u32(control+4U);
+        const auto vertices=ram.u32(control+layout_.limbControl_vertices);
         auto ranges=presentation_limb_ranges(ram,vertices,
-            {ram.u32(control+0x0CU),ram.u32(control+0x10U)});
+            {ram.u32(control+layout_.limbControl_opaqueCommands),ram.u32(control+layout_.limbControl_transparentCommands)});
         if (!ranges.empty())
           result.limbs.push_back({serial,actor,control,header,
               PresentationGuestView::physical(vertices),std::move(ranges)});
       }
       if(ram.u16(actor+layout_.actor_type)==40U && ram.valid(control,0x1DBU) &&
-         !(control&3U) && ram.u8(control+0x1DAU)<=1U) {
-        const auto texture=ram.u32(control+0x190U);
+         !(control&3U) && ram.u8(control+layout_.shockwaveControl_bank)<=1U) {
+        const auto texture=ram.u32(control+layout_.shockwaveControl_texture);
         if(ram.valid(texture,8U))
           result.shockwaves.push_back({serial,actor,control,header,
-              PresentationGuestView::physical(control)+ram.u8(control+0x1DAU)*200U,texture});
+              PresentationGuestView::physical(control)+ram.u8(control+layout_.shockwaveControl_bank)*jfg::game::records::shockwave_vertex_bank_stride,texture});
       }
       if (ram.u16(actor+layout_.actor_type)==68U && ram.valid(control,0xD0U) &&
-          (control&3U)==0U && ram.u8(control+0xCCU)!=0U &&
-          ram.u8(control+0xCDU)<=1U) {
-        const auto flags=ram.u16(control+0xCEU);
+          (control&3U)==0U && ram.u8(control+layout_.beamControl_active)!=0U &&
+          ram.u8(control+layout_.beamControl_bank)<=1U) {
+        const auto flags=ram.u16(control+layout_.beamControl_flags);
         if (flags && !(flags&~7U))
           result.beams.push_back({serial,actor,control,header,
-              PresentationGuestView::physical(control)+ram.u8(control+0xCDU)*80U,flags});
+              PresentationGuestView::physical(control)+ram.u8(control+layout_.beamControl_bank)*jfg::game::records::beam_vertex_bank_stride,flags});
       }
-      // The US transparent-object dispatcher binds behavior 78 to glassDraw
+      // The qualified transparent-object dispatcher binds behavior 78 to glassDraw
       // (0x06500DCC). Positive +0x88 selects the intact shared quad at
       // control+0x0C; after shattering it uses a different 120-vertex stream.
       // Restrict this identity to intact glass. Do not interpolate between
       // the pane and shards or across a control/lifetime replacement.
       if (ram.u16(actor + layout_.actor_type) == 78U && ram.valid(control, 0x60U) &&
           (control & 3U) == 0U &&
-          std::bit_cast<std::int32_t>(ram.u32(actor + 0x88U)) > 0 &&
+          std::bit_cast<std::int32_t>(ram.u32(actor + layout_.glassActor_health)) > 0 &&
           ram.u32(actor + layout_.actor_customBank) <= 1U) {
         // Intact quad vertices are a linked overlay constant. Resolve through
         // the renderer's exact overlay materialization map before validation;
@@ -889,11 +890,11 @@ public:
           return first<=UINT32_MAX-(bytes-1U) && last==first+bytes-1U ?
               first : std::uint32_t{0};
         };
-        const auto vertices = resolve_block(ram.u32(control + 0x0CU),40U);
+        const auto vertices = resolve_block(ram.u32(control + layout_.glassControl_vertices),40U);
         const auto triangles = resolve_block(
-            ram.u32(control + 4U + ram.u32(actor + layout_.actor_customBank) * 4U),32U);
+            ram.u32(control + (ram.u32(actor + layout_.actor_customBank) ? layout_.glassControl_commands1 : layout_.glassControl_commands0)),32U);
         if (ram.valid(vertices, 40U) && ram.valid(triangles, 32U)) {
-          const auto texture=ram.u32(control);
+          const auto texture=ram.u32(control+layout_.glassControl_texture);
           const std::array<float,2> period=ram.valid(texture,2U) ?
             std::array<float,2>{float(ram.u8(texture)),float(ram.u8(texture+1U))} :
             std::array<float,2>{};
@@ -903,24 +904,24 @@ public:
       }
       for (std::uint32_t j = 0; j < model_count; ++j) {
         const auto instance = ram.u32(models + j * 4U),
-                   model = ram.u32(instance);
+                   model = ram.u32(instance+layout_.instance_model);
         if (!ram.valid(instance, 8U) || !ram.valid(model, 0x80U))
           continue;
-        const auto bones = ram.u8(model + 0x4FU);
-        const auto vertices = ram.u16(model + 0x12U);
-        const auto vertex_base = ram.u32(instance + 4U);
-        const auto p0 = ram.u32(instance + 0x10U),
-                   p1 = ram.u32(instance + 0x14U);
+        const auto bones = ram.u8(model + layout_.model_boneCount);
+        const auto vertices = ram.u16(model + layout_.model_vertexCount);
+        const auto vertex_base = ram.u32(instance + layout_.instance_vertices);
+        const auto p0 = ram.u32(instance + layout_.instance_palette0),
+                   p1 = ram.u32(instance + layout_.instance_palette1);
         if (bones > 127U || vertices == 0U || vertices > 8192U ||
             !ram.valid(vertex_base, vertices * 10U))
           continue;
         // Compact LOD instances own vertices but share another instance's
         // palette. Words at +0x10/+0x14 can already be vertex data there.
         const auto source = PresentationGuestView::physical(vertex_base);
-        const auto fields = PresentationGuestView::physical(instance) + 0x10U;
+        const auto fields = PresentationGuestView::physical(instance) + layout_.instance_palette0;
         const bool inline_vertices =
             source < fields + 8U && source + vertices * 10U > fields;
-        const bool palette = !inline_vertices && ram.u8(model + 0x4EU) != 0U &&
+        const bool palette = !inline_vertices && ram.u8(model + layout_.model_skinned) != 0U &&
                              bones != 0U && ram.valid(p0, bones * 64U) &&
                              ram.valid(p1, bones * 64U);
         result.models.push_back(
@@ -1014,7 +1015,7 @@ public:
     }
     const auto sky=ram.u32(layout_.sky_actor);
     const auto sky_header=ram.u32(sky+0x40U),sky_models=ram.u32(sky+0x6CU);
-    const auto sky_count=ram.u8(sky_header+0x1FU);
+    const auto sky_count=ram.u8(sky_header+layout_.header_modelCount);
     const bool sky_live=ram.valid(sky,0xA4U) && ram.valid(sky_header,0x20U) &&
         sky_count>0U && sky_count<=16U && ram.valid(sky_models,sky_count*4U);
     if(!sky_live){sky_actor_=0;sky_lifetime_={};}
@@ -1061,7 +1062,7 @@ public:
           actor == actors_.end() || actor->second.header != sprite.header ||
           actor->second.models != sprite.models ||
           (sprite.control && (ram.u32(sprite.actor+layout_.actor_control)!=sprite.control ||
-           ram.u16(sprite.actor+layout_.actor_type)!=136U || !ram.u8(sprite.control+0xFU))))
+           ram.u16(sprite.actor+layout_.actor_type)!=136U || !ram.u8(sprite.control+layout_.regionControl_active))))
         it = sprites_.erase(it);
       else {
         result.sprites.push_back(

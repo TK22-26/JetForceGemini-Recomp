@@ -97,17 +97,17 @@ public:
       // A negative clearance result requires every face, not merely a useful
       // navigation/render subset. Gaps or overlapping batches retain native
       // collision behavior rather than certifying missing geometry as clear.
-      const auto blocks=ram.u32(track+4U);
-      for(unsigned i=0;i<ram.u16(track+0x1AU);++i) {
-        const auto block=blocks+i*0x48U,batches=ram.u32(block+0xCU);
+      const auto blocks=ram.u32(track+ram.member_offset("layout.track.blocks"));
+      for(unsigned i=0;i<ram.u16(track+ram.member_offset("layout.track.blockCount"));++i) {
+        const auto block=blocks+i*jfg::game::records::track_block_stride,batches=ram.u32(block+ram.member_offset("layout.trackBlock.batches"));
         unsigned covered=0;
-        for(unsigned batch=0;batch<ram.u16(block+0x28U);++batch) {
-          const auto first=ram.u16(batches+batch*16U+8U),
-                     end=ram.u16(batches+batch*16U+24U);
+        for(unsigned batch=0;batch<ram.u16(block+ram.member_offset("layout.trackBlock.batchCount"));++batch) {
+          const auto first=ram.u16(batches+batch*jfg::game::records::track_batch_stride+8U),
+                     end=ram.u16(batches+batch*jfg::game::records::track_batch_stride+24U);
           if(first!=covered || end<first)complete_=false;
           covered=end;
         }
-        if(covered!=ram.u16(block+0x26U))complete_=false;
+        if(covered!=ram.u16(block+ram.member_offset("layout.trackBlock.faceCount")))complete_=false;
       }
     } catch(const std::runtime_error&) {known_=false;complete_=false;}
   }

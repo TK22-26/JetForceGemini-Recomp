@@ -62,12 +62,13 @@ Walkway music difference belongs to the selected game program; see the
 Optional enhancements require declared bindings and qualification of their
 actual consumers. Unqualified capabilities cannot be advertised as supported.
 
-This decision does not declare the migration complete. Shared generation and
-contracts now serve all three revisions. All three earlier original-OS builds
-boot, create saves and reload into Goldwood. Current enhanced source has broader
-renderer/member/native-operation/asset composition and separate pending native
-qualification. The regional issue owns the current feature and product gates;
-a compile, cold boot or contract comparison does not close campaign acceptance.
+Shared generation, typed record contracts and exact VI presentation intervals
+now serve all three revisions. All three original-OS candidates create saves
+and reload into Goldwood; later enhanced candidates also pass native builds
+and bounded Play. Development build admission is enabled for all three exact
+revisions. The regional issue owns final source/product qualification and the
+remaining feature matrix. These checks do not close campaign acceptance or
+publish a supported release.
 
 The [architecture plan](../planning/regional-runtime-architecture.md) owns the
 implementation sequence and exit gates. The [regional issue record](../development/issues/regional-rom-support.md)

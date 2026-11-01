@@ -75,8 +75,10 @@ specific bugs remain under validation. Automated tests and a successful build do
 encounter or platform correct.
 
 The [original N64 catalog](docs/original-game/README.md) records physical-hardware bugs separately
-from emulator observations and regional differences. Current recomp support is for the pinned US
-ROM only; PAL and Japanese support are separate future work.
+from emulator observations and regional differences. Published v1.4.0 packages support the pinned
+US ROM. The `develop` architecture admits local builds of the exact US, PAL and Japanese revisions;
+[regional qualification](docs/development/issues/regional-rom-support.md) records the verified
+builds, remaining gameplay checks and release status.
 
 ## Develop
 

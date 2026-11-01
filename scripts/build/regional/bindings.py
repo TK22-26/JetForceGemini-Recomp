@@ -156,6 +156,83 @@ def qualify_cutscene_sound_layout(bodies,code,instructions,sections):
         raise ValueError('Cutscene sound slot extent/stride owners disagree')
 
 
+def qualify_mesh_layout(bodies):
+    # Shared packed mesh schema is admitted only after original constructors
+    # and drawing loops agree on strides, range sentinels and matrix-bank size.
+    # Model face bounds come from the final batch sentinel, as native rendering
+    # does; an otherwise unused adjacent header halfword is not authoritative.
+    expected = {
+        'owner.layout.makeModelGfx': ((312, 605945866), (376, 2254569480), (384, 180480), (388, 2255749126), (392, 2255224854), (396, 2255290392), (1164, 645070864)),
+        'owner.layout.modelCompactInstance': ((20, 290944), (24, 29650977), (28, 946240)),
+        'owner.layout.modelInstance': ((40, 227712), (56, 606011402), (60, 52363289), (376, 2902786064), (380, 2904031252)),
+    }
+    for name, checks in expected.items():
+        body=bodies[name]
+        if any(offset+4>len(body) or struct.unpack_from('>I',body,offset)[0]!=word for offset,word in checks):
+            raise ValueError('Unreviewed packed mesh schema: '+name)
+
+
+def qualify_record_arrays(bodies):
+    # Original character accessor proves (character & 3)*0x76 + 0x15c.
+    # Collision matrix owner proves two 64-byte banks beginning at +0x80.
+    # These shared packed-array constants are never inferred from a US delta.
+    expected = {'owner.layout.mainGetGameCharacter': [(16, 816316419), (84, 545024), (88, 21516323), (92, 675968), (104, 21516323), (108, 675904), (112, 19533857), (116, 608305500)], 'owner.layout.bridgeMatrices': [(352, 2421686571), (360, 1624448), (364, 5842977), (384, 2420637995), (392, 543104), (396, 4794401), (404, 614793344)]}
+    for name, checks in expected.items():
+        body=bodies[name]
+        if any(offset+4>len(body) or struct.unpack_from('>I',body,offset)[0]!=word for offset,word in checks):
+            raise ValueError('Unreviewed game record array: '+name)
+
+
+def qualify_effect_arrays(bodies):
+    # Original draws multiply the selected bank by 80 beam bytes or by
+    # 20 vertices * 10 bytes for shockwaves, then add the control allocation.
+    expected = {'owner.layout.beamDraw': [(220, 604504144), (232, 2423849165), (240, 52953113), (248, 20498), (252, 6969377)], 'owner.layout.objDrawShockWave': [(392, 2420900314), (396, 604438548), (400, 25624601), (404, 604504074), (420, 49170), (432, 50855961), (436, 20498), (440, 4900897)]}
+    for name, checks in expected.items():
+        body=bodies[name]
+        if any(offset+4>len(body) or struct.unpack_from('>I',body,offset)[0]!=word for offset,word in checks):
+            raise ValueError('Unreviewed effect vertex bank: '+name)
+
+
+def qualify_sound_queue_layout(bodies):
+    # Original player constructor, callback, queue constructor/post/next verify
+    # player queue/event/period/callback, free/head links, active/drop/high-water
+    # counters, 28-byte nodes and 16-byte payload. Drop count is not capacity.
+    expected = {'owner.audio.soundPlayerConstructor': [(76, 2911567948), (208, 612630548), (500, 2911698952), (528, 604700704), (532, 2813001768), (548, 633602068), (556, 2378563660), (568, 654573588), (576, 654639148)], 'owner.audio.eventQueueConstructor': [(24, 2780823568), (32, 2782920724), (40, 2801795090), (48, 2938109960), (56, 2902458380), (64, 2904555520), (72, 2906652676), (104, 813248), (108, 28076067), (112, 878720)], 'owner.audio.eventQueuePost': [(40, 2379153408), (68, 2535981074), (88, 2502557714), (92, 625672193), (96, 2771058706), (132, 604373008), (140, 614793228), (148, 2240610320), (156, 2777546768), (164, 2247622672), (168, 2247688212), (192, 2768896020), (228, 632160264)], 'audio.sound_next_event': [(32, 2379153416), (68, 604373008), (76, 612630540), (88, 2409955368), (96, 2401763336), (108, 2234122256), (120, 2771058704), (128, 604831743), (132, 2779512832)], 'audio.sound_callback': [(28, 2247622700), (64, 621019156), (72, 2365980748), (92, 612630572), (108, 623116308), (116, 623181868), (124, 2906783824)]}
+    for name, checks in expected.items():
+        body=bodies[name]
+        if any(offset+4>len(body) or struct.unpack_from('>I',body,offset)[0]!=word for offset,word in checks):
+            raise ValueError('Unreviewed sound queue ABI: '+name)
+
+
+def qualify_inventory_arrays(bodies):
+    expected = {'owner.layout.weaponPickupInit': [(124, 612499592), (128, 2755854336)], 'owner.layout.mainSetDefaultCharacter': [(112, 2789212180), (124, 2790785076), (120, 640745473), (132, 706805776), (136, 642908162)]}
+    for name, checks in expected.items():
+        body=bodies[name]
+        if any(offset+4>len(body) or struct.unpack_from('>I',body,offset)[0]!=word for offset,word in checks):
+            raise ValueError('Unreviewed inventory array or pickup payload: '+name)
+    for name, delta in (('game.controlPlayer',0),):
+        body=bodies[name]
+        # JP inserts two earlier instructions. Select only the qualified
+        # original destination-load sequence, never a region-wide delta.
+        matches=[]
+        for at in (0x184,0x18c):
+            if struct.unpack_from('>I',body,at)[0]==0x240100ff:matches.append(at)
+        if len(matches)!=1:raise ValueError('Exit destination sentinel owner differs')
+        at=matches[0]
+        expected=(0x240100ff,0x90a3000b,0x90a6000a,0x10610002,0x00037200,0x00ce3025)
+        if struct.unpack_from('>6I',body,at)!=expected:raise ValueError('Exit destination sentinel schema differs')
+
+
+def qualify_track_arrays(bodies):
+    # Original loader and plane/light builders prove 72-byte blocks, 10-byte
+    # vertices, 16-byte faces/batches/planes and 8-byte plane-index entries.
+    expected = {'owner.layout.trackLoader': [(776, 638582856)], 'owner.layout.trackLightAllocate': [(260, 605356042), (272, 26542105), (388, 647233608)], 'owner.layout.trackPlanes': [(116, 604766218), (132, 2218983432), (136, 2219900952), (140, 2219835398), (156, 260352), (192, 2423128065), (204, 32243737), (240, 2219704322), (264, 2219769860), (288, 2423783426), (336, 2423128067), (624, 1970432), (632, 3876454400), (648, 3855351812), (664, 3875667976), (716, 3854827532), (732, 671023120), (756, 645070864), (904, 639168), (920, 2387542040)]}
+    for name, checks in expected.items():
+        body=bodies[name]
+        if any(offset+4>len(body) or struct.unpack_from('>I',body,offset)[0]!=word for offset,word in checks):
+            raise ValueError('Unreviewed track geometry schema: '+name)
+
+
 def qualify_navigation_layout(bodies,code,data,sections):
     def require(name,expected):
         body=bodies[name]
@@ -284,12 +361,18 @@ def qualify(root:Path):
     if any(struct.unpack_from('>I',mi,offset)[0]!=word for offset,word in ((36,0x3c0aa430),(40,0x8d4a000c),(104,0x3c01a430),(108,0xac2a000c))):
         raise ValueError('Unreviewed original interrupt-mask instructions')
     qualify_audio_layout(bodies,code,sections)
+    qualify_sound_queue_layout(bodies)
     ai=bodies['audio.ai_submit']
     if any(struct.unpack_from('>I',ai,offset)[0]!=word for offset,word in ((128,0x3c0ca450),(132,0xad820000),(140,0x3c0fa450),(148,0xaded0004))):
         raise ValueError('Original AI submit register ABI differs')
 
     qualify_cutscene_sound_layout(bodies,code,instructions,sections)
     qualify_navigation_layout(bodies,code,data,sections)
+    qualify_mesh_layout(bodies)
+    qualify_record_arrays(bodies)
+    qualify_track_arrays(bodies)
+    qualify_inventory_arrays(bodies)
+    qualify_effect_arrays(bodies)
     for name,word in (("frame.camera.allocate",0x27bdff10),("frame.camera.actor",0xafa400f0),("frame.camera.focus",0x27a40098),("frame.camera.point",0x27a5008c)):
         if instructions[name]['original_word']!=word:raise ValueError('Unreviewed camera stack ABI: '+name)
 

@@ -38,14 +38,20 @@ consulted locally; no upstream game source is copied into this repository. It
 never accepts a maintainer-generated ELF, overlay layout, CPU root or audio
 source as input.
 
-## Regional metadata development
+## Regional builds on develop
 
-The playable build still accepts only its pinned US ROM. Developers can prepare matching PAL or
-Japanese ELF/map metadata with `scripts/build/prepare_regional_metadata.py` in a new private Linux
-workspace. It normalizes byte order without rewriting the input and validates all 155 overlays plus
-an exact ROM reconstruction. It does not produce a playable regional runtime or enable ROM import
-in the launcher. [Regional prerequisites and remaining work](issues/regional-rom-support.md) give
-the command, supported identities, validation and concrete integration gaps.
+The development pipeline admits the exact US, PAL and Japanese revisions in the
+[ROM catalog](../../config/roms/revisions.json). Each uses the same extraction, program model,
+CPU/audio generation and native runtime pipeline, with an immutable revision descriptor and
+matching bundle. ROM byte order is normalized into a private copy; the input is preserved.
+Launcher imports, build caches and save namespaces retain the revision identity. Published
+v1.4.0 packages still support only their pinned US ROM.
+
+`scripts/build/prepare_regional_metadata.py` remains a metadata-only developer entry point: it
+validates matching ELF/map data, all 155 overlays and exact ROM reconstruction, but does not by
+itself build a playable executable. Use the complete build workflow above for native output.
+[Regional qualification](issues/regional-rom-support.md) records exact identities, native and
+launcher evidence, remaining gameplay checks and release status.
 
 ## Workspaces and options
 

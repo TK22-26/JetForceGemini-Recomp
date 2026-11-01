@@ -1,5 +1,6 @@
 #pragma once
 #include "jfg/renderer/enhanced_shadow.hpp"
+#include "jfg/renderer/presentation_cadence.hpp"
 #include "jfg/renderer/rigid_camera.hpp"
 #include <array>
 #include <algorithm>
@@ -95,7 +96,7 @@ struct PresentationHistoryFrame {
     std::shared_ptr<const EnhancedShadowFrame> enhanced_shadows;
     std::vector<PresentationTransform> transforms;
     std::uint64_t tick = 0;
-    unsigned source_rate = 0;
+    PresentationInterval source_interval;
     unsigned vi_rate = 60; // Explicitly overwritten by the session history.
     bool scene = false;
     bool defer_to_blur = false;
@@ -210,7 +211,7 @@ public:
     unsigned vi_rate() const noexcept {return vi_rate_;}
     bool has_continuous_cadence(std::uint64_t tick, bool scene) const {
         const auto delta = tick > previous_tick_ ? tick - previous_tick_ : 0U;
-        return scene && previous_tick_ != 0U && delta >= 1U && delta <= 6U && vi_rate_ % delta == 0U;
+        return scene && previous_tick_ != 0U && delta >= 1U && delta <= 6U;
     }
     PresentationHistoryFrame record(const std::vector<PresentationMesh>& meshes,
                                     std::uint64_t tick, bool scene, bool diagnostic = false) {
@@ -230,7 +231,7 @@ public:
         // Shape/lifetime, pose, finite-coordinate and motion checks below
         // still reject discontinuities. Long gaps and repeated ticks hold.
         if (has_continuous_cadence(tick, scene))
-            result.source_rate = static_cast<unsigned>(vi_rate_ / delta);
+            result.source_interval = {static_cast<unsigned>(delta), vi_rate_};
         next_.clear(meshes.size());
         std::vector<std::size_t> indices(meshes.size(),Shapes::empty);
         for(std::size_t i=0;i<meshes.size();++i) {
@@ -251,10 +252,10 @@ public:
             if(diagnostic) {
                 if(!old)result.debug_reasons[i]|=8U;
                 else result.debug_previous[i]=old->matrix;
-                if(result.source_rate==0U)result.debug_reasons[i]|=16U;
+                if(!result.source_interval)result.debug_reasons[i]|=16U;
                 else if(old && !continuous_presentation_motion(*old,mesh))result.debug_reasons[i]|=32U;
             }
-            if(result.source_rate && old && continuous_presentation_motion(*old,mesh))
+            if(result.source_interval && old && continuous_presentation_motion(*old,mesh))
                 result.transforms[i]={old->matrix,true};
         }
         // Scenery visibility changes can replace every exact geometry key.
@@ -307,8 +308,8 @@ public:
                             std::abs(new_pose.projection[component]/old_pose.projection[component]-1.0f));
                 } else ++result.debug_cameras[4];
             }
-            if(result.source_rate && motion)camera_anchors.emplace(key,prior->second.matrix);
-            if(result.source_rate && !motion)camera_cuts.insert(current->matrix);
+            if(result.source_interval && motion)camera_anchors.emplace(key,prior->second.matrix);
+            if(result.source_interval && !motion)camera_cuts.insert(current->matrix);
         }
         previous_cameras_.clear();
         for(const auto& entry:cameras)if(entry.second)

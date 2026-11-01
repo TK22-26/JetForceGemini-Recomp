@@ -7,6 +7,17 @@ int main() {
   using namespace jfg;
   int failures=0;const auto check=[&](bool ok){if(!ok)++failures;};
   const auto rejects=[&](auto action){try{action();++failures;}catch(const std::runtime_error&) {}};
+  for(bool native_words:{false,true}) {
+    std::array<std::uint8_t,8> bytes;bytes.fill(0xa5);
+    GuestMemory raw(bytes,native_words);
+    for(unsigned lane=0;lane<bytes.size();++lane) {
+      bytes.fill(0xa5);raw.put8(0x80000000U+lane,0x37);
+      for(unsigned i=0;i<bytes.size();++i)check(raw.u8(0xa0000000U+i)==(i==lane?0x37:0xa5));
+    }
+    const auto before=bytes;
+    for(auto invalid:{0U,0x80000008U,0xffffffffU})rejects([&]{raw.put8(invalid,0);});
+    check(bytes==before);
+  }
   unsigned target=0;
   for(const auto& revision:roms::kRevisions) {
     const auto delta=++target*0x2000U;

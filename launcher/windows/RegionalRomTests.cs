@@ -35,8 +35,9 @@ namespace JfgLauncher
             byte[] oldSave={8,4,2,1};File.WriteAllBytes(Path.Combine(root,"jfg.flash"),oldSave);
             var us=RegionalRom.Revision("jfg-us-r0");var pal=RegionalRom.Revision("jfg-pal-r0");var jp=RegionalRom.Revision("star-twins-jp-r0");
             Check(SetupRomValidation.RequireAdmission(us)==us.Id,"US setup admission lost");
-            Reject(delegate { SetupRomValidation.RequireAdmission(pal); },"unqualified PAL setup admitted");
-            Reject(delegate { SetupRomValidation.RequireAdmission(jp); },"unqualified JP setup admitted");
+            Check(SetupRomValidation.RequireAdmission(pal)==pal.Id,"PAL setup admission lost");
+            Check(SetupRomValidation.RequireAdmission(jp)==jp.Id,"JP setup admission lost");
+            Reject(delegate { SetupRomValidation.RequireAdmission(fixture); },"recognized but unadmitted fixture entered setup");
             Check(RegionalStorage.Prepare(root,us,false)==root,"legacy US saves moved");
             Check(File.ReadAllBytes(Path.Combine(root,"jfg.flash"))[0]==8,"legacy US save modified");
             string usMarker=Path.Combine(root,RegionalStorage.MarkerName);

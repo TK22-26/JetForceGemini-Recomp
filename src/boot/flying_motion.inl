@@ -1,6 +1,9 @@
 // Included after State inside the native host namespace.
 // No generated code, global game clock, AI timer or animation clock is replaced.
 namespace flying_motion_detail {
+inline constexpr std::array<unsigned,3> velocity_members{game_member("layout.actor.velocityX"),game_member("layout.actor.velocityY"),game_member("layout.actor.velocityZ")};
+inline constexpr std::array<unsigned,3> angle_members{game_member("layout.actor.yaw"),game_member("layout.actor.pitch"),game_member("layout.actor.roll")};
+inline constexpr std::array<unsigned,3> spin_members{game_member("layout.flightControl.spinYaw"),game_member("layout.flightControl.spinPitch"),game_member("layout.flightControl.spinRoll")};
 struct Frame {
   State* owner{};
   std::uint32_t actor{}, control{}, descriptor{}, record{}, base{};
@@ -62,8 +65,8 @@ inline void resolve(Frame& frame) {
   if(!ram.valid(frame.control,0xACU) ||
      ram.u32(frame.actor+game_member("layout.actor.control"))!=frame.control ||
      !ram.valid(frame.descriptor,0x30U) || !ram.valid(frame.record,0x80U))return;
-  frame.active=jfg::flight::supported(ram.u8(frame.record+0x2BU),
-                                     ram.u8(frame.record+0x2AU));
+  frame.active=jfg::flight::supported(ram.u8(frame.record+game_member("layout.flightRecord.movementMode")),
+                                     ram.u8(frame.record+game_member("layout.flightRecord.deathMode")));
 }
 } // namespace flying_motion_detail
 
@@ -96,7 +99,7 @@ public:
       // Instruction-timed parity/oracle runs retain the original behavior.
       if(state.diagnostic_host_clock && state.flying_motion_adapter_enabled &&
          elapsed>0U && elapsed<=0x7FFFFFFFU)
-        local_.elapsed=jfg::flight::ticks(elapsed);
+        local_.elapsed=jfg::flight::ticks(elapsed,state.flying_motion_reference);
       frame_=&local_;execution_state.current=frame_;
       return;
     }
@@ -114,37 +117,37 @@ public:
     if(target==game_overlay_token("overlay.collision.accelerate") || target==game_overlay_token("overlay.collision.drag")) {
       ++f.acceleration_depth;acceleration_=true;
     }
-    if(target==game_overlay_token("overlay.collision.turn")) {angle_=ram.u16(f.actor);turn_=true;}
+    if(target==game_overlay_token("overlay.collision.turn")) {angle_=ram.u16(f.actor+game_member("layout.actor.yaw"));turn_=true;}
     if(target==game_overlay_token("overlay.collision.move")) {
-      speed_=ram.f32(f.control+0x20U);drag_=true;
+      speed_=ram.f32(f.control+game_member("layout.flightControl.speed"));drag_=true;
     }
     // The death initializer may apply a launch impulse. Capture after that,
     // immediately before the original per-tick drag, gravity and spin.
     if(target==game_overlay_token("overlay.collision.update_animation") && static_cast<std::uint32_t>(context.r4)==12U &&
-       ram.s16(f.control+0xA6U)<=0) {
+       ram.s16(f.control+game_member("layout.flightControl.health"))<=0) {
       for(unsigned i=0;i<3;++i) {
-        f.death_velocity[i]=ram.f32(f.actor+0x1CU+i*4U);
-        f.death_angles[i]=ram.u16(f.actor+i*2U);
+        f.death_velocity[i]=ram.f32(f.actor+velocity_members[i]);
+        f.death_angles[i]=ram.u16(f.actor+angle_members[i]);
       }
       f.death_ready=true;
     }
     if(target==game_overlay_token("overlay.collision.collision_move")) {
       f.moving=true;move_=true;
-      for(unsigned i=0;i<3;++i)f.distance[i]=ram.f32(f.actor+0x1CU+i*4U)*f.elapsed;
+      for(unsigned i=0;i<3;++i)f.distance[i]=ram.f32(f.actor+velocity_members[i])*f.elapsed;
       if(f.death_ready) {
         const float retention=overlay_float(f,game_overlay_data("flight.death_retention",OriginalModule::collision));
         for(unsigned i=0;i<3;++i) {
           const float before=f.death_velocity[i];
           const float after=i==1 ? before-f.elapsed : jfg::flight::damp(before,retention,f.elapsed);
-          put_float(state,f.actor+0x1CU+i*4U,after);
+          put_float(state,f.actor+velocity_members[i],after);
           f.distance[i]=i==1 ? jfg::flight::accelerated_distance(before,after,f.elapsed) :
               jfg::flight::damped_distance(before,retention,f.elapsed);
-          const auto spin=ram.s16(f.control+0x44U+i*2U);
-          ram.put16(f.actor+i*2U,static_cast<std::uint16_t>(
+          const auto spin=ram.s16(f.control+spin_members[i]);
+          ram.put16(f.actor+angle_members[i],static_cast<std::uint16_t>(
               static_cast<std::int64_t>(f.death_angles[i])+std::llround(spin*static_cast<double>(f.elapsed))));
         }
       }
-      for(unsigned i=0;i<3;++i)f.integrated_velocity[i]=ram.f32(f.actor+0x1CU+i*4U);
+      for(unsigned i=0;i<3;++i)f.integrated_velocity[i]=ram.f32(f.actor+velocity_members[i]);
     }
     if(target==game_code("game.objMoveXYZ") && f.moving &&
        static_cast<std::uint32_t>(context.r4)==f.actor) {
@@ -157,13 +160,13 @@ public:
         // Normalize that force at the movement boundary, preserving the
         // collision result and all original collision tests.
         const float retention=overlay_float(f,game_overlay_data("flight.collision_retention",OriginalModule::collision));
-        const bool gravity=(ram.u32(f.record+0x24U)&0x400U)!=0U &&
-            (ram.u32(f.control)&0x1000U)==0U;
+        const bool gravity=(ram.u32(f.record+game_member("layout.flightRecord.flags"))&0x400U)!=0U &&
+            (ram.u32(f.control+game_member("layout.flightControl.flags"))&0x1000U)==0U;
         for(unsigned i=0;i<3;++i) {
           float velocity=std::bit_cast<float>(args[i])/retention;
           if(i==1 && gravity)velocity+=1.0f-f.elapsed;
           velocity=jfg::flight::damp(velocity,retention,f.elapsed);
-          put_float(state,f.actor+0x1CU+i*4U,velocity);
+          put_float(state,f.actor+velocity_members[i],velocity);
           args[i]=std::bit_cast<std::uint32_t>(velocity);
         }
       }
@@ -193,17 +196,17 @@ public:
     NativeGameMemory ram({state_.rdram,kRdramSize});
     if(target_==game_overlay_token("overlay.collision.smooth_acceleration") && f.acceleration_depth)
       context_.f0.fl*=f.elapsed;
-    if(turn_)ram.put16(f.actor,jfg::flight::approach_angle(angle_,
+    if(turn_)ram.put16(f.actor+game_member("layout.actor.yaw"),jfg::flight::approach_angle(angle_,
         overlay_half(f,game_overlay_data("flight.turn_target",OriginalModule::collision)),f.elapsed));
     if(drag_) {
-      const float original=ram.f32(f.control+0x20U);
-      const bool apply=ram.f32(f.record+0x10U)>0.0f || overlay_float(f,game_overlay_data("flight.speed",OriginalModule::collision))>20.0f;
+      const float original=ram.f32(f.control+game_member("layout.flightControl.speed"));
+      const bool apply=ram.f32(f.record+game_member("layout.flightRecord.dragThreshold"))>0.0f || overlay_float(f,game_overlay_data("flight.speed",OriginalModule::collision))>20.0f;
       float corrected=apply ? jfg::flight::damp(speed_,overlay_float(f,game_overlay_data("flight.drag_retention",OriginalModule::collision)),f.elapsed) : speed_;
-      const float maximum=static_cast<float>(static_cast<std::int8_t>(ram.u8(f.descriptor+0x24U)));
-      const float minimum=static_cast<float>(static_cast<std::int8_t>(ram.u8(f.descriptor+0x25U)));
+      const float maximum=static_cast<float>(static_cast<std::int8_t>(ram.u8(f.descriptor+game_member("layout.flightDescriptor.maxSpeed"))));
+      const float minimum=static_cast<float>(static_cast<std::int8_t>(ram.u8(f.descriptor+game_member("layout.flightDescriptor.minSpeed"))));
       corrected=std::max(minimum,std::min(maximum,corrected));
-      put_float(state_,f.control+0x20U,corrected);
-      if(original!=0.0f)for(unsigned offset:{0x1CU,0x24U})
+      put_float(state_,f.control+game_member("layout.flightControl.speed"),corrected);
+      if(original!=0.0f)for(unsigned offset:{game_member("layout.actor.velocityX"),game_member("layout.actor.velocityZ")})
         put_float(state_,f.actor+offset,ram.f32(f.actor+offset)*(corrected/original));
     }
     if(acceleration_)--f.acceleration_depth;

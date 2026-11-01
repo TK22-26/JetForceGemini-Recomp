@@ -19,21 +19,24 @@ inline std::optional<EnhancedShadowFootprint> enhanced_shadow_footprint(
   for(float x:floor)if(!std::isfinite(x)||std::abs(x)>32768)return {};
   if(!ram.valid(actor,0x70U))return {};
   const auto header=ram.u32(actor+layout.actor_header),table=ram.u32(actor+layout.actor_models);
-  if(!ram.valid(header,0x70U)||ram.u8(header+0x1EU)==1U)return {};
-  const auto index=ram.u8(actor+layout.actor_variant),models=ram.u8(header+0x1FU);
+  if(!ram.valid(header,0x70U)||ram.u8(header+layout.header_renderKind)==1U)return {};
+  const auto index=ram.u8(actor+layout.actor_variant),models=ram.u8(header+layout.header_modelCount);
   if(!models||models>16U||index>=models||!ram.valid(table,models*4U))return {};
   const auto instance=ram.u32(table+index*4U);
   if(!ram.valid(instance,0x18U))return {};
-  const auto model=ram.u32(instance);
-  if(!ram.valid(model,0x64U)||!ram.u8(model+0x4EU))return {};
-  const auto bones=ram.u8(model+0x4FU);
-  const auto nv=ram.u16(model+0x12U),nf=ram.u16(model+0x14U),nb=ram.u16(model+0x16U);
-  const auto vertices=ram.u32(instance+4U),batches=ram.u32(model+0x24U),faces=ram.u32(model+0x20U);
-  if(!bones||bones>128U||!nv||nv>8192U||!nf||nf>8192U||!nb||nb>1024U||
-     !ram.valid(vertices,nv*10U)||!ram.valid(faces,nf*16U)||!ram.valid(batches,(nb+1U)*16U))return {};
+  const auto model=ram.u32(instance+layout.instance_model);
+  if(!ram.valid(model,0x64U)||!ram.u8(model+layout.model_skinned))return {};
+  const auto bones=ram.u8(model+layout.model_boneCount);
+  const auto nv=ram.u16(model+layout.model_vertexCount),nb=ram.u16(model+layout.model_batchCount);
+  const auto vertices=ram.u32(instance+layout.instance_vertices),batches=ram.u32(model+layout.model_batches),faces=ram.u32(model+layout.model_faces);
+  if(!bones||bones>128U||!nv||nv>8192U||!nb||nb>1024U||
+     !ram.valid(batches,(nb+1U)*16U))return {};
+  // The original draw loop reads each range from consecutive 16-byte batches.
+  const auto nf=ram.u16(batches+nb*16U+8U);
+  if(!nf||nf>8192U||!ram.valid(vertices,nv*10U)||!ram.valid(faces,nf*16U))return {};
   std::array<std::vector<std::array<float,16>>,2> matrices;
   for(unsigned bank=0;bank<2;++bank) {
-    const auto palette=ram.u32(instance+0x10U+bank*4U);
+    const auto palette=ram.u32(instance+(bank?layout.instance_palette1:layout.instance_palette0));
     if(!ram.valid(palette,bones*64U))return {};
     // camConvertMatrixList QUEUES float 4x3 matrices for camTick. Padding
     // words are not initialized and cannot identify the representation.

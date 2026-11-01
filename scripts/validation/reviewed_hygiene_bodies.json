@@ -879,6 +879,16 @@
         "contains a generated-recompilation marker"
       ],
       "reason": "Reviewed regional migration: public MIPS opcode classifications and handwritten synthetic grammar fixtures; no original/generated game body or private payload."
+    },
+    {
+      "git_blob": "c0a1ae315efa4cea3f23722069ad87c0a78d727b",
+      "sha256": "f966666ad794c46cb88fb7bd016cca43412f28589f3c76fd108d0f61e3e2ff01",
+      "bytes": 40180,
+      "path": "scripts/build/regional/bindings.py",
+      "exceptions": [
+        "contains a spaced hexadecimal payload"
+      ],
+      "reason": "Reviewed bounded original instruction-operand and exit-sentinel decision signatures used to reject incompatible regional layouts. These are small verification signatures, not complete game routines or generated game code; all other payload, credential, ROM and archive checks remain active."
     }
   ]
 }

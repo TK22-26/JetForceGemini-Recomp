@@ -48,6 +48,10 @@ public:
       throw std::runtime_error("nonfinite mod coordinate");
     return value;
   }
+  void put8(std::uint32_t a, std::uint8_t v) {
+    require(a, 1);
+    bytes_[(a & 0x1FFFFFFFU) ^ (swapped_ ? 3U : 0U)] = v;
+  }
   void put16(std::uint32_t a, std::uint16_t v) {
     require(a, 2);
     bytes_[(a & 0x1FFFFFFFU) ^ (swapped_ ? 3U : 0U)] =

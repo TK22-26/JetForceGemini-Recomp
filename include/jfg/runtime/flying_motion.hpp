@@ -5,13 +5,19 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string_view>
 
 namespace jfg::flight {
-// Candidate reference: three NTSC VIs per legacy movement tick (20 Hz).
+// This optional correction was qualified against US Goldwood/Tawfret only.
+// Equal movement code does not establish an equal regional reference cadence.
+// Zero leaves the selected original game's movement path in control.
+struct ReferenceCadence { unsigned vis{}; };
+inline constexpr ReferenceCadence reference_for(std::string_view revision) noexcept {
+  return {revision=="jfg-us-r0" ? 3U : 0U};
+}
 // Presentation frequency never participates in this clock.
-inline constexpr float reference_vis = 3.0f;
-inline float ticks(unsigned elapsed_vis) noexcept {
-  return static_cast<float>(elapsed_vis) / reference_vis;
+inline float ticks(unsigned elapsed_vis, ReferenceCadence reference) noexcept {
+  return reference.vis ? static_cast<float>(elapsed_vis) / reference.vis : 0.0f;
 }
 inline bool supported(unsigned movement, unsigned death) noexcept {
   return movement == 5U && death == 1U;

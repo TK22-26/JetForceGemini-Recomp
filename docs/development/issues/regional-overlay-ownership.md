@@ -49,16 +49,18 @@ behavior of this migration are pending.
 
 ## Current shared binding checkpoint
 
-The four-hour continuation expanded named original-qualified bindings across
-renderer, menu/Floyd state, dialogue, camera, rain/blur/shadow, native operations
-and diagnostic observers. The current recipes qualify 435 code, 225 data and
-210 instruction references per revision. Live overlay data uses a checked
-owner/domain/extent view, and credits uses its actual region-specific ending
-flag offset. The generated ordinal remains an implementation coordinate.
+The shared recipes qualify 435 code, 225 data and 379 instruction references
+per revision. Live overlay data uses a checked owner/domain/extent view, and
+credits uses its actual region-specific ending flag offset. The generated
+ordinal remains an implementation coordinate. Actor/player, camera, NPC,
+door, sidekick, flight, effects, cutscene, inventory, exit, model-instance and
+track-geometry members now use original-qualified operands. Common packed
+arrays and sound queue layouts have independent original-code guards.
 
 All three v16 original-OS candidates create and reload a private save into
-Goldwood. All three later v21 enhanced native compile preflights pass; that
-source was superseded by explicit PAL presentation/audio clock composition
-before full native acceptance. These results do not close every overlay feature
-or residual actor-specific binary layout. The [regional issue](regional-rom-support.md)
-owns the current source/build identity and remaining implementation matrix.
+Goldwood. All three v27 enhanced candidates pass full native builds and
+bounded enhanced Play with fractional interpolation. Final v28 source/product
+qualification is recorded in the [regional issue](regional-rom-support.md).
+These checks do not close every overlay feature, campaign transition or
+owner gameplay acceptance. Earlier pending statements above describe their
+historical checkpoints, not the current build status.

@@ -56,7 +56,7 @@ public:
     if(!modern_controls_selected(state,port) ||
        !(frame.modern_flags&jfg::kModernActionsFlag) ||
        (frame.pc_mode!=3 && frame.pc_mode!=5) || !state.controller_ports.samples[port].connected ||
-       (ram.u8(control+1U)&3U)>=3U || (!jfg::pc_shoulder_state(movement) && !ledge_view && !swimming_view) ||
+       (ram.u8(control+game_member("layout.playerControl.characterFlags"))&3U)>=3U || (!jfg::pc_shoulder_state(movement) && !ledge_view && !swimming_view) ||
        (!jfg::mod::pc_gameplay_active(ram,actor) && !landing_view) || game_view(ram).u8(game_data_ref("globals.pauseActive"))!=0 ||
        jfg::mod::scripted_camera_active(ram,actor) ||
        !ram.instruction_matches("guard.game.controlPlayer.entry0") || !ram.instruction_matches("guard.game.controlPlayer.entry4")) {
@@ -73,7 +73,7 @@ public:
     const bool aiming=!view_only && (movement==10U || movement==11U || view.air_aim);
     const auto camera=game_data("globals.cameraActors")+static_cast<std::uint32_t>(ram.u8(control))*0x4CU;
     const int native_pitch=aiming?-ram.s16(control+game_member("layout.playerControl.manualPitch")):
-      ram.valid(camera,0x4CU)?ram.s16(camera+2U):0;
+      ram.valid(camera,0x4CU)?ram.s16(camera+game_member("layout.camera.pitch")):0;
     // A new area's camera may still be looking back at its entrance. The
     // native player owns entry facing; focus loss is not a new player/view.
     if(view.acquire(actor,control,ram.s16(control+game_member("layout.playerControl.heading")),native_pitch))
@@ -86,8 +86,8 @@ public:
     view.movement_before_yaw=ram.s16(control+game_member("layout.playerControl.heading"));
     // Capture before the native action handler eases its own velocity. The
     // optional modern easing must start here, never from the already-eased value.
-    view.movement_before_update={std::bit_cast<float>(ram.u32(control+0x10U)),
-                                 std::bit_cast<float>(ram.u32(control+4U))};
+    view.movement_before_update={std::bit_cast<float>(ram.u32(control+game_member("layout.playerControl.sideVelocity"))),
+                                 std::bit_cast<float>(ram.u32(control+game_member("layout.playerControl.forwardVelocity")))};
     view.retrace=state.vi_retraces;view.aiming=aiming;
     if(!aiming && !state.pc_input_blocked) {
       auto look=jfg::PcLookDelta{frame.look_x,frame.look_y};
@@ -101,7 +101,7 @@ public:
     }
     if(view_only) {
       state.gameplay_trace.event(swimming_view?"pc-swimming-view":ledge_view?"pc-ledge-view":"pc-landing-view",{state.vi_retraces,actor,
-        ram.u8(control+0x56BU),static_cast<std::uint16_t>(view.yaw),
+        ram.u8(control+game_member("layout.playerControl.animationTimer")),static_cast<std::uint16_t>(view.yaw),
         static_cast<std::uint16_t>(view.pitch),game_view(ram).u32(game_data_ref("globals.controllerDisabled"))});
       return; // Camera only: no facing, velocity, action or recovery-timer writes.
     }
@@ -129,9 +129,9 @@ public:
       ram.u8(control_+game_member("layout.playerControl.movement")),static_cast<std::uint16_t>(view.yaw),
       static_cast<std::uint16_t>(view.pitch),ram.u16(actor_),ram.u16(control_+game_member("layout.playerControl.heading")),
       ram.u32(actor_+game_member("layout.actor.x")),ram.u32(actor_+game_member("layout.actor.y")),ram.u32(actor_+game_member("layout.actor.z")),
-      ram.u32(control_+4U),ram.u32(control_+0x10U),
-      ram.valid(camera,0x4CU)?ram.u16(camera):0U,
-      ram.valid(camera,0x4CU)?ram.u16(camera+2U):0U,update_ticks_});
+      ram.u32(control_+game_member("layout.playerControl.forwardVelocity")),ram.u32(control_+game_member("layout.playerControl.sideVelocity")),
+      ram.valid(camera,0x4CU)?ram.u16(camera+game_member("layout.camera.yaw")):0U,
+      ram.valid(camera,0x4CU)?ram.u16(camera+game_member("layout.camera.pitch")):0U,update_ticks_});
     state_.pc_shoulder_actor=0;
   }
 };
@@ -176,14 +176,14 @@ public:
        actor!=state.pc_animation_actor || !modern_shoulder_current(state,jfg::mod::pc_input_port(ram,ram.u8(control)),actor) ||
        modern_free_movement_current(state,jfg::mod::pc_input_port(ram,ram.u8(control))))return;
     const auto requested=static_cast<std::uint32_t>(context.r6);
-    const unsigned character=ram.u8(control+1U)&3U;
+    const unsigned character=ram.u8(control+game_member("layout.playerControl.characterFlags"))&3U;
     const auto family=modern_animation_family(state,character,requested);
     if(ram.u8(control+game_member("layout.playerControl.movement"))==0U)
       context.r6=jfg::pc_ground_animation(character,requested,family,
-        {std::bit_cast<float>(ram.u32(control+0x10U)),std::bit_cast<float>(ram.u32(control+4U))});
+        {std::bit_cast<float>(ram.u32(control+game_member("layout.playerControl.sideVelocity"))),std::bit_cast<float>(ram.u32(control+game_member("layout.playerControl.forwardVelocity")))});
     state.gameplay_trace.event("pc-locomotion",{state.vi_retraces,actor,ram.u8(control+game_member("layout.playerControl.movement")),
       ram.u8(actor+game_member("layout.actor.animation")),static_cast<std::uint32_t>(context.r6),ram.u8(control+game_member("layout.playerControl.direction")),
-      ram.u32(control+4U),ram.u32(control+0x10U),ram.u16(control+0x120U),ram.u32(actor+game_member("layout.actor.animationFrame")),requested,family});
+      ram.u32(control+game_member("layout.playerControl.forwardVelocity")),ram.u32(control+game_member("layout.playerControl.sideVelocity")),ram.u16(control+game_member("layout.playerControl.turnDelta")),ram.u32(actor+game_member("layout.actor.animationFrame")),requested,family});
   }
   ~ModernAnimationScope(){state_.pc_animation_actor=previous_;}
 };
@@ -298,9 +298,9 @@ public:
     const auto control=static_cast<std::uint32_t>(context.r4);
     const auto game=game_view(ram_).u32(game_data_ref("globals.selectedPlayer"));
     if (!ram_.valid(control,0x5C4U) || !ram_.valid(game,0x538U) || ram_.u8(control)!=0) return;
-    const auto character=ram_.u8(control+1U)&3U;
+    const auto character=ram_.u8(control+game_member("layout.playerControl.characterFlags"))&3U;
     if (character>=3U) return;
-    address_=game+0x15CU+character*0x76U+0x70U;
+    address_=game+jfg::game::records::character_array_offset+character*jfg::game::records::character_stride+0x70U;
     saved_=ram_.u8(address_);bytes_[(address_ & 0x1FFFFFFFU) ^ 3U]=9U;
     state.gameplay_trace.event("reticle-draw-fixture",{state.vi_retraces,control,address_,saved_,9U});
   }
@@ -376,7 +376,7 @@ public:
     if(!ram.valid(actor,0xA4U) || !ram.valid(control,0x5F0U) ||
        ram.u32(actor+game_member("layout.actor.control"))!=control ||
        !jfg::mod::pc_gameplay_active(ram,actor) || game_view(ram).u8(game_data_ref("globals.pauseActive"))!=0U)return;
-    const auto character=ram.u8(control+1U)&3U;
+    const auto character=ram.u8(control+game_member("layout.playerControl.characterFlags"))&3U;
     if(!jfg::modern_roll_stance(character,mode) || ram.u8(control+game_member("layout.playerControl.movement"))!=mode)return;
     const auto table=game_view(ram).u32(game_data_ref("globals.controlModeTable"));
     if(table!=game_data("globals.normalControlTable") && table!=game_data("globals.expertControlTable"))return;
@@ -409,7 +409,7 @@ public:
     NativeGameMemory ram({state.rdram,kRdramSize});
     if(!ram.valid(actor,0xA4U) || !ram.valid(control,0x5F0U) ||
        ram.u32(actor+game_member("layout.actor.control"))!=control ||
-       (ram.u8(control+1U)&3U)>=2U || ram.u8(control+game_member("layout.playerControl.movement"))!=2U ||
+       (ram.u8(control+game_member("layout.playerControl.characterFlags"))&3U)>=2U || ram.u8(control+game_member("layout.playerControl.movement"))!=2U ||
        ram.u8(control+game_member("layout.playerControl.crawlTransition"))!=0U || game_view(ram).u8(game_data_ref("globals.pauseActive"))!=0U ||
        !modern_shoulder_current(state,port,actor) || modern_free_movement_current(state,port))return;
     const auto forward=static_cast<std::int32_t>(game_view(ram).u32(game_data_ref("globals.controlStickY")));
@@ -455,7 +455,7 @@ public:
     if(!actor || actor!=update.actor || control!=update.control ||
        !ram.valid(actor,0xA4U) || !ram.valid(control,0x5F0U) ||
        ram.u32(actor+game_member("layout.actor.control"))!=control ||
-       (ram.u8(control+1U)&3U)>=2U || ram.u8(control+game_member("layout.playerControl.movement"))!=2U ||
+       (ram.u8(control+game_member("layout.playerControl.characterFlags"))&3U)>=2U || ram.u8(control+game_member("layout.playerControl.movement"))!=2U ||
        (ram.u8(control+game_member("layout.playerControl.crawlTransition"))!=3U && ram.u8(control+game_member("layout.playerControl.crawlTransition"))!=4U) ||
        !jfg::mod::pc_gameplay_active(ram,actor) || game_view(ram).u8(game_data_ref("globals.pauseActive"))!=0U ||
        !ram.valid(magnitude,4U) || (magnitude&3U) ||

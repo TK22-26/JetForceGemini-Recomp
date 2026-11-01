@@ -16,16 +16,16 @@ public:
                                  std::uint32_t actor) {
     const PresentationGuestView ram(bytes);
     if ((actor & 3U) || !ram.valid(actor, 0xA4U) ||
-        ram.u16(actor + layout.actor_type) != 67U || ram.u8(actor + 0x93U) != 0U)
+        ram.u16(actor + layout.actor_type) != 67U || ram.u8(actor + layout.actor_viewVisibility) != 0U)
       return;
     const auto control = ram.u32(actor + layout.actor_control);
-    if (!ram.valid(control, 9U) || ram.u8(control + 8U) != 1U ||
+    if (!ram.valid(control, 9U) || ram.u8(control + layout.doorIndicator_state) != 1U ||
         ram.u32(actor + layout.actor_animationFrame) != 0x3F800000U)
       return;
-    const auto alpha = ram.u8(actor + 0x39U);
+    const auto alpha = ram.u8(actor + layout.actor_alpha);
     if (alpha == 0U || alpha == 255U)
       return;
-    const auto offset = PresentationGuestView::physical(actor + 0x39U) ^ 3U;
+    const auto offset = PresentationGuestView::physical(actor + layout.actor_alpha) ^ 3U;
     if (offset >= bytes.size())
       return;
     opacity_ = bytes.data() + offset;

@@ -542,6 +542,13 @@ if(WIN32)
   add_test(NAME jfg.presentation_deadline_wait COMMAND jfg_presentation_deadline_wait_tests)
 endif()
 
+# This header is consumed inside pinned RT64, which builds as C++17.
+add_executable(jfg_presentation_cadence_tests renderer/presentation_cadence_tests.cpp)
+target_include_directories(jfg_presentation_cadence_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+set_target_properties(jfg_presentation_cadence_tests PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO)
+jfg_set_project_warnings(jfg_presentation_cadence_tests)
+add_test(NAME jfg.presentation_cadence COMMAND jfg_presentation_cadence_tests)
+
 add_executable(jfg_interpolation_history_tests renderer/interpolation_history_tests.cpp)
 target_include_directories(jfg_interpolation_history_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
 target_compile_features(jfg_interpolation_history_tests PRIVATE cxx_std_20)

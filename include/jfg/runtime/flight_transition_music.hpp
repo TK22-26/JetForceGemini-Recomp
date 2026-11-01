@@ -26,11 +26,11 @@ bool apply_flight_transition_music_header(Memory& ram) {
      !ram.instruction_matches("guard.flight.tune_field") || !ram.global_valid("globals.currentLevel") || !ram.global_valid("globals.levelHeader") ||
      !ram.global_valid("globals.cutsceneGroup"))return false;
   const auto header=ram.global_u32("globals.levelHeader");
-  if(!ram.valid(header,0xEAU) || ram.u8(header+0x6CU)!=1U)return false;
+  if(!ram.valid(header,0xEAU) || ram.u8(header+ram.member_offset("layout.levelHeader.kind"))!=1U)return false;
   for(const auto& scene:flight_music_scenes) {
     if(ram.global_u32("globals.currentLevel")==scene.level && ram.global_u32("globals.cutsceneGroup")==scene.group &&
-       ram.u16(header+0xE8U)==scene.asset && ram.u8(header+0x72U)==scene.track) {
-      ram.put16(header+0x72U,static_cast<std::uint16_t>(0x0700U|ram.u8(header+0x73U)));
+       ram.u16(header+ram.member_offset("layout.levelHeader.sceneAsset"))==scene.asset && ram.u8(header+ram.member_offset("layout.levelHeader.music"))==scene.track) {
+      ram.put8(header+ram.member_offset("layout.levelHeader.music"),7U);
       return true;
     }
   }

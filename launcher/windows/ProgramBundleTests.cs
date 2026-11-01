@@ -23,6 +23,30 @@ namespace JfgLauncher
         internal static int Run(string root)
         {
             Check(Identity("jfg-us-r0").Build.Hash=="1b15234620a6e69bd2b5333038a02c3cacd710e210800568e167c7be0a3d4e4d","build identity differs from canonical Python producer vector");
+            foreach(var revision in RomCatalog.Revisions)
+            {
+                var expected=Identity(revision.Id);
+                string reports=Path.Combine(root,"regional-support-"+revision.Code);
+                var support=new SupportSession(reports,"launch");support.ProgramDetails(expected);support.Exit(0);
+                support.Write("rom_revision=PRIVATE-PATH-CANARY");
+                support.Write("rom_revision="+revision.Id+"/PRIVATE-PATH-CANARY");
+                support.Write("program_build_sha256="+new string('a',63));
+                support.Write("program_model_sha256="+new string('a',64)+"PRIVATE-PATH-CANARY");
+                string zipPath=SupportSession.ExportSelected(reports,support.DirectoryPath,Path.Combine(root,"regional-support-exports"));
+                using(var input=File.OpenRead(zipPath))
+                using(var zip=new System.IO.Compression.ZipArchive(input))
+                using(var reader=new StreamReader(zip.GetEntry("launcher.log").Open()))
+                {
+                    string text=reader.ReadToEnd();
+                    Check(text.Contains("rom_revision="+revision.Id+"\n"),"support export lost exact regional identity");
+                    Check(text.Contains("program_build_sha256="+expected.Build.Hash+"\n") && text.Contains("program_model_sha256="+expected.ModelHash+"\n") && text.Contains("program_generation_sha256="+expected.InputHash+"\n"),"support export lost verified program hashes");
+                    Check(!text.Contains("CANARY") && !text.Contains("program_build_sha256="+new string('a',63)+"\n"),"regional support accepted private or malformed identity");
+                }
+                string before=File.ReadAllText(Path.Combine(support.DirectoryPath,"launcher.log"));
+                expected.Build.Hash=new string('0',64);
+                Reject(delegate { support.ProgramDetails(expected); },"support accepted inconsistent program identity");
+                Check(File.ReadAllText(Path.Combine(support.DirectoryPath,"launcher.log"))==before,"invalid program identity partially published diagnostics");
+            }
             string directory=Path.Combine(root,"regional-bundle");Directory.CreateDirectory(directory);
             var files=new System.Collections.Generic.List<PortablePackage.Entry>();
             byte[] pe=new byte[128];pe[0]=(byte)'M';pe[1]=(byte)'Z';pe[60]=80;pe[80]=(byte)'P';pe[81]=(byte)'E';pe[84]=0x64;pe[85]=0x86;

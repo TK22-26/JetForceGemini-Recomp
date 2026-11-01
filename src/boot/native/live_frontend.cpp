@@ -96,7 +96,7 @@ void service_live_window(State &state) {
   state.host_frame_start = frame_start;
   state.host_frame_start_initialized = true;
   const auto presentation = jfg::vi_presentation_size(
-      state.vi_mode_horizontal_start, state.rt64_vi.vertical_start);
+      state.vi_mode_horizontal_start, state.rt64_vi.vertical_start, state.rt64_vi.vertical_sync);
   // Pointer coordinates follow the actual displayed VI, including widescreen.
   // The launcher canvas follows the selected video mode instead: a temporary
   // cinematic crop must not resize the canvas and zoom away its black bars.

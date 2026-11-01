@@ -16,7 +16,7 @@ int main() {
   const auto data=[](std::uint32_t address,std::uint32_t size=4){return DataRef{"sound-fixture",0,DataDomain::data,address-0x800a0000U,size,4};};
   const jfg::CutsceneSoundBindings bindings{data(0x800fb114),data(0x800fb118),data(0x800a74c0),data(0x800a74c8),data(0x801045c8,64),
     {"sound-fixture",0,0x1248},{"sound-fixture",0,0x3410},
-    {"sound-fixture",0,0x77ef4},{"sound-fixture",0,0x7804c},{"sound-fixture",0,0x78100}};
+    {"sound-fixture",0,0x77ef4},{"sound-fixture",0,0x7804c},{"sound-fixture",0,0x78100},0x6cU,0x88U};
   const auto omit=[&](const auto& memory,const jfg::CutsceneSoundCall& call){return jfg::omit_skipped_cutscene_sound(memory,call,descriptor,bindings);};
 
   const auto put=[&](std::uint32_t at,std::uint32_t value) {
@@ -64,6 +64,18 @@ int main() {
   check(!jfg::omit_skipped_cutscene_sound(ram,call,descriptor,wrongBindings));
   put(0x800FB118,0);check(!omit(ram,call));put(0x800FB118,0x80200000);
   check(bytes==baseline);
+  {
+    auto moved=bindings;moved.level_kind=0x7c;moved.actor_sound_handle=0xa8;
+    bytes[0x20006c]=0;bytes[0x20007c]=1;
+    check(jfg::omit_skipped_cutscene_sound(ram,call,descriptor,moved));
+    check(!omit(ram,call));
+    auto spatial=call;spatial.target=0x80003410;spatial.return_address=0x80078108;
+    spatial.actor=0x80220000;spatial.handle=spatial.actor+0xa8;
+    check(jfg::omit_skipped_cutscene_sound(ram,spatial,descriptor,moved));
+    spatial.handle=spatial.actor+0x88;
+    check(!jfg::omit_skipped_cutscene_sound(ram,spatial,descriptor,moved));
+    bytes[0x20006c]=1;bytes[0x20007c]=0;
+  }
   for(const auto delta:{0x4000U,0x8000U}) {
     auto relocatedSections=sections;relocatedSections[0].linked_address+=delta;
     auto relocatedDescriptor=descriptor;relocatedDescriptor.sections=relocatedSections;

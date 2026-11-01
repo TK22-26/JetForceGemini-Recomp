@@ -18,12 +18,12 @@ public:
        (actor&3U) || !ram.valid(actor,0xA4U))return;
     const auto header=ram.u32(actor+layout.actor_header),models=ram.u32(actor+layout.actor_models);
     if((header&3U)||(models&3U)||!ram.valid(header,0xD0U))return;
-    const auto count=ram.u8(header+0x1FU),base=ram.u8(actor+layout.actor_variant);
+    const auto count=ram.u8(header+layout.header_modelCount),base=ram.u8(actor+layout.actor_variant);
     if(count==0 || count>64 || base>=count || !ram.valid(models,count*4U))return;
     const auto instance=ram.u32(models+base*4U);
-    if((instance&3U)||!ram.valid(instance,0x10U)||!ram.valid(ram.u32(instance),0x80U))return;
+    if((instance&3U)||!ram.valid(instance,0x10U)||!ram.valid(ram.u32(instance+layout.instance_model),0x80U))return;
     if(!ram.valid(layout.render_detail,1U))return;
-    threshold_=bytes.data()+PresentationGuestView::physical(header+0xCCU);
+    threshold_=bytes.data()+PresentationGuestView::physical(header+layout.header_lodThreshold);
     detail_=bytes.data()+(PresentationGuestView::physical(layout.render_detail)^3U);
     std::memcpy(&saved_threshold_,threshold_,4U);saved_detail_=*detail_;
     const std::uint32_t zero=0;std::memcpy(threshold_,&zero,4U);*detail_=0;

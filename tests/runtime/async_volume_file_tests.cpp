@@ -27,12 +27,17 @@ int main() {
   check(!std::filesystem::exists(path), "fresh volume fixture");
   jfg::AsyncVolumeFile reader;
   reader.start(path); check(!reader.latest(), "missing file retains no value");
+  write(path, "");
+  {jfg::AsyncVolumeFile empty;empty.start(path);check(!empty.latest(), "empty settings are not published");empty.finish();}
   const std::string first="version=1\nvolume=0\nmuted=1\n";
   write(path,first);check(await_value(reader,first), "new settings become visible");
   const auto snapshot=reader.latest();
   const std::string boundary(128,'x');write(path,boundary);
   check(await_value(reader,boundary), "128-byte boundary is accepted");
   check(*snapshot==first, "published snapshot remains immutable");
+  write(path, "");
+  std::this_thread::sleep_for(std::chrono::milliseconds(350));
+  check(*reader.latest()==boundary, "truncated empty file preserves last bounded value");
   write(path,std::string(129,'y'));
   std::this_thread::sleep_for(std::chrono::milliseconds(350));
   check(*reader.latest()==boundary, "oversized file preserves last bounded value");

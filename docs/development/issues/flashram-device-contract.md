@@ -111,3 +111,11 @@ These checks establish valid in-game slot creation and same-region reload on
 those exact builds. They do not exercise every campaign save transition, power
 loss or physical cartridge timing. The subsequent enhanced source requires its
 own native checks and the owner will perform broader persistence playtests.
+
+## Enhanced regional continuation
+
+All three v27 enhanced native candidates reload those same-revision private
+v16 saves into Goldwood during bounded Play. This adds enhanced-runtime reload
+evidence without relabeling the earlier new-slot tests as current. The final
+source/product checkpoint is in the regional issue. Broader campaign saves,
+interrupted persistence and owner acceptance remain open.

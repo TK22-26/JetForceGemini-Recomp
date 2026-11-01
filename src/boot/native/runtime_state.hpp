@@ -271,7 +271,9 @@ constexpr jfg::CutsceneSoundBindings kCutsceneSoundBindings{
   jfg::game::linked::code_reference("game.amSndPlay"),jfg::game::linked::code_reference("game.amSndPlayXYZ"),
   jfg::game::linked::instruction_reference("cutscene.sound_fire_and_forget"),
   jfg::game::linked::instruction_reference("cutscene.sound_handle"),
-  jfg::game::linked::instruction_reference("cutscene.sound_positioned")};
+  jfg::game::linked::instruction_reference("cutscene.sound_positioned"),
+  jfg::game::linked::member_offset("layout.levelHeader.kind"),
+  jfg::game::linked::member_offset("layout.cutsceneActor.soundHandle")};
 consteval std::uint32_t game_data(std::string_view name) {
   return jfg::game::linked::data_address(name);
 }
@@ -421,6 +423,45 @@ inline constexpr jfg::RendererGameLayout kRendererGameLayout{
   game_member("layout.actor.physics"),
   game_member("layout.actor.deleted"),
   game_member("layout.actor.customBank"),
+  game_member("layout.actor.alpha"),
+  game_member("layout.objectHeader.renderKind"),
+  game_member("layout.objectHeader.modelCount"),
+  game_member("layout.objectHeader.lodThreshold"),
+  game_member("layout.model.skinned"),
+  game_member("layout.actor.state"),
+  game_member("layout.objectHeader.assets"),
+  game_member("layout.model.vertexCount"),
+  game_member("layout.model.boneCount"),
+  game_member("layout.model.batchCount"),
+  game_member("layout.model.faces"),
+  game_member("layout.model.batches"),
+  game_member("layout.model.collision"),
+  game_member("layout.instance.model"),
+  game_member("layout.instance.vertices"),
+  game_member("layout.instance.collision"),
+  game_member("layout.instance.palette0"),
+  game_member("layout.instance.palette1"),
+  game_member("layout.doorIndicator.linkedDoor"),
+  game_member("layout.doorIndicator.state"),
+  game_member("layout.doorIndicator.condition"),
+  game_member("layout.objectHeader.collisionVariant"),
+  game_member("layout.actor.viewVisibility"),
+  game_member("layout.regionControl.active"),
+  game_member("layout.limbControl.vertices"),
+  game_member("layout.limbControl.opaqueCommands"),
+  game_member("layout.limbControl.transparentCommands"),
+  game_member("layout.shockwaveControl.texture"),
+  game_member("layout.shockwaveControl.bank"),
+  game_member("layout.beamControl.active"),
+  game_member("layout.beamControl.bank"),
+  game_member("layout.beamControl.flags"),
+  game_member("layout.glassActor.health"),
+  game_member("layout.glassControl.texture"),
+  game_member("layout.glassControl.vertices"),
+  game_member("layout.glassControl.commands0"),
+  game_member("layout.glassControl.commands1"),
+  game_member("layout.shadowControl.flags"),
+  game_member("layout.shadowControl.scale"),
 };
 
 consteval std::uint32_t original_os_entry(std::string_view name) {
@@ -854,6 +895,8 @@ struct State : JfgOriginalTimingFast {
   bool diagnostic_host_clock_requested = false;
   bool diagnostic_native_recovery_enabled = true;
   bool flying_motion_adapter_enabled = true;
+  jfg::flight::ReferenceCadence flying_motion_reference =
+      jfg::flight::reference_for(jfg::game::linked::descriptor.revision);
   std::uint64_t diagnostic_clock_boundary_vi = 0;
   bool diagnostic_clock_boundary_seen = false;
   unsigned diagnostic_boundary_stall_ms = 0;

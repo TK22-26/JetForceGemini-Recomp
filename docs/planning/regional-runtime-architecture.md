@@ -1,7 +1,7 @@
 # Architecture plan: US, PAL and Japanese native support
 
 - Date: 2026-11-01.
-- Status: implementation in progress under the owner’s eight-hour approval and four-hour continuation; milestone gates and regional gameplay qualification remain open.
+- Status: common implementation in final build/product qualification under the owner’s five-hour continuation; campaign and release acceptance remain open.
 - Source baseline: `54a8b54` on `develop`.
 - Scope: the three exact original ROM revisions currently identified as `us`, `pal` and `jpn`.
 - Outcome: one maintained architecture that generates, runs, packages and validates all three revisions through the same contracts.
@@ -18,28 +18,25 @@ unless identified as current files.
 
 ## Implementation checkpoint (2026-11-01)
 
-The [regional issue](../development/issues/regional-rom-support.md#current-four-hour-continuation)
-owns the exact source/build/evidence checkpoint and the regional feature matrix.
-No aggregate completion percentage substitutes for its remaining gates.
+The [regional issue](../development/issues/regional-rom-support.md#five-hour-continuation--current-checkpoint)
+owns current source/build identities, exact evidence and historical failures.
 
-| Gate | Implemented or observed | Still required to close |
+| Gate | Implemented or observed | Remaining acceptance |
 |---|---|---|
-| M0 | Baseline retained; code/data/physical coordinates audited; feature matrix recorded | Finish residual binary-schema and optional-profile ownership/qualification |
-| M1 | Common catalog, typed descriptors/bindings, immutable bundle identity and revision storage | Current product installation/upgrade/direct-launch qualification |
-| M2 | All three exact original reconstructions and CPU/audio generation; original asset directories qualified | Full required-layout review; exact v19 generation passes current producer verification |
-| M3 | US uses common resident/overlay/member/renderer/math contracts; original-OS new-slot/reload passes | Current enhanced regression and residual fixed-schema qualification |
-| M4 | All three v16 candidates boot, create saves and reload into Goldwood | Finish v23 rebuild after stale-object link failure, then native checks and live routes |
-| M5 | Matching bundle routing and isolated storage contracts; shared feature inputs migrated | Product handoff, exact fractional presentation duration, live spatial-wipe comparison, full feature matrix |
-| M6 | Exact historical failures and scoped validation retained | Owner campaign/feature playtests, performance/platform coverage and release review |
+| M0 | Reference inventory, code/data ownership, required record members and common packed schemas reviewed | Final source/build correspondence and owner feature acceptance |
+| M1 | Common catalog, typed bindings, immutable bundles and revision-isolated storage | Actual final launcher import/setup/direct-Play handoff |
+| M2 | All three final v28 original reconstructions, CPU/audio generation and native builds pass | Final Play/product and owner feature acceptance |
+| M3 | US uses the common pipeline; original-reference native differentials and enhanced Goldwood replay pass | Final-build US regression and owner campaign checks |
+| M4 | PAL/JP boot, create/reload earlier saves and run enhanced Goldwood replays | Final-build regression and owner regional campaign checks |
+| M5 | All-three build admission, launcher routing, exact fractional cadence and shared PAL display units implemented | Final product handoff; live Modern/Floyd/flight/boss/spatial-wipe and other feature matrix |
+| M6 | Scoped evidence, failures and compatibility limits retained | Campaign, performance/platform coverage and release review |
 
-The v16 qualification explicitly disables enhanced native timing, collision and
-optimizations. v22 enabled those flags but failed linking because cached host callers retained
-the old audio ABI. v23 forces their rebuild; it remains incomplete at the approved
-four-hour stop. Its build and tests must earn separate evidence. It reuses the exact v19 original
-generation only after the current producer and complete receipt validate. v18 was superseded after discovering
-US math-table assumptions. Source snapshots, generated corpora, executables and
-receipts stay separately identified. PAL/JP ordinary product admission remains
-closed at this checkpoint; local development candidates use `--candidate`.
+v27 native and enhanced Play results apply to its frozen source. v28 includes
+later record contracts and build-admission changes; fresh original generation
+and native qualification now pass for all three. Final Play/product checks
+remain in progress. Build admission permits local
+builds; it does not certify every feature or a public release. Earlier v16
+original-OS new-slot/reload results are not relabeled as final-build results.
 
 ## 1. Starting point and scope
 
@@ -546,7 +543,8 @@ overlay lifecycle; JFG-UP-020-023 concern saves/controller semantics; JFG-UP-024
 scheduling. They are observations and pending validation work, not permission to copy code,
 change dependency pins or assume the cited behavior has been qualified locally.
 
-Implementation is currently executing under the owner's eight-hour approval and four-hour continuation
+Implementation is currently executing under the owner's eight-hour approval, four-hour continuation
+and five-hour continuation
 in the same guarded investigation. The initial ledger observation below is
 historical. Shared generation, typed resident bindings/memory, original module
 ownership, device clocks/FlashRAM, regional bundles and launcher resolution are

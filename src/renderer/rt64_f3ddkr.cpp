@@ -124,7 +124,7 @@ struct Context {
     struct PendingBlurWorld {
         std::uint64_t serial = 0, tick = 0;
         std::uint32_t source = 0;
-        unsigned rate = 0;
+        PresentationInterval interval;
     } pending_blur_world;
     std::uint64_t presentation_serial = 0;
     PresentationHistory rigid_baseline_history; // Used only by explicit diagnostics.
@@ -1406,7 +1406,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             previous_world.tick <= context.vi_tick) {
             frame->blur_parent_serial = previous_world.serial;
             frame->tick = previous_world.tick;
-            frame->source_rate = previous_world.rate;
+            frame->source_interval = previous_world.interval;
         }
         if (native_blur_render_mode() == 5U)
             record_blur_source_audit({context.vi_tick, serial, 6U,
@@ -1415,9 +1415,9 @@ void prepare_interpolation(Context& context, RT64::State& state) {
                 static_cast<unsigned>(frame->blur_parent_serial),
                 static_cast<unsigned>(previous_world.tick),
                 static_cast<unsigned>(frame->tick),
-                frame->blur_parent_serial ? 0U : 1U, previous_world.rate, frame->source_rate});
+                frame->blur_parent_serial ? 0U : 1U, previous_world.interval.rate_hint(), frame->source_interval.rate_hint()});
         frame->transforms.resize(data.worldTransforms.size());
-        state.setRefreshRate(static_cast<std::uint16_t>(frame->source_rate));
+        state.setRefreshRate(static_cast<std::uint16_t>(frame->source_interval.rate_hint()));
         publish_presentation_snapshot(&workload, std::move(frame));
         context.semantic_vertices.clear();
         return;
@@ -1856,11 +1856,11 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             if(old.matched && !current.matched)lost+=meshes[m].positions.size();
             if(old.matched && current.matched && old.previous!=current.previous)++changed;
         }
-        trace_interpolation("camera-identity",context.vi_tick,frame->source_rate,
+        trace_interpolation("camera-identity",context.vi_tick,frame->source_interval.rate_hint(),
             static_cast<unsigned>(changed),static_cast<unsigned>(owned),
             static_cast<unsigned>(data.worldIndices.size()),0.0f,gained,lost);
         const auto& camera_debug=frame->debug_cameras;
-        trace_interpolation("camera-history",context.vi_tick,frame->source_rate,
+        trace_interpolation("camera-history",context.vi_tick,frame->source_interval.rate_hint(),
             static_cast<unsigned>(camera_debug[0]),static_cast<unsigned>(camera_debug[1]),
             static_cast<unsigned>(camera_debug[2]),frame->debug_projection_delta,
             camera_debug[3],camera_debug[4]);
@@ -1885,7 +1885,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             if(old.matched && !current.matched)lost+=meshes[m].positions.size();
             if(old.matched && current.matched && old.previous!=current.previous)++changed;
         }
-        trace_interpolation("matrix-sharing",context.vi_tick,frame->source_rate,
+        trace_interpolation("matrix-sharing",context.vi_tick,frame->source_interval.rate_hint(),
             static_cast<unsigned>(changed),0U,static_cast<unsigned>(data.worldIndices.size()),
             0.0f,gained,lost);
     }
@@ -1893,7 +1893,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     if (rigid_trace) {
         std::size_t valid=0;
         for (const auto& mesh:meshes) valid+=mesh.rigid_pose.has_value();
-        trace_interpolation("rigid-pose", context.vi_tick, frame->source_rate, 0U, 0U,
+        trace_interpolation("rigid-pose", context.vi_tick, frame->source_interval.rate_hint(), 0U, 0U,
             static_cast<unsigned>(rigid_owners.size()), 0.0f, valid, 0U);
     }
     if (rigid_compare) for (const auto &[matrix,key] : rigid_owners)
@@ -2026,7 +2026,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         for (const auto &[matrix, key] : billboard_owners)
             matched += matrix < frame->transforms.size() &&
                        frame->transforms[matrix].matched;
-        trace_interpolation("billboard", context.vi_tick, frame->source_rate, 0,
+        trace_interpolation("billboard", context.vi_tick, frame->source_interval.rate_hint(), 0,
                             0, static_cast<unsigned>(billboard_owners.size()),
                             0, matched, 0);
     }
@@ -2265,7 +2265,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
         }
     }
     history_stage(4U); // Previous-world endpoint conversion.
-    if(scene) trace_interpolation("semantic",context.vi_tick,frame->source_rate,0U,0U,
+    if(scene) trace_interpolation("semantic",context.vi_tick,frame->source_interval.rate_hint(),0U,0U,
         static_cast<unsigned>(semantic_count),0.0f,matched_count,moving_count);
     if (scene && interpolation_trace_enabled()) {
         std::map<std::uint32_t,std::array<unsigned,3>> reflections;
@@ -2310,7 +2310,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
                 invalid_camera_vertices+=!meshes[m].eligible;
             }
         }
-        trace_interpolation("geometry-conflict",context.vi_tick,frame->source_rate,0U,0U,
+        trace_interpolation("geometry-conflict",context.vi_tick,frame->source_interval.rate_hint(),0U,0U,
             static_cast<unsigned>(cross_matrix_triangles),0.0f,equal_matrix_triangles,invalid_camera_vertices);
         if(rigid_compare && context.vi_tick>=3300U) {
             static unsigned captured_camera_holds=0;
@@ -2318,7 +2318,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
                 if(!cameras.contains(meshes[m].matrix) || frame->transforms[m].matched ||
                     meshes[m].positions.empty() || captured_camera_holds>=2048U) continue;
                 ++captured_camera_holds;
-                trace_interpolation("camera-hold",context.vi_tick,frame->source_rate,
+                trace_interpolation("camera-hold",context.vi_tick,frame->source_interval.rate_hint(),
                     static_cast<unsigned>(m),frame->debug_reasons[m],
                     static_cast<unsigned>(meshes[m].positions.size()),0.0f,
                     meshes[m].key.size(),captured_camera_holds);
@@ -2332,7 +2332,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
                 }
             }
         }
-        trace_interpolation("coverage",context.vi_tick,frame->source_rate,0U,
+        trace_interpolation("coverage",context.vi_tick,frame->source_interval.rate_hint(),0U,
             static_cast<unsigned>(camera_vertices),static_cast<unsigned>(data.worldIndices.size()),
             0.0f,camera_matched,all_matched);
     }
@@ -2353,7 +2353,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     if (frame->defer_to_blur) {
         const auto source = blur_world_source(workload);
         if (source)
-            context.pending_blur_world = {serial, context.vi_tick, source, frame->source_rate};
+            context.pending_blur_world = {serial, context.vi_tick, source, frame->source_interval};
         if (native_blur_render_mode() == 5U) {
             for (std::uint32_t f = 0; f < workload.fbPairCount; ++f) {
                 const auto& pair = workload.fbPairs[f];
@@ -2364,7 +2364,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
                     (pair.fastPaths.clearDepthOnly ? 2U : 0U) |
                     (pair.drawColorRect.isEmpty() ? 4U : 0U) |
                     (source && source == pair.colorImage.address ? 8U : 0U),
-                    frame->source_rate, 0U});
+                    frame->source_interval.rate_hint(), 0U});
             }
         }
     }
@@ -2376,7 +2376,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
             frame->enhanced_shadows?static_cast<unsigned>(frame->enhanced_shadows->draws.size()):0U,
             0U,0U,0.0f,0U,0U);
     }
-    state.setRefreshRate(static_cast<std::uint16_t>(frame->defer_to_blur ? 0U : frame->source_rate));
+    state.setRefreshRate(static_cast<std::uint16_t>(frame->defer_to_blur ? 0U : frame->source_interval.rate_hint()));
     publish_presentation_snapshot(&workload, std::move(frame));
     context.semantic_vertices.clear();
 }

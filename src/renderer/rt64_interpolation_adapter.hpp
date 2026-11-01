@@ -107,7 +107,7 @@ inline void trace_presentation_workload(RT64::Workload& workload,
         }
         if (changed) ++moving;
     }
-    trace_interpolation("render", snapshot->tick, snapshot->source_rate,
+    trace_interpolation("render", snapshot->tick, snapshot->source_interval.rate_hint(),
         target, frame, count, alpha, matched, moving);
 }
 } // namespace jfg

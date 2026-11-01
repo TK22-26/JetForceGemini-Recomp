@@ -34,7 +34,8 @@ window, audio, overlay loading, saves, task submission and diagnostics have sepa
 Shared State preserves its member order and single timing/cache ownership. The candidate
 regional pipeline now reconstructs and generates US, PAL and JP through one program model,
 CPU/RSP pipeline and native source tree. Each executable links one immutable revision
-descriptor and its own generated corpus. PAL/JP product admission remains closed.
+descriptor and its own generated corpus. Development build admission covers all three exact
+revisions; release support and campaign acceptance remain separate.
 
 Game references live under `include/jfg/game/`. `CodeRef`, `InstructionRef` and `DataRef`
 separate callable entries, observation sites and bounded data. Binding ABI 3 carries each
@@ -71,10 +72,18 @@ math-reference selection. The generated manifest requires the map.
 
 The [three-region plan](../planning/regional-runtime-architecture.md) owns migration
 and acceptance gates. The [regional issue](issues/regional-rom-support.md) records
-current build results and the remaining binary-schema/feature matrix. v16 reaches
-Goldwood after new-slot/reload on all three original-OS candidates; current v23
-enhanced source has separate pending qualification. Generation and helper tests
-do not establish campaign or released gameplay support.
+current build results and the feature acceptance matrix. All three v16 original-OS
+candidates create and reload private slots into Goldwood. All three v27 enhanced
+candidates pass native builds and bounded 120-Hz-requested Goldwood Play. The final
+v28 source is undergoing fresh generation and native/product qualification. These
+checks do not establish campaign or released gameplay support.
+
+`record_layouts.hpp` names common packed-array strides only after original
+constructor and consumer arithmetic passes generation guards for each revision.
+Record members use qualified operands. Checked byte writes preserve adjacent
+fields in both supported guest-memory layouts. Presentation retains exact VI
+intervals and clocks, including fractional PAL cadence; viewport, clipping and
+mouse mapping share the same VI scanline-aspect conversion.
 
 ## Generated CPU code and overlays
 
@@ -234,8 +243,9 @@ program buffer, 16 KiB sector erase and Count-based completion deadlines.
 Programming clears bits; reset discards pending work. Device completion is
 separate from host durability, and file replacement remains transactional.
 The historical reference bus remains confined to its historical evidence path.
-Synthetic device/storage tests and a bounded US cold boot pass; valid in-game
-slot creation and reload still require regional acceptance. The
+Synthetic device/storage tests and all-three original-OS new-slot/reload checks
+pass. Enhanced candidates also reload same-revision private slots; broader
+campaign persistence and interruption acceptance remain separate. The
 [FlashRAM issue](issues/flashram-device-contract.md) records commands, failures
 and the upstream sector-erase evidence.
 
@@ -264,5 +274,6 @@ identity captures every non-cache file in its declared source roots, including
 inline implementation and shader inputs. Both corrections pass component checks;
 the current native build/qualification status remains in the regional issue.
 
-The four-hour continuation stopped with v23 host rebuilding incomplete after a
-stale-object linker failure. See the [final checkpoint](issues/regional-rom-support.md#end-of-the-four-hour-continuation); no enhanced Play or product handoff is claimed.
+The [current checkpoint](issues/regional-rom-support.md#five-hour-continuation--current-checkpoint)
+records fresh native and enhanced Play results, final product qualification and
+remaining owner checks. Historical build failures remain in the same issue record.

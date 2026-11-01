@@ -1758,3 +1758,11 @@ scripts/build/regional/native_operations.py,retain,scripts/build/regional/native
 tests/build/test_regional_native_operations.py,retain,tests/build/test_regional_native_operations.py,Contract regression,"Exercises regional identity, original binding boundaries or shared consumer behavior without private game data."
 tests/renderer/renderer_game_fixture.hpp,retain,tests/renderer/renderer_game_fixture.hpp,Contract regression,"Exercises regional identity, original binding boundaries or shared consumer behavior without private game data."
 tests/runtime/rom_assets_tests.cpp,retain,tests/runtime/rom_assets_tests.cpp,Contract regression,"Exercises regional identity, original binding boundaries or shared consumer behavior without private game data."
+cmake/renderer/rt64_fractional_cadence.cmake,add,cmake/renderer/rt64_fractional_cadence.cmake,Renderer integration,Patch pinned RT64 scheduling to preserve exact VI interval cadence.
+include/jfg/renderer/presentation_cadence.hpp,add,include/jfg/renderer/presentation_cadence.hpp,Renderer contract,Shared exact interval and VI-clock presentation contract.
+tests/renderer/presentation_cadence_tests.cpp,add,tests/renderer/presentation_cadence_tests.cpp,Renderer tests,Verify fractional cadence and mixed sequence accumulation under C++17.
+include/jfg/game/record_layouts.hpp,add,include/jfg/game/record_layouts.hpp,Game record contracts,Name shared packed schemas guarded against every original revision.
+docs/development/issues/async-volume-empty-snapshot.md,add,docs/development/issues/async-volume-empty-snapshot.md,Issue evidence,"Record in-place volume snapshot race, remedy and scoped verification."
+docs/development/issues/navigation-exit-destination-sentinel.md,add,docs/development/issues/navigation-exit-destination-sentinel.md,Issue evidence,Record original exit destination sentinel semantics and regressions.
+docs/development/issues/regional-package-verifier.md,add,docs/development/issues/regional-package-verifier.md,Issue evidence,"Record schema-2 package and publication-verifier integration, failures and roundtrip tests."
+docs/development/issues/regional-support-identity.md,add,docs/development/issues/regional-support-identity.md,Issue evidence,Record sanitized diagnostic identity loss and the verified session/export contract.

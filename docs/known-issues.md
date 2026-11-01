@@ -49,17 +49,14 @@ has been removed from current source and rebuilt with scoped replay checks. Olde
 still contain the superseded insertion.
 [Issue #45's record](development/issues/flight-transition-missing-music.md) retains that correction.
 PAL hardware and Japanese behavior are untested; [PAL/JP recomp support](development/issues/regional-rom-support.md)
-now passes shared generation and descriptor checks for all three revisions. Development launcher
-imports and save namespaces also pass scoped checks. Native integration and gameplay qualification
-remain open; PAL/JP Play admission is still closed. Released packages support their pinned US ROM.
-All three v16 candidates now compile, boot, create a new slot and reload into
-Goldwood in the original-OS profile. That verifies the corrected PAL exception
-entry and JP matrix body. The current candidate includes further shared renderer, module,
-member, math, sound and asset changes, and is undergoing a fresh enhanced build.
-Its gameplay, feature and release qualification remains open. The regional issue
-retains exact historical failures and the current feature acceptance matrix.
+now uses one generation/runtime architecture and admits all three exact revisions for local
+builds. All three original-OS candidates create/reload saves, and later enhanced candidates pass
+native builds and bounded Goldwood Play. The latest source is in final native/product
+qualification. Campaign, feature, language, hardware and release acceptance remain open;
+published v1.4.0 packages support their pinned US ROM. The regional issue retains historical
+failures, exact build identities and the current acceptance matrix.
 [Named overlay owners](development/issues/regional-overlay-ownership.md) and
-shared navigation bindings are implemented, with module layouts and live
+shared navigation bindings are implemented, with qualified record layouts and live
 regional features still awaiting qualification.
 
 The [native N64 catalog](original-game/README.md) distinguishes confirmed hardware bugs from emulator

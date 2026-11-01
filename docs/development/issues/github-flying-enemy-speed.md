@@ -336,3 +336,13 @@ device-only and matched-boot interventions demonstrate its effect on update
 cadence. This does not promote the current stable flight adapter or certify
 hardware parity. See the [research evidence](../../evidence/original-timing-research-20261028.json)
 and [full Original issue](original-mode-simulation-parity.md).
+
+
+## Regional architecture policy (2026-11-01)
+
+The optional three-VI compatibility reference is now explicitly scoped to the
+US revision used by the retained Goldwood/Tawfret comparisons. PAL and Japan
+execute their original movement path. Shared code and equal retention constants
+do not qualify a regional cadence. New regional reference encounters are required
+before enabling this optional correction there; this does not block executing
+the original regional game. See [regional support](regional-rom-support.md).

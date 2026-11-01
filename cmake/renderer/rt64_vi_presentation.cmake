@@ -7,7 +7,7 @@ endif()
 file(READ "${jfg_vi_source}" jfg_vi_contents)
 set(jfg_vi_old "const hlslpp::float2 hdSize = computeHDSize(sdSize, resolutionScale, downsamplingScale);")
 set(jfg_vi_new [=[hlslpp::float2 hdSize = computeHDSize(sdSize, resolutionScale, downsamplingScale);
-        const auto display = jfg::vi_presentation_size(vi.hRegion.word, vi.vRegion.word);
+        const auto display = jfg::vi_presentation_size(vi.hRegion.word, vi.vRegion.word, vi.vSync);
         if (removeBlackBorders && display.valid() && resolutionScale.y > 0.0f) {
             hdSize.x = hdSize.y * float(display.width) / float(display.height)
                 * resolutionScale.x / resolutionScale.y;

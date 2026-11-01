@@ -15,6 +15,28 @@
 using jfg::game::OriginalModule;
 // Deliberately unrelated synthetic section ordinals, code tokens and field
 // offsets: the adapter must consume bindings rather than former US constants.
+consteval unsigned game_member(std::string_view name) {
+  if(name=="layout.actor.velocityX")return 0x90U;
+  if(name=="layout.actor.velocityY")return 0x94U;
+  if(name=="layout.actor.velocityZ")return 0x98U;
+  if(name=="layout.actor.yaw")return 0x30U;
+  if(name=="layout.actor.pitch")return 0x32U;
+  if(name=="layout.actor.roll")return 0x34U;
+  if(name=="layout.flightControl.speed")return 0x38U;
+  if(name=="layout.flightControl.spinYaw")return 0x70U;
+  if(name=="layout.flightControl.spinPitch")return 0x72U;
+  if(name=="layout.flightControl.spinRoll")return 0x74U;
+  if(name=="layout.flightControl.health")return 0xa8U;
+  if(name=="layout.flightControl.flags")return 0x4U;
+  if(name=="layout.flightDescriptor.maxSpeed")return 0x28U;
+  if(name=="layout.flightDescriptor.minSpeed")return 0x29U;
+  if(name=="layout.flightRecord.dragThreshold")return 0x14U;
+  if(name=="layout.flightRecord.flags")return 0x30U;
+  if(name=="layout.flightRecord.deathMode")return 0x2eU;
+  if(name=="layout.flightRecord.movementMode")return 0x2fU;
+  for(const auto& field:jfg::test::memory_instructions)if(field.name==name)return field.original_word&0xFFFFU;
+  throw "Missing fixture member";
+}
 consteval unsigned game_module(OriginalModule m) {
   if(m!=OriginalModule::collision)throw "Unknown fixture module";return 5;
 }
@@ -69,6 +91,7 @@ struct State {
   std::uint8_t* rdram{};
   bool diagnostic_host_clock=true;
   bool flying_motion_adapter_enabled=true;
+  jfg::flight::ReferenceCadence flying_motion_reference=jfg::flight::reference_for("jfg-us-r0");
   std::unordered_set<unsigned> active_overlay_sections{game_module(OriginalModule::collision)};
   unsigned vi_retraces{};
   Trace gameplay_trace{};
@@ -93,16 +116,16 @@ struct Fixture {
     ram.put16(actor+0x48,24);word(actor+0x68,control);
     word(base+game_overlay_data("flight.actor",OriginalModule::collision),actor);word(base+game_overlay_data("flight.control",OriginalModule::collision),control);
     word(base+game_overlay_data("flight.descriptor",OriginalModule::collision),desc);word(base+game_overlay_data("flight.record",OriginalModule::collision),record);
-    byte(record+0x2a,1);byte(record+0x2b,5);
-    byte(desc+0x24,30);byte(desc+0x25,0);
+    byte(record+game_member("layout.flightRecord.deathMode"),1);byte(record+game_member("layout.flightRecord.movementMode"),5);
+    byte(desc+game_member("layout.flightDescriptor.maxSpeed"),30);byte(desc+game_member("layout.flightDescriptor.minSpeed"),0);
     number(base+game_overlay_data("flight.death_retention",OriginalModule::collision),.99f);number(base+game_overlay_data("flight.drag_retention",OriginalModule::collision),.98f);number(base+game_overlay_data("flight.collision_retention",OriginalModule::collision),.97f);
-    number(base+game_overlay_data("flight.speed",OriginalModule::collision),100);ram.put16(control+0xa6,100);
+    number(base+game_overlay_data("flight.speed",OriginalModule::collision),100);ram.put16(control+game_member("layout.flightControl.health"),100);
     context.r4=actor;context.r5=2;
   }
   void prepare(){FlyingMotionScope scope(state,game_overlay_token("overlay.collision.prepare_squaddie"),context);}
   float argument(std::uint64_t v){return std::bit_cast<float>(static_cast<unsigned>(v));}
   void velocity(float x,float y,float z) {
-    number(actor+0x1c,x);number(actor+0x20,y);number(actor+0x24,z);
+    number(actor+game_member("layout.actor.velocityX"),x);number(actor+game_member("layout.actor.velocityY"),y);number(actor+game_member("layout.actor.velocityZ"),z);
   }
   void arguments(float x,float y,float z) {
     context.r4=actor;context.r5=std::bit_cast<unsigned>(x);
@@ -126,7 +149,7 @@ int main(){
      f.arguments(6,3,-9);FlyingMotionScope integration(f.state,game_code("game.objMoveXYZ"),f.context);
      require(near(f.argument(f.context.r5),4)&&near(f.argument(f.context.r6),2)&&
              near(f.argument(f.context.r7),-6),"live displacement units");
-     require(f.ram.f32(Fixture::actor+0x1c)==6,"canonical velocity was rescaled");}
+     require(f.ram.f32(Fixture::actor+game_member("layout.actor.velocityX"))==6,"canonical velocity was rescaled");}
     // A native contact response must override the pre-contact movement.
     {FlyingMotionScope move(f.state,game_overlay_token("overlay.collision.collision_move"),f.context);
      f.arguments(-6,0,9);FlyingMotionScope integration(f.state,game_code("game.objMoveXYZ"),f.context);
@@ -140,43 +163,45 @@ int main(){
      require(near(f.argument(f.context.r5),4*std::pow(.97f,2.f/3)),
              "contact retention remains per-update");
      require(f.argument(f.context.r6)==0,"stopped contact retained falling displacement");}
-    f.number(Fixture::control+0x20,10);f.velocity(10,3,0);
+    f.number(Fixture::control+game_member("layout.flightControl.speed"),10);f.velocity(10,3,0);
     {FlyingMotionScope drag(f.state,game_overlay_token("overlay.collision.move"),f.context);
-     f.number(Fixture::control+0x20,9.8f);f.velocity(9.8f,3,0);}
-    require(near(f.ram.f32(Fixture::actor+0x1c),10*std::pow(.98f,2.f/3)),"drag time scale");
+     f.number(Fixture::control+game_member("layout.flightControl.speed"),9.8f);f.velocity(9.8f,3,0);}
+    require(near(f.ram.f32(Fixture::actor+game_member("layout.actor.velocityX")),10*std::pow(.98f,2.f/3)),"drag time scale");
     f.ram.put16(Fixture::base+game_overlay_data("flight.turn_target",OriginalModule::collision),10000);
-    {FlyingMotionScope turn(f.state,game_overlay_token("overlay.collision.turn"),f.context);f.ram.put16(Fixture::actor,1000);}
-    require(f.ram.u16(Fixture::actor)==667,"turn time scale");
+    {FlyingMotionScope turn(f.state,game_overlay_token("overlay.collision.turn"),f.context);f.ram.put16(Fixture::actor+game_member("layout.actor.yaw"),1000);}
+    require(f.ram.u16(Fixture::actor+game_member("layout.actor.yaw"))==667,"turn time scale");
   }
   require(flying_motion_detail::execution().current==nullptr,"scope leaked after controller");
-  for(unsigned bypass:{0U,1U,2U}) {
+  for(unsigned bypass:{0U,1U,2U,3U,4U}) {
     Fixture f;
     if(bypass==1U)f.state.diagnostic_host_clock=false;
     else if(bypass==2U)f.state.flying_motion_adapter_enabled=false;
-    else f.byte(Fixture::record+0x2b,1);
+    else if(bypass==3U)f.state.flying_motion_reference=jfg::flight::reference_for("jfg-pal-r0");
+    else if(bypass==4U)f.state.flying_motion_reference=jfg::flight::reference_for("star-twins-jp-r0");
+    else f.byte(Fixture::record+game_member("layout.flightRecord.movementMode"),1);
     FlyingMotionScope controller(f.state,game_overlay_token("overlay.collision.squaddie_control"),f.context);f.prepare();
     f.velocity(6,3,-9);
     {FlyingMotionScope force(f.state,game_overlay_token("overlay.collision.drag"),f.context);
      {FlyingMotionScope solver(f.state,game_overlay_token("overlay.collision.smooth_acceleration"),f.context);f.context.f0.fl=3;}
-     require(f.context.f0.fl==3,"ground/oracle force changed");}
+     require(f.context.f0.fl==3,"excluded ground/oracle/region force changed");}
     FlyingMotionScope move(f.state,game_overlay_token("overlay.collision.collision_move"),f.context);
     f.arguments(6,3,-9);FlyingMotionScope integration(f.state,game_code("game.objMoveXYZ"),f.context);
-    require(f.argument(f.context.r5)==6,"ground/oracle displacement changed");
+    require(f.argument(f.context.r5)==6,"excluded ground/oracle/region displacement changed");
   }
   {
     Fixture f;FlyingMotionScope controller(f.state,game_overlay_token("overlay.collision.squaddie_control"),f.context);f.prepare();
-    f.ram.put16(Fixture::control+0xa6,0);f.velocity(12,8,-3);
-    for(unsigned i=0;i<3;++i)f.ram.put16(Fixture::control+0x44+i*2,300);
+    f.ram.put16(Fixture::control+game_member("layout.flightControl.health"),0);f.velocity(12,8,-3);
+    for(unsigned i=0;i<3;++i)f.ram.put16(Fixture::control+flying_motion_detail::spin_members[i],300);
     f.context.r4=12;
     {FlyingMotionScope animation(f.state,game_overlay_token("overlay.collision.update_animation"),f.context);}
     // Emulate native per-update gravity/drag/spin after the impulse.
     f.velocity(12*.99f,7,-3*.99f);
-    for(unsigned i=0;i<3;++i)f.ram.put16(Fixture::actor+i*2,300);
+    for(unsigned i=0;i<3;++i)f.ram.put16(Fixture::actor+flying_motion_detail::angle_members[i],300);
     FlyingMotionScope move(f.state,game_overlay_token("overlay.collision.collision_move"),f.context);
-    require(near(f.ram.f32(Fixture::actor+0x20),8-2.f/3),"death acceleration");
-    require(f.ram.u16(Fixture::actor)==200,"death angular velocity");
-    f.arguments(f.ram.f32(Fixture::actor+0x1c),f.ram.f32(Fixture::actor+0x20),
-                f.ram.f32(Fixture::actor+0x24));
+    require(near(f.ram.f32(Fixture::actor+game_member("layout.actor.velocityY")),8-2.f/3),"death acceleration");
+    require(f.ram.u16(Fixture::actor+game_member("layout.actor.yaw"))==200,"death angular velocity");
+    f.arguments(f.ram.f32(Fixture::actor+game_member("layout.actor.velocityX")),f.ram.f32(Fixture::actor+game_member("layout.actor.velocityY")),
+                f.ram.f32(Fixture::actor+game_member("layout.actor.velocityZ")));
     FlyingMotionScope integration(f.state,game_code("game.objMoveXYZ"),f.context);
     require(near(f.argument(f.context.r6),8*(2.f/3)-(2.f/3)*(2.f/3+1)/2),
             "death trajectory integration");

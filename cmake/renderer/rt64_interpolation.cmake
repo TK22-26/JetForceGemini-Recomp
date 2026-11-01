@@ -1,5 +1,6 @@
 # Experimental interpolation adapters; pinned dependency sources stay pristine.
 include("${CMAKE_CURRENT_LIST_DIR}/rt64_video_settings.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/rt64_fractional_cadence.cmake")
 function(jfg_interpolation_replace_source basename generated)
     get_target_property(sources rt64 SOURCES)
     set(patched)
@@ -350,6 +351,7 @@ endif()
 string(REPLACE "${before}" "${after}" contents "${contents}")
 
 jfg_video_patch_workload()
+jfg_fractional_cadence_workload()
 set(generated "${CMAKE_CURRENT_BINARY_DIR}/generated/rt64/rt64_workload_queue.cpp")
 file(WRITE "${generated}" [=[#include "rt64_interpolation_adapter.hpp"
 #include "rt64_blur_history.hpp"
@@ -396,6 +398,7 @@ if(offset EQUAL -1)
 endif()
 string(REPLACE "${before}" "${after}" contents "${contents}")
 jfg_video_patch_present()
+jfg_fractional_cadence_present()
 # A color allocation can become depth after a room/cinematic change. Previous
 # VI history cannot authorize displaying that new role as early color output.
 jfg_video_replace([=[                            if ((colorFb->addressStart == entry.vi.fbAddress()) && (colorFb->width == entry.fbWidth) && (colorFb->siz == entry.vi.fbSiz()) && entry.vi.compatibleWith(present.screenVI)) {]=]

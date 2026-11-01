@@ -10,8 +10,10 @@
 - Build a shared US/PAL/Japanese program architecture: exact original reconstruction,
   common CPU/audio generation, typed resident/overlay/member bindings, strict native
   bundle identity and revision save storage. Earlier original-OS builds create saves
-  and reload into Goldwood on all three revisions. Enhanced runtime, residual binary
-  schemas, product admission and campaign acceptance remain in qualification.
+  and reload into Goldwood on all three revisions. Enhanced native builds and
+  bounded Play also pass. Add exact fractional PAL presentation cadence, shared
+  display units, qualified record schemas and local all-three build admission.
+  Final product checks and owner campaign/feature acceptance remain separate.
   [Regional implementation and evidence](docs/development/issues/regional-rom-support.md).
 - Finish owner-approved local Git cleanup after verifying an independent retained
   database of all original objects and six stashes. Keep main/develop and public

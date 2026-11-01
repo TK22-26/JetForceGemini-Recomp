@@ -1,14 +1,20 @@
 import tempfile,unittest
+from unittest.mock import patch
 from pathlib import Path
 from scripts.build_from_rom import prepare_play_profile,require_build_admission
 from scripts.rom_profiles import PROFILES_BY_CODE
 class RegionalBuildTests(unittest.TestCase):
+    def test_admitted_revisions_can_build_and_play(self):
+        for p in PROFILES_BY_CODE.values():
+            require_build_admission(p)
+            require_build_admission(p,play=True)
+
     def test_compilation_does_not_admit_unqualified_play(self):
-        for code in ('pal','jpn'):
-            p=PROFILES_BY_CODE[code]
-            with self.assertRaises(ValueError):require_build_admission(p)
-            require_build_admission(p,candidate=True)
-            with self.assertRaises(ValueError):require_build_admission(p,candidate=True,play=True)
+        for p in PROFILES_BY_CODE.values():
+            with self.subTest(region=p.code), patch.dict("scripts.rom_profiles.NATIVE_ADMISSION", {p.revision_id:False}):
+                with self.assertRaises(ValueError):require_build_admission(p)
+                require_build_admission(p,candidate=True)
+                with self.assertRaises(ValueError):require_build_admission(p,candidate=True,play=True)
     def test_save_namespaces_preserve_us_and_reject_ambiguous_regional_saves(self):
         with tempfile.TemporaryDirectory() as d:
             shared=Path(d)/'campaign';us,pal,jp=[PROFILES_BY_CODE[c] for c in ('us','pal','jpn')]

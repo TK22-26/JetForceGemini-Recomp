@@ -610,7 +610,7 @@ bool cutscene_actors_reviewed(const NativeGameMemory& ram) {
     if(!ram.valid(actor,0x80U))return false;
     const auto type=ram.u16(actor+game_member("layout.actor.type"));
     const auto data=ram.u32(actor+game_member("layout.actor.header"));
-    if(!ram.valid(data,0xD8U) || ram.u32(data+0xD4U)!=0)return false;
+    if(!ram.valid(data,0xD8U) || ram.u32(data+game_member("layout.objectHeader.animationEvents"))!=0)return false;
     if(type==1U || type==59U) {
       // Type 1 has no ordinary objControl case; cinematic copies are not
       // gameplay players. Type 59's overlay 02B00014 first calls objGetPlayerNo
@@ -774,8 +774,8 @@ void update_cutscene_completion(State& state,recomp_context& context) {
   const auto level=game_view(ram).u32(game_data_ref("globals.currentLevel")),header=game_view(ram).u32(game_data_ref("globals.levelHeader"));
   const auto group=game_view(ram).u32(game_data_ref("globals.cutsceneGroup")),start=game_view(ram).u32(game_data_ref("globals.cutsceneScriptStart"));
   const auto cursor=game_view(ram).u32(game_data_ref("globals.cutsceneScriptCursor"));
-  const bool cinematic=ram.valid(header,0x6DU) &&
-    (ram.u8(header+0x6CU)==1U||ram.u8(header+0x6CU)==2U);
+  const bool cinematic=ram.valid(header,game_member("layout.levelHeader.kind")+1U) &&
+    (ram.u8(header+game_member("layout.levelHeader.kind"))==1U||ram.u8(header+game_member("layout.levelHeader.kind"))==2U);
   if(!cinematic || level==0U || level==127U) {
     state.cutscene_skip_scene=0;state.cutscene_chain=false;state.cutscene_prompt.transition=false;return;
   }
@@ -823,7 +823,7 @@ void update_cutscene_completion(State& state,recomp_context& context) {
           const auto data=ram.u32(a+0x40U),anim=ram.u32(a+0x4CU);
           state.gameplay_trace.event("cutscene-skip-actor-check",{
             state.vi_retraces,level,group,a,ram.u16(a+0x48U),ram.u32(a+0x7CU),
-            ram.valid(data,0xD8U)?ram.u32(data+0xD4U):0xFFFFFFFFU,
+            ram.valid(data,0xD8U)?ram.u32(data+game_member("layout.objectHeader.animationEvents")):0xFFFFFFFFU,
             ram.valid(anim,10U)?ram.u8(anim+9U):0xFFU,
             ram.valid(a,0x8CU)?ram.u32(a+0x88U):0xFFFFFFFFU,
             ram.valid(ram.u32(a+0x3CU),0x16U)?ram.u8(ram.u32(a+0x3CU)+0x10U):0xFFU});
@@ -986,7 +986,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   if(target==game_code("game.levelTunePlay")) {
     NativeGameMemory music_ram({state.rdram,kRdramSize});
     const auto header=game_view(music_ram).u32(game_data_ref("globals.levelHeader"));
-    const auto previous=music_ram.valid(header,0x73U)?music_ram.u8(header+0x72U):0U;
+    const auto previous=music_ram.valid(header,0x73U)?music_ram.u8(header+game_member("layout.levelHeader.music")):0U;
     if(jfg::apply_flight_transition_music_header(music_ram))
       state.gameplay_trace.event("flight-music-correction",{state.vi_retraces,
         game_view(music_ram).u32(game_data_ref("globals.currentLevel")),game_view(music_ram).u32(game_data_ref("globals.cutsceneGroup")),previous,7U});
@@ -1059,7 +1059,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     if(context->r6==0 && state.gameplay_trace) {
       const NativeGameMemory ram({state.rdram,kRdramSize});
       const auto level=game_view(ram).u32(game_data_ref("globals.currentLevel")),header=game_view(ram).u32(game_data_ref("globals.levelHeader"));
-      const auto kind=ram.valid(header,0x6DU)?ram.u8(header+0x6CU):0U;
+      const auto kind=ram.valid(header,game_member("layout.levelHeader.kind")+1U)?ram.u8(header+game_member("layout.levelHeader.kind")):0U;
       if(level!=0U && level!=127U && (kind==1U || kind==2U))
         state.cutscene_trace_until_vi=state.vi_retraces+180U;
       if(state.cutscene_trace_until_vi && state.vi_retraces<=state.cutscene_trace_until_vi) {
@@ -1086,9 +1086,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       NativeGameMemory skip_ram({state.rdram,kRdramSize});
       const auto skip_level=game_view(skip_ram).u32(game_data_ref("globals.currentLevel"));
       const auto skip_header=game_view(skip_ram).u32(game_data_ref("globals.levelHeader"));
-      if(game_view(skip_ram).u8(game_data_ref("globals.transitionCountdown"))==0 && skip_ram.valid(skip_header,0x6DU) &&
+      if(game_view(skip_ram).u8(game_data_ref("globals.transitionCountdown"))==0 && skip_ram.valid(skip_header,game_member("layout.levelHeader.kind")+1U) &&
          (skip_level==0U || skip_level==127U ||
-          (skip_ram.u8(skip_header+0x6CU)!=1U && skip_ram.u8(skip_header+0x6CU)!=2U))) {
+          (skip_ram.u8(skip_header+game_member("layout.levelHeader.kind"))!=1U && skip_ram.u8(skip_header+game_member("layout.levelHeader.kind"))!=2U))) {
         state.cutscene_prompt.transition=false;state.cutscene_chain=false;
       }
     }
@@ -1190,7 +1190,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
        ram.instruction_matches("guard.game.controlUpdateWeapon.entry8") && ram.valid(actor,0xA4U) &&
        ram.valid(control,0x5C4U) && ram.u32(actor+game_member("layout.actor.control"))==control &&
        ram.valid(game,0x538U) && jfg::mod::gameplay_active(ram,actor)) {
-      const auto character=ram.u8(control+1U)&3U;
+      const auto character=ram.u8(control+game_member("layout.playerControl.characterFlags"))&3U;
       const auto port=jfg::mod::pc_input_port(ram,ram.u8(control));
       if(character<3U && port<4U) {
         const auto saved=game+0x15CU+character*0x76U;
@@ -1199,7 +1199,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           state.vi_retraces,actor,port,character,weapon,
           ram.u16(saved+0x14U+weapon*2U),ram.u16(saved+0x34U+weapon*2U),
           ram.u8(control+game_member("layout.playerControl.movement")),ram.u32(game+0x474U+weapon*4U),
-          ram.u16(control+0x53AU),ram.u16(control+0x53EU),
+          ram.u16(control+game_member("layout.playerControl.fireCounter")),ram.u16(control+game_member("layout.playerControl.weaponCounter")),
           ram.u32(game_data("globals.portControlModes")+port*4U),ram.u32(game_data("diagnostic.inputPollState"))});
       }
     }
@@ -1303,7 +1303,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       if(ram.valid(camera,0x4CU) && std::isfinite(px) && std::isfinite(py) && std::isfinite(pz) &&
          std::isfinite(radius) && radius>=40.0F && radius<=1000.0F) {
         if(!orbit.active || orbit.actor!=actor || state.vi_retraces-orbit.retrace>15U) {
-          orbit.yaw=ram.s16(camera);
+          orbit.yaw=ram.s16(camera+game_member("layout.camera.yaw"));
           orbit.pitch=static_cast<int>(std::lround(std::atan2(dy,std::sqrt(dx*dx+dz*dz))*65536.0F/6.283185307179586F));
         }
         orbit.active=true;orbit.actor=actor;orbit.retrace=state.vi_retraces;
@@ -1511,24 +1511,24 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               if(ram.valid(camera,0x4CU)) {
                 const auto point=state.pc_camera_resolved;
                 hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
-                (void)memory.write_u32(camera+0xCU,std::bit_cast<std::uint32_t>(point.x));
-                (void)memory.write_u32(camera+0x10U,std::bit_cast<std::uint32_t>(point.y));
-                (void)memory.write_u32(camera+0x14U,std::bit_cast<std::uint32_t>(point.z));
+                (void)memory.write_u32(camera+game_member("layout.camera.x"),std::bit_cast<std::uint32_t>(point.x));
+                (void)memory.write_u32(camera+game_member("layout.camera.y"),std::bit_cast<std::uint32_t>(point.y));
+                (void)memory.write_u32(camera+game_member("layout.camera.z"),std::bit_cast<std::uint32_t>(point.z));
                 // Scenery may move the camera off its ideal orbit. Preserve
                 // that safe position without rotating away from the input view;
                 // otherwise entering aim changes direction beside a wall.
                 const auto &view=state.pc_shoulders[port];
                 const int yaw=jfg::pc_shoulder_camera_yaw(view.yaw);
                 const int pitch=view.pitch;
-                ram.put16(camera,static_cast<std::uint16_t>(yaw));ram.put16(camera+2U,static_cast<std::uint16_t>(pitch));
+                ram.put16(camera+game_member("layout.camera.yaw"),static_cast<std::uint16_t>(yaw));ram.put16(camera+game_member("layout.camera.pitch"),static_cast<std::uint16_t>(pitch));
                 state.gameplay_trace.event("pc-shoulder-camera",{state.vi_retraces,actor,
                   static_cast<std::uint16_t>(yaw),static_cast<std::uint16_t>(pitch),
-                  ram.u32(camera+0xCU),ram.u32(camera+0x10U),ram.u32(camera+0x14U)});
+                  ram.u32(camera+game_member("layout.camera.x")),ram.u32(camera+game_member("layout.camera.y")),ram.u32(camera+game_member("layout.camera.z"))});
               }
             }
             state.gameplay_trace.event("pc-camera-context",{state.vi_retraces,actor,
-              ram.u8(control+game_member("layout.playerControl.movement")),ram.u16(actor+game_member("layout.actor.type")),ram.u32(control+0x4U),
-              ram.u32(control+0x8U),ram.u32(control+0x10U)});
+              ram.u8(control+game_member("layout.playerControl.movement")),ram.u16(actor+game_member("layout.actor.type")),ram.u32(control+game_member("layout.playerControl.forwardVelocity")),
+              ram.u32(control+game_member("layout.playerControl.verticalVelocity")),ram.u32(control+game_member("layout.playerControl.sideVelocity"))});
             state.pc_camera_actor=state.pc_camera_control=state.pc_camera_stack=0;state.pc_camera_look={};
             return 1;
           }
@@ -1542,10 +1542,10 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     // Match the character dispatcher's aimed targeting policy: keep recoil
     // countdown, but do not replace the player's aim with a hip-fire target.
     const int ticks=static_cast<int>(ram.u32(static_cast<std::uint32_t>(context->r29)+0x1CU));
-    const auto counter=ram.u8(control+0x1F8U);
-    if(ram.u8(control+0x1F4U))
-      ram.put16(control+0x1F8U,static_cast<std::uint16_t>((std::max(0,int(counter)-ticks)<<8U)|ram.u8(control+0x1F9U)));
-    ram.put16(control+0x1F4U,static_cast<std::uint16_t>(0x100U|ram.u8(control+0x1F5U)));
+    const auto counter=ram.u8(control+game_member("layout.playerControl.viewImpulseTimer"));
+    if(ram.u8(control+game_member("layout.playerControl.viewImpulseActive")))
+      ram.put16(control+game_member("layout.playerControl.viewImpulseTimer"),static_cast<std::uint16_t>((std::max(0,int(counter)-ticks)<<8U)|ram.u8(control+game_member("layout.playerControl.actionLock"))));
+    ram.put16(control+game_member("layout.playerControl.viewImpulseActive"),static_cast<std::uint16_t>(0x100U|ram.u8(control+game_member("layout.playerControl.viewImpulseActive")+1U)));
     return 1;
   }
   // Modern Jump is a locomotion action even while Aim is held. Reuse the
@@ -1564,7 +1564,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       const auto movement=ram.u8(control+game_member("layout.playerControl.movement"));
       const auto table=game_view(ram).u32(game_data_ref("globals.controlModeTable"));
       if(modern_shoulder_current(state,port,actor) &&
-         (movement==10U || movement==11U) && ram.u8(control+0x534U)==0 &&
+         (movement==10U || movement==11U) && ram.u8(control+game_member("layout.playerControl.animationLock"))==0 &&
          (game_view(ram).u32(game_data_ref("globals.controlPressedButtons"))&8U) && ram.valid(table,0x24U) && ram.u32(table+0xCU)==8U &&
          !jfg::mod::scripted_camera_active(ram,actor)) {
         if(auto* ground=jfg_generated_lookup_function(static_cast<std::int32_t>(aim_jump_ground))) {
@@ -1605,10 +1605,10 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           if(state.pc_mouse_used[port])look={};
           state.pc_mouse_used[port]=true;
           const auto heading=jfg::pc_floyd_mouse_flight(look,
-            ram.s16(floyd.control+0x60U),ram.s16(floyd.control+0x62U));
-          ram.put16(floyd.control+0x60U,static_cast<std::uint16_t>(heading.x));
-          ram.put16(floyd.control+0x62U,static_cast<std::uint16_t>(heading.y));
-          ram.put16(floyd.control+0x66U,0);ram.put16(floyd.control+0x68U,0);
+            ram.s16(floyd.control+game_member("layout.sidekickControl.headingYaw")),ram.s16(floyd.control+game_member("layout.sidekickControl.headingPitch")));
+          ram.put16(floyd.control+game_member("layout.sidekickControl.headingYaw"),static_cast<std::uint16_t>(heading.x));
+          ram.put16(floyd.control+game_member("layout.sidekickControl.headingPitch"),static_cast<std::uint16_t>(heading.y));
+          ram.put16(floyd.control+game_member("layout.sidekickControl.turnYaw"),0);ram.put16(floyd.control+game_member("layout.sidekickControl.turnPitch"),0);
           hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
           (void)memory.write_u32(game_data("globals.controlAbsoluteStickX"),0);(void)memory.write_u32(game_data("globals.controlAbsoluteStickY"),0);
           state.gameplay_trace.event("modern-floyd-flight",{state.vi_retraces,port,floyd.actor,
@@ -1632,7 +1632,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     const auto vector=static_cast<std::uint32_t>(context->r5);
     if(floyd && floyd.mission && modern_controls_selected(state,floyd.port) &&
        state.controller_ports.samples[floyd.port].connected &&
-       static_cast<std::uint32_t>(context->r4)==floyd.control+0x60U &&
+       static_cast<std::uint32_t>(context->r4)==floyd.control+game_member("layout.sidekickControl.headingYaw") &&
        ram.valid(stack,0x128U) && vector==stack+0xC8U) {
       const auto& frame=state.pc_frames[floyd.port];
       const int sideways=state.controller_ports.samples[floyd.port].x;
@@ -1641,7 +1641,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           original(rdram,context);
           const auto thrust=jfg::pc_floyd_mouse_strafe(
             {ram.f32(vector),ram.f32(vector+4U),ram.f32(vector+8U)},
-            ram.s16(floyd.control+0x60U),sideways,static_cast<float>(ram.u32(stack+0x124U)));
+            ram.s16(floyd.control+game_member("layout.sidekickControl.headingYaw")),sideways,static_cast<float>(ram.u32(stack+0x124U)));
           hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
           (void)memory.write_u32(vector,std::bit_cast<std::uint32_t>(thrust.x));
           (void)memory.write_u32(vector+4U,std::bit_cast<std::uint32_t>(thrust.y));
@@ -1674,11 +1674,11 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             // Flight direction owns mouse aim in missions. Remove the old
             // co-op reticle offset immediately when changing modes.
             state.pc_floyd_look[port].clear();
-            ram.put16(floyd.control+0x48U,0);ram.put16(floyd.control+0x4AU,0);
-            ram.put16(floyd.control+0x4CU,0);ram.put16(floyd.control+0x4EU,0);
+            ram.put16(floyd.control+game_member("layout.sidekickControl.aimX"),0);ram.put16(floyd.control+game_member("layout.sidekickControl.aimX")+2U,0);
+            ram.put16(floyd.control+game_member("layout.sidekickControl.aimY"),0);ram.put16(floyd.control+game_member("layout.sidekickControl.aimY")+2U,0);
           } else aim=state.pc_floyd_look[port].take(look,mouse,
             (std::uint64_t{floyd.actor}<<8U)|frame.pc_mode|(std::uint64_t{floyd.mission}<<7U),
-            std::bit_cast<float>(ram.u32(floyd.control+0x48U)),std::bit_cast<float>(ram.u32(floyd.control+0x4CU)));
+            std::bit_cast<float>(ram.u32(floyd.control+game_member("layout.sidekickControl.aimX"))),std::bit_cast<float>(ram.u32(floyd.control+game_member("layout.sidekickControl.aimY"))));
           hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
           const auto x=game_view(ram).u32(game_data_ref("globals.controlAbsoluteStickX")),y=game_view(ram).u32(game_data_ref("globals.controlAbsoluteStickY"));
           (void)memory.write_u32(game_data("globals.controlAbsoluteStickX"),static_cast<std::uint32_t>(aim.x));
@@ -1724,7 +1724,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           // before substituting the body yaw for the common aiming helper.
           // Qualify the caller ABI as well as combat state before using it.
           const auto caller=static_cast<std::uint32_t>(context->r31);
-          const auto boss=pc_memory.u32(control+0xFCU);
+          const auto boss=pc_memory.u32(control+game_member("layout.playerControl.boss"));
           const auto boss_state=pc_memory.u8(control+game_member("layout.playerControl.movement"));
           const auto yaw_output=valid_limits?pc_memory.u32(stack+0x18U):0U;
           const auto pitch_output=valid_limits?pc_memory.u32(stack+0x1CU):0U;
@@ -1757,14 +1757,14 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             if(original) {
               (void)memory.write_u32(game_data("globals.controlAbsoluteStickX"),direct?0U:static_cast<std::uint32_t>(look.x));
               (void)memory.write_u32(game_data("globals.controlAbsoluteStickY"),direct?0U:static_cast<std::uint32_t>(look.y));
-              const auto modern_character=pc_memory.u8(control+1U)&3U;
+              const auto modern_character=pc_memory.u8(control+game_member("layout.playerControl.characterFlags"))&3U;
               const bool modern_scope=(frame.modern_flags&jfg::kModernActionsFlag) &&
                 modern_character<3U && jfg::mod::pc_player_weapon(pc_memory,control)==7U &&
-                pc_memory.u8(control+0x18EU)==0;
+                pc_memory.u8(control+game_member("layout.playerControl.aimInhibited"))==0;
               std::uint32_t held=0;
               if(modern_scope && memory.read_u32(game_data("globals.controlButtons"),held)) {
                 (void)memory.write_u32(game_data("globals.controlButtons"),held&~0xCU);
-                (void)memory.write_u32(control+0x1F0U,0);
+                (void)memory.write_u32(control+game_member("layout.playerControl.cameraSpring"),0);
                 const auto before_zoom=std::bit_cast<float>(pc_memory.u32(control+game_member("layout.playerControl.zoom")));
                 const auto after_zoom=state.modern_scope_zoom[port].take(before_zoom);
                 if(after_zoom!=before_zoom && std::isfinite(after_zoom)) {
@@ -1780,7 +1780,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               if(direct && valid_limits && minimum>=-32768 && maximum<=32767 && minimum<=maximum) {
                 const auto raw_look=look;
                 float zoom=1.0F;
-                const auto character=pc_memory.u8(control+1U)&3U;
+                const auto character=pc_memory.u8(control+game_member("layout.playerControl.characterFlags"))&3U;
                 if(character<3U && jfg::mod::pc_player_weapon(pc_memory,control)==7U)
                   zoom=std::bit_cast<float>(pc_memory.u32(control+game_member("layout.playerControl.zoom")));
                 look=state.pc_scope_motion[port].take(look,zoom,(std::uint64_t{actor}<<8U)|frame.pc_mode);
@@ -1812,23 +1812,23 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
                 if(modern_shoulder_current(state,port,actor)) {
                   state.pc_shoulders[port].yaw=after.x;state.pc_shoulders[port].pitch=-after.y;
                 }
-                (void)memory.write_u32(control+0x1E4U,0);(void)memory.write_u32(control+game_member("layout.playerControl.camera"),0);
+                (void)memory.write_u32(control+game_member("layout.playerControl.cameraDistance"),0);(void)memory.write_u32(control+game_member("layout.playerControl.camera"),0);
                 ++state.pc_direct_aim_calls;
               }
               // Ground aiming otherwise ignores the movement stick. The guest
               // consumes these local velocities in its ordinary physics/collision
               // path. Leave jumps, swimming, damage and scripted states alone.
               const auto movement_state=pc_memory.u8(control+game_member("layout.playerControl.movement"));
-              if((frame.pc_mode==3 || frame.pc_mode==4 || frame.pc_mode==5) && (movement_state==10 || movement_state==11) && (pc_memory.u8(control+1U)&3U)<3U) {
+              if((frame.pc_mode==3 || frame.pc_mode==4 || frame.pc_mode==5) && (movement_state==10 || movement_state==11) && (pc_memory.u8(control+game_member("layout.playerControl.characterFlags"))&3U)<3U) {
                 const auto &move=state.controller_ports.samples[port];
                 const auto velocity=jfg::pc_aim_movement(move.x,move.y,movement_state==11U);
-                (void)memory.write_u32(control+0x10U,std::bit_cast<std::uint32_t>(velocity.side));
-                (void)memory.write_u32(control+0x4U,std::bit_cast<std::uint32_t>(velocity.forward));
+                (void)memory.write_u32(control+game_member("layout.playerControl.sideVelocity"),std::bit_cast<std::uint32_t>(velocity.side));
+                (void)memory.write_u32(control+game_member("layout.playerControl.forwardVelocity"),std::bit_cast<std::uint32_t>(velocity.forward));
               }
               state.gameplay_trace.event("pc-aim",{state.vi_retraces,state.controller_samples,port,frame.pc_mode,
                 static_cast<std::uint32_t>(look.x),static_cast<std::uint32_t>(look.y),
                 pc_memory.u16(control+game_member("layout.playerControl.heading")),pc_memory.u16(control+game_member("layout.playerControl.manualPitch")),movement_state,
-                pc_memory.u32(control+4U),pc_memory.u32(control+0x10U)});
+                pc_memory.u32(control+game_member("layout.playerControl.forwardVelocity")),pc_memory.u32(control+game_member("layout.playerControl.sideVelocity"))});
               return 1;
             }
           }
@@ -2439,33 +2439,32 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto door_render_actor=door_render_call?static_cast<std::uint32_t>(context->r4):0U;
         if(door_render_actor && state.gameplay_trace && jfg::blur_source_audit_enabled() &&
            door_render_ram.valid(door_render_actor,0xA4U)) {
-          const auto models=door_render_ram.u32(door_render_actor+0x6CU);
-          const auto base=door_render_ram.u8(door_render_actor+0x3AU);
+          const auto models=door_render_ram.u32(door_render_actor+game_member("layout.actor.models"));
+          const auto base=door_render_ram.u8(door_render_actor+game_member("layout.actor.variant"));
           const auto slot=models+static_cast<unsigned>(base)*4U;
           const auto instance=door_render_ram.valid(slot,4U)?door_render_ram.u32(slot):0U;
           const auto model=door_render_ram.valid(instance,4U)?door_render_ram.u32(instance):0U;
           state.gameplay_trace.event("model-native-draw",{state.vi_retraces,
-            door_render_actor,door_render_ram.u16(door_render_actor+0x48U),
-            door_render_ram.u8(door_render_actor+0x39U),base,instance,model});
+            door_render_actor,door_render_ram.u16(door_render_actor+game_member("layout.actor.type")),
+            door_render_ram.u8(door_render_actor+game_member("layout.actor.alpha")),base,instance,model});
         }
         if(door_render_actor && door_render_ram.valid(door_render_actor,0xA4U) &&
-           door_render_ram.u16(door_render_actor+0x48U)==67U) {
-          const auto header=door_render_ram.u32(door_render_actor+0x40U);
-          const auto control=door_render_ram.u32(door_render_actor+0x68U);
+           door_render_ram.u16(door_render_actor+game_member("layout.actor.type"))==67U) {
+          const auto header=door_render_ram.u32(door_render_actor+game_member("layout.actor.header"));
+          const auto control=door_render_ram.u32(door_render_actor+game_member("layout.actor.control"));
           state.gameplay_trace.event("door-indicator-draw",{state.vi_retraces,
-            door_render_actor,door_render_ram.u8(door_render_actor+0x3AU),
-            door_render_ram.u8(game_data("diagnostic.doorRenderMode")),door_render_ram.u32(header+0xCCU),
-            door_render_ram.u8(control+8U),door_render_ram.u8(door_render_actor+0x39U)});
-          const auto models=door_render_ram.u32(door_render_actor+0x6CU);
-          const auto base=door_render_ram.u8(door_render_actor+0x3AU);
+            door_render_actor,door_render_ram.u8(door_render_actor+game_member("layout.actor.variant")),
+            door_render_ram.u8(game_data("diagnostic.doorRenderMode")),door_render_ram.u32(header+game_member("layout.objectHeader.lodThreshold")),
+            door_render_ram.u8(control+game_member("layout.doorIndicator.state")),door_render_ram.u8(door_render_actor+game_member("layout.actor.alpha"))});
+          const auto models=door_render_ram.u32(door_render_actor+game_member("layout.actor.models"));
+          const auto base=door_render_ram.u8(door_render_actor+game_member("layout.actor.variant"));
           const auto instance=door_render_ram.u32(models+base*4U);
           const auto model=door_render_ram.u32(instance);
-          const auto textures=door_render_ram.u32(instance+0x74U);
-          state.gameplay_trace.event("door-indicator-material",{state.vi_retraces,
-            door_render_actor,model,door_render_ram.u32(model+0x74U),
-            door_render_ram.u32(model+0x78U),door_render_ram.u16(textures),
-            door_render_ram.u32(textures+4U),door_render_ram.u32(door_render_actor+0x28U),
-            door_render_ram.u8(door_render_actor+0x93U)});
+          const auto textures=door_render_ram.u32(instance+game_member("layout.instance.textures"));
+          state.gameplay_trace.event("door-indicator-material-v2",{state.vi_retraces,
+            door_render_actor,model,door_render_ram.u16(textures),
+            door_render_ram.u32(textures+4U),
+            door_render_ram.u8(door_render_actor+game_member("layout.actor.viewVisibility"))});
 
         }
 
@@ -2477,18 +2476,17 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto door_dl_before=door_render_actor?game_view(door_render_ram).u32(game_data_ref("globals.objectDisplayListCursor")):0U;
         if(door_render_actor && state.gameplay_trace && jfg::blur_source_audit_enabled() &&
            door_render_ram.valid(door_render_actor,0xA4U) &&
-           door_render_ram.u16(door_render_actor+0x48U)==67U &&
-           door_render_ram.u32(door_render_actor+0x28U)==0x3F800000U) {
-          const auto control=door_render_ram.u32(door_render_actor+0x68U);
-          const auto models=door_render_ram.u32(door_render_actor+0x6CU);
-          const auto slot=models+4U*door_render_ram.u8(door_render_actor+0x3AU);
-          if(door_render_ram.valid(control,9U) && door_render_ram.u8(control+8U)==1U &&
+           door_render_ram.u16(door_render_actor+game_member("layout.actor.type"))==67U) {
+          const auto control=door_render_ram.u32(door_render_actor+game_member("layout.actor.control"));
+          const auto models=door_render_ram.u32(door_render_actor+game_member("layout.actor.models"));
+          const auto slot=models+4U*door_render_ram.u8(door_render_actor+game_member("layout.actor.variant"));
+          if(door_render_ram.valid(control,9U) && door_render_ram.u8(control+game_member("layout.doorIndicator.state"))==1U &&
              door_render_ram.valid(slot,4U)) {
             door_material_instance=door_render_ram.u32(slot);
             if(door_render_ram.valid(door_material_instance,0x100U))
               door_material_model=door_render_ram.u32(door_material_instance);
             static std::set<std::pair<std::uint32_t,bool>> captured;
-            const auto opacity=door_render_ram.u8(door_render_actor+0x39U);
+            const auto opacity=door_render_ram.u8(door_render_actor+game_member("layout.actor.alpha"));
             const auto key=std::make_pair(door_material_model,opacity==255U);
             if(opacity && door_render_ram.valid(door_material_model,0x10000U) &&
                captured.size()<8U && !captured.contains(key)) {
@@ -2541,12 +2539,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           const auto control=target==game_overlay_token("overlay.target.player")?b:target==game_overlay_token("overlay.target.draw")?a:0U;
           if(control && ram.valid(control,0x5C4U)) {
             const auto game=game_view(ram).u32(game_data_ref("globals.selectedPlayer"));
-            const auto character=ram.u8(control+1U)&3U;
+            const auto character=ram.u8(control+game_member("layout.playerControl.characterFlags"))&3U;
             const auto weapon=character<3U && ram.valid(game,0x538U)?
                 ram.u8(game+0x15CU+character*0x76U+0x70U):255U;
             state.gameplay_trace.event(target==game_overlay_token("overlay.target.player")?"reticle-player":"reticle-draw",
                 {state.vi_retraces,control,weapon,a,b,c,d,ram.u8(control+game_member("layout.playerControl.movement")),
-                 ram.u16(control+game_member("layout.playerControl.aimYaw")),ram.u16(control+game_member("layout.playerControl.aimPitch")),ram.u32(control+0x540U),
+                 ram.u16(control+game_member("layout.playerControl.aimYaw")),ram.u16(control+game_member("layout.playerControl.aimPitch")),ram.u32(control+game_member("layout.playerControl.weaponState")),
                  ram.u16(control+game_member("layout.playerControl.heading")),ram.u16(control+game_member("layout.playerControl.manualPitch"))});
           } else if(target==game_code("game.fxDrawLine")) {
             const auto stack=static_cast<std::uint32_t>(context->r29);
@@ -2776,7 +2774,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             static std::set<std::pair<std::uint32_t,unsigned>> captured;
             const unsigned status=footprint?(footprint->expanded?2U:1U):0U;
             const auto key=std::make_pair(model,status);
-            if(shadow_ram.valid(header,0x70U) && shadow_ram.u8(header+0x1EU)!=1U &&
+            if(shadow_ram.valid(header,0x70U) && shadow_ram.u8(header+game_member("layout.objectHeader.renderKind"))!=1U &&
                shadow_ram.valid(model,0x64U) && captured.size()<24U && captured.insert(key).second) {
               std::string bytes(kRdramSize,'\0');
               for(std::size_t i=0;i<bytes.size();++i)bytes[i]=static_cast<char>(rdram[i^3U]);
@@ -2940,7 +2938,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           const auto output=game_view(door_render_ram).u32(game_data_ref("globals.objectDisplayListCursor"));
           if(output>=door_dl_before && output-door_dl_before<=0x4000U)
             packet("door-packet-draw",door_dl_before,(output-door_dl_before+31U)&~31U);
-          const auto animations=door_render_ram.u32(door_material_instance+0x74U);
+          const auto animations=door_render_ram.u32(door_material_instance+game_member("layout.instance.textures"));
           packet("door-packet-animation",animations,0x100U);
           state.gameplay_trace.event("door-packet-end",{state.vi_retraces,door_render_actor,output});
         }

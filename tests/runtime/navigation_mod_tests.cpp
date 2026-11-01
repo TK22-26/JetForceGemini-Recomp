@@ -24,7 +24,105 @@ check(bool ok,
 constexpr jfg::mod::DialogueLayout kFixtureDialogue{
   0x2c44,0x2a24,0x2a44,0x2a58,0x2a5c,0x2a28,0x2a2c,0x2a38,0x2a20,0x2a3c,0x2a40,0x2a4c,
   {0xd84,0x8c420000,0xffff0000},{0xd88,0x03e00008}};
+// A synthetic layout moves the NPC control fields and shared health field.
+// Old offsets contain zero: a constant-based reader cannot pass this check.
+static void regional_record_layout_tests() {
+  using namespace jfg;
+  std::vector<game::NamedInstructionRef> fields(std::begin(test::memory_instructions),std::end(test::memory_instructions));
+  unsigned next=0x60;
+  for(auto& f:fields)if(f.name.starts_with("layout.npcControl.")||f.name=="layout.properties.health") {
+    f.original_word=(f.original_word&0xffff0000U)|next;next+=4;
+  }
+  auto bindings=test::memory_bindings;bindings.instructions=fields;
+  game::MemoryContext context(test::memory_descriptor,bindings);
+  for(bool native_words:{false,true}) {
+    std::vector<std::uint8_t> bytes(4194304U);
+    game::MemoryView m(bytes,context,native_words);
+    const auto word=[&](unsigned a,unsigned v){m.put16(a,std::uint16_t(v>>16));m.put16(a+2,std::uint16_t(v));};
+    const auto byte=[&](unsigned a,unsigned v){bytes[(a&0x1fffffffU)^(native_words?3U:0U)]=std::uint8_t(v);};
+    const auto number=[&](unsigned a,float v){word(a,std::bit_cast<unsigned>(v));};
+    constexpr unsigned actor=0x80002000,control=0x80003000,properties=0x80004000;
+    word(actor+m.member_offset("layout.actor.control"),control);
+    word(actor+m.member_offset("layout.actor.properties"),properties);
+    m.put16(properties+m.member_offset("layout.properties.health"),0x100);
+    number(control+m.member_offset("layout.npcControl.radius"),42);
+    number(control+m.member_offset("layout.npcControl.lower"),-12);
+    number(control+m.member_offset("layout.npcControl.upper"),60);
+    byte(control+m.member_offset("layout.npcControl.state"),3);
+    byte(control+m.member_offset("layout.npcControl.dialogue"),4);
+    byte(control+m.member_offset("layout.npcControl.encounter"),7);
+    auto nodes=mod::interactions(m,{{actor,90,{}}},0,{},nullptr);
+    check(nodes.size()==1&&nodes[0].talk_radius==42&&nodes[0].talk_lower==-12&&nodes[0].talk_upper==60);
+    check(nodes[0].raw_state==3&&nodes[0].dialogue==4&&nodes[0].encounter==7);
+    game::MemoryView former(bytes,test::memory_context(),native_words);
+    check(mod::interactions(former,{{actor,90,{}}},0,{},nullptr).empty());
+  }
+}
+static void relocated_exit_record_tests() {
+  using namespace jfg;
+  std::vector<game::NamedInstructionRef> fields(std::begin(test::memory_instructions),std::end(test::memory_instructions));
+  unsigned next=0x80;
+  for(auto& f:fields)if(f.name.starts_with("layout.exitControl.")||f.name.starts_with("layout.exitDefinition.")) {
+    f.original_word=(f.original_word&0xffff0000U)|next;next+=4;
+  }
+  auto bindings=test::memory_bindings;bindings.instructions=fields;
+  game::MemoryContext context(test::memory_descriptor,bindings);
+  for(bool native_words:{false,true}) {
+    std::vector<std::uint8_t> bytes(0x4000);
+    game::MemoryView m(bytes,context,native_words);
+    const auto word=[&](unsigned a,unsigned v){m.put16(a,std::uint16_t(v>>16));m.put16(a+2,std::uint16_t(v));};
+    constexpr unsigned actor=0x80001000,control=0x80002000,definition=0x80003000;
+    word(actor+m.member_offset("layout.actor.control"),control);
+    word(actor+m.member_offset("layout.actor.objectData"),definition);
+    word(control+m.member_offset("layout.exitControl.radius"),45);
+    word(control+m.member_offset("layout.exitControl.normalX"),std::bit_cast<unsigned>(1.0f));
+    word(control+m.member_offset("layout.exitControl.normalY"),std::bit_cast<unsigned>(2.0f));
+    word(control+m.member_offset("layout.exitControl.normalZ"),std::bit_cast<unsigned>(3.0f));
+    word(control+m.member_offset("layout.exitControl.planeD"),std::bit_cast<unsigned>(-4.0f));
+    m.put16(control+m.member_offset("layout.exitControl.condition"),7);
+    m.put16(control+m.member_offset("layout.exitControl.directional"),1);
+    m.put8(definition+m.member_offset("layout.exitDefinition.levelLow"),0x34);
+    m.put8(definition+m.member_offset("layout.exitDefinition.levelHigh"),0xff);
+    auto exits=mod::exits(m,{{actor,8,{}}});
+    check(exits.size()==1&&exits[0].destination==0x34&&exits[0].radius==45&&exits[0].condition==7);
+    check(exits[0].normal.x==1&&exits[0].normal.y==2&&exits[0].normal.z==3&&exits[0].plane_d== -4);
+    game::MemoryView former(bytes,test::memory_context(),native_words);
+    auto wrong=mod::exits(former,{{actor,8,{}}});check(wrong.size()==1&&wrong[0].destination!=0x34);
+  }
+}
+static void relocated_track_record_tests() {
+  using namespace jfg;
+  std::vector<game::NamedInstructionRef> fields(std::begin(test::memory_instructions),std::end(test::memory_instructions));
+  unsigned next=0x80;
+  for(auto& f:fields)if(f.name.starts_with("layout.track.")||f.name.starts_with("layout.trackBlock.")) {
+    f.original_word=(f.original_word&0xffff0000U)|next;next+=4;
+  }
+  auto bindings=test::memory_bindings;bindings.instructions=fields;
+  game::MemoryContext context(test::memory_descriptor,bindings);
+  for(bool native_words:{false,true}) {
+    std::vector<std::uint8_t> bytes(0x8000);
+    game::MemoryView m(bytes,context,native_words);
+    const auto word=[&](unsigned a,unsigned v){m.put16(a,std::uint16_t(v>>16));m.put16(a+2,std::uint16_t(v));};
+    constexpr unsigned track=0x80001000,block=0x80002000,vertices=0x80003000,
+      faces=0x80004000,batches=0x80005000,indices=0x80006000,planes=0x80007000;
+    word(track+m.member_offset("layout.track.blocks"),block);m.put16(track+m.member_offset("layout.track.blockCount"),1);
+    word(block+m.member_offset("layout.trackBlock.vertices"),vertices);word(block+m.member_offset("layout.trackBlock.faces"),faces);
+    word(block+m.member_offset("layout.trackBlock.batches"),batches);word(block+m.member_offset("layout.trackBlock.planeIndices"),indices);
+    word(block+m.member_offset("layout.trackBlock.planes"),planes);
+    m.put16(block+m.member_offset("layout.trackBlock.vertexCount"),3);m.put16(block+m.member_offset("layout.trackBlock.faceCount"),1);
+    m.put16(block+m.member_offset("layout.trackBlock.batchCount"),1);
+    m.put16(vertices+10,10);m.put16(vertices+24,10);m.put16(faces+2,0x0102);m.put16(batches+24,1);
+    word(planes+4,std::bit_cast<unsigned>(1.0f));
+    auto mesh=mod::decode_mesh(m,track);check(mesh.blocks==1&&mesh.vertices.size()==3&&mesh.triangles.size()==1);
+    check(mesh.vertices[1].x==10&&mesh.vertices[2].z==10&&mesh.triangles[0].normal.y==1);
+    game::MemoryView former(bytes,test::memory_context(),native_words);
+    bool rejected=false;try{mod::decode_mesh(former,track);}catch(const std::runtime_error&){rejected=true;}check(rejected);
+  }
+}
 int main(int argc, char **argv) {
+  regional_record_layout_tests();
+  relocated_exit_record_tests();
+  relocated_track_record_tests();
   modern_player_context_tests();
   box_jump_tests();
   navigation_collision_tests();
@@ -563,6 +661,11 @@ int main(int argc, char **argv) {
     const auto doors = exits(m, {{exit, 8U, {1, 2, 3}}});
     check(doors.size() == 1U && doors[0].destination == 0x1234U &&
           doors[0].radius == 30U && doors[0].condition == -1);
+    // Original controlPlayer treats FF as absent high byte, in all regions.
+    put8(xd+0xBU,0xff);auto sentinel=exits(m,{{exit,8U,{}}});
+    check(sentinel.size()==1&&sentinel[0].destination==0x34U);
+    put8(xd+0xBU,0);check(exits(m,{{exit,8U,{}}})[0].destination==0x34U);
+    put8(xd+0xBU,0x12);
     // Explicit all-weapons clicks are one-shot, current-character-only, and
     // cannot cross a room transition, repeat from stale files, or run in menus.
     {

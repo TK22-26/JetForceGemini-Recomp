@@ -1,8 +1,119 @@
 # ROM-REGIONS: PAL and Japanese ROM support
 
-- Status: shared architecture candidate committed; all-three original-OS Goldwood checks pass; enhanced build/qualification and remaining implementation are unfinished at the four-hour stop (2026-11-01).
-- Severity: compatibility limitation; the native game still supports only the pinned US revision.
+- Status: shared three-region implementation and bounded enhanced Play qualified through v27; final v28 native build qualified; final Play/product handoff in progress; unreleased.
+- Severity: regional compatibility and acceptance limitation. Development build admission includes US/PAL/JP; the published v1.4.0 package remains US-only.
 - Affected: ROM generation, regional host address/timing assumptions, launcher/runtime admission and gameplay qualification.
+
+## Five-hour continuation — current checkpoint
+
+The owner approved this continuation from 2026-11-01 20:35:42 UTC through
+2026-11-02 01:35:42 UTC. The production guard remains enabled on the same
+investigation, with all roots, counters, charges and failed evidence preserved.
+Private evidence root: `regional-architecture-20261101-owner5h`.
+
+| Evidence | US | PAL | JP | Scope |
+|---|---|---|---|---|
+| v27 fresh original reconstruction and CPU/audio generation | Pass | Pass | Pass | Current producer verified; no relabeled earlier generation |
+| v27 enhanced native compile/link and immutable bundle | Pass | Pass | Pass | Shared runtime, native timing/collision/optimizations enabled |
+| v27 200-VI boot, 32-poll stop, wrong-ROM/storage rejection | Pass | Pass | Pass | Bounded execution and revision isolation |
+| v27b 150-second enhanced Play, requested 120 Hz | Pass | Pass | Pass | Same-revision v16 save reload; normal window close; zero unsupported accesses |
+| v27b final-frame review | Pass | Pass | Pass | Goldwood walkway, Juno, tribal and HUD visible; PAL side borders corrected |
+| Latest original instruction qualification | Pass | Pass | Pass | 379 instruction bindings per revision, including 169 additional member contracts |
+| Latest host and pipeline contracts | Pass | Pass | Pass | Shared suites: 111 CTests and 138 Python tests; not three independent campaign runs |
+| Local native-build admission and launcher tests | Pass | Pass | Pass | All three admitted; 39 focused policy/bundle tests plus launcher/setup/native-UI tests |
+| Frozen v28 fresh generation/native build | Pass | Pass | Pass | Final record contracts, exact native source closure, bundle identity, 200-VI boot, 32-poll stop and wrong-ROM/storage rejection |
+| Current launcher import/direct-Play handoff | Pending | Pending | Pending | Requires the final verified bundles and actual setup checks |
+| Campaign, feature and hardware acceptance | Pending | Pending | Pending | Owner playtesting; no unrun manual check is a pass |
+
+Final native evidence: `regional-snapshot-v28.result.json`, with common native
+source closure `0993b4454d750dc684643768dd982498317e24dfcfd13c4befe7ea605885679b`
+and producer `179b39c194ce2520111ab0f75f337bf21fb1163b347d869673c29c4af7d046cf`.
+All 593 native source inputs match the checkout. The rebuilt v29 launcher has
+145 matching production inputs. Subsequent product/docs changes do not alter
+the native closure. These identities are private candidate evidence, not a
+release tag or a console-parity claim.
+
+The latest source qualifies actor/player, camera, NPC, door, sidekick, flight,
+effect, cutscene, inventory, exit, model-instance and track-geometry members
+against independently hashed original owners. Tests move record fields and
+reject old layouts. Common packed arrays and sound queue ABI are admitted only
+after original constructor/consumer arithmetic passes strict guards. Missing
+members, changed operands, wrong owners or damaged array formulas reject generation.
+
+Concrete corrections in this window:
+
+- Presentation carries an exact VI interval and VI clock through history, blur
+  pairing and RT64 scheduling. PAL intervals such as 3/50 and 4/50 no longer
+  fail an integer-FPS gate. Long mixed-cadence component checks and v26/v27
+  fractional interpolation traces pass. A requested output rate is not measured
+  presentation performance.
+- The shared VI-size helper applies PAL scanline-aspect units using actual VI
+  sync timing. Viewport, edge clipping and mouse mapping agree. Full-frame
+  288-line PAL and 240-line NTSC/MPAL fixtures have the same 4:3 ratio; native
+  cinematic cropping is retained. v27 PAL removes the earlier vertical borders.
+  Hardware crop/overscan acceptance remains separate. References:
+  [libdragon PAL/NTSC documentation](https://github.com/DragonMinded/libdragon/wiki/PAL-NTSC-support)
+  and [Nintendo VI manual](https://jrra.zone/n64/doc/pro-man/pro30/30-01.htm).
+- The optional flying-motion correction uses its qualified US three-VI reference
+  only. PAL/JP execute their original movement path until their encounters qualify
+  an enhancement; identical body shape is not behavioral timing evidence.
+- Empty asynchronous volume snapshots are rejected; see the
+  [volume issue](async-volume-empty-snapshot.md). Its full host-suite reruns pass.
+- Exit definitions now preserve the original `FF` high-byte sentinel; see
+  [NAV-EXIT-SENTINEL](navigation-exit-destination-sentinel.md). This is a host
+  navigation defect, not a native-hardware bug. Both memory layouts and relocated
+  fields pass regression tests.
+- The remaining US-only music correction writes only its bound tune byte. A
+  checked raw byte-write API preserves adjacent bytes and rejects bad addresses.
+  Walkway remains excluded: NTSC hardware omits departure music, while the
+  separately checked PAL emulator session includes it. JP expectation is unknown.
+
+The final complete Python regression passes: 1,933 tests discovered, 49
+explicitly skipped, no failures or errors (`regional-all-python-v29`). Skips
+retain their individual missing compiler, platform or private-fixture reasons
+in the private result; they are not passes. The first broad run loaded the
+release fixture before its destination-isolation correction and retained that
+one failure. The subsequent 38-test release run and final full run both pass.
+
+The final product audit found two additional downstream omissions. The
+[release verifier](regional-package-verifier.md) still required the old flat
+package format; it now validates the regional format, with all 38 release
+tests passing. The [support sanitizer](regional-support-identity.md) dropped
+the selected ROM revision; the rebuilt v29 launcher preserves its verified
+revision and program hashes, with all-three ZIP export/privacy tests among
+748 passing launcher checks. These product-only changes do not alter the
+frozen v28 native runtime closure. Actual installed-bundle Play is recorded
+separately from synthetic package and launcher tests.
+
+Retained failures and limits:
+
+- v24 Play first rejected a harness-written CRLF profile marker. Canonical LF
+  bytes passed v24b; the runtime rejection was correct.
+- v25 RT64 compilation rejected a C++20 defaulted comparison in its C++17 build.
+  Explicit operators and a C++17 test target fixed the build contract; v26 passed.
+- Original binding qualification rejected a mistaken `turnRate` name and an
+  invalid null overlay-slot key. Two same-offset door-indicator reads also used
+  the wrong semantic field name; the corrected owner is now explicit.
+- The full suite first exposed the empty-volume snapshot race (110/111). A later
+  build caught the absent byte-write API; both failures are retained, and the
+  corrected current source passes all 111 tests.
+- Model face bounds had used an adjacent halfword without an original consumer
+  witness. The reader now uses the native final-batch sentinel; poisoned-field
+  and relocated mesh fixtures pass. Track face counts have a separate qualified
+  loader witness and are not inferred from the model format.
+- Windows legacy text encoding damaged one documentation write; explicit UTF-8
+  repaired it. Rejected private edit scripts and intermediate receipts remain
+  retained; no failed script or partial build is counted as qualification.
+- v27b US/PAL report zero audio underruns/overruns. JP reports two underruns and
+  zero overruns during three concurrent Play processes. Cause and audible impact
+  are unmeasured; current-build replay without concurrent games remains pending.
+- Normal Play replays use Classic controls and existing same-revision test saves.
+  They do not cover Modern controls, Floyd, bosses, transitions, all languages,
+  campaign completion or current-build new-slot creation. Earlier v16 new-slot
+  and reload evidence remains explicitly historical.
+
+The following four-hour and eight-hour sections preserve their then-current
+status and failures. They do not override this current checkpoint.
 
 ## Current four-hour continuation
 

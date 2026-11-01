@@ -398,7 +398,7 @@ internal static class FrontendBridge
                         }
                         Write("frontend-diagnostics-session.txt", capture);
                     }
-                    support.Session.Write("rom_revision="+session.Revision.Id);
+                    support.Session.ProgramDetails(session.Identity);
                     try
                     {
                         support.Session.RuntimeDetails(game, root);

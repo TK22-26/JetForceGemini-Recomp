@@ -18,7 +18,8 @@ namespace jfg {
 struct PresentationSnapshots {
     std::mutex mutex;
     std::unordered_map<const void*, std::shared_ptr<const PresentationHistoryFrame>> frames;
-    std::unordered_map<const void*, std::uint64_t> sequence_ticks;
+    struct Sequence { std::uint64_t tick = 0; PresentationInterval interval; };
+    std::unordered_map<const void*, Sequence> sequences;
 };
 inline PresentationSnapshots& presentation_snapshots() {
     static PresentationSnapshots snapshots;
@@ -31,7 +32,7 @@ inline void publish_presentation_snapshot(const void* owner,
     if (frame) storage.frames[owner] = std::move(frame);
     else {
         storage.frames.erase(owner);
-        if (storage.frames.empty()) storage.sequence_ticks.clear();
+        if (storage.frames.empty()) storage.sequences.clear();
     }
 }
 inline std::shared_ptr<const PresentationHistoryFrame> presentation_snapshot(const void* owner) {
@@ -41,16 +42,31 @@ inline std::shared_ptr<const PresentationHistoryFrame> presentation_snapshot(con
     return found == storage.frames.end() ? nullptr : found->second;
 }
 // Production sequence ownership is independent of optional diagnostics.
-inline void record_presentation_sequence(const void* counters, std::uint64_t tick) {
+inline void record_presentation_sequence(const void* counters, std::uint64_t tick,
+        PresentationInterval interval = {}) {
     auto& storage = presentation_snapshots();
     const std::scoped_lock lock(storage.mutex);
-    storage.sequence_ticks[counters] = tick;
+    storage.sequences[counters] = {tick, interval};
+}
+inline PresentationSnapshots::Sequence presentation_sequence(const void* counters) {
+    auto& storage = presentation_snapshots();
+    const std::scoped_lock lock(storage.mutex);
+    const auto found = storage.sequences.find(counters);
+    return found == storage.sequences.end() ? PresentationSnapshots::Sequence{} : found->second;
 }
 inline std::uint64_t presentation_sequence_tick(const void* counters) {
-    auto& storage = presentation_snapshots();
-    const std::scoped_lock lock(storage.mutex);
-    const auto found = storage.sequence_ticks.find(counters);
-    return found == storage.sequence_ticks.end() ? 0U : found->second;
+    return presentation_sequence(counters).tick;
+}
+inline PresentationInterval presentation_sequence_interval(const void* counters) {
+    return presentation_sequence(counters).interval;
+}
+// The upstream integer rate is a disable signal or a compatibility hint.
+// A JFG snapshot supplies the authoritative ratio, including blur ownership.
+inline PresentationInterval workload_presentation_interval(
+        const std::shared_ptr<const PresentationHistoryFrame>& snapshot, unsigned hint) {
+    if (!hint) return {};
+    if (!snapshot) return {1U, hint};
+    return snapshot->scene && !snapshot->defer_to_blur ? snapshot->source_interval : PresentationInterval{};
 }
 // A previous long interval is only an estimate of this sequence's duration.
 // When the next authored scene arrives sooner, end at its actual VI boundary.

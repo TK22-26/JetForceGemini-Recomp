@@ -28,27 +28,36 @@ struct ViPresentationSize {
     }
 };
 
-// frontGetScreenMode (supported US ROM, 0x8005A804) reads bit 30 of
-// the persistent frontend options word at 0x800FF384. Bit 29 selects higher
-// source resolution, not a different display aspect. sResolutionIndex is a
-// transient VI mode: cinematics can force its wide bit with this option off.
+// The qualified original frontGetScreenMode in all three revisions reads bit
+// 30 of the persistent display options. Bit 29 selects source resolution.
+// Cinematics can temporarily select a wider VI without changing this preference.
 [[nodiscard]] constexpr ViPresentationSize game_display_canvas(
     std::uint32_t frontend_options) noexcept {
     return {320U, (frontend_options & 0x40000000U) != 0U ? 180U : 240U};
 }
 
-// The supported NTSC game keeps a 320x240 source buffer in its widescreen
-// mode and scans it into 180 display lines. Source dimensions therefore
-// cannot determine the displayed aspect. Account for the VI filtering rows
-// using the same two-row/four-line alignment as framebuffer sizing.
+// Display geometry is measured in scanout units, independent of framebuffer
+// resolution. PAL's 576 active lines occupy the same TV height as NTSC/MPAL's
+// 480 lines. Return an exact aspect pair (not framebuffer pixel dimensions),
+// preserving native crop and centering without rounding PAL's 6:5 correction.
+// See libdragon's PAL-NTSC-support documentation and Nintendo VI chapter 30.
+// Retain the existing two-row/four-line filtering alignment at the scanout edge.
 [[nodiscard]] constexpr ViPresentationSize vi_presentation_size(
-    std::uint32_t horizontal_start, std::uint32_t vertical_start) noexcept {
+    std::uint32_t horizontal_start, std::uint32_t vertical_start,
+    std::uint32_t vertical_sync) noexcept {
     const auto left = (horizontal_start >> 16U) & 0x3FFU;
     const auto right = horizontal_start & 0x3FFU;
     const auto top = (vertical_start >> 16U) & 0x3FFU;
     const auto bottom = vertical_start & 0x3FFU;
     if (left == 0U || right <= left || bottom <= top) return {};
-    return {(right - left) / 2U, ((bottom - top) / 2U + 4U) / 4U * 4U};
+    const auto lines=vertical_sync&0x3FFU;
+    const bool pal=lines>=600U && lines<=650U;
+    const bool ntsc_or_mpal=lines>=500U && lines<=550U;
+    if(!pal && !ntsc_or_mpal)return {};
+    const auto width=(right-left)/2U;
+    const auto height=((bottom-top)/2U+4U)/4U*4U;
+    return pal ? ViPresentationSize{width*6U,height*5U} :
+                 ViPresentationSize{width,height};
 }
 
 } // namespace jfg

@@ -190,6 +190,7 @@ namespace JfgLauncher
         internal ProcessStartInfo StartInfo;
         private FileStream romLease;
         private ProgramBundle.Lease bundleLease;
+        internal ProgramIdentity Identity { get { return bundleLease.Identity; } }
         internal static RegionalSession Open(string runtime,string rom,string preferences,bool navigation)
         {
             var session=new RegionalSession();

@@ -3,14 +3,14 @@
   "native_builds": {
     "jfg-us-r0": {
       "admitted": true,
-      "evidence": "docs/development/rom-bootstrap.md"
+      "evidence": "docs/development/issues/regional-rom-support.md"
     },
     "jfg-pal-r0": {
-      "admitted": false,
+      "admitted": true,
       "evidence": "docs/development/issues/regional-rom-support.md"
     },
     "star-twins-jp-r0": {
-      "admitted": false,
+      "admitted": true,
       "evidence": "docs/development/issues/regional-rom-support.md"
     }
   },

@@ -633,7 +633,7 @@ namespace JfgLauncher
                 using (Process process = new Process())
                 {
                     process.StartInfo = regionalSession.StartInfo;
-                    support.Write("rom_revision="+regionalSession.Revision.Id);
+                    support.ProgramDetails(regionalSession.Identity);
                     support.Write(navigation.Checked ? "mod=navigation-enabled" : "mod=disabled");
                     process.StartInfo.EnvironmentVariables["JFG_SUPPORT_LOG"] = support.NativePath;
                     new AudioPreferences { Volume = volume.Value, Muted = mute.Checked }.Save(LocalSetup.ProfileRoot);

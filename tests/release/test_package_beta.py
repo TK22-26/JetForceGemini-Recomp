@@ -67,7 +67,9 @@ class BetaPackageTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
     def test_unadmitted_revision_cannot_be_published_by_renaming_a_folder(self):
         self.write_manifest(self.runtime,'pal');self.description.side_effect=lambda path:identity('pal')
-        with self.assertRaisesRegex(ValueError,'admission is closed'):self.package()
+        from scripts.rom_profiles import RomProfile
+        with mock.patch.object(RomProfile,'native_supported',new_callable=mock.PropertyMock,return_value=False):
+            with self.assertRaisesRegex(ValueError,'admission is closed'):self.package()
         self.assertFalse(self.output.exists())
     def test_three_revision_package_preserves_each_embedded_identity(self):
         from scripts.rom_profiles import RomProfile
@@ -80,9 +82,7 @@ class BetaPackageTests(unittest.TestCase):
         def describe(path):
             return json.loads((path.parent/program_bundle.MANIFEST_NAME).read_text())['identity']
         self.description.side_effect=describe
-        # Isolated fixture admission only; production PAL/JP gates stay closed.
-        with mock.patch.object(RomProfile,'native_supported',new_callable=mock.PropertyMock,return_value=True):
-            archive=beta.package(self.launcher,runtimes,self.output,'1.0.1-beta.1')
+        archive=beta.package(self.launcher,runtimes,self.output,'1.0.1-beta.1')
         with zipfile.ZipFile(archive) as z:
             manifest=json.loads(z.read('jfg-package.json'))
             self.assertEqual(len(manifest['runtimes']),3)

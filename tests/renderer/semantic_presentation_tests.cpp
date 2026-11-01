@@ -55,6 +55,28 @@ int main() {
     result=jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{1,0},{-100,0});
     require(result&&result->points[0][0]>=148); // Receiver height/light projection.
     w8(0x701,2);require(!jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{0,0},{0,0}));w8(0x701,0);
+    // Native batch ranges are authoritative; no guessed adjacent header count.
+    w16(0x514,0);
+    require(jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{0,0},{0,0}).has_value());
+    w16(0x514,2);
+    {
+      auto relocated=jfg::test::renderer_layout;
+      relocated.header_modelCount=0x25U;relocated.instance_model=0x20U;
+      relocated.instance_vertices=0x24U;relocated.instance_palette0=0x28U;
+      relocated.instance_palette1=0x2cU;relocated.model_skinned=0x58U;
+      relocated.model_boneCount=0x59U;relocated.model_vertexCount=0x40U;
+      relocated.model_batchCount=0x42U;relocated.model_faces=0x44U;
+      relocated.model_batches=0x48U;
+      const auto original=data;
+      w8(0x21f,0);w8(0x225,1);w32(0x400,0);w32(0x404,0);w32(0x410,0);w32(0x414,0);
+      w32(0x420,0x500);w32(0x424,0x600);w32(0x428,0x900);w32(0x42c,0xa00);
+      w8(0x54e,0);w8(0x54f,0);w16(0x512,0);w16(0x516,0);w32(0x520,0);w32(0x524,0);
+      w8(0x558,1);w8(0x559,1);w16(0x540,4);w16(0x542,2);w32(0x544,0xb00);w32(0x548,0x700);
+      const auto moved=jfg::enhanced_shadow_footprint(relocated,view,0x100,small,{0,0},{-10,10});
+      require(moved&&moved->vertices==3&&moved->expanded);
+      require(!jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{0,0},{0,0}));
+      data=original;
+    }
     const auto packed=data;
     const auto packed_bounds=jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{0,0},{-10,10});
     // Receiver sizing can run before conversion, with either/both banks float.
@@ -1231,9 +1253,11 @@ int main() {
     // RegionID reorders the same 20 sparkles as the camera turns. The
     // temporary stack transform and emitted anchor order are not identity.
     const auto saved_ram=ram;
-    jfg::PresentationIdentityTracker marker{jfg::test::renderer_layout};
+    auto region_layout=jfg::test::renderer_layout;region_layout.regionControl_active=0x10U;
+    jfg::PresentationIdentityTracker marker{region_layout};
+    w8(0x801D000FU,0);
     w32(0x800F2CA8U,1);w8(0x80100049U,136);
-    w32(0x80100068U,0x801D0000U);w8(0x801D000FU,128);
+    w32(0x80100068U,0x801D0000U);w8(0x801D0010U,128);
     w32(0x801100ACU,0x801C0000U);w32(0x801C0000U,0x801A0000U);
     const auto emit=[&](unsigned slot,unsigned anchor,std::uint64_t tick) {
       w32(0x80180000U,0x80190000U+anchor*16U);
@@ -1243,6 +1267,9 @@ int main() {
     for(unsigned slot=0;slot<20;++slot)emit(slot,slot,150);
     const auto marker_first=marker.capture(ram,150);
     require(marker_first.sprites.size()==20);
+    jfg::PresentationIdentityTracker former_layout{jfg::test::renderer_layout};
+    former_layout.region_sprite(ram,0x80180000U,0x80100000U,0x801D0000U,0,0x801A0000U,150);
+    require(former_layout.capture(ram,150).sprites.empty());
     std::map<unsigned,std::array<std::uint64_t,4>> keys;
     for(const auto& sprite:marker_first.sprites) {
       require(sprite.actor==0x80100000U && sprite.control==0x801D0000U);
@@ -1255,8 +1282,8 @@ int main() {
     for(const auto& sprite:sorted.sprites)
       require(jfg::presentation_sprite_key(sprite,7)==keys[sprite.sub_id]);
     emit(20,0,152);require(marker.capture(ram,152).sprites.size()==19);
-    w8(0x801D000FU,0);require(marker.capture(ram,154).sprites.empty());
-    w8(0x801D000FU,255);emit(0,0,156);
+    w8(0x801D0010U,0);require(marker.capture(ram,154).sprites.empty());
+    w8(0x801D0010U,255);emit(0,0,156);
     w32(0x80100068U,0x801D0200U);require(marker.capture(ram,156).sprites.empty());
     w32(0x80100068U,0x801D0000U);emit(0,0,158);
     marker.retire(0x80100000U);require(marker.capture(ram,158).sprites.empty());

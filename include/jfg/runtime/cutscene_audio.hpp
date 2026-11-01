@@ -12,6 +12,7 @@ struct CutsceneSoundBindings {
   game::DataRef level,header,group,script_start,handles;
   game::CodeRef plain,positioned;
   game::InstructionRef fire_and_forget_call,handle_call,positioned_call;
+  std::uint32_t level_kind,actor_sound_handle;
 };
 // The producer verifies these common field/stride semantics in the original
 // interpreter and cleanup bodies of every supported revision. Call/array
@@ -33,8 +34,8 @@ bool omit_skipped_cutscene_sound(const Memory& ram,const CutsceneSoundCall& call
     const auto level=view.u32(bindings.level),header=view.u32(bindings.header);
     const auto group=view.u32(bindings.group),start=view.u32(bindings.script_start);
     if(level!=call.destination || group!=call.group || group>255U ||
-       !ram.valid(header,0x6DU) || !ram.valid(start,4U) ||
-       (ram.u8(header+0x6CU)!=1U && ram.u8(header+0x6CU)!=2U) ||
+       !ram.valid(header,std::uint64_t{bindings.level_kind}+1U) || !ram.valid(start,4U) ||
+       (ram.u8(header+bindings.level_kind)!=1U && ram.u8(header+bindings.level_kind)!=2U) ||
        call.qualified_scene!=((std::uint64_t{level}<<48U)|(std::uint64_t{group}<<32U)|start))return false;
     const bool direct=call.target==*plain &&
         (call.return_address==*fire_call+8U || call.return_address==*handle_call+8U);
@@ -49,8 +50,8 @@ bool omit_skipped_cutscene_sound(const Memory& ram,const CutsceneSoundCall& call
       return view.u32(bindings.handles,call.handle-*handles)==0;
     }
     // Original opcode29 passes actor+0x88 as the positional-sound handle.
-    return !(call.actor&3U) && ram.valid(call.actor,0x8CU) &&
-        call.handle==call.actor+0x88U && ram.u32(call.handle)==0;
+    return !(call.actor&3U) && ram.valid(call.actor,std::uint64_t{bindings.actor_sound_handle}+4U) &&
+        call.handle==call.actor+bindings.actor_sound_handle && ram.u32(call.handle)==0;
   } catch(const std::runtime_error&) {return false;}
 }
 } // namespace jfg

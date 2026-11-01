@@ -5,6 +5,41 @@
 static void require(bool value) { if (!value) std::abort(); }
 int main() {
     {
+        const jfg::PresentationInterval pal{3U,50U};
+        int counters=0;
+        jfg::record_presentation_sequence(&counters,103U,pal);
+        require(jfg::presentation_sequence_interval(&counters)==pal);
+        auto frame=std::make_shared<jfg::PresentationHistoryFrame>();
+        frame->scene=true;frame->source_interval=pal;
+        require(jfg::workload_presentation_interval(frame,pal.rate_hint())==pal);
+        require(!jfg::workload_presentation_interval(frame,0U)); // Failed blur pair.
+        frame->defer_to_blur=true;
+        require(!jfg::workload_presentation_interval(frame,pal.rate_hint()));
+        frame->defer_to_blur=false;frame->scene=false;
+        require(!jfg::workload_presentation_interval(frame,pal.rate_hint()));
+        require(jfg::workload_presentation_interval(nullptr,30U)==jfg::PresentationInterval{1U,30U});
+        jfg::publish_presentation_snapshot(&counters,frame);
+        jfg::publish_presentation_snapshot(&counters,nullptr);
+        require(!jfg::presentation_sequence_interval(&counters));
+    }
+    {
+        jfg::PresentationMesh mesh;
+        mesh.key={1U};mesh.positions={{{0.0f,0.0f,0.0f}}};
+        mesh.matrix={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+        jfg::PresentationHistory history;history.set_vi_rate(50U);
+        history.record({mesh},100U,true);
+        std::uint64_t tick=100U;
+        for (unsigned delta : {3U,4U,6U,2U,5U,1U}) {
+            tick+=delta;mesh.matrix[12]+=0.01f;
+            auto frame=history.record({mesh},tick,true);
+            require(frame.source_interval==jfg::PresentationInterval{delta,50U});
+            require(frame.transforms[0].matched);
+        }
+        require(!history.record({mesh},tick,true).source_interval);
+        require(!history.record({mesh},tick+7U,true).source_interval);
+    }
+
+    {
         int owner=0;auto frame=std::make_shared<jfg::PresentationHistoryFrame>();
         frame->tick=103U;frame->scene=true;frame->vi_rate=50U;
         jfg::publish_presentation_snapshot(&owner,frame);
@@ -16,12 +51,12 @@ int main() {
     }
     {
         jfg::PresentationHistory pal;pal.set_vi_rate(50U);
-        require(pal.record({},100,true).source_rate==0U);
-        auto frame=pal.record({},102,true);require(frame.source_rate==25U && frame.vi_rate==50U);
-        require(pal.record({},107,true).source_rate==10U);
-        require(pal.record({},110,true).source_rate==0U); // Existing conservative integer-cadence policy.
-        pal.set_vi_rate(60U);require(pal.record({},112,true).source_rate==0U);
-        require(pal.record({},115,true).source_rate==20U);
+        require(pal.record({},100,true).source_interval.rate_hint()==0U);
+        auto frame=pal.record({},102,true);require(frame.source_interval.rate_hint()==25U && frame.vi_rate==50U);
+        require(pal.record({},107,true).source_interval.rate_hint()==10U);
+        require(pal.record({},110,true).source_interval == jfg::PresentationInterval{3U,50U});
+        pal.set_vi_rate(60U);require(pal.record({},112,true).source_interval.rate_hint()==0U);
+        require(pal.record({},115,true).source_interval.rate_hint()==20U);
         bool rejected=false;try {pal.set_vi_rate(0U);}catch(const std::invalid_argument&) {rejected=true;}
         require(rejected && pal.vi_rate()==60U);
     }
@@ -33,8 +68,8 @@ int main() {
         for (const auto tick : {10ULL, 12ULL, 12ULL, 15ULL, 20ULL, 26ULL, 30ULL, 29ULL, 31ULL}) {
             const bool expected = history.has_continuous_cadence(tick, true);
             require(!history.has_continuous_cadence(tick, false));
-            require(history.record({}, tick, false).source_rate == 0U);
-            require((history.record({}, tick, true).source_rate != 0U) == expected);
+            require(history.record({}, tick, false).source_interval.rate_hint() == 0U);
+            require((history.record({}, tick, true).source_interval.rate_hint() != 0U) == expected);
         }
     }
 
@@ -225,7 +260,7 @@ int main() {
     require(!history.record(std::vector<jfg::PresentationMesh>{a},100,true).transforms[0].matched);
     auto b=a; b.matrix[12]=0.1f;
     const auto second=history.record(std::vector<jfg::PresentationMesh>{b},102,true);
-    require(second.source_rate==30 && second.transforms[0].matched);
+    require(second.source_interval.rate_hint()==30 && second.transforms[0].matched);
     require(second.transforms[0].previous==a.matrix);
     history.record({},103,false);
     b.matrix[12]=0.2f;
@@ -280,20 +315,20 @@ int main() {
     auto moving=a;
     variable.record({moving},100,true);
     moving.matrix[12]=0.05f;
-    require(variable.record({moving},102,true).source_rate==30);
+    require(variable.record({moving},102,true).source_interval.rate_hint()==30);
     variable.record({},103,false);
     moving.matrix[12]=0.10f;
     const auto slower=variable.record({moving},105,true);
-    require(slower.source_rate==20 && slower.transforms[0].matched);
+    require(slower.source_interval.rate_hint()==20 && slower.transforms[0].matched);
     require(slower.transforms[0].previous[12]==0.05f);
     moving.matrix[12]=0.15f;
     const auto faster=variable.record({moving},107,true);
-    require(faster.source_rate==30 && faster.transforms[0].matched);
+    require(faster.source_interval.rate_hint()==30 && faster.transforms[0].matched);
     require(faster.transforms[0].previous[12]==0.10f);
     moving.matrix[12]=1.0f;
     require(!variable.record({moving},110,true).transforms[0].matched);
     require(variable.record({moving},114,true).transforms[0].matched);
-    require(variable.record({moving},118,true).source_rate==15);
+    require(variable.record({moving},118,true).source_interval.rate_hint()==15);
     // A missed update and recovery are timing changes, not camera cuts.
     // These intervals occur in the owner's later-cave capture.
     jfg::PresentationHistory missed;
@@ -303,7 +338,7 @@ int main() {
     for (const unsigned interval : {2U,4U,2U,1U,3U,6U,2U}) {
         tick+=interval;late.matrix[12]+=0.01f;
         const auto sample=missed.record({late},tick,true);
-        require(sample.source_rate==60U/interval && sample.transforms[0].matched);
+        require(sample.source_interval.rate_hint()==60U/interval && sample.transforms[0].matched);
         require(sample.transforms[0].previous[12]<late.matrix[12]);
     }
     late.matrix[12]+=1.0f;
@@ -346,7 +381,7 @@ int main() {
     plain_sprite.record({resized},100,true,false);
     const auto logged_frame=logged_sprite.record({tiled_sprite},102,true,true);
     const auto plain_frame=plain_sprite.record({tiled_sprite},102,true,false);
-    require(logged_frame.source_rate==plain_frame.source_rate &&
+    require(logged_frame.source_interval.rate_hint()==plain_frame.source_interval.rate_hint() &&
             logged_frame.transforms[0].matched==plain_frame.transforms[0].matched &&
             logged_frame.transforms[0].previous==plain_frame.transforms[0].previous);
     auto other_asset = a; other_asset.positions = {{{0,0,0}}};

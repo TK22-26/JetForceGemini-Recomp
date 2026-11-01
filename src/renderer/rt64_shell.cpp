@@ -237,7 +237,7 @@ void clear_vi_guard_texel(
     // undefined, so linear VI sampling otherwise repeats it as a colored
     // edge. Clip exactly one source texel after VI scaling without touching
     // guest RDRAM or the rendered image interior.
-    const auto display = jfg::vi_presentation_size(vi.hRegion.word, vi.vRegion.word);
+    const auto display = jfg::vi_presentation_size(vi.hRegion.word, vi.vRegion.word, vi.vSync);
     if (!display.valid()) return;
     const double scale = (std::min)(
         static_cast<double>(window_width) / display.width,

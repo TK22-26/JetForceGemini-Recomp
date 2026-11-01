@@ -13,7 +13,7 @@ class RomCatalogTests(unittest.TestCase):
         self.assertEqual({p.revision_id for p in rom.parse_catalog(self.catalog)},
                          {"jfg-us-r0", "jfg-pal-r0", "star-twins-jp-r0"})
         self.assertNotIn("native_supported", self.catalog["revisions"][0])
-        self.assertEqual([p.code for p in rom.ROM_PROFILES if p.native_supported], ["us"])
+        self.assertEqual([p.code for p in rom.ROM_PROFILES if p.native_supported], ["us", "pal", "jpn"])
 
     def test_duplicate_identity_keys_are_rejected(self):
         for key in ("id", "code", "sha1"):
