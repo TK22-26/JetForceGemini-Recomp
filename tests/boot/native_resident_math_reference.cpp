@@ -27,7 +27,7 @@ extern "C" void jfg_phase9_execution_probe_predecoded(unsigned m,unsigned pc,uns
 struct Snapshot {recomp_context cpu{};JfgOriginalTimingFast fast{};uint64_t count=0;unsigned calls=0;int exceptions=0;};
 static void require(bool v,unsigned n,const char* why){if(!v){printf("FAIL %u %s\n",n,why);std::exit(1);}}
 int main(){
- std::mt19937 rng(919816);std::vector<uint8_t> ram(0xb0000);for(auto& b:ram)b=uint8_t(rng());auto before_ram=ram;
+ std::mt19937 rng(919816);std::vector<uint8_t> ram(0x200000);for(auto& b:ram)b=uint8_t(rng());auto before_ram=ram;
  const uint32_t special[]={0,0x80000000U,1,0x80000001U,0x007fffffU,0x807fffffU,0x00800000U,
   0x80800000U,0x3f800000U,0xbf800000U,0x7f7fffffU,0xff7fffffU,0x7f800000U,0xff800000U,0x7fc00000U,0x7f800001U};
  unsigned admitted=0,rejected=0;
@@ -43,10 +43,12 @@ int main(){
    if(n%3==0){c.r4=U64(S32(edges[n%9]));c.r5=U64(S32(edges[(n/9)%9]));}
   }
   if constexpr(JFG_MATH_FIXTURE_KIND>=2) {if(n<65536U)c.r4=n;}
-  s.rdram=ram.data();s.diagnostic_host_clock=true;s.native_spans_enabled=true;s.play_mode=true;
+  s.rdram=ram.data();s.timing_rdram_size=static_cast<uint32_t>(ram.size());s.diagnostic_host_clock=true;s.native_spans_enabled=true;s.play_mode=true;
   s.host_clock_poll_budget=n%145;s.cpu_count=100;s.io_guest_count=&guest_count;s.io_revision=&revision;
   s.execution_fast_revision=1;s.execution_fast_deadline=UINT64_MAX;s.guest_last_pc=0x80049c80U;s.guest_previous_branch=n%2;
   if(n%29==0)s.native_spans_enabled=false;
+  if(n%41==0)s.timing_rdram_size=0;
+  if(n%43==0)s.timing_rdram_size=static_cast<uint32_t>(ram.size()-1U);
   if(n%31==0)c.r0=1;
   if(n%37==0)c.status_reg&=~0x20000000U;
   auto run=[&](bool candidate){

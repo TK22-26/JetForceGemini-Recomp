@@ -19,13 +19,16 @@ inline constexpr std::array<FlightMusicScene,2> flight_music_scenes{{
 // ROM bytes, explicit script commands and all other scene variants stay intact.
 template<class Memory>
 bool apply_flight_transition_music_header(Memory& ram) {
-  if(!ram.valid(0x8004455CU,0x18U) || ram.u32(0x8004455CU)!=0x27BDFFE8U ||
-     ram.u32(0x80044570U)!=0x91CF0072U || !ram.valid(0x800FB114U,8U) ||
-     !ram.valid(0x800A74C0U,4U))return false;
-  const auto header=ram.u32(0x800FB118U);
+  // These two optional corrections have only US evidence. PAL/JP retain their
+  // original music; regional candidate support does not broaden correction policy.
+  if(ram.context().descriptor().revision!="jfg-us-r0")return false;
+  if(!ram.instruction_matches("guard.flight.tune_entry") ||
+     !ram.instruction_matches("guard.flight.tune_field") || !ram.global_valid("globals.currentLevel") || !ram.global_valid("globals.levelHeader") ||
+     !ram.global_valid("globals.cutsceneGroup"))return false;
+  const auto header=ram.global_u32("globals.levelHeader");
   if(!ram.valid(header,0xEAU) || ram.u8(header+0x6CU)!=1U)return false;
   for(const auto& scene:flight_music_scenes) {
-    if(ram.u32(0x800FB114U)==scene.level && ram.u32(0x800A74C0U)==scene.group &&
+    if(ram.global_u32("globals.currentLevel")==scene.level && ram.global_u32("globals.cutsceneGroup")==scene.group &&
        ram.u16(header+0xE8U)==scene.asset && ram.u8(header+0x72U)==scene.track) {
       ram.put16(header+0x72U,static_cast<std::uint16_t>(0x0700U|ram.u8(header+0x73U)));
       return true;
@@ -40,16 +43,14 @@ bool apply_flight_transition_music_header(Memory& ram) {
 template<class Memory>
 std::optional<std::uint32_t> flight_transition_next_music(
     const Memory& ram,std::uint32_t level,std::uint32_t return_address) {
-  if(return_address!=0x80046FC8U || !ram.valid(0x80046FC0U,4U) ||
-     ram.u32(0x80046FC0U)!=0x0C010EEEU || !ram.valid(0x80043BE0U,4U) ||
-     ram.u32(0x80043BE0U)!=0x93220004U || !ram.valid(0x800468ACU,4U) ||
-     ram.u32(0x800468ACU)!=0xA4243254U || !ram.valid(0x800A3250U,6U) ||
-     ram.u16(0x800A3250U)!=level || !ram.valid(0x800FB124U,12U) ||
-     ram.u32(0x800FB124U)!=412U)return {};
-  const auto table=ram.u32(0x800FB12CU);
+  if(ram.context().descriptor().revision!="jfg-us-r0")return {};
+  if(return_address!=ram.instruction_address("guard.flight.transition_call")+8U || !ram.instruction_matches("guard.flight.transition_call") || !ram.instruction_matches("guard.flight.summary_field") || !ram.instruction_matches("guard.flight.pending_group") || !ram.global_valid("globals.pendingLevel") || !ram.global_valid("globals.pendingCutsceneGroup") ||
+     ram.global_u16("globals.pendingLevel")!=level || !ram.global_valid("globals.levelCount") || !ram.global_valid("globals.levelSummaryTable") ||
+     ram.global_u32("globals.levelCount")!=412U)return {};
+  const auto table=ram.global_u32("globals.levelSummaryTable");
   if(!ram.valid(table,412U*5U))return {};
   for(const auto& scene:flight_music_scenes) {
-    if(level==scene.level && ram.u16(0x800A3254U)==scene.group &&
+    if(level==scene.level && ram.global_u16("globals.pendingCutsceneGroup")==scene.group &&
        ram.u32(table+level*5U)==scene.metadata && ram.u8(table+level*5U+4U)==scene.track)
       return 7U;
   }

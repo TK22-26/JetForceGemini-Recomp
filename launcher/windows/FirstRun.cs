@@ -48,7 +48,8 @@ namespace JfgLauncher
             info.FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),
                 "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
             info.Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File " + LocalSetup.Quote(script) +
-                " -SourceCommit " + LocalSetup.Quote(BuildInfo.SourceCommit) + " -RomPath " + LocalSetup.Quote(selectedRom);
+                " -SourceCommit " + LocalSetup.Quote(BuildInfo.SourceCommit) + " -RomPath " + LocalSetup.Quote(selectedRom) +
+                " -ValidatorAssembly " + LocalSetup.Quote(Assembly.GetExecutingAssembly().Location);
             info.WorkingDirectory = setupRoot;
             info.UseShellExecute = false;
             info.EnvironmentVariables["JFG_DATA_ROOT"] = Root;

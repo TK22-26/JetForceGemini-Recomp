@@ -16,7 +16,6 @@ from pathlib import Path
 import hashlib
 import re
 
-SITES = {0x80098EC8: 0x23, 0x80098F0C: 0x2B}
 MARKER = '/* JFG qualified MI-mask accesses, schema 1. */'
 PROTOTYPES = """\n#ifdef __cplusplus
 extern "C" {
@@ -31,20 +30,21 @@ HOOK = re.compile(r'jfg_phase9_execution_probe_predecoded\(0x[0-9a-f]+U, 0x([0-9
 COMMENT = re.compile(r'^\s*// (?:native )?0x([0-9a-f]{8}):[^\n]*', re.I | re.M)
 
 
-def rewrite(text: str) -> tuple[str, int]:
+def rewrite(text: str, sites: dict[int,int]) -> tuple[str, int]:
+    if len(sites)!=2 or set(sites.values())!={0x23,0x2B}:raise ValueError("MI-mask requires one bound read and write")
     if MARKER in text:
         raise ValueError('MI-mask generation already applied')
     hooks = {}
     for match in HOOK.finditer(text):
         hooks.setdefault(int(match[1], 16), []).append(int(match[2], 16))
-    present = set(SITES) & hooks.keys()
+    present = set(sites) & hooks.keys()
     if not present:
         return text, 0
-    if present != set(SITES):
+    if present != set(sites):
         raise ValueError('Incomplete supported MI-mask instruction pair')
     edits = []
     comments = list(COMMENT.finditer(text))
-    for pc, primary in SITES.items():
+    for pc, primary in sites.items():
         if len(hooks[pc]) != 1 or len(hooks.get(pc - 4, [])) != 1:
             raise ValueError('Missing or duplicated MI-mask timing hook')
         word, prior = hooks[pc][0], hooks[pc - 4][0]
@@ -79,16 +79,25 @@ def rewrite(text: str) -> tuple[str, int]:
 
 
 def rewrite_tree(root: Path) -> dict:
+    import json
+    from scripts.regional.bindings import validate_document
+    descriptor=json.loads((root/'game-descriptor.json').read_text())
+    bindings=json.loads((root/'game-bindings.json').read_text())
+    model=validate_document(bindings,descriptor);sections={s.id:s for s in model.sections}
+    sites={}
+    for name,opcode in (('os.mi_mask_read',0x23),('os.mi_mask_write',0x2B)):
+        ref=bindings['instructions'][name];section=sections[ref['section']]
+        sites[section.linked_vram+ref['offset']]=opcode
     pending = []
     for path in sorted((root / 'baseline').glob('*.c')):
-        changed, count = rewrite(path.read_text())
+        changed, count = rewrite(path.read_text(),sites)
         if count:
             pending.append((path, changed, count))
     if len(pending) != 1:
         raise ValueError('Expected exactly one qualified interrupt-mask function')
     for path, changed, _ in pending:
         path.write_text(changed)
-    return {'schema': 1, 'qualified_sites': 2,
+    return {'schema': 1, 'qualified_sites': 2, 'revision_id':model.revision_id, 'model_sha256':model.fingerprint(),
             'generated_accesses': sum(count for _, _, count in pending),
             'generator_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             'timing_hooks_preserved': True}

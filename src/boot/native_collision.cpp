@@ -16,7 +16,7 @@ struct Budget {
  std::chrono::steady_clock::time_point deadline{};
 };
 struct Local {
- Totals totals{};bool fallback=false;unsigned limit_nodes=32U,limit_edges=128U;Budget* active=nullptr;
+ Totals totals{};bool fallback=false;unsigned limit_nodes=32U,limit_edges=128U;Budget* active=nullptr;NativeCollisionLayout layout{};
 };
 static Local& local() {struct Tag;return jfg::runtime::execution_local<Local,Tag>();}
 static bool range(std::uint32_t a,std::size_t n) {return a>=0x80000000U && a<=0x80400000U && n<=0x80400000ULL-a;}
@@ -35,8 +35,11 @@ static bool node_valid(std::uint8_t* ram,recomp_context* ctx,unsigned& edges) {
  const auto sp=static_cast<std::uint32_t>(ctx->r29);
  if(ctx->r0 || ctx->r29!=U64(S32(sp)) || (sp&3U) || sp<0x80000060U || !range(sp,20U) ||
     !ctx->mips3_float_mode || ctx->f_odd!=&ctx->f1.u32l || !(ctx->status_reg&0x20000000U))return false;
- const auto section=static_cast<std::uint32_t>(section_addresses[3]);
- if(section!=0x00300000U)return false;
+ const auto layout=local().layout;
+ if(layout.edge_pointer_offset>layout.extent || layout.extent-layout.edge_pointer_offset<4U ||
+    (layout.edge_pointer_offset&3U) || layout.linked_address>=0x10000000U || layout.linked_address<0x100000U)return false;
+ const auto section=static_cast<std::uint32_t>(section_addresses[layout.section]);
+ if(section!=layout.linked_address)return false;
 
  const auto node=word(ram,sp+16U);
  if((node&3U) || !range(node,20U))return false;
@@ -45,7 +48,7 @@ static bool node_valid(std::uint8_t* ram,recomp_context* ctx,unsigned& edges) {
  edges=0U;
  if(ram[(node-0x80000000U+16U)^3U]==1U) {
   const auto first=half(ram,node),count=half(ram,node+2U);
-  const auto base=word(ram,section+0x1aed4U);
+  const auto base=word(ram,section+layout.edge_pointer_offset);
   const auto start=std::uint64_t{base}+20ULL*first;
   if((base&3U) || count>16U || start>UINT32_MAX || !range(static_cast<std::uint32_t>(start),20U*count))return false;
   for(unsigned i=0;i<count;++i)for(unsigned j=0;j<16U;j+=4U)
@@ -86,12 +89,14 @@ bool native_collision_in_fallback() noexcept { return collision_detail::local().
 NativeCollisionCounters native_collision_counters() noexcept { return collision_detail::local().totals; }
 void native_collision_reset_max() noexcept { collision_detail::local().totals.max_nanoseconds=0U; }
 bool native_collision_execute(NativeCollisionFunction* reference,
-    std::uint8_t* ram,recomp_context* cpu,unsigned max_nodes,unsigned max_edges) {
+    std::uint8_t* ram,recomp_context* cpu,NativeCollisionLayout layout,unsigned max_nodes,unsigned max_edges) {
   const auto before=collision_detail::local().totals.native_nodes;
   struct Limits {
+    NativeCollisionLayout layout=collision_detail::local().layout;
     unsigned nodes=collision_detail::local().limit_nodes,edges=collision_detail::local().limit_edges;
-    ~Limits(){collision_detail::local().limit_nodes=nodes;collision_detail::local().limit_edges=edges;}
+    ~Limits(){collision_detail::local().layout=layout;collision_detail::local().limit_nodes=nodes;collision_detail::local().limit_edges=edges;}
   } limits;
+  collision_detail::local().layout=layout;
   collision_detail::local().limit_nodes=max_nodes<32U?max_nodes:32U;
   collision_detail::local().limit_edges=max_edges<128U?max_edges:128U;
   collision_detail::execute(reference,ram,cpu);

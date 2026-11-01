@@ -487,6 +487,18 @@ function(jfg_add_generated_code)
         )
     endif()
     if(ARG_REQUIRE_PRIVATE_ROOT)
+        file(GLOB jfg_regional_producer_sources CONFIGURE_DEPENDS
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build/regional/*.py")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            ${jfg_regional_producer_sources}
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build/rom_profiles.py"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build/transform_private_n64recomp_inputs.py"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/validation/validate_elf.py"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/config/roms/revisions.json"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/config/roms/core-bindings.json"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/config/roms/relocation-domains.json"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/config/roms/execution-sites.json"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build/original_timing_generation.py")
         set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
             "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build/build_private_generated_root.py"
         )

@@ -16,7 +16,7 @@ class NativeCacheAllSourceTests(unittest.TestCase):
  def run_case(self,source,spec):
   with tempfile.TemporaryDirectory() as d:
    root=Path(d);(root/'baseline').mkdir();(root/'baseline'/spec.filename).write_text(source)
-   with patch.object(filter_source,'SPEC',spec):
+   with patch.object(filter_source,'selected_source',return_value=(source,spec)):
     result=filter_source.generate(root,root/'private/out.inc')
    return result,(root/'private/out.inc').read_text()
  def test_integer_operations_retained(self):

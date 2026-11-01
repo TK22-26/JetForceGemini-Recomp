@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "source": "Pinned ResolveRelocAddress semantics, independently checked against each original body; this is build-time metadata, not runtime scanning.",
+  "revisions": {
+    "jfg-us-r0": {
+      "resolver_body_sha256": "606cd5d136147d67cba2df50ee9fe2103cf827b825eb4ccea0b9ef75cdde6a22",
+      "resolver_body_size": 396,
+      "code_pairs": [
+        [
+          120,
+          124
+        ],
+        [
+          144,
+          148
+        ],
+        [
+          168,
+          172
+        ]
+      ],
+      "data_pairs": [
+        [
+          116,
+          128
+        ],
+        [
+          92,
+          152
+        ]
+      ],
+      "bss_pairs": [
+        [
+          104,
+          176
+        ]
+      ]
+    },
+    "jfg-pal-r0": {
+      "resolver_body_sha256": "4f5941e0636d7e468b171f344d84c4cd0aa926f4798229e5937dce5635c570dd",
+      "resolver_body_size": 396,
+      "code_pairs": [
+        [
+          120,
+          124
+        ],
+        [
+          144,
+          148
+        ],
+        [
+          168,
+          172
+        ]
+      ],
+      "data_pairs": [
+        [
+          116,
+          128
+        ],
+        [
+          92,
+          152
+        ]
+      ],
+      "bss_pairs": [
+        [
+          104,
+          176
+        ]
+      ]
+    },
+    "star-twins-jp-r0": {
+      "resolver_body_sha256": "7e133f9a2bb5e04f314e15abea30f4d85650bae6238bbe7804407a2ed020776c",
+      "resolver_body_size": 396,
+      "code_pairs": [
+        [
+          120,
+          124
+        ],
+        [
+          144,
+          148
+        ],
+        [
+          168,
+          172
+        ]
+      ],
+      "data_pairs": [
+        [
+          116,
+          128
+        ],
+        [
+          92,
+          152
+        ]
+      ],
+      "bss_pairs": [
+        [
+          104,
+          176
+        ]
+      ]
+    }
+  }
+}

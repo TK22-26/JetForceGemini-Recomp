@@ -22,8 +22,8 @@ class DirectSpSourceTests(unittest.TestCase):
   with tempfile.TemporaryDirectory()as d:
    root=Path(d);(root/'baseline').mkdir();source=self.source()
    (root/'baseline/synthetic.c').write_text(source+'\n');output=root/'out.inc';output.write_text('retained')
-   with patch.object(sp,'SPECS',[('synthetic',hashlib.sha256(source.encode()).hexdigest(),0x80000000)]):
-    with self.assertRaisesRegex(ValueError,'Pinned SP'):sp.generate(root,output)
+   with patch.object(sp,'load',side_effect=ValueError('Native operation source digest differs')):
+    with self.assertRaisesRegex(ValueError,'digest differs'):sp.generate(root,output)
    self.assertEqual(output.read_text(),'retained')
  def test_unknown_function_rejected(self):
   with self.assertRaisesRegex(ValueError,'one pinned routine'):sp.rewrite(self.source(),'other')

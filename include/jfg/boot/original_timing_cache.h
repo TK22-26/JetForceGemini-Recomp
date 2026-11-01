@@ -46,17 +46,10 @@ static CacheLine ic[512],dc[512];
    writebacks, uncached accesses, cache operations, modeled CPU cycles, unknown ops */
 static uint64_t cache_stats[12];
 static uint8_t* cache_rdram;
+static const JfgOriginalTimingFast* cache_address_state;
 static JFG_TIMING_INLINE unsigned cache_address(unsigned a,unsigned data) {
- unsigned section,table,base,slot;
  (void)data;
- if(a>=0x10000000U || a<0x100000U)return a;
- section=a>>20;slot=(section<158U && section!=21U && section!=56U)?section:0U;
- if(!slot||!cache_rdram){++cache_stats[11];return a;}
- table=*(unsigned*)(cache_rdram+0xfeaa0U);
- if(table<0x80000000U||table>=0x80400000U-157U*32U){++cache_stats[11];return a;}
- base=*(unsigned*)(cache_rdram+(table&0x1fffffffU)+slot*32U);
- if(base<0x80000000U||base>=0x80400000U){++cache_stats[11];return a;}
- return base+(a&0xfffffU);
+ return jfg_clock_translate(cache_address_state,cache_rdram,a,cache_stats);
 }
 void jfg_full_cache_snapshot(uint64_t* p) { unsigned i;for(i=0;i<12;i++)p[i]=cache_stats[i]; }
 static JFG_TIMING_INLINE unsigned cache_fetch(unsigned pc) {

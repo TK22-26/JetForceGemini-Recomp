@@ -49,8 +49,18 @@ has been removed from current source and rebuilt with scoped replay checks. Olde
 still contain the superseded insertion.
 [Issue #45's record](development/issues/flight-transition-missing-music.md) retains that correction.
 PAL hardware and Japanese behavior are untested; [PAL/JP recomp support](development/issues/regional-rom-support.md)
-now has matching metadata for all 155 overlays in each region; native integration and gameplay
-qualification remain open. The current recomp accepts only its pinned US ROM.
+now passes shared generation and descriptor checks for all three revisions. Development launcher
+imports and save namespaces also pass scoped checks. Native integration and gameplay qualification
+remain open; PAL/JP Play admission is still closed. Released packages support their pinned US ROM.
+All three v16 candidates now compile, boot, create a new slot and reload into
+Goldwood in the original-OS profile. That verifies the corrected PAL exception
+entry and JP matrix body. Current v22 includes further shared renderer, module,
+member, math, sound and asset changes, and is undergoing a fresh enhanced build.
+Its gameplay, feature and release qualification remains open. The regional issue
+retains exact historical failures and the current feature acceptance matrix.
+[Named overlay owners](development/issues/regional-overlay-ownership.md) and
+shared navigation bindings are implemented, with module layouts and live
+regional features still awaiting qualification.
 
 The [native N64 catalog](original-game/README.md) distinguishes confirmed hardware bugs from emulator
 observations and regional differences. Tawfret's camera-helper square is hardware-confirmed and was
@@ -97,3 +107,15 @@ required source/tagged-release CI later passed.
 
 Support collection is local and best effort; nothing uploads automatically. Include version, control mode,
 location and reproduction steps using the [reporting guide](playtesting.md).
+
+FlashRAM has a shared-device candidate with passing sector, program-buffer,
+bitwise-write and command-deadline tests. Native integration and valid in-game
+save/reload checks for each region remain open; see the
+[FlashRAM record](development/issues/flashram-device-contract.md).
+
+### PAL presentation cadence (regional source candidate)
+
+The current shared history holds endpoints for PAL intervals that do not divide
+50 Hz (for example, three VIs). Exact fractional duration still needs to reach
+world/blur pairing and output scheduling. The 50/60 Hz clock correction does not
+complete that enhancement. See the [regional implementation record](development/issues/regional-rom-support.md#remaining-pal-interpolation-duration-contract).

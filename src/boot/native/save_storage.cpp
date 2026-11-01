@@ -1,6 +1,43 @@
 #include "runtime_services.hpp"
+#include "jfg/game/save_namespace.hpp"
+#include <cstdlib>
+#include <memory>
 namespace jfg::boot::native::detail {
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
+bool validate_persistent_profile_paths(bool play_mode) {
+  constexpr const auto& revision=jfg::roms::known_revision(jfg::game::linked::descriptor.revision);
+  // Both paths must pass before either device can create or open storage.
+  // Preserve legacy US/raw diagnostic inputs without assigning them a region.
+  const bool allow_unmarked=!play_mode || revision.id=="jfg-us-r0";
+  for(const auto* name:{"JFG_PHASE8_SAVE_PATH","JFG_PHASE8_CONTROLLER_PAK_PATH"}) {
+#if defined(_WIN32)
+    char* owned_value=nullptr;
+    std::size_t value_size=0;
+    if(_dupenv_s(&owned_value,&value_size,name)!=0) {
+      std::fputs("native boot setup failed: profile environment\n",stderr);
+      return false;
+    }
+    const std::unique_ptr<char,decltype(&std::free)> storage(owned_value,&std::free);
+    const char* value=storage.get();
+#else
+    const char* value=std::getenv(name);
+#endif
+    if(!value || !*value) continue;
+    if(std::string_view(value).size()>32767U) return false;
+    try {
+      const auto result=jfg::game::inspect_save_namespace(std::filesystem::path(value),revision,allow_unmarked);
+      if(!jfg::game::save_namespace_accepted(result)) {
+        std::fprintf(stderr,"native boot setup failed: %s: %s\n",name,jfg::game::save_namespace_message(result));
+        return false;
+      }
+    } catch(const std::exception&) {
+      std::fputs("native boot setup failed: profile identity inspection\n",stderr);
+      return false;
+    }
+  }
+  return true;
+}
+
 bool configure_flash_path(State &state, const char *path) {
   if (path == nullptr || *path == '\0')
     return true;

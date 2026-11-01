@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include "jfg/renderer/game_layout.hpp"
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
@@ -11,6 +12,7 @@ struct NativeBlurPass { std::uint32_t source, target; };
 // Input uses the renderer's host-word RDRAM layout. Unrecognized lists retain
 // the CPU texture path required by softened intensity shadow masks.
 inline std::optional<NativeBlurPass> native_blur_pass(
+        const RendererGameLayout& layout,
         std::span<const std::uint8_t> memory, std::uint32_t address) noexcept {
     constexpr std::size_t bytes = 623U * 8U;
     address &= 0x00ffffffU;
@@ -35,13 +37,13 @@ inline std::optional<NativeBlurPass> native_blur_pass(
         return std::nullopt;
     const std::array<std::array<std::uint32_t,2>,21> prefix{{
         {0xbc000006U,0x80000000U},{0xbc000406U,target},
-        {0xbc000806U,word(2,1)},{0x06000000U,0x800a3658U},
-        {0x06000000U,0x800a3698U},{0xb6000000U,0x10001U},
+        {0xbc000806U,word(2,1)},{0x06000000U,layout.sp_setup},
+        {0x06000000U,layout.dp_setup},{0xb6000000U,0x10001U},
         {0xff10013fU,target},{0xed000000U,0x5003c0U},
         {0xbc000002U,0U},{0xe7000000U,0U},{0xb6000000U,0x1000U},
         {0xf9000000U,word(11,1)&255U},{0xfa000000U,0xffffffffU},
         {0xfb000000U,0xffffff00U|(word(11,1)&255U)},
-        {0xed000000U,0x5003c0U},{0x03800010U,0xa2fb8U},
+        {0xed000000U,0x5003c0U},{0x03800010U,(layout.viewports&0x1FFFFFFFU)},
         {0xe7000000U,0U},{0xb6000000U,0x10001U},
         {0xb7000000U,0x204U},{0xfcffffffU,0xfffcf67dU},
         {0xef000ccfU,0x504240U}}};

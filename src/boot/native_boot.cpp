@@ -1,8 +1,45 @@
 #include "native/runtime_services.hpp"
 #include "native/process_supervisor.hpp"
+#if defined(JFG_NATIVE_BUILD_HEADER)
+#include JFG_NATIVE_BUILD_HEADER
+#endif
 extern "C" { JfgOriginalTimingFast* jfg_original_timing_state = nullptr; }
 namespace jfg::boot::native {
 using namespace detail;
+int describe() {
+  constexpr const auto& d = jfg::game::linked::descriptor;
+  const auto& b = jfg::game::linked::bindings;
+  if (jfg::game::validate(d) != jfg::game::DescriptorError::none ||
+      jfg::game::validate(d,b) != jfg::game::BindingError::none) return 2;
+  const auto& revision = jfg::roms::known_revision(d.revision);
+  std::printf("{\"schema_version\":2,\"kind\":\"jfg-native-program-identity\","
+      "\"revision_id\":\"%.*s\",\"rom_sha1\":\"%.*s\",\"rom_size\":%llu,"
+      "\"descriptor_abi\":%u,\"binding_abi\":%u,\"program_model_sha256\":\"%.*s\","
+      "\"generation_input_sha256\":\"%.*s\",\"initial_tv_mode\":%u,"
+      "\"qualification\":\"candidate\",\"build_identity\":\"%s\",\"build\":{",
+      static_cast<int>(d.revision.size()),d.revision.data(),
+      static_cast<int>(d.rom_sha1.size()),d.rom_sha1.data(),
+      static_cast<unsigned long long>(revision.size),d.abi,b.abi,
+      static_cast<int>(d.model_sha256.size()),d.model_sha256.data(),
+      static_cast<int>(d.input_sha256.size()),d.input_sha256.data(),
+      static_cast<unsigned>(d.initial_tv_mode),JFG_PHASE6_BUILD_IDENTITY);
+  using namespace jfg::game::build;
+  constexpr std::pair<std::string_view,std::string_view> fields[] = {
+    {"source_sha256",kSourceSha256},{"generated_sources_sha256",kGeneratedSourcesSha256},
+    {"descriptor_sha256",kDescriptorSha256},{"bindings_sha256",kBindingsSha256},
+    {"generator_sha256",kGeneratorSha256},{"audio_sha256",kAudioSha256},
+    {"dependencies_sha256",kDependenciesSha256},{"configuration_sha256",kConfigurationSha256},
+    {"build_sha256",kBuildSha256}};
+  bool separator = false;
+  for (const auto& [name,value] : fields) {
+    std::printf("%s\"%.*s\":\"%.*s\"", separator ? "," : "",
+        static_cast<int>(name.size()), name.data(), static_cast<int>(value.size()), value.data());
+    separator = true;
+  }
+  std::fputs("}}\n",stdout);
+
+  return 0;
+}
 struct DispatchBinding {
   State &state;
   bool bound = false;
@@ -27,6 +64,9 @@ int run_child(const char *path, const unsigned retrace_target,
   std::vector<std::uint8_t> rom;
   if (!read_supported_rom(path, rom))
     return 2;
+#if defined(JFG_PHASE8_LIVE_RUNTIME)
+  if (!validate_persistent_profile_paths(play_mode)) return 3;
+#endif
   if constexpr (std::endian::native != std::endian::little) {
     std::fputs("native boot setup failed: unsupported host endianness\n",
                stderr);
@@ -44,7 +84,7 @@ int run_child(const char *path, const unsigned retrace_target,
     return 3;
   }
   const auto handoff = interpret_reset_handoff(
-      bytes, 0x80000400U, kRdramSize / sizeof(std::uint32_t) + 4096U);
+      bytes, initial_entrypoint(), kRdramSize / sizeof(std::uint32_t) + 4096U);
   if (!handoff.ok()) {
     const char *reason =
         handoff.error == ResetHandoffError::unsupported_instruction
@@ -965,7 +1005,7 @@ int run_child(const char *path, const unsigned retrace_target,
   state.rdram = rdram.data();
   state.rom = rom.data();
   state.rom_size = rom.size();
-  if (state.navigation_mod.observing() && !state.navigation_mod.npc_rewards.load_rom(rom))
+  if (state.navigation_mod.observing() && !state.navigation_mod.npc_rewards.load_rom(rom,kRomAssetDirectory,jfg::game::linked::descriptor.revision))
     std::fputs("navigation mod: NPC reward catalog unavailable; rewards remain unknown\n", stderr);
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
   char *poll_path = nullptr;
@@ -1178,6 +1218,7 @@ int run_child(const char *path, const unsigned retrace_target,
 #endif
   jfg::support_event("native=renderer-ready");
   state.mmio_trace = &backing.mmio_trace();
+  if (!state.mmio_trace->ai_dma.configure_clocks(hardware_clocks())) return 3;
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   state.mmio_trace->trace_audio_payloads = state.host_audio.capturing_pcm();
 #endif
@@ -1209,10 +1250,11 @@ int run_child(const char *path, const unsigned retrace_target,
               state.mmio_trace->device_rom)) return 3;
     }
 
-    state.mmio_trace->flash_bus.bind(state.flashram);
+    if (!state.mmio_trace->flash_bus.bind(state.flashram,jfg::boot::FlashModel::mx29l1100,hardware_clocks().count_hz,state.cpu_count)) return 3;
     state.mmio_trace->guest_count = state.cpu_count;
     state.mmio_trace->mi_pending = 8U;
-    state.mmio_trace->vi_next = 5000U + ((state.cpu_count - 5000U) / 500000U + 1U) * 500000U;
+    if (!state.mmio_trace->vi_clock.initialize(hardware_clocks(),state.cpu_count,true)) return 3;
+    state.mmio_trace->vi_next = UINT64_MAX;
     char* guest_trace_path = nullptr;
     std::size_t guest_trace_path_size = 0U;
     if (_dupenv_s(&guest_trace_path, &guest_trace_path_size, "JFG_PHASE9_GUEST_OS_CLOCK_TRACE") != 0)
@@ -1262,7 +1304,7 @@ int run_child(const char *path, const unsigned retrace_target,
         // OS global policy. Restricted global policies need their own saved
         // versus effective-mask qualification; do not silently approximate.
         std::uint32_t global = 0U;
-        if (!state.scheduler->memory().read_u32(0x800a9a6cU, global) ||
+        if (!state.scheduler->memory().read_u32(game_data("os.globalInterruptMask"), global) ||
             global != 0x003fff01U)
           fail_closed_dispatch(state, "guest-leaf", "thread-mask-global-policy", global);
         if (entering) {
@@ -1700,7 +1742,7 @@ bool reset_transfer_target(const std::vector<std::uint8_t> &rom,
   if (!load_static_sections(rom, bytes))
     return false;
   const auto handoff = interpret_reset_handoff(
-      bytes, 0x80000400U, kRdramSize / sizeof(std::uint32_t) + 4096U);
+      bytes, initial_entrypoint(), kRdramSize / sizeof(std::uint32_t) + 4096U);
   if (!handoff.ok())
     return false;
   target = handoff.transfer_target;

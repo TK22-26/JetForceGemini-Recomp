@@ -1,3 +1,4 @@
+#include "regional_game_fixture.hpp"
 #include "jfg/runtime/pc_camera_visibility.hpp"
 #include "jfg/runtime/pc_input.hpp"
 #include <cstdlib>
@@ -449,7 +450,7 @@ int main() {
   check(!jfg::pc_camera_sphere_triangle_possible({1000,0,0},16,
       {0,0,0},{0,0,0},{0,0,0}),
     "a distant degenerate face cannot invalidate otherwise complete volume clearance");
-  const jfg::mod::Memory unknown_camera_ram({});
+  const jfg::test::GameMemory unknown_camera_ram({});
   const jfg::PcCameraBroadphase unknown_camera_scene(unknown_camera_ram);
   check(unknown_camera_scene.volume_possible({0,100,0},16),
     "unknown scenery or collision registry cannot certify camera clearance");

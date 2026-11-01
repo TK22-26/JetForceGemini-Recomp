@@ -815,6 +815,70 @@
         "contains repeated opaque payload chunks"
       ],
       "reason": "IEEE floating-point boundary constants in a synthetic arithmetic fixture"
+    },
+    {
+      "git_blob": "40ab70e5d9859720838032d9d93c974613051728",
+      "sha256": "d70718717c4fdc41c84c4dd005fe2927cf5b82a669ffe8a5e1ac4f397cd1d448",
+      "bytes": 28070,
+      "path": "scripts/build/regional/bindings.py",
+      "exceptions": [
+        "contains a spaced hexadecimal payload"
+      ],
+      "reason": "Reviewed 2026-11-01: decimal MIPS primary opcode values in address_operand register/opcode validation. The sole match is the 13-value allowlist, not ROM bytes. Other checks remain active and changed bodies require new review."
+    },
+    {
+      "path": "scripts/build/regional/bindings.py",
+      "sha256": "fec5b9d6513124c8125ddecf5d3b57cba29a14be059dea995c9bac70ca7e97c2",
+      "bytes": 33640,
+      "exceptions": [
+        "contains a spaced hexadecimal payload"
+      ],
+      "reason": "Reviewed regional migration: public MIPS opcode classifications and handwritten synthetic grammar fixtures; no original/generated game body or private payload."
+    },
+    {
+      "path": "scripts/diagnostics/native_timing_spans.py",
+      "sha256": "ab94e30837a34c5647c1bf715358693f5303e4313e57661122b14f99876586ee",
+      "bytes": 9640,
+      "exceptions": [
+        "contains a spaced hexadecimal payload"
+      ],
+      "reason": "Reviewed regional migration: public MIPS opcode classifications and handwritten synthetic grammar fixtures; no original/generated game body or private payload."
+    },
+    {
+      "path": "tests/build/test_direct_sp_access.py",
+      "sha256": "92d426866412b9bb155151c0926122805630a4e77435df506545b58f6844ba69",
+      "bytes": 1709,
+      "exceptions": [
+        "contains a generated-recompilation marker"
+      ],
+      "reason": "Reviewed regional migration: public MIPS opcode classifications and handwritten synthetic grammar fixtures; no original/generated game body or private payload."
+    },
+    {
+      "path": "tests/build/test_native_cache_all.py",
+      "sha256": "00342f972f53230272742d9026b4f90f9670fab89e27ccc65b4036ff8b67c2e0",
+      "bytes": 1865,
+      "exceptions": [
+        "contains a generated-recompilation marker"
+      ],
+      "reason": "Reviewed regional migration: public MIPS opcode classifications and handwritten synthetic grammar fixtures; no original/generated game body or private payload."
+    },
+    {
+      "path": "tests/renderer/test_native_shadow_filter.py",
+      "sha256": "80acb57922bb7aeb51ad1be0eefebaeb0d6c7dd9120b7ff29b8ee6d2ef8a1bb7",
+      "bytes": 1831,
+      "exceptions": [
+        "contains a generated-recompilation marker"
+      ],
+      "reason": "Reviewed regional migration: public MIPS opcode classifications and handwritten synthetic grammar fixtures; no original/generated game body or private payload."
+    },
+    {
+      "path": "tests/runtime/test_native_collision.py",
+      "sha256": "9028440d9da0cf62614f968752a12b0cf32507d2bea1cbe30dad1ddd436a960e",
+      "bytes": 2348,
+      "exceptions": [
+        "contains a generated-recompilation marker"
+      ],
+      "reason": "Reviewed regional migration: public MIPS opcode classifications and handwritten synthetic grammar fixtures; no original/generated game body or private payload."
     }
   ]
 }

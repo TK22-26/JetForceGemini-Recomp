@@ -96,6 +96,7 @@ struct PresentationHistoryFrame {
     std::vector<PresentationTransform> transforms;
     std::uint64_t tick = 0;
     unsigned source_rate = 0;
+    unsigned vi_rate = 60; // Explicitly overwritten by the session history.
     bool scene = false;
     bool defer_to_blur = false;
     std::uint32_t blur_source = 0, blur_target = 0;
@@ -202,15 +203,21 @@ class PresentationHistory {
         }
     };
 public:
+    void set_vi_rate(unsigned rate) {
+        if(rate!=50U && rate!=60U)throw std::invalid_argument("Unsupported presentation VI clock");
+        if(rate!=vi_rate_) { *this=PresentationHistory{};vi_rate_=rate; }
+    }
+    unsigned vi_rate() const noexcept {return vi_rate_;}
     bool has_continuous_cadence(std::uint64_t tick, bool scene) const {
         const auto delta = tick > previous_tick_ ? tick - previous_tick_ : 0U;
-        return scene && previous_tick_ != 0U && delta >= 1U && delta <= 6U && 60U % delta == 0U;
+        return scene && previous_tick_ != 0U && delta >= 1U && delta <= 6U && vi_rate_ % delta == 0U;
     }
     PresentationHistoryFrame record(const std::vector<PresentationMesh>& meshes,
                                     std::uint64_t tick, bool scene, bool diagnostic = false) {
         PresentationHistoryFrame result;
         result.scene = scene;
         result.tick = tick;
+        result.vi_rate = vi_rate_;
         result.transforms.resize(meshes.size());
         if (diagnostic) {
             result.debug_reasons.resize(meshes.size());
@@ -223,7 +230,7 @@ public:
         // Shape/lifetime, pose, finite-coordinate and motion checks below
         // still reject discontinuities. Long gaps and repeated ticks hold.
         if (has_continuous_cadence(tick, scene))
-            result.source_rate = static_cast<unsigned>(60U / delta);
+            result.source_rate = static_cast<unsigned>(vi_rate_ / delta);
         next_.clear(meshes.size());
         std::vector<std::size_t> indices(meshes.size(),Shapes::empty);
         for(std::size_t i=0;i<meshes.size();++i) {
@@ -365,5 +372,6 @@ private:
     Shapes previous_,next_;
     std::map<std::array<std::uint64_t,2>,HistoryEndpoint> previous_cameras_;
     std::uint64_t previous_tick_ = 0;
+    unsigned vi_rate_ = 60U; // Generic fixtures; native composition always supplies its rate.
 };
 } // namespace jfg

@@ -175,7 +175,8 @@ def rewrite_source(text: str) -> tuple[str, dict[str, int]]:
 
 def rewrite_tree(root: Path) -> dict[str,int]:
     totals={'files':0,'spans':0,'instructions':0,'memory_guards':0}
-    for path in sorted((root/'baseline').glob('*_recomp.c')):
+    paths=list((root/'baseline').glob('*_recomp.c'))+list((root/'support').glob('fn_*.c'))
+    for path in sorted(paths):
         before=path.read_text();after,counts=rewrite_source(before)
         if after!=before:
             path.write_text(after);totals['files']+=1

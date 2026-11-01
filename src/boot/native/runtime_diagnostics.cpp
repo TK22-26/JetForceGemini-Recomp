@@ -1,3 +1,4 @@
+#include "jfg/boot/original_os_probe.hpp"
 #include "runtime_services.hpp"
 namespace jfg::boot::native::detail {
 void hash_u32(jfg::testkernel::Sha256 &hasher, const std::uint32_t value) {
@@ -139,8 +140,8 @@ void private_abort_capture(int signal_number) {
 }
 
 constexpr std::array<std::uint32_t,10> kPrivatePageWatchWords{
-    0xf5b0cU,0xaef50U,0xaef54U,0xaef58U,0xaef5cU,
-    0xaef60U,0xaef64U,0xaef68U,0xaef6cU,0xaef70U};
+    (game_data("diagnostic.currentModel")&0x1FFFFFFFU),((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+0U),((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+4U),((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+8U),((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+12U),
+    ((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+16U),((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+20U),((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+24U),((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+28U),((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+32U)};
 struct PrivatePageWriteStep {
   void* page = nullptr;
   std::uintptr_t instruction = 0U;
@@ -149,7 +150,7 @@ struct PrivatePageWriteStep {
 thread_local PrivatePageWriteStep private_page_write_step{};
 bool arm_private_memory_pages(State& state) {
   const auto base=reinterpret_cast<std::uintptr_t>(state.rdram);
-  constexpr std::array<std::uintptr_t,4> offsets{0xae000U,0xf5000U,0x200ae000U,0x200f5000U};
+  constexpr std::array<std::uintptr_t,4> offsets{(game_data("diagnostic.modelScratch")&0x1FFFF000U),(game_data("diagnostic.currentModel")&0x1FFFF000U),((game_data("diagnostic.modelScratch")&0x1FFFF000U)+0x20000000U),((game_data("diagnostic.currentModel")&0x1FFFF000U)+0x20000000U)};
   for (const auto offset:offsets) {
     MEMORY_BASIC_INFORMATION info{};
     if (VirtualQuery(reinterpret_cast<void*>(base+offset),&info,sizeof(info))==0U ||
@@ -218,7 +219,7 @@ LONG CALLBACK private_page_write_observer(EXCEPTION_POINTERS* exception) {
         (mapped_offset>=0x20000000U && mapped_offset<0x20000000U+kRdramSize)))
     return EXCEPTION_CONTINUE_SEARCH;
   const auto physical_page=(mapped_offset&0x1fffffffU)&~std::uintptr_t{4095U};
-  if (physical_page!=0xae000U && physical_page!=0xf5000U)
+  if (physical_page!=(game_data("diagnostic.modelScratch")&0x1FFFF000U) && physical_page!=(game_data("diagnostic.currentModel")&0x1FFFF000U))
     return EXCEPTION_CONTINUE_SEARCH;
   if (pending.page!=nullptr || (host.EFlags&0x100U)!=0U)
     fail_closed_dispatch(*state,"private-memory-watch","page-step-overlap",state->guest_last_pc);
@@ -234,11 +235,11 @@ LONG CALLBACK private_page_write_observer(EXCEPTION_POINTERS* exception) {
 }
 
 thread_local volatile bool private_model_watch_armed = false;
-constexpr std::array<std::uint32_t,4> kPrivateMemoryWatchOffsets{0xf5b0cU,0xaef50U,0xaef5cU,0xaef70U};
+constexpr std::array<std::uint32_t,4> kPrivateMemoryWatchOffsets{(game_data("diagnostic.currentModel")&0x1FFFFFFFU),((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+0U),((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+12U),((game_data("diagnostic.modelScratch")&0x1FFFFFFFU)+32U)};
 thread_local std::array<std::uint32_t,4> private_model_watch_previous{};
 bool arm_private_model_write_watch(State& state) {
   const DWORD requesting_thread=GetCurrentThreadId();
-  const auto watched_address=reinterpret_cast<DWORD64>(state.rdram+0xf5b0cU);
+  const auto watched_address=reinterpret_cast<DWORD64>(state.rdram+(game_data("diagnostic.currentModel")&0x1FFFFFFFU));
   bool configured=false;
   DWORD watch_error=0U;
   DWORD64 original_dr0=0U,original_dr7=0U;
@@ -358,7 +359,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
       hle::GuestMemory memory({state->rdram, kRdramSize},
                              hle::GuestMemory::Layout::native_word_big_endian);
       std::uint32_t running_thread = 0U;
-      const bool thread_read = memory.read_u32(0x800a9e90U, running_thread);
+      const bool thread_read = memory.read_u32(game_data("os.current_thread"), running_thread);
       const auto* record = exception != nullptr ? exception->ExceptionRecord : nullptr;
       const auto access_kind = record != nullptr && record->NumberParameters >= 2U
                                    ? record->ExceptionInformation[0] : 0U;
@@ -519,8 +520,10 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
   if (state.mmio_trace == nullptr)
     fail_closed_dispatch(state, "probe", "missing-mmio-trace", 0U);
   if (state.guest_os_probe) {
-    if (state.poll_target != 0 || state.vi_retraces != state.retrace_target ||
-        state.mmio_trace->unsupported_accesses != 0 || state.mmio_trace->device_error)
+    const bool target_reached = state.poll_target != 0U
+        ? state.controller_samples == state.poll_target
+        : state.vi_retraces == state.retrace_target;
+    if (!target_reached || state.mmio_trace->unsupported_accesses != 0 || state.mmio_trace->device_error)
       fail_closed_dispatch(state, "guest-probe", "invalid-target", 0U);
     // Explicitly separate this diagnostic from legacy HLE scheduler evidence.
     // In particular, do not invent HLE thread snapshots for original OS threads.
@@ -539,19 +542,12 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
     state.poll_hash_trace.flush(); state.guest_clock_trace.flush();
     state.timing_trace.flush();
     state.gameplay_trace.flush();
-    std::fprintf(stdout,
-        "{\"kind\":\"jfg-phase9-original-os-probe\",\"acceptance\":false,"
-        "\"status\":\"retrace-target\",\"retrace_target\":%u,\"vi_retraces\":%llu,"
-        "\"controller_samples\":%llu,\"completed_updates\":%llu,\"cpu_count\":%llu,"
-        "\"instructions\":%llu,\"graphics_tasks\":%llu,\"decoded_audio_tasks\":%llu,"
-        "\"unsupported_accesses\":0,\"runtime_snapshot_complete\":false,\"state_hash\":\"%s\"}\n",
-        state.retrace_target, static_cast<unsigned long long>(state.vi_retraces),
-        static_cast<unsigned long long>(state.controller_samples),
-        static_cast<unsigned long long>(state.completed_game_updates),
-        static_cast<unsigned long long>(state.cpu_count),
-        static_cast<unsigned long long>(state.observed_guest_instructions),
-        static_cast<unsigned long long>(state.graphics_tasks),
-        static_cast<unsigned long long>(state.decoded_audio_tasks), state_hash(state).c_str());
+    const jfg::boot::OriginalOsProbe observation{state.retrace_target,state.poll_target,
+        state.vi_retraces,state.controller_samples,state.completed_game_updates,state.cpu_count,
+        state.observed_guest_instructions,state.graphics_tasks,state.decoded_audio_tasks,state_hash(state)};
+    const auto record=jfg::boot::original_os_probe_json(observation);
+    if(record.empty())fail_closed_dispatch(state,"guest-probe","invalid-observation",0U);
+    std::fputs(record.c_str(),stdout);
     std::fflush(stdout); jfg::frame_diagnostic_state().finish(); jfg::finish_interpolation_trace(); jfg::finish_blur_source_audit(); state.host_audio.finish_capture(); state.timing_trace.finish(); state.guest_clock_trace.finish(); state.input_record.finish(); state.gameplay_trace.finish(); state.snapshot_writer.finish(); state.movement_trace.finish(); state.jump_trace.finish(); stop_pc_rumble(state); std::_Exit(0);
   }
   const auto &event_counts = state.journal.observed_counts;
@@ -638,7 +634,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
 #endif
   const std::string state_digest = state_hash(state);
   const std::string journal_digest = journal_hash(state);
-  const unsigned front_mode = state.rdram[0x000A51B0U ^ 3U];
+  const unsigned front_mode = state.rdram[(game_data("globals.frontendMode")&0x1FFFFFFFU) ^ 3U];
   hle::GuestMemory probe_memory(
       {state.rdram, kRdramSize},
       hle::GuestMemory::Layout::native_word_big_endian);
@@ -684,8 +680,8 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
   std::uint32_t king_bear_actor = 0U;
   std::uint32_t object_list = 0U;
   std::uint32_t object_count = 0U;
-  if (probe_memory.read_u32(0x800F2CA4U, object_list) &&
-      probe_memory.read_u32(0x800F2CA8U, object_count) &&
+  if (probe_memory.read_u32(game_data("globals.objectList"), object_list) &&
+      probe_memory.read_u32(game_data("globals.objectCount"), object_count) &&
       object_list != 0U && object_count <= 1024U) {
     for (std::uint32_t index = 0U; index < object_count; ++index) {
       std::uint32_t actor = 0U;
@@ -694,7 +690,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
       std::uint32_t name_word_1 = 0U;
       if (!probe_memory.read_u32(object_list + index * 4U, actor) ||
           actor == 0U ||
-          !probe_memory.read_u32(actor + 0x40U, header) || header == 0U ||
+          !probe_memory.read_u32(actor + game_member("layout.actor.header"), header) || header == 0U ||
           !probe_memory.read_u32(header + 4U, name_word_0) ||
           !probe_memory.read_u32(header + 8U, name_word_1))
         continue;
@@ -736,8 +732,8 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
   }
   std::uint32_t king_bear_callback_section = UINT32_MAX;
   std::uint32_t king_bear_callback_offset = 0U;
-  if (state.phase9_king_bear_callback == 0x020002E8U) {
-    king_bear_callback_section = 32U;
+  if (state.phase9_king_bear_callback == game_overlay_token("overlay.mrhints.control")) {
+    king_bear_callback_section = game_module(OriginalModule::mr_hints);
     king_bear_callback_offset = 0x2E8U;
   } else if (state.phase9_king_bear_callback != 0U) {
     RunlinkAddressResolution resolution{};
@@ -769,7 +765,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
       0x2C30U, 0x2C34U, 0x2C3CU, 0x2C40U};
   const std::uint32_t hinttext_section_base =
       section_addresses != nullptr
-          ? static_cast<std::uint32_t>(section_addresses[7U])
+          ? static_cast<std::uint32_t>(section_addresses[game_module(OriginalModule::hint_text)])
           : 0U;
   std::array<std::uint32_t, kHintTextStateOffsets.size()>
       hinttext_state_words{};
@@ -800,7 +796,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
   std::uint64_t weapon_stat_hits = 0U;
   std::uint64_t weapon_stat_kills = 0U;
   std::uint32_t player_data = 0U;
-  if (probe_memory.read_u32(0x800FD7D4U, player_data) && player_data != 0U) {
+  if (probe_memory.read_u32(game_data("globals.selectedPlayer"), player_data) && player_data != 0U) {
     for (std::uint32_t weapon = 0U; weapon < 16U; ++weapon) {
       std::uint32_t shots = 0U;
       std::uint32_t hits = 0U;
@@ -831,8 +827,8 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
   if (emit_actor_trace) {
     std::uint32_t actor_list = 0U;
     std::uint32_t actor_count = 0U;
-    if (probe_memory.read_u32(0x800F2CA4U, actor_list) &&
-        probe_memory.read_u32(0x800F2CA8U, actor_count) &&
+    if (probe_memory.read_u32(game_data("globals.objectList"), actor_list) &&
+        probe_memory.read_u32(game_data("globals.objectCount"), actor_count) &&
         actor_count <= 256U) {
       std::fprintf(stdout, "{\"kind\":\"jfg-phase9-actor-trace\","
                            "\"actors\":[");
@@ -846,12 +842,12 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
         std::uint32_t y = 0U;
         std::uint32_t z = 0U;
         if (!probe_memory.read_u32(actor_list + index * 4U, actor) ||
-            actor == 0U || !probe_memory.read_u32(actor + 0x40U, header) ||
+            actor == 0U || !probe_memory.read_u32(actor + game_member("layout.actor.header"), header) ||
             header == 0U || !probe_memory.read_u32(header + 4U, name0) ||
             !probe_memory.read_u32(header + 8U, name1) ||
-            !probe_memory.read_u32(actor + 0x0CU, x) ||
-            !probe_memory.read_u32(actor + 0x10U, y) ||
-            !probe_memory.read_u32(actor + 0x14U, z))
+            !probe_memory.read_u32(actor + game_member("layout.actor.x"), x) ||
+            !probe_memory.read_u32(actor + game_member("layout.actor.y"), y) ||
+            !probe_memory.read_u32(actor + game_member("layout.actor.z"), z))
           continue;
         if (!first_actor)
           std::fputc(',', stdout);
@@ -1147,7 +1143,7 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
                        << state.audio_device_overruns << '\t'
                        << state.timing_game_updates << '\t'
                        << state.controller_samples << '\n';
-  const unsigned front_mode = state.rdram[0x000A51B0U ^ 3U];
+  const unsigned front_mode = state.rdram[(game_data("globals.frontendMode")&0x1FFFFFFFU) ^ 3U];
   std::fprintf(
       stdout,
       "{\"kind\":\"jfg-phase8-play\",\"status\":\"window-closed\","
@@ -1220,6 +1216,9 @@ LONG WINAPI child_exception_filter(EXCEPTION_POINTERS *exception) {
 [[noreturn]] void retrace_gate(State &state) {
   if (state.poll_target != 0U)
     fail_closed_dispatch(state, "probe", "poll-not-reached", 0U);
+#if defined(JFG_PHASE8_LIVE_RUNTIME)
+  if (state.guest_os_probe)probe_target_gate(state);
+#endif
   if (state.retrace_target == 3U)
     stable_vi_gate(state);
 #if defined(JFG_PHASE8_LIVE_RUNTIME)

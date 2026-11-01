@@ -1,0 +1,443 @@
+{
+  "schema_version": 2,
+  "kind": "jfg-qualified-elf-metadata-recipes",
+  "qualification": "Exact original-ROM metadata corrections; body/control-flow evidence retained privately; no loaded byte modification.",
+  "revisions": {
+    "jfg-us-r0": {
+      "recover_groups": [
+        {
+          "name": "task",
+          "following_symbol": "osSpTaskLoad",
+          "following_size": 352,
+          "following_sha256": "8631137d164f61ffdc5b0466d85c7fd5d97a25218f5cbba19b080a500e88d795",
+          "span_size": 284,
+          "span_sha256": "dd561a054be4abea13835453e48a8376c5a4a46a8daf3874520f21783eaa09d8",
+          "bodies": [
+            {
+              "name": "_VirtualToPhysicalTask",
+              "offset": 0,
+              "size": 284,
+              "body_sha256": "dd561a054be4abea13835453e48a8376c5a4a46a8daf3874520f21783eaa09d8"
+            }
+          ]
+        },
+        {
+          "name": "pi-init",
+          "following_symbol": "osSetThreadPri",
+          "following_size": 224,
+          "following_sha256": "eb34345bd5b4e0c6ae1161b69be86b48f9702fec4c75ae23961ecfdcc867f89a",
+          "span_size": 120,
+          "span_sha256": "5bfb5124b6d18e6da85b9d38152fe21ff59124968ce141cbb514721351bd6bfa",
+          "bodies": [
+            {
+              "name": "_ObservedPiHandleInitialize",
+              "offset": 0,
+              "size": 120,
+              "body_sha256": "5bfb5124b6d18e6da85b9d38152fe21ff59124968ce141cbb514721351bd6bfa"
+            }
+          ]
+        },
+        {
+          "name": "vi-main",
+          "following_symbol": "osViSetMode",
+          "following_size": 104,
+          "following_sha256": "4013068b80ea6a4ee3c41b55285e0f8f13cf974fc3435346b9d5ff1924a12555",
+          "span_size": 408,
+          "span_sha256": "1cc03bad84af80b7a72c7782ac4e93381f96d1d11681984909648a3062bd568f",
+          "bodies": [
+            {
+              "name": "_ObservedViManagerMain",
+              "offset": 0,
+              "size": 408,
+              "body_sha256": "1cc03bad84af80b7a72c7782ac4e93381f96d1d11681984909648a3062bd568f"
+            }
+          ]
+        },
+        {
+          "name": "cont-read-pack",
+          "following_symbol": "osSetTime",
+          "following_size": 36,
+          "following_sha256": "213c0c7dd788a32d4d10ba6f08628023b1024256221f42faaf0c6caf1ec32efa",
+          "span_size": 244,
+          "span_sha256": "9c078c90bc9b3b44a82478d812f02a1ffd481ccaebd9c05f585913ec7ebfb9f3",
+          "bodies": [
+            {
+              "name": "_ObservedControllerReadPack",
+              "offset": 0,
+              "size": 244,
+              "body_sha256": "9c078c90bc9b3b44a82478d812f02a1ffd481ccaebd9c05f585913ec7ebfb9f3"
+            }
+          ]
+        },
+        {
+          "name": "printf-field",
+          "following_symbol": "_Printf",
+          "following_size": 1604,
+          "following_sha256": "9452bbf4c098b6f200a26b3c074749f96b5f8110893c86f7584b3576e2b44340",
+          "span_size": 1648,
+          "span_sha256": "345ec57026773ced526589ec8fc2379375e2bd7a6c7315e24528335da4012eac",
+          "bodies": [
+            {
+              "name": "_ObservedPrintfField",
+              "offset": 0,
+              "size": 1648,
+              "body_sha256": "345ec57026773ced526589ec8fc2379375e2bd7a6c7315e24528335da4012eac"
+            }
+          ]
+        },
+        {
+          "name": "printf-float",
+          "following_symbol": "_Ldtob",
+          "following_size": 1356,
+          "following_sha256": "974be67f8cd9a13ca6c6bebfa878989dedcf0f075b7a93f5b1df8e317ed4080f",
+          "span_size": 1392,
+          "span_sha256": "f46c3799a2536e3fb29151c2db7a1134705df4c890492118c365cba910ff0060",
+          "bodies": [
+            {
+              "name": "_ObservedPrintfFloat",
+              "offset": 0,
+              "size": 1392,
+              "body_sha256": "f46c3799a2536e3fb29151c2db7a1134705df4c890492118c365cba910ff0060"
+            }
+          ]
+        },
+        {
+          "name": "resident-debug-decode",
+          "following_symbol": "diCpuTraceInit",
+          "following_size": 84,
+          "following_sha256": "234d1b929079a39e1f6a3f5a6d6d75a27a2f48a64bf5aa0d2eec7198991c7d7b",
+          "span_size": 1516,
+          "span_sha256": "60791d4f86a618b4119466bb984ee8e3de91169ac18e658ff092fd867cd4f319",
+          "bodies": [
+            {
+              "name": "_JfgRecovered_resident_debug_decode_0",
+              "offset": 0,
+              "size": 68,
+              "body_sha256": "c655e428131c1fdc28beb35625913c945c99b5398a2bd62413ed6317afc3cd40"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_1",
+              "offset": 68,
+              "size": 72,
+              "body_sha256": "ab6ae8aafa4d677cde409697bf8e305ab5b2de9f6a6c070dbec0473f01909fdd"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_2",
+              "offset": 140,
+              "size": 48,
+              "body_sha256": "7d309bdde623b9cfef89f00b146daa0253558f9a07c5dbc0adc6d1fed85099c1"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_3",
+              "offset": 188,
+              "size": 48,
+              "body_sha256": "7d309bdde623b9cfef89f00b146daa0253558f9a07c5dbc0adc6d1fed85099c1"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_4",
+              "offset": 236,
+              "size": 48,
+              "body_sha256": "9eb1f8bd2bed85db7eb2e40bb37616703999580974da46caaaf6af33d8a97e30"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_5",
+              "offset": 284,
+              "size": 16,
+              "body_sha256": "5ce0d50bbe15d790a08d2527236151d03518d042eb1455fb80c99c27b2234cf7"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_6",
+              "offset": 300,
+              "size": 48,
+              "body_sha256": "df3b0b9f49a7184bd4027efa979781d306415bfc019b404d3c463396622df1c9"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_7",
+              "offset": 348,
+              "size": 48,
+              "body_sha256": "df3b0b9f49a7184bd4027efa979781d306415bfc019b404d3c463396622df1c9"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_8",
+              "offset": 396,
+              "size": 48,
+              "body_sha256": "df3b0b9f49a7184bd4027efa979781d306415bfc019b404d3c463396622df1c9"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_9",
+              "offset": 444,
+              "size": 20,
+              "body_sha256": "cfe24e288f15201a914bd6d81367d410ec5706fb1a17b7acd3e670fc854ccc99"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_10",
+              "offset": 464,
+              "size": 12,
+              "body_sha256": "9dcde4d856da94ae55237729a7e94acac66d6ed8dd946f6ba90384e9fb5d3251"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_11",
+              "offset": 476,
+              "size": 20,
+              "body_sha256": "cfe24e288f15201a914bd6d81367d410ec5706fb1a17b7acd3e670fc854ccc99"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_12",
+              "offset": 496,
+              "size": 12,
+              "body_sha256": "26c86cbd9ae54c4abb9981c623a794fd5ccbd831df051e3f1aebd109e0912620"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_13",
+              "offset": 508,
+              "size": 160,
+              "body_sha256": "96bb6e5b49cf47e5a3a4ffaa197356b874c7401f25f895c7369c3fbb8ccff448"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_14",
+              "offset": 668,
+              "size": 48,
+              "body_sha256": "77be6af259757d57ffb6aae49b0eb6c139282a293932a842020d89c5a5a4ffb9"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_15",
+              "offset": 716,
+              "size": 520,
+              "body_sha256": "aaf55549f241a3dfd0520d44c7110ef01da5d8c146479aa50a1b4b0a90a04669"
+            },
+            {
+              "name": "_JfgRecovered_resident_debug_decode_16",
+              "offset": 1236,
+              "size": 268,
+              "body_sha256": "37e7be848edf9a6963b1fe6925468956e878bffb75014ff179237a80fcd0ceeb"
+            }
+          ]
+        },
+        {
+          "name": "os_make_motor_data",
+          "following_symbol": "osMotorInit",
+          "following_size": 352,
+          "following_sha256": "2cc8441c7c53a7ed4b85a27bbc1887bac0ba4a036cd3c96734b735effea0a22b",
+          "span_size": 264,
+          "span_sha256": "677483d81cd694c2c56f3ebc3686fd1dffa86b9e8499b957351478a2c7c25821",
+          "bodies": [
+            {
+              "name": "_JfgRecovered_os_make_motor_data",
+              "offset": 0,
+              "size": 264,
+              "body_sha256": "677483d81cd694c2c56f3ebc3686fd1dffa86b9e8499b957351478a2c7c25821"
+            }
+          ]
+        },
+        {
+          "name": "os_pfs_get_next_page",
+          "following_symbol": "osPfsReadWriteFile",
+          "following_size": 892,
+          "following_sha256": "5ea2ec6b0c7686f36d3c2b759b03f63810d1b1afa45282074b13701bbd415c40",
+          "span_size": 216,
+          "span_sha256": "fb5eef546bbb2c574180e26703993d07210c120f2528d3d538407aecdf2c2a63",
+          "bodies": [
+            {
+              "name": "_JfgRecovered_os_pfs_get_next_page",
+              "offset": 0,
+              "size": 216,
+              "body_sha256": "fb5eef546bbb2c574180e26703993d07210c120f2528d3d538407aecdf2c2a63"
+            }
+          ]
+        },
+        {
+          "name": "os_sync_print_output",
+          "following_symbol": "osSyncPrintf",
+          "following_size": 64,
+          "following_sha256": "8fd2c9101c6cdafe76bea94a65acba3783cd6d4a1ffbee643e7b7faad2b92b20",
+          "span_size": 20,
+          "span_sha256": "712a515b4c0aa0833bef50b1388947687ec800c182be355b674c68ac47073ce9",
+          "bodies": [
+            {
+              "name": "_JfgRecovered_os_sync_print_output",
+              "offset": 0,
+              "size": 20,
+              "body_sha256": "712a515b4c0aa0833bef50b1388947687ec800c182be355b674c68ac47073ce9"
+            }
+          ]
+        }
+      ],
+      "non_cpu_payloads": [
+        {
+          "size": 6208,
+          "sha256": "b1da840baa8b9e73c705b17354e24f672974e1c87d45a3f7a99da9ab879be9ba"
+        },
+        {
+          "size": 384,
+          "sha256": "99fb08f1dd08774268202cf502036ce6fc565d77305b82f205fb97ee4bff6d35"
+        },
+        {
+          "size": 4752,
+          "sha256": "41c7f6dc9ff906d876bc858b36a0ddb0b78313f53b2a2df8a740f66c8af406d4"
+        }
+      ],
+      "absolute_entry": {
+        "symbol": "entrypoint",
+        "size": 80,
+        "sha256": "6c5c293bd4ae9771b3e735b40550a07be97019b404a75d6cd5b49f206e95943a"
+      },
+      "body_alias_groups": []
+    },
+    "jfg-pal-r0": {
+      "recover_groups": [],
+      "non_cpu_payloads": [],
+      "absolute_entry": null,
+      "body_alias_groups": [
+        {
+          "body_symbol": "mathCosInterp",
+          "span_size": 96,
+          "span_sha256": "8a47a8afd9784d77b196d879ceba0cead3b38d938e0523aec9ac4e86d963889f",
+          "members": [
+            {
+              "symbol": "mathCosInterp",
+              "offset": 0,
+              "size": 4,
+              "sha256": "393dad0c8cd36a99a44d0e5648eb4a47071afbd5be66c07bb301aaecd49b6f32"
+            },
+            {
+              "symbol": "mathSinInterp",
+              "offset": 4,
+              "size": 92,
+              "sha256": "6a0921d947f6def1af575b29a5a03a20daa8a55933cbac27c3f7f064efae27d4"
+            }
+          ]
+        },
+        {
+          "body_symbol": "mathCos",
+          "span_size": 68,
+          "span_sha256": "93113080442b3a474edd0433dd776207d5dd55ee5c0d10e55cae1298bae5c70b",
+          "members": [
+            {
+              "symbol": "mathCos",
+              "offset": 0,
+              "size": 4,
+              "sha256": "393dad0c8cd36a99a44d0e5648eb4a47071afbd5be66c07bb301aaecd49b6f32"
+            },
+            {
+              "symbol": "mathSin",
+              "offset": 4,
+              "size": 64,
+              "sha256": "a852d3321bfe820ec69e6e2da700b4af962b031042c541451503ba0400a48ff4"
+            }
+          ]
+        },
+        {
+          "body_symbol": "Cosf",
+          "span_size": 84,
+          "span_sha256": "5a3ce924eab87c5fe37c9ed6d4ae0d1393c41f096fbdbd27dcb54ab31e6f0b83",
+          "members": [
+            {
+              "symbol": "Cosf",
+              "offset": 0,
+              "size": 4,
+              "sha256": "393dad0c8cd36a99a44d0e5648eb4a47071afbd5be66c07bb301aaecd49b6f32"
+            },
+            {
+              "symbol": "Sinf",
+              "offset": 4,
+              "size": 80,
+              "sha256": "7c944cdbb01b81a78bddf28e632237ca363696fd351a203cdca73f8aef757923"
+            }
+          ]
+        }
+      ]
+    },
+    "star-twins-jp-r0": {
+      "recover_groups": [],
+      "non_cpu_payloads": [
+        {
+          "size": 336,
+          "sha256": "5410325f87fddb0cf2b278a2efcfe79ec33b76977eca2b1455cdfb76a8c39bad"
+        },
+        {
+          "size": 11008,
+          "sha256": "67fccd9548f111435fc09c0b2ae60520f08142c87a4c2773a32c5e16d1b591be"
+        }
+      ],
+      "absolute_entry": null,
+      "body_alias_groups": [
+        {
+          "body_symbol": "mathMtxCatF",
+          "span_size": 264,
+          "span_sha256": "8552e54e527f78cc32c3d197b3f1772ab16a0d64eadbd1f2ae2079c407c2416f",
+          "members": [
+            {
+              "symbol": "mathMtxCatF",
+              "offset": 0,
+              "size": 180,
+              "sha256": "f4a55db53ca463d30fba814c11c7df5eda8c299a5e4bc26773c61d6760fbacd1"
+            },
+            {
+              "symbol": "mathMtxXFMF",
+              "offset": 180,
+              "size": 84,
+              "sha256": "4886fc3e0b3c495d987e41f68cb4fa1c18fba9125cf89bfc8086e376cc2978d9"
+            }
+          ]
+        },
+        {
+          "body_symbol": "mathCosInterp",
+          "span_size": 96,
+          "span_sha256": "61ec8e9406b418eeebc53d2d96b92e2b4199e95455472ff83abde66fcc14040e",
+          "members": [
+            {
+              "symbol": "mathCosInterp",
+              "offset": 0,
+              "size": 4,
+              "sha256": "393dad0c8cd36a99a44d0e5648eb4a47071afbd5be66c07bb301aaecd49b6f32"
+            },
+            {
+              "symbol": "mathSinInterp",
+              "offset": 4,
+              "size": 92,
+              "sha256": "d03edb22bc8076a899a3541ae9fcfc7cc517d3775dba473d7f185d1f0e528da0"
+            }
+          ]
+        },
+        {
+          "body_symbol": "mathCos",
+          "span_size": 68,
+          "span_sha256": "6030ac6bb961b0a332a05e8c2cad8ea016a5f7346ceb108c5fe99d1165dfd106",
+          "members": [
+            {
+              "symbol": "mathCos",
+              "offset": 0,
+              "size": 4,
+              "sha256": "393dad0c8cd36a99a44d0e5648eb4a47071afbd5be66c07bb301aaecd49b6f32"
+            },
+            {
+              "symbol": "mathSin",
+              "offset": 4,
+              "size": 64,
+              "sha256": "9e35a7f945f27a53e9f11f33642d8ad9e8b50d1023152f67ed34fcf21f52cba8"
+            }
+          ]
+        },
+        {
+          "body_symbol": "Cosf",
+          "span_size": 84,
+          "span_sha256": "8f4e6b1ee037eb67500722d01bfe92f032b18e0c1593dc7190a3c7435e0819ad",
+          "members": [
+            {
+              "symbol": "Cosf",
+              "offset": 0,
+              "size": 4,
+              "sha256": "393dad0c8cd36a99a44d0e5648eb4a47071afbd5be66c07bb301aaecd49b6f32"
+            },
+            {
+              "symbol": "Sinf",
+              "offset": 4,
+              "size": 80,
+              "sha256": "e451dbdd3f1d9d143a650366d9e3fd43c51f9bd705ed8be931f9c27e00f97b42"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

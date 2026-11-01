@@ -1,4 +1,5 @@
 #pragma once
+#include "jfg/renderer/game_layout.hpp"
 // Private shared simulation state. Ownership stays with run_child.
 #include "jfg/renderer/enhanced_shadow_footprint.hpp"
 #include "jfg/renderer/door_indicator_presentation.hpp"
@@ -8,6 +9,14 @@
 #include "jfg/renderer/rain_fade.hpp"
 #include "jfg/renderer/fog_settings.hpp"
 #include "jfg/runtime/execution_local.hpp"
+#include "jfg/game/rom_catalog.hpp"
+#include "jfg/game/original_modules.hpp"
+#include "jfg/game/resident_memory.hpp"
+#include "jfg/game/overlay_memory.hpp"
+#ifndef JFG_NATIVE_GAME_HEADER
+#error "Native runtime requires a linked regional descriptor and bindings"
+#endif
+#include JFG_NATIVE_GAME_HEADER
 #include "jfg/runtime/flying_motion.hpp"
 #include "jfg/boot/native_cache_all.hpp"
 #ifndef NOMINMAX
@@ -28,7 +37,6 @@
 #error Native timing preview requires a qualified generated span root
 #endif
 #include "jfg/boot/hle.hpp"
-#include "jfg/boot/sync_print_sink.hpp"
 #include "jfg/boot/native_audio_source.hpp"
 #include "jfg/boot/sound_queue_recovery.hpp"
 #include "jfg/boot/reset_handoff.hpp"
@@ -83,7 +91,7 @@
 #include "generated_lookup_entry.h"
 #include "jfg/boot/native_periodic_deadline.hpp"
 #include "jfg/boot/native_audio_playback.hpp"
-#include "jfg/boot/reference_flash_bus.hpp"
+#include "jfg/boot/flash_device.hpp"
 #include "jfg/boot/original_timing_ai_dma.hpp"
 #include "jfg/boot/point_probe.hpp"
 #include "jfg/boot/device_event_probe.h"
@@ -192,27 +200,229 @@ extern "C" { extern JfgOriginalTimingFast* jfg_original_timing_state; }
 namespace jfg::boot::native {
 namespace detail {
 constexpr std::uint32_t kKseg0 = 0x80000000U;
-constexpr std::uint32_t kRunlinkModuleTablePointer = 0x800FEAA0U;
-constexpr std::size_t kRunlinkOverlaySlotCount = 157U;
-constexpr std::uint32_t kHintTextOverlaySection = 7U;
-constexpr std::uint64_t kCountTicksPerViFrame = 781250U;
+constexpr jfg::boot::NativeAudioSourceLayout kAudioSourceLayout{
+  jfg::game::linked::code_address("audio.source_callback"),
+  jfg::game::linked::data_address("audio.cache_control"),
+  jfg::game::linked::data_address("audio.cache_nodes"),
+  jfg::game::linked::data_address("audio.cache_frame"),
+  jfg::game::linked::data_address("audio.pending_dma")};
+constexpr std::uint32_t kOsCurrentThread = jfg::game::linked::data_address("os.current_thread");
+constexpr std::uint32_t kOsFlashHandle = jfg::game::linked::data_address("os.flash_handle");
+constexpr std::uint32_t kOsExceptionPreamble = jfg::game::linked::code_address("os.exception_preamble");
+constexpr std::uint32_t kOsViWorker = jfg::game::linked::code_address("os.vi_worker");
+constexpr std::uint32_t kOsSchedulerPark = jfg::game::linked::code_address("os.scheduler_park");
+constexpr std::uint32_t kOsInitialize = jfg::game::linked::code_address("sdk.osInitialize");
+constexpr std::uint32_t kOsVirtualToPhysical = jfg::game::linked::code_address("sdk.osVirtualToPhysical");
+constexpr std::uint32_t kOsSetIntMask = jfg::game::linked::code_address("sdk.osSetIntMask");
+constexpr std::uint32_t kViInitializeSite = jfg::game::linked::instruction_address("vi.initialize");
+constexpr std::uint32_t kViManagerIdleSite = jfg::game::linked::instruction_address("vi.manager_idle");
+constexpr std::uint32_t kRunlinkModuleTablePointer = jfg::game::linked::data_address("runlink.module_table_pointer");
+constexpr std::uint32_t kRunlinkSuspendedModules = jfg::game::linked::data_address("runlink.suspended_modules");
+constexpr std::uint32_t kRunlinkColdLoad = jfg::game::linked::code_address("runlink.cold_load");
+constexpr std::uint32_t kRunlinkResume = jfg::game::linked::code_address("runlink.resume");
+constexpr std::size_t kRunlinkOverlaySlotCount = jfg::game::linked::bindings.overlay_slot_count;
+constexpr std::size_t kRunlinkSuspendedCount = jfg::game::linked::bindings.suspended_record_count;
+constexpr std::uint32_t initial_entrypoint() {
+  const auto& d = jfg::game::linked::descriptor;
+  return d.sections[d.entry.section].linked_address + d.entry.offset;
+}
+constexpr std::uint32_t initial_tv_mode() { return static_cast<std::uint32_t>(jfg::game::linked::descriptor.initial_tv_mode); }
+using OriginalModule = jfg::game::OriginalModule;
+consteval std::uint32_t game_module(OriginalModule module) {
+  const auto section=jfg::game::original_module_section(jfg::game::linked::descriptor,module);
+  if(!section)throw "Required original module has no unique generated owner";
+  return *section;
+}
+constexpr std::uint32_t kHintTextOverlaySection = game_module(OriginalModule::hint_text);
+constexpr DeviceClocks hardware_clocks() {
+  return initial_tv_mode()==0U ? kPalDeviceClocks : kNtscDeviceClocks;
+}
+// The old cooperative HLE profile uses nominal retraces. Original OS execution
+// uses the register-driven VI owner and never this approximation.
+constexpr std::uint64_t kCountTicksPerViFrame = hardware_clocks().count_hz / (initial_tv_mode()==0U?50U:60U);
 constexpr std::uint64_t kCountTicksPerDispatch = 64U;
 // A guest may wait for asynchronous hardware by polling an empty libultra
 // queue without blocking. Bound only that repeated poll pattern so ordinary
 // generated execution keeps its established cooperative timing.
 constexpr std::uint32_t kEmptyReceivePollTimeslice = 2048U;
-constexpr std::array<std::uint8_t, 20U> kSupportedRomSha1 = {
-    0x49U, 0x3cU, 0xedU, 0x90U, 0x08U, 0xdbU, 0xe9U, 0x32U, 0xd6U, 0xe9U,
-    0x11U, 0x79U, 0xb6U, 0x8eU, 0x86U, 0x30U, 0xcfU, 0x23U, 0xa0U, 0x23U,
+constexpr auto kSupportedRomSha1 = jfg::roms::known_revision(jfg::game::linked::descriptor.revision).sha1_bytes;
+using Mapping = jfg::game::SdkMapping;
+constexpr const auto& kMappings = jfg::game::linked::sdk_mappings;
+constexpr std::size_t kMappingCount = kMappings.size();
+inline const jfg::game::MemoryContext& game_memory_context() {
+  static const jfg::game::MemoryContext context(jfg::game::linked::descriptor,jfg::game::linked::bindings);
+  return context;
+}
+class NativeGameMemory : public jfg::mod::Memory {
+public:
+  explicit NativeGameMemory(std::span<std::uint8_t> bytes,bool native_words=true)
+      :jfg::mod::Memory(bytes,game_memory_context(),native_words) {}
 };
-struct Mapping {
-  std::uint32_t vram;
-  const char *name;
+template<class Memory> auto game_view(Memory& memory) {
+  return jfg::game::ResidentMemory<Memory>(jfg::game::linked::descriptor,memory);
+}
+consteval jfg::game::DataRef game_data_ref(std::string_view name) {
+  return jfg::game::linked::data_reference(name);
+}
+constexpr jfg::CutsceneSoundBindings kCutsceneSoundBindings{
+  game_data_ref("globals.currentLevel"),game_data_ref("globals.levelHeader"),
+  game_data_ref("globals.cutsceneGroup"),game_data_ref("globals.cutsceneScriptStart"),
+  game_data_ref("globals.cutsceneSoundHandles"),
+  jfg::game::linked::code_reference("game.amSndPlay"),jfg::game::linked::code_reference("game.amSndPlayXYZ"),
+  jfg::game::linked::instruction_reference("cutscene.sound_fire_and_forget"),
+  jfg::game::linked::instruction_reference("cutscene.sound_handle"),
+  jfg::game::linked::instruction_reference("cutscene.sound_positioned")};
+consteval std::uint32_t game_data(std::string_view name) {
+  return jfg::game::linked::data_address(name);
+}
+
+consteval std::uint32_t game_instruction_word(std::string_view name) {
+  return jfg::game::linked::instruction_word(name);
+}
+consteval std::uint32_t game_overlay_site(std::string_view name,OriginalModule module) {
+  const auto ref=jfg::game::linked::instruction_reference(name);
+  if(ref.revision!=jfg::game::linked::descriptor.revision || ref.section!=game_module(module))throw "Overlay instruction owner mismatch";
+  return ref.offset;
+}
+
+consteval std::uint32_t game_member(std::string_view name) {
+  return jfg::game::linked::member_offset(name);
+}
+
+consteval std::uint32_t game_instruction(std::string_view name) {
+  return jfg::game::linked::instruction_address(name);
+}
+
+consteval std::uint32_t game_code(std::string_view name) {
+  return jfg::game::linked::code_address(name);
+}
+
+// Compare linked identities only. Do not use these tokens for RAM access or
+// bypass the generated overlay runtime's execution lease.
+consteval std::uint32_t game_overlay_token(std::string_view name) {
+  return jfg::game::linked::overlay_dispatch_token(name);
+}
+
+consteval std::uint32_t game_overlay_data(std::string_view name, OriginalModule module) {
+  return jfg::game::linked::overlay_data_offset(name,game_module(module));
+}
+consteval std::uint32_t game_overlay_extent(OriginalModule module) {
+  const auto& section=jfg::game::linked::sections[game_module(module)];
+  return section.text_size+section.data_size+section.bss_size;
+}
+
+
+inline constexpr jfg::game::RomAssetDirectory kRomAssetDirectory{
+ jfg::game::linked::descriptor.revision,
+ jfg::game::rom_address_operand(game_instruction_word("rom.assets.table_hi"),game_instruction_word("rom.assets.table_lo")),
+ jfg::game::rom_address_operand(game_instruction_word("rom.assets.data_hi"),game_instruction_word("rom.assets.data_lo"))};
+
+inline constexpr JfgNativeMathLayout kNativeMathLayout{
+ game_data("math.sineTable"),game_data("math.atanTable"),
+ game_instruction("math.angle_direct_return"),game_instruction("math.angle_return"),
+ game_code("game.mathDiffAngle"),game_instruction("math.diff_return"),
+ game_instruction("math.diff_subtract_return"),game_instruction("math.diff_add_return"),
+ game_code("game.Cosf"),game_code("game.Sinf"),game_instruction("math.trig_return")};
+inline constexpr jfg::boot::SoundQueueLayout kSoundQueueLayout{
+ game_data("audio.soundPlayer"),game_code("audio.sound_callback"),
+ game_instruction_word("audio.sound_callback.entry0"),game_instruction_word("audio.sound_callback.entry4")};
+
+inline constexpr jfg::RendererGameLayout kRendererGameLayout{
+  jfg::game::linked::descriptor.revision,
+  initial_tv_mode()==0U?50U:60U,
+  game_data("globals.currentLevel"),
+  game_data("globals.objectList"),
+  game_data("globals.objectCount"),
+  game_data("diagnostic.cameraViewport0"),
+  game_data("diagnostic.cameraViewport1"),
+  game_data("renderer.worldMatrix"),
+  game_data("diagnostic.cameraViewState"),
+  game_data("diagnostic.cameraMatrixInput"),
+  game_data("diagnostic.shadowClipState"),
+  game_data("renderer.shadowPolygons"),
+  game_data("diagnostic.shadowVertexStart"),
+  game_data("diagnostic.shadowBatchStart"),
+  game_data("renderer.shadowUnclippedPoints"),
+  game_data("renderer.shadowClippedPoints"),
+  game_data("renderer.skyActor"),
+  game_data("renderer.matrixQueueCount"),
+  game_data("renderer.matrixQueue"),
+  game_data("globals.currentTrack"),
+  game_data("diagnostic.doorRenderMode"),
+  game_data("renderer.cameraTransform"),
+  game_data("renderer.cameraInverseMatrix"),
+  game_code("game.objPrintModelObject"),
+  game_code("game.objPrintObject"),
+  game_code("game.shadowBoundingBox"),
+  game_code("game.Cosf"),
+  game_code("game.Sinf"),
+  game_instruction("native.query_capture_return"),
+  {game_instruction("render.lod.entry"),game_instruction_word("render.lod.entry")},
+  {game_instruction("render.lod.detail"),game_instruction_word("render.lod.detail")},
+  {game_instruction("render.lod.threshold"),game_instruction_word("render.lod.threshold")},
+  {game_instruction("render.lod.selector"),game_instruction_word("render.lod.selector")},
+  {game_instruction("render.camera.entry"),game_instruction_word("render.camera.entry")},
+  {game_instruction("render.camera.flags"),game_instruction_word("render.camera.flags")},
+  {game_instruction("render.camera.mask"),game_instruction_word("render.camera.mask")},
+  {game_instruction("render.camera.rpy0"),game_instruction("render.camera.rpy2"),game_instruction("render.camera.rpy4")},
+  {game_instruction("render.camera.rpy1"),game_instruction("render.camera.rpy3"),game_instruction("render.camera.rpy5")},
+  {game_instruction("render.camera.ypr0"),game_instruction("render.camera.ypr2"),game_instruction("render.camera.ypr4")},
+  {game_instruction("render.camera.ypr1"),game_instruction("render.camera.ypr3"),game_instruction("render.camera.ypr5")},
+  game_data("globals.sResolutionIndex"),
+  game_data("renderer.resolutionModes"),
+  game_data("diagnostic.cutsceneState"),
+  game_data("renderer.fadeMode"),
+  game_data("renderer.fadeEnabled"),
+  game_data("diagnostic.cutsceneByte3"),
+  game_data("diagnostic.cutsceneByte0"),
+  game_data("diagnostic.cutsceneByte1"),
+  game_data("diagnostic.cutsceneByte2"),
+  game_data("renderer.fadeVertexBanks"),
+  game_data("renderer.fadeTriangleBanks"),
+  game_data("renderer.fadeBankIndex"),
+  game_data("renderer.fadeDisplayList"),
+  game_data("renderer.viewports"),
+  game_data("renderer.spSetupDisplayList"),
+  game_data("renderer.setupDisplayList"),
+  game_data("renderer.fontDisplayList"),
+  game_data("globals.debugPrintEnd"),
+  game_data("renderer.debugPrintBuffer"),
+  game_data("renderer.gameSceneMode"),
+  game_data("renderer.displayListCursor"),
+  game_data("renderer.displayListBanks"),
+  game_data("renderer.displayListBankIndex"),
+  game_data("renderer.renderFramebuffer"),
+  game_data("renderer.blurEnabled"),
+  game_instruction("render.rain.submit_return"),
+  game_instruction("render.rain.segment_return"),
+  game_instruction("render.rain.debug_return"),
+  game_instruction("render.rain.fade_return"),
+  game_instruction("render.rain.simple_return"),
+  game_instruction("render.rain.spatial_return"),
+  {game_instruction("render.rain.fade_call"),game_instruction_word("render.rain.fade_call")},
+  {game_instruction("render.rain.segment_call"),game_instruction_word("render.rain.segment_call")},
+  {game_instruction("render.rain.effects_call"),game_instruction_word("render.rain.effects_call")},
+  {{{game_instruction("render.blur.getter0"),game_instruction_word("render.blur.getter0")},{game_instruction("render.blur.getter1"),game_instruction_word("render.blur.getter1")},{game_instruction("render.blur.getter2"),game_instruction_word("render.blur.getter2")},{game_instruction("render.blur.getter3"),game_instruction_word("render.blur.getter3")}}},
+  {game_code("game.mainUpdate"),game_code("game.setupClearScreen"),game_code("game.segSetBase"),game_code("game.diPrintfAll"),game_code("game.fxDrawFadeGeometry"),game_code("game.drawClearScreen"),game_code("game.fxDrawFade"),game_code("game.mainCPUeffects"),game_code("game.rainFastDraw"),game_code("game.cpuLine"),game_code("game.rcpFast3d"),game_code("game.fxFadeOn"),game_overlay_token("render.auxiliary.shadows"),game_overlay_token("render.auxiliary.refraction"),game_overlay_token("render.auxiliary.blur")},
+  game_member("layout.actor.control"),
+  game_member("layout.actor.type"),
+  game_member("layout.actor.properties"),
+  game_member("layout.actor.objectData"),
+  game_member("layout.actor.animation"),
+  game_member("layout.actor.animationFrame"),
+  game_member("layout.actor.header"),
+  game_member("layout.actor.models"),
+  game_member("layout.actor.variant"),
+  game_member("layout.actor.flags"),
+  game_member("layout.actor.scale"),
+  game_member("layout.actor.x"),
+  game_member("layout.actor.y"),
+  game_member("layout.actor.z"),
+  game_member("layout.actor.physics"),
+  game_member("layout.actor.deleted"),
+  game_member("layout.actor.customBank"),
 };
-constexpr Mapping kMappings[] = {
-#include JFG_PHASE6_DISPATCH_TABLE_INC
-};
-constexpr std::size_t kMappingCount = sizeof(kMappings) / sizeof(kMappings[0]);
+
 consteval std::uint32_t original_os_entry(std::string_view name) {
   for (const auto& mapping : kMappings)
     if (mapping.name == name) return mapping.vram;
@@ -268,7 +478,7 @@ struct State : JfgOriginalTimingFast {
   bool ledgered = false;
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
   bool presentation_identity_enabled = false;
-  jfg::PresentationIdentityTracker presentation_identities;
+  jfg::PresentationIdentityTracker presentation_identities{kRendererGameLayout};
   struct CameraFade { std::uint32_t actor=0,control=0,header=0; std::uint64_t tick=0, update=0; unsigned alpha=255; };
   std::array<CameraFade,4> pc_camera_fades{};
   std::uint64_t camera_fade_updates=0;
@@ -389,7 +599,6 @@ struct State : JfgOriginalTimingFast {
   std::uint64_t generated_calls = 0U;
   std::uint64_t mapped_calls = 0U;
   std::uint64_t dispatch_calls = 0U;
-  std::uint64_t sync_print_sink_calls = 0U;
   std::uint64_t sound_queue_recoveries = 0U;
   std::uint64_t phase9_player_control_calls = 0U;
   std::uint64_t phase9_weapon_update_calls = 0U;
@@ -588,7 +797,7 @@ struct State : JfgOriginalTimingFast {
   bool private_model_pages_ready = false;
   std::uintptr_t private_memory_writer_pc = 0U;
   bool private_model_write_trap = false;
-  std::uint32_t private_model_write_offset = 0xf5b0cU;
+  std::uint32_t private_model_write_offset = (game_data("diagnostic.currentModel")&0x1FFFFFFFU);
 
   std::uint32_t private_model_pointer = 0U;
   std::array<std::uint32_t,64> private_model_probe_pcs{};
@@ -760,9 +969,11 @@ struct State : JfgOriginalTimingFast {
   std::array<std::array<std::uint32_t, 9U>, 64U>
       recent_matrix_cat_words{};
   std::size_t recent_matrix_cat_position = 0U;
+  // Resident owners are bound; heap matrix addresses are acquired from the
+  // actual matrix destination below. Historical US heap addresses are not
+  // stable across sessions or revisions and must not seed this observer.
   std::array<std::uint32_t, 8U> matrix_watch_addresses{
-      0x801FDA80U, 0x801FDAC0U, 0x802239A0U, 0x802239E0U,
-      0x800FAAF0U, 0x800FAF7CU};
+      game_data("diagnostic.cameraMatrixSource"), (game_data("diagnostic.cameraViewState")+4U)};
   std::array<std::uint32_t, 8U> matrix_watch_words{};
   std::array<std::uint32_t, 64U> recent_matrix_watch_addresses{};
   std::array<std::uint32_t, 64U> recent_matrix_watch_before{};

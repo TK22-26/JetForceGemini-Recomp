@@ -100,6 +100,11 @@ internal static class FrontendBridge
         }
         return File.Exists(Path.Combine(profile,"live.json"))?profile:Path.Combine(profile,"no-active-live-session");
     }
+    private static string RomStatus(RomCatalogEntry revision)
+    {
+        return revision.Title+" ("+revision.Code+") imported. "+(revision.NativeBuildAdmitted
+            ? "Click Play to use its matching runtime." : "Native gameplay support is still being qualified.");
+    }
     private static void PrepareBackground() {
         try {InventoryImages.ExportShips(Read("frontend-rom.txt"),Path.Combine(root,"frontend-ships.bin"));}
         catch(InvalidDataException){}catch(IOException){}catch(UnauthorizedAccessException){}catch(ArgumentException){}
@@ -289,7 +294,9 @@ internal static class FrontendBridge
             LocalSetup.SaveSettings(root, saved);
             await Task.Run((Action)PrepareBackground);
             File.Delete(Path.Combine(root, "frontend-rom-source.txt"));
-            State("ROM imported. Click Play. The original file is no longer needed.");
+            var importedRevision=RegionalRom.Identify(imported);
+            Write("frontend-revision.txt",importedRevision.Id);
+            State(RomStatus(importedRevision));
             return 0;
         }
         if (action == "init")
@@ -301,49 +308,58 @@ internal static class FrontendBridge
             string selected = Read("frontend-rom.txt");
             if (File.Exists(stored) || File.Exists(selected)) {
                 State("Checking your local ROM...");
-                string imported = await Task.Run(delegate { return ImportedRom.Import(root, File.Exists(stored) ? stored : selected); });
+                string imported = await Task.Run(delegate { return ImportedRom.Import(root, File.Exists(selected) ? selected : stored); });
                 Write("frontend-rom.txt", imported);
                 settings.RomPath = imported;
                 LocalSetup.SaveSettings(root, settings);
             }
             else if (!File.Exists(selected)) Write("frontend-rom.txt", "");
-            // Always resolve against this package, including after moving or updating it.
-            State("Checking game files...");
-            Write("frontend-runtime.txt", await Task.Run(delegate { return PortablePackage.FromLauncher(State); }));
+            // Resolve only the identified revision; a retained US import never overrides a PAL/JP selection.
+            RomCatalogEntry detected=null;
+            if(File.Exists(Read("frontend-rom.txt")))
+            {
+                detected=RegionalRom.Identify(Read("frontend-rom.txt"));
+                Write("frontend-revision.txt",detected.Id);
+                Write("frontend-runtime.txt",detected.NativeBuildAdmitted
+                    ? await Task.Run(delegate {return PortablePackage.FromLauncher(detected,State);}) : "");
+            }
+            else {Write("frontend-runtime.txt","");Write("frontend-revision.txt","");}
             if (!File.Exists(ControllerProfile.FileName(root)))
                 new ControllerProfile().Save(root);
             await Task.Run((Action)PrepareBackground);
-            State(File.Exists(Read("frontend-rom.txt")) ? "Ready. Your ROM is imported. Click Play." : "Import your ROM once, then click Play. No build tools are required.");
+            State(detected!=null ? RomStatus(detected) : "Import your US, PAL or Japanese ROM once, then select its matching installed runtime.");
             return 0;
         }
         State("Checking your imported ROM...");
         string rom = await Task.Run(delegate { return ImportedRom.Import(root, Read("frontend-rom.txt")); });
         Write("frontend-rom.txt", rom);
         State("Verifying your ROM...");
-        using (var verified = await Task.Run(delegate { return LocalSetup.OpenVerifiedRom(rom); }))
+        var revision=RegionalRom.Identify(rom);
+        if(!revision.NativeBuildAdmitted)throw new InvalidDataException(RomStatus(revision));
+        using (var verified = await Task.Run(delegate { return LocalSetup.OpenVerifiedRom(rom,revision); }))
         {
             using (var support = new FrontendSupport(action == "play" ? "launch" : action))
             {
                 if (action == "setup")
                 {
                     State("Checking game files...");
-                    string bundled = await Task.Run(delegate { return PortablePackage.FromLauncher(State); });
+                    string bundled = await Task.Run(delegate { return PortablePackage.FromLauncher(revision,State); });
                     State("Checking the game runtime...");
-                    await Task.Run(delegate { CheckRuntimeProtocol(bundled, 10000); });
+                    await Task.Run(delegate { using(var lease=ProgramBundle.Open(bundled,revision))CheckRuntimeProtocol(bundled,10000); });
                     Write("frontend-runtime.txt", bundled);
                     LocalSetup.SaveSettings(root, new Settings { RomPath = rom, RuntimePath = bundled });
                     State("ROM and game files verified. Click Play.");
                     return 0;
                 }
-                string game = await Task.Run(delegate { return PortablePackage.FromLauncher(State); });
+                string game = await Task.Run(delegate { return PortablePackage.FromLauncher(revision,State); });
                 Write("frontend-runtime.txt", game);
                 CheckRuntimeProtocol(game, 10000);
                 LocalSetup.SaveSettings(root, new Settings { RomPath = rom, RuntimePath = game });
+                bool mods = Read("frontend-mods.txt") == "1";
+                using(var session=await Task.Run(delegate {return RegionalSession.Open(game,rom,root,mods);}))
                 using (var process = new Process())
                 {
-                    bool mods = Read("frontend-mods.txt") == "1";
-                    process.StartInfo = mods ? LocalSetup.NavigationStartInfo(game, rom, root)
-                                             : LocalSetup.LiveToolsStartInfo(game, rom, root);
+                    process.StartInfo = session.StartInfo;
                     ApplyReplayOptions(process.StartInfo, args);
                     process.StartInfo.EnvironmentVariables["JFG_CONTROLLER_CONFIG"] =
                         ControllerProfile.FileName(root);
@@ -361,7 +377,8 @@ internal static class FrontendBridge
                         metadata.AppendLine("started_utc=" + DateTime.UtcNow.ToString("o"));
                         metadata.AppendLine("runtime=" + game);
                         metadata.AppendLine("runtime_sha256=" + SupportSession.Hash(game));
-                        metadata.AppendLine("profile=" + root);
+                        metadata.AppendLine("profile=" + session.Profile);
+                        metadata.AppendLine("revision_id=" + session.Revision.Id);
                         metadata.AppendLine("support=" + support.Session.DirectoryPath);
                         metadata.AppendLine("live_tools=" + process.StartInfo.EnvironmentVariables[mods ? "JFG_MOD_OUTPUT" : "JFG_LIVE_OUTPUT"]);
                         metadata.AppendLine("logs=gameplay,timing,actor,camera,input,polls,interpolation,support,final-frame,final-rdram");
@@ -372,7 +389,7 @@ internal static class FrontendBridge
                         File.WriteAllText(Path.Combine(capture, "session.txt"), metadata.ToString());
                         string initial = Path.Combine(capture, "initial-profile");
                         Directory.CreateDirectory(initial);
-                        foreach (string source in Directory.GetFiles(root))
+                        foreach (string source in Directory.GetFiles(session.Profile))
                         {
                             string name = Path.GetFileName(source);
                             if (name.EndsWith(".ini", StringComparison.OrdinalIgnoreCase) ||
@@ -381,6 +398,7 @@ internal static class FrontendBridge
                         }
                         Write("frontend-diagnostics-session.txt", capture);
                     }
+                    support.Session.Write("rom_revision="+session.Revision.Id);
                     try
                     {
                         support.Session.RuntimeDetails(game, root);

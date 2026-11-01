@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include "jfg/boot/native_collision.hpp"
 #include <array>
+#include "collision-layout.hpp"
 #include <vector>
 #include <random>
 #include <cstdio>
@@ -14,8 +15,8 @@
 #include <cstring>
 extern "C" {
  JfgOriginalTimingFast* jfg_original_timing_state=nullptr;
- static int32_t sections[4]={0,0,0,static_cast<int32_t>(0x00300000U)};
- int32_t* section_addresses=sections;
+ static std::array<int32_t,kSectionCount> sections=[] {std::array<int32_t,kSectionCount> value{};value[collision_layout.section]=static_cast<int32_t>(collision_layout.linked_address);return value;}();
+ int32_t* section_addresses=sections.data();
  void bsp_reference(uint8_t*,recomp_context*);void split_reference(uint8_t*,recomp_context*);void line_reference(uint8_t*,recomp_context*);
  void bsp_fast(uint8_t*,recomp_context*);void split_fast(uint8_t*,recomp_context*);void line_fast(uint8_t*,recomp_context*);
  static bool fast_mode=false;int bsp_in_fallback();void bsp_configure(unsigned);void bsp_totals();
@@ -23,9 +24,9 @@ extern "C" {
  void jfg_phase9_execution_probe_predecoded(unsigned,unsigned,unsigned,void*){}
  recomp_func_t* get_function(int32_t pc) {
   switch(static_cast<uint32_t>(pc)) {
-   case 0x00317174U:return (fast_mode && !bsp_in_fallback())?bsp_fast:bsp_reference;
-   case 0x003170d0U:return (fast_mode && !bsp_in_fallback())?split_fast:split_reference;
-   case 0x00303e90U:return (fast_mode && !bsp_in_fallback())?line_fast:line_reference;
+   case kBspEntry:return (fast_mode && !bsp_in_fallback())?bsp_fast:bsp_reference;
+   case kSplitEntry:return (fast_mode && !bsp_in_fallback())?split_fast:split_reference;
+   case kLineEntry:return (fast_mode && !bsp_in_fallback())?line_fast:line_reference;
   }
   std::printf("UNKNOWN_CALL %08x\n",static_cast<uint32_t>(pc));std::abort();
  }
@@ -34,7 +35,7 @@ static void require(bool b,unsigned n,const char* what){if(!b){std::printf("FAIL
 extern "C" {
 static unsigned node_limit=32,edge_limit=128;
 int bsp_in_fallback(){return jfg::boot::native_collision_in_fallback()?1:0;}
-void bsp_fast(uint8_t* ram,recomp_context* ctx){jfg::boot::native_collision_execute(bsp_reference,ram,ctx,node_limit,edge_limit);}
+void bsp_fast(uint8_t* ram,recomp_context* ctx){jfg::boot::native_collision_execute(bsp_reference,ram,ctx,collision_layout,node_limit,edge_limit);}
 void split_fast(uint8_t*,recomp_context*){std::abort();}
 void line_fast(uint8_t*,recomp_context*){std::abort();}
 void bsp_configure(unsigned n){node_limit=n%9U==8U?32U:n%9U;edge_limit=n%7U==6U?128U:(n%7U)*3U;}
@@ -53,7 +54,7 @@ struct MappedRam {
  uint8_t* pointer=static_cast<uint8_t*>(VirtualAlloc(nullptr,0x100000000ULL,MEM_RESERVE,PAGE_NOACCESS));
  MappedRam() {
   if(!pointer || !VirtualAlloc(pointer,size(),MEM_COMMIT,PAGE_READWRITE) ||
-     !VirtualAlloc(pointer+0x8031a000ULL,4096,MEM_COMMIT,PAGE_READWRITE))std::abort();
+     !VirtualAlloc(pointer+0x80000000ULL+collision_layout.linked_address,collision_layout.extent,MEM_COMMIT,PAGE_READWRITE))std::abort();
  }
  ~MappedRam(){VirtualFree(pointer,0,MEM_RELEASE);}
  uint8_t* data(){return pointer;}
@@ -67,7 +68,7 @@ static void admission_tests(MappedRam& ram) {
  const auto half=[&](uint32_t a,uint16_t v){std::memcpy(ram.data()+(uint32_t(a-0x80000000U)^2U),&v,2);};
  const auto byte=[&](uint32_t a,uint8_t v){ram[uint32_t(a-0x80000000U)^3U]=v;};
  for(unsigned n=0;n<18;++n) {
-  sections[3]=0x00300000;put(sp+16,node);put(0x0031aed4,edges);
+  sections[collision_layout.section]=static_cast<int32_t>(collision_layout.linked_address);put(sp+16,node);put((kCollisionGlobals+4U),edges);
   byte(node+16,1);half(node,0);half(node+2,0);
   recomp_context cpu{};cpu.r29=U64(S32(sp));cpu.status_reg=0x24000001U;
   cpu.mips3_float_mode=1;cpu.f_odd=&cpu.f1.u32l;
@@ -79,44 +80,46 @@ static void admission_tests(MappedRam& ram) {
    case 4:cpu.status_reg=0;break;
    case 5:cpu.mips3_float_mode=0;break;
    case 6:cpu.f_odd=nullptr;break;
-   case 7:sections[3]=0x00310000;break;
+   case 7:sections[collision_layout.section]=static_cast<int32_t>(collision_layout.linked_address+0x10000U);break;
    case 8:put(sp+16,node+1);break;
    case 9:put(sp+16,0x80400000);break;
    case 10:cpu.f12.u32l=0x7fc00000;break;
    case 11:cpu.r7=0x7f800000;break;
    case 12:half(node+2,17);break;
-   case 13:put(0x0031aed4,edges+1);break;
+   case 13:put((kCollisionGlobals+4U),edges+1);break;
    case 14:byte(node+16,0);put(node,0);put(node+4,node);break;
    case 15:half(node+2,1);put(edges,0x7fc00000);break;
    case 16:cpu.f14.u32l=0x7f800000;break;
-   case 17:half(node+2,1);put(0x0031aed4,0xfffffffc);break;
+   case 17:half(node+2,1);put((kCollisionGlobals+4U),0xfffffffc);break;
   }
   const auto before=cpu;const auto counters=native_collision_counters();const auto calls=mock_calls;
-  require(!native_collision_execute(mock_reference,ram.data(),&cpu),n,"reject unsupported admission");
+  require(!native_collision_execute(mock_reference,ram.data(),&cpu,collision_layout),n,"reject unsupported admission");
   require(mock_calls==calls+1,n,"exactly one original fallback");
   require(std::memcmp(&cpu,&before,sizeof(cpu))==0,n,"rejection preserves CPU");
   require(native_collision_counters().native_nodes==counters.native_nodes,n,"rejection performs no native nodes");
   require(!native_collision_in_fallback(),n,"fallback flag unwound");
  }
- sections[3]=0x00300000;put(sp+16,node);put(0x0031aed4,edges);
+ sections[collision_layout.section]=static_cast<int32_t>(collision_layout.linked_address);put(sp+16,node);put((kCollisionGlobals+4U),edges);
  byte(node+16,1);half(node,0);half(node+2,0);
  recomp_context cpu{};cpu.r29=U64(S32(sp));cpu.status_reg=0x24000001;
  cpu.mips3_float_mode=1;cpu.f_odd=&cpu.f1.u32l;
  bool caught=false;
- try{native_collision_execute(throwing_reference,ram.data(),&cpu,0,0);}
+ try{native_collision_execute(throwing_reference,ram.data(),&cpu,collision_layout,0,0);}
  catch(const std::runtime_error&){caught=true;}
  require(caught && !native_collision_in_fallback(),18,"cancellation unwinds fallback state");
  const auto calls=mock_calls;
  // Validate default limits were restored, rather than retaining the zero budget.
- require(native_collision_execute(mock_reference,ram.data(),&cpu),19,"native call after cancellation");
+ require(native_collision_execute(mock_reference,ram.data(),&cpu,collision_layout),19,"native call after cancellation");
  require(mock_calls==calls,19,"post-cancellation default budget restored");
  native_collision_reset_max();require(native_collision_counters().max_nanoseconds==0,20,"counter max reset");
  std::printf("PASS admission=18 cancellation_cleanup=1\n");
 }
 
 int main() {
- constexpr uint32_t ram_base=0x80000000U,sp=0x803ff000U,nodes=0x80100000U,edges=0x80110000U,globals=0x0031aed0U;
+ constexpr uint32_t ram_base=0x80000000U,sp=0x803ff000U,nodes=0x80100000U,edges=0x80110000U,globals=kCollisionGlobals;
  MappedRam ram;std::vector<uint8_t> expected(ram.size());
+ auto* overlay=ram.data()+0x80000000ULL+collision_layout.linked_address;
+ std::vector<uint8_t> overlay_before(collision_layout.extent),overlay_expected(collision_layout.extent);
  const auto put=[&](uint32_t a,uint32_t v){std::memcpy(ram.data()+uint32_t(a-ram_base),&v,4);};
  const auto half=[&](uint32_t a,uint16_t v){std::memcpy(ram.data()+((a-ram_base)^2U),&v,2);};
  const auto byte=[&](uint32_t a,uint8_t v){ram[(a-ram_base)^3U]=v;};
@@ -162,15 +165,18 @@ int main() {
   std::array<uint8_t,0x50> globals_before{},globals_expected{};
   std::memcpy(stack_before.data(),ram.data()+sp-ram_base-1024,stack_before.size());
   std::memcpy(globals_before.data(),ram.data()+uint32_t(globals-ram_base),globals_before.size());
+  std::memcpy(overlay_before.data(),overlay,overlay_before.size());
   const int modes[]={FE_TONEAREST,FE_TOWARDZERO,FE_UPWARD,FE_DOWNWARD};
   std::fesetround(modes[n%4]);std::feclearexcept(FE_ALL_EXCEPT);
   fenv_t env_before{},env_expected{},env_actual{};std::fegetenv(&env_before);
   auto reference=initial;reference.f_odd=&reference.f1.u32l;fast_mode=false;bsp_reference(ram.data(),&reference);std::fegetenv(&env_expected);
   std::memcpy(stack_expected.data(),ram.data()+sp-ram_base-1024,stack_expected.size());
   std::memcpy(globals_expected.data(),ram.data()+uint32_t(globals-ram_base),globals_expected.size());
+  std::memcpy(overlay_expected.data(),overlay,overlay_expected.size());
   const bool full=(n%256U)==0U || n+1U==cases;if(full)std::memcpy(expected.data(),ram.data(),ram.size());
   std::memcpy(ram.data()+sp-ram_base-1024,stack_before.data(),stack_before.size());
   std::memcpy(ram.data()+uint32_t(globals-ram_base),globals_before.data(),globals_before.size());
+  std::memcpy(overlay,overlay_before.data(),overlay_before.size());
   std::fesetenv(&env_before);
   auto candidate=initial;candidate.f_odd=&candidate.f1.u32l;fast_mode=true;bsp_fast(ram.data(),&candidate);std::fegetenv(&env_actual);
   reference.f_odd=candidate.f_odd;
@@ -178,6 +184,7 @@ int main() {
   require(std::memcmp(stack_expected.data(),ram.data()+sp-ram_base-1024,stack_expected.size())==0,n,"all stack");
   require(std::memcmp(globals_expected.data(),ram.data()+uint32_t(globals-ram_base),globals_expected.size())==0,n,"all scratch globals");
   require(std::memcmp(&env_actual,&env_expected,sizeof(env_actual))==0,n,"floating environment");
+  require(std::memcmp(overlay,overlay_expected.data(),overlay_expected.size())==0,n,"complete original overlay");
   if(full)require(std::memcmp(expected.data(),ram.data(),ram.size())==0,n,"full RAM");
   require(candidate.r2<3U,n,"return domain");++returns[candidate.r2];
  }

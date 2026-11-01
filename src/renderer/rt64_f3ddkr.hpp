@@ -57,7 +57,7 @@ inline constexpr std::uint32_t kF3ddkrRejectMoveMemRange = 10U;
 
 class Rt64F3ddkr final {
 public:
-    explicit Rt64F3ddkr(RT64::Application& application, bool interpolate = false);
+    explicit Rt64F3ddkr(RT64::Application& application, bool interpolate = false, std::optional<RendererGameLayout> game_layout = {});
     ~Rt64F3ddkr();
     Rt64F3ddkr(const Rt64F3ddkr&) = delete;
     Rt64F3ddkr& operator=(const Rt64F3ddkr&) = delete;

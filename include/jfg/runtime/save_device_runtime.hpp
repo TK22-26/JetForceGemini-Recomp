@@ -111,6 +111,11 @@ inline constexpr std::size_t kFlashRamPageBytes = 128U;
 inline constexpr std::size_t kFlashRamPageCount =
     kFlashRamSizeBytes / kFlashRamPageBytes;
 
+inline constexpr std::size_t kFlashRamSectorPages = 128U;
+inline constexpr std::size_t kFlashRamSectorBytes = kFlashRamSectorPages * kFlashRamPageBytes;
+
+enum class FlashRamProgramMode { clear_bits, reference_replace };
+
 enum class FlashRamError {
     none = 0,
     invalid_argument = 1,
@@ -125,6 +130,7 @@ enum class FlashRamOperation {
     none,
     program_page,
     erase_page,
+    erase_sector,
     erase_all,
 };
 
@@ -158,8 +164,9 @@ public:
     [[nodiscard]] FlashRamStatus status() const noexcept;
     [[nodiscard]] FlashRamResult stage_write(
         std::span<const std::uint8_t> page_bytes);
-    [[nodiscard]] FlashRamResult begin_program(std::size_t page_index);
+    [[nodiscard]] FlashRamResult begin_program(std::size_t page_index, FlashRamProgramMode mode = FlashRamProgramMode::clear_bits);
     [[nodiscard]] FlashRamResult begin_erase_page(std::size_t page_index);
+    [[nodiscard]] FlashRamResult begin_erase_sector(std::size_t page_index);
     [[nodiscard]] FlashRamResult begin_erase_all();
     [[nodiscard]] FlashRamResult complete();
     [[nodiscard]] FlashRamResult complete_and_persist(
@@ -185,6 +192,7 @@ private:
     bool write_buffer_valid_ = false;
     FlashRamOperation operation_ = FlashRamOperation::none;
     std::size_t operation_page_ = 0;
+    FlashRamProgramMode program_mode_ = FlashRamProgramMode::clear_bits;
 };
 
 [[nodiscard]] std::string_view flash_ram_error_message(FlashRamError error) noexcept;

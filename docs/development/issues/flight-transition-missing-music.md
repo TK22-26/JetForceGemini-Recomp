@@ -392,3 +392,12 @@ real native confirmation; it is not an entirely natural player route. Walkway pr
 events, and the skipped chain completes. Final artifact checks are retained in the private
 `reorganization-followups-20261101` receipt. No fresh owner listening, release or issue closure is
 claimed. [Runtime module validation](native-runtime-modularization.md) records the build boundary.
+
+### Regional architecture migration, 2026-11-01
+
+The two retained candidate corrections now use typed regional globals and
+qualified original instruction sites. Their applicability is explicitly US
+only; PAL/JP execute their original music behavior without inheriting these
+unverified corrections. This does not add Walkway back or change the recorded
+NTSC hardware/PAL emulator distinction. Existing 334 boundary checks and
+non-US policy rejection tests pass; no new live music acceptance is claimed.

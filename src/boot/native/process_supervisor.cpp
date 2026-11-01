@@ -1,3 +1,4 @@
+#include "jfg/boot/original_os_probe.hpp"
 #include "runtime_services.hpp"
 #include "process_supervisor.hpp"
 namespace jfg::boot::native {
@@ -68,7 +69,7 @@ bool extract_canonical_probe(const std::string &output,
   return true;
 }
 
-bool extract_original_os_probe(const std::string& output, unsigned target, std::string& line) {
+bool original_os_probe_enabled() {
   char* enabled = nullptr;
   std::size_t size = 0;
   const bool opted_in = _dupenv_s(&enabled, &size, "JFG_PHASE9_GUEST_OS_PROBE") == 0 &&
@@ -78,13 +79,12 @@ bool extract_original_os_probe(const std::string& output, unsigned target, std::
   const auto timing_override = GetEnvironmentVariableA("JFG_ORIGINAL_TIMING",original_timing,2U);
   const bool runtime_opted_in = timing_override == 1U ? original_timing[0]=='1' :
       JFG_ORIGINAL_TIMING_GENERATION == 1;
-  if (!opted_in && !runtime_opted_in) return false;
-  static const std::regex pattern(
-      R"jfg(\{"kind":"jfg-phase9-original-os-probe","acceptance":false,"status":"retrace-target","retrace_target":([1-9][0-9]*),"vi_retraces":([1-9][0-9]*),"controller_samples":[0-9]+,"completed_updates":[0-9]+,"cpu_count":[1-9][0-9]*,"instructions":[1-9][0-9]*,"graphics_tasks":[0-9]+,"decoded_audio_tasks":[0-9]+,"unsupported_accesses":0,"runtime_snapshot_complete":false,"state_hash":"[0-9a-f]{64}"\}\r?\n)jfg");
-  std::smatch match;
-  if (!std::regex_match(output, match, pattern) || match[1].str() != std::to_string(target) ||
-      match[2].str() != std::to_string(target)) return false;
-  line = output;
+  return opted_in || runtime_opted_in;
+}
+bool extract_original_os_probe(const std::string& output, unsigned retraces, unsigned polls, std::string& line) {
+  const auto parsed=jfg::boot::parse_original_os_probe(output,retraces,polls);
+  if(!parsed)return false;
+  line=jfg::boot::original_os_probe_json(*parsed);
   return true;
 }
 
@@ -391,14 +391,13 @@ int run_parent(const char *executable_path, const char *rom_path,
                          ? (play_mode
                                 ? extract_canonical_play_exit(
                                       child_output, canonical_line)
-                            : poll_target != 0U
-                                ? extract_canonical_poll_probe(
-                                      child_output, poll_target, canonical_line)
-                            : retrace_target == 3U
-                                ? extract_canonical_success(child_output,
-                                                            canonical_line)
-                                : (extract_canonical_probe(child_output, canonical_line) ||
-                                   extract_original_os_probe(child_output, retrace_target, canonical_line)))
+                            : original_os_probe_enabled()
+                                ? extract_original_os_probe(child_output,retrace_target,poll_target,canonical_line)
+                                : (poll_target != 0U
+                                ? extract_canonical_poll_probe(child_output,poll_target,canonical_line)
+                                : retrace_target == 3U
+                                  ? extract_canonical_success(child_output,canonical_line)
+                                  : extract_canonical_probe(child_output,canonical_line)))
                          : extract_canonical_ledger(child_output,
                                                     canonical_line);
                   if (!valid) {

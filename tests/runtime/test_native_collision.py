@@ -40,7 +40,7 @@ class NativeCollisionSourceTests(unittest.TestCase):
 
     def test_only_closed_calls_are_rewritten(self):
         source,spec=fixture("    LOOKUP_FUNC(0x00317174)(rdram, ctx);\n")
-        result=extract(source,spec)
+        result=extract(source,spec,{0x00317174:"bounded"})
         self.assertIn("bounded(rdram, ctx);",result)
         self.assertNotIn("LOOKUP_FUNC",result)
 

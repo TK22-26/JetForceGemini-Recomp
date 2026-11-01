@@ -156,7 +156,11 @@ if(MSVC AND JFG_SUPPORT_SYMBOLS)
     add_link_options(/DEBUG /INCREMENTAL:NO)
 endif()
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/RomCatalog.cmake")
+
 add_library(jfg_runtime STATIC
+    src/game/descriptor.cpp
+    src/game/bindings.cpp
     src/platform/host.cpp
     src/runtime/audio_task_bridge.cpp
     src/runtime/bounded_custom_graphics.cpp
@@ -181,6 +185,7 @@ target_include_directories(jfg_runtime
         "$<INSTALL_INTERFACE:include>"
 )
 
+target_link_libraries(jfg_runtime PUBLIC jfg_rom_catalog)
 target_compile_features(jfg_runtime PUBLIC cxx_std_20)
 jfg_set_project_warnings(jfg_runtime)
 

@@ -10,7 +10,7 @@ struct EnhancedShadowFootprint {
 // Size the render-only receiver query from both posed vertex banks. The legacy
 // scale describes a 64x64 mask, not the extent of the Enhanced mesh silhouette.
 inline std::optional<EnhancedShadowFootprint> enhanced_shadow_footprint(
-    const PresentationGuestView& ram, std::uint32_t actor,
+    const RendererGameLayout& layout,    const PresentationGuestView& ram, std::uint32_t actor,
     const std::array<std::array<float,2>,4>& original,
     const std::array<float,2>& shear, const std::array<float,2>& floor) {
   for(const auto& p:original)for(float x:p)
@@ -18,9 +18,9 @@ inline std::optional<EnhancedShadowFootprint> enhanced_shadow_footprint(
   for(float x:shear)if(!std::isfinite(x)||std::abs(x)>2.001f)return {};
   for(float x:floor)if(!std::isfinite(x)||std::abs(x)>32768)return {};
   if(!ram.valid(actor,0x70U))return {};
-  const auto header=ram.u32(actor+0x40U),table=ram.u32(actor+0x6CU);
+  const auto header=ram.u32(actor+layout.actor_header),table=ram.u32(actor+layout.actor_models);
   if(!ram.valid(header,0x70U)||ram.u8(header+0x1EU)==1U)return {};
-  const auto index=ram.u8(actor+0x3AU),models=ram.u8(header+0x1FU);
+  const auto index=ram.u8(actor+layout.actor_variant),models=ram.u8(header+0x1FU);
   if(!models||models>16U||index>=models||!ram.valid(table,models*4U))return {};
   const auto instance=ram.u32(table+index*4U);
   if(!ram.valid(instance,0x18U))return {};
@@ -38,11 +38,11 @@ inline std::optional<EnhancedShadowFootprint> enhanced_shadow_footprint(
     // camConvertMatrixList QUEUES float 4x3 matrices for camTick. Padding
     // words are not initialized and cannot identify the representation.
     // Use the native pending-conversion list, never value-based inference.
-    const auto queued=ram.valid(0x800A2ED0U,4U)?ram.u32(0x800A2ED0U):0U;
-    if(queued>1024U || (queued&&!ram.valid(0x800FA658U,queued*8U)))return {};
+    const auto queued=ram.valid(layout.matrix_queue_count,4U)?ram.u32(layout.matrix_queue_count):0U;
+    if(queued>1024U || (queued&&!ram.valid(layout.matrix_queue,queued*8U)))return {};
     bool floating=false;
     for(unsigned q=0;q<queued;++q) {
-      const auto entry=0x800FA658U+q*8U;
+      const auto entry=layout.matrix_queue+q*8U;
       if(PresentationGuestView::physical(ram.u32(entry))!=PresentationGuestView::physical(palette))continue;
       if(ram.u16(entry+4U)!=bones)return {};
       floating=true;
@@ -136,9 +136,9 @@ inline std::optional<EnhancedShadowFootprint> enhanced_shadow_footprint(
 // Pinned to shadowProject's rectangle-bounds call, before both broadphase
 // receiver lookup and triangle clipping. Only its temporary stack polygon changes.
 inline std::optional<EnhancedShadowFootprint> enhanced_shadow_receiver_query(
-    std::span<std::uint8_t> bytes,std::uint32_t target,std::uint32_t caller,
+    const RendererGameLayout& layout,    std::span<std::uint8_t> bytes,std::uint32_t target,std::uint32_t caller,
     std::uint32_t stack,std::uint32_t count,std::uint32_t points,bool enabled) {
-  if(!enabled||target!=0x80020954U||caller!=0x8001E5D0U||count!=4U||
+  if(!enabled||target!=layout.shadow_bounds||caller!=layout.shadow_bounds_return||count!=4U||
      points!=stack+0x54U||(stack&3U))return {};
   const PresentationGuestView ram(bytes);
   if(!ram.valid(stack,0x174U))return {};
@@ -155,7 +155,7 @@ inline std::optional<EnhancedShadowFootprint> enhanced_shadow_receiver_query(
       const auto shear=light?shadow_light_shear(ram.u16(light),ram.u16(light+2U)):std::array<float,2>{};
       const std::array<float,2> floor{float(std::int16_t(ram.u16(stack+0x80U))),
           float(std::int16_t(ram.u16(stack+0x82U)))};
-      result=enhanced_shadow_footprint(ram,ram.u32(stack+0x74U),polygon,shear,floor);
+      result=enhanced_shadow_footprint(layout,ram,ram.u32(stack+0x74U),polygon,shear,floor);
     }
   }
   const bool restored=std::fesetenv(&saved)==0;

@@ -26,10 +26,22 @@ def main():
  common=["/nologo","/O2","/Ob2","/fp:precise","/DNDEBUG","/MD","/wd4702",
    "/I"+str(out),"/I"+str(g/"include"),"/I"+str(root/"include")]
  references=[];objects=[]
- definitions=[("bsp","fn_003_0168_recomp"),("split","fn_003_0167_recomp"),("line","fn_003_0054_recomp")]
+ from scripts.regional.native_operations import load
+ operations,bindings,descriptor=load(g)
+ names=(("bsp","overlay.collision.accessor"),("split","native.collision_split"),("line","native.collision_line"))
+ definitions=[(alias,operations['operations'][name]) for alias,name in names]
+ ref=bindings['data']['collision.edges'];section=next(x for x in descriptor['model']['sections'] if x['id']==ref['section'])
+ offset=section['text_size']+(section['data_size'] if ref['domain']=='bss' else 0)+ref['offset']
+ extent=section['text_size']+section['data_size']+section['bss_size']
+ fields=[section['source_index'],section['linked_vram'],offset,extent]
+ header='inline constexpr jfg::boot::NativeCollisionLayout collision_layout{'+','.join(hex(x)+'U' for x in fields)+'};\n'
+ header+='inline constexpr unsigned kSectionCount='+str(max(x['source_index'] for x in descriptor['model']['sections'])+1)+';\n'
+ for alias,row in definitions:header+='inline constexpr unsigned k'+alias.title()+'Entry='+hex(row['entry_pc'])+'U;\n'
+ header+='inline constexpr unsigned kCollisionGlobals=collision_layout.linked_address+collision_layout.edge_pointer_offset-4U;\n'
+ (out/'collision-layout.hpp').write_text(header)
  with(out/"build.log").open("w")as log:
-  for name,symbol in definitions:
-   raw=(g/"baseline"/(symbol+".c")).read_text()
+  for name,row in definitions:
+   symbol=row["symbol"];raw=(g/row["source"]).read_text()
    source=raw.replace('#include "funcs.h"','#include "timing.h"').replace(symbol,name+"_reference")
    unit=out/(name+"_reference.c");unit.write_text(source)
    obj=out/(name+"_reference.obj");objects.append(str(obj))

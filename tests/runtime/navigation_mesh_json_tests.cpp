@@ -1,3 +1,4 @@
+#include "regional_game_fixture.hpp"
 #include "jfg/mod/navigation_mod.hpp"
 #include <sstream>
 #include <iostream>
@@ -58,7 +59,7 @@ int main(int argc,char** argv) {
     std::ifstream in(argv[1],std::ios::binary);
     std::vector<std::uint8_t> data{std::istreambuf_iterator<char>(in),{}};
     if(data.size()!=0x400000)throw std::runtime_error("4 MiB logical reference dump required");
-    Memory memory(data,false);check(decode_mesh(memory,memory.u32(0x800a0d60)));
+    jfg::test::GameMemory memory(data,false);check(decode_mesh(memory,memory.u32(0x800a0d60)));
   }
   auto measure=[&](bool legacy) {
     const auto start=std::chrono::steady_clock::now();

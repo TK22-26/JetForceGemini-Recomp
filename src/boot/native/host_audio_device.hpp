@@ -28,14 +28,15 @@ public:
   bool configure_capture(const std::string &path);
 
   bool queue(const std::uint8_t *const rdram, std::uint32_t address,
-             const std::uint32_t length, const std::uint32_t dac_rate);
+             const std::uint32_t length, const std::uint32_t dac_rate,
+             const std::uint32_t video_clock);
 
   // Shader startup may accumulate more than the configured priming cushion.
   // Establish the wall clock only after that excess has played, so startup
   // work cannot permanently choose a larger audio/video phase offset.
   void settle_startup_queue();
 
-  void service(const bool advance_emulated_clock, const bool throttle);
+  void service(unsigned nominal_vi_rate, const bool throttle);
 
   // Called after submissions are drained, never from an SDL callback. This
   // changes only the host queue; guest DMA completion and VI pacing stay
@@ -76,7 +77,7 @@ private:
 
   void capture_event(const char *event) noexcept;
 
-  void advance_emulated_dma() noexcept;
+  void advance_emulated_dma(unsigned nominal_vi_rate) noexcept;
 
   GameplayTrace *gameplay_trace_ = nullptr;
   const std::uint64_t *capture_vi_ = nullptr;

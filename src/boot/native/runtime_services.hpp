@@ -6,6 +6,9 @@ enum class SyntheticOverlayPublication : std::uint8_t {
   reload,
 };
 void stop_pc_rumble(State& state) noexcept;
+#if defined(JFG_PHASE8_LIVE_RUNTIME)
+bool validate_persistent_profile_paths(bool play_mode);
+#endif
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
 void support_mouse_snapshot(State& state) noexcept;
@@ -14,7 +17,7 @@ void trace_phase9_event(State &state, const char *event,
                         const std::uint64_t poll);
 bool read_xinput_device(int device,
                         jfg::StandardControllerSample &sample) noexcept;
-bool pc_rumble_eligible(const State& state,const jfg::mod::Memory& ram,std::size_t port);
+bool pc_rumble_eligible(const State& state,const NativeGameMemory& ram,std::size_t port);
 void sync_pc_rumble(State& state);
 void request_pc_rumble(State& state,std::uint32_t target,const recomp_context& context);
 bool modern_controls_selected(const State &state,std::size_t port);
@@ -208,9 +211,9 @@ void service_vi_frame(State &state, const std::uint32_t target);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
 std::array<std::uint64_t,6> sample_model_thread(State& state,std::uint32_t query,
     std::uint32_t next=UINT32_MAX);
-bool cutscene_actors_reviewed(const jfg::mod::Memory& ram);
+bool cutscene_actors_reviewed(const NativeGameMemory& ram);
 bool update_cutscene_review(State& state,recomp_context& context);
-std::uint8_t* cutscene_credits_memory(State& state,const jfg::mod::Memory& ram);
+std::uint8_t* cutscene_credits_memory(State& state,const NativeGameMemory& ram);
 void update_cutscene_completion(State& state,recomp_context& context);
 #endif
 

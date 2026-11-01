@@ -1,3 +1,4 @@
+#include "regional_game_fixture.hpp"
 #include "jfg/mod/navigation_mod.hpp"
 #include <cstdlib>
 #include <filesystem>
@@ -20,6 +21,9 @@ check(bool ok,
 #include "npc_rewards_tests.hpp"
 #include "navigation_pilot_tests.hpp"
 #include "navigation_collision_tests.hpp"
+constexpr jfg::mod::DialogueLayout kFixtureDialogue{
+  0x2c44,0x2a24,0x2a44,0x2a58,0x2a5c,0x2a28,0x2a2c,0x2a38,0x2a20,0x2a3c,0x2a40,0x2a4c,
+  {0xd84,0x8c420000,0xffff0000},{0xd88,0x03e00008}};
 int main(int argc, char **argv) {
   modern_player_context_tests();
   box_jump_tests();
@@ -35,7 +39,7 @@ int main(int argc, char **argv) {
     std::vector<std::uint8_t> bytes{std::istreambuf_iterator<char>(in),
                                   std::istreambuf_iterator<char>()};
     check(bytes.size()==4194304U);
-    Memory m(bytes,false);
+    jfg::test::GameMemory m(bytes,false);
     const auto player=static_cast<std::uint32_t>(std::strtoul(argv[3],nullptr,0));
     check(gameplay_active(m,player) && !pc_gameplay_active(m,player));
     check(pc_boss_gameplay_active(m,player) && pc_actions_active(m,player));
@@ -48,7 +52,7 @@ int main(int argc, char **argv) {
     std::vector<std::uint8_t> bytes{std::istreambuf_iterator<char>(in),
                                     std::istreambuf_iterator<char>()};
     check(bytes.size() == 4194304U);
-    Memory m(bytes, false);
+    jfg::test::GameMemory m(bytes, false);
     const auto mesh = decode_mesh(m, m.u32(0x800A0D60U));
     const auto list = actors(m);
     const auto doors = exits(m, list);
@@ -76,14 +80,14 @@ int main(int argc, char **argv) {
   bool odd_rejected = false;
   try {
     std::array<std::uint8_t, 3> odd{};
-    Memory invalid(odd);
+    jfg::test::GameMemory invalid(odd);
   } catch (const std::runtime_error &) {
     odd_rejected = true;
   }
   check(odd_rejected);
   for (bool swapped : {false, true}) {
     std::vector<std::uint8_t> bytes(4194304U);
-    Memory m(bytes, swapped);
+    jfg::test::GameMemory m(bytes, swapped);
     const auto put32 = [&](std::uint32_t a, std::uint32_t v) {
       m.put16(a, static_cast<std::uint16_t>(v >> 16U));
       m.put16(a + 2, static_cast<std::uint16_t>(v));
@@ -95,28 +99,28 @@ int main(int argc, char **argv) {
       put32(a, std::bit_cast<std::uint32_t>(v));
     };
     const std::uint32_t hint=0x80380000U,choice=0x80384000U;
-    check(!read_dialogue(m,hint).known);
+    check(!read_dialogue(m,hint,kFixtureDialogue).known);
     put32(hint+0xD84U,0x8C422A24U);put32(hint+0xD88U,0x03E00008U);
-    check(read_dialogue(m,hint).known&&!read_dialogue(m,hint).active);
+    check(read_dialogue(m,hint,kFixtureDialogue).known&&!read_dialogue(m,hint,kFixtureDialogue).active);
     put32(hint+0x2A24U,1);put32(hint+0x2A20U,256);
     put32(hint+0x2A58U,0x80385000U);
-    auto dialogue=read_dialogue(m,hint);
+    auto dialogue=read_dialogue(m,hint,kFixtureDialogue);
     check(dialogue.active&&dialogue.ready&&!dialogue.choices);
-    put32(hint+0x2A38U,16);check(!read_dialogue(m,hint).ready);put32(hint+0x2A38U,0);
-    put32(hint+0x2A2CU,1);check(!read_dialogue(m,hint).ready);put32(hint+0x2A2CU,0);
+    put32(hint+0x2A38U,16);check(!read_dialogue(m,hint,kFixtureDialogue).ready);put32(hint+0x2A38U,0);
+    put32(hint+0x2A2CU,1);check(!read_dialogue(m,hint,kFixtureDialogue).ready);put32(hint+0x2A2CU,0);
     put32(hint+0x2A44U,1);put32(hint+0x2A5CU,choice);
     m.put16(choice,2);m.put16(choice+2,1);m.put16(choice+4+8,0);m.put16(choice+4+16+8,0x5000);
-    dialogue=read_dialogue(m,hint);check(dialogue.choices&&dialogue.rows.size()==2&&dialogue.selected==1);
+    dialogue=read_dialogue(m,hint,kFixtureDialogue);check(dialogue.choices&&dialogue.rows.size()==2&&dialogue.selected==1);
     std::vector<std::uint8_t> hint_section(0x3000U);
     for(unsigned i=0;i<hint_section.size();++i)
       hint_section[i^3U]=m.u8(hint+i);
     DialogueMemory synthetic(m,0x00700000U,std::span<const std::uint8_t>(hint_section));
-    const auto synthetic_state=read_dialogue(synthetic,0x00700000U);
+    const auto synthetic_state=read_dialogue(synthetic,0x00700000U,kFixtureDialogue);
     check(!m.valid(0x00700000U,4));
     check(synthetic_state.known&&synthetic_state.active&&synthetic_state.ready);
     check(synthetic_state.rows.size()==2&&synthetic_state.selected==1);
     check(!synthetic.valid(0x006FFFFCU,4)&&!synthetic.valid(0x00703000U,1));
-    check(!read_dialogue(synthetic,0x00800000U).known);
+    check(!read_dialogue(synthetic,0x00800000U,kFixtureDialogue).known);
     DialogueInput dialogue_input;
     auto dialogue_send=[&](unsigned nonce,unsigned token,int action,bool manual=false,bool replay=false,unsigned room=27,unsigned gen=13,unsigned epoch=7,int stamp=1000) {
       std::ostringstream text;text<<"JFGDIALOGUE1 "<<room<<' '<<gen<<' '<<nonce<<' '<<stamp<<' '<<epoch<<' '<<token<<' '<<action;
@@ -135,8 +139,8 @@ int main(int argc, char **argv) {
     check(dialogue_send(10,dialogue.token,2)==0);
     dialogue.ready=false;check(dialogue_send(11,dialogue.token,0)==0);
     dialogue.ready=true;check(dialogue_send(11,dialogue.token,0)==0);
-    m.put16(choice,33);check(!read_dialogue(m,hint).known);
-    put32(hint+0xD88U,0);check(!read_dialogue(m,hint).known);
+    m.put16(choice,33);check(!read_dialogue(m,hint,kFixtureDialogue).known);
+    put32(hint+0xD88U,0);check(!read_dialogue(m,hint,kFixtureDialogue).known);
     const std::uint32_t chest_actor=0x8030D000U,chest_data=0x8030E000U;
     put32(chest_actor+0x68U,chest_data);m.put16(chest_actor+0x48U,98U);
     m.put16(chest_actor,0xC000U);

@@ -46,6 +46,8 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
+| FLASH-CONTRACT-20261101 | FlashRAM sector and command semantics | Shared-device tests and all-three original-OS new-slot/reload checks pass; current enhanced and broader persistence qualification pending | [Report](flashram-device-contract.md) |
+| LAUNCHER-EXPLORER-SHUTDOWN-20261101 | Map explorer worker outlives window close | Bounded worker completion passes actual-window regression; live verification pending | [Report](launcher-explorer-shutdown.md) |
 | ARCH-NATIVE-20261101 | Native runtime modularization | Implemented module ownership; Windows build, 118 CTests and scoped native replays pass; shared State and Linux live limitations recorded; unreleased | [Report](native-runtime-modularization.md) |
 | TOOLING-HISTORY-20261031 | Local history hygiene | Resolved locally after verified external preservation of all objects and six stashes; actual full-history gate passes; main/develop/tag identities preserved | [Report](repository-history-hygiene.md) |
 | ARCH-20261031 | Folder architecture, stale documentation and legacy tooling | Implemented locally: domain layout, obsolete tooling removal and documentation consolidation; Windows/Python/renderer/UI checks pass; unreleased | [Report](folder-architecture-audit.md) |
@@ -67,7 +69,8 @@ Detailed per-issue records are added as those issues receive further work.
 | RENDER-VELA-SKIRT | Vela skirt transparency artifact on slopes | Resolved locally: skirt/focus repair and smooth transparency owner-verified; unreleased | [Report](vela-skirt-focus-tearing.md) |
 | RENDER-CAMERA-CADENCE | Pulsing flight camera and ship motion | Camera/ship/startup corrections owner-verified locally; separate skybox correction passes replay and owner review | [Report](cutscene-camera-cadence.md) |
 | UI-AUDIO-SETTINGS | Audio Settings opens as an old modal with about 20 seconds delay | Resolved locally: owner confirms immediate opening; original delay cause unknown; unreleased | [Report](audio-settings-window-delay.md) |
-| ROM-REGIONS | PAL and Japanese ROM support | Matching PAL/JP metadata and 155 overlays per region verified; SDK/generation/host integration still open; neither regional ROM is playable natively | [Plan](regional-rom-support.md) |
+| ROM-REGIONS | PAL and Japanese support | All three original-OS candidates reach new-slot/reloaded Goldwood; current enhanced build and feature/product qualification remain open | [Report](regional-rom-support.md) |
+| ROM-OVERLAY-OWNERS | Regional overlay identity | Typed original-qualified code/data owners implemented; all-three original-OS Goldwood checks pass; residual schemas and enhanced qualification open | [Record](regional-overlay-ownership.md) |
 | AUDIO-FLIGHT-045 | Missing music in specific flight transitions | NTSC Walkway override removed and scoped replay checks pass; old previews superseded; PAL music heard in EmuHawk, Vela expectations unverified; #45 open | [Report](flight-transition-missing-music.md) |
 | RENDER-SHOT-001 | Low-FPS effects at high output rates | Ship beams, travelling shots and grenade shockwaves owner-verified locally; opening marker and fire owner-verified locally; unreleased | [Report](high-refresh-shot-effects.md) |
 | GH-047 | [Playtest] In high framerates the floor reflections are animated in lower frames | owner-approved local reflected geometry and motion corrections; unreleased | [Report](floor-reflection-geometry.md) |

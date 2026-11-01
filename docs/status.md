@@ -9,7 +9,7 @@ This page describes the repository as reviewed on 2026-11-01. Release availabili
 | Accepted locally, unreleased | The replacement standalone Audio settings window opens immediately in the owner's review. The old delay's underlying cause remains unknown. See the issue index and changelog for the exact local scope. |
 | Candidate or still open | Post-release controls additions and reporter-specific failures retain the verification status of their individual issue records. Builds and component checks are not owner acceptance. |
 | Corrected reference finding | Leaving Walkway has no music on the owner's NTSC N64; the PAL ROM does have music in EmuHawk. The US Walkway override is removed from source and rebuilt; scoped native replays pass. Older previews retain the superseded insertion. |
-| Regional foundation, native work open | PAL/JP metadata reconstructs both original ROMs and all 155 overlays per region exactly. SDK identification, generation, host integration and gameplay qualification remain; neither region is a supported Play profile. |
+| Shared regional architecture, qualification open | US/PAL/JP use one catalog, generation pipeline, typed bindings, native bundle identity and revision save namespaces. All three original-OS candidates create saves and reload into Goldwood. Current enhanced builds, remaining binary schemas, product admission and campaign acceptance remain open. [Exact checkpoint](development/issues/regional-rom-support.md). |
 
 Use [known issues](known-issues.md) for player-facing limitations, [issue records](development/issues/README.md)
 for cause/evidence/status, and [original-game findings](original-game/README.md) for hardware bugs and region differences.

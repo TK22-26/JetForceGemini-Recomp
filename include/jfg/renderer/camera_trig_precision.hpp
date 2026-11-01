@@ -1,4 +1,5 @@
 #pragma once
+#include "jfg/renderer/game_layout.hpp"
 #include <cmath>
 #include <cstdint>
 #include <optional>
@@ -22,16 +23,17 @@ std::optional<float> camera_precision_sine(std::uint32_t angle, Read&& read) {
   }
   return (angle&0x8000U)?-result:result;
 }
-inline bool camera_precision_call(bool interpolated, std::uint32_t target,std::uint32_t caller,
+inline bool camera_precision_call(const RendererGameLayout& layout,bool interpolated, std::uint32_t target,std::uint32_t caller,
     std::uint32_t transform,std::uint32_t destination) {
-  if(!interpolated || transform!=0x800FA638U)return false;
-  if(destination==0x800FAF78U) {
-    if(target==0x80049C34U)return caller==0x8004A1B4U || caller==0x8004A1C8U || caller==0x8004A1DCU;
-    if(target==0x80049C30U)return caller==0x8004A1BCU || caller==0x8004A1D0U || caller==0x8004A1E4U;
+  if(!interpolated || transform!=layout.camera_transform)return false;
+  const auto contains=[caller](const auto& sites){for(auto site:sites)if(site==caller)return true;return false;};
+  if(destination==layout.view_matrix) {
+    if(target==layout.sine)return contains(layout.ypr_sine);
+    if(target==layout.cosine)return contains(layout.ypr_cosine);
   }
-  if(destination==0x800F2A08U) {
-    if(target==0x80049C34U)return caller==0x80049F1CU || caller==0x80049F30U || caller==0x80049F44U;
-    if(target==0x80049C30U)return caller==0x80049F24U || caller==0x80049F38U || caller==0x80049F4CU;
+  if(destination==layout.inverse_matrix) {
+    if(target==layout.sine)return contains(layout.rpy_sine);
+    if(target==layout.cosine)return contains(layout.rpy_cosine);
   }
   return false;
 }

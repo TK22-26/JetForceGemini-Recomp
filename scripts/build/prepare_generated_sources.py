@@ -76,6 +76,7 @@ MANIFEST_KEYS_V6 = MANIFEST_KEYS_V4 | {
     for product in SEMANTIC_PRODUCTS_V6
     for member in (product, f"{product}_sha256")
 }
+MANIFEST_KEYS_V7 = MANIFEST_KEYS_V6 | {"revision_id", "program_model_sha256", "generation_input_sha256", "normalizer_id", "game_descriptor", "game_descriptor_sha256", "game_bindings", "game_bindings_sha256", "native_operations", "native_operations_sha256"}
 SOURCE_ROLES = {
     "baseline-body": ("baseline_body_sources", {".c"}, False),
     "normal-wrapper": ("normal_wrapper_sources", {".c"}, False),
@@ -117,17 +118,25 @@ def _load_manifest(path: Path) -> dict[str, object]:
         4: MANIFEST_KEYS_V4,
         5: MANIFEST_KEYS_V5,
         6: MANIFEST_KEYS_V6,
+        7: MANIFEST_KEYS_V7,
     }.get(document["version"])
     if expected_keys is None:
         raise PreparationFailure("source-manifest: unsupported-version")
     if set(document) != expected_keys:
         raise PreparationFailure("source-manifest: invalid-member-set")
-    if document["version"] in {4, 5, 6}:
+    if document["version"] in {4, 5, 6, 7}:
         thunk = document.get("alternate_entry_thunk_sources")
         tables = document.get("table_support_sources")
         support = document.get("support_sources")
         if not all(isinstance(value, list) and all(isinstance(path, str) for path in value) for value in (thunk, tables, support)) or set(thunk) & set(tables) or set(support) != set(thunk) | set(tables):
             raise PreparationFailure("source-manifest: support-role-partition")
+    if document["version"] == 7:
+        from scripts.rom_profiles import PROFILES_BY_ID
+        if document["revision_id"] not in PROFILES_BY_ID or document["normalizer_id"] != "regional-v1":
+            raise PreparationFailure("source-manifest: invalid-regional-identity")
+        for key in ("program_model_sha256", "generation_input_sha256"):
+            if not isinstance(document[key], str) or re.fullmatch(r"[0-9a-f]{64}", document[key]) is None:
+                raise PreparationFailure("source-manifest: invalid-regional-digest")
     return document
 
 
@@ -168,6 +177,11 @@ def _validate_normalizer_revision(document: dict[str, object]) -> None:
         r"[0-9a-f]{64}", expected_digest
     ):
         raise PreparationFailure("normalizer-revision: invalid-digest")
+    if document["version"] == 7:
+        from scripts.regional.producer_identity import fingerprint
+        if fingerprint() != expected_digest:
+            raise PreparationFailure("normalizer-revision: digest-mismatch")
+        return
     try:
         if NORMALIZER_PATH.is_symlink() or not NORMALIZER_PATH.is_file():
             raise OSError("normalizer is not a regular file")
@@ -292,10 +306,29 @@ def prepare(
     document = _load_manifest(manifest_path)
     # CMake enables this for every private root. The only v1 consumer is the
     # exact tracked ROM-free fixture selected by CMake's separate root policy.
-    if require_normalizer_revision and document["version"] not in {2, 3, 4, 5, 6}:
+    if require_normalizer_revision and document["version"] not in {2, 3, 4, 5, 6, 7}:
         raise PreparationFailure("normalizer-revision: required")
-    if document["version"] in {2, 3, 4, 5, 6}:
+    if document["version"] in {2, 3, 4, 5, 6, 7}:
         _validate_normalizer_revision(document)
+    if document["version"] == 7:
+        from scripts.regional.descriptor_codegen import emit as validate_descriptor
+        raw = _resolve_contained(root, document["game_descriptor"], "game-descriptor").read_bytes()
+        if hashlib.sha256(raw).hexdigest() != document["game_descriptor_sha256"]:
+            raise PreparationFailure("game-descriptor: digest-mismatch")
+        from scripts.regional.json_contract import loads
+        descriptor = loads(raw)
+        if (descriptor["revision_id"], descriptor["model_sha256"], descriptor["input_sha256"]) != (document["revision_id"], document["program_model_sha256"], document["generation_input_sha256"]):
+            raise PreparationFailure("game-descriptor: corpus-identity-mismatch")
+        validate_descriptor(descriptor)
+        from scripts.regional.bindings import validate_document as validate_bindings
+        binding_raw = _resolve_contained(root, document["game_bindings"], "game-bindings").read_bytes()
+        if hashlib.sha256(binding_raw).hexdigest() != document["game_bindings_sha256"]:
+            raise PreparationFailure("game-bindings: digest-mismatch")
+        validate_bindings(loads(binding_raw), descriptor)
+        if document['native_operations']!='native-operations.json':raise PreparationFailure('native-operations: invalid-path')
+        from scripts.regional.native_operations import validate as validate_native_operations
+        try:validate_native_operations(root,document,descriptor,loads(binding_raw))
+        except (ValueError,OSError,KeyError) as error:raise PreparationFailure('native-operations: '+str(error)) from error
     sources: dict[str, list[Path]] = {}
     all_sources: list[Path] = []
     directory_cache: dict[
@@ -353,7 +386,7 @@ def prepare(
 
     cpu_inventory: Path | None = None
     cpu_inventory_bytes: bytes | None = None
-    if document["version"] in {3, 4, 5, 6}:
+    if document["version"] in {3, 4, 5, 6, 7}:
         cpu_inventory_value = document.get("cpu_section_inventory")
         cpu_inventory = _resolve_contained(
             root, cpu_inventory_value, "cpu-section-inventory"
@@ -376,10 +409,10 @@ def prepare(
             raise PreparationFailure("cpu-section-inventory: digest-mismatch")
 
     semantic_product_bytes: dict[str, bytes] = {}
-    if document["version"] in {5, 6}:
+    if document["version"] in {5, 6, 7}:
         semantic_products = (
             SEMANTIC_PRODUCTS_V6
-            if document["version"] == 6
+            if document["version"] in {6, 7}
             else SEMANTIC_PRODUCTS
         )
         for member, expected_kind in semantic_products.items():
@@ -407,7 +440,7 @@ def prepare(
     output.mkdir(parents=True, exist_ok=True)
     for role, role_sources in sources.items():
         _write_lines(output / f"{role}.txt", role_sources)
-    if document["version"] in {4, 5, 6}:
+    if document["version"] in {4, 5, 6, 7}:
         support_values = document["support_sources"]
         assert isinstance(support_values, list)
         support_by_value = dict(zip(support_values, sources["support"]))

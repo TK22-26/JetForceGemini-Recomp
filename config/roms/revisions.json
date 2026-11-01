@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "revisions": [
+    {
+      "id": "jfg-us-r0",
+      "code": "us",
+      "title": "Jet Force Gemini (USA)",
+      "sha1": "493ced9008dbe932d6e91179b68e8630cf23a023",
+      "country": "E",
+      "revision": 0,
+      "size": 33554432,
+      "byte_order": "big-endian",
+      "extraction_recipe": "pinned-decomp-us"
+    },
+    {
+      "id": "jfg-pal-r0",
+      "code": "pal",
+      "title": "Jet Force Gemini (Europe)",
+      "sha1": "50651c4e0c46332f7f0b45870263f0a8b9a49602",
+      "country": "P",
+      "revision": 0,
+      "size": 33554432,
+      "byte_order": "big-endian",
+      "extraction_recipe": "pinned-decomp-regional"
+    },
+    {
+      "id": "star-twins-jp-r0",
+      "code": "jpn",
+      "title": "Star Twins (Japan)",
+      "sha1": "15099233760b36e7afad7da36b9464da1512c4b1",
+      "country": "J",
+      "revision": 0,
+      "size": 33554432,
+      "byte_order": "big-endian",
+      "extraction_recipe": "pinned-decomp-regional"
+    }
+  ]
+}

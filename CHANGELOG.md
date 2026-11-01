@@ -7,10 +7,12 @@
   timing/cache ownership and the generated ABI. The Windows host rebuild and scoped
   replays pass; shared state and regional host assumptions remain documented limits.
   [Runtime validation](docs/development/issues/native-runtime-modularization.md).
-- Add exact PAL/Japanese ROM identification and private metadata preparation. Both
-  originals reconstruct byte for byte with 155 executable overlays each. Native
-  regional gameplay remains unsupported; US admission checks remain enforced.
-  [Regional work and gaps](docs/development/issues/regional-rom-support.md).
+- Build a shared US/PAL/Japanese program architecture: exact original reconstruction,
+  common CPU/audio generation, typed resident/overlay/member bindings, strict native
+  bundle identity and revision save storage. Earlier original-OS builds create saves
+  and reload into Goldwood on all three revisions. Enhanced runtime, residual binary
+  schemas, product admission and campaign acceptance remain in qualification.
+  [Regional implementation and evidence](docs/development/issues/regional-rom-support.md).
 - Finish owner-approved local Git cleanup after verifying an independent retained
   database of all original objects and six stashes. Keep main/develop and public
   commit/tag identities; the actual checkout's full history hygiene check passes.

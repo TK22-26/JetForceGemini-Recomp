@@ -89,7 +89,7 @@ public:
   // Read fresh geometry and registered moving-model bounds every update.
   explicit PcCameraBroadphase(const mod::Memory& ram) {
     try {
-      const auto track=ram.u32(0x800A0D60U);
+      const auto track=ram.global_u32("globals.currentTrack");
       mesh_=mod::decode_mesh(ram,track);
       models_=mod::collision_models(ram,mod::actors(ram));
       known_=models_.known && !mesh_.triangles.empty();

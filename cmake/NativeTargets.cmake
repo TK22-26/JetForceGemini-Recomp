@@ -50,16 +50,25 @@ if(JFG_ENABLE_GENERATED_CODE)
     endif()
 
     if(JFG_BUILD_PHASE6_NATIVE_BOOT)
-        jfg_resolve_private_file(jfg_phase6_libultra_identification
-            "${JFG_PHASE6_LIBULTRA_IDENTIFICATION}"
-            "JFG_PHASE6_LIBULTRA_IDENTIFICATION")
         find_package(Python3 REQUIRED COMPONENTS Interpreter)
-        set(jfg_phase6_dispatch_table "${CMAKE_CURRENT_BINARY_DIR}/phase6-private/native-dispatch-table.inc")
-        add_custom_command(OUTPUT "${jfg_phase6_dispatch_table}"
-            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_phase6_native_dispatch_table.py"
-                --identification "${jfg_phase6_libultra_identification}" --output "${jfg_phase6_dispatch_table}"
-            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_phase6_native_dispatch_table.py" "${jfg_phase6_libultra_identification}"
-            VERBATIM)
+        file(READ "${JFG_GENERATED_ROOT}/sources.json" jfg_native_source_manifest)
+        string(JSON jfg_native_source_version GET "${jfg_native_source_manifest}" version)
+        if(jfg_native_source_version EQUAL 7)
+            set(jfg_regional_native ON)
+            set(jfg_phase6_dispatch_table "${CMAKE_CURRENT_BINARY_DIR}/phase6-private/linked-bindings.hpp")
+            set(jfg_linked_descriptor "${CMAKE_CURRENT_BINARY_DIR}/phase6-private/linked-descriptor.hpp")
+            execute_process(
+                COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/regional/descriptor_codegen.py"
+                    --generated-root "${JFG_GENERATED_ROOT}" --output "${jfg_linked_descriptor}"
+                RESULT_VARIABLE jfg_descriptor_result ERROR_VARIABLE jfg_descriptor_error)
+            if(NOT jfg_descriptor_result EQUAL 0)
+                message(FATAL_ERROR "Linked regional descriptor/bindings failed: ${jfg_descriptor_error}")
+            endif()
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+                "${JFG_GENERATED_ROOT}/game-descriptor.json" "${JFG_GENERATED_ROOT}/game-bindings.json")
+        else()
+            message(FATAL_ERROR "Native builds require a freshly qualified shared v7 source corpus; regenerate this historical input root")
+        endif()
         add_executable(jfg-native-boot src/app/jfg_native_boot_main.cpp src/boot/native_boot.cpp "${jfg_phase6_dispatch_table}")
         target_sources(jfg-native-boot PRIVATE
             src/boot/native/guest_memory.cpp
@@ -78,6 +87,17 @@ if(JFG_ENABLE_GENERATED_CODE)
             src/boot/native/process_supervisor.cpp
         )
         set_source_files_properties("${jfg_phase6_dispatch_table}" PROPERTIES HEADER_FILE_ONLY TRUE)
+        set(JFG_MSVC_NATIVE_COMPILE_JOBS "1" CACHE STRING "Concurrent native host C++ compilations (1..8)")
+        if(NOT JFG_MSVC_NATIVE_COMPILE_JOBS MATCHES "^[1-8]$")
+            message(FATAL_ERROR "JFG_MSVC_NATIVE_COMPILE_JOBS must be 1..8")
+        endif()
+        if(MSVC AND JFG_MSVC_NATIVE_COMPILE_JOBS GREATER 1)
+            target_compile_options(jfg-native-boot PRIVATE "/MP${JFG_MSVC_NATIVE_COMPILE_JOBS}")
+        endif()
+        if(jfg_regional_native)
+            include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/NativeBuildIdentity.cmake")
+            target_compile_definitions(jfg-native-boot PRIVATE "JFG_NATIVE_GAME_HEADER=\"${jfg_phase6_dispatch_table}\"")
+        endif()
         target_include_directories(jfg-native-boot SYSTEM PRIVATE "${JFG_GENERATED_ROOT}/include" "${JFG_GENERATED_ROOT}")
         target_compile_definitions(jfg-native-boot PRIVATE "JFG_PHASE6_DISPATCH_TABLE_INC=\"${jfg_phase6_dispatch_table}\"")
         if(JFG_ENABLE_ADDRESS_SANITIZER)
@@ -123,9 +143,9 @@ if(JFG_ENABLE_GENERATED_CODE)
                 COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_native_collision.py"
                     --generated-root "${JFG_GENERATED_ROOT}" --output "${jfg_native_collision_body}"
                 DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_native_collision.py"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_003_0168_recomp.c"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_003_0167_recomp.c"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_003_0054_recomp.c"
+                    "${JFG_GENERATED_ROOT}/native-operations.json"
+                    "${JFG_GENERATED_ROOT}/game-bindings.json"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/regional/native_operations.py"
                 VERBATIM)
             set_source_files_properties("${jfg_native_collision_body}" PROPERTIES HEADER_FILE_ONLY TRUE)
             target_sources(jfg-native-boot PRIVATE src/boot/native_collision.cpp "${jfg_native_collision_body}")
@@ -142,9 +162,9 @@ if(JFG_ENABLE_GENERATED_CODE)
                     --generated-root "${JFG_GENERATED_ROOT}" --output "${jfg_direct_mi_mask_body}"
                 DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_direct_mi_mask_access.py"
                     "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_direct_sp_access.py"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1226_recomp.c"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1231_recomp.c"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1235_recomp.c"
+                    "${JFG_GENERATED_ROOT}/native-operations.json"
+                    "${JFG_GENERATED_ROOT}/game-bindings.json"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/regional/native_operations.py"
                 VERBATIM)
             set_source_files_properties("${jfg_direct_mi_mask_body}" PROPERTIES HEADER_FILE_ONLY TRUE)
             target_sources(jfg-native-boot PRIVATE src/boot/direct_mi_mask_access.cpp "${jfg_direct_mi_mask_body}")
@@ -156,12 +176,9 @@ if(JFG_ENABLE_GENERATED_CODE)
                 COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_direct_sp_access.py"
                     --generated-root "${JFG_GENERATED_ROOT}" --output "${jfg_direct_sp_body}"
                 DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_direct_sp_access.py"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1226_recomp.c"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1558_recomp.c"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1643_recomp.c"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1644_recomp.c"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1645_recomp.c"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1646_recomp.c"
+                    "${JFG_GENERATED_ROOT}/native-operations.json"
+                    "${JFG_GENERATED_ROOT}/game-bindings.json"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/regional/native_operations.py"
                 VERBATIM)
             set_source_files_properties("${jfg_direct_sp_body}" PROPERTIES HEADER_FILE_ONLY TRUE)
             target_sources(jfg-native-boot PRIVATE src/boot/direct_sp_access.cpp "${jfg_direct_sp_body}")
@@ -174,7 +191,9 @@ if(JFG_ENABLE_GENERATED_CODE)
                     --generated-root "${JFG_GENERATED_ROOT}" --output "${jfg_native_shadow_body}"
                 DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_native_shadow_filter.py"
                     "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_native_collision.py"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_004_0008_recomp.c"
+                    "${JFG_GENERATED_ROOT}/native-operations.json"
+                    "${JFG_GENERATED_ROOT}/game-bindings.json"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/regional/native_operations.py"
                 VERBATIM)
             set_source_files_properties("${jfg_native_shadow_body}" PROPERTIES HEADER_FILE_ONLY TRUE)
             target_sources(jfg-native-boot PRIVATE src/boot/native_shadow_filter.cpp "${jfg_native_shadow_body}")
@@ -187,7 +206,9 @@ if(JFG_ENABLE_GENERATED_CODE)
                     --generated-root "${JFG_GENERATED_ROOT}" --output "${jfg_native_cache_all_body}"
                 DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_native_cache_all.py"
                     "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_native_collision.py"
-                    "${JFG_GENERATED_ROOT}/baseline/fn_000_1568_recomp.c"
+                    "${JFG_GENERATED_ROOT}/native-operations.json"
+                    "${JFG_GENERATED_ROOT}/game-bindings.json"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/regional/native_operations.py"
                 VERBATIM)
             set_source_files_properties("${jfg_native_cache_all_body}" PROPERTIES HEADER_FILE_ONLY TRUE)
             target_sources(jfg-native-boot PRIVATE src/boot/native_cache_all.cpp "${jfg_native_cache_all_body}")
@@ -279,6 +300,7 @@ if(JFG_ENABLE_GENERATED_CODE)
                     VERBATIM)
             endif()
         endif()
+        jfg_attach_native_build_identity(jfg-native-boot "${JFG_GENERATED_ROOT}" "${JFG_PHASE8_PRIVATE_AUDIO_ADAPTER_ROOT}")
         target_compile_features(jfg-native-boot PRIVATE cxx_std_20)
         jfg_set_project_warnings(jfg-native-boot)
 
@@ -307,22 +329,20 @@ if(JFG_ENABLE_GENERATED_CODE)
                     "${JFG_PHASE6_EMULATOR_PROBE}"
                     "JFG_PHASE6_EMULATOR_PROBE")
                 add_test(
-                    NAME jfg.phase6_native_m2
+                    NAME jfg.regional_native_boot
                     COMMAND "${Python3_EXECUTABLE}"
-                        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/verification/verify_phase6_native_boot.py"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/verification/verify_regional_native_boot.py"
                         --executable "$<TARGET_FILE:jfg-native-boot>"
                         --rom "${jfg_phase6_rom}"
                         --oracle "${jfg_phase6_emulator_checkpoint}"
                         --generated-root "${JFG_GENERATED_ROOT}"
-                        --identification "${jfg_phase6_libultra_identification}"
                         --bizhawk-executable "${jfg_phase6_bizhawk_executable}"
                         --oracle-probe "${jfg_phase6_emulator_probe}"
                         --expected-build-identity "${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}-$<CONFIG>"
                         --private-out "${CMAKE_CURRENT_BINARY_DIR}/phase6-private/native-boot-evidence.json"
                         --public-out "${CMAKE_CURRENT_BINARY_DIR}/phase6-private/native-boot-summary.json"
-                        --stub-ledger-out "${CMAKE_CURRENT_BINARY_DIR}/phase6-private/native-stub-ledger.json"
                         --repeat 3)
-                set_tests_properties(jfg.phase6_native_m2 PROPERTIES TIMEOUT 240)
+                set_tests_properties(jfg.regional_native_boot PROPERTIES TIMEOUT 240)
             endif()
         endif()
     endif()

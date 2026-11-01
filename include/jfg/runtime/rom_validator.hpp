@@ -1,5 +1,6 @@
 #pragma once
 
+#include "jfg/game/rom_catalog.hpp"
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -7,10 +8,10 @@
 
 namespace jfg {
 
-inline constexpr std::uintmax_t kSupportedRomSize = 33'554'432;
+inline constexpr std::uintmax_t kSupportedRomSize = roms::known_revision("jfg-us-r0").size;
 inline constexpr std::uint32_t kBigEndianN64Magic = 0x80371240U;
 inline constexpr std::string_view kSupportedRomSha1 =
-    "493ced9008dbe932d6e91179b68e8630cf23a023";
+    roms::known_revision("jfg-us-r0").sha1;
 
 enum class RomStatus {
     metadata_valid,

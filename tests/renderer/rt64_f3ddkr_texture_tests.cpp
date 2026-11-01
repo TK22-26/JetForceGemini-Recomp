@@ -1,3 +1,4 @@
+#include "renderer_game_fixture.hpp"
 #define SDL_MAIN_HANDLED
 #include "rt64_f3ddkr.hpp"
 #include "enhanced_shadow_collect.hpp"
@@ -636,20 +637,20 @@ void level_solid_core_case() {
     put32(0x3004,0x80005000);put32(0x300C,0x80006000);
     put16(0x3026,2);put16(0x3028,1);put16(0x6018,2);put32(0x600C,8);
     jfg::PresentationGuestView ram(bytes);
-    require(jfg::level_solid_core_ranges(ram).empty(),"Fully translucent material must not gain solid depth");
+    require(jfg::level_solid_core_ranges(jfg::test::renderer_layout,ram).empty(),"Fully translucent material must not gain solid depth");
     put8(0x4023,255);
-    auto ranges=jfg::level_solid_core_ranges(ram);
+    auto ranges=jfg::level_solid_core_ranges(jfg::test::renderer_layout,ram);
     require(ranges.size()==1&&jfg::level_solid_core_batch(ranges,0x5000,2),"Opaque alpha must bind to its actual level faces");
     require(!jfg::level_solid_core_batch(ranges,0x5000,3)&&
             !jfg::level_solid_core_batch(ranges,0x5001,1)&&
             !jfg::level_solid_core_batch(ranges,0x5020,1),
             "Unrelated/cross-boundary actor geometry must not receive material override");
     put32(0x600C,0);
-    require(jfg::level_solid_core_ranges(ram).empty(),"Opaque native batches must remain untouched");
+    require(jfg::level_solid_core_ranges(jfg::test::renderer_layout,ram).empty(),"Opaque native batches must remain untouched");
     put32(0x600C,8);put16(0x6018,3);
-    require(jfg::level_solid_core_ranges(ram).empty(),"Invalid level material range must fail closed");
+    require(jfg::level_solid_core_ranges(jfg::test::renderer_layout,ram).empty(),"Invalid level material range must fail closed");
     put32(0x1004,0x803FFFF0);
-    require(jfg::level_solid_core_ranges(ram).empty(),"Stale level pointer must be rejected");
+    require(jfg::level_solid_core_ranges(jfg::test::renderer_layout,ram).empty(),"Stale level pointer must be rejected");
 }
 
 
@@ -757,13 +758,13 @@ int main() {
       word(models+8,instance);word(instance,0x80104000);
       word(header+0xcc,std::bit_cast<std::uint32_t>(500.0f));byte(0x800A0A20,1);
       const auto original=bytes;
-      {jfg::ActorLodPresentationScope scope(bytes,0x8000CC64,actor,false);require(!scope.applied()&&bytes==original,"Original LOD changes no guest bytes");}
+      {jfg::ActorLodPresentationScope scope(jfg::test::renderer_layout,bytes,0x8000CC64,actor,false);require(!scope.applied()&&bytes==original,"Original LOD changes no guest bytes");}
       {
-        jfg::ActorLodPresentationScope scope(bytes,0x8000CC64,actor,true);
+        jfg::ActorLodPresentationScope scope(jfg::test::renderer_layout,bytes,0x8000CC64,actor,true);
         const jfg::PresentationGuestView ram(bytes);
         require(scope.applied()&&ram.u32(header+0xcc)==0&&ram.u8(0x800A0A20)==0,"High disables distance and global detail reduction");
         require(ram.u8(actor+0x3a)==2&&ram.u32(models+8)==instance,"High preserves authored model variant");
-        {jfg::ActorLodPresentationScope nested(bytes,0x8000CC64,actor,true);}
+        {jfg::ActorLodPresentationScope nested(jfg::test::renderer_layout,bytes,0x8000CC64,actor,true);}
         require(ram.u32(header+0xcc)==0,"nested scope retains outer selection");
       }
       require(bytes==original,"High restores every guest byte after drawing");
@@ -777,7 +778,7 @@ int main() {
         word(0x800FAF78+i*4,std::bit_cast<std::uint32_t>(identity[i]));
         word(0x800FAA70+i*4,std::bit_cast<std::uint32_t>(identity[i]));
       }
-      jfg::PresentationIdentityTracker tracker;
+      jfg::PresentationIdentityTracker tracker{jfg::test::renderer_layout};
       tracker.rigid(bytes,0x80106000,actor,10);
       const auto sky=tracker.capture(bytes,10);
       require(sky.cameras.size()==1&&sky.models.empty(),"separately allocated sky owns camera without joining gameplay actors");
@@ -792,9 +793,9 @@ int main() {
       require(tracker.capture(bytes,14).cameras.empty(),"retired sky cannot reuse an emitted endpoint");
       word(0x8000D434,0);
       const auto wrong=bytes;
-      {jfg::ActorLodPresentationScope scope(bytes,0x8000CC64,actor,true);require(!scope.applied()&&bytes==wrong,"unknown native selector is untouched");}
+      {jfg::ActorLodPresentationScope scope(jfg::test::renderer_layout,bytes,0x8000CC64,actor,true);require(!scope.applied()&&bytes==wrong,"unknown native selector is untouched");}
       word(0x8000D434,0x00827021);byte(actor+0x3a,4);
-      {jfg::ActorLodPresentationScope scope(bytes,0x8000CC64,actor,true);require(!scope.applied(),"invalid base model fails closed");}
+      {jfg::ActorLodPresentationScope scope(jfg::test::renderer_layout,bytes,0x8000CC64,actor,true);require(!scope.applied(),"invalid base model fails closed");}
     }
 
     player_coverage_case(false,320,true);

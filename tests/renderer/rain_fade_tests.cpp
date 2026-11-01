@@ -1,3 +1,4 @@
+#include "renderer_game_fixture.hpp"
 #include "jfg/renderer/rain_fade.hpp"
 #include <array>
 #include <cstdint>
@@ -43,7 +44,7 @@ struct Fixture {
     bytes[jfg::rain::physical(address) ^ 3U] = value;
   }
   std::uint64_t call(std::uint32_t target, Call args = {}, std::uint64_t result = 0U) {
-    Dispatch scope(runtime, bytes, target, args);
+    Dispatch scope(jfg::test::renderer_layout,runtime, bytes, target, args);
     return scope.finish(result);
   }
   Fixture() {
@@ -68,11 +69,11 @@ struct Fixture {
     ram.put32(kCursor, list + 8U);
     put8(0x800FECA8U, 0U);
     put8(0x80102D88U, alpha);
-    Dispatch main(runtime, bytes, 0x80044FACU, {});
+    Dispatch main(jfg::test::renderer_layout,runtime, bytes, 0x80044FACU, {});
     call(0x80050E90U, {kCursor, 1U, buffer, 0U, 0U, bind_ra});
     call(0x8006BD54U);
     if (record_fade) {
-      Dispatch fade(runtime, bytes, 0x8006C124U,
+      Dispatch fade(jfg::test::renderer_layout,runtime, bytes, 0x8006C124U,
                     {kCursor, 0U, 0U, 0U, 0U, 0x8006BE18U});
       ram.put32(kCursor, list + 0x40U);
       fade.finish(0U);
@@ -172,7 +173,7 @@ void submitted_frame_color_and_scopes() {
   ram.put32(0x801008B4U, 0U); // Leave native previous-frame warmup untouched.
   ram.put32(kStack + 0x1CU, kColor);
   {
-    Dispatch post(f.runtime, f.bytes, 0x80045A44U, {kBuffer});
+    Dispatch post(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80045A44U, {kBuffer});
     CHECK(f.runtime.post && f.runtime.post->fade.alpha == 64U);
     CHECK(f.gate() == 0U);
     CHECK(f.gate(0x80045AC4U) == 1U);
@@ -181,30 +182,30 @@ void submitted_frame_color_and_scopes() {
     CHECK(ram.u32(0x801008B4U) == 0U);
     CHECK(f.call(0x8006B97CU, {0U, 0U, 0U, 0U, 0U, 0x80045AC0U}, 1U) == 1U);
     {
-      Dispatch unrelated_line(f.runtime, f.bytes, 0x80023600U,
+      Dispatch unrelated_line(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80023600U,
                               {0U, 0U, 0U, 0U, kStack});
       CHECK(ram.u32(kStack + 0x1CU) == kColor);
     }
-    Dispatch rain(f.runtime, f.bytes, 0x800237D8U, {kBuffer, 320U, 240U});
+    Dispatch rain(jfg::test::renderer_layout,f.runtime, f.bytes, 0x800237D8U, {kBuffer, 320U, 240U});
     CHECK(f.runtime.rain_draw);
     {
-      Dispatch line(f.runtime, f.bytes, 0x80023600U, {0U, 0U, 0U, 0U, kStack});
+      Dispatch line(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80023600U, {0U, 0U, 0U, 0U, kStack});
       CHECK(ram.u32(kStack + 0x1CU) == kQuarterFadedColor);
       const auto outer_post = f.runtime.post;
       {
-        Dispatch nested_post(f.runtime, f.bytes, 0x80045A44U, {kNextBuffer});
+        Dispatch nested_post(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80045A44U, {kNextBuffer});
         CHECK(f.runtime.post == nullptr);
         CHECK(f.gate() == 1U);
       }
       CHECK(f.runtime.post == outer_post);
       {
-        Dispatch wrong_rain(f.runtime, f.bytes, 0x800237D8U, {kNextBuffer, 320U, 240U});
+        Dispatch wrong_rain(jfg::test::renderer_layout,f.runtime, f.bytes, 0x800237D8U, {kNextBuffer, 320U, 240U});
         CHECK(!f.runtime.rain_draw);
       }
       CHECK(f.runtime.rain_draw);
       ram.put32(kStack + 0x5CU, kColor);
       {
-        Dispatch nested_line(f.runtime, f.bytes, 0x80023600U,
+        Dispatch nested_line(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80023600U,
                              {0U, 0U, 0U, 0U, kStack + 0x40U});
         CHECK(ram.u32(kStack + 0x5CU) == kQuarterFadedColor);
       }
@@ -217,10 +218,10 @@ void submitted_frame_color_and_scopes() {
   CHECK(f.runtime.post == nullptr && !f.runtime.rain_draw);
   f.submit();
   {
-    Dispatch post(f.runtime, f.bytes, 0x80045A44U, {kNextBuffer});
+    Dispatch post(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80045A44U, {kNextBuffer});
     CHECK(f.runtime.post && f.runtime.post->fade.alpha == 192U);
-    Dispatch rain(f.runtime, f.bytes, 0x800237D8U, {kNextBuffer, 320U, 240U});
-    Dispatch line(f.runtime, f.bytes, 0x80023600U, {0U, 0U, 0U, 0U, kStack});
+    Dispatch rain(jfg::test::renderer_layout,f.runtime, f.bytes, 0x800237D8U, {kNextBuffer, 320U, 240U});
+    Dispatch line(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80023600U, {0U, 0U, 0U, 0U, kStack});
     CHECK(ram.u32(kStack + 0x1CU) == kThreeQuarterFadedColor);
   }
   CHECK(ram.u32(kStack + 0x1CU) == kColor);
@@ -238,7 +239,7 @@ void gate_rejections_and_buffer_phase() {
     if (scenario == 5U) ram.put32(0x800A6784U, 0U); // No current fade.
     if (scenario == 6U) ram.put32(0x800A32ACU, 8U); // Recovery bypasses ownership.
     const auto target = scenario == 7U ? kNextBuffer : kBuffer;
-    Dispatch post(f.runtime, f.bytes, 0x80045A44U, {target});
+    Dispatch post(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80045A44U, {target});
     CHECK(f.gate() == 1U);
     if (scenario == 6U || scenario == 7U) CHECK(f.runtime.post == nullptr);
     if (scenario >= 2U && scenario <= 5U) {
@@ -246,9 +247,9 @@ void gate_rejections_and_buffer_phase() {
       // New globals must not erase that submitted buffer's color attenuation.
       CHECK(f.gate(0x80045AC0U, 0U) == 0U);
       ram.put32(kStack + 0x1CU, kColor);
-      Dispatch rain(f.runtime, f.bytes, 0x800237D8U, {kBuffer, 320U, 240U});
+      Dispatch rain(jfg::test::renderer_layout,f.runtime, f.bytes, 0x800237D8U, {kBuffer, 320U, 240U});
       {
-        Dispatch line(f.runtime, f.bytes, 0x80023600U,
+        Dispatch line(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80023600U,
                       {0U, 0U, 0U, 0U, kStack});
         CHECK(ram.u32(kStack + 0x1CU) == kQuarterFadedColor);
       }
@@ -270,7 +271,7 @@ void fail_closed_inputs() {
     f.memory().put32(address, 0U);
     f.build(); f.submit();
     CHECK(!f.runtime.supported);
-    Dispatch post(f.runtime, f.bytes, 0x80045A44U, {kBuffer});
+    Dispatch post(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80045A44U, {kBuffer});
     CHECK(f.gate() == 1U && f.runtime.post == nullptr);
   }
   for (unsigned scenario = 0; scenario < 4U; ++scenario) {
@@ -285,22 +286,22 @@ void fail_closed_inputs() {
   f.build(); f.submit();
   auto ram = f.memory();
   ram.put32(kStack + 0x1CU, kColor);
-  Dispatch post(f.runtime, f.bytes, 0x80045A44U, {kBuffer});
+  Dispatch post(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80045A44U, {kBuffer});
   for (auto dimensions : {std::array<std::uint32_t, 3>{kBuffer, 0U, 240U},
        {kBuffer, 1025U, 240U}, {kBuffer, 320U, 513U},
        {kBuffer - 2U, 320U, 240U}, {kBuffer + 2U, 320U, 240U},
        {0x803FFFFEU, 320U, 240U}}) {
-    Dispatch rain(f.runtime, f.bytes, 0x800237D8U,
+    Dispatch rain(jfg::test::renderer_layout,f.runtime, f.bytes, 0x800237D8U,
                   {dimensions[0], dimensions[1], dimensions[2]});
     CHECK(!f.runtime.rain_draw);
-    Dispatch line(f.runtime, f.bytes, 0x80023600U, {0U, 0U, 0U, 0U, kStack});
+    Dispatch line(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80023600U, {0U, 0U, 0U, 0U, kStack});
     CHECK(ram.u32(kStack + 0x1CU) == kColor);
   }
   {
-    Dispatch viewport(f.runtime, f.bytes, 0x800237D8U, {kBuffer + 640U, 320U, 239U});
+    Dispatch viewport(jfg::test::renderer_layout,f.runtime, f.bytes, 0x800237D8U, {kBuffer + 640U, 320U, 239U});
     CHECK(f.runtime.rain_draw);
     for (auto invalid_stack : {0U, 0xFFFFFFF0U, 0x803FFFF0U}) {
-      Dispatch line(f.runtime, f.bytes, 0x80023600U,
+      Dispatch line(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80023600U,
                     {0U, 0U, 0U, 0U, invalid_stack});
       CHECK(ram.u32(kStack + 0x1CU) == kColor);
     }
@@ -357,10 +358,10 @@ void auxiliary_task_ownership() {
     f.build(192U, true, kNextBuffer, kNextList);
     const auto type = index + 3U;
     {
-      Dispatch auxiliary(f.runtime, f.bytes, scopes[index], {});
+      Dispatch auxiliary(jfg::test::renderer_layout,f.runtime, f.bytes, scopes[index], {});
       CHECK(f.runtime.auxiliary_type == type);
       {
-        Dispatch nested(f.runtime, f.bytes, scopes[(index + 1U) % scopes.size()], {});
+        Dispatch nested(jfg::test::renderer_layout,f.runtime, f.bytes, scopes[(index + 1U) % scopes.size()], {});
         CHECK(f.runtime.auxiliary_type != type);
       }
       CHECK(f.runtime.auxiliary_type == type);
@@ -374,7 +375,7 @@ void auxiliary_task_ownership() {
   for (unsigned rejected = 0; rejected < 3U; ++rejected) {
     Fixture f;
     f.build(); f.submit();
-    Dispatch auxiliary(f.runtime, f.bytes, rejected == 0U ? 0x0020078CU : 0x00200788U, {});
+    Dispatch auxiliary(jfg::test::renderer_layout,f.runtime, f.bytes, rejected == 0U ? 0x0020078CU : 0x00200788U, {});
     f.call(0x8004DA10U, {aux_list, aux_list + 0x80U,
            rejected == 1U ? 3U : 4U, rejected == 2U ? 0x803FFFF0U : aux_buffer});
     CHECK(f.runtime.tracker.frame(kBuffer).buffer == 0U);
@@ -384,25 +385,25 @@ void auxiliary_task_ownership() {
   f.memory().put32(0x800A6784U, 0U);
   f.put8(0x80102D88U, 0U);
   {
-    Dispatch type_four(f.runtime, f.bytes, 0x00200788U, {});
+    Dispatch type_four(jfg::test::renderer_layout,f.runtime, f.bytes, 0x00200788U, {});
     f.call(0x8004DA10U, {aux_list, aux_list + 0x80U, 4U, aux_buffer});
   }
   {
-    Dispatch post(f.runtime, f.bytes, 0x80045A44U, {kBuffer});
+    Dispatch post(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80045A44U, {kBuffer});
     CHECK(f.runtime.post && f.runtime.post->fade.alpha == 64U);
     CHECK(f.gate(0x80045AC0U, 0U) == 0U);
     f.memory().put32(kStack + 0x1CU, kColor);
-    Dispatch rain(f.runtime, f.bytes, 0x800237D8U, {kBuffer, 320U, 240U});
+    Dispatch rain(jfg::test::renderer_layout,f.runtime, f.bytes, 0x800237D8U, {kBuffer, 320U, 240U});
     {
-      Dispatch line(f.runtime, f.bytes, 0x80023600U, {0U, 0U, 0U, 0U, kStack});
+      Dispatch line(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80023600U, {0U, 0U, 0U, 0U, kStack});
       CHECK(f.memory().u32(kStack + 0x1CU) == kQuarterFadedColor);
     }
     CHECK(f.memory().u32(kStack + 0x1CU) == kColor);
   }
-  for (auto target : scopes) CHECK(Dispatch::observes(target));
-  CHECK(Dispatch::observes(0x8006B978U));
-  CHECK(!Dispatch::observes(0x8006B97CU));
-  CHECK(!Dispatch::observes(0x80200788U)); // Module observations use canonical IDs.
+  for (auto target : scopes) CHECK(Dispatch::observes(jfg::test::renderer_layout,target));
+  CHECK(Dispatch::observes(jfg::test::renderer_layout,0x8006B978U));
+  CHECK(!Dispatch::observes(jfg::test::renderer_layout,0x8006B97CU));
+  CHECK(!Dispatch::observes(jfg::test::renderer_layout,0x80200788U)); // Module observations use canonical IDs.
 }
 
 
@@ -451,10 +452,10 @@ void spatial_scissor_and_owned_pixel_replay() {
       ram.put32(0x80102D38U, 0U);
       ram.put32(0x800A6784U, 0U);
     }
-    Dispatch post(f.runtime, f.bytes, 0x80045A44U, {kBuffer});
+    Dispatch post(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80045A44U, {kBuffer});
     CHECK(f.gate() == (phase == 0U ? 0U : 1U));
     CHECK(f.gate(0x80045AC0U, 0U) == 0U);
-    Dispatch rain(f.runtime, f.bytes, 0x800237D8U, {kBuffer, 320U, 240U});
+    Dispatch rain(jfg::test::renderer_layout,f.runtime, f.bytes, 0x800237D8U, {kBuffer, 320U, 240U});
     CHECK(f.runtime.rain_draw);
     ram.put32(point, 0U);
     ram.put32(kStack + 0x10U, 120U);
@@ -462,7 +463,7 @@ void spatial_scissor_and_owned_pixel_replay() {
     ram.put32(kStack + 0x18U, 120U);
     ram.put32(kStack + 0x1CU, kColor);
     {
-      Dispatch line(f.runtime, f.bytes, 0x80023600U, {kBuffer, 320U, 240U, 160U, kStack});
+      Dispatch line(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80023600U, {kBuffer, 320U, 240U, 160U, kStack});
       CHECK(ram.u32(kStack + 0x1CU) == kColor);
       // Native point blend of (32,128,224), exponent2, over black is0x090F.
       // Replaying its source at opacity191 yields RGB5(0,1,1), or0x0043.
@@ -474,22 +475,78 @@ void spatial_scissor_and_owned_pixel_replay() {
     {
       // Width0 is rejected by both native clipping and the bounded snapshot.
       // Failure uses a temporary black source, preserving exponent and ABI.
-      Dispatch invalid(f.runtime, f.bytes, 0x80023600U, {kBuffer, 0U, 240U, 160U, kStack});
+      Dispatch invalid(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80023600U, {kBuffer, 0U, 240U, 160U, kStack});
       CHECK(ram.u32(kStack + 0x1CU) == 2U);
       invalid.finish(0U);
     }
     CHECK(ram.u32(kStack + 0x1CU) == kColor);
   }
   {
-    Dispatch wrong(f.runtime, f.bytes, 0x80045A44U, {kNextBuffer});
+    Dispatch wrong(jfg::test::renderer_layout,f.runtime, f.bytes, 0x80045A44U, {kNextBuffer});
     CHECK(!f.runtime.post);
     CHECK(f.gate() == 1U);
   }
 }
 
+void spatial_projection_uses_captured_geometry() {
+  for (auto dims: {std::array<unsigned,3>{320,240,0x13333U},
+                   std::array<unsigned,3>{320,288,0x16666U},
+                   std::array<unsigned,3>{640,480,0x13333U}}) {
+    Fixture f;auto memory=f.memory();const auto& layout=jfg::test::renderer_layout;
+    const auto h16=[&](std::uint32_t address,unsigned v){f.put8(address,std::uint8_t(v>>8U));f.put8(address+1U,std::uint8_t(v));};
+    constexpr std::uint32_t cursor=0x80300000U,mp=cursor+8U,matrix=cursor+0x100U,
+      list=cursor+0x200U,vertices=cursor+0x300U,triangles=cursor+0x400U;
+    memory.put32(layout.fade_type,3);memory.put32(layout.camera_mode,0);memory.put32(layout.camera_number,0);
+    memory.put32(cursor,list+16U);memory.put32(mp,matrix+64U);
+    memory.put32(list,0x03800010U);memory.put32(list+4U,layout.viewports+0x50U);
+    memory.put32(list+8U,0x01000040U);memory.put32(list+12U,matrix);
+    const std::array<unsigned,8> viewport{dims[0]*2U,dims[0]*2U,511,0,dims[0]*2U,dims[1]*2U,511,0};
+    for(unsigned i=0;i<8;++i)h16(layout.viewports+0x50U+i*2U,viewport[i]);
+    for(unsigned i=0;i<16;++i){const auto value=i==0?0x10000U:i==5?dims[2]:i==15?0xA00000U:0U;h16(matrix+i*2U,value>>16U);h16(matrix+32U+i*2U,value);}
+    const std::array<std::uint32_t,10> commands{0xE7000000U,0,0xB6000000U,0x10000U,0xFCFFFFFFU,0xFFFE793CU,0xEF080C0FU,0x00504340U,0xB8000000U,0};
+    for(unsigned i=0;i<commands.size();++i)memory.put32(layout.fade_commands+4U*i,commands[i]);
+    memory.put32(layout.fade_bank,0);memory.put32(layout.fade_vertices,vertices);memory.put32(layout.fade_triangles,triangles);
+    const std::array<std::array<unsigned,3>,6> faces{{{0,1,3},{1,3,4},{1,4,2},{5,7,8},{5,8,6},{6,8,9}}};
+    for(unsigned i=0;i<6;++i){f.put8(triangles+i*16U,0x40);for(unsigned j=0;j<3;++j)f.put8(triangles+i*16U+1U+j,std::uint8_t(faces[i][j]));}
+    const std::array<int,10> xs{-160,160,480,-160,160,-160,160,-480,-160,160},ys{120,120,120,-120,-120,120,120,-120,-120,-120};
+    const std::array<unsigned,10> alpha{255,255,0,255,0,0,255,0,255,255};
+    for(unsigned i=0;i<10;++i){h16(vertices+10U*i,static_cast<unsigned>(xs[i]+(i<5U?-160:160)));h16(vertices+10U*i+2U,static_cast<unsigned>(ys[i]));h16(vertices+10U*i+4U,0xfff0U);f.put8(vertices+10U*i+9U,std::uint8_t(alpha[i]));}
+    const auto capture=[&]{return jfg::rain::capture_spatial_fade(layout,f.bytes,cursor,mp,layout.rain_spatial_return,dims[0],dims[1],{0,0,static_cast<int>(dims[0]),static_cast<int>(dims[1]),true});};
+    auto fade=capture();CHECK(fade.supported && fade.partially_visible);CHECK(fade.opacity(int(dims[0]/2U),int(dims[1]/2U))==191U);
+    // Region flags do not override the actual projection, and source RAM is untouched.
+    memory.put32(0x80000300U,0);auto before=f.bytes;CHECK(capture().supported);CHECK(f.bytes==before);
+    h16(matrix+2U,1);CHECK(!capture().supported);h16(matrix+2U,0);
+    h16(matrix,0);h16(matrix+32U,0x8000U);CHECK(!capture().supported);h16(matrix,1);h16(matrix+32U,0);
+    h16(matrix+10U,0);h16(matrix+42U,0);CHECK(!capture().supported);
+    Tracker tracker;tracker.begin(kList,kBuffer,dims[0]*dims[1]*2U,dims[0],dims[1]);tracker.record_scissor(kList+8U,kList+56U,{0,0,int(dims[0]),int(dims[1]),true});CHECK(tracker.scissor_for_mesh(kList+72U).verified);
+  }
+}
+
+void revision_layout_is_explicit() {
+  auto layout=jfg::test::renderer_layout;
+  layout.revision="synthetic-relocated-renderer";
+  for(auto& target:layout.rain_targets)target+=0x1000U;
+  layout.rain_fade_call.address+=0x1000U;
+  layout.rain_segment_call.address+=0x1000U;
+  layout.rain_effects_call.address+=0x1000U;
+  std::vector<std::uint8_t> bytes(4U*1024U*1024U);
+  Memory memory(bytes);
+  for(const auto guard:{layout.rain_fade_call,layout.rain_segment_call,layout.rain_effects_call})
+    memory.put32(guard.address,guard.word);
+  Runtime runtime;
+  CHECK(Dispatch::observes(layout,layout.rain_targets.front()));
+  CHECK(!Dispatch::observes(layout,jfg::test::renderer_layout.rain_targets.front()));
+  {Dispatch scope(layout,runtime,bytes,layout.rain_targets.front(),{});CHECK(runtime.supported);}
+  {Dispatch scope(jfg::test::renderer_layout,runtime,bytes,jfg::test::renderer_layout.rain_targets.front(),{});CHECK(!runtime.supported);}
+  memory.put32(layout.rain_segment_call.address,0);
+  {Dispatch scope(layout,runtime,bytes,layout.rain_targets.front(),{});CHECK(!runtime.supported);}
+}
+
 } // namespace
 
 int main() {
+  spatial_projection_uses_captured_geometry();
+  revision_layout_is_explicit();
   source_and_memory();
   tracker_ownership();
   submitted_frame_color_and_scopes();

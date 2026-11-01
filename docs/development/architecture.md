@@ -31,13 +31,71 @@ deterministic testing are separated.
 [Native modularization](issues/native-runtime-modularization.md) maps the private implementation
 files under `src/boot/native/`. `native_boot.cpp` coordinates startup and the run loop; memory,
 window, audio, overlay loading, saves, task submission and diagnostics have separate owners.
-Shared State preserves its member order and single timing/cache ownership. Guest execution still
-contains coupled OS/game hooks and US address assumptions. The regional metadata tool reconstructs
-PAL/JP overlays, but those images remain unsupported by the playable native path.
+Shared State preserves its member order and single timing/cache ownership. The candidate
+regional pipeline now reconstructs and generates US, PAL and JP through one program model,
+CPU/RSP pipeline and native source tree. Each executable links one immutable revision
+descriptor and its own generated corpus. PAL/JP product admission remains closed.
+
+Game references live under `include/jfg/game/`. `CodeRef`, `InstructionRef` and `DataRef`
+separate callable entries, observation sites and bounded data. Binding ABI 3 carries each
+instruction site's original word. Original body hashes, operand witnesses, data-content
+checks and semantic callees qualify the generated bindings. Native consumer coverage is
+checked before the expensive corpus build; a missing observer name still fails closed.
+
+`MemoryContext` composes one descriptor and matching bindings. Game-facing `MemoryView`
+requires that context; `GuestMemory` provides raw hardware memory access separately.
+The navigation helper uses named regional globals and instruction guards. Native code
+uses the linked revision, and synthetic tests explicitly supply fixture contexts.
+`ResidentMemory` checks revision, resident owner, extent, alignment and available RAM.
+An overlay reference cannot obtain resident access: named original module IDs resolve
+through the descriptor, while the existing overlay owner controls live access.
+
+`OverlayMemory` resolves a named original module through the selected descriptor,
+then checks its loaded owner and DATA/BSS extent. Actor/player members derive
+from qualified original instruction operands; no default US fixture is used by
+production consumers. `RendererGameLayout` is supplied explicitly per session to
+presentation, rain, camera, shadow and blur integration. Sound recovery and
+native math have equivalent explicit layouts. Test fixtures supply their own
+synthetic layouts so they cannot mask a missing production composition.
+
+ROM asset coordinates have a separate `RomAssetDirectory` / `RomAssetView` owner.
+The original PI initializer supplies qualified table/data operands; the view
+checks revision, boundaries and every section offset before NPC parsing. Guest
+RAM references cannot be substituted for these cartridge coordinates.
+
+The private `native-operations.json` maps semantic operations to exact generated
+entries and sources. Revision/descriptor/bindings identities, original body
+hashes and generated source hashes are validated before native transformations.
+This replaces US generated filenames in collision/cache/shadow/direct-device and
+math-reference selection. The generated manifest requires the map.
+
+The [three-region plan](../planning/regional-runtime-architecture.md) owns migration
+and acceptance gates. The [regional issue](issues/regional-rom-support.md) records
+current build results and the remaining binary-schema/feature matrix. v16 reaches
+Goldwood after new-slot/reload on all three original-OS candidates; current v22
+enhanced source has separate pending qualification. Generation and helper tests
+do not establish campaign or released gameplay support.
 
 ## Generated CPU code and overlays
 
-Recorded inventory for the supported US build:
+The regional pipeline qualifies ELF metadata before constructing the program
+model. A reviewed shared-body recipe verifies every original member extent,
+each member hash and the complete instruction span; it then represents one
+complete body with interior entry aliases. Loaded section bytes remain unchanged.
+This prevents a regional symbol label from truncating executable control flow.
+See [ELF qualification](../../scripts/build/regional/elf_metadata.py) and its
+[tests](../../tests/build/test_regional_elf_metadata.py).
+
+The compiler-input inventory discovers direct-call, branch, constant-register
+transfer and covered-alias entries. It preserves each complete original body
+and closes branch destinations exposed by alternate-entry suffixes before
+invoking the compiler. Section/body ambiguity rejects the input. The
+[entry inventory](../../scripts/build/regional/code_inventory.py) and
+[regression cases](../../tests/build/test_regional_code_inventory.py) cover the
+PAL exception preamble and JP matrix/shared-trigonometry failure classes without
+embedding regional addresses in the shared runtime.
+
+Historical inventory for the previously supported US build (the new regional corpus has its own validated manifest):
 
 - 3,729 executable function symbols (2,899 sized; 824 zero-sized aliases; six
   sizes recovered explicitly). 2,909 required bodies are generated with zero
@@ -92,6 +150,16 @@ original-OS model and its bounded qualification:
 | Serial-interface completion | [SI timing](../planning/phase9-si-completion-timing.md) |
 | GPU results visible to the guest CPU | [Framebuffer writeback](../planning/phase9-renderer-cpu-writeback.md) |
 | Before/after compiler hooks | [Instruction effects](../planning/phase9-instruction-effect-observation.md) |
+
+The current regional boot verifier selects its backend explicitly. The default
+original-OS mode validates the bundle/corpus/source identity, repeats a bounded
+neutral-input run with fresh private storage, and compares the declared probe
+observations. Its receipt is a boot smoke result, not emulator parity or a
+complete runtime snapshot. The explicit cooperative Phase 6 mode retains the
+historical oracle contract. The producer and parent supervisor share the same
+bounded original-OS result parser, including exact retrace and poll-stop targets.
+See [regional verification](../../scripts/verification/verify_regional_native_boot.py)
+and [probe protocol](../../include/jfg/boot/original_os_probe.hpp).
 
 The September 2026 original-OS comparison matched 1,908 consecutive selected
 actor/camera update states against the corrected reference emulator; consumed
@@ -160,15 +228,21 @@ for pacing behavior.
 
 ## Saves and accessories
 
-FlashRAM is the game's primary save device. `FlashRamStore` models the 128 KiB
-surface: 128-byte staged page writes, program completion, page and full erase,
-busy/bounds failures, and raw fixed-size images with atomic replacement and
-transactional rejection of malformed files. Device completion is separate from
-host durability, so a failed file write can be retried. `ControllerAccessoryBus`
-models four ports with generation-bound Controller Pak sessions, Rumble Pak
-switching and a project-owned logical note store (not a raw `.mpk` image).
-The upstream review records an open question about sector-erase size
-(JFG-UP-020 in the [reference review](../upstream/reference-review-2026-10-01.md)).
+FlashRAM is the game's primary save device. The native candidate uses one shared
+`FlashDevice` command owner over `FlashRamStore`: a 128 KiB surface, 128-byte
+program buffer, 16 KiB sector erase and Count-based completion deadlines.
+Programming clears bits; reset discards pending work. Device completion is
+separate from host durability, and file replacement remains transactional.
+The historical reference bus remains confined to its historical evidence path.
+Synthetic device/storage tests and a bounded US cold boot pass; valid in-game
+slot creation and reload still require regional acceptance. The
+[FlashRAM issue](issues/flashram-device-contract.md) records commands, failures
+and the upstream sector-erase evidence.
+
+`ControllerAccessoryBus` models four ports with generation-bound Controller Pak
+sessions, Rumble Pak switching and a project-owned logical note store. Native
+rumble duration/cooldown uses the shared Count frequency, avoiding a fixed
+60-retrace assumption. Physical regional controller behavior remains unverified.
 
 ## Other references
 
@@ -178,3 +252,14 @@ The upstream review records an open question about sector-erase size
 - [Upstream reference review](../upstream/reference-review-2026-10-01.md) and
   [catalog](../upstream/reference-catalog.json): source observations for overlay,
   save, controller, camera and audio work.
+
+The regional composition and artifact boundary are recorded in
+[ADR 0004](../adr/0004-regional-runtime-composition.md). Implementation status
+and remaining gates stay in the linked regional issue and architecture plan.
+
+The original-OS cache model receives its runlink pointer, original slot map,
+record stride and memory extent from the linked regional descriptor/bindings.
+The fast and slow instruction paths share that address translator. Source
+identity captures every non-cache file in its declared source roots, including
+inline implementation and shader inputs. Both corrections pass component checks;
+the current native build/qualification status remains in the regional issue.

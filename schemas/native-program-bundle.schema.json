@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Regional native program bundle",
+  "description": "Runtime validators additionally enforce the canonical ROM catalog, unique file names, required dependencies and equality with the actual executable --describe result.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "identity",
+    "provenance",
+    "files"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "jfg-native-program-bundle"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "revision_id",
+        "rom_sha1",
+        "rom_size",
+        "descriptor_abi",
+        "binding_abi",
+        "program_model_sha256",
+        "generation_input_sha256",
+        "initial_tv_mode",
+        "qualification",
+        "build_identity",
+        "build"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "jfg-native-program-identity"
+        },
+        "revision_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]+$"
+        },
+        "rom_sha1": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "rom_size": {
+          "type": "integer",
+          "minimum": 64
+        },
+        "descriptor_abi": {
+          "const": 1
+        },
+        "binding_abi": {
+          "const": 3
+        },
+        "program_model_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "generation_input_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "initial_tv_mode": {
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "qualification": {
+          "const": "candidate"
+        },
+        "build_identity": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.+-]{1,128}$"
+        },
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_sha256",
+            "generated_sources_sha256",
+            "descriptor_sha256",
+            "bindings_sha256",
+            "generator_sha256",
+            "audio_sha256",
+            "dependencies_sha256",
+            "configuration_sha256",
+            "build_sha256"
+          ],
+          "properties": {
+            "source_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "generated_sources_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "descriptor_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bindings_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "generator_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "audio_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "dependencies_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "configuration_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "build_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_inputs_sha256",
+        "generator_sha256",
+        "dependencies_sha256",
+        "build_receipt_sha256"
+      ],
+      "properties": {
+        "source_inputs_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "generator_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "dependencies_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "build_receipt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 14,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "size",
+          "sha256"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "jfg-native-boot.exe",
+              "SDL2.dll",
+              "dxcompiler.dll",
+              "dxil.dll",
+              "concrt140.dll",
+              "msvcp140.dll",
+              "msvcp140_1.dll",
+              "msvcp140_2.dll",
+              "msvcp140_atomic_wait.dll",
+              "msvcp140_codecvt_ids.dll",
+              "vccorlib140.dll",
+              "vcruntime140.dll",
+              "vcruntime140_1.dll",
+              "vcruntime140_threads.dll"
+            ]
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

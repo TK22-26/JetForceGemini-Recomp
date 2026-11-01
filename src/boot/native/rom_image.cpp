@@ -17,10 +17,10 @@ bool write_boot_word(std::vector<std::uint8_t> &bytes, std::uint32_t address,
 bool initialize_ipl_state(std::vector<std::uint8_t> &bytes,
                           std::span<const std::uint8_t> rom) {
   // Documented libultra boot globals populated by the IPL before the ROM
-  // entry point. This runner admits the USA image, so the TV mode is NTSC;
-  // it models a cold cartridge boot with the oracle-observed 4 MiB RDRAM.
+  // entry point. TV mode comes from the linked revision descriptor. The shared
+  // hardware handoff models a cold cartridge boot with 4 MiB RDRAM.
   return initialize_6105_handoff(bytes, rom) &&
-         write_boot_word(bytes, 0x80000300U, 1U) &&
+         write_boot_word(bytes, 0x80000300U, initial_tv_mode()) &&
          write_boot_word(bytes, 0x80000304U, 0U) &&
          write_boot_word(bytes, 0x80000308U, 0xB0000000U) &&
          write_boot_word(bytes, 0x8000030CU, 0U) &&
@@ -112,14 +112,29 @@ std::array<std::uint8_t, 20U> sha1(std::span<const std::uint8_t> input) {
 
 
 bool read_supported_rom(const char *path, std::vector<std::uint8_t> &rom) {
+  const auto& descriptor = jfg::game::linked::descriptor;
+  if (jfg::game::validate(descriptor) != jfg::game::DescriptorError::none ||
+      jfg::game::validate(descriptor, jfg::game::linked::bindings) != jfg::game::BindingError::none) {
+    std::fputs("native boot setup failed: linked game descriptor or bindings are invalid\n", stderr);
+    return false;
+  }
   std::ifstream input(path, std::ios::binary | std::ios::ate);
   if (!input || input.tellg() != static_cast<std::streamoff>(kRomSize))
     return false;
   input.seekg(0);
   rom.resize(kRomSize);
-  return input.read(reinterpret_cast<char *>(rom.data()),
-                    static_cast<std::streamsize>(rom.size())) &&
-         sha1(rom) == kSupportedRomSha1;
+  if (!input.read(reinterpret_cast<char *>(rom.data()), static_cast<std::streamsize>(rom.size()))) return false;
+  // Normalize the selected file in memory. Never modify a player's ROM.
+  if (rom[0] == 0x37U && rom[1] == 0x80U && rom[2] == 0x40U && rom[3] == 0x12U) {
+    for (std::size_t i = 0; i < rom.size(); i += 2U) std::swap(rom[i], rom[i+1U]);
+  } else if (rom[0] == 0x40U && rom[1] == 0x12U && rom[2] == 0x37U && rom[3] == 0x80U) {
+    for (std::size_t i = 0; i < rom.size(); i += 4U) { std::swap(rom[i],rom[i+3U]); std::swap(rom[i+1U],rom[i+2U]); }
+  }
+  if (sha1(rom) != kSupportedRomSha1) {
+    std::fputs("native boot setup failed: ROM does not match the revision linked into this executable\n", stderr);
+    return false;
+  }
+  return true;
 }
 
 

@@ -18,6 +18,34 @@ int main() {
  std::array<JfgTimingCacheLine,512> ic{},dc{};std::array<uint64_t,12> stats{};
  uint64_t revision=7,guest_count=0;
  JfgOriginalTimingFast fast{};fast.rdram=ram.data();fast.instruction_cache=ic.data();fast.data_cache=dc.data();fast.cache_counters=stats.data();
+ std::array<uint8_t,158> valid_slots{};
+ for(unsigned i=1;i<valid_slots.size();++i)valid_slots[i]=(i!=21U && i!=56U);
+ fast.timing_rdram_size=static_cast<uint32_t>(ram.size());fast.timing_table_pointer=0xfeaa0U;
+ fast.timing_slot_count=static_cast<uint32_t>(valid_slots.size());fast.timing_record_size=32U;
+ fast.timing_valid_slots=valid_slots.data();ordinary::cache_address_state=&fast;
+ // A second regional table and deliberately wrong legacy table must resolve
+ // through the explicit binding in both implementations.
+ for(unsigned pointer: {0x100U,0x200U,0x300U}) {
+  auto regional=fast;regional.timing_table_pointer=pointer;
+  uint32_t regional_table=0x80018000U,regional_base=0x80030000U;
+  memcpy(ram.data()+pointer,&regional_table,4);
+  memcpy(ram.data()+0x18000U+32U,&regional_base,4);
+  const auto before=stats[11];
+  check(jfg_clock_address(&regional,0x00100040U)==0x80030040U,"explicit regional table was ignored");
+  ordinary::cache_address_state=&regional;ordinary::cache_rdram=ram.data();
+  check(ordinary::cache_address(0x00100040U,0)==0x80030040U,"ordinary path differs from regional translation");
+  check(jfg_clock_address(&regional,0x01500000U)==0x01500000U && stats[11]==before+1U,"empty original slot accepted");
+  regional.timing_table_pointer=static_cast<uint32_t>(ram.size());
+  check(jfg_clock_address(&regional,0x00100000U)==0x00100000U,"pointer overrun accepted");
+  regional.timing_table_pointer=pointer;regional.timing_record_size=UINT32_MAX-3U;
+  check(jfg_clock_address(&regional,0x00100000U)==0x00100000U,"record arithmetic overflow accepted");
+  regional.timing_record_size=32U;regional_base=0x803ffff0U;memcpy(ram.data()+0x18000U+32U,&regional_base,4);
+  check(jfg_clock_address(&regional,0x00100040U)==0x00100040U,"translated RDRAM overrun accepted");
+  regional.timing_valid_slots=nullptr;
+  check(jfg_clock_address(&regional,0x00100000U)==0x00100000U,"missing regional map selected a default");
+  check(jfg_clock_address(&regional,0xa4400000U)==0xa4400000U,"hardware address was translated");
+ }
+ ordinary::cache_address_state=&fast;stats.fill(0);
  fast.io_revision=&revision;fast.io_guest_count=&guest_count;fast.execution_fast_revision=revision;
  fast.execution_fast_deadline=UINT64_MAX;fast.execution_fast_profile_ready=true;
  jfg_original_timing_state=&fast;

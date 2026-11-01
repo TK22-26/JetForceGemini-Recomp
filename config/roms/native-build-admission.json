@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "native_builds": {
+    "jfg-us-r0": {
+      "admitted": true,
+      "evidence": "docs/development/rom-bootstrap.md"
+    },
+    "jfg-pal-r0": {
+      "admitted": false,
+      "evidence": "docs/development/issues/regional-rom-support.md"
+    },
+    "star-twins-jp-r0": {
+      "admitted": false,
+      "evidence": "docs/development/issues/regional-rom-support.md"
+    }
+  },
+  "scope": "Build admission only. This does not assert qualification of a new build, gameplay feature or release."
+}

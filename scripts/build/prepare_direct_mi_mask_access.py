@@ -16,14 +16,12 @@ import argparse,hashlib,json,re
 from pathlib import Path
 from scripts.prepare_direct_sp_access import rewrite as rewrite_sp
 
-SPECS = [
- ('fn_000_1226_recomp','a114af99d0c07bb3996029768d3d12c23c1e7af36fcfe761518bef661bce7827',0x80075030,0x8007514c,0x8d29000c,9,9,12,2),
- ('fn_000_1231_recomp','40bd34136aa399dfe6a55e9f07c177411178188fa2b977fd2b0a8f86c67fecc2',0x80075698,0x80075764,0x8f7b000c,27,27,12,1),
- ('fn_000_1235_recomp','42b1bc35ca062fde5c1779d9d334c4f6bbf07fec53385cbba4ce292c3dcce274',0x80075808,0x800759ac,0xaf5b0000,26,27,0,2),
-]
+OPERATIONS=(('native.exception_entry','native.mi_exception'),('os.scheduler_park','native.mi_park'),('sdk.__osDispatchThread','native.mi_dispatch'))
+from scripts.regional.native_operations import load,source as operation_source
+
 COMMENT=re.compile(r'^\s*// (?:native )?0x([0-9a-f]{8}):[^\n]*',re.I|re.M)
 HOOK=re.compile(r'jfg_phase9_execution_probe_predecoded\(0x[0-9a-f]+U, 0x([0-9a-f]+)U, 0x([0-9a-f]+)U, ctx\);',re.I)
-def rewrite(source,spec):
+def rewrite(source,spec,*,sp_variant=False):
  name,digest,target,pc,word,base,reg,offset,count=spec
  hooks=[int(m[2],16) for m in HOOK.finditer(source) if int(m[1],16)==pc]
  if hooks!=[word]:raise ValueError('Missing or changed instruction hook')
@@ -43,7 +41,7 @@ def rewrite(source,spec):
  if len(edits)!=count:raise ValueError('Changed instruction instance count')
  before_hooks=HOOK.findall(source)
  for start,end,body in reversed(edits):source=source[:start]+body+source[end:]
- if name=='fn_000_1226_recomp':
+ if sp_variant:
   source,_=rewrite_sp(source,name)
   source=source.replace('static void sp_access_'+name+'(','static void mi_mask_'+name+'(')
  else:
@@ -53,13 +51,19 @@ def rewrite(source,spec):
  if HOOK.findall(source)!=before_hooks:raise ValueError('Instruction hooks changed')
  return source
 def generate(root,output):
- chunks=[];receipt=[]
- for spec in SPECS:
-  name,digest,target,*_=spec;source=(root/'baseline'/(name+'.c')).read_text(encoding='utf-8')
-  if hashlib.sha256(source.encode()).hexdigest()!=digest:raise ValueError('Pinned routine differs: '+name)
-  chunks.append(rewrite(source,spec));receipt.append({'name':name,'sha256':digest,'target':target,'pc':spec[3],'instances':spec[-1]})
+ document,bindings,descriptor=load(root);chunks=[];receipt=[];selected=[]
+ sections={s['id']:s for s in descriptor['model']['sections']}
+ for operation,instruction in OPERATIONS:
+  source,row=operation_source(root,document,operation);name=row['symbol'];target=row['entry_pc']
+  ins=bindings['instructions'][instruction];pc=sections[ins['section']]['linked_vram']+ins['offset'];word=ins['original_word']
+  if word>>26 not in (35,43) or word&0x8000:raise ValueError('Unsupported MI-mask memory operand')
+  count=sum(int(m[1],16)==pc for m in COMMENT.finditer(source))
+  if count not in (1,2):raise ValueError('Missing or duplicated MI-mask instruction')
+  spec=(name,row['source_sha256'],target,pc,word,(word>>21)&31,(word>>16)&31,word&65535,count)
+  chunks.append(rewrite(source,spec,sp_variant=operation=='native.exception_entry'));selected.append((name,target))
+  receipt.append({'operation':operation,'name':name,'sha256':row['source_sha256'],'target':target,'pc':pc,'instances':count})
  chunks.append('bool mi_mask_dispatch(std::uint32_t target,std::uint8_t* ram,recomp_context* cpu) { switch(target) {')
- for name,digest,target,*_ in SPECS:chunks.append('case '+hex(target)+'U: mi_mask_'+name+'(ram,cpu);return true;')
+ for name,target in selected:chunks.append('case '+hex(target)+'U: mi_mask_'+name+'(ram,cpu);return true;')
  chunks.append('default:return false;}}')
  output.parent.mkdir(parents=True,exist_ok=True);output.write_text('\n'.join(chunks),encoding='utf-8',newline='\n')
  output.with_suffix(output.suffix+'.json').write_text(json.dumps(receipt,indent=2)+'\n')

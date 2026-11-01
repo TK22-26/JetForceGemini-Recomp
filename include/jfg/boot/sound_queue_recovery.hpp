@@ -3,26 +3,27 @@
 #include <cstdint>
 
 namespace jfg::boot {
-inline constexpr std::uint32_t kSoundNextEvent = 0x8008B55CU;
-inline constexpr std::uint32_t kSoundPlayerGlobal = 0x800A95ACU;
+struct SoundQueueLayout {
+  std::uint32_t player_global,callback,entry_word,save_word;
+};
 
-// US sound-player overflow recovery, after the original next-event routine.
+// Qualified sound-player overflow recovery, after the original next-event routine.
 // A full pool can drop the periodic event. Once its remaining events drain,
 // the original player spins on NONE with a zero delay. Deliver one periodic
 // event at the player's own interval so its next callback restarts the clock.
 // Never change queue links, ordering, accounting, or another player's events.
 template <typename Context>
-[[nodiscard]] bool recover_empty_sound_queue(hle::GuestMemory &memory,
+[[nodiscard]] bool recover_empty_sound_queue(const SoundQueueLayout& layout, hle::GuestMemory &memory,
     Context &context, std::uint32_t queue, std::uint32_t event) noexcept {
   if (static_cast<std::uint32_t>(context.r2) != 0U) return false;
   std::uint32_t player = 0, callback = 0, head = 0, free = 0, counts = 0;
   std::uint32_t period = 0, type = 0, unused = 0;
-  if (!memory.read_u32(kSoundPlayerGlobal, player) || (player & 3U) != 0U ||
+  if (!memory.read_u32(layout.player_global, player) || (player & 3U) != 0U ||
       player < 0x80000000U || player > 0x807FFFA8U ||
       queue != player + 0x14U || event != player + 0x2CU ||
-      !memory.read_u32(player + 8U, callback) || callback != 0x80084468U ||
-      !memory.read_u32(callback, unused) || unused != 0x27BDFFD0U ||
-      !memory.read_u32(callback + 4U, unused) || unused != 0xAFBF0014U ||
+      !memory.read_u32(player + 8U, callback) || callback != layout.callback ||
+      !memory.read_u32(callback, unused) || unused != layout.entry_word ||
+      !memory.read_u32(callback + 4U, unused) || unused != layout.save_word ||
       !memory.read_u32(queue + 8U, head) || head != 0U ||
       !memory.read_u32(queue + 0x10U, counts) ||
       (counts >> 16U) != 0U || (counts & 0xFFFFU) == 0U ||

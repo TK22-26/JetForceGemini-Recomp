@@ -1,3 +1,4 @@
+#include "regional_game_fixture.hpp"
 #include "jfg/runtime/flight_transition_music.hpp"
 #include "jfg/mod/navigation_mod.hpp"
 #include <cstdlib>
@@ -6,7 +7,7 @@
 int main() {
  unsigned checks=0;
  const auto check=[&](bool ok){++checks;if(!ok){std::cerr<<"failed "<<checks<<"\n";std::exit(1);}};
- std::vector<std::uint8_t> bytes(4*1024*1024);jfg::mod::Memory ram(bytes,false);
+ std::vector<std::uint8_t> bytes(4*1024*1024);jfg::test::GameMemory ram(bytes,false);
  const auto put=[&](std::uint32_t at,std::uint32_t value){for(unsigned i=0;i<4;++i)bytes[(at&0x1FFFFFFFU)+i]=std::uint8_t(value>>(24U-8U*i));};
  const auto setup=[&](const jfg::FlightMusicScene& s){
   put(0x8004455C,0x27BDFFE8);put(0x80044570,0x91CF0072);put(0x80043BE0,0x93220004);

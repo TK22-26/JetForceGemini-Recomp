@@ -4,35 +4,35 @@ namespace jfg::boot::native::detail {
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
 jfg::DayNightFog capture_daynight_fog(State &state) {
   if (!state.rdram || !section_addresses ||
-      !state.active_overlay_sections.contains(22U) ||
-      state.active_overlay_sections.contains(38U) ||
-      state.active_overlay_sections.contains(28U)) return {};
-  jfg::mod::Memory ram({state.rdram, kRdramSize});
-  const auto base = static_cast<std::uint32_t>(section_addresses[22U]);
+      !state.active_overlay_sections.contains(game_module(OriginalModule::day_night)) ||
+      state.active_overlay_sections.contains(game_module(OriginalModule::mantis_lighting)) ||
+      state.active_overlay_sections.contains(game_module(OriginalModule::vela_magic))) return {};
+  NativeGameMemory ram({state.rdram, kRdramSize});
+  const auto base = static_cast<std::uint32_t>(section_addresses[game_module(OriginalModule::day_night)]);
   const auto read = [&](const auto &memory) -> jfg::DayNightFog {
-    const auto phase = memory.u32(base + 0x7E0U);
+    const auto phase = memory.u32(base + game_overlay_data("renderer.day.phase",OriginalModule::day_night));
     if (phase >= 12U) return {};
-    const auto current = base + 0x6E0U + phase * 20U;
-    const auto next = base + 0x6E0U + ((phase + 1U) % 12U) * 20U;
-    const auto red = memory.u32(base + 0x7F8U);
-    const auto green = memory.u32(base + 0x7FCU);
-    const auto blue = memory.u32(base + 0x800U);
+    const auto current = base + game_overlay_data("renderer.day.phases",OriginalModule::day_night) + phase * 20U;
+    const auto next = base + game_overlay_data("renderer.day.phases",OriginalModule::day_night) + ((phase + 1U) % 12U) * 20U;
+    const auto red = memory.u32(base + game_overlay_data("renderer.day.red",OriginalModule::day_night));
+    const auto green = memory.u32(base + game_overlay_data("renderer.day.green",OriginalModule::day_night));
+    const auto blue = memory.u32(base + game_overlay_data("renderer.day.blue",OriginalModule::day_night));
     if (red > 255U || green > 255U || blue > 255U) return {};
-    return jfg::make_daynight_fog(memory.u32(base + 0x7E4U),
-        memory.u32(base + 0x7E8U), memory.u16(current + 6U),
+    return jfg::make_daynight_fog(memory.u32(base + game_overlay_data("renderer.day.elapsed",OriginalModule::day_night)),
+        memory.u32(base + game_overlay_data("renderer.day.duration",OriginalModule::day_night)), memory.u16(current + 6U),
         memory.u16(current + 8U), memory.u16(next + 6U), memory.u16(next + 8U),
-        static_cast<int>(memory.u32(base + 0x804U)),
-        static_cast<int>(memory.u32(base + 0x808U)),
+        static_cast<int>(memory.u32(base + game_overlay_data("renderer.day.near",OriginalModule::day_night))),
+        static_cast<int>(memory.u32(base + game_overlay_data("renderer.day.far",OriginalModule::day_night))),
         (red << 24U) | (green << 16U) | (blue << 8U) | 255U);
   };
-  if (ram.valid(base, 0x814U)) return read(ram);
+  if (ram.valid(base, game_overlay_extent(OriginalModule::day_night))) return read(ram);
   JfgGeneratedSectionMetadata metadata{};
-  if (!jfg_generated_section_metadata(22U, &metadata) ||
+  if (!jfg_generated_section_metadata(game_module(OriginalModule::day_night), &metadata) ||
       metadata.is_overlay != 1U || base != metadata.linked_vram || (base & 3U)) return {};
   const std::uint64_t extent = std::uint64_t(metadata.text_size) +
       metadata.data_size + metadata.bss_size;
   const std::uint32_t offset = base - kKseg0;
-  if (extent < 0x814U || extent > 0x10000U || offset > kGuestAddressSpan ||
+  if (extent < game_overlay_extent(OriginalModule::day_night) || extent > 0x10000U || offset > kGuestAddressSpan ||
       extent > kGuestAddressSpan - offset || (extent & 3U)) return {};
   const jfg::mod::DialogueMemory memory(ram, base,
       std::span<const std::uint8_t>(state.rdram + offset, static_cast<std::size_t>(extent)));
@@ -46,33 +46,35 @@ void trace_daynight_atmosphere(State &state, std::uint32_t target,
                               const std::array<std::uint32_t, 5> &outputs) {
   if (!state.gameplay_trace || !state.gameplay_trace_actors ||
       !state.rdram || !section_addresses ||
-      !state.active_overlay_sections.contains(22U)) return;
-  jfg::mod::Memory ram({state.rdram, kRdramSize});
-  const auto base = static_cast<std::uint32_t>(section_addresses[22U]);
+      !state.active_overlay_sections.contains(game_module(OriginalModule::day_night))) return;
+  NativeGameMemory ram({state.rdram, kRdramSize});
+  const auto base = static_cast<std::uint32_t>(section_addresses[game_module(OriginalModule::day_night)]);
   std::array<std::uint64_t, 27> row{};
   row[0] = state.vi_retraces; row[1] = state.gameplay_trace_updates;
-  row[2] = target; row[3] = ram.u32(0x800FB114U); row[4] = base;
+  row[2] = target; row[3] = game_view(ram).u32(game_data_ref("globals.currentLevel")); row[4] = base;
   for (std::size_t i = 0; i < outputs.size(); ++i) {
     auto &value = row[22U + i];
     value = UINT32_MAX;
-    if (target == 0x017006B0U && i < 3U && ram.valid(outputs[i], 4U))
+    if (target == game_overlay_token("overlay.day.track_fade") && i < 3U && ram.valid(outputs[i], 4U))
       value = ram.u32(outputs[i]);
-    else if (target == 0x0170066CU && ram.valid(outputs[i], i < 2U ? 2U : 1U))
+    else if (target == game_overlay_token("overlay.day.fog") && ram.valid(outputs[i], i < 2U ? 2U : 1U))
       value = i < 2U ? ram.u16(outputs[i]) : ram.u8(outputs[i]);
   }
   const auto emit = [&](const auto &memory) {
-    for (std::uint32_t i = 0; i < 17U; ++i)
-      row[5U + i] = memory.u32(base + 0x7D0U + i * 4U);
+    for (std::uint32_t i = 0; i < 4U; ++i)
+      row[5U + i] = memory.u32(base + game_overlay_data("renderer.day.observation",OriginalModule::day_night) + i * 4U);
+    for (std::uint32_t i = 0; i < 13U; ++i)
+      row[9U + i] = memory.u32(base + game_overlay_data("renderer.day.observationBss",OriginalModule::day_night) + i * 4U);
     state.gameplay_trace.event("daynight-atmosphere", row);
   };
-  if (ram.valid(base, 0x814U)) { emit(ram); return; }
+  if (ram.valid(base, game_overlay_extent(OriginalModule::day_night))) { emit(ram); return; }
   JfgGeneratedSectionMetadata metadata{};
-  if (!jfg_generated_section_metadata(22U, &metadata) ||
+  if (!jfg_generated_section_metadata(game_module(OriginalModule::day_night), &metadata) ||
       metadata.is_overlay != 1U || base != metadata.linked_vram || (base & 3U)) return;
   const std::uint64_t extent = std::uint64_t(metadata.text_size) +
       metadata.data_size + metadata.bss_size;
   const std::uint32_t offset = base - kKseg0;
-  if (extent < 0x814U || extent > 0x10000U || offset > kGuestAddressSpan ||
+  if (extent < game_overlay_extent(OriginalModule::day_night) || extent > 0x10000U || offset > kGuestAddressSpan ||
       extent > kGuestAddressSpan - offset || (extent & 3U)) return;
   const jfg::mod::DialogueMemory memory(ram, base,
       std::span<const std::uint8_t>(state.rdram + offset, static_cast<std::size_t>(extent)));
@@ -88,12 +90,12 @@ void trace_gameplay_state(State &state, bool update) {
   hle::GuestMemory memory({state.rdram, kRdramSize},
                           hle::GuestMemory::Layout::native_word_big_endian);
   std::uint32_t level = 0, actors = 0, count = 0;
-  (void)memory.read_u32(0x800FB114U, level);
-  (void)memory.read_u32(0x800F2CA4U, actors);
-  (void)memory.read_u32(0x800F2CA8U, count);
+  (void)memory.read_u32(game_data("globals.currentLevel"), level);
+  (void)memory.read_u32(game_data("globals.objectList"), actors);
+  (void)memory.read_u32(game_data("globals.objectCount"), count);
   state.gameplay_trace.event(update ? "update" : "tick", {
       state.vi_retraces, state.controller_samples, state.gameplay_trace_updates,
-      state.rdram[0xA51B0U ^ 3U], level, count, state.presented_frames,
+      state.rdram[(game_data("globals.frontendMode")&0x1FFFFFFFU) ^ 3U], level, count, state.presented_frames,
       state.graphics_tasks, state.pending_graphics_tasks.size(), state.dispatch_calls,
       state.audio_device_queued_bytes, state.audio_device_consumed_bytes,
       state.audio_device_underruns, state.audio_device_overruns});
@@ -115,7 +117,7 @@ void trace_gameplay_state(State &state, bool update) {
     std::array<std::uint64_t, 56> row{};
     row[0] = state.vi_retraces; row[1] = state.gameplay_trace_updates;
     row[2] = index; row[3] = actor;
-    (void)memory.read_u32(actor + 0x40U, header);
+    (void)memory.read_u32(actor + game_member("layout.actor.header"), header);
     for (std::uint32_t n = 0; n < 4U; ++n) {
       std::uint32_t word = 0;
       row[4U + n] = memory.read_u32(header + 4U + n * 4U, word) ? word : UINT32_MAX;
@@ -126,7 +128,7 @@ void trace_gameplay_state(State &state, bool update) {
     }
     for (std::uint32_t block = 0; block < 2U; ++block) {
       std::uint32_t pointer = 0;
-      (void)memory.read_u32(actor + (block == 0U ? 0x4CU : 0x68U), pointer);
+      (void)memory.read_u32(actor + (block == 0U ? game_member("layout.actor.properties") : game_member("layout.actor.control")), pointer);
       for (std::uint32_t n = 0; n < 8U; ++n) {
         std::uint32_t word = 0;
         row[40U + block * 8U + n] = pointer != 0U && memory.read_u32(pointer + n * 4U, word) ? word : UINT32_MAX;
@@ -153,8 +155,8 @@ void write_actor_timing_trace(State &state) {
       hle::GuestMemory::Layout::native_word_big_endian);
   std::uint32_t actor_list = 0U;
   std::uint32_t actor_count = 0U;
-  if (!actor_memory.read_u32(0x800F2CA4U, actor_list) ||
-      !actor_memory.read_u32(0x800F2CA8U, actor_count) || actor_count > 256U)
+  if (!actor_memory.read_u32(game_data("globals.objectList"), actor_list) ||
+      !actor_memory.read_u32(game_data("globals.objectCount"), actor_count) || actor_count > 256U)
     return;
   for (std::uint32_t index = 0U; index < actor_count; ++index) {
     std::uint32_t actor = 0U;
@@ -162,7 +164,7 @@ void write_actor_timing_trace(State &state) {
     std::uint32_t name0 = 0U;
     std::uint32_t name1 = 0U;
     if (!actor_memory.read_u32(actor_list + index * 4U, actor) ||
-        actor == 0U || !actor_memory.read_u32(actor + 0x40U, header) ||
+        actor == 0U || !actor_memory.read_u32(actor + game_member("layout.actor.header"), header) ||
         header == 0U || !actor_memory.read_u32(header + 4U, name0) ||
         !actor_memory.read_u32(header + 8U, name1) ||
         name0 != 0x616E696DU || name1 != 0x426C7565U)
@@ -215,13 +217,13 @@ void write_retrace_semantic_hash(State &state, std::ostream *update_output,
     return;
   hle::GuestMemory memory({state.rdram, kRdramSize},
                           hle::GuestMemory::Layout::native_word_big_endian);
-  constexpr std::uint32_t kObjectListAddress = 0x800F2CA4U;
-  constexpr std::uint32_t kObjectCountAddress = 0x800F2CA8U;
-  constexpr std::uint32_t kRngSeedAddress = 0x800A33E4U;
-  constexpr std::uint32_t kFrontModeAddress = 0x800A51B0U;
-  constexpr std::uint32_t kGameGlobalsAddress = 0x800A4FCCU;
+  constexpr std::uint32_t kObjectListAddress = game_data("globals.objectList");
+  constexpr std::uint32_t kObjectCountAddress = game_data("globals.objectCount");
+  constexpr std::uint32_t kRngSeedAddress = game_data("diagnostic.rngState");
+  constexpr std::uint32_t kFrontModeAddress = game_data("globals.frontendMode");
+  constexpr std::uint32_t kGameGlobalsAddress = game_data("diagnostic.gameGlobals");
   constexpr std::size_t kGameGlobalsBytes = 0x90U;
-  constexpr std::uint32_t kCameraStateAddress = 0x801045B0U;
+  constexpr std::uint32_t kCameraStateAddress = game_data("diagnostic.cameraState");
   constexpr std::size_t kCameraStateBytes = 0x158U;
   constexpr std::size_t kActorStateBytes = 0x200U;
   constexpr std::uint32_t kMaximumActors = 256U;
@@ -316,7 +318,7 @@ void write_retrace_semantic_hash(State &state, std::ostream *update_output,
   stream << ']';
   if (poll_output != nullptr) {
     std::uint32_t level_word = 0U;
-    (void)memory.read_u32(0x800FB114U, level_word);
+    (void)memory.read_u32(game_data("globals.currentLevel"), level_word);
     stream << ",\"level_word\":" << level_word
            << ",\"connected\":" << (state.latched_controller_connected ? 1 : 0)
            << ",\"buttons\":" << state.latched_controller_buttons
@@ -359,7 +361,7 @@ void write_private_progress(State &state,
     return;
   state.last_progress_retrace = state.vi_retraces;
   std::ostringstream stream;
-  const unsigned front_mode = state.rdram[0x000A51B0U ^ 3U];
+  const unsigned front_mode = state.rdram[(game_data("globals.frontendMode")&0x1FFFFFFFU) ^ 3U];
   const std::uint32_t last_dispatch =
       state.recent_dispatch_position == 0U
           ? 0U
@@ -372,7 +374,6 @@ void write_private_progress(State &state,
          << ",\"last_dispatch\":\"0x" << std::hex << last_dispatch
          << std::dec << '"'
          << ",\"generated_calls\":" << state.generated_calls
-         << ",\"sync_print_sink_calls\":" << state.sync_print_sink_calls
          << ",\"sound_queue_recoveries\":" << state.sound_queue_recoveries
          << ",\"timing_game_updates\":" << state.timing_game_updates
          << ",\"audio_device_underruns\":" << state.audio_device_underruns

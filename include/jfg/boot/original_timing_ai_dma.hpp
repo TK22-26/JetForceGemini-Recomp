@@ -1,8 +1,10 @@
 #pragma once
-// Original timing: retain qualified DMA semantics with the physical Count/AI ratio.
-// Independently measured corrected-Mupen NTSC AI profile. Two DMA slots, sticky
-// completion interrupt, retained registers and byte-granular remaining length.
-// Timing follows the qualified reference VI clock, not the host sound device.
+// Shared AI FIFO: retained DMA/register semantics with explicit physical clocks.
+// Two slots by default, sticky completion interrupt and byte-granular remaining
+// length. Fractional sample timing is independent of VI mode and host playback.
+// Historical reference receipts used truncated NTSC sample rates; they do not
+// qualify this revised timing model or PAL/JP gameplay.
+#include "jfg/boot/device_clocks.hpp"
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -11,6 +13,10 @@
 namespace jfg::boot {
 class OriginalTimingAiDma final {
 public:
+  bool configure_clocks(DeviceClocks clocks) noexcept {
+    if (clocks_.valid() || !clocks.valid() || size_) return false;
+    clocks_=clocks; return true;
+  }
   // Default remains the physical two-slot FIFO. Native playback may retain
   // bounded catch-up PCM after missed host deadlines; original probes never opt in.
   bool native_queue_capacity(unsigned capacity) {
@@ -31,7 +37,8 @@ public:
     }
   }
   bool write(std::uint32_t offset, std::uint32_t value, std::uint64_t count,
-             std::size_t ram_size, std::uint32_t vi_period) {
+             std::size_t ram_size) {
+    if (!clocks_.valid()) return false;
     switch (offset) {
     case 0: dram_ = value; return true;
     case 8:
@@ -50,11 +57,14 @@ public:
     default: return false;
     }
     if (value == 0) return true;
-    if (control_ != 1 || bits_ != 15 || rate_ == 0 || vi_period != 783520 || size_ == capacity_ ||
+    if (control_ != 1 || bits_ != 15 || rate_ == 0 || size_ == capacity_ ||
         (value & 7U) || value > 0x3fff8U || (dram_ & 7U) ||
         dram_ > ram_size || value > ram_size - dram_) return false;
-    const auto frequency = 48681812U / (rate_ + 1U);
-    const auto duration = std::uint64_t(value) * 46875000U / (4U * frequency);
+    // Stereo 16-bit frames consume (DAC_RATE+1) physical video clocks.
+    // Keep fractional Count ticks across DMA buffers instead of truncating
+    // the sample frequency before scheduling each completion.
+    const auto scaled=std::uint64_t(value/4U)*(rate_+1U)*clocks_.count_hz+fraction_;
+    const auto duration=scaled/clocks_.video_hz;
     auto start = deadline_.value_or(count);
     // Validate the tail of the expanded native queue, not only the currently
     // playing buffer. With the physical two-slot default this loop is empty.
@@ -63,6 +73,7 @@ public:
       start+=queue_[i].duration;
     }
     if (duration == 0 || start > UINT64_MAX - duration) return false;
+    fraction_=scaled%clocks_.video_hz;
     queue_[size_++] = {value, duration};
     if (!deadline_) deadline_ = count + duration;
     return true;
@@ -79,6 +90,8 @@ public:
   [[nodiscard]] bool interrupt() const { return interrupt_; }
   [[nodiscard]] std::optional<std::uint64_t> deadline() const { return deadline_; }
 private:
+  DeviceClocks clocks_{};
+  std::uint64_t fraction_=0;
   struct Buffer { std::uint32_t length = 0; std::uint64_t duration = 0; };
   std::array<Buffer, 4> queue_{};
   std::optional<std::uint64_t> deadline_;

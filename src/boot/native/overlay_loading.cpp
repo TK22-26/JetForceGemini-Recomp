@@ -25,7 +25,7 @@ bool mirror_synthetic_overlay_in_runlink(
 bool note_guest_cold_overlay_load(State &state, const std::uint32_t slot) {
   if (slot == 0U)
     return true;
-  if (slot >= kRunlinkOverlaySlotCount)
+  if (slot > kRunlinkOverlaySlotCount)
     return false;
   hle::GuestMemory memory({state.rdram, kRdramSize},
                          hle::GuestMemory::Layout::native_word_big_endian);
@@ -40,7 +40,7 @@ bool note_guest_cold_overlay_load(State &state, const std::uint32_t slot) {
     return false;
   if (base != 0U)
     return true; // The original loader also returns without loading anything.
-  const auto suspension = resolve_runlink_suspension(memory, 0x800FEAD8U, 16U, slot);
+  const auto suspension = resolve_runlink_suspension(memory, kRunlinkSuspendedModules, kRunlinkSuspendedCount, slot);
   if (suspension != RunlinkSuspensionResult::absent)
     return suspension == RunlinkSuspensionResult::suspended;
   RunlinkModuleIdentity identity{};
@@ -120,14 +120,14 @@ bool ensure_guest_overlay_allocation(
   // deliberately rejects its pending entry; resume through the generated
   // guest routine so it can reacquire text without resetting that state.
   const auto suspension = resolve_runlink_suspension(
-      memory, 0x800FEAD8U, 16U, matched_slot);
+      memory, kRunlinkSuspendedModules, kRunlinkSuspendedCount, matched_slot);
   if (suspension == RunlinkSuspensionResult::invalid) {
     state.guest_overlay_loads_in_progress.erase(matched_slot);
     return false;
   }
   const bool resume = suspension == RunlinkSuspensionResult::suspended;
   auto *loader = jfg_generated_lookup_function(static_cast<std::int32_t>(
-      resume ? 0x80053D2CU : 0x80052CFCU));
+      resume ? kRunlinkResume : kRunlinkColdLoad));
   if (loader == nullptr || !memory.write_u32(matched_record, 0U)) {
     state.guest_overlay_loads_in_progress.erase(matched_slot);
     return false;

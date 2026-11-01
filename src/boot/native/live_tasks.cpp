@@ -683,7 +683,7 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
        // RT64 already completes its RAM readback before DP completion.
        jfg::Rt64MemoryLayout::host_word_swapped, true, true,
        video_settings->mode == jfg::FrameRateMode::custom ? video_settings->fps : 0U,
-       video_settings->mode == jfg::FrameRateMode::unlimited, video_settings->vsync},
+       video_settings->mode == jfg::FrameRateMode::unlimited, video_settings->vsync,kRendererGameLayout},
       error);
   std::fflush(stdout);
   (void)_dup2(saved_stdout, _fileno(stdout));
@@ -808,8 +808,8 @@ bool execute_live_graphics_task(State &state, hle::GuestMemory &memory) {
         reinterpret_cast<const std::uint8_t*>(pending.rdram.data()),pending.rdram.size()});
     for(const auto& fade:state.pc_camera_fades)
       if(current_fade(fade) &&
-         fade_ram.valid(fade.actor,0xA4U) && fade_ram.u32(fade.actor+0x68U)==fade.control &&
-         fade_ram.u32(fade.actor+0x40U)==fade.header)
+         fade_ram.valid(fade.actor,0xA4U) && fade_ram.u32(fade.actor+game_member("layout.actor.control"))==fade.control &&
+         fade_ram.u32(fade.actor+game_member("layout.actor.header"))==fade.header)
         scene.camera_fades.push_back({fade.actor,fade.alpha/255.0F});
     pending.task.presentation_scene=std::make_shared<const jfg::PresentationSceneIdentity>(std::move(scene));
   }

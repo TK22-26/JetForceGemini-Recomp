@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$RomPath,
+    [string]$ValidatorAssembly,
     [ValidatePattern('^[0-9a-f]{40}$')][string]$SourceCommit,
     [switch]$CheckOnly
 )
@@ -252,11 +253,15 @@ function Invoke-Setup {
         return
     }
     if (-not $SourceCommit -or -not $RomPath) { throw 'Choose a ROM through the launcher.' }
-    # Direct invocation has the same no-download-before-ROM-validation boundary.
-    if (-not (Test-Path -LiteralPath $RomPath -PathType Leaf) -or (Get-Item -LiteralPath $RomPath).Length -ne 33554432 -or
-        (Get-FileHash -LiteralPath $RomPath -Algorithm SHA1).Hash -ne '493ced9008dbe932d6e91179b68e8630cf23a023') {
-        throw 'Select the supported 32 MiB North American big-endian ROM.'
+    # Use the launcher's exact catalog and canonical byte-order identification.
+    # This boundary executes before downloads, transcripts or build output.
+    if (-not $ValidatorAssembly -or -not (Test-Path -LiteralPath $ValidatorAssembly -PathType Leaf)) {
+        throw 'Launch setup through the launcher, or provide its managed JFG-Setup.exe using -ValidatorAssembly.'
     }
+    $validator = [Reflection.Assembly]::LoadFile([IO.Path]::GetFullPath($ValidatorAssembly))
+    $entry = $validator.GetType('JfgLauncher.SetupRomValidation', $true).GetMethod('Validate')
+    try { $revision = $entry.Invoke($null, @([string]$RomPath)) }
+    catch [Reflection.TargetInvocationException] { throw $_.Exception.InnerException }
     New-Item -ItemType Directory -Path $script:SetupRoot -Force | Out-Null
     Start-Transcript -Path (Join-Path $script:SetupRoot 'setup.log') -Append | Out-Null
     try {
@@ -271,7 +276,7 @@ function Invoke-Setup {
         $python = Find-Python
         Write-Output 'JFG-SUPPORT stage=build-game'
         Write-Output 'Building the game locally from your ROM...'
-        Invoke-Checked $python @('-u', (Join-Path $source 'scripts\build\build_from_rom.py'), '--rom', $RomPath)
+        Invoke-Checked $python @('-u', (Join-Path $source 'scripts\build\build_from_rom.py'), '--rom', $RomPath, '--distro', $script:Distro)
     } finally { Stop-Transcript | Out-Null }
 }
 

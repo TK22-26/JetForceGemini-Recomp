@@ -26,6 +26,41 @@ Developers can still build from source; see [ROM build setup](rom-bootstrap.md)
 and [release packaging](../maintenance/releases.md). Local experimental builds require a
 matching package manifest and runtime beside the launcher.
 
+## Regional development contract
+
+Released packages retain their documented US support. The current development
+launcher recognizes the catalogued US, PAL and Japanese retail inputs in all
+three standard N64 byte orders. It normalizes only its private copy and records
+the detected revision. PAL and Japan can be imported while their Play admission
+remains closed for native qualification. Recognition is not a gameplay claim.
+
+A development runtime bundle contains `jfg-program.json` beside the executable
+and required host libraries. The manifest follows
+[the program bundle schema](../../schemas/native-program-bundle.schema.json).
+The executable's `--describe` query reports its embedded ROM/model/input identity
+without loading a ROM or opening saves. Before Play, the managed helper checks
+file hashes and compares the query result with the manifest and imported ROM.
+It holds read leases on the ROM and runtime files until the game exits. Both
+frontend Play/direct-Play and the preview launch use `RegionalSession`.
+
+Bundles may live directly beside the launcher or under
+`runtimes/<revision-id>/`. Discovery chooses only an exact matching descriptor;
+a filename or sidecar cannot relabel a different revision. Old development
+binaries need a fresh regional build manifest. The post-link helper
+`scripts/release/program_bundle.py` requires the successful native build receipt,
+captured source inputs and matching generated corpus before publishing one.
+This candidate manifest does not replace release review or qualification.
+
+The selected profile keeps shared controller, audio and display preferences.
+Existing US campaign saves remain at the historical profile root; existing US
+navigation saves keep their sibling `navigation-mod` path. PAL and Japan use
+`<profile>/revisions/<revision-id>/`, with a separate `navigation-mod` child.
+Each namespace has a `rom-revision.txt` identity marker. Existing unidentified
+PAL/JP save files are rejected rather than assigned a region; there is no
+automatic cross-region save copy or conversion. Build updates do not move saves.
+These paths intentionally preserve the existing US installation without a
+physical save migration; marker publication is atomic and repeatable.
+
 ## Files and locations
 
 | Path under `%LOCALAPPDATA%` | Contents |
@@ -194,7 +229,7 @@ preview is not a published release.
 
 The launcher checks public GitHub release metadata in a separate background helper
 at startup. A newer stable version produces a persistent home-screen notice.
-**Help > Check for updatesÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦** checks manually and shows installed/latest versions,
+**Help > Check for updates...** checks manually and shows installed/latest versions,
 an error with retry when offline, and **View release / download**. This opens the
 project release page; the launcher does not install files or alter saves. Extract
 the full new ZIP into a new folder and run its launcher to retain the same profile.
@@ -280,3 +315,21 @@ jfg-native-boot.exe --rom "D:/Games/my-copy.z64" --save "D:/JFG-profile/jfg.flas
 Supply the supported ROM and explicit save paths when testing a separate profile. This enters the
 normal game flow, not a forced level. The launcher's `--play` is the convenient route for saved
 settings and the hosted game window.
+
+### Regional portable bundles
+
+New portable packages use a schema-2 `jfg-package.json` index and
+`runtimes/<revision-id>/jfg-program.json` for each included executable. The
+launcher identifies the imported ROM, validates the selected manifest hash,
+then checks the executable identity and locks its declared files for launch.
+A missing matching revision cannot select another runtime. Source-built flat
+bundles retain their own program manifest and the same session validation.
+PAL and JP product admission remains closed while qualification is incomplete.
+
+The regional architecture candidate also checks `rom-revision.txt` inside the
+native startup boundary, before opening either save device. A valid ROM does
+not permit direct launch against a profile marked for another revision. PAL/JP
+normal Play requires a marked persistent profile; the launcher/build tool owns
+its creation. Bounded private probes can use unmarked inputs, and legacy US
+raw files remain readable without guessing their region. This source candidate
+does not enable the currently closed PAL/JP product admission gates.

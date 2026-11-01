@@ -44,23 +44,23 @@ inline std::uint16_t overlay_half(const Frame& frame,unsigned offset) {
 inline void resolve(Frame& frame) {
   frame.active=false;
   auto& state=*frame.owner;
-  jfg::mod::Memory ram({state.rdram,kRdramSize});
+  NativeGameMemory ram({state.rdram,kRdramSize});
   JfgGeneratedSectionMetadata metadata{};
-  if(!section_addresses || !state.active_overlay_sections.contains(3U) ||
-     !jfg_generated_section_metadata(3U,&metadata) || metadata.is_overlay!=1U)return;
-  frame.base=static_cast<std::uint32_t>(section_addresses[3]);
+  if(!section_addresses || !state.active_overlay_sections.contains(game_module(OriginalModule::collision)) ||
+     !jfg_generated_section_metadata(game_module(OriginalModule::collision),&metadata) || metadata.is_overlay!=1U)return;
+  frame.base=static_cast<std::uint32_t>(section_addresses[game_module(OriginalModule::collision)]);
   const auto offset=static_cast<std::uint32_t>(frame.base-kKseg0);
   const std::uint64_t extent=std::uint64_t(metadata.text_size)+metadata.data_size+metadata.bss_size;
   if(frame.base!=metadata.linked_vram || (frame.base&3U) ||
-     extent<0x1A200U || extent>0x40000U || offset>kGuestAddressSpan ||
+     extent<game_overlay_extent(OriginalModule::collision) || extent>0x40000U || offset>kGuestAddressSpan ||
      extent>kGuestAddressSpan-offset || !ram.valid(frame.actor,0xA4U) ||
-     ram.u16(frame.actor+0x48U)!=24U ||
-     overlay_word(frame,0x1A1CCU)!=frame.actor)return;
-  frame.control=overlay_word(frame,0x1A1D0U);
-  frame.descriptor=overlay_word(frame,0x1A1D8U);
-  frame.record=overlay_word(frame,0x1A1E0U);
+     ram.u16(frame.actor+game_member("layout.actor.type"))!=24U ||
+     overlay_word(frame,game_overlay_data("flight.actor",OriginalModule::collision))!=frame.actor)return;
+  frame.control=overlay_word(frame,game_overlay_data("flight.control",OriginalModule::collision));
+  frame.descriptor=overlay_word(frame,game_overlay_data("flight.descriptor",OriginalModule::collision));
+  frame.record=overlay_word(frame,game_overlay_data("flight.record",OriginalModule::collision));
   if(!ram.valid(frame.control,0xACU) ||
-     ram.u32(frame.actor+0x68U)!=frame.control ||
+     ram.u32(frame.actor+game_member("layout.actor.control"))!=frame.control ||
      !ram.valid(frame.descriptor,0x30U) || !ram.valid(frame.record,0x80U))return;
   frame.active=jfg::flight::supported(ram.u8(frame.record+0x2BU),
                                      ram.u8(frame.record+0x2AU));
@@ -82,14 +82,14 @@ public:
       :state_(state),context_(context),target_(target) {
     using namespace flying_motion_detail;
     switch(target) {
-      case 0x00310600U: case 0x00305450U: case 0x0030A948U:
-      case 0x0030A9E8U: case 0x003079D8U: case 0x0030A564U:
-      case 0x0030AD38U: case 0x00304F88U: case 0x0030E9F0U: case 0x0030E3CCU:
-      case 0x80009A04U: relevant_=true;break;
+      case game_overlay_token("overlay.collision.squaddie_control"): case game_overlay_token("overlay.collision.prepare_squaddie"): case game_overlay_token("overlay.collision.accelerate"):
+      case game_overlay_token("overlay.collision.drag"): case game_overlay_token("overlay.collision.smooth_acceleration"): case game_overlay_token("overlay.collision.turn"):
+      case game_overlay_token("overlay.collision.move"): case game_overlay_token("overlay.collision.update_animation"): case game_overlay_token("overlay.collision.collision_move"): case game_overlay_token("overlay.collision.death_move"):
+      case game_code("game.objMoveXYZ"): relevant_=true;break;
       default:return;
     }
     auto& execution_state=execution();
-    if(target==0x00310600U) {
+    if(target==game_overlay_token("overlay.collision.squaddie_control")) {
       outer_=true;previous_=execution_state.current;
       local_.owner=&state;local_.actor=static_cast<std::uint32_t>(context.r4);
       const auto elapsed=static_cast<std::uint32_t>(context.r5);
@@ -102,25 +102,25 @@ public:
     }
     frame_=execution_state.current;
     if(!frame_ || frame_->owner!=&state || frame_->elapsed<=0.0f)return;
-    if(target==0x00305450U)return;
+    if(target==game_overlay_token("overlay.collision.prepare_squaddie"))return;
     if(!frame_->active)return;
-    if(overlay_word(*frame_,0x1A1CCU)!=frame_->actor) {frame_=nullptr;return;}
+    if(overlay_word(*frame_,game_overlay_data("flight.actor",OriginalModule::collision))!=frame_->actor) {frame_=nullptr;return;}
     auto& f=*frame_;
-    jfg::mod::Memory ram({state.rdram,kRdramSize});
+    NativeGameMemory ram({state.rdram,kRdramSize});
     Arithmetic arithmetic;
-    if(target==0x0030E3CCU && f.moving) {
+    if(target==game_overlay_token("overlay.collision.death_move") && f.moving) {
       ++f.collision_depth;collision_=true;
     }
-    if(target==0x0030A948U || target==0x0030A9E8U) {
+    if(target==game_overlay_token("overlay.collision.accelerate") || target==game_overlay_token("overlay.collision.drag")) {
       ++f.acceleration_depth;acceleration_=true;
     }
-    if(target==0x0030A564U) {angle_=ram.u16(f.actor);turn_=true;}
-    if(target==0x0030AD38U) {
+    if(target==game_overlay_token("overlay.collision.turn")) {angle_=ram.u16(f.actor);turn_=true;}
+    if(target==game_overlay_token("overlay.collision.move")) {
       speed_=ram.f32(f.control+0x20U);drag_=true;
     }
     // The death initializer may apply a launch impulse. Capture after that,
     // immediately before the original per-tick drag, gravity and spin.
-    if(target==0x00304F88U && static_cast<std::uint32_t>(context.r4)==12U &&
+    if(target==game_overlay_token("overlay.collision.update_animation") && static_cast<std::uint32_t>(context.r4)==12U &&
        ram.s16(f.control+0xA6U)<=0) {
       for(unsigned i=0;i<3;++i) {
         f.death_velocity[i]=ram.f32(f.actor+0x1CU+i*4U);
@@ -128,11 +128,11 @@ public:
       }
       f.death_ready=true;
     }
-    if(target==0x0030E9F0U) {
+    if(target==game_overlay_token("overlay.collision.collision_move")) {
       f.moving=true;move_=true;
       for(unsigned i=0;i<3;++i)f.distance[i]=ram.f32(f.actor+0x1CU+i*4U)*f.elapsed;
       if(f.death_ready) {
-        const float retention=overlay_float(f,0x19DACU);
+        const float retention=overlay_float(f,game_overlay_data("flight.death_retention",OriginalModule::collision));
         for(unsigned i=0;i<3;++i) {
           const float before=f.death_velocity[i];
           const float after=i==1 ? before-f.elapsed : jfg::flight::damp(before,retention,f.elapsed);
@@ -146,7 +146,7 @@ public:
       }
       for(unsigned i=0;i<3;++i)f.integrated_velocity[i]=ram.f32(f.actor+0x1CU+i*4U);
     }
-    if(target==0x80009A04U && f.moving &&
+    if(target==game_code("game.objMoveXYZ") && f.moving &&
        static_cast<std::uint32_t>(context.r4)==f.actor) {
       // Only displacements change units. Canonical actor velocity remains
       // available to the native collision/steering code in legacy units.
@@ -156,7 +156,7 @@ public:
         // The contact helper applies retention after its bounce/stop decision.
         // Normalize that force at the movement boundary, preserving the
         // collision result and all original collision tests.
-        const float retention=overlay_float(f,0x19D80U);
+        const float retention=overlay_float(f,game_overlay_data("flight.collision_retention",OriginalModule::collision));
         const bool gravity=(ram.u32(f.record+0x24U)&0x400U)!=0U &&
             (ram.u32(f.control)&0x1000U)==0U;
         for(unsigned i=0;i<3;++i) {
@@ -187,18 +187,18 @@ public:
     if(outer_) {execution().current=previous_;return;}
     if(!frame_ || frame_->owner!=&state_ || frame_->elapsed<=0.0f)return;
     auto& f=*frame_;
-    if(target_==0x00305450U) {resolve(f);return;}
+    if(target_==game_overlay_token("overlay.collision.prepare_squaddie")) {resolve(f);return;}
     if(!f.active)return;
     Arithmetic arithmetic;
-    jfg::mod::Memory ram({state_.rdram,kRdramSize});
-    if(target_==0x003079D8U && f.acceleration_depth)
+    NativeGameMemory ram({state_.rdram,kRdramSize});
+    if(target_==game_overlay_token("overlay.collision.smooth_acceleration") && f.acceleration_depth)
       context_.f0.fl*=f.elapsed;
     if(turn_)ram.put16(f.actor,jfg::flight::approach_angle(angle_,
-        overlay_half(f,0x1A1F6U),f.elapsed));
+        overlay_half(f,game_overlay_data("flight.turn_target",OriginalModule::collision)),f.elapsed));
     if(drag_) {
       const float original=ram.f32(f.control+0x20U);
-      const bool apply=ram.f32(f.record+0x10U)>0.0f || overlay_float(f,0x1A1ECU)>20.0f;
-      float corrected=apply ? jfg::flight::damp(speed_,overlay_float(f,0x19D50U),f.elapsed) : speed_;
+      const bool apply=ram.f32(f.record+0x10U)>0.0f || overlay_float(f,game_overlay_data("flight.speed",OriginalModule::collision))>20.0f;
+      float corrected=apply ? jfg::flight::damp(speed_,overlay_float(f,game_overlay_data("flight.drag_retention",OriginalModule::collision)),f.elapsed) : speed_;
       const float maximum=static_cast<float>(static_cast<std::int8_t>(ram.u8(f.descriptor+0x24U)));
       const float minimum=static_cast<float>(static_cast<std::int8_t>(ram.u8(f.descriptor+0x25U)));
       corrected=std::max(minimum,std::min(maximum,corrected));

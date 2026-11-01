@@ -15,42 +15,62 @@ void check(bool ok,const char* name){++checks;if(!ok){std::cerr<<name<<'\n';std:
 int main() {
   using Kind=jfg::PcRumbleRequest;
   jfg::PcRumbleEffect effect;
+  const auto request=[](jfg::PcRumbleEffect& effect,Kind kind,int intensity,float seconds,std::uint64_t tick) {
+    effect.request(kind,intensity,seconds,tick,60);
+  };
+  for(const std::uint64_t frequency:{50ULL,60ULL,46875000ULL}) {
+    jfg::PcRumbleEffect clocked;
+    clocked.request(Kind::start,100,1.0F,17,frequency);
+    check(clocked.sample(17+frequency-1)>0 && clocked.sample(17+frequency)==0,
+          "one second has the supplied clock duration for PAL, NTSC and Count");
+    for(std::uint64_t second=0;second<4;++second)
+      clocked.request(Kind::maximum,100,2.0F,100+second*frequency,frequency);
+    check(clocked.sample(100+4*frequency-1)>0 && clocked.sample(100+4*frequency)==0,
+          "four-second continuous limit is clock independent");
+    clocked.request(Kind::start,100,1.0F,100+4*frequency,frequency);
+    check(clocked.sample(100+4*frequency)==0,"clock-specific cooldown rejects restart");
+    clocked.request(Kind::start,100,1.0F,100+5*frequency,frequency);
+    check(clocked.sample(100+5*frequency)>0,"clock-specific cooldown lasts one second");
+    clocked.request(Kind::start,100,1.0F,100+5*frequency,0);
+    check(clocked.sample(100+5*frequency)==0,"invalid timebase cannot preserve motor output");
+  }
+
   check(effect.sample(0)==0,"idle is silent");
-  effect.request(Kind::start,50,0.2F,100);
+  request(effect,Kind::start,50,0.2F,100);
   const auto medium=effect.sample(100);
   check(medium>30000 && medium<40000,"guest intensity maps to bounded analog amplitude");
   check(effect.sample(111)==medium && effect.sample(112)==0,"effect expires at guest duration");
-  effect.request(Kind::start,100,1.0F,200);
+  request(effect,Kind::start,100,1.0F,200);
   check(effect.sample(200)==65535,"high guest strength saturates");
   check(effect.sample(200,50)==32767 && effect.sample(200,0)==0,"user rumble strength scales output");
-  effect.request(Kind::maximum,10,2.0F,210);
+  request(effect,Kind::maximum,10,2.0F,210);
   check(effect.sample(260)==65535 && effect.sample(330)==0,"maximum preserves stronger effect and extends duration");
-  effect.request(Kind::start,50,1.0F,400);
-  effect.request(Kind::alter,30,0.0F,410);
+  request(effect,Kind::start,50,1.0F,400);
+  request(effect,Kind::alter,30,0.0F,410);
   check(effect.sample(410)>0 && effect.sample(410)<medium && effect.sample(460)==0,"alter strength preserves old deadline");
-  effect.request(Kind::start,50,0.2F,500);
-  effect.request(Kind::alter,0,1.0F,505);
+  request(effect,Kind::start,50,0.2F,500);
+  request(effect,Kind::alter,0,1.0F,505);
   check(effect.sample(540)==medium && effect.sample(565)==0,"alter duration preserves strength");
-  effect.request(Kind::start,50,1.0F,600);effect.request(Kind::stop,0,0,601);
+  request(effect,Kind::start,50,1.0F,600);request(effect,Kind::stop,0,0,601);
   check(effect.sample(602)==0,"guest stop is immediate");
-  effect.request(Kind::start,0,1,700);effect.request(Kind::alter,50,0,710);
+  request(effect,Kind::start,0,1,700);request(effect,Kind::alter,50,0,710);
   check(effect.sample(710)==medium && effect.sample(760)==0,"alter can raise a silent but timed effect");
-  effect.request(Kind::alter,0,1,770);
+  request(effect,Kind::alter,0,1,770);
   check(effect.sample(770)==medium && effect.sample(830)==0,"alter duration can reuse last requested intensity");
   effect.clear();
-  for(std::uint64_t tick=1000;tick<1240;tick+=10)effect.request(Kind::maximum,100,0.5F,tick);
+  for(std::uint64_t tick=1000;tick<1240;tick+=10)request(effect,Kind::maximum,100,0.5F,tick);
   check(effect.sample(1239)>0 && effect.sample(1240)==0,"continuous motor use stops after four seconds");
-  effect.request(Kind::start,100,1,1250);check(effect.sample(1250)==0,"cooldown rejects restart");
-  effect.request(Kind::start,100,1,1300);check(effect.sample(1300)>0,"cooldown ends after one second");
+  request(effect,Kind::start,100,1,1250);check(effect.sample(1250)==0,"cooldown rejects restart");
+  request(effect,Kind::start,100,1,1300);check(effect.sample(1300)>0,"cooldown ends after one second");
   effect.clear();
   for(const float seconds:{-1.0F,std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity()}) {
-    effect.request(Kind::start,100,seconds,10);check(effect.sample(10)==0,"invalid duration cannot start motor");
+    request(effect,Kind::start,100,seconds,10);check(effect.sample(10)==0,"invalid duration cannot start motor");
   }
-  effect.request(Kind::start,-123,1,10);check(effect.sample(10)==0,"negative strength is silent");
-  effect.request(Kind::start,std::numeric_limits<int>::max(),std::numeric_limits<float>::max(),100);
+  request(effect,Kind::start,-123,1,10);check(effect.sample(10)==0,"negative strength is silent");
+  request(effect,Kind::start,std::numeric_limits<int>::max(),std::numeric_limits<float>::max(),100);
   check(effect.sample(100)==65535 && effect.sample(340)==0,"extreme request clamps amplitude and duration");
-  effect.request(Kind::start,100,1,400);check(effect.sample(399)==0,"clock rewind clears stale effect");
-  effect.request(Kind::start,100,1,500);effect.clear();check(effect.sample(500)==0,"disable or focus reset discards effect");
+  request(effect,Kind::start,100,1,400);check(effect.sample(399)==0,"clock rewind clears stale effect");
+  request(effect,Kind::start,100,1,500);effect.clear();check(effect.sample(500)==0,"disable or focus reset discards effect");
   check(jfg::route_pc_rumble({100,200,300,400},{2,-3,-2,0})==std::array<std::uint16_t,4>{400,0,100,0},"guest ports route to assigned devices; KBM and disconnected never vibrate");
   check(jfg::route_pc_rumble({100,200,300,400},{2,2,7,-1})==std::array<std::uint16_t,4>{0,0,200,0},"invalid devices ignored and duplicate requests do not add");
 

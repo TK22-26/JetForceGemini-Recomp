@@ -1,7 +1,8 @@
+#include "regional_game_fixture.hpp"
 static void navigation_collision_tests() {
   using namespace jfg::mod;
   for (bool swapped : {false, true}) {
-    std::vector<std::uint8_t> bytes(4194304U); Memory m(bytes, swapped);
+    std::vector<std::uint8_t> bytes(4194304U); jfg::test::GameMemory m(bytes, swapped);
     const auto put32 = [&](std::uint32_t a, std::uint32_t v) {m.put16(a, std::uint16_t(v >> 16U));m.put16(a+2U,std::uint16_t(v));};
     const auto putfloat = [&](std::uint32_t a,float v) {put32(a,std::bit_cast<std::uint32_t>(v));};
     constexpr std::array<std::uint32_t,7> pin={0x3C0E8010,0x8DCE47E0,0x3C028010,0xAC8E0000,0x8C4247E4,0x03E00008,0};

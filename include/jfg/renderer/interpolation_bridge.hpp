@@ -59,12 +59,13 @@ inline std::uint64_t presentation_sequence_tick(const void* counters) {
 inline std::uint64_t presentation_next_scene_due(std::uint64_t tick,
         unsigned outputs, unsigned target) {
     if (!tick || !outputs || !target || target == kUnlimitedPresentation) return 0U;
-    const auto elapsed_vi = std::uint64_t(outputs) * 60U / target;
     auto& storage = presentation_snapshots();
     const std::scoped_lock lock(storage.mutex);
     std::uint64_t next = 0;
     for (const auto& entry : storage.frames) {
         const auto& frame = *entry.second;
+        if(frame.vi_rate!=50U && frame.vi_rate!=60U)continue;
+        const auto elapsed_vi = std::uint64_t(outputs) * frame.vi_rate / target;
         if (frame.scene && frame.tick > tick && frame.tick - tick <= elapsed_vi &&
             (!next || frame.tick < next)) next = frame.tick;
     }

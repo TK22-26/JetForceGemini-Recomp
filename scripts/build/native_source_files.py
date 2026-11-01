@@ -35,4 +35,11 @@ NATIVE_MODULE_CLOSURE = (
     "scripts/build/native_source_files.py",
     "cmake/NativeTargets.cmake",
     "src/boot/flying_motion.inl",
+    "include/jfg/game/descriptor.hpp",
+    "src/game/descriptor.cpp",
+    "include/jfg/game/bindings.hpp",
+    "src/game/bindings.cpp",
+    "config/roms/revisions.json",
+    "config/roms/core-bindings.json",
+    "config/roms/relocation-domains.json",
 ) + NATIVE_MODULE_FILES

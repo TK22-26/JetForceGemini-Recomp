@@ -1,10 +1,12 @@
 #pragma once
+#include "jfg/renderer/game_layout.hpp"
 
 #include "jfg/renderer/daynight_fog.hpp"
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -76,6 +78,7 @@ struct Rt64ShellConfiguration {
     unsigned experimental_refresh_rate = 0U;
     bool unlimited_presentation = false;
     bool vsync = true;
+    std::optional<RendererGameLayout> game_layout;
 };
 
 struct Rt64RdramRange {

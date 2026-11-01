@@ -127,5 +127,5 @@ static void npc_reward_tests() {
   auto index = fixture.index;
   index[4] = 255;
   check(!c.load_assets(fixture.selectors, index, fixture.data));
-  check(!c.load_rom({}) && !c.ready());
+  check(!c.load_rom({}, {"fixture",16,64}, "fixture") && !c.ready());
 }

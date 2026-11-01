@@ -6,6 +6,16 @@
 static void check(bool value) { if (!value) std::abort(); }
 
 int main() {
+  for(unsigned rate:{50U,60U})for(unsigned hz:{8000U,22018U,44100U,96000U}) {
+    std::uint64_t remainder=0,total=0;
+    for(unsigned tick=0;tick<rate*1000U;++tick) {
+      total+=jfg::audio::nominal_vi_audio_bytes(hz,rate,remainder);
+      check(total==std::uint64_t(hz)*4U*(tick+1U)/rate);
+    }
+    check(total==std::uint64_t(hz)*4000U && remainder==0U);
+  }
+  std::uint64_t retained=17U;check(jfg::audio::nominal_vi_audio_bytes(22018U,0U,retained)==0U && retained==17U);
+
   using jfg::audio::PlaybackBufferAction;
   using jfg::audio::playback_buffer_action;
   constexpr std::uint32_t frequency = 22018U;

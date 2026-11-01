@@ -1,3 +1,4 @@
+#include "renderer_game_fixture.hpp"
 #include "jfg/renderer/enhanced_shadow_footprint.hpp"
 #include "jfg/renderer/tracer_presentation.hpp"
 #include "jfg/renderer/attached_effect_history.hpp"
@@ -45,17 +46,17 @@ int main() {
     w16(0x726,4);w16(0x728,2);
     jfg::PresentationGuestView view(data);
     const std::array<std::array<float,2>,4> small{{{17,17},{-17,17},{-17,-17},{17,-17}}};
-    auto result=jfg::enhanced_shadow_footprint(view,0x100,small,{0,0},{-10,10});
+    auto result=jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{0,0},{-10,10});
     require(result&&result->expanded&&result->vertices==3);
     require(result->points[2][0]<=-28&&result->points[0][0]>=38);
     const std::array<std::array<float,2>,4> large{{{100,100},{-100,100},{-100,-100},{100,-100}}};
-    result=jfg::enhanced_shadow_footprint(view,0x100,large,{0,0},{0,0});
+    result=jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,large,{0,0},{0,0});
     require(result&&!result->expanded&&result->points==large);
-    result=jfg::enhanced_shadow_footprint(view,0x100,small,{1,0},{-100,0});
+    result=jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{1,0},{-100,0});
     require(result&&result->points[0][0]>=148); // Receiver height/light projection.
-    w8(0x701,2);require(!jfg::enhanced_shadow_footprint(view,0x100,small,{0,0},{0,0}));w8(0x701,0);
+    w8(0x701,2);require(!jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{0,0},{0,0}));w8(0x701,0);
     const auto packed=data;
-    const auto packed_bounds=jfg::enhanced_shadow_footprint(view,0x100,small,{0,0},{-10,10});
+    const auto packed_bounds=jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{0,0},{-10,10});
     // Receiver sizing can run before conversion, with either/both banks float.
     for(unsigned bank=0;bank<2;++bank) {
       const unsigned address=bank?0xa00U:0x900U;
@@ -64,27 +65,27 @@ int main() {
       w32(0xa2ed0,bank+1);w32(0xfa658+bank*8,address);w16(0xfa65c+bank*8,1);
       // Native float matrices leave the fourth-column padding undefined.
       for(unsigned k:{3U,7U,11U,15U})w32(address+k*4U,0x7fc00000U);
-      const auto mixed=jfg::enhanced_shadow_footprint(view,0x100,small,{0,0},{-10,10});
+      const auto mixed=jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{0,0},{-10,10});
       require(mixed&&packed_bounds&&mixed->points==packed_bounds->points);
     }
     w32(0x900+20U,std::bit_cast<unsigned>(std::numeric_limits<float>::quiet_NaN()));
-    require(!jfg::enhanced_shadow_footprint(view,0x100,small,{0,0},{0,0}));
+    require(!jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{0,0},{0,0}));
     data=packed;
     // Freshly allocated identity floats are not queued or rendered poses.
     for(unsigned k=0;k<16;++k)w32(0x900+k*4U,std::bit_cast<unsigned>(
         (k==0||k==5||k==10||k==15)?1.0f:0.0f));
-    require(!jfg::enhanced_shadow_footprint(view,0x100,small,{0,0},{0,0}));
+    require(!jfg::enhanced_shadow_footprint(jfg::test::renderer_layout,view,0x100,small,{0,0},{0,0}));
     data=packed;
     const auto stack=0x1000U,points=stack+0x54U;
     w32(stack+0x74,0x100);w16(stack+0x80,0);w16(stack+0x82,0);
     for(unsigned i=0;i<4;++i)for(unsigned c=0;c<2;++c)w32(points+i*8+c*4,std::bit_cast<unsigned>(small[i][c]));
     const auto before=data;
-    require(!jfg::enhanced_shadow_receiver_query(data,0x80020954,0x8001e5d0,stack,4,points,false));
+    require(!jfg::enhanced_shadow_receiver_query(jfg::test::renderer_layout,data,0x80020954,0x8001e5d0,stack,4,points,false));
     require(data==before); // Original mode is byte-identical.
-    require(!jfg::enhanced_shadow_receiver_query(data,0x80020954,0x8001e5d4,stack,4,points,true));
+    require(!jfg::enhanced_shadow_receiver_query(jfg::test::renderer_layout,data,0x80020954,0x8001e5d4,stack,4,points,true));
     require(data==before);
     const auto rounding=std::fegetround();std::fesetround(FE_DOWNWARD);
-    result=jfg::enhanced_shadow_receiver_query(data,0x80020954,0x8001e5d0,stack,4,points,true);
+    result=jfg::enhanced_shadow_receiver_query(jfg::test::renderer_layout,data,0x80020954,0x8001e5d0,stack,4,points,true);
     require(result&&result->expanded&&std::fegetround()==FE_DOWNWARD);std::fesetround(rounding);
     for(unsigned i=0;i<data.size();++i)if(i<points||i>=points+32)require(data[i]==before[i]);
   }
@@ -292,17 +293,17 @@ int main() {
       const float expected=static_cast<float>(phase)/16384.0f*((angle&0x8000U)?-1.0f:1.0f);
       require(*value==expected);
     }
-    require(jfg::camera_precision_call(true,0x80049C34,0x8004A1B4,0x800FA638,0x800FAF78));
-    require(jfg::camera_precision_call(true,0x80049C30,0x80049F4C,0x800FA638,0x800F2A08));
-    require(!jfg::camera_precision_call(true,0x80049C30,0x8004A1B4,0x800FA638,0x800FAF78));
-    require(!jfg::camera_precision_call(true,0x80049C34,0x8004A1B4,0x80100000,0x800FAF78));
-    require(!jfg::camera_precision_call(true,0x80049C34,0x8004A1B4,0x800FA638,0x800FAAB0));
+    require(jfg::camera_precision_call(jfg::test::renderer_layout,true,0x80049C34,0x8004A1B4,0x800FA638,0x800FAF78));
+    require(jfg::camera_precision_call(jfg::test::renderer_layout,true,0x80049C30,0x80049F4C,0x800FA638,0x800F2A08));
+    require(!jfg::camera_precision_call(jfg::test::renderer_layout,true,0x80049C30,0x8004A1B4,0x800FA638,0x800FAF78));
+    require(!jfg::camera_precision_call(jfg::test::renderer_layout,true,0x80049C34,0x8004A1B4,0x80100000,0x800FAF78));
+    require(!jfg::camera_precision_call(jfg::test::renderer_layout,true,0x80049C34,0x8004A1B4,0x800FA638,0x800FAAB0));
     // Original mode never admits either camera matrix path.
-    require(!jfg::camera_precision_call(false,0x80049C34,0x8004A1B4,0x800FA638,0x800FAF78));
-    require(!jfg::camera_precision_call(false,0x80049C30,0x80049F4C,0x800FA638,0x800F2A08));
+    require(!jfg::camera_precision_call(jfg::test::renderer_layout,false,0x80049C34,0x8004A1B4,0x800FA638,0x800FAF78));
+    require(!jfg::camera_precision_call(jfg::test::renderer_layout,false,0x80049C30,0x80049F4C,0x800FA638,0x800F2A08));
     // Model/world matrices and unrelated return addresses remain native.
-    require(!jfg::camera_precision_call(true,0x80049C34,0x8004A1B4,0x800FA638,0x800F2A08));
-    require(!jfg::camera_precision_call(true,0x80049C34,0x80048D84,0x800FA638,0x800FAF78));
+    require(!jfg::camera_precision_call(jfg::test::renderer_layout,true,0x80049C34,0x8004A1B4,0x800FA638,0x800F2A08));
+    require(!jfg::camera_precision_call(jfg::test::renderer_layout,true,0x80049C34,0x80048D84,0x800FA638,0x800FAF78));
     table[1]=std::numeric_limits<float>::quiet_NaN();
     require(!jfg::camera_precision_sine(1,read));
   }
@@ -329,7 +330,7 @@ int main() {
         put8(c+0x14,1);put8(c+0x16,i);
       }
     };
-    setup();jfg::PresentationIdentityTracker tracker;
+    setup();jfg::PresentationIdentityTracker tracker{jfg::test::renderer_layout};
     const auto scene=tracker.capture(bytes,10);require(scene.cones.size()==2);
     const auto lifetime=scene.cones[0].lifetime;
     for (unsigned matrix:{0xA040U,0xA140U}) for(unsigned buffer:{0x72A8U,0x73FCU}) {
@@ -389,16 +390,16 @@ int main() {
     setup();const auto original=bytes;
     require((ram.u16(actor+6)&0xC00U)==0); // Old native path would draw the mesh.
     {
-      jfg::CameraHelperPresentationScope scope(bytes,draw,actor);require(scope.applied());
+      jfg::CameraHelperPresentationScope scope(jfg::test::renderer_layout,bytes,draw,actor);require(scope.applied());
       require(ram.u16(actor+6)==0x402);
       auto expected=original;expected[((actor+6)&0xFFFFFFU)^3U]=4;
       require(bytes==expected); // No pose, control, list or script writes.
-      {jfg::CameraHelperPresentationScope nested(bytes,draw,actor);require(!nested.applied());}
+      {jfg::CameraHelperPresentationScope nested(jfg::test::renderer_layout,bytes,draw,actor);require(!nested.applied());}
       require(bytes==expected);
       scope.restore();scope.restore();require(bytes==original);
     }
     require(bytes==original);
-    try {jfg::CameraHelperPresentationScope scope(bytes,draw,actor);throw 1;}
+    try {jfg::CameraHelperPresentationScope scope(jfg::test::renderer_layout,bytes,draw,actor);throw 1;}
     catch(int) {}
     require(bytes==original);
     for(unsigned scenario=0;scenario<9;++scenario) {
@@ -413,12 +414,12 @@ int main() {
       if(scenario==7)a=0xFFFFFFFFU;
       if(scenario==8)a=actor+1;
       const auto before=bytes;
-      {jfg::CameraHelperPresentationScope scope(bytes,target,a);require(!scope.applied());}
+      {jfg::CameraHelperPresentationScope scope(jfg::test::renderer_layout,bytes,target,a);require(!scope.applied());}
       require(bytes==before);
     }
     for(unsigned flags:{0x400U,0x800U,0xC00U}) {
       setup();put8(actor+6,flags>>8);const auto before=bytes;
-      {jfg::CameraHelperPresentationScope scope(bytes,draw,actor);require(!scope.applied());}
+      {jfg::CameraHelperPresentationScope scope(jfg::test::renderer_layout,bytes,draw,actor);require(!scope.applied());}
       require(bytes==before);
     }
   }
@@ -488,12 +489,25 @@ int main() {
     jfg::PresentationGuestView ram(bytes);
     for(unsigned alpha=0;alpha<=255;++alpha) {
       put8(actor+0x39U,alpha);const auto original=bytes;
-      { jfg::DoorIndicatorPresentationScope scope(bytes,actor);
+      { jfg::DoorIndicatorPresentationScope scope(bytes,jfg::test::renderer_layout,actor);
         require(ram.u8(actor+0x39U)==(alpha==0?0:255));
         require(scope.applied()==(alpha>0 && alpha<255));
         if(alpha%2==0)scope.restore();
       }
       require(bytes==original);
+    }
+    // Relocate the qualified common actor members independently of the fixture.
+    // Stale legacy offsets must not keep a marker on the presentation path.
+    {
+      auto relocated=jfg::test::renderer_layout;
+      relocated.actor_type=0x50U;relocated.actor_control=0x74U;relocated.actor_animationFrame=0x2CU;
+      put8(actor+0x39U,254U);put8(actor+0x51U,67U);
+      put32(actor+0x74U,control);put32(actor+0x2CU,0x3F800000U);
+      put8(actor+0x49U,0U);put32(actor+0x68U,0U);put32(actor+0x28U,0U);
+      const auto before=bytes;
+      {jfg::DoorIndicatorPresentationScope scope(bytes,relocated,actor);require(scope.applied());}
+      require(bytes==before);
+      {jfg::DoorIndicatorPresentationScope stale(bytes,jfg::test::renderer_layout,actor);require(!stale.applied());}
     }
     for(unsigned scenario=0;scenario<5;++scenario) {
       put8(actor+0x39U,254);put8(actor+0x49U,67);put8(control+8U,1);
@@ -504,12 +518,12 @@ int main() {
       if(scenario==3)put8(actor+0x93U,6);
       if(scenario==4)put32(actor+0x68U,0x80800000U);
       const auto original=bytes;
-      { jfg::DoorIndicatorPresentationScope scope(bytes,actor);require(!scope.applied()); }
+      { jfg::DoorIndicatorPresentationScope scope(bytes,jfg::test::renderer_layout,actor);require(!scope.applied()); }
       require(bytes==original);
     }
     const auto original=bytes;
     for(unsigned invalid:{0U,0x80000FFCU,0xFFFFFFFFU}) {
-      jfg::DoorIndicatorPresentationScope scope(bytes,invalid);require(!scope.applied());
+      jfg::DoorIndicatorPresentationScope scope(bytes,jfg::test::renderer_layout,invalid);require(!scope.applied());
     }
     require(bytes==original);
   }
@@ -905,7 +919,7 @@ int main() {
   w32(0x80180000U, 0x80190000U);
   w32(0x800FA630U, 1);
   w32(0x800FA634U, 0);
-  jfg::PresentationIdentityTracker tracker;
+  jfg::PresentationIdentityTracker tracker{jfg::test::renderer_layout};
   tracker.camera(ram, 0x80180000U, 100);
   const auto first = tracker.capture(ram, 100);
   require(first.models.size() == 1 && first.models[0].bone_count == 2 &&
@@ -952,7 +966,7 @@ int main() {
   // parity. The tracker accepts only live actors and the exact emitted bytes.
   {
     const auto saved_ram=ram;
-    jfg::PresentationIdentityTracker reflected;
+    jfg::PresentationIdentityTracker reflected{jfg::test::renderer_layout};
     w32(0x800FB114U,2);w32(0x800F2CA8U,1);w8(0x801000A0U,0);
     for(unsigned i=0;i<16U;++i) {
       const auto one=(i%5U==0U)?0x3f800000U:0U;
@@ -1008,7 +1022,7 @@ int main() {
   }
   {
     const auto saved_ram=ram;
-    jfg::PresentationIdentityTracker shadows;
+    jfg::PresentationIdentityTracker shadows{jfg::test::renderer_layout};
     w32(0x800FB114U,2);w32(0x800F2CA8U,1);w8(0x801000A0U,0);
     const auto wf=[&](unsigned address,float v){w32(address,std::bit_cast<unsigned>(v));};
     w32(0x801a0200U,0x80100000U);w32(0x801a0204U,0x801c0000U);w32(0x801a0208U,0x801a1000U);
@@ -1217,7 +1231,7 @@ int main() {
     // RegionID reorders the same 20 sparkles as the camera turns. The
     // temporary stack transform and emitted anchor order are not identity.
     const auto saved_ram=ram;
-    jfg::PresentationIdentityTracker marker;
+    jfg::PresentationIdentityTracker marker{jfg::test::renderer_layout};
     w32(0x800F2CA8U,1);w8(0x80100049U,136);
     w32(0x80100068U,0x801D0000U);w8(0x801D000FU,128);
     w32(0x801100ACU,0x801C0000U);w32(0x801C0000U,0x801A0000U);
@@ -1261,7 +1275,7 @@ int main() {
     w32(0x80130000U,0x80100000U);w8(0x801000A0U,0);
     w8(0x8011001FU,0);w32(0x8010006CU,0);
     w32(0x80100068U,0x801A0000U);w32(0x800FA634U,0);
-    jfg::PresentationIdentityTracker tracer_tracker;
+    jfg::PresentationIdentityTracker tracer_tracker{jfg::test::renderer_layout};
     tracer_tracker.tracer(ram,0x80100000U,0x801B0000U,0x80190000U,150);
     const auto tracer_first=tracer_tracker.capture(ram,150);
     require(tracer_first.tracers.size()==1);
@@ -1307,7 +1321,7 @@ int main() {
   w8(0x8015004EU,0); w8(0x8015004FU,0);
   w32(0x800FA630U,1); w32(0x800FA634U,0);
   w32(0x800FAAB0U,0x3f800000U); w32(0x800FAF78U,0x40000000U);w32(0x800FAA70U,0x40400000U);
-  jfg::PresentationIdentityTracker rigid_tracker;
+  jfg::PresentationIdentityTracker rigid_tracker{jfg::test::renderer_layout};
   rigid_tracker.rigid(ram,0x80190000U,0x80100000U,200);
   auto rigid_scene=rigid_tracker.capture(ram,200);
   require(rigid_scene.rigids[0].pose.world[0]==1 && rigid_scene.rigids[0].pose.view[0]==2 && rigid_scene.rigids[0].pose.projection[0]==3);
@@ -1347,7 +1361,7 @@ int main() {
     w32(0x800FB114U,7);w32(0x800F2CA8U,1);w8(0x8011001FU,0);
     w32(0x8010006CU,0);w8(0x80100048U,0);w8(0x80100049U,40);
     w32(0x80100068U,0x801a0000U);w32(0x801a0190U,0x801b0000U);w8(0x801a01daU,0);
-    jfg::PresentationIdentityTracker wave_tracker;
+    jfg::PresentationIdentityTracker wave_tracker{jfg::test::renderer_layout};
     wave_tracker.rigid(ram,0x80190000U,0x80100000U,220);
     auto wave_scene=wave_tracker.capture(ram,220);require(wave_scene.shockwaves.size()==1);
     auto owner=jfg::presentation_rigid_owner(wave_scene,0x190000U);require(owner);
@@ -1383,7 +1397,7 @@ int main() {
       w32(dl+16,0x04180026U);w32(dl+20,0x001b001eU);
       w32(dl+24,0xB8000000U);w32(dl+28,0);
     }
-    jfg::PresentationIdentityTracker limb_tracker;
+    jfg::PresentationIdentityTracker limb_tracker{jfg::test::renderer_layout};
     limb_tracker.rigid(ram,0x80190000U,0x80100000U,220);
     auto limbs=limb_tracker.capture(ram,220);
     require(limbs.models.empty() && limbs.limbs.size()==1 &&

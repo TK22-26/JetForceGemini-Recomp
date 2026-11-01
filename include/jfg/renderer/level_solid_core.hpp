@@ -9,10 +9,10 @@ struct LevelSolidCoreRange {
   std::uint32_t first=0,end=0;
 };
 inline std::vector<LevelSolidCoreRange> level_solid_core_ranges(
-    const PresentationGuestView& ram) {
+    const RendererGameLayout& layout,    const PresentationGuestView& ram) {
   std::vector<LevelSolidCoreRange> result;
-  if(!ram.valid(0x800A0D60U,4U))return result;
-  const auto track=ram.u32(0x800A0D60U);
+  if(!ram.valid(layout.track,4U))return result;
+  const auto track=ram.u32(layout.track);
   if(!ram.valid(track,0x30U))return result;
   const auto textures=ram.u32(track),blocks=ram.u32(track+4U);
   const auto nt=ram.u16(track+0x18U),nb=ram.u16(track+0x1AU);

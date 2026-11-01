@@ -12,14 +12,15 @@ namespace jfg {
 class DoorIndicatorPresentationScope {
 public:
   DoorIndicatorPresentationScope(std::span<std::uint8_t> bytes,
+                                 const RendererGameLayout& layout,
                                  std::uint32_t actor) {
     const PresentationGuestView ram(bytes);
     if ((actor & 3U) || !ram.valid(actor, 0xA4U) ||
-        ram.u16(actor + 0x48U) != 67U || ram.u8(actor + 0x93U) != 0U)
+        ram.u16(actor + layout.actor_type) != 67U || ram.u8(actor + 0x93U) != 0U)
       return;
-    const auto control = ram.u32(actor + 0x68U);
+    const auto control = ram.u32(actor + layout.actor_control);
     if (!ram.valid(control, 9U) || ram.u8(control + 8U) != 1U ||
-        ram.u32(actor + 0x28U) != 0x3F800000U)
+        ram.u32(actor + layout.actor_animationFrame) != 0x3F800000U)
       return;
     const auto alpha = ram.u8(actor + 0x39U);
     if (alpha == 0U || alpha == 255U)

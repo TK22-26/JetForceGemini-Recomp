@@ -5,6 +5,8 @@ gates; [project status](../status.md) records what has been demonstrated.
 
 ## Open work
 
+- [US, PAL and Japanese runtime architecture](regional-runtime-architecture.md): shared generation,
+  typed regional bindings, runtime ownership, launcher/save integration and migration acceptance.
 - [Campaign slice (Phase 9)](phase9-acceptance.md): remaining G6 route,
   recovery and regression coverage.
 - [Automated gameplay exploration (Phase 9.5)](phase9-5-autonomous-exploration.md):

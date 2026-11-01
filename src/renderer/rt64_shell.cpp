@@ -411,6 +411,7 @@ bool CaptureContext::finish() noexcept {
 }
 
 struct Rt64Shell::Impl {
+    std::optional<RendererGameLayout> game_layout;
     std::array<std::uint8_t, kRt64RequiredHeaderBytes> header{};
     std::vector<std::uint8_t> rdram =
         std::vector<std::uint8_t>(kRt64RequiredRdramBytes);
@@ -914,6 +915,7 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
             return nullptr;
         }
         impl->simulation_rdram = impl->rdram;
+        impl->game_layout = configuration.game_layout;
         impl->task_rdram_copy = impl->rdram;
         impl->task_rdram = impl->task_rdram_copy;
 
@@ -1007,7 +1009,7 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
             return nullptr;
         }
         impl->initialized = true;
-        impl->f3ddkr = std::make_unique<Rt64F3ddkr>(*impl->application, configuration.experimental_refresh_rate != 0U || configuration.unlimited_presentation);
+        impl->f3ddkr = std::make_unique<Rt64F3ddkr>(*impl->application, configuration.experimental_refresh_rate != 0U || configuration.unlimited_presentation, configuration.game_layout);
         error = Rt64ShellError::none;
         return std::unique_ptr<Rt64Shell>(
             new Rt64Shell(std::move(impl)));
@@ -1041,7 +1043,7 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
         }
         // CPU post-processing of offscreen results must be visible to texture
         // loads. GPU framebuffer reuse can otherwise bypass those RAM writes.
-        const auto blur = native_blur_pass(impl_->task_rdram, task.command_address);
+        const auto blur = impl_->game_layout ? native_blur_pass(*impl_->game_layout,impl_->task_rdram, task.command_address) : std::nullopt;
         const auto blurMode = native_blur_render_mode();
         const bool gpuBlur = blur && (blurMode == 1U || blurMode >= 3U);
         if (blur && blurMode == 5U)

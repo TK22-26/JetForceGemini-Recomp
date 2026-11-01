@@ -6,10 +6,11 @@
 #include <windows.h>
 #endif
 #include "event_journal.hpp"
+#include "jfg/boot/vi_device_clock.hpp"
 #include "jfg/boot/mi_interrupt_mask.hpp"
 #include "jfg/boot/original_timing_ai_dma.hpp"
 #include "jfg/boot/original_timing_pi_dma.hpp"
-#include "jfg/boot/reference_flash_bus.hpp"
+#include "jfg/boot/flash_device.hpp"
 #include "jfg/boot/reference_pif_boot.hpp"
 #include "jfg/boot/reference_si_dma.hpp"
 #include "jfg/boot/reference_sp_dma.hpp"
@@ -29,14 +30,13 @@ struct MmioTrace final {
   std::uint64_t guest_count = 0U;
   std::uint64_t vi_next = 0U;
   std::uint64_t execution_io_revision = 0U;
-  std::uint32_t vi_period = 500000U;
-  std::uint32_t vi_v_sync = 0U;
-  std::uint32_t vi_h_sync = 0U;
+  // vi_next is only the dispatch cache; the VI device owns scan phase.
+  jfg::boot::ViDeviceClock vi_clock;
   std::uint32_t mi_pending = 0U;
   std::uint64_t vi_acknowledgements = 0U;
   jfg::boot::ReferenceSiDma si_dma;
   jfg::boot::OriginalTimingPiDma pi_dma;
-  jfg::boot::ReferenceFlashBus flash_bus;
+  jfg::boot::FlashDevice flash_bus;
   jfg::boot::OriginalTimingAiDma ai_dma;
   std::uint64_t persisted_flash_mutations = 0;
   std::optional<std::uint64_t> sp_launch, sp_deadline, dp_deadline;

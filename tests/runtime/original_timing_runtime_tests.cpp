@@ -31,49 +31,60 @@ int main() {
   for(int i=0;i<10000;++i)(void)input.consume_frame(down,pressed,close);
   producer.join();input.consume(down,pressed,close);check(down[9] && !down[8],"mailbox final state matches producer");
   jfg::boot::OriginalTimingAiDma ai;
-  check(ai.write(8,1,0,4096,783520) && ai.write(16,2210,0,4096,783520) &&
-      ai.write(20,15,0,4096,783520),"AI format configuration");
-  check(ai.write(4,2944,100,4096,783520),"first AI slot");
+  check(ai.configure_clocks(jfg::boot::kNtscDeviceClocks),"explicit AI clock input");
+  check(ai.write(8,1,0,4096) && ai.write(16,2210,0,4096) &&
+      ai.write(20,15,0,4096),"AI format configuration");
+  check(ai.write(4,2944,100,4096),"first AI slot");
   const auto end=*ai.deadline();
-  check(end==1566999,"AI uses physical Count/sample ratio");
-  check(ai.write(4,2944,100,4096,783520) && !ai.write(4,2944,100,4096,783520),"AI has exactly two slots");
+  const auto sample_time=[](std::uint64_t buffers) {return buffers*736ULL*2211ULL*46875000ULL/48681812ULL;};
+  check(end==100U+sample_time(1),"AI uses unrounded physical Count/sample ratio");
+  check(ai.write(4,2944,100,4096) && !ai.write(4,2944,100,4096),"AI has exactly two slots");
   ai.advance(end-1);check(!ai.interrupt(),"AI cannot complete early");
-  ai.advance(end);check(ai.interrupt() && *ai.deadline()==end+(end-100),"queued AI buffer starts at original deadline");
-  check(ai.write(12,0,end,4096,783520) && !ai.interrupt(),"AI interrupt acknowledgment");
+  ai.advance(end);check(ai.interrupt() && *ai.deadline()==100U+sample_time(2),"queued AI buffer starts at original deadline");
+  check(ai.write(12,0,end,4096) && !ai.interrupt(),"AI interrupt acknowledgment");
   ai.advance(*ai.deadline());check(ai.interrupt() && !ai.deadline(),"AI second completion");
   jfg::boot::OriginalTimingAiDma native_ai;
+  check(native_ai.configure_clocks(jfg::boot::kNtscDeviceClocks),"explicit AI clock input");
   check(!native_ai.native_queue_capacity(1) && !native_ai.native_queue_capacity(5),
       "native queue expansion remains bounded");
   check(native_ai.native_queue_capacity(4),"native playback opts into catch-up slots");
-  check(native_ai.write(8,1,0,4096,783520) && native_ai.write(16,2210,0,4096,783520) &&
-      native_ai.write(20,15,0,4096,783520),"native AI format");
+  check(native_ai.write(8,1,0,4096) && native_ai.write(16,2210,0,4096) &&
+      native_ai.write(20,15,0,4096),"native AI format");
   for(unsigned i=0;i<4;++i) {
     check(native_ai.read(12,100)==(i?0x40000000U:0U),"free native AI capacity is visible");
-    check(native_ai.write(4,2944,100,4096,783520),"native catch-up retains each buffer");
+    check(native_ai.write(4,2944,100,4096),"native catch-up retains each buffer");
   }
   check(native_ai.read(12,100)==0xC0000000U &&
-      !native_ai.write(4,2944,100,4096,783520),"native queue still rejects overflow");
+      !native_ai.write(4,2944,100,4096),"native queue still rejects overflow");
   check(!native_ai.native_queue_capacity(2),"capacity cannot discard queued audio");
   for(unsigned i=1;i<=4;++i) {
-    const auto expected=100U+i*(end-100U);
+    const auto expected=100U+sample_time(i);
     check(native_ai.deadline()==expected,"native buffers retain exact sample duration");
     native_ai.advance(expected);
     check(native_ai.interrupt(),"each native completion signals interrupt");
-    check(native_ai.write(12,0,expected,4096,783520),"acknowledge native completion");
+    check(native_ai.write(12,0,expected,4096),"acknowledge native completion");
   }
   check(!native_ai.deadline() && native_ai.read(12,100+4*(end-100))==0U,
       "native catch-up queue drains completely");
   jfg::boot::OriginalTimingAiDma near_limit;
+  check(near_limit.configure_clocks(jfg::boot::kNtscDeviceClocks),"explicit AI clock input");
   check(near_limit.native_queue_capacity(4) &&
-      near_limit.write(8,1,0,4096,783520) &&
-      near_limit.write(16,2210,0,4096,783520) &&
-      near_limit.write(20,15,0,4096,783520),"near-limit native AI setup");
+      near_limit.write(8,1,0,4096) &&
+      near_limit.write(16,2210,0,4096) &&
+      near_limit.write(20,15,0,4096),"near-limit native AI setup");
   const auto late=UINT64_MAX-3U*(end-100U)-100U;
   for(unsigned i=0;i<3;++i)
-    check(near_limit.write(4,2944,late,4096,783520),"retained native deadline fits");
-  check(!near_limit.write(4,2944,late,4096,783520),"native queue tail cannot overflow Count");
+    check(near_limit.write(4,2944,late,4096),"retained native deadline fits");
+  check(!near_limit.write(4,2944,late,4096),"native queue tail cannot overflow Count");
   for(unsigned i=0;i<3;++i)near_limit.advance(*near_limit.deadline());
   check(!near_limit.deadline(),"rejected overflow preserves retained native queue");
+  {
+    jfg::boot::OriginalTimingAiDma missing,pal;
+    check(!missing.write(8,1,0,4096),"AI cannot infer a default regional clock");
+    check(pal.configure_clocks(jfg::boot::kPalDeviceClocks)&&!pal.configure_clocks(jfg::boot::kNtscDeviceClocks),"AI clock is immutable after composition");
+    check(pal.write(8,1,0,4096)&&pal.write(16,2210,0,4096)&&pal.write(20,15,0,4096)&&pal.write(4,2944,100,4096),"PAL DMA uses the same device contract");
+    check(pal.deadline()==100U+736ULL*2211ULL*46875000ULL/49656530ULL&&*pal.deadline()<end,"PAL clock changes DMA duration without a VI dependency");
+  }
   {
     for(unsigned length: {1U,2U,128U,257U,4096U}) {
       std::vector<std::uint8_t> rom(8192),a(8192,0xCC),b(8192,0xCC);

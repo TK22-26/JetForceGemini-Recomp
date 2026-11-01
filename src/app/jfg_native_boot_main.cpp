@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include <cwchar>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -15,6 +16,7 @@
 #endif
 
 namespace jfg::boot::native {
+int describe();
 int run(const char *executable_path, const char *rom_path, unsigned watchdog_ms,
         bool child_mode, const char *child_token, const char *marker_handle,
         unsigned retrace_target, unsigned poll_target, bool play_mode);
@@ -267,6 +269,7 @@ bool utf8_from_wide(const wchar_t *input, std::string &output) {
 }
 
 int wmain(int argc, wchar_t **argv) {
+  if (argc == 2 && std::wcscmp(argv[1], L"--describe") == 0) return jfg::boot::native::describe();
   if(argc==2 && std::wcscmp(argv[1],L"--frontend-version")==0){std::puts("jfg-frontend-1");return 0;}
   const wchar_t *rom = nullptr;
   const wchar_t *config = nullptr;
@@ -428,6 +431,7 @@ int wmain(int argc, wchar_t **argv) {
 }
 #else
 int main(int argc, char **argv) {
+  if (argc == 2 && std::strcmp(argv[1], "--describe") == 0) return jfg::boot::native::describe();
   const char *rom = nullptr;
   const char *config = nullptr;
   const char *save = nullptr;

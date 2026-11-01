@@ -21,7 +21,7 @@ bool service_host_audio(State &state, const bool pace) {
     }
     if (!state.host_audio.queue(state.rdram, submission.address,
                                 submission.length,
-                                submission.dac_rate))
+                                submission.dac_rate,hardware_clocks().video_hz))
       return false;
     ++state.mmio_trace->ai_submission_read;
   }
@@ -31,7 +31,7 @@ bool service_host_audio(State &state, const bool pace) {
   // window clock, so retain audio throttling there unless a diagnostic replay
   // explicitly uses the same VI clock as interactive playback.
   state.host_audio.service(
-      pace, pace && !state.play_mode && !state.fast_replay &&
+      pace?(initial_tv_mode()==0U?50U:60U):0U, pace && !state.play_mode && !state.fast_replay &&
                 !state.realtime_replay &&
                 !(state.original_os_host_pacing && state.original_os_host_anchor_ready));
   // Only native interactive audio uses recovery. Original timing, null sinks,
@@ -42,8 +42,8 @@ bool service_host_audio(State &state, const bool pace) {
   const bool recoverable = state.play_mode && !state.fast_replay &&
       state.diagnostic_host_clock && state.native_audio_playback &&
       state.original_os_host_anchor_ready && !state.cutscene_prompt.transition &&
-      !state.cutscene_chain && audio_memory.read_u32(0x800A06DCU,audio_mode) &&
-      audio_mode == 0U && audio_memory.read_u32(0x800A3530U,loading) && loading == 0U;
+      !state.cutscene_chain && audio_memory.read_u32(game_data("globals.audioQueueMode"),audio_mode) &&
+      audio_mode == 0U && audio_memory.read_u32(game_data("globals.levelLoading"),loading) && loading == 0U;
   if (!state.host_audio.recover_latency(recoverable)) return false;
   state.audio_device_initialized = state.host_audio.initialized();
   state.audio_device_started = state.host_audio.started();
@@ -101,10 +101,10 @@ void service_live_window(State &state) {
   // The launcher canvas follows the selected video mode instead: a temporary
   // cinematic crop must not resize the canvas and zoom away its black bars.
   if(presentation.valid())state.window_presentation=presentation;
-  jfg::mod::Memory video_memory({state.rdram,kRdramSize});
+  NativeGameMemory video_memory({state.rdram,kRdramSize});
   // Read the user's saved screen preference, not the temporary cinematic VI
   // mode. frontGetScreenMode uses this same options bit in the supported ROM.
-  const auto canvas=jfg::game_display_canvas(video_memory.u32(0x800FF384U));
+  const auto canvas=jfg::game_display_canvas(game_view(video_memory).u32(game_data_ref("globals.frontendDisplayFlags")));
   const bool widescreen=canvas.height==180U;
   if(state.native_window && widescreen!=state.window_widescreen) {
     state.window_widescreen=widescreen;
@@ -300,7 +300,7 @@ void service_navigation_inventory_requests(State &state, bool publish) {
   const bool weapons=fresh(3U,state.navigation_last_weapons_request);
   const bool floyd=fresh(4U,state.navigation_last_floyd_request);
   if(!weapons && !floyd)return;
-  jfg::mod::Memory memory({state.rdram,kRdramSize});
+  NativeGameMemory memory({state.rdram,kRdramSize});
   try {
     const auto list=jfg::mod::actors(memory);
     const auto now=std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -321,9 +321,9 @@ void service_navigation_inventory_requests(State &state, bool publish) {
             {state.vi_retraces,mod.generation,mod.floyd_nonce,mod.player,mod.floyd_grants});
     }
     if(publish && (old_weapons_nonce!=mod.weapons_nonce || old_floyd_nonce!=mod.floyd_nonce)) {
-      const auto level=memory.u32(0x800FB114U);
+      const auto level=game_view(memory).u32(game_data_ref("globals.currentLevel"));
       const bool mesh_ready=state.navigation_mesh_export && mod.player!=0U &&
-          memory.u32(0x800A0D60U)==mod.last_track && level==mod.last_level;
+          game_view(memory).u32(game_data_ref("globals.currentTrack"))==mod.last_track && level==mod.last_level;
       std::ostringstream output;mod.write_state(output,memory,list,level,mesh_ready);
       if(!write_mod_export(state,state.navigation_output/L"live.json",output.str()))++mod.invalid;
     }
@@ -335,7 +335,7 @@ void update_navigation_mod(State &state) {
   const DiagnosticHostStage total_cost(state,"host-profile-navigation");
   auto &mod=state.navigation_mod;
   mod.dialogue=navigation_dialogue(state);
-  jfg::mod::Memory memory({state.rdram,kRdramSize});
+  NativeGameMemory memory({state.rdram,kRdramSize});
   try {
     const auto list=jfg::mod::actors(memory);
     // File I/O is isolated on a worker; commands still pass their original
@@ -353,15 +353,15 @@ void update_navigation_mod(State &state) {
         const auto stamp=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         if(mod.warp_to_exit(warp,memory,list,stamp) && state.gameplay_trace)
           state.gameplay_trace.event("exit-warp",{state.vi_retraces,mod.generation,
-            mod.warp_nonce,memory.u32(0x800FB114U),mod.player,
-            memory.u32(memory.u32(mod.player+0x68U)+0xF4U)});
+            mod.warp_nonce,game_view(memory).u32(game_data_ref("globals.currentLevel")),mod.player,
+            memory.u32(memory.u32(mod.player+game_member("layout.actor.control"))+game_member("layout.playerControl.exitContact"))});
       }
     }
     if(state.diagnostic_ichor_warp_vi!=0U && !state.diagnostic_ichor_warp_done &&
        state.vi_retraces>=state.diagnostic_ichor_warp_vi) {
       state.diagnostic_ichor_warp_done=true;
       std::uint32_t chosen=0U;unsigned matches=0U;
-      if(memory.u32(0x800FB114U)==19U)
+      if(game_view(memory).u32(game_data_ref("globals.currentLevel"))==19U)
         for(const auto& exit:jfg::mod::exits(memory,list))
           // Native transition code 0xFFB5 resolves to Ichor (level 181).
           if(exit.condition==23 && exit.destination==0xFFB5U){chosen=exit.address;++matches;}
@@ -387,7 +387,7 @@ void update_navigation_mod(State &state) {
     else (void)mod.full_health(memory,mod.player);
     ++mod.updates;
     const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    const auto ai_level = memory.u32(0x800FB114U);
+    const auto ai_level = game_view(memory).u32(game_data_ref("globals.currentLevel"));
     if (mod.enabled && mod.updates % 6U == 0U && config && config->size()==5U &&
         config->at(2).status==jfg::ConfigFileValue::Status::ready) {
       std::istringstream command(config->at(2).text);
@@ -408,7 +408,7 @@ void update_navigation_mod(State &state) {
         std::ostringstream trace;
         trace<<mod.updates<<','<<now<<','<<ai_level<<','<<p.x<<','<<p.y<<','<<p.z
              <<','<<movement.known<<','<<movement.state<<','<<movement.animation
-             <<','<<movement.animation_frame<<','<<memory.u32(0x800F6DA0U)<<'\n';
+             <<','<<movement.animation_frame<<','<<game_view(memory).u32(game_data_ref("globals.controlButtons"))<<'\n';
         (void)state.movement_trace.append(trace.str());
       }
       if(std::string_view(mod.pilot.state).starts_with("jump_") && mod.pilot.active()) {
@@ -420,7 +420,7 @@ void update_navigation_mod(State &state) {
       }
     } else mod.pilot.stop("player_unavailable");
     if(mod.updates%6U!=0U)return;
-    const auto track=memory.u32(0x800A0D60U), level=memory.u32(0x800FB114U);
+    const auto track=game_view(memory).u32(game_data_ref("globals.currentTrack")), level=game_view(memory).u32(game_data_ref("globals.currentLevel"));
     bool mesh_ready=mod.player!=0U && track==mod.last_track && level==mod.last_level;
     if(mod.player!=0U && !mesh_ready) {
       try {

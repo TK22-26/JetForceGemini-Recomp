@@ -44,14 +44,13 @@ bool HostAudioDevice::configure_capture(const std::string &path) {
 
 bool HostAudioDevice::queue(const std::uint8_t *const rdram,
                             std::uint32_t address, const std::uint32_t length,
-                            const std::uint32_t dac_rate) {
-  constexpr std::uint32_t kNtscVideoClock = 48681812U;
+                            const std::uint32_t dac_rate, const std::uint32_t video_clock) {
   address &= 0x00FFFFFFU;
   if (rdram == nullptr || length == 0U || (length & 3U) != 0U ||
       address > kRdramSize || length > kRdramSize - address ||
-      dac_rate == UINT32_MAX)
+      dac_rate == UINT32_MAX || video_clock == 0U)
     return false;
-  const std::uint32_t frequency = kNtscVideoClock / (dac_rate + 1U);
+  const std::uint32_t frequency = video_clock / (dac_rate + 1U);
   if (frequency < 8000U || frequency > 96000U ||
       (!initialized_ && !initialize(frequency)) || frequency_ != frequency)
     return false;
@@ -99,12 +98,12 @@ void HostAudioDevice::settle_startup_queue() {
   capture_event("anchor-drain-end");
 }
 
-void HostAudioDevice::service(const bool advance_emulated_clock,
+void HostAudioDevice::service(unsigned nominal_vi_rate,
                               const bool throttle) {
   if (!initialized_)
     return;
-  if (advance_emulated_clock)
-    advance_emulated_dma();
+  if (nominal_vi_rate)
+    advance_emulated_dma(nominal_vi_rate);
   update_metrics();
   update_playback_state();
   while (throttle && device_playing_ && current_queued_bytes_ > pacing_bytes_) {
@@ -112,7 +111,7 @@ void HostAudioDevice::service(const bool advance_emulated_clock,
     update_metrics();
     update_playback_state();
   }
-  if (!advance_emulated_clock) {
+  if (!nominal_vi_rate) {
     if (capture_pcm_.is_open())
       capture_pcm_.flush();
     if (capture_events_.is_open())
@@ -406,11 +405,9 @@ void HostAudioDevice::capture_event(const char *event) noexcept {
                   << '\n';
 }
 
-void HostAudioDevice::advance_emulated_dma() noexcept {
-  constexpr std::uint32_t kViRetracesPerSecond = 60U;
-  emulated_byte_accumulator_ += static_cast<std::uint64_t>(frequency_) * 4U;
-  std::uint64_t bytes = emulated_byte_accumulator_ / kViRetracesPerSecond;
-  emulated_byte_accumulator_ %= kViRetracesPerSecond;
+void HostAudioDevice::advance_emulated_dma(unsigned nominal_vi_rate) noexcept {
+  std::uint64_t bytes = jfg::audio::nominal_vi_audio_bytes(
+      frequency_,nominal_vi_rate,emulated_byte_accumulator_);
   while (bytes != 0U && !emulated_dma_lengths_.empty()) {
     std::uint32_t &remaining = emulated_dma_lengths_.front();
     if (bytes < remaining) {

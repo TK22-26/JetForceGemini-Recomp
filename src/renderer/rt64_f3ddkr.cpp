@@ -94,6 +94,7 @@ struct SemanticVertexState {
     const PresentationModelIdentity* cone_model = nullptr;
 };
 struct Context {
+    std::optional<RendererGameLayout> game_layout;
     RT64::Application* application = nullptr;
     RT64::GBI gbi{};
     NativeCutscenePrompt cutscene_prompt{};
@@ -1394,6 +1395,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     auto& data = workload.drawData;
     if (context.blur_pass && native_blur_render_mode() >= 2U) {
         auto frame = std::make_shared<PresentationHistoryFrame>();
+        frame->vi_rate = context.presentation_history.vi_rate();
         frame->tick = context.vi_tick;
         frame->scene = true;
         frame->blur_source = context.blur_pass->source;
@@ -1431,6 +1433,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     // samples, and temporary ownership maps that are discarded by record().
     if (!scene) {
         auto frame = std::make_shared<PresentationHistoryFrame>();
+        frame->vi_rate = context.presentation_history.vi_rate();
         frame->tick = context.vi_tick;
         frame->transforms.resize(data.worldTransforms.size());
         state.setRefreshRate(0U);
@@ -1586,6 +1589,7 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     }
     if(!context.interpolate) {
         auto frame=std::make_shared<PresentationHistoryFrame>();
+        frame->vi_rate=context.presentation_history.vi_rate();
         frame->tick=context.vi_tick;frame->scene=scene;
         frame->transforms.resize(data.worldTransforms.size());
         std::vector<SemanticPresentationPrevious> endpoints(semantic_samples.size());
@@ -2336,13 +2340,13 @@ void prepare_interpolation(Context& context, RT64::State& state) {
     if (scene && !data.worldIndices.empty()) {
         // The pinned native flag requests a blur task after this world task.
         // Keep its geometry/history, but let the completed composite own output.
-        if (native_blur_render_mode() >= 2U && context.simulation_rdram.size() > 0xfeca5U) {
-            const auto word=[&](unsigned address) {
-                std::uint32_t value;std::memcpy(&value,context.simulation_rdram.data()+address,4);return value;
-            };
-            frame->defer_to_blur = context.simulation_rdram[0xfeca5U ^ 3U] != 0U &&
-                word(0x551f8U)==0x3c028010U && word(0x551fcU)==0x8042eca5U &&
-                word(0x55200U)==0x03e00008U && word(0x55204U)==0U;
+        if (native_blur_render_mode() >= 2U && context.game_layout) {
+            const auto& layout=*context.game_layout;
+            const PresentationGuestView memory(context.simulation_rdram);
+            frame->defer_to_blur = memory.valid(layout.blur_enabled,1U) &&
+                memory.u8(layout.blur_enabled)!=0U &&
+                std::all_of(layout.blur_getter.begin(),layout.blur_getter.end(),
+                    [&](const RendererInstructionGuard& guard){return guard.matches(memory);});
         }
     }
     frame->presentation_serial = serial;
@@ -2724,9 +2728,17 @@ struct Rt64F3ddkr::Impl {
     Context context;
 };
 
-Rt64F3ddkr::Rt64F3ddkr(RT64::Application& application, const bool interpolate)
+Rt64F3ddkr::Rt64F3ddkr(RT64::Application& application, const bool interpolate, std::optional<RendererGameLayout> game_layout)
     : impl_(std::make_unique<Impl>(application)) {
     impl_->context.interpolate = interpolate;
+    impl_->context.game_layout = std::move(game_layout);
+    if(impl_->context.game_layout) {
+        const auto rate=impl_->context.game_layout->vi_rate;
+        impl_->context.presentation_history.set_vi_rate(rate);
+        impl_->context.rigid_baseline_history.set_vi_rate(rate);
+        impl_->context.shared_matrix_baseline_history.set_vi_rate(rate);
+        impl_->context.camera_shape_baseline_history.set_vi_rate(rate);
+    }
     const std::scoped_lock lock(contexts_mutex);
     contexts.emplace(application.state.get(), &impl_->context);
 }
@@ -2755,7 +2767,7 @@ void Rt64F3ddkr::begin(
     impl_->context.attachment_frames.clear();
     impl_->context.vi_tick = vi_tick;
     impl_->context.simulation_rdram = simulation_rdram;
-    impl_->context.level_solid_cores=level_solid_core_ranges(PresentationGuestView(simulation_rdram.first(std::min<std::size_t>(simulation_rdram.size(),4U*1024U*1024U))));
+    impl_->context.level_solid_cores=impl_->context.game_layout ? level_solid_core_ranges(*impl_->context.game_layout,PresentationGuestView(simulation_rdram.first(std::min<std::size_t>(simulation_rdram.size(),4U*1024U*1024U)))) : std::vector<LevelSolidCoreRange>{};
     impl_->context.commands = 0U;
     impl_->context.stats = {};
     impl_->context.failed = false;
@@ -2765,8 +2777,8 @@ void Rt64F3ddkr::begin(
 void Rt64F3ddkr::process_display_list(std::uint32_t address) {
     auto& context=impl_->context;
     context.blur_list_address = address & 0x00ffffffU;
-    context.blur_pass = native_blur_render_mode() >= 2U
-        ? native_blur_pass(context.simulation_rdram,address) : std::nullopt;
+    context.blur_pass = context.game_layout && native_blur_render_mode() >= 2U
+        ? native_blur_pass(*context.game_layout,context.simulation_rdram,address) : std::nullopt;
     struct RestoreBinding {
         Context* previous;
         ~RestoreBinding() { dispatch_context=previous; }

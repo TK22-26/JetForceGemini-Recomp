@@ -328,6 +328,12 @@ int main() {
   require(jfg::presentation_next_scene_due(100, 4, 120) == 102);
   publish(&owner2, 100, true);
   require(!jfg::presentation_next_scene_due(100, 12, 120));
+  {
+    auto pal=std::make_shared<jfg::PresentationHistoryFrame>();pal->tick=103;pal->scene=true;pal->vi_rate=50U;
+    jfg::publish_presentation_snapshot(&owner2,pal);
+    require(!jfg::presentation_next_scene_due(100,7,120));
+    require(jfg::presentation_next_scene_due(100,8,120)==103U);
+  }
   publish(&owner2, 90, true);
   require(!jfg::presentation_next_scene_due(100, 12, 120));
   jfg::publish_presentation_snapshot(&owner1, nullptr);

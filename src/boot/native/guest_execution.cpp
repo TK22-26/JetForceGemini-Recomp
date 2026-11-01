@@ -8,6 +8,24 @@ extern "C" {
 #include "jfg/boot/original_timing_cache.h"
 }
 void initialize_original_timing_cache(State& state) noexcept {
+  static constexpr auto slots=[]() consteval {
+    std::array<std::uint8_t,kRunlinkOverlaySlotCount+1U> valid{};
+    for(const auto& section:jfg::game::linked::descriptor.sections) {
+      if(section.kind!=jfg::game::SectionKind::overlay)continue;
+      if(section.overlay_slot==0U || section.overlay_slot>=valid.size() ||
+          valid[section.overlay_slot])throw "Invalid timing overlay slot identity";
+      valid[section.overlay_slot]=1U;
+    }
+    return valid;
+  }();
+  static_assert(kRunlinkModuleTablePointer>=0x80000000U &&
+      kRunlinkModuleTablePointer-0x80000000U<=kRdramSize-4U);
+  state.timing_rdram_size=kRdramSize;
+  state.timing_table_pointer=kRunlinkModuleTablePointer-0x80000000U;
+  state.timing_slot_count=static_cast<std::uint32_t>(slots.size());
+  state.timing_record_size=jfg::game::linked::bindings.runlink_record_size;
+  state.timing_valid_slots=slots.data();
+  cache_address_state=&state;
   state.instruction_cache = ic; state.data_cache = dc; state.cache_counters = cache_stats;
 }
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
@@ -251,10 +269,10 @@ void present_completed_video(State &state, const std::uint32_t target) {
       const auto present_start = std::chrono::steady_clock::now();
       bool transition_capture=false;
       if(state.diagnostic_cutscene_capture && !state.rdram_capture_path.empty()) {
-        const jfg::mod::Memory ram({state.rdram,kRdramSize});
-        const auto level=ram.u32(0x800FB114U);
+        const NativeGameMemory ram({state.rdram,kRdramSize});
+        const auto level=game_view(ram).u32(game_data_ref("globals.currentLevel"));
         if(level==341U)state.cutscene_capture_armed=true;
-        const bool departing=level==341U && ram.u8(0x800A3294U)!=0;
+        const bool departing=level==341U && game_view(ram).u8(game_data_ref("globals.transitionCountdown"))!=0;
         if((level==127U || departing) && state.cutscene_capture_armed && !state.cutscene_capture_started) {
           state.cutscene_capture_started=true;state.cutscene_capture_until_vi=state.vi_retraces+180U;
           state.gameplay_trace.event("cinematic-image-window",{state.vi_retraces,level,64U});
@@ -313,9 +331,9 @@ void present_completed_video(State &state, const std::uint32_t target) {
           state.gameplay_trace_updates, present_us, present_interval_us, selected_vi_framebuffer});
       if(state.gameplay_trace && state.cutscene_trace_until_vi &&
          state.vi_retraces<=state.cutscene_trace_until_vi) {
-        const jfg::mod::Memory ram({state.rdram,kRdramSize});
+        const NativeGameMemory ram({state.rdram,kRdramSize});
         state.gameplay_trace.event("cinematic-present-state",{state.vi_retraces,
-          ram.u32(0x800FB114U),selected_vi_framebuffer,state.graphics_color_image,
+          game_view(ram).u32(game_data_ref("globals.currentLevel")),selected_vi_framebuffer,state.graphics_color_image,
           state.rt64_vi.origin,state.rt64_vi.status,state.rt64_vi.width,
           state.rt64_vi.horizontal_start,state.rt64_vi.vertical_start,
           state.rt64_vi.x_scale,state.rt64_vi.y_scale,state.vi_blacked?1U:0U,
@@ -483,7 +501,7 @@ public:
     if(!state.diagnostic_function_profile)return;
     struct ProfileLocalTag;
     auto& local=jfg::runtime::execution_local<ThreadData,ProfileLocalTag>();
-    const bool root=(target==0x80044FACU || target==0x80001EF8U || target==0x80002484U) && !local.profile.active();
+    const bool root=(target==game_code("game.mainUpdate") || target==game_code("game.amHandleFrameMsg") || target==game_code("game.amHandleDoneMsg")) && !local.profile.active();
     if(root) {
       if(state.vi_retraces<state.diagnostic_profile_first_vi ||
          state.vi_retraces>=state.diagnostic_profile_last_vi)return;
@@ -493,12 +511,12 @@ public:
       local.handoffs=state.guest_transport?state.guest_transport->handoffs():0U;
       local.transport=state.guest_transport?state.guest_transport->timing():BatonExecutor::Timing{};
     } else if(!local.profile.active())return;
-    const bool stage=target==0x80044FACU || target==0x80008FF0U ||
-      target==0x00310600U || target==0x09B02FD0U || target==0x8003D21CU ||
-      target==0x800121C0U || target==0x8004DA10U || target==0x8004DCB0U ||
-      target==0x8001DA1CU || target==0x004015A8U || target==0x800229E0U ||
-      target==0x80023600U || target==0x800237D8U || target==0x80065D24U ||
-      target==0x8000CC64U || target==0x80001EF8U || target==0x8008AD10U || target==0x80002484U;
+    const bool stage=target==game_code("game.mainUpdate") || target==game_code("game.objObjectsTick") ||
+      target==game_overlay_token("overlay.collision.squaddie_control") || target==game_overlay_token("overlay.smart_mover.control") || target==game_code("game.modGenAnimMatrices") ||
+      target==game_code("game.trackDraw") || target==game_code("game.rcpFast3d") || target==game_code("game.rcpWaitDP") ||
+      target==game_code("game.shadowGenerate") || target==game_overlay_token("overlay.shadows.filter") || target==game_code("game.lightSingleLight") ||
+      target==game_code("game.cpuLine") || target==game_code("game.rainFastDraw") || target==game_code("game.diRcpTraceReset") ||
+      target==game_code("game.objPrintModelObject") || target==game_code("game.amHandleFrameMsg") || target==game_code("game.n_alAudioFrame") || target==game_code("game.amHandleDoneMsg");
     if(state.diagnostic_function_profile==1U && !stage)return;
     state_=&state;data_=&local;local.profile.enter(target,sample(state));
     if(stage && !state.diagnostic_host_clock) {
@@ -507,14 +525,14 @@ public:
       model_start_idle_=state.profile_idle_count_ticks;
       model_a0_=static_cast<std::uint32_t>(context.r4);
       jfg_full_cache_snapshot(model_cache_begin_.data());
-      model_thread_=jfg::mod::Memory({state.rdram,kRdramSize}).u32(0x800A9E90U);
+      model_thread_=NativeGameMemory({state.rdram,kRdramSize}).u32(kOsCurrentThread);
       model_thread_begin_=sample_model_thread(state,model_thread_);
-      if(target==0x8008AD10U) {
-        jfg::mod::Memory audio_ram({state.rdram,kRdramSize});
+      if(target==game_code("game.n_alAudioFrame")) {
+        NativeGameMemory audio_ram({state.rdram,kRdramSize});
         state.gameplay_trace.event("audio-frame-call", {state.vi_retraces,state.cpu_count,
-          audio_ram.u32(0x800FB114U),static_cast<std::uint32_t>(context.r4),
+          game_view(audio_ram).u32(game_data_ref("globals.currentLevel")),static_cast<std::uint32_t>(context.r4),
           static_cast<std::uint32_t>(context.r5),static_cast<std::uint32_t>(context.r6),
-          static_cast<std::uint32_t>(context.r7),audio_ram.u32(0x800A06ECU),
+          static_cast<std::uint32_t>(context.r7),audio_ram.u32(game_data("audio.frame_count")),
           state.mmio_trace->ai_dma.read(4U,state.cpu_count).value_or(UINT32_MAX),
           state.mmio_trace->ai_dma.read(12U,state.cpu_count).value_or(UINT32_MAX),
           state.mmio_trace->ai_dma.read(16U,state.cpu_count).value_or(UINT32_MAX)});
@@ -528,7 +546,7 @@ public:
     if(model_target_)state_->gameplay_trace.event("function-stage-model", {
       state_->vi_retraces,state_->cpu_count,model_target_,model_start_vi_,
       model_start_count_,model_start_instructions_,state_->observed_guest_instructions,
-      jfg::mod::Memory({state_->rdram,kRdramSize}).u32(0x800FB114U),
+      NativeGameMemory({state_->rdram,kRdramSize}).u32(game_data("globals.currentLevel")),
       model_start_idle_,state_->profile_idle_count_ticks});
     if(model_target_) {
       auto own=sample_model_thread(*state_,model_thread_);
@@ -583,28 +601,28 @@ public:
 
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-bool cutscene_actors_reviewed(const jfg::mod::Memory& ram) {
-  const auto count=ram.u32(0x800F2CA8U),list=ram.u32(0x800F2CA4U);
+bool cutscene_actors_reviewed(const NativeGameMemory& ram) {
+  const auto count=game_view(ram).u32(game_data_ref("globals.objectCount")),list=game_view(ram).u32(game_data_ref("globals.objectList"));
   if(!count||count>1024U||!ram.valid(list,std::uint64_t{count}*4U))return false;
   for(unsigned i=0;i<count;++i) {
     const auto actor=ram.u32(list+4U*i);
     if(!actor)continue;
     if(!ram.valid(actor,0x80U))return false;
-    const auto type=ram.u16(actor+0x48U);
-    const auto data=ram.u32(actor+0x40U);
+    const auto type=ram.u16(actor+game_member("layout.actor.type"));
+    const auto data=ram.u32(actor+game_member("layout.actor.header"));
     if(!ram.valid(data,0xD8U) || ram.u32(data+0xD4U)!=0)return false;
     if(type==1U || type==59U) {
       // Type 1 has no ordinary objControl case; cinematic copies are not
       // gameplay players. Type 59's overlay 02B00014 first calls objGetPlayerNo
       // (8000E4D0); with zero players it only removes itself and returns before
       // any flag, inventory, hint or collision side effects.
-      if(ram.u32(0x800F2D10U)!=0 || ram.u32(actor+0x7CU)!=0)return false;
+      if(game_view(ram).u32(game_data_ref("globals.playerCount"))!=0 || ram.u32(actor+game_member("layout.actor.physics"))!=0)return false;
     } else if(type==8U) {
       // 8002561C reads flags, then gates every player camera/hint write on
       // hitPlayer (8007E150). Its player-list getter (8000E464) reads
       // 800F2D10; with no gameplay players this trigger has no side effects.
-      if(ram.u32(0x800F2D10U)!=0 || ram.u32(actor+0x7CU)!=0 ||
-         !ram.valid(ram.u32(actor+0x68U),0x18U))return false;
+      if(game_view(ram).u32(game_data_ref("globals.playerCount"))!=0 || ram.u32(actor+game_member("layout.actor.physics"))!=0 ||
+         !ram.valid(ram.u32(actor+game_member("layout.actor.control")),0x18U))return false;
     } else if(type==145U || type==147U) {
       // Type 147 uses animdroidControl (800270EC) for local texture animation.
       // Type 145 is FireWork (05A002B4): local motion, light intensity,
@@ -613,35 +631,35 @@ bool cutscene_actors_reviewed(const jfg::mod::Memory& ram) {
       // These effects can end with the scene; event/movement callbacks are
       // independently excluded. Do not require zero particle triggers:
       // the original FireWork definition has one.
-      if(ram.u32(actor+0x7CU)!=0 ||
-         !ram.valid(ram.u32(actor+0x68U),0xCU))return false;
+      if(ram.u32(actor+game_member("layout.actor.physics"))!=0 ||
+         !ram.valid(ram.u32(actor+game_member("layout.actor.control")),0xCU))return false;
     } else if(type==9U) {
       // 8001C0D8 changes only per-view fog interpolation, not progression.
       // Tawfret's cinematic fog trigger has no gameplay player or callback.
-      if(ram.u32(0x800F2D10U)!=0 || ram.u32(actor+0x7CU)!=0)return false;
+      if(game_view(ram).u32(game_data_ref("globals.playerCount"))!=0 || ram.u32(actor+game_member("layout.actor.physics"))!=0)return false;
     } else if(type==61U || type==66U) {
       // Health/ammo demo objects have no persistent effects without players:
       // both native controls put collection and inventory writes behind
       // hitPlayer (8007E150), whose player count comes from 800F2D10.
       // Health's +7C is its collision/physics state, not a script callback.
       // Keep the ordinary gameplay case excluded; never collect skipped items.
-      if(ram.u32(0x800F2D10U)!=0)return false;
-      const auto physics=ram.u32(actor+0x7CU);
+      if(game_view(ram).u32(game_data_ref("globals.playerCount"))!=0)return false;
+      const auto physics=ram.u32(actor+game_member("layout.actor.physics"));
       if(type==61U) {
         if(physics && !ram.valid(physics,0x28U))return false;
       } else if(physics!=0)return false;
     } else if((type!=7U && !jfg::cutscene_actor_control_reviewed(type)) ||
-              ram.u32(actor+0x7CU)!=0)return false;
+              ram.u32(actor+game_member("layout.actor.physics"))!=0)return false;
     // Cinematic doors also enter the native hit/interaction dispatch list.
     // 80025A08 only updates door/animation state, positional sound and hints
     // (00601284/006012B0); it reads progression flags but never writes them.
     // Keep gameplay players and custom event/movement callbacks excluded.
-    if(type==7U && ram.u32(0x800F2D10U)!=0)return false;
+    if(type==7U && game_view(ram).u32(game_data_ref("globals.playerCount"))!=0)return false;
     // Doors, rescue NPCs, landing-room bridges and type132 actors qualify
     // only with ordinary control disabled by the native cinematic animation.
     // Type132 dispatches to07C00678 and can write a game flag when active.
     if(type==7U || type==49U || type==55U || type==132U) {
-      const auto anim=ram.u32(actor+0x4CU);
+      const auto anim=ram.u32(actor+game_member("layout.actor.properties"));
       if(!ram.valid(anim,10U)||(ram.u8(anim+9U)&8U)==0)return false;
     }
   }
@@ -657,14 +675,14 @@ bool update_cutscene_review(State& state,recomp_context& context) {
   const auto request=jfg::parse_cutscene_review(config->at(0).text,
       state.cutscene_review_nonce,now,state.cutscene_review_session_started);
   if(!request)return false;
-  jfg::mod::Memory ram({state.rdram,kRdramSize});
-  const auto header=ram.u32(0x800FB118U),table=ram.u32(0x800FE070U);
-  const auto current_level=ram.u32(0x800FB114U);
+  NativeGameMemory ram({state.rdram,kRdramSize});
+  const auto header=game_view(ram).u32(game_data_ref("globals.levelHeader")),table=game_view(ram).u32(game_data_ref("globals.assetTable"));
+  const auto current_level=game_view(ram).u32(game_data_ref("globals.currentLevel"));
   if(current_level==0U || current_level==1U || current_level==73U ||
      current_level==79U || current_level==161U ||
      (current_level==127U && !state.cutscene_review_mode.review_mode))return false;
   if(!ram.valid(header,0xEAU)||!ram.valid(table,69U*4U)||
-     ram.u8(0x800A3294U)!=0 || ram.u8(0x800FD7BDU)!=0)return false;
+     game_view(ram).u8(game_data_ref("globals.transitionCountdown"))!=0 || game_view(ram).u8(game_data_ref("globals.pauseActive"))!=0)return false;
   const auto section=[&](unsigned index)->std::span<const std::uint8_t> {
     const std::uint64_t a=0xB1880ULL+ram.u32(table+(index+1U)*4U);
     const std::uint64_t b=0xB1880ULL+ram.u32(table+(index+2U)*4U);
@@ -678,12 +696,12 @@ bool update_cutscene_review(State& state,recomp_context& context) {
   }
   const auto stack=static_cast<std::uint32_t>(context.r29)-0x80U;
   if(!ram.valid(stack-0x1000U,0x1080U) ||
-     ram.u32(0x8004665CU)!=0x27BDFFE0U ||
-     !jfg_generated_lookup_function(static_cast<std::int32_t>(0x8004665CU)) ||
-     !jfg_generated_lookup_function(static_cast<std::int32_t>(0x800468A4U)) ||
-     !jfg_generated_lookup_function(static_cast<std::int32_t>(0x80058A5CU)) ||
-     !jfg_generated_lookup_function(static_cast<std::int32_t>(0x80047ED0U)) ||
-     !jfg_generated_lookup_function(static_cast<std::int32_t>(0x80047EFCU)))return false;
+     !ram.instruction_matches("guard.game.mainChangeLevel.entry0") ||
+     !jfg_generated_lookup_function(static_cast<std::int32_t>(game_code("game.mainChangeLevel"))) ||
+     !jfg_generated_lookup_function(static_cast<std::int32_t>(game_code("game.mainSetAnimGroup"))) ||
+     !jfg_generated_lookup_function(static_cast<std::int32_t>(game_code("game.frontGetMode"))) ||
+     !jfg_generated_lookup_function(static_cast<std::int32_t>(game_code("game.mainGetGameFlag"))) ||
+     !jfg_generated_lookup_function(static_cast<std::int32_t>(game_code("game.mainSetGameFlag"))))return false;
   hle::GuestMemory memory({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
   const auto call=[&](std::uint32_t fn,std::uint32_t a,std::uint32_t b=0,
                      std::uint32_t c=0,std::uint32_t d=0) {
@@ -695,11 +713,11 @@ bool update_cutscene_review(State& state,recomp_context& context) {
     set_cop1_cs(context.fcr31);
     return static_cast<std::uint32_t>(cpu.r2);
   };
-  const auto source=ram.u32(0x800FB114U);
+  const auto source=game_view(ram).u32(game_data_ref("globals.currentLevel"));
   state.cutscene_chain=false;state.cutscene_skip_scene=0;
   state.cutscene_skip_request=0;state.cutscene_skip_gesture=0;
   state.cutscene_cached_scene=0;state.cutscene_prompt={};
-  const auto current_mode=call(0x80058A5CU,0);
+  const auto current_mode=call(game_code("game.frontGetMode"),0);
   const auto mode=state.cutscene_review_mode.destination(request->level,current_mode);
   if(!mode) {
     state.gameplay_trace.event("cutscene-review-mode-rejected",
@@ -708,14 +726,14 @@ bool update_cutscene_review(State& state,recomp_context& context) {
   }
   if(jfg::cutscene_review_needs_character_unlocks(request->level,request->group)) {
     unsigned added=0;
-    for(unsigned flag=0;flag<3U;++flag)if(!call(0x80047ED0U,flag)) {
-      call(0x80047EFCU,flag,1U);added|=1U<<flag;
+    for(unsigned flag=0;flag<3U;++flag)if(!call(game_code("game.mainGetGameFlag"),flag)) {
+      call(game_code("game.mainSetGameFlag"),flag,1U);added|=1U<<flag;
     }
     state.gameplay_trace.event("cutscene-review-context-prepared",
       {state.vi_retraces,request->level,request->group,added});
   }
-  call(0x8004665CU,request->level,request->character,0,*mode);
-  call(0x800468A4U,request->group);
+  call(game_code("game.mainChangeLevel"),request->level,request->character,0,*mode);
+  call(game_code("game.mainSetAnimGroup"),request->group);
   state.gameplay_trace.event("cutscene-review-entry",{state.vi_retraces,source,
     request->level,request->group,request->character,request->nonce});
   // The outgoing scene must not execute another script command after selection.
@@ -724,16 +742,16 @@ bool update_cutscene_review(State& state,recomp_context& context) {
 
 // Resolve the actual active credits module. Its completion halfword is
 // separate from the looping scene script, and must be set before native exit.
-std::uint8_t* cutscene_credits_memory(State& state,const jfg::mod::Memory& ram) {
-  constexpr unsigned section=57U;
-  if(ram.u8(0x800A51B0U)!=23U || !section_addresses ||
+std::uint8_t* cutscene_credits_memory(State& state,const NativeGameMemory& ram) {
+  constexpr unsigned section=game_module(OriginalModule::credits);
+  if(game_view(ram).u8(game_data_ref("globals.frontendMode"))!=23U || !section_addresses ||
      !state.active_overlay_sections.contains(section))return nullptr;
   JfgGeneratedSectionMetadata metadata{};
   if(!jfg_generated_section_metadata(section,&metadata) || metadata.is_overlay!=1U)
     return nullptr;
   const auto base=static_cast<std::uint32_t>(section_addresses[section]);
   const std::uint64_t extent=std::uint64_t(metadata.text_size)+metadata.data_size+metadata.bss_size;
-  if(extent<0xC08U || extent>0x10000U || (base&3U) || (extent&3U))return nullptr;
+  if(extent<game_overlay_data("cutscene.credits.end",OriginalModule::credits)+2U || extent>0x10000U || (base&3U) || (extent&3U))return nullptr;
   std::uint32_t offset=0;
   if(ram.valid(base,extent))offset=base&0x1FFFFFFFU;
   else {
@@ -746,24 +764,24 @@ std::uint8_t* cutscene_credits_memory(State& state,const jfg::mod::Memory& ram) 
   }
   auto* bytes=state.rdram+offset;
   const auto u16=[&](unsigned at) {return (unsigned{bytes[at^3U]}<<8)|bytes[(at+1U)^3U];};
-  const auto instruction=(u16(0x140U)<<16)|u16(0x142U);
-  if(instruction!=0x27BDFFD0U || u16(0xC06U)!=0U ||
-     ram.u32(0x8004758CU)!=0x24050001U)return nullptr;
+  const auto instruction=(u16(game_overlay_site("cutscene.credits.entry",OriginalModule::credits))<<16)|u16(game_overlay_site("cutscene.credits.entry",OriginalModule::credits)+2U);
+  if(instruction!=game_instruction_word("cutscene.credits.entry") || u16(game_overlay_data("cutscene.credits.end",OriginalModule::credits))!=0U ||
+     !ram.instruction_matches("guard.game.mainTitlePageInit.entry0"))return nullptr;
   return bytes;
 }
 void update_cutscene_completion(State& state,recomp_context& context) {
-  jfg::mod::Memory ram({state.rdram,kRdramSize});
-  const auto level=ram.u32(0x800FB114U),header=ram.u32(0x800FB118U);
-  const auto group=ram.u32(0x800A74C0U),start=ram.u32(0x800A74C8U);
-  const auto cursor=ram.u32(0x800A74CCU);
+  NativeGameMemory ram({state.rdram,kRdramSize});
+  const auto level=game_view(ram).u32(game_data_ref("globals.currentLevel")),header=game_view(ram).u32(game_data_ref("globals.levelHeader"));
+  const auto group=game_view(ram).u32(game_data_ref("globals.cutsceneGroup")),start=game_view(ram).u32(game_data_ref("globals.cutsceneScriptStart"));
+  const auto cursor=game_view(ram).u32(game_data_ref("globals.cutsceneScriptCursor"));
   const bool cinematic=ram.valid(header,0x6DU) &&
     (ram.u8(header+0x6CU)==1U||ram.u8(header+0x6CU)==2U);
   if(!cinematic || level==0U || level==127U) {
     state.cutscene_skip_scene=0;state.cutscene_chain=false;state.cutscene_prompt.transition=false;return;
   }
-  if(ram.u32(0x800A74BCU)==0 || ram.u32(0x800A74D4U)!=1U ||
-     ram.u8(0x800A4FC4U)!=0 || ram.u8(0x800FD7BDU)!=0 ||
-     ram.u8(0x800A3294U)!=0 || group>255U || !ram.valid(start,4U) ||
+  if(game_view(ram).u32(game_data_ref("globals.cutsceneOwner"))==0 || game_view(ram).u32(game_data_ref("globals.cutscenePlaying"))!=1U ||
+     game_view(ram).u8(game_data_ref("globals.multiPlayerGame"))!=0 || game_view(ram).u8(game_data_ref("globals.pauseActive"))!=0 ||
+     game_view(ram).u8(game_data_ref("globals.transitionCountdown"))!=0 || group>255U || !ram.valid(start,4U) ||
      cursor<start || cursor-start>28672U) {
     state.cutscene_skip_scene=0;return;
   }
@@ -780,14 +798,14 @@ void update_cutscene_completion(State& state,recomp_context& context) {
       state.cutscene_chain=false;
   }
   auto plan=jfg::plan_cutscene_completion(state.cutscene_script,cursor-start,
-    {ram.u32(0x800A74B8U),group});
+    {game_view(ram).u32(game_data_ref("globals.cutsceneSequence")),group});
   auto* credits_memory=plan && plan->native_credits && level==360U
     ? cutscene_credits_memory(state,ram):nullptr;
   if(plan && plan->native_credits && !credits_memory)plan.reset();
   const bool actors_reviewed=cutscene_actors_reviewed(ram);
   const bool qualified=plan.has_value() && actors_reviewed &&
-    ram.u32(0x80077614U)==0x27BDFFC0U && ram.u32(0x80077ABCU)==0x27BDFE28U &&
-    ram.u32(0x8004665CU)==0x27BDFFE0U;
+    ram.instruction_matches("guard.game.animseqUpdate.entry0") && ram.instruction_matches("guard.game.animseqProcessCommandList.entry0") &&
+    ram.instruction_matches("guard.game.mainChangeLevel.entry0");
   const auto previous_qualified_scene=state.cutscene_skip_scene.load(std::memory_order_acquire);
   state.cutscene_skip_scene.store(qualified?scene:0,std::memory_order_release);
   if(!first && previous_qualified_scene!=(qualified?scene:0))
@@ -795,9 +813,9 @@ void update_cutscene_completion(State& state,recomp_context& context) {
       qualified?1U:0U,plan.has_value()?1U:0U,actors_reviewed?1U:0U,cursor-start});
     if(!actors_reviewed && (first || previous_qualified_scene!=0)) {
       state.gameplay_trace.event("cutscene-skip-review-context",{state.vi_retraces,
-        ram.u32(0x800F2CACU),ram.u32(0x800F2D10U),ram.u32(0x800F2D1CU),
-        ram.u32(0x801047E0U),ram.u32(0x801047E4U)});
-      const auto actor_list=ram.u32(0x800F2CA4U),actor_count=ram.u32(0x800F2CA8U);
+        ram.u32(game_data("diagnostic.cameraPlayerState")),game_view(ram).u32(game_data_ref("globals.playerCount")),ram.u32(game_data("diagnostic.cameraPlayerIndex")),
+        game_view(ram).u32(game_data_ref("globals.objectAssetCount")),game_view(ram).u32(game_data_ref("globals.objectAssetTable"))});
+      const auto actor_list=game_view(ram).u32(game_data_ref("globals.objectList")),actor_count=game_view(ram).u32(game_data_ref("globals.objectCount"));
       if(actor_count<=1024U && ram.valid(actor_list,std::uint64_t{actor_count}*4U))
         for(unsigned n=0;n<actor_count;++n) {
           const auto a=ram.u32(actor_list+n*4U);
@@ -815,7 +833,7 @@ void update_cutscene_completion(State& state,recomp_context& context) {
     if(!state.cutscene_chain)state.cutscene_prompt.transition=false;
     state.gameplay_trace.event("cutscene-skip-scene",{state.vi_retraces,level,group,
       static_cast<unsigned>(state.cutscene_script.status),qualified?1U:0U,start,
-      plan.has_value()?1U:0U,actors_reviewed?1U:0U,cursor-start,ram.u32(0x800A74B8U)});
+      plan.has_value()?1U:0U,actors_reviewed?1U:0U,cursor-start,game_view(ram).u32(game_data_ref("globals.cutsceneSequence"))});
     // Let the newly loaded scene perform its first ordinary update.
     return;
   }
@@ -825,10 +843,10 @@ void update_cutscene_completion(State& state,recomp_context& context) {
   const auto stack=static_cast<std::uint32_t>(context.r29)-0x80U;
   if(!ram.valid(stack-0x1000U,0x1080U))return;
   constexpr std::array<std::uint32_t,19> functions{
-    0x8004665CU,0x800468A4U,0x800468CCU,0x80047C0CU,0x80058A5CU,
-    0x80047ED0U,0x80047EFCU,0x80047608U,0x8005AAE8U,
-    0x80043404U,0x80043418U,0x800005F8U,0x80000FE4U,0x80000798U,0x80000510U,
-    0x80000E6CU,0x800008D0U,0x800010BCU,0x8004758CU};
+    game_code("game.mainChangeLevel"),game_code("game.mainSetAnimGroup"),game_code("game.mainGetNextCharacter"),game_code("game.mainGetGame"),game_code("game.frontGetMode"),
+    game_code("game.mainGetGameFlag"),game_code("game.mainSetGameFlag"),game_code("game.mainFrontInit"),game_code("game.frontCharSelectSetQuitMode"),
+    game_code("game.joyDisable"),game_code("game.joyEnable"),game_code("game.amTuneSetFade"),game_code("game.amTuneSetVolume"),game_code("game.amTuneResetFade"),game_code("game.amTunePlay"),
+    game_code("game.amAmbientPlay"),game_code("game.amAmbientResetFade"),game_code("game.amAmbientSetVolume"),game_code("game.mainTitlePageInit")};
   for(const auto fn:functions)
     if(!jfg_generated_lookup_function(static_cast<std::int32_t>(fn)))return;
   hle::GuestMemory memory({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
@@ -839,7 +857,7 @@ void update_cutscene_completion(State& state,recomp_context& context) {
     cpu.f_odd=cpu.mips3_float_mode?&cpu.f1.u32l:&cpu.f0.u32h;
     // amTuneSetFade(0 seconds, target) has a native immediate-completion
     // branch, which sets the envelope target/count and real audio volume.
-    if(fn==0x800005F8U){cpu.f12.u32l=0;cpu.f12.u32h=0;}
+    if(fn==game_code("game.amTuneSetFade")){cpu.f12.u32l=0;cpu.f12.u32h=0;}
     cpu.r29=static_cast<std::int32_t>(stack);
     cpu.r4=static_cast<std::int32_t>(a);cpu.r5=static_cast<std::int32_t>(b);
     cpu.r6=static_cast<std::int32_t>(c);cpu.r7=static_cast<std::int32_t>(d);
@@ -860,58 +878,58 @@ void update_cutscene_completion(State& state,recomp_context& context) {
   // mainSyncNextLevel makes the loader wait for a cue from the unplayed
   // remainder of the scene. Clear any previously scheduled cue wait and
   // omit future opcode 76 requests only after a confirmed completion.
-  state.rdram[0x000A326CU^3U]=0;
+  state.rdram[(game_data("globals.transitionCutsceneActive")&0x1FFFFFFFU)^3U]=0;
   ++state.cutscene_chain_count;
   state.cutscene_chain=false;
-  (void)memory.write_u32(0x800A74D4U,0U);
+  (void)memory.write_u32(game_data("globals.cutscenePlaying"),0U);
   if(!plan->native_credits)
-  (void)memory.write_u32(0x800A74CCU,start+plan->sentinel_offset);
+  (void)memory.write_u32(game_data("globals.cutsceneScriptCursor"),start+plan->sentinel_offset);
   for(const auto& action:plan->actions) {
     using K=jfg::CutsceneCompletionActionKind;
     switch(action.kind) {
       case K::credits_end:
         // Match the original -4 credits command: mark its native completion,
         // then call the original frontend exit/next-level selection handler.
-        credits_memory[0xC06U^3U]=0;
-        credits_memory[0xC07U^3U]=1;
-        call(0x8004758CU);
+        credits_memory[game_overlay_data("cutscene.credits.end",OriginalModule::credits)^3U]=0;
+        credits_memory[(game_overlay_data("cutscene.credits.end",OriginalModule::credits)+1U)^3U]=1;
+        call(game_code("game.mainTitlePageInit"));
         state.gameplay_trace.event("cutscene-credits-complete",{state.vi_retraces,level,group});
         break;
       case K::music_track:
         // Native opcode 21 starts the requested tune and cancels its prior
         // fade. Preserve that audio state before the native departure.
-        call(0x80000510U,action.argument);call(0x80000798U);break;
-      case K::music_fade:call(0x800005F8U,0,action.argument);break;
+        call(game_code("game.amTunePlay"),action.argument);call(game_code("game.amTuneResetFade"));break;
+      case K::music_fade:call(game_code("game.amTuneSetFade"),0,action.argument);break;
       case K::music_volume:
         // Native opcode 23 sets volume then cancels any old fade, in that order.
-        call(0x80000FE4U,action.argument);call(0x80000798U);break;
+        call(game_code("game.amTuneSetVolume"),action.argument);call(game_code("game.amTuneResetFade"));break;
       case K::ambient_track:
         // Native opcode 24 starts ambient sequence, then cancels its old fade.
-        call(0x80000E6CU,action.argument);call(0x800008D0U);break;
+        call(game_code("game.amAmbientPlay"),action.argument);call(game_code("game.amAmbientResetFade"));break;
       case K::ambient_volume:
         // Native opcode 26 sets ambient volume, then cancels its old fade.
-        call(0x800010BCU,action.argument);call(0x800008D0U);break;
-      case K::game_flag:call(0x80047EFCU,action.argument,action.value);break;
-      case K::input_disable:call(0x80043404U,action.argument);break;
-      case K::input_enable:call(0x80043418U,action.argument);break;
+        call(game_code("game.amAmbientSetVolume"),action.argument);call(game_code("game.amAmbientResetFade"));break;
+      case K::game_flag:call(game_code("game.mainSetGameFlag"),action.argument,action.value);break;
+      case K::input_disable:call(game_code("game.joyDisable"),action.argument);break;
+      case K::input_enable:call(game_code("game.joyEnable"),action.argument);break;
       case K::front_control:
         // The original 74/75 leaf only writes this front-end control byte.
-        state.rdram[0x000FF310U^3U]=static_cast<std::uint8_t>(action.argument);break;
+        state.rdram[(game_data("cutscene.frontControl")&0x1FFFFFFFU)^3U]=static_cast<std::uint8_t>(action.argument);break;
       case K::change_level: {
-        const auto game=call(0x80047C0CU);
+        const auto game=call(game_code("game.mainGetGame"));
         const auto dest=jfg::cutscene_destination(action.argument,action.value,
-          call(0x800468CCU),ram.u8(0x800A4FC0U),
-          ram.valid(game,2U)?ram.u8(game+1U):0U,call(0x80058A5CU));
-        call(0x8004665CU,dest.level,dest.character,dest.entrance,dest.mode,1,0);
-        call(0x800468A4U,dest.group);
+          call(game_code("game.mainGetNextCharacter")),game_view(ram).u8(game_data_ref("globals.racingCharacter")),
+          ram.valid(game,2U)?ram.u8(game+1U):0U,call(game_code("game.frontGetMode")));
+        call(game_code("game.mainChangeLevel"),dest.level,dest.character,dest.entrance,dest.mode,1,0);
+        call(game_code("game.mainSetAnimGroup"),dest.group);
         state.cutscene_chain=state.cutscene_chain_count<16U;
         state.cutscene_chain_level=dest.level;state.cutscene_chain_group=dest.group;
         break;
       }
       case K::conditional_end:
-        if(call(0x80047ED0U,90)&&call(0x80047ED0U,91)&&call(0x80047ED0U,92))
-          call(0x8004665CU,212,call(0x800468CCU),0,call(0x80058A5CU),1,0);
-        else {call(0x80047608U,5,127,0);call(0x8005AAE8U,0);}
+        if(call(game_code("game.mainGetGameFlag"),90)&&call(game_code("game.mainGetGameFlag"),91)&&call(game_code("game.mainGetGameFlag"),92))
+          call(game_code("game.mainChangeLevel"),212,call(game_code("game.mainGetNextCharacter")),0,call(game_code("game.frontGetMode")),1,0);
+        else {call(game_code("game.mainFrontInit"),5,127,0);call(game_code("game.frontCharSelectSetQuitMode"),0);}
         break;
     }
   }
@@ -920,18 +938,18 @@ void update_cutscene_completion(State& state,recomp_context& context) {
   // routine still checks video readiness and performs every cleanup/load step.
   // It also installs the destination's ordinary fade-in after loading.
   if(state.cutscene_chain && state.cutscene_prompt.transition &&
-     !plan->native_credits && ram.u8(0x800A329CU)==0 &&
-     ram.u8(0x800A326CU)==0 &&
-     ram.u16(0x800A3250U)==state.cutscene_chain_level &&
-     ram.u16(0x800A3254U)==state.cutscene_chain_group &&
-     ram.u32(0x800468ECU)==0x27BDFF90U &&
-     ram.u32(0x800469B0U)==0x80A20000U &&
-     ram.u32(0x800469CCU)==0x004D7023U &&
-     ram.u32(0x800469D0U)==0xA0AE0000U &&
-     ram.u32(0x80046E30U)==0x0C01548DU) {
-    const auto wait=ram.u8(0x800A3294U);
+     !plan->native_credits && game_view(ram).u8(game_data_ref("globals.transitionPrompt"))==0 &&
+     ram.u8(game_data("globals.transitionCutsceneActive"))==0 &&
+     game_view(ram).u16(game_data_ref("globals.pendingLevel"))==state.cutscene_chain_level &&
+     game_view(ram).u16(game_data_ref("globals.pendingCutsceneGroup"))==state.cutscene_chain_group &&
+     ram.instruction_matches("guard.game.mainPrepareTransition.entry0") &&
+     ram.instruction_matches("native.transition_count_load") &&
+     ram.instruction_matches("native.transition_count_subtract") &&
+     ram.instruction_matches("native.transition_count_store") &&
+     ram.instruction_matches("native.transition_finish_call")) {
+    const auto wait=game_view(ram).u8(game_data_ref("globals.transitionCountdown"));
     if(wait==10U || wait==30U) {
-      state.rdram[0x000A3294U^3U]=1U;
+      state.rdram[(game_data("globals.transitionCountdown")&0x1FFFFFFFU)^3U]=1U;
       state.gameplay_trace.event("cutscene-transition-wait",{
         state.vi_retraces,level,group,state.cutscene_chain_level,wait,1U});
     }
@@ -954,59 +972,59 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   const auto target = static_cast<std::uint32_t>(address);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   FunctionProfileScope function_profile_scope(state,target,*context);
-  if(target==0x80043BB8U) {
-    const jfg::mod::Memory music_ram({state.rdram,kRdramSize});
+  if(target==game_code("game.levelGetTune")) {
+    const NativeGameMemory music_ram({state.rdram,kRdramSize});
     const auto level=static_cast<std::uint32_t>(context->r4);
     if(const auto selected=jfg::flight_transition_next_music(music_ram,level,
         static_cast<std::uint32_t>(context->r31))) {
       context->r2=*selected;
       state.gameplay_trace.event("flight-music-next",{state.vi_retraces,level,
-        music_ram.u16(0x800A3254U),*selected});
+        game_view(music_ram).u16(game_data_ref("globals.pendingCutsceneGroup")),*selected});
       return 1;
     }
   }
-  if(target==0x8004455CU) {
-    jfg::mod::Memory music_ram({state.rdram,kRdramSize});
-    const auto header=music_ram.u32(0x800FB118U);
+  if(target==game_code("game.levelTunePlay")) {
+    NativeGameMemory music_ram({state.rdram,kRdramSize});
+    const auto header=game_view(music_ram).u32(game_data_ref("globals.levelHeader"));
     const auto previous=music_ram.valid(header,0x73U)?music_ram.u8(header+0x72U):0U;
     if(jfg::apply_flight_transition_music_header(music_ram))
       state.gameplay_trace.event("flight-music-correction",{state.vi_retraces,
-        music_ram.u32(0x800FB114U),music_ram.u32(0x800A74C0U),previous,7U});
+        game_view(music_ram).u32(game_data_ref("globals.currentLevel")),game_view(music_ram).u32(game_data_ref("globals.cutsceneGroup")),previous,7U});
   }
   // Record sparse native audio state changes during cinematic handoff. This
   // observes the original calls without changing the sample queue or music.
-  if(state.gameplay_trace && (target==0x80000510U || target==0x80000F2CU ||
-      target==0x800005F8U || target==0x80000FE4U || target==0x80000798U ||
-      target==0x800008D0U || target==0x80001228U || target==0x80077004U ||
-      target==0x80001248U || target==0x80003410U || target==0x80003614U ||
-      target==0x80000E6CU)) {
-    jfg::mod::Memory audio_ram({state.rdram,kRdramSize});
-    const auto audio_header=audio_ram.u32(0x800FB118U);
+  if(state.gameplay_trace && (target==game_code("game.amTunePlay") || target==game_code("game.amTuneStop") ||
+      target==game_code("game.amTuneSetFade") || target==game_code("game.amTuneSetVolume") || target==game_code("game.amTuneResetFade") ||
+      target==game_code("game.amAmbientResetFade") || target==game_code("game.amSndStop") || target==game_code("game.animseqStopSounds") ||
+      target==game_code("game.amSndPlay") || target==game_code("game.amSndPlayXYZ") || target==game_code("game.amSndStopXYZ") ||
+      target==game_code("game.amAmbientPlay"))) {
+    NativeGameMemory audio_ram({state.rdram,kRdramSize});
+    const auto audio_header=game_view(audio_ram).u32(game_data_ref("globals.levelHeader"));
     if(audio_ram.valid(audio_header,0x75U) &&
        (audio_ram.u8(audio_header+0x6CU)==1U || audio_ram.u8(audio_header+0x6CU)==2U ||
         state.cutscene_chain)) {
       state.gameplay_trace.event("cutscene-audio-call",{state.vi_retraces,
-        audio_ram.u32(0x800FB114U),audio_ram.u32(0x800A74C0U),target,
+        game_view(audio_ram).u32(game_data_ref("globals.currentLevel")),game_view(audio_ram).u32(game_data_ref("globals.cutsceneGroup")),target,
         static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r5),
         static_cast<std::uint32_t>(context->r6),context->f12.u32l,
         state.cutscene_chain?1U:0U,state.cutscene_chain_count,
-        audio_ram.u8(audio_header+0x72U),audio_ram.u8(0x800A0668U),
-        audio_ram.u32(0x800A0680U),state.host_audio.queued_bytes(),
+        audio_ram.u8(audio_header+0x72U),game_view(audio_ram).u8(game_data_ref("globals.tuneVolume")),
+        game_view(audio_ram).u32(game_data_ref("globals.tuneFade")),state.host_audio.queued_bytes(),
         state.host_audio.underruns(),state.host_audio.overruns()});
     }
   }
-  if(state.cutscene_chain && (target==0x80001248U || target==0x80003410U)) {
-    jfg::mod::Memory sound_ram({state.rdram,kRdramSize});
+  if(state.cutscene_chain && (target==game_code("game.amSndPlay") || target==game_code("game.amSndPlayXYZ"))) {
+    NativeGameMemory sound_ram({state.rdram,kRdramSize});
     const auto stack=static_cast<std::uint32_t>(context->r29);
-    if(target==0x80001248U || (stack<=0xFFFFFFEBU && sound_ram.valid(stack+0x14U,4U))) {
-      const auto handle=target==0x80001248U?static_cast<std::uint32_t>(context->r5):
+    if(target==game_code("game.amSndPlay") || (stack<=0xFFFFFFEBU && sound_ram.valid(stack+0x14U,4U))) {
+      const auto handle=target==game_code("game.amSndPlay")?static_cast<std::uint32_t>(context->r5):
           sound_ram.u32(stack+0x14U);
       const jfg::CutsceneSoundCall sound_call{state.cutscene_chain,
           state.cutscene_skip_scene.load(std::memory_order_acquire),
           state.cutscene_chain_level,state.cutscene_chain_group,target,
           static_cast<std::uint32_t>(context->r31),handle,
           static_cast<std::uint32_t>(context->r16)};
-      if(jfg::omit_skipped_cutscene_sound(sound_ram,sound_call)) {
+      if(jfg::omit_skipped_cutscene_sound(sound_ram,sound_call,jfg::game::linked::descriptor,kCutsceneSoundBindings)) {
         state.gameplay_trace.event("cutscene-skip-sound-omitted",{state.vi_retraces,
           sound_call.destination,sound_call.group,target,
           static_cast<std::uint32_t>(context->r4),sound_call.return_address,handle});
@@ -1014,61 +1032,61 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       }
     }
   }
-  if(target==0x80077158U) {
+  if(target==game_code("game.animseqFreeGroup")) {
     state.cutscene_skip_scene=0;state.cutscene_cached_scene=0;
     state.cutscene_skip_request=0;state.cutscene_skip_gesture=0;
     state.cutscene_prompt.visible=false;
   }
-  if(target==0x80077614U) {
+  if(target==game_code("game.animseqUpdate")) {
     if(update_cutscene_review(state,*context))return 1;
     update_cutscene_completion(state,*context);
   }
 
-  if(target==0x8006FBF0U) {
+  if(target==game_code("game.fontSetWindow0")) {
     const auto width=static_cast<unsigned>(context->r4),height=static_cast<unsigned>(context->r5);
     if(width>=160U&&width<=1023U&&height>=100U&&height<=1023U) {
       state.cutscene_prompt.width=width;state.cutscene_prompt.height=height;
     }
   }
-  if(target==0x8006B9CCU && state.gameplay_trace) {
-    const jfg::mod::Memory ram({state.rdram,kRdramSize});
+  if(target==game_code("game.setupClearScreen") && state.gameplay_trace) {
+    const NativeGameMemory ram({state.rdram,kRdramSize});
     state.gameplay_trace.event("cinematic-fade-request",{state.vi_retraces,
-      ram.u32(0x800FB114U),static_cast<std::uint32_t>(context->r4),
+      game_view(ram).u32(game_data_ref("globals.currentLevel")),static_cast<std::uint32_t>(context->r4),
       static_cast<std::uint32_t>(context->r5),static_cast<std::uint32_t>(context->r6),
       static_cast<std::uint32_t>(context->r7),static_cast<std::uint32_t>(context->r31)});
   }
-  if(target==0x8004DA10U) {
+  if(target==game_code("game.rcpFast3d")) {
     if(context->r6==0 && state.gameplay_trace) {
-      const jfg::mod::Memory ram({state.rdram,kRdramSize});
-      const auto level=ram.u32(0x800FB114U),header=ram.u32(0x800FB118U);
+      const NativeGameMemory ram({state.rdram,kRdramSize});
+      const auto level=game_view(ram).u32(game_data_ref("globals.currentLevel")),header=game_view(ram).u32(game_data_ref("globals.levelHeader"));
       const auto kind=ram.valid(header,0x6DU)?ram.u8(header+0x6CU):0U;
       if(level!=0U && level!=127U && (kind==1U || kind==2U))
         state.cutscene_trace_until_vi=state.vi_retraces+180U;
       if(state.cutscene_trace_until_vi && state.vi_retraces<=state.cutscene_trace_until_vi) {
         state.gameplay_trace.event("cinematic-frame-state",{state.vi_retraces,
-          level,ram.u32(0x800A74C0U),static_cast<std::uint32_t>(context->r4),
+          level,game_view(ram).u32(game_data_ref("globals.cutsceneGroup")),static_cast<std::uint32_t>(context->r4),
           static_cast<std::uint32_t>(context->r5),static_cast<std::uint32_t>(context->r7),
-          ram.u8(0x800A3294U),state.cutscene_prompt.transition?1U:0U,
-          ram.u32(0x80102D38U),ram.u8(0x80102D50U),ram.u8(0x80102D58U),
-          ram.u8(0x80102D70U),ram.u8(0x80102D88U),ram.u32(0x800A74CCU)});
+          game_view(ram).u8(game_data_ref("globals.transitionCountdown")),state.cutscene_prompt.transition?1U:0U,
+          ram.u32(game_data("diagnostic.cutsceneState")),ram.u8(game_data("diagnostic.cutsceneByte0")),ram.u8(game_data("diagnostic.cutsceneByte1")),
+          ram.u8(game_data("diagnostic.cutsceneByte2")),ram.u8(game_data("diagnostic.cutsceneByte3")),game_view(ram).u32(game_data_ref("globals.cutsceneScriptCursor"))});
       }
     }
     // Capture the prompt with the native primary graphics task. Offscreen
     // clone/refraction/blur tasks must never acquire the HUD in their textures.
     const auto list=static_cast<std::uint32_t>(context->r4)&0x00FFFFFFU;
     state.daynight_fog_frames.submit(list, context->r6 == 0,
-        state.active_overlay_sections.contains(22U) &&
-        !state.active_overlay_sections.contains(38U) &&
-        !state.active_overlay_sections.contains(28U));
+        state.active_overlay_sections.contains(game_module(OriginalModule::day_night)) &&
+        !state.active_overlay_sections.contains(game_module(OriginalModule::mantis_lighting)) &&
+        !state.active_overlay_sections.contains(game_module(OriginalModule::vela_magic)));
 
     const auto gesture=state.cutscene_skip_gesture.load(std::memory_order_acquire);
     state.cutscene_prompt.visible=gesture!=0 && state.cutscene_skip_scene.load(std::memory_order_acquire)!=0;
     state.cutscene_prompt.progress=gesture?static_cast<float>(gesture-1U)/1000.0f:0.0f;
     if(context->r6==0 && state.cutscene_prompt.transition) {
-      jfg::mod::Memory skip_ram({state.rdram,kRdramSize});
-      const auto skip_level=skip_ram.u32(0x800FB114U);
-      const auto skip_header=skip_ram.u32(0x800FB118U);
-      if(skip_ram.u8(0x800A3294U)==0 && skip_ram.valid(skip_header,0x6DU) &&
+      NativeGameMemory skip_ram({state.rdram,kRdramSize});
+      const auto skip_level=game_view(skip_ram).u32(game_data_ref("globals.currentLevel"));
+      const auto skip_header=game_view(skip_ram).u32(game_data_ref("globals.levelHeader"));
+      if(game_view(skip_ram).u8(game_data_ref("globals.transitionCountdown"))==0 && skip_ram.valid(skip_header,0x6DU) &&
          (skip_level==0U || skip_level==127U ||
           (skip_ram.u8(skip_header+0x6CU)!=1U && skip_ram.u8(skip_header+0x6CU)!=2U))) {
         state.cutscene_prompt.transition=false;state.cutscene_chain=false;
@@ -1123,7 +1141,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     state.recent_matrix_watch_current_targets[slot] = target;
     state.recent_matrix_watch_return_addresses[slot] =
         static_cast<std::uint32_t>(context->r31);
-    if (watched == 0x800FAF7CU) {
+    if (watched == (game_data("diagnostic.cameraViewState")+4U)) {
       state.poison_matrix_watch = {
           state.matrix_watch_words[watch], current,
           state.recent_matrix_watch_targets[slot],
@@ -1163,14 +1181,14 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   // Read-only, explicitly requested private gameplay diagnostics. Keep the
   // original weapon handler and all ammunition/charge logic untouched.
-  if(target==0x80037550U && state.gameplay_trace) {
-    jfg::mod::Memory ram({rdram,kRdramSize});
+  if(target==game_code("game.controlUpdateWeapon") && state.gameplay_trace) {
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto actor=static_cast<std::uint32_t>(context->r4);
     const auto control=static_cast<std::uint32_t>(context->r5);
-    const auto game=ram.u32(0x800FD7D4U);
-    if(ram.u32(target)==0x444EF800U && ram.u32(target+4U)==0x27BDFF70U &&
-       ram.u32(target+8U)==0x35C10003U && ram.valid(actor,0xA4U) &&
-       ram.valid(control,0x5C4U) && ram.u32(actor+0x68U)==control &&
+    const auto game=game_view(ram).u32(game_data_ref("globals.selectedPlayer"));
+    if(ram.instruction_matches("guard.game.controlUpdateWeapon.entry0") && ram.instruction_matches("guard.game.controlUpdateWeapon.entry4") &&
+       ram.instruction_matches("guard.game.controlUpdateWeapon.entry8") && ram.valid(actor,0xA4U) &&
+       ram.valid(control,0x5C4U) && ram.u32(actor+game_member("layout.actor.control"))==control &&
        ram.valid(game,0x538U) && jfg::mod::gameplay_active(ram,actor)) {
       const auto character=ram.u8(control+1U)&3U;
       const auto port=jfg::mod::pc_input_port(ram,ram.u8(control));
@@ -1180,24 +1198,24 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         if(weapon<16U)state.gameplay_trace.event("pc-weapon-state",{
           state.vi_retraces,actor,port,character,weapon,
           ram.u16(saved+0x14U+weapon*2U),ram.u16(saved+0x34U+weapon*2U),
-          ram.u8(control+0x568U),ram.u32(game+0x474U+weapon*4U),
+          ram.u8(control+game_member("layout.playerControl.movement")),ram.u32(game+0x474U+weapon*4U),
           ram.u16(control+0x53AU),ram.u16(control+0x53EU),
-          ram.u32(0x800A317CU+port*4U),ram.u32(0x800FB078U)});
+          ram.u32(game_data("globals.portControlModes")+port*4U),ram.u32(game_data("diagnostic.inputPollState"))});
       }
     }
   }
   // Keep native transparent-object ordering for a proximity-faded player.
   // Renderer metadata resolves its nearest surface in a separate depth layer
   // and blends the result once, rather than blending interior mesh surfaces.
-  if(target==0x80015E3CU && state.modern_controls_active &&
+  if(target==game_code("game.trackDrawTransparentActors") && state.modern_controls_active &&
      (state.play_mode || state.input_replay_loaded) &&
      (state.input_record_path.empty() || state.pc_record_extended)) {
-    jfg::mod::Memory ram({rdram,kRdramSize});
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto actor=static_cast<std::uint32_t>(context->r4);
-    const auto control=ram.valid(actor,0xA4U)?ram.u32(actor+0x68U):0U;
-    if(ram.valid(control,0x5C4U) && ram.u32(target)==0x27BDFFE0U &&
-       ram.u32(target+4U)==0xAFBF0014U && ram.u32(target+8U)==0x8C850068U &&
-       jfg::mod::gameplay_active(ram,actor) && ram.u8(0x800FD7BDU)==0 &&
+    const auto control=ram.valid(actor,0xA4U)?ram.u32(actor+game_member("layout.actor.control")):0U;
+    if(ram.valid(control,0x5C4U) && ram.instruction_matches("guard.game.trackDrawTransparentActors.entry0") &&
+       ram.instruction_matches("guard.game.trackDrawTransparentActors.entry4") && ram.instruction_matches("guard.game.trackDrawTransparentActors.entry8") &&
+       jfg::mod::gameplay_active(ram,actor) && game_view(ram).u8(game_data_ref("globals.pauseActive"))==0 &&
        !jfg::mod::scripted_camera_active(ram,actor)) {
       const auto port=jfg::mod::pc_input_port(ram,ram.u8(control));
       if(port<4 && modern_controls_selected(state,port) &&
@@ -1211,14 +1229,14 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           const int native_alpha=static_cast<std::int32_t>(context->r2);
           // This API contains only the player camera/aim fade. Death, scene
           // fades and other actors use their own opacity paths.
-          const jfg::PcOrbitPoint body{ram.f32(actor+0xCU),ram.f32(actor+0x10U),ram.f32(actor+0x14U)};
+          const jfg::PcOrbitPoint body{ram.f32(actor+game_member("layout.actor.x")),ram.f32(actor+game_member("layout.actor.y")),ram.f32(actor+game_member("layout.actor.z"))};
           const int alpha=jfg::pc_camera_player_alpha(body,
             {camera.position.x,camera.position.y,camera.position.z},255);
           context->r2=alpha;
           state.gameplay_trace.event("pc-combat-opacity",{
             state.vi_retraces,actor,static_cast<std::uint32_t>(native_alpha),
-            static_cast<std::uint32_t>(alpha),ram.u8(control+0x568U),port});
-          state.pc_camera_fades[port]={actor,control,ram.u32(actor+0x40U),
+            static_cast<std::uint32_t>(alpha),ram.u8(control+game_member("layout.playerControl.movement")),port});
+          state.pc_camera_fades[port]={actor,control,ram.u32(actor+game_member("layout.actor.header")),
               state.vi_retraces,state.camera_fade_updates,static_cast<unsigned>(alpha)};
           return 1;
         }
@@ -1226,12 +1244,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       if(port<4 && state.controller_ports.samples[port].connected &&
          state.pc_orbits[port].active && state.pc_orbits[port].actor==actor &&
          state.vi_retraces-state.pc_orbits[port].retrace<=15U &&
-         jfg::pc_normal_camera_owns_look((state.controller_ports.samples[port].buttons&0x10)!=0,ram.u8(control+0x568U))) {
+         jfg::pc_normal_camera_owns_look((state.controller_ports.samples[port].buttons&0x10)!=0,ram.u8(control+game_member("layout.playerControl.movement")))) {
         const auto mode=state.pc_frames[port].pc_mode;
         const auto camera=jfg::mod::control_camera(ram);
         auto* original=jfg_generated_lookup_function(static_cast<std::int32_t>(target));
         if((mode==3 || mode==4 || mode==5) && camera.known && original) {
-          const jfg::PcOrbitPoint body{ram.f32(actor+0xCU),ram.f32(actor+0x10U),ram.f32(actor+0x14U)};
+          const jfg::PcOrbitPoint body{ram.f32(actor+game_member("layout.actor.x")),ram.f32(actor+game_member("layout.actor.y")),ram.f32(actor+game_member("layout.actor.z"))};
           original(rdram,context);
           const int before=static_cast<std::int32_t>(context->r2);
           const int after=jfg::pc_camera_player_alpha(body,
@@ -1240,7 +1258,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           // Only our added fade (native opacity255) uses the isolated layer;
           // native aim/death fades remain on their existing path.
           if(before==255)context->r2=after;
-          state.pc_camera_fades[port]={actor,control,ram.u32(actor+0x40U),
+          state.pc_camera_fades[port]={actor,control,ram.u32(actor+game_member("layout.actor.header")),
               state.vi_retraces,state.camera_fade_updates,before==255?static_cast<unsigned>(after):255U};
           if(after!=before)state.gameplay_trace.event("pc-camera-fade",{
             state.vi_retraces,actor,static_cast<std::uint32_t>(before),static_cast<std::uint32_t>(after)});
@@ -1253,12 +1271,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   // separation. At an upward view limit its floor collision can repeatedly
   // push an idle modern player forward. Keep camera collision/clearance and
   // ordinary player physics; suppress only this qualified camera-body push.
-  if(target==0x80009A04U && state.pc_camera_actor!=0 &&
+  if(target==game_code("game.objMoveXYZ") && state.pc_camera_actor!=0 &&
      static_cast<std::uint32_t>(context->r4)==state.pc_camera_actor &&
-     static_cast<std::uint32_t>(context->r31)==0x8002EB5CU) {
-    jfg::mod::Memory ram({rdram,kRdramSize});
+     static_cast<std::uint32_t>(context->r31)==game_instruction("native.camera_height_return")) {
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto port=jfg::mod::pc_input_port(ram,ram.u8(state.pc_camera_control));
-    if(ram.u32(0x8002EB54U)==0x0C002681U &&
+    if(ram.instruction_matches("native.camera_height_call") &&
        modern_shoulder_camera_current(state,port,state.pc_camera_actor)) {
       state.gameplay_trace.event("pc-camera-push-suppressed",{state.vi_retraces,
         state.pc_camera_actor,static_cast<std::uint32_t>(context->r5),
@@ -1269,16 +1287,16 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   // The normal camera has computed its desired point, but has not yet run
   // scenery constraints. Feed the orbit into that existing solver, never over
   // its final position. Qualify both the owning routine and this call site.
-  if(target==0x800446E4U && state.pc_camera_actor!=0 &&
+  if(target==game_code("game.levelGetCamera") && state.pc_camera_actor!=0 &&
      static_cast<std::uint32_t>(context->r29)==state.pc_camera_stack) {
-    jfg::mod::Memory ram({rdram,kRdramSize});
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto stack=static_cast<std::uint32_t>(context->r29);
     const auto actor=state.pc_camera_actor,control=state.pc_camera_control;
     const auto port=jfg::mod::pc_input_port(ram,ram.u8(control));
-    if(port<4 && ram.valid(stack,0xF4U) && ram.u32(stack+0xF0U)==actor && ram.u32(0x8002E158U)==0x0C0111B9U) {
+    if(port<4 && ram.valid(stack,0xF4U) && ram.u32(stack+0xF0U)==actor && ram.instruction_matches("native.camera_surface_call")) {
       auto &orbit=state.pc_orbits[port];
-      const auto camera=ram.u32(0x800F6DC0U);
-      const float px=ram.f32(actor+0xCU),py=ram.f32(actor+0x10U)+40.0F,pz=ram.f32(actor+0x14U);
+      const auto camera=game_view(ram).u32(game_data_ref("globals.controlledCamera"));
+      const float px=ram.f32(actor+game_member("layout.actor.x")),py=ram.f32(actor+game_member("layout.actor.y"))+40.0F,pz=ram.f32(actor+game_member("layout.actor.z"));
       const float dx=ram.f32(stack+0x8CU)-px,dy=ram.f32(stack+0x90U)-py,dz=ram.f32(stack+0x94U)-pz;
       const float native_radius=std::sqrt(dx*dx+dy*dy+dz*dz);
       const float radius=modern_shoulder_camera_current(state,port,actor)?jfg::kPcShoulderDistance:native_radius;
@@ -1311,13 +1329,13 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   // The scenery solver can leave its point exactly on a wall. Keep a small
   // near-plane clearance toward its focus, only when collision moved the
   // requested orbit point. Preserve the solver's unblocked result verbatim.
-  if(target==0x8002CC70U && state.pc_camera_actor!=0 &&
+  if(target==game_code("game.controlCameraSceneryCollision") && state.pc_camera_actor!=0 &&
      static_cast<std::uint32_t>(context->r29)==state.pc_camera_stack) {
-    jfg::mod::Memory ram({rdram,kRdramSize});
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto focus=static_cast<std::uint32_t>(context->r4),point=static_cast<std::uint32_t>(context->r5);
     const auto stack=state.pc_camera_stack;
     if(focus==stack+0x98U && point==stack+0x8CU && ram.valid(stack,0xA4U) &&
-       ram.u32(target)==0x27BDFF60U && ram.u32(target+4U)==0xAFBF002CU) {
+       ram.instruction_matches("guard.game.controlCameraSceneryCollision.entry0") && ram.instruction_matches("guard.game.controlCameraSceneryCollision.entry4")) {
       const jfg::PcOrbitPoint from{ram.f32(focus),ram.f32(focus+4U),ram.f32(focus+8U)};
       const jfg::PcOrbitPoint wanted{ram.f32(point),ram.f32(point+4U),ram.f32(point+8U)};
       auto* original=jfg_generated_lookup_function(static_cast<std::int32_t>(target));
@@ -1385,15 +1403,15 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         // inward contact back to the requested camera height (0x8002CF54).
         // Query trackNearestIntersection directly for body visibility. It
         // retains the game's own scenery and moving-model collision rules.
-        constexpr std::uint32_t ray_target=0x80018808U;
+        constexpr std::uint32_t ray_target=game_code("game.trackNearestIntersection");
         auto* ray=jfg_generated_lookup_function(static_cast<std::int32_t>(ray_target));
         if(!shoulder && ray && stack>=0x80000400U && ram.valid(stack-0x400U,0x400U) &&
-           ram.u32(ray_target)==0x27BDFD58U && ram.u32(ray_target+4U)==0x3C03800AU) {
+           ram.instruction_matches("guard.game.trackNearestIntersection.entry0") && ram.instruction_matches("guard.game.trackNearestIntersection.entry4")) {
           const std::uint32_t scratch=stack-0x80U;
           // A torso ray can pass above a narrow tree edge while the legs stay
           // hidden. Start just above the actor's feet, in world coordinates.
-          const jfg::PcOrbitPoint body{ram.f32(state.pc_camera_actor+0xCU),
-            ram.f32(state.pc_camera_actor+0x10U)+8.0F,ram.f32(state.pc_camera_actor+0x14U)};
+          const jfg::PcOrbitPoint body{ram.f32(state.pc_camera_actor+game_member("layout.actor.x")),
+            ram.f32(state.pc_camera_actor+game_member("layout.actor.y"))+8.0F,ram.f32(state.pc_camera_actor+game_member("layout.actor.z"))};
           const jfg::PcCameraBroadphase broadphase(ram);
           for(unsigned pass=0;pass<2;++pass) {
             auto candidate=clear;
@@ -1450,14 +1468,14 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       }
     }
   }
-  if(target==0x8002CF6CU && state.modern_controls_active && (state.play_mode || state.input_replay_loaded) &&
+  if(target==game_code("game.controlUpdateCamera") && state.modern_controls_active && (state.play_mode || state.input_replay_loaded) &&
      (state.input_record_path.empty() || state.pc_record_extended) &&
      state.pc_camera_actor==0) {
-    jfg::mod::Memory ram({rdram,kRdramSize});
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto actor=static_cast<std::uint32_t>(context->r4),control=static_cast<std::uint32_t>(context->r5);
-    if(ram.valid(control,0x5C4U) && ram.valid(actor,0xA4U) && ram.u32(actor+0x68U)==control &&
-       ram.u32(target)==0x27BDFF10U && ram.u32(target+4)==0xAFBF002CU &&
-       (jfg::mod::pc_gameplay_active(ram,actor) || modern_landing_view_current(state,actor)) && ram.u8(0x800FD7BDU)==0 && !jfg::mod::scripted_camera_active(ram,actor)) {
+    if(ram.valid(control,0x5C4U) && ram.valid(actor,0xA4U) && ram.u32(actor+game_member("layout.actor.control"))==control &&
+       ram.instruction_matches("guard.game.controlUpdateCamera.entry0") && ram.instruction_matches("guard.game.controlUpdateCamera.entry4") &&
+       (jfg::mod::pc_gameplay_active(ram,actor) || modern_landing_view_current(state,actor)) && game_view(ram).u8(game_data_ref("globals.pauseActive"))==0 && !jfg::mod::scripted_camera_active(ram,actor)) {
       const auto port=jfg::mod::pc_input_port(ram,ram.u8(control));
       if(port<4 && state.controller_ports.samples[port].connected) {
         const auto &frame=state.pc_frames[port];
@@ -1466,7 +1484,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         // native state has actually handed ownership to its aiming camera.
         const bool normal_view=modern_landing_view_current(state,actor) || modern_ledge_view_current(state,actor) ||
           (shoulder && !state.pc_shoulders[port].aiming) ||
-          jfg::pc_normal_camera_owns_look((state.controller_ports.samples[port].buttons&0x10)!=0,ram.u8(control+0x568U));
+          jfg::pc_normal_camera_owns_look((state.controller_ports.samples[port].buttons&0x10)!=0,ram.u8(control+game_member("layout.playerControl.movement")));
         if((frame.pc_mode==3 || frame.pc_mode==4 || frame.pc_mode==5) && normal_view &&
            (!state.pc_input_blocked || shoulder)) {
           auto* original=jfg_generated_lookup_function(static_cast<std::int32_t>(target));
@@ -1489,7 +1507,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             if(shoulder && state.pc_camera_resolved_valid) {
               // Use the collision-resolved position this update. The original
               // camera's follow interpolation otherwise adds drift to raw look.
-              const auto camera=ram.u32(0x800F6DC0U);
+              const auto camera=game_view(ram).u32(game_data_ref("globals.controlledCamera"));
               if(ram.valid(camera,0x4CU)) {
                 const auto point=state.pc_camera_resolved;
                 hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
@@ -1509,7 +1527,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               }
             }
             state.gameplay_trace.event("pc-camera-context",{state.vi_retraces,actor,
-              ram.u8(control+0x568U),ram.u16(actor+0x48U),ram.u32(control+0x4U),
+              ram.u8(control+game_member("layout.playerControl.movement")),ram.u16(actor+game_member("layout.actor.type")),ram.u32(control+0x4U),
               ram.u32(control+0x8U),ram.u32(control+0x10U)});
             state.pc_camera_actor=state.pc_camera_control=state.pc_camera_stack=0;state.pc_camera_look={};
             return 1;
@@ -1518,8 +1536,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       }
     }
   }
-  if(target==0x80039FCCU && modern_air_aim_active(state,static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r5))) {
-    jfg::mod::Memory ram({rdram,kRdramSize});
+  if(target==game_code("game.controlUpdatePlayerAim") && modern_air_aim_active(state,static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r5))) {
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto control=static_cast<std::uint32_t>(context->r5);
     // Match the character dispatcher's aimed targeting policy: keep recoil
     // countdown, but do not replace the player's aim with a hip-fire target.
@@ -1535,32 +1553,32 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   // eligibility, takeoff and weapon logic); never synthesize vertical velocity.
   // Its ABI matches the aim handler's actor/control/movement/heading/ticks.
   const std::uint32_t aim_jump_ground=
-    (target==0x00F0418CU || target==0x00F04658U)?0x00F02B2CU:
-    (target==0x01003F30U || target==0x01004440U)?0x01002708U:
-    (target==0x0110430CU || target==0x01104614U)?0x01102A54U:0U;
+    (target==game_overlay_token("overlay.vela.motion_callback") || target==game_overlay_token("overlay.vela.aim"))?game_overlay_token("overlay.vela.movement_handler"):
+    (target==game_overlay_token("overlay.juno.motion_callback") || target==game_overlay_token("overlay.juno.aim"))?game_overlay_token("overlay.juno.movement_handler"):
+    (target==game_overlay_token("overlay.lupus.motion_callback") || target==game_overlay_token("overlay.lupus.aim"))?game_overlay_token("overlay.lupus.movement_handler"):0U;
   if(aim_jump_ground && state.modern_controls_active && !state.pc_input_blocked) {
-    jfg::mod::Memory ram({rdram,kRdramSize});
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto actor=static_cast<std::uint32_t>(context->r4),control=static_cast<std::uint32_t>(context->r5);
-    if(ram.valid(actor,0xA4U) && ram.valid(control,0x5D0U) && ram.u32(actor+0x68U)==control) {
+    if(ram.valid(actor,0xA4U) && ram.valid(control,0x5D0U) && ram.u32(actor+game_member("layout.actor.control"))==control) {
       const auto port=jfg::mod::pc_input_port(ram,ram.u8(control));
-      const auto movement=ram.u8(control+0x568U);
-      const auto table=ram.u32(0x800A18B0U);
+      const auto movement=ram.u8(control+game_member("layout.playerControl.movement"));
+      const auto table=game_view(ram).u32(game_data_ref("globals.controlModeTable"));
       if(modern_shoulder_current(state,port,actor) &&
          (movement==10U || movement==11U) && ram.u8(control+0x534U)==0 &&
-         (ram.u32(0x800F6DA4U)&8U) && ram.valid(table,0x24U) && ram.u32(table+0xCU)==8U &&
+         (game_view(ram).u32(game_data_ref("globals.controlPressedButtons"))&8U) && ram.valid(table,0x24U) && ram.u32(table+0xCU)==8U &&
          !jfg::mod::scripted_camera_active(ram,actor)) {
         if(auto* ground=jfg_generated_lookup_function(static_cast<std::int32_t>(aim_jump_ground))) {
           hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
-          const auto held=ram.u32(0x800F6DA0U);
+          const auto held=game_view(ram).u32(game_data_ref("globals.controlButtons"));
           // Ground's Aim-first branch otherwise prevents its native Jump test.
           // Mask only that branch for this action dispatch; retain the user's
           // held/toggled Aim intent so ordinary landing re-enters aiming.
-          (void)memory.write_u32(0x800F6DA0U,held&~0x10U);
-          ram.put16(control+0x568U,ram.u8(control+0x569U));
+          (void)memory.write_u32(game_data("globals.controlButtons"),held&~0x10U);
+          ram.put16(control+game_member("layout.playerControl.movement"),ram.u8(control+game_member("layout.playerControl.direction")));
           ground(rdram,context);
-          (void)memory.write_u32(0x800F6DA0U,held);
-          const auto after=ram.u8(control+0x568U);
-          if(after==0U)ram.put16(control+0x568U,static_cast<std::uint16_t>((movement<<8U)|ram.u8(control+0x569U)));
+          (void)memory.write_u32(game_data("globals.controlButtons"),held);
+          const auto after=ram.u8(control+game_member("layout.playerControl.movement"));
+          if(after==0U)ram.put16(control+game_member("layout.playerControl.movement"),static_cast<std::uint16_t>((movement<<8U)|ram.u8(control+game_member("layout.playerControl.direction"))));
           state.gameplay_trace.event("modern-aim-jump",{state.vi_retraces,actor,movement,after,held});
           return 1;
         }
@@ -1570,12 +1588,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   // Mission steering is consumed inside sidekickControl before its reticle
   // routine. Admit only its two original input-read return sites, after the
   // native button mapping, so ordinary player/controller/co-op input is intact.
-  if(target==0x80037250U && state.modern_controls_active && !state.pc_input_blocked &&
+  if(target==game_code("game.controlReadJoypad") && state.modern_controls_active && !state.pc_input_blocked &&
      (state.play_mode || state.input_replay_loaded) &&
      (state.input_record_path.empty() || state.pc_record_extended) &&
-     (static_cast<std::uint32_t>(context->r31)==0x8002F864U ||
-      static_cast<std::uint32_t>(context->r31)==0x8002F814U)) {
-    jfg::mod::Memory ram({rdram,kRdramSize});
+     (static_cast<std::uint32_t>(context->r31)==game_instruction("native.sidekick_coop_return") ||
+      static_cast<std::uint32_t>(context->r31)==game_instruction("native.sidekick_owner_return"))) {
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto floyd=jfg::mod::pc_floyd_context(ram);
     if(floyd && floyd.mission && modern_controls_selected(state,floyd.port) &&
        state.controller_ports.samples[floyd.port].connected) {
@@ -1592,7 +1610,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           ram.put16(floyd.control+0x62U,static_cast<std::uint16_t>(heading.y));
           ram.put16(floyd.control+0x66U,0);ram.put16(floyd.control+0x68U,0);
           hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
-          (void)memory.write_u32(0x800F6DB4U,0);(void)memory.write_u32(0x800F6DB8U,0);
+          (void)memory.write_u32(game_data("globals.controlAbsoluteStickX"),0);(void)memory.write_u32(game_data("globals.controlAbsoluteStickY"),0);
           state.gameplay_trace.event("modern-floyd-flight",{state.vi_retraces,port,floyd.actor,
             static_cast<std::uint32_t>(look.x),static_cast<std::uint32_t>(look.y),
             static_cast<std::uint32_t>(heading.x),static_cast<std::uint32_t>(heading.y)});
@@ -1604,11 +1622,11 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   // Insert side thrust before native velocity integration and scenery collision.
   // This call site rotates only forward thrust; its saved magnitude controls
   // whether sidekickControl accelerates or coasts, including A/D without W.
-  if(target==0x8004944CU && state.modern_controls_active && !state.pc_input_blocked &&
+  if(target==game_code("game.mathOneFloatPY") && state.modern_controls_active && !state.pc_input_blocked &&
      (state.play_mode || state.input_replay_loaded) &&
      (state.input_record_path.empty() || state.pc_record_extended) &&
-     static_cast<std::uint32_t>(context->r31)==0x8002FDACU) {
-    jfg::mod::Memory ram({rdram,kRdramSize});
+     static_cast<std::uint32_t>(context->r31)==game_instruction("native.sidekick_flight_return")) {
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto floyd=jfg::mod::pc_floyd_context(ram);
     const auto stack=static_cast<std::uint32_t>(context->r29);
     const auto vector=static_cast<std::uint32_t>(context->r5);
@@ -1637,13 +1655,13 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       }
     }
   }
-  if(target==0x80031090U && state.modern_controls_active && !state.pc_input_blocked &&
+  if(target==game_code("game.controlUpdateFloyd") && state.modern_controls_active && !state.pc_input_blocked &&
      (state.play_mode || state.input_replay_loaded) && (state.input_record_path.empty() || state.pc_record_extended)) {
-    jfg::mod::Memory ram({rdram,kRdramSize});
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto floyd=jfg::mod::pc_floyd_context(ram);
     if(floyd && floyd.actor==static_cast<std::uint32_t>(context->r4) &&
        floyd.control==static_cast<std::uint32_t>(context->r5) && modern_controls_selected(state,floyd.port) &&
-       state.controller_ports.samples[floyd.port].connected && ram.u32(target)==0x27BDFE68U) {
+       state.controller_ports.samples[floyd.port].connected && ram.instruction_matches("guard.game.controlUpdateFloyd.entry0")) {
       const auto port=floyd.port;const auto& frame=state.pc_frames[port];
       if((frame.modern_flags&jfg::kModernActionsFlag) && (frame.pc_mode==3 || frame.pc_mode==5)) {
         if(auto* original=jfg_generated_lookup_function(static_cast<std::int32_t>(target))) {
@@ -1662,28 +1680,28 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             (std::uint64_t{floyd.actor}<<8U)|frame.pc_mode|(std::uint64_t{floyd.mission}<<7U),
             std::bit_cast<float>(ram.u32(floyd.control+0x48U)),std::bit_cast<float>(ram.u32(floyd.control+0x4CU)));
           hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
-          const auto x=ram.u32(0x800F6DB4U),y=ram.u32(0x800F6DB8U);
-          (void)memory.write_u32(0x800F6DB4U,static_cast<std::uint32_t>(aim.x));
-          (void)memory.write_u32(0x800F6DB8U,static_cast<std::uint32_t>(aim.y));
+          const auto x=game_view(ram).u32(game_data_ref("globals.controlAbsoluteStickX")),y=game_view(ram).u32(game_data_ref("globals.controlAbsoluteStickY"));
+          (void)memory.write_u32(game_data("globals.controlAbsoluteStickX"),static_cast<std::uint32_t>(aim.x));
+          (void)memory.write_u32(game_data("globals.controlAbsoluteStickY"),static_cast<std::uint32_t>(aim.y));
           state.gameplay_trace.event("modern-floyd-input",{state.vi_retraces,port,floyd.actor,floyd.mission?1U:0U,
-            ram.u32(0x800F6DA0U),ram.u32(0x800F6DA4U),static_cast<std::uint32_t>(aim.x),static_cast<std::uint32_t>(aim.y)});
+            game_view(ram).u32(game_data_ref("globals.controlButtons")),game_view(ram).u32(game_data_ref("globals.controlPressedButtons")),static_cast<std::uint32_t>(aim.x),static_cast<std::uint32_t>(aim.y)});
           original(rdram,context);
-          (void)memory.write_u32(0x800F6DB4U,x);(void)memory.write_u32(0x800F6DB8U,y);
+          (void)memory.write_u32(game_data("globals.controlAbsoluteStickX"),x);(void)memory.write_u32(game_data("globals.controlAbsoluteStickY"),y);
           return 1;
         }
       }
     }
   }
   // Separate look input is recorded alongside movement; older replays remain stock.
-  if(target==0x8003AABCU && state.modern_controls_active && (state.play_mode || state.input_replay_loaded) &&
+  if(target==game_code("game.controlGetManualAim") && state.modern_controls_active && (state.play_mode || state.input_replay_loaded) &&
      (state.input_record_path.empty() || state.pc_record_extended) && !state.pc_input_blocked) {
-    jfg::mod::Memory pc_memory({rdram,kRdramSize});
+    NativeGameMemory pc_memory({rdram,kRdramSize});
     const auto actor=static_cast<std::uint32_t>(context->r4);
     const auto control=static_cast<std::uint32_t>(context->r5);
     if(pc_memory.valid(control,0x5C4U) && pc_memory.valid(actor,0xA4U) &&
-       pc_memory.u32(actor+0x68U)==control && pc_memory.u32(target)==0x27BDFFA8U &&
-       pc_memory.u32(target+4)==0xAFB00018U &&
-       jfg::mod::pc_actions_active(pc_memory,actor) && pc_memory.u8(0x800FD7BDU)==0 && !jfg::mod::scripted_camera_active(pc_memory,actor)) {
+       pc_memory.u32(actor+game_member("layout.actor.control"))==control && pc_memory.instruction_matches("guard.game.controlGetManualAim.entry0") &&
+       pc_memory.instruction_matches("guard.game.controlGetManualAim.entry4") &&
+       jfg::mod::pc_actions_active(pc_memory,actor) && game_view(pc_memory).u8(game_data_ref("globals.pauseActive"))==0 && !jfg::mod::scripted_camera_active(pc_memory,actor)) {
       const auto port=jfg::mod::pc_input_port(pc_memory,pc_memory.u8(control));
       if(port<4U && state.controller_ports.samples[port].connected) {
         const auto &frame=state.pc_frames[port];
@@ -1701,13 +1719,13 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           else if(frame.pc_mode==4)look=jfg::pc_camera_delta(frame.pc_mode,look,ticks);
           const int minimum=valid_limits?static_cast<std::int32_t>(pc_memory.u32(stack+0x10U)):0;
           const int maximum=valid_limits?static_cast<std::int32_t>(pc_memory.u32(stack+0x14U)):0;
-          const auto before=jfg::PcLookDelta{pc_memory.s16(control+0x11CU),pc_memory.s16(control+0x1E2U)};
+          const auto before=jfg::PcLookDelta{pc_memory.s16(control+game_member("layout.playerControl.heading")),pc_memory.s16(control+game_member("layout.playerControl.manualPitch"))};
           // All three character boss handlers save their nominal facing here
           // before substituting the body yaw for the common aiming helper.
           // Qualify the caller ABI as well as combat state before using it.
           const auto caller=static_cast<std::uint32_t>(context->r31);
           const auto boss=pc_memory.u32(control+0xFCU);
-          const auto boss_state=pc_memory.u8(control+0x568U);
+          const auto boss_state=pc_memory.u8(control+game_member("layout.playerControl.movement"));
           const auto yaw_output=valid_limits?pc_memory.u32(stack+0x18U):0U;
           const auto pitch_output=valid_limits?pc_memory.u32(stack+0x1CU):0U;
           const bool boss_aim=direct && (boss_state==32U || boss_state==35U) &&
@@ -1726,7 +1744,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               static_cast<unsigned>(boss_aim)});
           const int boss_center=boss_aim?pc_memory.u16(stack+0x5AU):0;
           const auto boss_initial=jfg::PcLookDelta{
-            pc_memory.s16(control+0x1CEU),pc_memory.s16(control+0x1E0U)};
+            pc_memory.s16(control+game_member("layout.playerControl.aimRoll")),pc_memory.s16(control+game_member("layout.playerControl.weaponYaw"))};
           if(!boss_aim || state.pc_boss_aim_modes[port]!=frame.pc_mode ||
              state.pc_boss_aim_controls[port]!=control)
             state.pc_boss_aim_motion[port].clear();
@@ -1734,37 +1752,37 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           state.pc_boss_aim_controls[port]=control;
           hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
           std::uint32_t x=0,y=0;
-          if(memory.read_u32(0x800F6DB4U,x) && memory.read_u32(0x800F6DB8U,y)) {
+          if(memory.read_u32(game_data("globals.controlAbsoluteStickX"),x) && memory.read_u32(game_data("globals.controlAbsoluteStickY"),y)) {
             auto* original=jfg_generated_lookup_function(static_cast<std::int32_t>(target));
             if(original) {
-              (void)memory.write_u32(0x800F6DB4U,direct?0U:static_cast<std::uint32_t>(look.x));
-              (void)memory.write_u32(0x800F6DB8U,direct?0U:static_cast<std::uint32_t>(look.y));
+              (void)memory.write_u32(game_data("globals.controlAbsoluteStickX"),direct?0U:static_cast<std::uint32_t>(look.x));
+              (void)memory.write_u32(game_data("globals.controlAbsoluteStickY"),direct?0U:static_cast<std::uint32_t>(look.y));
               const auto modern_character=pc_memory.u8(control+1U)&3U;
               const bool modern_scope=(frame.modern_flags&jfg::kModernActionsFlag) &&
                 modern_character<3U && jfg::mod::pc_player_weapon(pc_memory,control)==7U &&
                 pc_memory.u8(control+0x18EU)==0;
               std::uint32_t held=0;
-              if(modern_scope && memory.read_u32(0x800F6DA0U,held)) {
-                (void)memory.write_u32(0x800F6DA0U,held&~0xCU);
+              if(modern_scope && memory.read_u32(game_data("globals.controlButtons"),held)) {
+                (void)memory.write_u32(game_data("globals.controlButtons"),held&~0xCU);
                 (void)memory.write_u32(control+0x1F0U,0);
-                const auto before_zoom=std::bit_cast<float>(pc_memory.u32(control+0x1ECU));
+                const auto before_zoom=std::bit_cast<float>(pc_memory.u32(control+game_member("layout.playerControl.zoom")));
                 const auto after_zoom=state.modern_scope_zoom[port].take(before_zoom);
                 if(after_zoom!=before_zoom && std::isfinite(after_zoom)) {
-                  (void)memory.write_u32(control+0x1ECU,std::bit_cast<std::uint32_t>(after_zoom));
+                  (void)memory.write_u32(control+game_member("layout.playerControl.zoom"),std::bit_cast<std::uint32_t>(after_zoom));
                   state.gameplay_trace.event("modern-scope",{state.vi_retraces,port,
                     std::bit_cast<std::uint32_t>(before_zoom),std::bit_cast<std::uint32_t>(after_zoom)});
                 }
               }
               original(rdram,context);
-              if(modern_scope)(void)memory.write_u32(0x800F6DA0U,held);
-              (void)memory.write_u32(0x800F6DB4U,x);(void)memory.write_u32(0x800F6DB8U,y);
+              if(modern_scope)(void)memory.write_u32(game_data("globals.controlButtons"),held);
+              (void)memory.write_u32(game_data("globals.controlAbsoluteStickX"),x);(void)memory.write_u32(game_data("globals.controlAbsoluteStickY"),y);
               ++state.pc_aim_calls;
               if(direct && valid_limits && minimum>=-32768 && maximum<=32767 && minimum<=maximum) {
                 const auto raw_look=look;
                 float zoom=1.0F;
                 const auto character=pc_memory.u8(control+1U)&3U;
                 if(character<3U && jfg::mod::pc_player_weapon(pc_memory,control)==7U)
-                  zoom=std::bit_cast<float>(pc_memory.u32(control+0x1ECU));
+                  zoom=std::bit_cast<float>(pc_memory.u32(control+game_member("layout.playerControl.zoom")));
                 look=state.pc_scope_motion[port].take(look,zoom,(std::uint64_t{actor}<<8U)|frame.pc_mode);
                 if(zoom>1.0F && zoom<=5.0F)
                   state.gameplay_trace.event("pc-scope",{state.vi_retraces,port,
@@ -1789,18 +1807,18 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
                     static_cast<std::uint32_t>(combined.offset.x),
                     static_cast<std::uint32_t>(combined.offset.y),static_cast<std::uint32_t>(extra)});
                 }
-                pc_memory.put16(control+0x11CU,static_cast<std::uint16_t>(after.x));
-                pc_memory.put16(control+0x1E2U,static_cast<std::uint16_t>(after.y));
+                pc_memory.put16(control+game_member("layout.playerControl.heading"),static_cast<std::uint16_t>(after.x));
+                pc_memory.put16(control+game_member("layout.playerControl.manualPitch"),static_cast<std::uint16_t>(after.y));
                 if(modern_shoulder_current(state,port,actor)) {
                   state.pc_shoulders[port].yaw=after.x;state.pc_shoulders[port].pitch=-after.y;
                 }
-                (void)memory.write_u32(control+0x1E4U,0);(void)memory.write_u32(control+0x1E8U,0);
+                (void)memory.write_u32(control+0x1E4U,0);(void)memory.write_u32(control+game_member("layout.playerControl.camera"),0);
                 ++state.pc_direct_aim_calls;
               }
               // Ground aiming otherwise ignores the movement stick. The guest
               // consumes these local velocities in its ordinary physics/collision
               // path. Leave jumps, swimming, damage and scripted states alone.
-              const auto movement_state=pc_memory.u8(control+0x568U);
+              const auto movement_state=pc_memory.u8(control+game_member("layout.playerControl.movement"));
               if((frame.pc_mode==3 || frame.pc_mode==4 || frame.pc_mode==5) && (movement_state==10 || movement_state==11) && (pc_memory.u8(control+1U)&3U)<3U) {
                 const auto &move=state.controller_ports.samples[port];
                 const auto velocity=jfg::pc_aim_movement(move.x,move.y,movement_state==11U);
@@ -1809,7 +1827,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               }
               state.gameplay_trace.event("pc-aim",{state.vi_retraces,state.controller_samples,port,frame.pc_mode,
                 static_cast<std::uint32_t>(look.x),static_cast<std::uint32_t>(look.y),
-                pc_memory.u16(control+0x11CU),pc_memory.u16(control+0x1E2U),movement_state,
+                pc_memory.u16(control+game_member("layout.playerControl.heading")),pc_memory.u16(control+game_member("layout.playerControl.manualPitch")),movement_state,
                 pc_memory.u32(control+4U),pc_memory.u32(control+0x10U)});
               return 1;
             }
@@ -1821,7 +1839,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   // mainChangeLevel is the explicit lifetime boundary, including transitions
   // which recycle the same player/control addresses. Never carry the outgoing
   // shoulder heading into a new native entrance sequence.
-  if(target==0x8004665CU && state.modern_controls_active) {
+  if(target==game_code("game.mainChangeLevel") && state.modern_controls_active) {
     state.pc_shoulders.fill({});state.pc_orbits.fill({});
     for(auto &motion:state.pc_floyd_look)motion.clear();
     for(auto &motion:state.pc_boss_aim_motion)motion.clear();
@@ -1829,8 +1847,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r5)});
   }
   if (state.navigation_mod.observing()) {
-    jfg::mod::Memory memory({rdram,kRdramSize});
-    if (target==0x8004665CU) {
+    NativeGameMemory memory({rdram,kRdramSize});
+    if (target==game_code("game.mainChangeLevel")) {
       state.navigation_mod.transition();
       // Invalidate the old map before the game starts loading another room.
       std::ostringstream output;
@@ -1838,7 +1856,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       if(!write_mod_export(state, state.navigation_output/L"live.json",output.str()))
         ++state.navigation_mod.invalid;
     }
-    if (target==0x80032A48U) {
+    if (target==game_code("game.controlPlayer")) {
       if(state.navigation_mod.has_exit_warp_selection()) {
         try {
           const auto now=std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -1848,18 +1866,18 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
                 static_cast<std::uint32_t>(context->r4),now,replaced))
             state.gameplay_trace.event("exit-warp-consume",{state.vi_retraces,
                 state.navigation_mod.generation,state.navigation_mod.warp_nonce,
-                replaced,memory.u32(memory.u32(state.navigation_mod.player+0x68U)+0xF4U)});
+                replaced,memory.u32(memory.u32(state.navigation_mod.player+game_member("layout.actor.control"))+0xF4U)});
         } catch(const std::runtime_error &) { ++state.navigation_mod.invalid; }
       }
       (void)state.navigation_mod.observe_player(memory,static_cast<std::uint32_t>(context->r4));
       (void)state.navigation_mod.full_health(memory,static_cast<std::uint32_t>(context->r4));
     }
-    if (target==0x00310600U)
+    if (target==game_overlay_token("overlay.collision.squaddie_control"))
       (void)state.navigation_mod.clear_enemy(memory,static_cast<std::uint32_t>(context->r4));
   }
 #endif
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
-  if (target == 0x80050154U || target == 0x80001EF8U || target == 0x80001EE8U || target == 0x8008AD10U) {
+  if (target == game_code("game.scHandleRetrace") || target == game_code("game.amHandleFrameMsg") || target == game_code("game.amAudioMgrGetNextFrameCount") || target == game_code("game.n_alAudioFrame")) {
     static const bool audio_scheduler_trace = [] {
       char value[2]{};
       return GetEnvironmentVariableA("JFG_DIAGNOSTIC_AUDIO_SCHEDULER", value, 2U)==1U && value[0]=='1';
@@ -1867,9 +1885,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     if (audio_scheduler_trace && state.gameplay_trace && state.mmio_trace) {
       hle::GuestMemory m({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
       std::uint32_t countdown=0,frames=0,maximum=0,minimum=0,queued=0,mode=0;
-      if(m.read_u32(0x800A38C8U,countdown) && m.read_u32(0x800A06ECU,frames) &&
-         m.read_u32(0x800F2168U,maximum) && m.read_u32(0x800F216CU,minimum)) {
-        (void)m.read_u32(0x800F1AFCU,queued);(void)m.read_u32(0x800A06DCU,mode);
+      if(m.read_u32(game_data("globals.nextFrameCountdown"),countdown) && m.read_u32(game_data("audio.frame_count"),frames) &&
+         m.read_u32(game_data("globals.audioMaximumFrames"),maximum) && m.read_u32(game_data("globals.audioMinimumFrames"),minimum)) {
+        (void)m.read_u32((game_data("audio.frame_queue")+8U),queued);(void)m.read_u32(game_data("globals.audioQueueMode"),mode);
         state.gameplay_trace.event("audio-scheduler",{
           state.vi_retraces,state.controller_samples,target,state.cpu_count,
           state.mmio_trace->ai_dma.read(4U,state.cpu_count).value_or(UINT32_MAX),
@@ -1883,16 +1901,16 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   if(state.diagnostic_host_clock && state.native_audio_playback) {
     // Run a completed audio command list as soon as its RSP slot is free.
     // Waiting for the next notification retrace can strand the audio thread.
-    if(target==0x80050C90U && (static_cast<std::uint32_t>(context->r7)&2U)) {
+    if(target==game_code("game.scSchedule") && (static_cast<std::uint32_t>(context->r7)&2U)) {
       hle::GuestMemory m({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
       const auto scheduler=static_cast<std::uint32_t>(context->r4);
       std::uint32_t expected=0,head=0,active=0,kind=0,mode=0,frames=0;
-      if(m.read_u32(0x800E97A0U,expected) && scheduler==expected &&
+      if(m.read_u32(game_data("globals.audioScheduler"),expected) && scheduler==expected &&
           m.read_u32(scheduler+0x2E4U,head) && head &&
           m.read_u32(scheduler+0x304U,active) && active==0U &&
           m.read_u32(head+0x10U,kind) && kind==2U &&
-          m.read_u32(0x800A06DCU,mode) && mode==0U &&
-          m.read_u32(0x800A06ECU,frames) && frames==2U) {
+          m.read_u32(game_data("globals.audioQueueMode"),mode) && mode==0U &&
+          m.read_u32(game_data("audio.frame_count"),frames) && frames==2U) {
         if(!m.write_u32(scheduler+0x304U,1U))
           fail_closed_dispatch(state,"audio","ready-task-state",target);
         if(state.gameplay_trace)state.gameplay_trace.event("audio-ready-task",{
@@ -1900,17 +1918,17 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             state.host_audio.consumed_bytes()});
       }
     }
-    if(target==0x80050154U && state.host_audio.started()) {
+    if(target==game_code("game.scHandleRetrace") && state.host_audio.started()) {
       hle::GuestMemory m({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
       std::uint32_t countdown=0,frames=0,mode=0,queued=0;
       const auto buffered=state.host_audio.buffered_bytes();
-      if(m.read_u32(0x800A38C8U,countdown) && m.read_u32(0x800A06ECU,frames) &&
-          m.read_u32(0x800A06DCU,mode) && m.read_u32(0x800F1AFCU,queued)) {
+      if(m.read_u32(game_data("globals.nextFrameCountdown"),countdown) && m.read_u32(game_data("audio.frame_count"),frames) &&
+          m.read_u32(game_data("globals.audioQueueMode"),mode) && m.read_u32((game_data("audio.frame_queue")+8U),queued)) {
         const auto adjusted=native_audio_countdown(countdown,frames,mode,queued,
             state.mmio_trace->ai_dma.read(12U,state.cpu_count).value_or(UINT32_MAX),
             state.host_audio.frequency(),buffered);
         if(adjusted) {
-          if(!m.write_u32(0x800A38C8U,*adjusted))
+          if(!m.write_u32(game_data("globals.nextFrameCountdown"),*adjusted))
             fail_closed_dispatch(state,"audio","demand-countdown",target);
           if(state.gameplay_trace)state.gameplay_trace.event("audio-demand",{
               state.vi_retraces,state.cpu_count,buffered,
@@ -1920,7 +1938,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     }
   }
   // Private fixture travel request; let mainChangeLevel prepare all globals.
-  if (target == 0x8004665CU && state.timing_fixture) {
+  if (target == game_code("game.mainChangeLevel") && state.timing_fixture) {
     if (state.timing_trace)
       state.timing_trace << "travel-request\t" << state.vi_frames << '\t'
           << context->r4 << '\t' << context->r5 << '\t'
@@ -1945,100 +1963,100 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     }
   }
   switch (target) {
-  case 0x020002E8U: // overlay 32: mrhintsControl / KingBear
+  case game_overlay_token("overlay.mrhints.control"): // overlay 32: mrhintsControl / KingBear
     note_hints_control_call(state, target, *context);
     break;
-  case 0x02002540U: // overlay 32: mrHintsTalk
+  case game_overlay_token("overlay.mrhints.talk"): // overlay 32: mrHintsTalk
     ++state.phase9_hints_talk_calls;
     break;
-  case 0x00700148U: // overlay 7: hinttextStart
+  case game_overlay_token("overlay.hint.start"): // overlay 7: hinttextStart
     ++state.phase9_hinttext_start_calls;
     break;
-  case 0x00700D6CU: // overlay 7: hinttextStop
+  case game_overlay_token("overlay.hint.stop"): // overlay 7: hinttextStop
     ++state.phase9_hinttext_stop_calls;
     break;
-  case 0x0070070CU: // overlay 7: advance queued hint page
+  case game_overlay_token("overlay.hint.advance"): // overlay 7: advance queued hint page
     ++state.phase9_hinttext_advance_calls;
     break;
-  case 0x00700D80U: // overlay 7: hinttextActive
+  case game_overlay_token("overlay.hint.active"): // overlay 7: hinttextActive
     ++state.phase9_hinttext_active_calls;
     break;
-  case 0x00701CCCU: // overlay 7: hinttextUpdate
+  case game_overlay_token("overlay.hint.update"): // overlay 7: hinttextUpdate
     ++state.phase9_hinttext_update_calls;
     break;
-  case 0x007016B4U: // overlay 7: accept/parse current hint page
+  case game_overlay_token("overlay.hint.accept"): // overlay 7: accept/parse current hint page
     ++state.phase9_hinttext_accept_calls;
     break;
-  case 0x8004B0F4U: // rumbleStart
-  case 0x8004B204U: // rumbleStop
-  case 0x8004B29CU: // rumbleAlter
-  case 0x8004B3D8U: { // rumbleMax
-    jfg::mod::Memory ram({rdram,kRdramSize});
+  case game_code("game.rumbleStart"): // rumbleStart
+  case game_code("game.rumbleStop"): // rumbleStop
+  case game_code("game.rumbleAlter"): // rumbleAlter
+  case game_code("game.rumbleMax"): { // rumbleMax
+    NativeGameMemory ram({rdram,kRdramSize});
     const auto player=static_cast<std::uint32_t>(context->r4);
     state.gameplay_trace.event("pc-rumble-request",{
       state.vi_retraces,target,player,static_cast<std::uint32_t>(context->r5),
-      static_cast<std::uint32_t>(context->r6),ram.u8(0x800A3470U),
-      ram.u8(0x800FD7BDU),player<4U?ram.u8(0x800FB100U+player):255U});
+      static_cast<std::uint32_t>(context->r6),game_view(ram).u8(game_data_ref("globals.rumbleEnabled")),
+      game_view(ram).u8(game_data_ref("globals.pauseActive")),player<4U?ram.u8(game_data("globals.playerPorts")+player):255U});
     request_pc_rumble(state,target,*context);
     break;
   }
-  case 0x80032A48U: // controlPlayer
+  case game_code("game.controlPlayer"): // controlPlayer
     ++state.phase9_player_control_calls;
     state.phase9_player_actor = static_cast<std::uint32_t>(context->r4);
     break;
-  case 0x80037550U: { // controlUpdateWeapon
+  case game_code("game.controlUpdateWeapon"): { // controlUpdateWeapon
     ++state.phase9_weapon_update_calls;
     hle::GuestMemory memory(
         {rdram, kRdramSize},
         hle::GuestMemory::Layout::native_word_big_endian);
     std::uint32_t held = 0U;
     std::uint32_t pressed = 0U;
-    if (memory.read_u32(0x800F6DA0U, held) && (held & 0x2000U) != 0U)
+    if (memory.read_u32(game_data("globals.controlButtons"), held) && (held & 0x2000U) != 0U)
       ++state.phase9_weapon_fire_held_updates;
-    if (memory.read_u32(0x800F6DA4U, pressed) && (pressed & 0x2000U) != 0U)
+    if (memory.read_u32(game_data("globals.controlPressedButtons"), pressed) && (pressed & 0x2000U) != 0U)
       ++state.phase9_weapon_fire_pressed_updates;
     break;
   }
-  case 0x800386B0U: // func_80038488 (shooting_func)
+  case game_code("game.controlFireWeapon"): // func_80038488 (shooting_func)
     ++state.phase9_weapon_fire_calls;
     break;
-  case 0x80038630U: // controlFireDummyShot
+  case game_code("game.controlFireDummyShot"): // controlFireDummyShot
     ++state.phase9_weapon_dummy_fire_calls;
     break;
-  case 0x800478A4U: // mainIncreaseWeaponShots
+  case game_code("game.mainIncreaseWeaponShots"): // mainIncreaseWeaponShots
     ++state.phase9_weapon_shot_calls;
     break;
-  case 0x800478E0U: // mainIncreaseWeaponHits
+  case game_code("game.mainIncreaseWeaponHits"): // mainIncreaseWeaponHits
     ++state.phase9_weapon_hit_calls;
     break;
-  case 0x80047868U: // mainIncreaseWeaponKills
+  case game_code("game.mainIncreaseWeaponKills"): // mainIncreaseWeaponKills
     ++state.phase9_enemy_kill_calls;
     break;
-  case 0x800163FCU: // trackGetPlayerIntersect
-  case 0x80034BB0U: // controlGroundHits
+  case game_code("game.trackGetPlayerIntersect"): // trackGetPlayerIntersect
+  case game_code("game.controlGroundHits"): // controlGroundHits
     ++state.phase9_collision_calls;
     break;
-  case 0x80063358U: // partUpdateParticles
+  case game_code("game.partUpdateParticles"): // partUpdateParticles
     ++state.phase9_particle_update_calls;
     break;
-  case 0x8004665CU: // mainChangeLevel
+  case game_code("game.mainChangeLevel"): // mainChangeLevel
     ++state.phase9_level_change_calls;
     if(state.gameplay_trace)state.gameplay_trace.event("route-transition", {
       state.vi_retraces,state.controller_samples,target,
       static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r5),
       state.phase9_level_change_calls});
     break;
-  case 0x80046378U: // mainRestartAfterDeath
+  case game_code("game.mainRestartAfterDeath"): // mainRestartAfterDeath
     ++state.phase9_death_restart_calls;
     if(state.gameplay_trace)state.gameplay_trace.event("route-transition", {
       state.vi_retraces,state.controller_samples,target,
       static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r5),
       state.phase9_death_restart_calls});
     break;
-  case 0x80079890U: // animseqCamera
+  case game_code("game.animseqCamera"): // animseqCamera
     ++state.phase9_cutscene_camera_calls;
     break;
-  case 0x8007E150U: // hitPlayer
+  case game_code("game.hitPlayer"): // hitPlayer
     ++state.phase9_player_hit_check_calls;
     break;
   default:
@@ -2064,18 +2082,18 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   // Interpolated presentation keeps the camera's four low angle bits.
   // Original mode and all non-camera trig calls retain the native result.
-  const bool precision_camera_call=jfg::camera_precision_call(
+  const bool precision_camera_call=jfg::camera_precision_call(kRendererGameLayout,
       (state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced),target,
       static_cast<std::uint32_t>(context->r31),static_cast<std::uint32_t>(context->r6),
       static_cast<std::uint32_t>(context->r5));
   const auto precision_camera_angle=precision_camera_call ?
-      static_cast<std::uint32_t>(context->r4)+(target==0x80049C30U?0x4000U:0U):0U;
+      static_cast<std::uint32_t>(context->r4)+(target==game_code("game.Cosf")?0x4000U:0U):0U;
   const auto finish_precision_camera=[&] {
     if(!precision_camera_call)return;
     std::fenv_t saved{};
     if(std::feholdexcept(&saved)!=0)return;
     const auto value=jfg::camera_precision_sine(precision_camera_angle,[&](unsigned index) {
-      float entry=0.0f;std::memcpy(&entry,rdram+0xA7D94U+index*4U,4U);return entry;
+      float entry=0.0f;std::memcpy(&entry,rdram+(game_data("math.sineTable")&0x1FFFFFFFU)+index*4U,4U);return entry;
     });
     if(std::fesetenv(&saved)!=0)
       fail_closed_dispatch(state,"camera-precision","restore-fenv",target);
@@ -2086,39 +2104,31 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   // Original timing, instruction observers and focused dispatch diagnostics
   // retain the complete generated path. Helper admission cannot cross a poll.
   if(state.resident_math_enabled &&
-     (target==0x80049C84U || target==0x80049D80U || target==0x80049C30U || target==0x80049C34U) &&
+     (target==game_code("game.Arctanf") || target==game_code("game.mathDiffAngle") || target==game_code("game.Cosf") || target==game_code("game.Sinf")) &&
      state.guest_os_probe && !state.diagnostic_cpu_costs && state.focus_update_start==0U &&
      !state.guest_clock_trace.is_open() && state.point_probe_pcs.empty() &&
      !state.device_event_stream && !state.eret_transfer_stream.is_open() &&
      !state.instruction_effect_stream.is_open()) {
-    if(target==0x80049C84U && jfg_native_angle_try(rdram,context)) {
+    if(target==game_code("game.Arctanf") && jfg_native_angle_try(kNativeMathLayout,rdram,context)) {
       ++state.generated_calls;++state.pure_angle_calls;return 1;
     }
 
-    if((target==0x80049C30U || target==0x80049C34U) &&
-       jfg_native_trig_try(rdram,context,target==0x80049C30U)) {
+    if((target==game_code("game.Cosf") || target==game_code("game.Sinf")) &&
+       jfg_native_trig_try(kNativeMathLayout,rdram,context,target==game_code("game.Cosf"))) {
       finish_precision_camera();
       ++state.generated_calls;++state.pure_trig_calls;return 1;
     }
-    if(target==0x80049D80U && jfg_native_angle_diff_try(rdram,context)) {
+    if(target==game_code("game.mathDiffAngle") && jfg_native_angle_diff_try(kNativeMathLayout,rdram,context)) {
       ++state.generated_calls;++state.pure_diff_calls;return 1;
     }
   }
 #endif
-  if (target == jfg::boot::kSyncPrintSink) {
-    hle::GuestMemory memory({rdram, kRdramSize},
-                           hle::GuestMemory::Layout::native_word_big_endian);
-    if (!jfg::boot::invoke_sync_print_sink(memory, *context))
-      fail_closed_dispatch(state, "guest-leaf", "sync-print-sink-state", target);
-    ++state.sync_print_sink_calls;
-    return 1;
-  }
   if (state.guest_os_probe && state.native_audio_source &&
-      target == jfg::boot::kAudioSourceCallback) {
+      target == kAudioSourceLayout.callback) {
     hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
     const auto source=static_cast<std::uint32_t>(context->r4);
     const auto length=static_cast<std::uint32_t>(context->r5);
-    const auto loaded=jfg::boot::provide_native_audio_source(memory,
+    const auto loaded=jfg::boot::provide_native_audio_source(memory,kAudioSourceLayout,
         {state.rom,state.rom_size},source,length);
     if(!loaded) fail_closed_dispatch(state,"native-audio","source-cache-contract",target);
     context->r2=loaded->physical_address;
@@ -2179,7 +2189,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         state.generated_section_cache.emplace(target,
             std::make_pair(target_section, target_metadata));
       }
-      if (target == 0x80052CFCU &&
+      if (target == kRunlinkColdLoad &&
           !note_guest_cold_overlay_load(state, static_cast<std::uint32_t>(context->r4)))
         fail_closed_dispatch(state, "runlink", "cold-load-identity", target);
       if (target_metadata.is_overlay == 1U) {
@@ -2205,14 +2215,14 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       }
 #endif
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
-      const bool trace_matrix_conversion = target == 0x80048D84U;
+      const bool trace_matrix_conversion = target == game_code("game.mathMtxF2L");
       const std::uint32_t matrix_source =
           static_cast<std::uint32_t>(context->r4);
       const std::uint32_t matrix_destination =
           static_cast<std::uint32_t>(context->r5);
       std::array<std::uint32_t, 4U> matrix_first_row{};
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
-      const bool trace_matrix_cat = target == 0x80048C7CU;
+      const bool trace_matrix_cat = target == game_code("game.mathMtxCatF");
       const std::size_t matrix_cat_slot =
           state.recent_matrix_cat_position % state.recent_matrix_cat_args.size();
       if (trace_matrix_cat) {
@@ -2276,7 +2286,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       [[maybe_unused]] const std::uint32_t allocation_size =
           static_cast<std::uint32_t>(context->r4);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-      if (target == 0x80044FACU)
+      if (target == game_code("game.mainUpdate"))
         trace_phase9_event(state, "update-begin", state.controller_samples);
       const bool focus_window = state.focus_update_start != 0U &&
           state.completed_game_updates + 1U >= state.focus_update_start - 1U &&
@@ -2367,30 +2377,30 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       // drawing; otherwise the unattenuated value flashes for one native frame.
       // Keep this scoped to the original controller's setter call.
       const bool refresh_daynight_lighting =
-          target == 0x80022520U && caller_is_overlay && caller_section == 22U;
+          target == game_code("game.lightSetObjectLight") && caller_is_overlay && caller_section == game_module(OriginalModule::day_night);
       const auto daynight_actor = static_cast<std::uint32_t>(context->r2);
       const auto daynight_descriptor = static_cast<std::uint32_t>(context->r4);
 #endif
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
       const bool trace_atmosphere = state.gameplay_trace && state.gameplay_trace_actors &&
-          (target == 0x0170015CU || target == 0x0170066CU || target == 0x017006B0U);
+          (target == game_overlay_token("overlay.day.update") || target == game_overlay_token("overlay.day.fog") || target == game_overlay_token("overlay.day.track_fade"));
       std::array<std::uint32_t, 5> atmosphere_outputs{};
-      if (trace_atmosphere && target != 0x0170015CU) {
+      if (trace_atmosphere && target != game_overlay_token("overlay.day.update")) {
         atmosphere_outputs = {static_cast<std::uint32_t>(context->r4),
             static_cast<std::uint32_t>(context->r5), static_cast<std::uint32_t>(context->r6),
             static_cast<std::uint32_t>(context->r7), 0U};
-        const jfg::mod::Memory atmosphere_ram({rdram, kRdramSize});
+        const NativeGameMemory atmosphere_ram({rdram, kRdramSize});
         const auto argument5 = static_cast<std::uint32_t>(context->r29) + 0x10U;
-        if (target == 0x0170066CU && atmosphere_ram.valid(argument5, 4U))
+        if (target == game_overlay_token("overlay.day.fog") && atmosphere_ram.valid(argument5, 4U))
           atmosphere_outputs[4] = atmosphere_ram.u32(argument5);
       }
 #endif
       [[maybe_unused]] const auto mod_actor_argument=static_cast<std::uint32_t>(context->r4);
       const auto sound_event_argument = static_cast<std::uint32_t>(context->r5);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-      if (state.navigation_mod.enabled && target == 0x01002708U) {
-        jfg::mod::Memory memory({rdram, kRdramSize});
+      if (state.navigation_mod.enabled && target == game_overlay_token("overlay.juno.movement_handler")) {
+        NativeGameMemory memory({rdram, kRdramSize});
         const auto original = static_cast<std::uint32_t>(context->r6);
         const auto boosted = state.navigation_mod.juno_run_target(
             memory, mod_actor_argument, sound_event_argument, original);
@@ -2403,14 +2413,14 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
         // Sound must run on the native menu update stack, never on the input
         // polling/audio thread. A stationary cursor queues no new event.
-        if(state.menu_selection_feedback && (target==0x01202464U || target==0x025001A0U)) {
+        if(state.menu_selection_feedback && (target==game_overlay_token("overlay.pause.screen") || target==game_overlay_token("overlay.settings.page"))) {
           const auto pending=*state.menu_selection_feedback;state.menu_selection_feedback.reset();
           const auto current=read_guest_menu(state);
-          jfg::mod::Memory menu_ram({rdram,kRdramSize});
+          NativeGameMemory menu_ram({rdram,kRdramSize});
           const auto stack=static_cast<std::uint32_t>(context->r29);
           if(current.ready && current.kind==pending.kind && current.identity==pending.identity &&
-             menu_ram.valid(stack-0x600U,0x600U) && menu_ram.u32(0x80001248U)==0x3C0F800FU) {
-            if(auto* sound=jfg_generated_lookup_function(static_cast<std::int32_t>(0x80001248U))) {
+             menu_ram.valid(stack-0x600U,0x600U) && menu_ram.instruction_matches("guard.game.amSndPlay.entry0")) {
+            if(auto* sound=jfg_generated_lookup_function(static_cast<std::int32_t>(game_code("game.amSndPlay")))) {
               auto sound_context=*context;
               sound_context.f_odd=sound_context.mips3_float_mode
                   ? &sound_context.f1.u32l : &sound_context.f0.u32h;
@@ -2422,10 +2432,10 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             }
           }
         }
-        jfg::mod::Memory door_render_ram({state.rdram,kRdramSize});
-        const bool door_render_call=target==0x8000CC64U &&
-          door_render_ram.u32(target)==0x27BDFEE0U &&
-          door_render_ram.u32(target+4U)==0xAFBF002CU;
+        NativeGameMemory door_render_ram({state.rdram,kRdramSize});
+        const bool door_render_call=target==game_code("game.objPrintModelObject") &&
+          door_render_ram.instruction_matches("guard.game.objPrintModelObject.entry0") &&
+          door_render_ram.instruction_matches("guard.game.objPrintModelObject.entry4");
         const auto door_render_actor=door_render_call?static_cast<std::uint32_t>(context->r4):0U;
         if(door_render_actor && state.gameplay_trace && jfg::blur_source_audit_enabled() &&
            door_render_ram.valid(door_render_actor,0xA4U)) {
@@ -2444,7 +2454,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           const auto control=door_render_ram.u32(door_render_actor+0x68U);
           state.gameplay_trace.event("door-indicator-draw",{state.vi_retraces,
             door_render_actor,door_render_ram.u8(door_render_actor+0x3AU),
-            door_render_ram.u8(0x800A0A20U),door_render_ram.u32(header+0xCCU),
+            door_render_ram.u8(game_data("diagnostic.doorRenderMode")),door_render_ram.u32(header+0xCCU),
             door_render_ram.u8(control+8U),door_render_ram.u8(door_render_actor+0x39U)});
           const auto models=door_render_ram.u32(door_render_actor+0x6CU);
           const auto base=door_render_ram.u8(door_render_actor+0x3AU);
@@ -2464,7 +2474,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         // packets per process. No GPU readback or frame-time file writes.
         bool capture_door_material=false;
         std::uint32_t door_material_model=0,door_material_instance=0;
-        const auto door_dl_before=door_render_actor?door_render_ram.u32(0x800F2CC8U):0U;
+        const auto door_dl_before=door_render_actor?game_view(door_render_ram).u32(game_data_ref("globals.objectDisplayListCursor")):0U;
         if(door_render_actor && state.gameplay_trace && jfg::blur_source_audit_enabled() &&
            door_render_ram.valid(door_render_actor,0xA4U) &&
            door_render_ram.u16(door_render_actor+0x48U)==67U &&
@@ -2490,7 +2500,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           }
         }
         jfg::DoorIndicatorPresentationScope door_indicator_presentation(
-            {rdram,kRdramSize},door_render_actor);
+            {rdram,kRdramSize},kRendererGameLayout,door_render_actor);
         if(door_indicator_presentation.applied())
           state.gameplay_trace.event("door-indicator-opacity-candidate",{
             state.vi_retraces,door_render_actor,door_indicator_presentation.original(),255U});
@@ -2503,12 +2513,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         DiagnosticLineOutputScope diagnostic_lines(state,target);
         DiagnosticWeatherScope diagnostic_weather_scope(state,target,*context);
         std::optional<jfg::rain::Dispatch> rain_fade;
-        if (jfg::rain::Dispatch::observes(target))
-          rain_fade.emplace(state.rain_fade, std::span<std::uint8_t>{rdram,kRdramSize}, target,
+        if (jfg::rain::Dispatch::observes(kRendererGameLayout,target))
+          rain_fade.emplace(kRendererGameLayout,state.rain_fade, std::span<std::uint8_t>{rdram,kRdramSize}, target,
               jfg::rain::Call{static_cast<std::uint32_t>(context->r4), static_cast<std::uint32_t>(context->r5),
                   static_cast<std::uint32_t>(context->r6), static_cast<std::uint32_t>(context->r7),
                   static_cast<std::uint32_t>(context->r29), static_cast<std::uint32_t>(context->r31)});
-        if (target == 0x80045A44U && state.rain_fade.post && state.gameplay_trace) {
+        if (target == game_code("game.mainCPUeffects") && state.rain_fade.post && state.gameplay_trace) {
           const auto& frame = *state.rain_fade.post;
           state.gameplay_trace.event("rain-fade-frame", {state.vi_retraces, frame.buffer,
               frame.bytes, frame.fade.simple_in, frame.fade.alpha, frame.fade.rgb, frame.fade.transition});
@@ -2521,24 +2531,24 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
         // Diagnostic observation only: distinguish missing native reticle
         // draws, off-screen coordinates, and lost framebuffer presentation.
-        if(state.gameplay_trace && (target==0x00D00008U || target==0x00D004A8U ||
-                                   (target==0x8006D390U && diagnostic_reticle_lines()))) {
-          jfg::mod::Memory ram({rdram,kRdramSize});
+        if(state.gameplay_trace && (target==game_overlay_token("overlay.target.player") || target==game_overlay_token("overlay.target.draw") ||
+                                   (target==game_code("game.fxDrawLine") && diagnostic_reticle_lines()))) {
+          NativeGameMemory ram({rdram,kRdramSize});
           const auto a=static_cast<std::uint32_t>(context->r4);
           const auto b=static_cast<std::uint32_t>(context->r5);
           const auto c=static_cast<std::uint32_t>(context->r6);
           const auto d=static_cast<std::uint32_t>(context->r7);
-          const auto control=target==0x00D00008U?b:target==0x00D004A8U?a:0U;
+          const auto control=target==game_overlay_token("overlay.target.player")?b:target==game_overlay_token("overlay.target.draw")?a:0U;
           if(control && ram.valid(control,0x5C4U)) {
-            const auto game=ram.u32(0x800FD7D4U);
+            const auto game=game_view(ram).u32(game_data_ref("globals.selectedPlayer"));
             const auto character=ram.u8(control+1U)&3U;
             const auto weapon=character<3U && ram.valid(game,0x538U)?
                 ram.u8(game+0x15CU+character*0x76U+0x70U):255U;
-            state.gameplay_trace.event(target==0x00D00008U?"reticle-player":"reticle-draw",
-                {state.vi_retraces,control,weapon,a,b,c,d,ram.u8(control+0x568U),
-                 ram.u16(control+0x1CAU),ram.u16(control+0x1CCU),ram.u32(control+0x540U),
-                 ram.u16(control+0x11CU),ram.u16(control+0x1E2U)});
-          } else if(target==0x8006D390U) {
+            state.gameplay_trace.event(target==game_overlay_token("overlay.target.player")?"reticle-player":"reticle-draw",
+                {state.vi_retraces,control,weapon,a,b,c,d,ram.u8(control+game_member("layout.playerControl.movement")),
+                 ram.u16(control+game_member("layout.playerControl.aimYaw")),ram.u16(control+game_member("layout.playerControl.aimPitch")),ram.u32(control+0x540U),
+                 ram.u16(control+game_member("layout.playerControl.heading")),ram.u16(control+game_member("layout.playerControl.manualPitch"))});
+          } else if(target==game_code("game.fxDrawLine")) {
             const auto stack=static_cast<std::uint32_t>(context->r29);
             state.gameplay_trace.event("reticle-line-append",{state.vi_retraces,a,b,c,d,
                 ram.u32(stack+0x10U),ram.u32(stack+0x14U)});
@@ -2553,13 +2563,13 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
 #if defined(JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING)
-        if (target == 0x80054FBCU && state.diagnostic_host_clock &&
+        if (target == game_code("game.viFrameSync") && state.diagnostic_host_clock &&
             state.diagnostic_native_recovery_enabled) {
           // Preserve viFrameSync's real-overload test, waits and elapsed delta.
           // Remove only the console's sticky 31-fast-frame recovery delay.
-          auto& recovery = rdram[0xFECABU ^ 3U];
+          auto& recovery = rdram[(game_data("video.recoveryCounter")&0x1FFFFFFFU) ^ 3U];
           recovery = jfg::boot::native_frame_recovery_counter(true,
-              rdram[0xFECACU ^ 3U], recovery);
+              rdram[(game_data("video.overloaded")&0x1FFFFFFFU) ^ 3U], recovery);
         }
 #endif
         if (state.diagnostic_cpu_costs) {
@@ -2567,14 +2577,14 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               std::chrono::steady_clock::now()-dispatch_prefix_started).count());
           ++state.profile_dispatch_prefix_calls;
         }
-        const bool measure_vi_sync = target == 0x80054FBCU && state.gameplay_trace;
+        const bool measure_vi_sync = target == game_code("game.viFrameSync") && state.gameplay_trace;
         const auto sync_count_before = measure_vi_sync ? state.cpu_count : 0U;
         const auto sync_vi_before = measure_vi_sync ? state.vi_retraces : 0U;
         if (measure_vi_sync) {
-          jfg::mod::Memory sync_ram({rdram,kRdramSize});
+          NativeGameMemory sync_ram({rdram,kRdramSize});
           state.gameplay_trace.event("vi-sync-enter", {state.vi_retraces,state.cpu_count,
-              sync_ram.u32(0x800FB114U),sync_ram.u8(0x800FECACU),
-              sync_ram.u8(0x800FECABU),sync_ram.u8(0x800FECADU),
+              game_view(sync_ram).u32(game_data_ref("globals.currentLevel")),game_view(sync_ram).u8(game_data_ref("globals.gVideoDeltaTime")),
+              game_view(sync_ram).u8(game_data_ref("globals.gVideoDeltaCounter")),game_view(sync_ram).u8(game_data_ref("globals.gSkipVideoDeltaAdjust")),
               state.diagnostic_host_clock,state.diagnostic_native_recovery_enabled});
           if(state.diagnostic_function_profile && !state.diagnostic_host_clock) {
             (void)sample_model_thread(state,state.profile_model_owner);
@@ -2583,7 +2593,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               const auto thread_id=sync_ram.valid(row.id,0x1b0U)?sync_ram.u32(row.id+0x14U):UINT32_MAX;
               const auto priority=sync_ram.valid(row.id,0x1b0U)?sync_ram.u32(row.id+4U):UINT32_MAX;
               state.gameplay_trace.event("thread-model-total", {
-                state.vi_retraces,state.cpu_count,sync_ram.u32(0x800FB114U),
+                state.vi_retraces,state.cpu_count,game_view(sync_ram).u32(game_data_ref("globals.currentLevel")),
                 row.id,thread_id,priority,row.value[0],row.value[1],row.value[2],
                 row.value[3],row.value[4],row.value[5]});
             }
@@ -2593,7 +2603,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               cache_stats[4],cache_stats[5],cache_stats[6],cache_stats[7],
               cache_stats[8],cache_stats[9],cache_stats[10],cache_stats[11]});
         }
-        const bool measure_update = target == 0x80044FACU && state.gameplay_trace;
+        const bool measure_update = target == game_code("game.mainUpdate") && state.gameplay_trace;
         const auto pure_angle_before=state.pure_angle_calls,pure_diff_before=state.pure_diff_calls,pure_trig_before=state.pure_trig_calls;
         const auto cache_all_before=state.native_cache_all_calls;
         const auto shadow_filter_before=state.native_shadow_filter_calls;
@@ -2641,24 +2651,24 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
         if ((state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced)) {
-          if (target == 0x800079B8U)
+          if (target == game_code("game.objFreeObject"))
             state.presentation_identities.retire(static_cast<std::uint32_t>(context->r4));
-          else if (target == 0x800610CCU)
+          else if (target == game_code("game.partRelease"))
             state.presentation_identities.particle_retire(static_cast<std::uint32_t>(context->r4));
-          else if (target == 0x8005CE60U)
+          else if (target == game_code("game.partFreeLib"))
             state.presentation_identities.particles_clear();
-          else if (target == 0x80041174U) {
+          else if (target == game_code("game.camDoSprite")) {
             const jfg::PresentationGuestView ram({rdram,kRdramSize});
             const auto output = static_cast<std::uint32_t>(context->r6);
             const auto owner = static_cast<std::uint32_t>(context->r7);
             const auto asset = ram.u32(static_cast<std::uint32_t>(context->r29)+0x10U);
-            if (static_cast<std::uint32_t>(context->r31) == 0x8005D59CU)
+            if (static_cast<std::uint32_t>(context->r31) == game_instruction("native.collision_response_return"))
               state.presentation_identities.particle_sprite({rdram,kRdramSize},
                   output,owner,asset,state.vi_retraces);
             else if (section_addresses &&
                 static_cast<std::uint32_t>(context->r31)==
-                    static_cast<std::uint32_t>(section_addresses[115U])+0xB0CU) {
-              // Pinned US regionidDraw: a3 is a stack transform, while the
+                    static_cast<std::uint32_t>(section_addresses[game_module(OriginalModule::region_id)])+game_overlay_site("render.region.sprite_return",OriginalModule::region_id)) {
+              // Qualified original region-id draw: a3 is a stack transform, while the
               // real actor and sorted sparkle index remain in its frame.
               const auto sp=static_cast<std::uint32_t>(context->r29);
               const auto cursor=static_cast<std::uint32_t>(context->r19);
@@ -2671,7 +2681,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               state.presentation_identities.sprite({rdram,kRdramSize},
                   output,owner,asset,state.vi_retraces);
           }
-          else if (target == 0x80040AA4U)
+          else if (target == game_code("game.camSetProjMtx"))
             state.presentation_identities.camera({rdram,kRdramSize},
                 static_cast<std::uint32_t>(context->r5),state.vi_retraces);
         }
@@ -2696,7 +2706,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         // Optional read-only mask diagnostics: before and after the original
         // 64x64 filter, with no changes to the guest image or its cadence.
         const bool observe_shadow_filter=shadow_motion_trace && state.gameplay_trace &&
-            target==0x004015A8U && target_section==4U && target_metadata.is_overlay==1U;
+            target==game_overlay_token("overlay.shadows.filter") && target_section==game_module(OriginalModule::shadows) && target_metadata.is_overlay==1U;
         const auto shadow_filter_object=observe_shadow_filter?static_cast<std::uint32_t>(context->r4):0U;
         const auto trace_shadow_mask=[&](unsigned stage) {
           if(!observe_shadow_filter)return;
@@ -2728,15 +2738,15 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           }
         };
         trace_shadow_mask(0U);
-        const bool observe_shadow=((state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) || shadow_motion_trace) && target==0x8001FA24U;
+        const bool observe_shadow=((state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) || shadow_motion_trace) && target==game_code("game.shadowDrawReceiver");
         const jfg::PresentationGuestView shadow_ram({rdram,kRdramSize});
         const auto shadow_descriptor=observe_shadow ? static_cast<std::uint32_t>(context->r4) : 0U;
-        const auto shadow_first=observe_shadow ? shadow_ram.u32(0x800A0EBCU) : 0U;
-        const auto shadow_triangle_first=observe_shadow ? shadow_ram.u32(0x800A0EC0U) : 0U;
-        if((state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) && target==0x8001E17CU)
+        const auto shadow_first=observe_shadow ? shadow_ram.u32(game_data("diagnostic.shadowBatchStart")) : 0U;
+        const auto shadow_triangle_first=observe_shadow ? shadow_ram.u32(game_data("diagnostic.shadowTriangleStart")) : 0U;
+        if((state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) && target==game_code("game.shadowBeginBuffers"))
           state.presentation_identities.shadow_begin({rdram,kRdramSize});
-        if(target==0x80020954U) {
-          const auto footprint=jfg::enhanced_shadow_receiver_query(
+        if(target==game_code("game.shadowBoundingBox")) {
+          const auto footprint=jfg::enhanced_shadow_receiver_query(kRendererGameLayout,
               {rdram,kRdramSize},target,static_cast<std::uint32_t>(context->r31),
               static_cast<std::uint32_t>(context->r29),static_cast<std::uint32_t>(context->r4),
               static_cast<std::uint32_t>(context->r5),
@@ -2756,12 +2766,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             return trace&&trace<path.size()?std::filesystem::path(path.data()).parent_path()/L"shadow-queries":
                 std::filesystem::path{};
           }();
-          if(!query_capture.empty() && static_cast<std::uint32_t>(context->r31)==0x8001E5D0U) {
+          if(!query_capture.empty() && static_cast<std::uint32_t>(context->r31)==game_instruction("native.query_capture_return")) {
             const auto stack=static_cast<std::uint32_t>(context->r29);
             const auto actor=shadow_ram.u32(stack+0x74U);
-            const auto header=shadow_ram.u32(actor+0x40U);
-            const auto table=shadow_ram.u32(actor+0x6CU);
-            const auto instance=shadow_ram.u32(table+shadow_ram.u8(actor+0x3AU)*4U);
+            const auto header=shadow_ram.u32(actor+game_member("layout.actor.header"));
+            const auto table=shadow_ram.u32(actor+game_member("layout.actor.models"));
+            const auto instance=shadow_ram.u32(table+shadow_ram.u8(actor+game_member("layout.actor.variant"))*4U);
             const auto model=shadow_ram.u32(instance);
             static std::set<std::pair<std::uint32_t,unsigned>> captured;
             const unsigned status=footprint?(footprint->expanded?2U:1U):0U;
@@ -2791,7 +2801,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
         const auto shadow_control=observe_shadow ? static_cast<std::uint32_t>(context->r6) : 0U;
         const auto shadow_light=observe_shadow ? static_cast<std::uint32_t>(context->r5) : 0U;
-        const auto shadow_clip=(state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) && target==0x8001F4BCU
+        const auto shadow_clip=(state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) && target==game_code("game.shadowClipReceiver")
             ?state.presentation_identities.shadow_clip({rdram,kRdramSize},
                 static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r6),
                 static_cast<std::uint32_t>(context->r5),
@@ -2800,47 +2810,47 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             :std::optional<jfg::ShadowClipGeometry>{};
 
         const bool observe_reflection=(state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) &&
-            target==0x80048D84U && section_addresses &&
+            target==game_code("game.mathMtxF2L") && section_addresses &&
             static_cast<std::uint32_t>(context->r31)==
-                static_cast<std::uint32_t>(section_addresses[135U])+0x648U;
+                static_cast<std::uint32_t>(section_addresses[game_module(OriginalModule::reflections)])+game_overlay_site("render.reflection.matrix_return",OriginalModule::reflections);
         const auto reflection_actor=observe_reflection ? static_cast<std::uint32_t>(context->r21) : 0U;
         const auto reflection_stack=observe_reflection ? static_cast<std::uint32_t>(context->r29) : 0U;
         const auto tracer_caller=static_cast<std::uint32_t>(context->r31);
-        const bool observe_tracer=(state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) && target==0x8000A300U &&
-            (tracer_caller==0x8000AB4CU || tracer_caller==0x8000AF5CU);
+        const bool observe_tracer=(state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) && target==game_code("game.objDrawTracer") &&
+            (tracer_caller==game_instruction("native.tracer_first_return") || tracer_caller==game_instruction("native.tracer_second_return"));
         const auto tracer_actor=observe_tracer ? static_cast<std::uint32_t>(context->r20) : 0U;
         const jfg::PresentationGuestView tracer_ram({rdram,kRdramSize});
         const auto tracer_vertex_output=observe_tracer ? static_cast<std::uint32_t>(context->r5) : 0U;
         const auto tracer_vertices=observe_tracer ? tracer_ram.u32(tracer_vertex_output) : 0U;
         const auto tracer_list=observe_tracer ? tracer_ram.u32(static_cast<std::uint32_t>(context->r4)) : 0U;
         const bool observe_shot_matrix=shot_matrix_trace && state.gameplay_trace &&
-            (target==0x80041A90U || target==0x80041BE0U);
+            (target==game_code("game.camPushMuzzleMtx") || target==game_code("game.camScaleModelMtx"));
         const auto shot_output=observe_shot_matrix ? static_cast<std::uint32_t>(context->r5) : 0U;
         const auto shot_matrix=observe_shot_matrix ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(shot_output) : 0U;
         const auto shot_caller=observe_shot_matrix ? static_cast<std::uint32_t>(context->r31) : 0U;
         const auto shot_actor=observe_shot_matrix ? static_cast<std::uint32_t>(context->r21) : 0U;
-        const bool observe_audio_buffer=audio_buffer_trace && target==0x80096DF0U;
+        const bool observe_audio_buffer=audio_buffer_trace && target==game_code("audio.ai_submit");
         const auto ai_buffer_address=observe_audio_buffer ? static_cast<std::uint32_t>(context->r4) : 0U;
         const auto ai_buffer_length=observe_audio_buffer ? static_cast<std::uint32_t>(context->r5) : 0U;
-        const bool observe_camera=((state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) || camera_motion_trace) && target==0x80040AA4U;
+        const bool observe_camera=((state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) || camera_motion_trace) && target==game_code("game.camSetProjMtx");
         const auto camera_output=observe_camera ? static_cast<std::uint32_t>(context->r5) : 0U;
         const auto camera_matrix=observe_camera ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(camera_output) : 0U;
         // US ShirukenPushMtx has the same output/actor ABI as camPushModelMtx,
         // but builds its rolling/attached world matrix through camPushFloatModelMtx.
         // That call also publishes world at 0x800FAAB0. Bind after the complete
         // custom draw transform, before another actor reuses the scratch matrix.
-        const bool observe_shuriken = (state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) && target == 0x07A00F38U;
+        const bool observe_shuriken = (state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) && target == game_overlay_token("overlay.shuriken.matrix");
         const bool observe_rigid = (state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) &&
-            (target == 0x80041CA0U || observe_shuriken);
+            (target == game_code("game.camPushModelMtx") || observe_shuriken);
         const auto rigid_actor = observe_rigid ? static_cast<std::uint32_t>(context->r6) : 0U;
         const auto rigid_output = observe_rigid ? static_cast<std::uint32_t>(context->r5) : 0U;
         const auto rigid_matrix = observe_rigid ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(rigid_output) : 0U;
 #endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-        jfg::ActorLodPresentationScope actor_lod_presentation(
+        jfg::ActorLodPresentationScope actor_lod_presentation(kRendererGameLayout,
             {rdram,kRdramSize},target,static_cast<std::uint32_t>(context->r4),
-            target==0x8000CC64U && jfg::actor_lod_preference().load(std::memory_order_relaxed)==jfg::ActorLod::high);
-        jfg::CameraHelperPresentationScope camera_helper_presentation(
+            target==game_code("game.objPrintModelObject") && jfg::actor_lod_preference().load(std::memory_order_relaxed)==jfg::ActorLod::high);
+        jfg::CameraHelperPresentationScope camera_helper_presentation(kRendererGameLayout,
             {rdram,kRdramSize},target,static_cast<std::uint32_t>(context->r7));
         const auto function_started = state.diagnostic_cpu_costs ? std::chrono::steady_clock::now()
             : std::chrono::steady_clock::time_point{};
@@ -2849,16 +2859,16 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-        if(target_section==0U && target_metadata.is_overlay==0U && state.mmio_trace &&
+        if(target_metadata.is_overlay==0U && state.mmio_trace &&
            state.mmio_trace->direct_mi_mask_access && jfg::boot::direct_mi_mask_function(target,rdram,context)) {
           // Pinned context-save/restore mask accesses use the existing device
           // bridge. Every instruction hook, span guard and fallback survives.
         } else
-        if(target_section==0U && target_metadata.is_overlay==0U && state.mmio_trace &&
+        if(target_metadata.is_overlay==0U && state.mmio_trace &&
            state.mmio_trace->direct_sp_access && jfg::boot::direct_sp_function(target,rdram,context)) {
           // Same generated probes, register operations and device model.
         } else
-        if(target==0x004015A8U && target_section==4U && target_metadata.is_overlay==1U &&
+        if(target==game_overlay_token("overlay.shadows.filter") && target_section==game_module(OriginalModule::shadows) && target_metadata.is_overlay==1U &&
            state.native_shadow_filter_enabled && state.diagnostic_host_clock &&
            state.native_spans_enabled && !state.native_clock_sample_input.is_open() &&
            state.native_fast_ready && state.native_fast_status==context->status_reg &&
@@ -2871,7 +2881,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           ++state.native_shadow_filter_calls;
           state.native_fast_ready=false;state.host_clock_poll_budget=0U;
         } else
-        if(target==0x00317174U && target_section==3U && target_metadata.is_overlay==1U &&
+        if(target==game_overlay_token("overlay.collision.accessor") && target_section==game_module(OriginalModule::collision) && target_metadata.is_overlay==1U &&
            state.diagnostic_bsp_enabled && !jfg::boot::native_collision_in_fallback() && state.diagnostic_host_clock &&
            state.native_spans_enabled && !state.native_clock_sample_input.is_open() &&
            state.native_fast_ready && state.native_fast_status==context->status_reg &&
@@ -2881,7 +2891,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
            !state.device_event_stream && !state.eret_transfer_stream.is_open() &&
            !state.instruction_effect_stream.is_open()) {
           ++state.bsp_native_calls;
-          if(jfg::boot::native_collision_execute(generated,rdram,context)) {
+          if(jfg::boot::native_collision_execute(generated,rdram,context,{game_module(OriginalModule::collision),target_metadata.linked_vram,game_overlay_data("collision.edges",OriginalModule::collision),game_overlay_extent(OriginalModule::collision)})) {
             state.native_fast_ready=false;state.host_clock_poll_budget=0U;
             ++state.bsp_clock_refreshes;
           }
@@ -2891,10 +2901,10 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
         if (measure_vi_sync) {
-          jfg::mod::Memory sync_ram({rdram,kRdramSize});
+          NativeGameMemory sync_ram({rdram,kRdramSize});
           state.gameplay_trace.event("vi-sync-return", {state.vi_retraces,state.cpu_count,
-              sync_ram.u32(0x800FB114U),static_cast<std::uint32_t>(context->r2),
-              sync_ram.u8(0x800FECACU),sync_ram.u8(0x800FECABU),
+              game_view(sync_ram).u32(game_data_ref("globals.currentLevel")),static_cast<std::uint32_t>(context->r2),
+              game_view(sync_ram).u8(game_data_ref("globals.gVideoDeltaTime")),game_view(sync_ram).u8(game_data_ref("globals.gVideoDeltaCounter")),
               state.vi_retraces-sync_vi_before,state.cpu_count-sync_count_before});
           state.gameplay_trace.event("vi-sync-cache-return", {state.vi_retraces,state.cpu_count,
               cache_stats[0],cache_stats[1],cache_stats[2],cache_stats[3],
@@ -2927,7 +2937,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           packet("door-packet-actor",door_render_actor,0xA0U);
           packet("door-packet-instance",door_material_instance,0x100U);
           packet("door-packet-model",door_material_model,0x10000U);
-          const auto output=door_render_ram.u32(0x800F2CC8U);
+          const auto output=game_view(door_render_ram).u32(game_data_ref("globals.objectDisplayListCursor"));
           if(output>=door_dl_before && output-door_dl_before<=0x4000U)
             packet("door-packet-draw",door_dl_before,(output-door_dl_before+31U)&~31U);
           const auto animations=door_render_ram.u32(door_material_instance+0x74U);
@@ -2948,7 +2958,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           auto& cost = state.profile_function_costs[target];
           cost.self_ns += self_ns;cost.inclusive_ns += active_ns;++cost.calls;
         }
-        if(target==0x80096DF0U && state.diagnostic_host_clock && state.native_audio_playback &&
+        if(target==game_code("audio.ai_submit") && state.diagnostic_host_clock && state.native_audio_playback &&
             static_cast<std::uint32_t>(context->r2)==0U) {
           // Deliver completed PCM before returning to guest/renderer work.
           // SDL conversion must not alter the guest floating-point context.
@@ -2969,11 +2979,11 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           if(state.gameplay_trace)state.gameplay_trace.event("tracer-draw",
               {state.vi_retraces,tracer_actor,tracer_caller,tracer_vertices,tracer_matrix,
                tracer_ram.u16(tracer_actor+0x48U),tracer_ram.u32(tracer_actor+0x68U),
-               tracer_ram.u32(0x800FB114U)});
+               game_view(tracer_ram).u32(game_data_ref("globals.currentLevel"))});
         }
-        if(shadow_motion_trace && state.gameplay_trace && target==0x8001F4BCU) {
+        if(shadow_motion_trace && state.gameplay_trace && target==game_code("game.shadowClipReceiver")) {
           state.gameplay_trace.event("shadow-clip",{state.vi_retraces,
-              shadow_clip?1U:0U,shadow_ram.u32(0x800F45E8U),
+              shadow_clip?1U:0U,shadow_ram.u32(game_data("diagnostic.shadowClipState")),
               static_cast<std::uint32_t>(context->r2),shadow_clip?shadow_clip->receiver_key:0U});
         }
         if(shadow_clip)
@@ -2984,17 +2994,17 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               shadow_control,shadow_light,shadow_first,state.vi_retraces);
         if(observe_shadow && shadow_motion_trace && state.gameplay_trace) {
           const auto actor=shadow_ram.u32(shadow_descriptor);
-          const auto last=shadow_ram.u32(0x800A0EBCU);
+          const auto last=shadow_ram.u32(game_data("diagnostic.shadowBatchStart"));
           state.gameplay_trace.event("shadow-binding",{state.vi_retraces,actor,
-              state.presentation_identities.shadow_record_count(actor),shadow_ram.u32(0x800F45E8U)});
+              state.presentation_identities.shadow_record_count(actor),shadow_ram.u32(game_data("diagnostic.shadowClipState"))});
 
           state.gameplay_trace.event("shadow-generated",{state.vi_retraces,actor,shadow_descriptor,
-              shadow_ram.u32(0x800A0EB0U),shadow_first,last,shadow_ram.u32(0x800A0EB4U),
-              shadow_triangle_first,shadow_ram.u32(0x800A0EC0U),shadow_ram.u32(shadow_descriptor+4U),
-              shadow_ram.u32(actor+12U),shadow_ram.u32(actor+16U),shadow_ram.u32(actor+20U),
+              shadow_ram.u32(game_data("diagnostic.shadowVertexStart")),shadow_first,last,shadow_ram.u32(game_data("diagnostic.shadowVertexCount")),
+              shadow_triangle_first,shadow_ram.u32(game_data("diagnostic.shadowTriangleStart")),shadow_ram.u32(shadow_descriptor+4U),
+              shadow_ram.u32(actor+game_member("layout.actor.x")),shadow_ram.u32(actor+game_member("layout.actor.y")),shadow_ram.u32(actor+game_member("layout.actor.z")),
               static_cast<std::uint32_t>(context->r2)});
           if(last>=shadow_first && last-shadow_first<=256U)for(auto i=shadow_first;i<last;++i) {
-            const auto v=shadow_ram.u32(0x800A0EB0U)+i*10U;
+            const auto v=shadow_ram.u32(game_data("diagnostic.shadowVertexStart"))+i*10U;
             state.gameplay_trace.event("shadow-vertex",{state.vi_retraces,actor,i-shadow_first,v,
                 shadow_ram.u16(v),shadow_ram.u16(v+2U),shadow_ram.u16(v+4U)});
           }
@@ -3028,12 +3038,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             // another draw reuses scratch globals. No guest writes or math.
             const jfg::PresentationGuestView camera_ram({rdram,kRdramSize});
             std::array<std::uint64_t,54> row{};
-            row[0]=state.vi_retraces;row[1]=camera_ram.u32(0x800FB114U);
-            row[2]=camera_matrix;row[3]=camera_ram.u32(0x800FA630U);
-            row[4]=camera_ram.u32(0x800FA634U);row[5]=state.gameplay_trace_updates;
+            row[0]=state.vi_retraces;row[1]=game_view(camera_ram).u32(game_data_ref("globals.currentLevel"));
+            row[2]=camera_matrix;row[3]=camera_ram.u32(game_data("diagnostic.cameraViewport0"));
+            row[4]=camera_ram.u32(game_data("diagnostic.cameraViewport1"));row[5]=state.gameplay_trace_updates;
             for(unsigned i=0;i<16U;++i) {
-              row[6U+i]=camera_ram.u32(0x800FAF78U+i*4U);
-              row[22U+i]=camera_ram.u32(0x800FAA70U+i*4U);
+              row[6U+i]=camera_ram.u32(game_data("diagnostic.cameraViewState")+i*4U);
+              row[22U+i]=camera_ram.u32(game_data("diagnostic.cameraMatrixInput")+i*4U);
               row[38U+i]=camera_ram.u32(camera_matrix+i*4U);
             }
             state.gameplay_trace.event("camera-emitted-pose",row);
@@ -3045,7 +3055,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           if(observe_shuriken)
             state.gameplay_trace.event("shuriken-matrix",{state.vi_retraces,rigid_actor,rigid_matrix});
         }
-        if ((state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) && target == 0x80060EC4U)
+        if ((state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) && target == game_code("game.partAllocate"))
           state.presentation_identities.particle_allocate({rdram,kRdramSize},
               static_cast<std::uint32_t>(context->r2));
         if (measure_update) {
@@ -3183,9 +3193,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       }
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
       if (refresh_daynight_lighting) {
-        jfg::mod::Memory lighting_memory({rdram, kRdramSize});
+        NativeGameMemory lighting_memory({rdram, kRdramSize});
         const auto lighting = lighting_memory.u32(daynight_actor + 0x54U);
-        const auto level_header = lighting_memory.u32(0x800FB118U);
+        const auto level_header = game_view(lighting_memory).u32(game_data_ref("globals.levelHeader"));
         const auto stack = static_cast<std::uint32_t>(context->r29);
         // The alternate light selector has a different overlay-owned path.
         // Do not substitute the regular selector for that path.
@@ -3196,7 +3206,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             lighting_memory.u8(level_header + 0x6BU) == 0U &&
             stack >= 0x80000800U && lighting_memory.valid(stack - 0x800U, 0x800U)) {
           if (auto* select_lights = jfg_generated_lookup_function(
-                  static_cast<std::int32_t>(0x80021B8CU))) {
+                  static_cast<std::int32_t>(game_code("game.lightSelectNearby")))) {
             // Use independent register storage and a lower stack window. The
             // setter's return values and the controller's live frame survive.
             auto lighting_context = *context;
@@ -3212,7 +3222,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-      if (target == 0x0170066CU) {
+      if (target == game_overlay_token("overlay.day.fog")) {
         const auto fog = capture_daynight_fog(state);
         state.daynight_fog_frames.queried(fog);
         state.gameplay_trace.event("daynight-fog-query", {state.vi_retraces,
@@ -3222,20 +3232,20 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       if (trace_atmosphere)
         trace_daynight_atmosphere(state, target, atmosphere_outputs);
 #endif
-      if (target == jfg::boot::kSoundNextEvent) {
+      if (target == game_code("audio.sound_next_event")) {
         hle::GuestMemory memory({rdram, kRdramSize},
                                hle::GuestMemory::Layout::native_word_big_endian);
-        if (jfg::boot::recover_empty_sound_queue(
+        if (jfg::boot::recover_empty_sound_queue(kSoundQueueLayout,
                 memory, *context, mod_actor_argument, sound_event_argument))
           ++state.sound_queue_recoveries;
       }
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-      if (state.navigation_mod.observing() && target==0x80032A48U) {
-        jfg::mod::Memory memory({rdram,kRdramSize});
+      if (state.navigation_mod.observing() && target==game_code("game.controlPlayer")) {
+        NativeGameMemory memory({rdram,kRdramSize});
         (void)state.navigation_mod.observe_player(memory,mod_actor_argument);
         (void)state.navigation_mod.full_health(memory,mod_actor_argument);
       }
-      if (target==0x80044FACU) update_navigation_mod(state);
+      if (target==game_code("game.mainUpdate")) update_navigation_mod(state);
 #endif
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
       if (state.entry_probe_target == target && focus_window)
@@ -3260,7 +3270,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
         --state.watch_dispatch_depth;
       }
-      if (target == 0x80044FACU && state.diagnostic_clock_boundary_vi != 0U &&
+      if (target == game_code("game.mainUpdate") && state.diagnostic_clock_boundary_vi != 0U &&
           !state.diagnostic_clock_boundary_seen && state.vi_retraces >= state.diagnostic_clock_boundary_vi) {
         // Qualification only: preserve the entire original-clock prefix and
         // fingerprint it before selecting the candidate policy. Never edit RAM.
@@ -3296,7 +3306,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           }
         }
       }
-      if (target == 0x80044FACU && state.diagnostic_clock_release_vi != 0U &&
+      if (target == game_code("game.mainUpdate") && state.diagnostic_clock_release_vi != 0U &&
           !state.diagnostic_clock_released && state.vi_retraces >= state.diagnostic_clock_release_vi) {
         // Qualification-only transition, after a complete game update. Hash
         // the exact shared starting state before reanchoring elapsed time.
@@ -3317,7 +3327,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           fail_closed_dispatch(state,"native-clock-tape","release-clock-start",target);
         state.diagnostic_clock_released=true;
       }
-      if (target == 0x80044FACU) {
+      if (target == game_code("game.mainUpdate")) {
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
         ++state.camera_fade_updates;
 #endif
@@ -3327,7 +3337,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
                              << state.vi_retraces << "\t0\t"
                              << ++state.timing_game_updates << "\t0\t0\t0\n";
       }
-      if (target == 0x80044FACU && state.update_hash_trace.is_open()) {
+      if (target == game_code("game.mainUpdate") && state.update_hash_trace.is_open()) {
         ++state.completed_game_updates;
         trace_phase9_event(state, "update-end", state.controller_samples);
         write_retrace_semantic_hash(state, &state.update_hash_trace);
@@ -3357,7 +3367,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
 
       }
-      if (target == 0x8004A57CU && state.actor_timing_trace &&
+      if (target == game_code("game.mmAlloc") && state.actor_timing_trace &&
           state.vi_retraces <= 100U && state.timing_trace.is_open()) {
         state.timing_trace << "mm-alloc\t" << state.vi_frames << '\t'
                            << state.vi_retraces << "\t0\t" << allocation_size
@@ -3370,9 +3380,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       state.executing_generated_overlay = caller_is_overlay;
 #endif
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
-      if (target == 0x80011C2CU && context->r2 != 0) // objCutCameraActive
+      if (target == game_code("game.objCutCameraActive") && context->r2 != 0) // objCutCameraActive
         ++state.phase9_cutscene_active_calls;
-      if (target == 0x00700D80U) {
+      if (target == game_overlay_token("overlay.hint.active")) {
         state.phase9_hinttext_active_last_return =
             static_cast<std::uint32_t>(context->r2);
         if (context->r2 == 0U)
@@ -3410,7 +3420,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
                               state.recent_matrix_conversion_output_words[slot][2]);
         (void)memory.read_u32(matrix_destination + 36U,
                               state.recent_matrix_conversion_output_words[slot][3]);
-        if (matrix_source == 0x800FAAF0U) {
+        if (matrix_source == game_data("diagnostic.cameraMatrixSource")) {
           std::size_t watch = 0U;
           while (watch < state.matrix_watch_addresses.size() &&
                  state.matrix_watch_addresses[watch] != 0U &&
@@ -3464,9 +3474,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         fail_closed_dispatch(state, "generated", "overlay-lookup", target);
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
       const std::uint32_t overlay_offset = target - metadata.linked_vram;
-      if (section == 32U && overlay_offset == 0x2E8U) {
+      if (section == game_module(OriginalModule::mr_hints) && overlay_offset == 0x2E8U) {
         note_hints_control_call(state, target, *context);
-      } else if (section == 32U && overlay_offset == 0x2540U) {
+      } else if (section == game_module(OriginalModule::mr_hints) && overlay_offset == 0x2540U) {
         ++state.phase9_hints_talk_calls;
       }
 #endif
@@ -3494,7 +3504,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       }
       published(rdram, context);
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
-      if (target == 0x00700D80U) {
+      if (target == game_overlay_token("overlay.hint.active")) {
         state.phase9_hinttext_active_last_return =
             static_cast<std::uint32_t>(context->r2);
         if (context->r2 == 0U)
@@ -3556,12 +3566,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       if (published == nullptr)
         fail_closed_dispatch(state, "generated", "runlink-overlay-lookup",
                              target);
-      if (matched_section == 32U && resolution.text_offset == 0x2E8U) {
+      if (matched_section == game_module(OriginalModule::mr_hints) && resolution.text_offset == 0x2E8U) {
         note_hints_control_call(state, target, *context);
-      } else if (matched_section == 32U &&
+      } else if (matched_section == game_module(OriginalModule::mr_hints) &&
                  resolution.text_offset == 0x2540U) {
         ++state.phase9_hints_talk_calls;
-      } else if (matched_section == 7U) {
+      } else if (matched_section == game_module(OriginalModule::hint_text)) {
         switch (resolution.text_offset) {
         case 0x148U:
           ++state.phase9_hinttext_start_calls;
@@ -3612,7 +3622,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       }
       ++state.generated_calls;
       published(rdram, context);
-      if (matched_section == 7U && resolution.text_offset == 0xD80U) {
+      if (matched_section == game_module(OriginalModule::hint_text) && resolution.text_offset == 0xD80U) {
         state.phase9_hinttext_active_last_return =
             static_cast<std::uint32_t>(context->r2);
         if (context->r2 == 0U)
@@ -3679,7 +3689,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       state.guest_clock_trace << "call\t" << std::hex << target << '\t' << a0 << '\t'
           << a1 << '\t' << a2 << std::dec << '\t' << state.cpu_count << '\n';
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-    if(target==0x80098A10U && target==original_os_entry("osWritebackDCacheAll") &&
+    if(target==original_os_entry("osWritebackDCacheAll") &&
        state.native_cache_all_enabled && state.diagnostic_host_clock &&
        state.native_spans_enabled && !state.native_clock_sample_input.is_open() &&
        state.native_fast_ready && state.native_fast_status==context->status_reg &&
@@ -3695,7 +3705,13 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
     generated(rdram, context);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
-    if(a0==0x800F1AF4U && (target==original_os_entry("osSendMesg") ||
+    // The original SDK routine must complete its PIF/DMA submission before a
+    // poll probe stops. This matches the declared controller-read return
+    // boundary without replacing guest device behavior with an HLE service.
+    if (target == original_os_entry("osContStartReadData") &&
+        state.poll_target != 0U && state.controller_samples == state.poll_target)
+      probe_target_gate(state);
+    if(a0==game_data("audio.frame_queue") && (target==original_os_entry("osSendMesg") ||
         target==original_os_entry("osRecvMesg"))) {
       static const bool observe=[] {
         char value[2]{};
@@ -3708,7 +3724,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       }
     }
 #endif
-    if (target == 0x80097520U) state.os_initialized = true;
+    if (target == kOsInitialize) state.os_initialized = true;
     if (target == original_os_entry("osContInit"))
       state.controller_initialized = static_cast<std::uint32_t>(context->r2) == 0U;
     // Read-only host observers. The original bodies above own all guest
@@ -3778,20 +3794,21 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   if (state.guest_initializing) {
     // The independently executed cold-boot closure. Mapped private helpers
     // must execute their original bodies as well as the public OS entry.
-    constexpr std::array<std::uint32_t, 15> helpers{
-      0x80097788U,0x80098050U,0x800980d0U,0x80098360U,0x80099648U,
-      0x80099748U,0x8009af40U,0x8009af50U,0x8009af60U,0x8009af70U,
-      0x8009afc0U,0x8009b010U,0x8009b060U,0x8009b0c0U,0x8009cae0U};
+    // Only mapped calls reach this branch. Other original helpers remain
+    // generated guest calls and do not acquire a host dispatch disposition.
+    const bool original_helper = std::strcmp(name, "osWritebackDCache") == 0 ||
+        std::strcmp(name, "osInvalICache") == 0 ||
+        std::strcmp(name, "__osSetSR") == 0 || std::strcmp(name, "__osGetSR") == 0;
     recomp_func_t *const generated = jfg_generated_lookup_function(address);
-    if (!std::binary_search(helpers.begin(), helpers.end(), target) || generated == nullptr)
+    if (!original_helper || generated == nullptr)
       fail_closed_dispatch(state, "guest-leaf", "initialize-closure", target);
     generated(rdram, context);
     return 1;
   }
   // These two leaf HLE calls account for most mapped dispatches in JFG. Use
-  // their supported-ROM addresses before the descriptive name chain so normal
+  // their bound semantic addresses before the descriptive name chain so normal
   // play does not repeat dozens of string comparisons for each call.
-  if (target == 0x80096EA0U) {  // osVirtualToPhysical
+  if (target == kOsVirtualToPhysical) {  // osVirtualToPhysical
     const std::uint32_t segment = a0 & 0xE0000000U;
     if (state.guest_leaf_probe) {
       // Execute the original supported-ROM routine, including its TLB
@@ -3815,7 +3832,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     set_result(context, static_cast<std::int32_t>(physical));
     return 1;
   }
-  if (target == 0x80098EA0U) {  // osSetIntMask
+  if (target == kOsSetIntMask) {  // osSetIntMask
     if (state.guest_leaf_probe) {
       recomp_func_t *const generated = jfg_generated_lookup_function(address);
       if (generated == nullptr || state.mmio_trace == nullptr ||
@@ -3872,7 +3889,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         // The diagnostic inventory now contains this worker's original body.
         // Keep the cooperative control profile explicit, not dependent on a
         // missing symbol. The guest-OS scheduler will own its separate path.
-        a2 == 0x80098bb8U && !state.vi_manager_thread_created &&
+        a2 == kOsViWorker && !state.vi_manager_thread_created &&
         state.events.contains(7U) && state.events.contains(3U);
     if (entry_function == nullptr && !synthetic_vi_manager) {
       fail_closed_dispatch(state, "generated", "thread-entry-unresolved", a2);
@@ -4123,7 +4140,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
       SyntheticOverlayPublication publication =
           SyntheticOverlayPublication::ensure_active;
-      if (section == 6U &&
+      if (section == game_module(OriginalModule::instruments) &&
           state.phase9_death_restart_calls >
               state.health_overlay_death_reload_generation &&
           state.active_overlay_sections.contains(section)) {
@@ -4184,14 +4201,6 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     state.last_pi_dram = dram_address;
     state.last_pi_size = size;
     set_result(context, hle::kOsSuccess);
-    return 1;
-  }
-  if (std::strcmp(name, "osCic6105SendData") == 0 ||
-      std::strcmp(name, "osCic6105StartGetData") == 0) {
-    recomp_func_t *const generated =
-        std::strcmp(name, "osCic6105SendData") == 0 ? fn_044_0000
-                                                     : fn_044_0001;
-    generated(rdram, context);
     return 1;
   }
   if (std::strcmp(name, "__osSiRawStartDma") == 0) {
@@ -4284,18 +4293,18 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
   }
   if (std::strcmp(name, "osFlashInit") == 0 ||
       std::strcmp(name, "osFlashReInit") == 0) {
-    set_result(context, static_cast<std::int32_t>(0x80104EE0U));
+    set_result(context, static_cast<std::int32_t>(kOsFlashHandle));
     return 1;
   }
   if (std::strcmp(name, "osFlashReadStatus") == 0) {
-    if (!write_guest_byte(state, a0, 0U))
+    if (!write_guest_byte(state, a0, jfg::boot::FlashDevice::ready_status))
       fail_closed_dispatch(state, "flashram", "status-output", target);
     set_result(context, hle::kOsSuccess);
     return 1;
   }
   if (std::strcmp(name, "osFlashReadId") == 0) {
-    if (!memory.write_u32(a0, 0x11118001U) ||
-        !memory.write_u32(a1, 0x00C2001EU))
+    if (!memory.write_u32(a0, jfg::boot::FlashDevice::silicon_type) ||
+        !memory.write_u32(a1, jfg::boot::FlashDevice::silicon_id))
       fail_closed_dispatch(state, "flashram", "id-output", target);
     set_result(context, hle::kOsSuccess);
     return 1;
@@ -4314,7 +4323,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     return 1;
   }
   if (std::strcmp(name, "osFlashSectorErase") == 0) {
-    if (!state.flashram.begin_erase_page(a0).ok() ||
+    if (!state.flashram.begin_erase_sector(a0).ok() ||
         !complete_flash_operation(state)) {
       set_result(context, -1);
       return 1;
@@ -4462,12 +4471,12 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       std::size_t current_stick_x = 0U, current_stick_y = 0U;
       std::size_t menu_stick_x = 0U, menu_stick_y = 0U;
       std::uint16_t game_pressed = 0U;
-      if (!guest_byte_offset(0x800FB0F0U, pressed_high) ||
-          !guest_byte_offset(0x800FB0F1U, pressed_low) ||
-          !guest_byte_offset(0x800FB0C2U, current_stick_x) ||
-          !guest_byte_offset(0x800FB0C3U, current_stick_y) ||
-          !guest_byte_offset(0x800FF3D8U, menu_stick_x) ||
-          !guest_byte_offset(0x800FF3DCU, menu_stick_y))
+      if (!guest_byte_offset(game_data("diagnostic.controllerPressed"), pressed_high) ||
+          !guest_byte_offset((game_data("diagnostic.controllerPressed")+1U), pressed_low) ||
+          !guest_byte_offset(game_data("diagnostic.controllerStickX"), current_stick_x) ||
+          !guest_byte_offset(game_data("diagnostic.controllerStickY"), current_stick_y) ||
+          !guest_byte_offset(game_data("globals.frontendStickX"), menu_stick_x) ||
+          !guest_byte_offset(game_data("globals.frontendStickY"), menu_stick_y))
         fail_closed_dispatch(state, "controller", "pressed-observation",
                              target);
       game_pressed = static_cast<std::uint16_t>(
@@ -4984,16 +4993,16 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     fail_closed_dispatch(state, "hle", name, target);
   }
   const bool recv = function == hle::HleFunction::kOsRecvMesg;
-  const bool clock_queue = a0 == 0x800FE4B8U || a0 == 0x800FE8A8U ||
-                           a0 == 0x800FEB80U;
+  const bool clock_queue = a0 == game_data("diagnostic.schedulerQueue") || a0 == game_data("diagnostic.cloneDoneQueue") ||
+                           a0 == game_data("diagnostic.clockQueue");
   if (clock_queue) trace_guest_clock(state, recv ? "recv" : "queue-call", a0);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
   if (state.focus_update_start != 0U &&
       state.completed_game_updates + 1U >= state.focus_update_start - 1U &&
       state.completed_game_updates + 1U <= state.focus_update_end + 1U &&
       state.timing_trace.is_open() &&
-      (a0 == 0x800FE4B8U || a0 == 0x800FE8A8U ||
-       a0 == 0x800FEB80U)) {
+      (a0 == game_data("diagnostic.schedulerQueue") || a0 == game_data("diagnostic.cloneDoneQueue") ||
+       a0 == game_data("diagnostic.clockQueue"))) {
     state.timing_trace << "game-queue-call\t" << state.vi_frames << '\t'
                        << state.vi_retraces << "\t0\t"
                        << (recv ? "recv" :
@@ -5320,7 +5329,7 @@ int native_cpu_operation(void* opaque, void* guest_context, std::uint32_t operat
       std::uint32_t next = 0U;
       hle::GuestMemory memory({state.rdram, kRdramSize}, hle::GuestMemory::Layout::native_word_big_endian);
       if ((context->status_reg & 6U) != 2U || state.guest_transport == nullptr ||
-          !memory.read_u32(0x800a9e90U, next) || next < kKseg0 || next > kKseg0 + kRdramSize - 0x1b0U)
+          !memory.read_u32(kOsCurrentThread, next) || next < kKseg0 || next > kKseg0 + kRdramSize - 0x1b0U)
         return 0;
       cop0_status_write(context, context->status_reg & ~2U);
       state.guest_previous_branch = state.guest_previous_delay = false;
@@ -5476,7 +5485,7 @@ static void emit_device_event(State& state, const recomp_context& cpu,
   row.cause = state.guest_cause | (state.guest_timer.interrupt() ? 0x8000U : 0U) |
       ((row.mi_pending & row.mi_mask) ? 0x400U : 0U);
   hle::GuestMemory memory({state.rdram, kRdramSize}, hle::GuestMemory::Layout::native_word_big_endian);
-  if (!memory.read_u32(0x800a9e90U, row.thread))
+  if (!memory.read_u32(kOsCurrentThread, row.thread))
     fail_closed_dispatch(state, "device-event-probe", "thread-read", pc);
   const std::array<std::uint64_t, 32> registers = {
     0, cpu.r1, cpu.r2, cpu.r3, cpu.r4, cpu.r5, cpu.r6, cpu.r7,
@@ -5509,7 +5518,7 @@ void emit_instruction_effect(State& state, const recomp_context& cpu,
   row.target = target; row.selected_owner = selected_owner;
   row.device_sequence = state.device_event_probe.rows;
   hle::GuestMemory memory({state.rdram, kRdramSize}, hle::GuestMemory::Layout::native_word_big_endian);
-  if (!memory.read_u32(0x800a9e90U, row.thread_word))
+  if (!memory.read_u32(kOsCurrentThread, row.thread_word))
     fail_closed_dispatch(state, "instruction-effect-probe", "thread-read", pc);
   row.gpr = {0, cpu.r1, cpu.r2, cpu.r3, cpu.r4, cpu.r5, cpu.r6, cpu.r7,
     cpu.r8, cpu.r9, cpu.r10, cpu.r11, cpu.r12, cpu.r13, cpu.r14, cpu.r15,
@@ -5583,7 +5592,7 @@ extern "C" void jfg_phase9_execution_probe(unsigned section, unsigned pc,
     if ((state.execution_fast_profile_ready ||
          (state.diagnostic_host_clock && state.host_clock_poll_budget > 0U && --state.host_clock_poll_budget > 0U)) &&
         !state.guest_eret_boundary && word != 0x1000FFFFU &&
-        pc != 0x8009AB80U && pc != 0x80098B74U &&
+        pc != kViInitializeSite && pc != kViManagerIdleSite &&
         (state.play_mode || state.observed_guest_instructions < 24000000000ULL) &&
         state.execution_fast_deadline > state.cpu_count &&
         state.execution_fast_revision == state.mmio_trace->execution_io_revision) {
@@ -5594,7 +5603,7 @@ extern "C" void jfg_phase9_execution_probe(unsigned section, unsigned pc,
       const bool eligible = (cpu.status_reg & 7U) == 1U &&
           (state.execution_fast_pending & cpu.status_reg & 0xFF00U) != 0U;
       const bool park = primary == 3U &&
-          (((pc + 4U) & 0xF0000000U) | ((word & 0x03FFFFFFU) << 2U)) == 0x80075698U;
+          (((pc + 4U) & 0xF0000000U) | ((word & 0x03FFFFFFU) << 2U)) == kOsSchedulerPark;
       if (!eligible && !(fpu && (cpu.status_reg & 0x20000000U) == 0U) && !park) {
         ++state.observed_guest_instructions;
         ++state.execution_fast_hits;
@@ -5684,7 +5693,7 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
       }
 
       std::uint32_t current_model = 0U;
-      std::memcpy(&current_model,state.rdram+0xf5b0cU,sizeof(current_model));
+      std::memcpy(&current_model,state.rdram+(game_data("diagnostic.currentModel")&0x1FFFFFFFU),sizeof(current_model));
       const auto previous_model=state.private_model_pointer;
       if (current_model != previous_model) {
         if (previous_model >= 0x80000000U && previous_model < 0x80400000U &&
@@ -5775,7 +5784,7 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
         const bool poll_fpu=poll_primary==0x11U || poll_primary==0x31U ||
             poll_primary==0x35U || poll_primary==0x39U || poll_primary==0x3dU;
         const bool poll_park=poll_primary==3U &&
-            (((pc+4U)&0xf0000000U)|((word&0x03ffffffU)<<2U))==0x80075698U;
+            (((pc+4U)&0xf0000000U)|((word&0x03ffffffU)<<2U))==kOsSchedulerPark;
         // The clock is sampled at the identical instruction boundary above.
         // Reuse the existing device certificate only while no deadline has
         // arrived and no CPU or I/O owner has invalidated it. Hardware/cache,
@@ -5786,7 +5795,7 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
             state.cpu_count<state.execution_fast_deadline &&
             (state.play_mode || state.observed_guest_instructions<=24000000000ULL) &&
             poll_primary!=0x10U && poll_primary!=0x2fU &&
-            word!=0x1000ffffU && pc!=0x8009ab80U && pc!=0x80098b74U &&
+            word!=0x1000ffffU && pc!=kViInitializeSite && pc!=kViManagerIdleSite &&
             !poll_park && (!poll_fpu || (cpu.status_reg&0x20000000U)!=0U) &&
             mmio.device_error==nullptr && !mmio.sp_launch &&
             mmio.flash_bus.mutations()==mmio.persisted_flash_mutations &&
@@ -5827,7 +5836,7 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
         };
         admit(mmio.pi_dma.deadline()); admit(mmio.si_dma.deadline());
         admit(state.guest_timer.deadline()); admit(mmio.sp_deadline);
-        admit(mmio.dp_deadline); admit(mmio.ai_dma.deadline());
+        admit(mmio.dp_deadline); admit(mmio.ai_dma.deadline()); admit(mmio.flash_bus.deadline());
         if (deadline > state.cpu_count) {
           const auto ticks=deadline-state.cpu_count;
           if (state.diagnostic_host_clock) {
@@ -5880,7 +5889,7 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
         state.guest_clock_trace.flush();
         mmio.traced_pi_transfers = mmio.pi_dma.transfers();
       }
-      if (state.guest_clock_trace && (pc == 0x8009ab80U || pc == 0x80098b74U))
+      if (state.guest_clock_trace && (pc == kViInitializeSite || pc == kViManagerIdleSite))
         state.guest_clock_trace << "vi-site\t" << std::hex << pc << std::dec << '\t' << state.cpu_count << '\n';
       if (mmio.device_error != nullptr) {
         if (state.guest_clock_trace) {
@@ -5902,6 +5911,8 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
         }
         fail_closed_dispatch(state, "guest-device", mmio.device_error, pc);
       }
+      if (!mmio.flash_bus.advance(state.cpu_count))
+        fail_closed_dispatch(state,"guest-device","flash-clock-or-completion",pc);
       if (mmio.flash_bus.mutations() != mmio.persisted_flash_mutations) {
         if (!state.flash_path.empty() && !state.flashram.persist_atomic(state.flash_path).ok())
           fail_closed_dispatch(state, "guest-device", "flash-persist", pc);
@@ -6007,7 +6018,7 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
             // Poll actual output continuity before pacing, including stalls in
             // the window/renderer owner thread. Never catch up a stale clock
             // after the audio device has run dry.
-            state.host_audio.service(false, false);
+            state.host_audio.service(0U, false);
             const auto target_time = state.original_os_host_clock.deadline(
                 mmio.vi_next, std::chrono::steady_clock::now(),
                 state.host_audio.underruns());
@@ -6040,14 +6051,14 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
           if (state.timing_trace) {
             hle::GuestMemory observed({state.rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
             std::uint32_t loading=0;
-            if (observed.read_u32(0x800A3530U,loading) && loading!=0U) {
+            if (observed.read_u32(game_data("globals.levelLoading"),loading) && loading!=0U) {
               std::uint16_t level=0,next=0;
-              std::memcpy(&level,state.rdram+(0xA323CU^2U),sizeof(level));
-              std::memcpy(&next,state.rdram+(0xA3250U^2U),sizeof(next));
+              std::memcpy(&level,state.rdram+((game_data("globals.currentLevel")&0x1FFFFFFFU)^2U),sizeof(level));
+              std::memcpy(&next,state.rdram+((game_data("globals.pendingLevel")&0x1FFFFFFFU)^2U),sizeof(next));
               const auto original_address=[&](std::uint32_t value) {
                 if(value<0x00100000U || value>=0x10000000U)return value;
                 std::uint32_t table=0,base=0;
-                if (!observed.read_u32(0x800FEAA0U,table) ||
+                if (!observed.read_u32(kRunlinkModuleTablePointer,table) ||
                     !observed.read_u32(table+(value>>20U)*32U,base))return 0U;
                 return base+(value&0xFFFFFU);
               };
@@ -6070,26 +6081,10 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
         support_mouse_snapshot(state);
 #endif
         }
-          if (mmio.vi_v_sync != 0U && mmio.vi_v_sync != 525U)
-            fail_closed_dispatch(state, "guest-os", "unqualified-vi-mode", pc);
-          if (mmio.vi_v_sync != 0U && mmio.vi_h_sync != 3093U)
-            fail_closed_dispatch(state, "guest-os", "unqualified-hardware-hsync", pc);
-          // Same independently derived fixed progressive profile as the paired
-          // Ares comparison; this does not implement arbitrary VI register modes.
-          mmio.vi_period = mmio.vi_v_sync == 0U ? 500000U : 783520U;
-          if (state.diagnostic_host_clock) {
-            const auto advanced = advance_native_periodic_deadline(
-                state.cpu_count, mmio.vi_next, mmio.vi_period);
-            if (!advanced || advanced->elapsed == 0U)
-              fail_closed_dispatch(state,"native-clock","vi-deadline-overflow",pc);
-            if (advanced->elapsed > 1U)
-              state.gameplay_trace.event("native-vi-coalesced", {state.vi_retraces,
-                  state.cpu_count, mmio.vi_next, advanced->next,
-                  advanced->elapsed, mmio.vi_period});
-            mmio.vi_next = advanced->next;
-          } else {
-            mmio.vi_next += mmio.vi_period;
-          }
+          if (!mmio.vi_clock.advance(state.cpu_count))
+            fail_closed_dispatch(state,"guest-device","vi-clock-overflow",pc);
+          mmio.mi_pending=(mmio.mi_pending&~8U)|(mmio.vi_clock.interrupt()?8U:0U);
+          mmio.vi_next=mmio.vi_clock.deadline().value_or(UINT64_MAX);
           if (!service_host_audio(state, true))
             fail_closed_dispatch(state, "audio", "host-device", pc);
           break;
@@ -6159,7 +6154,7 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
         hle::GuestMemory memory({state.rdram, kRdramSize}, hle::GuestMemory::Layout::native_word_big_endian);
         for (std::uint32_t offset = 0U; offset < 16U; offset += 4U) {
           std::uint32_t source = 0U, installed = 0U;
-          if (!memory.read_u32(0x80075020U + offset, source) ||
+          if (!memory.read_u32(kOsExceptionPreamble + offset, source) ||
               !memory.read_u32(0x80000180U + offset, installed) || source != installed)
             fail_closed_dispatch(state, "guest-os", "exception-vector-mismatch", pc);
         }
@@ -6168,7 +6163,7 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
               << '\t' << state.guest_cause << std::dec << '\t' << state.cpu_count << '\n';
           state.guest_clock_trace.flush();
         }
-        const auto handler = jfg_generated_lookup_function(static_cast<std::int32_t>(0x80075020U));
+        const auto handler = jfg_generated_lookup_function(static_cast<std::int32_t>(kOsExceptionPreamble));
         if (handler == nullptr) fail_closed_dispatch(state, "guest-os", "exception-handler-unavailable", pc);
         if(state.diagnostic_function_profile && !state.diagnostic_host_clock)
           (void)sample_model_thread(state,0xfffffffeU,0xfffffffeU);
@@ -6185,7 +6180,7 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
         } else if (invocation >= state.device_event_probe.first) {
           hle::GuestMemory memory({state.rdram, kRdramSize}, hle::GuestMemory::Layout::native_word_big_endian);
           std::uint32_t thread = 0U;
-          if (!memory.read_u32(0x800a9e90U, thread))
+          if (!memory.read_u32(kOsCurrentThread, thread))
             fail_closed_dispatch(state, "device-event-probe", "thread-read", pc);
           if (thread != state.device_event_previous_thread)
             emit_device_event(state, cpu, JFG_EVENT_THREAD, JFG_EVENT_NONE, pc, word);
@@ -6215,7 +6210,7 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
           (primary >= 20U && primary <= 23U) ||
           (primary == 0U && ((word & 63U) == 8U || (word & 63U) == 9U)) ||
           (primary == 0x11U && ((word >> 21U) & 31U) == 8U);
-      if (primary == 3U && (((pc + 4U) & 0xf0000000U) | ((word & 0x03ffffffU) << 2U)) == 0x80075698U)
+      if (primary == 3U && (((pc + 4U) & 0xf0000000U) | ((word & 0x03ffffffU) << 2U)) == kOsSchedulerPark)
         state.guest_transport->park_at(pc + 8U);
       state.execution_fast_deadline = mmio.vi_next;
       const auto fast_admit = [&](std::optional<std::uint64_t> next) {
@@ -6224,7 +6219,7 @@ extern "C" JFG_EXECUTION_NOINLINE void jfg_phase9_execution_probe_slow(unsigned 
       };
       fast_admit(mmio.pi_dma.deadline()); fast_admit(mmio.si_dma.deadline());
       fast_admit(state.guest_timer.deadline()); fast_admit(mmio.sp_deadline);
-      fast_admit(mmio.dp_deadline); fast_admit(mmio.ai_dma.deadline());
+      fast_admit(mmio.dp_deadline); fast_admit(mmio.ai_dma.deadline()); fast_admit(mmio.flash_bus.deadline());
       state.execution_fast_revision = mmio.execution_io_revision;
       state.execution_fast_pending =
           ((mmio.mi_pending & mmio.mi_mask.read()) ? 0x400U : 0U) |

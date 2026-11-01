@@ -280,8 +280,8 @@ void test_flashram_command_lifecycle() {
           "second program operation completes");
     check(all_equal(flash.read(3U * jfg::kFlashRamPageBytes,
                                jfg::kFlashRamPageBytes).bytes,
-                    0xFFU),
-          "FlashRAM high-level page programming replaces the complete page");
+                    0xF0U),
+          "FlashRAM programming cannot restore cleared bits without erasure");
 
     check(flash.begin_erase_page(3U).ok() && flash.complete().ok(),
           "page erase completes");
@@ -315,6 +315,26 @@ void test_flashram_command_lifecycle() {
                                    jfg::kFlashRamPageBytes).bytes,
                         0x55U),
           "last FlashRAM page is writable at the exact upper boundary");
+}
+
+void test_flashram_containing_sector() {
+    TemporaryDirectory directory;
+    const auto path=directory.path()/"sectors.bin";
+    std::vector<std::uint8_t> image(jfg::kFlashRamSizeBytes);
+    for(std::size_t i=0;i<image.size();++i)image[i]=static_cast<std::uint8_t>(0x10U+i/jfg::kFlashRamSectorBytes);
+    write_file(path,image);
+    for(const std::size_t page:{std::size_t{0},std::size_t{145},jfg::kFlashRamPageCount-1U}) {
+        jfg::FlashRamStore store;check(store.reload(path).ok(),"sector fixture reload");
+        check(store.begin_erase_sector(page).ok(),"containing sector begin");
+        check(store.read(0,image.size()).bytes==image,"pending sector erase preserves committed bytes");
+        store.interrupt();check(store.read(0,image.size()).bytes==image,"interrupted sector erase preserves bytes");
+        check(store.begin_erase_sector(page).ok() && store.complete().ok(),"sector erase completion");
+        auto expected=image;
+        const auto begin=(page/jfg::kFlashRamSectorPages)*jfg::kFlashRamSectorBytes;
+        std::fill_n(expected.begin()+static_cast<std::ptrdiff_t>(begin),jfg::kFlashRamSectorBytes,std::uint8_t{0xFFU});
+        check(store.read(0,image.size()).bytes==expected,"whole containing sector and unchanged neighbors");
+        check(store.begin_erase_sector(jfg::kFlashRamPageCount).error==jfg::FlashRamError::out_of_bounds,"sector upper bound");
+    }
 }
 
 void test_flashram_transactional_persistence() {
@@ -383,6 +403,7 @@ int main() noexcept {
         test_controller_accessory_lifecycle();
         test_controller_pak_process_round_trip();
         test_flashram_command_lifecycle();
+        test_flashram_containing_sector();
         test_flashram_transactional_persistence();
 
         if (failures != 0) {

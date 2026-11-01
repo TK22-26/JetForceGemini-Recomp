@@ -2,6 +2,9 @@ import unittest
 from scripts import native_mmio_access as mmio
 
 
+SITES={0x80098EC8:0x23,0x80098F0C:0x2B}
+
+
 def source(duplicate=False):
     result = '#include "funcs.h"\n'
     for pc, primary, base, reg in ((0x80098EC8, 0x23, 10, 10), (0x80098F0C, 0x2b, 1, 10)):
@@ -18,22 +21,32 @@ def source(duplicate=False):
     return result
 
 
+def rewrite(text):return mmio.rewrite(text,SITES)
+
+
 class NativeMmioAccessTests(unittest.TestCase):
     def test_supported_pair_preserves_hooks(self):
         original = source()
-        changed, count = mmio.rewrite(original)
+        changed, count = rewrite(original)
         self.assertEqual(count, 2)
         self.assertEqual(mmio.HOOK.findall(original), mmio.HOOK.findall(changed))
         self.assertNotIn('MEM_W(', changed)
         self.assertIn('U64(ctx->r10 + 12U)', changed)
 
+    def test_revision_sites_are_explicit_not_an_implicit_us_map(self):
+        text=source().replace('80098e','800991').replace('80098f','800992').replace('80098E','800991').replace('80098F','800992')
+        changed,count=mmio.rewrite(text,{0x800991C8:0x23,0x8009920C:0x2B})
+        self.assertEqual(count,2);self.assertNotIn('MEM_W(',changed)
+        self.assertEqual(mmio.rewrite(text,SITES),(text,0))
+        with self.assertRaises(ValueError):mmio.rewrite(text,{})
+
     def test_native_and_fallback(self):
-        changed, count = mmio.rewrite(source(True))
+        changed, count = rewrite(source(True))
         self.assertEqual(count, 4)
         self.assertEqual(len(mmio.HOOK.findall(changed)), 4)
 
     def test_unrelated_source(self):
-        self.assertEqual(mmio.rewrite('unrelated'), ('unrelated', 0))
+        self.assertEqual(rewrite('unrelated'), ('unrelated', 0))
 
     def test_fail_closed_encodings_and_body(self):
         original = source()
@@ -42,16 +55,16 @@ class NativeMmioAccessTests(unittest.TestCase):
                          ('ctx->r10 = U64(MEM_W', 'ctx->r11 = U64(MEM_W'),
                          ('0x80098f0cU', '0x80098f10U')]:
             with self.subTest(old=old), self.assertRaises(ValueError):
-                mmio.rewrite(original.replace(old, new))
+                rewrite(original.replace(old, new))
 
     def test_no_double_application(self):
-        changed, _ = mmio.rewrite(source())
+        changed, _ = rewrite(source())
         with self.assertRaises(ValueError):
-            mmio.rewrite(changed)
+            rewrite(changed)
 
     def test_reject_extra_memory_access(self):
         with self.assertRaises(ValueError):
-            mmio.rewrite(source() + '\nMEM_W(0XC, ctx->r1) = 0;\n')
+            rewrite(source() + '\nMEM_W(0XC, ctx->r1) = 0;\n')
 
 
 if __name__ == '__main__':

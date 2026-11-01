@@ -1,7 +1,8 @@
 #pragma once
-// Read-only interpretation of control records in the user's supported US ROM.
+// Read-only interpretation of control records in the user's selected original ROM.
 // No dialogue text, game code, or ROM tables are embedded here.
 #include <array>
+#include "jfg/game/rom_assets.hpp"
 #include <cstdint>
 #include <map>
 #include <set>
@@ -590,21 +591,13 @@ public:
       return false;
     }
   }
-  bool load_rom(std::span<const std::uint8_t> rom) noexcept {
-    groups_.clear();
-    choices_.clear();
+  bool load_rom(std::span<const std::uint8_t> rom,game::RomAssetDirectory directory,
+      std::string_view revision) noexcept {
+    groups_.clear();choices_.clear();
     try {
-      if (be32(rom, 0) != 0x80371240U || be32(rom, 0xB1750) != 71)
-        return false;
-      auto asset = [&](unsigned id) {
-        return slice(rom,
-                     std::size_t(0xB1880) + be32(rom, 0xB1750 + 4 * (id + 1)),
-                     std::size_t(0xB1880) + be32(rom, 0xB1750 + 4 * (id + 2)));
-      };
-      return load_assets(asset(8), asset(9), asset(10));
-    } catch (const std::exception &) {
-      return false;
-    }
+      const game::RomAssetView assets(rom,directory,revision);
+      return load_assets(assets.section(8),assets.section(9),assets.section(10));
+    } catch(const std::exception&) { return false; }
   }
   std::vector<NpcOffer> offers(unsigned dialogue, const NpcFacts &f) const {
     std::vector<NpcOffer> out;

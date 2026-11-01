@@ -1,8 +1,31 @@
 #include "jfg/renderer/interpolation_history.hpp"
+#include "jfg/renderer/interpolation_bridge.hpp"
 #include <cstdlib>
 #include <limits>
 static void require(bool value) { if (!value) std::abort(); }
 int main() {
+    {
+        int owner=0;auto frame=std::make_shared<jfg::PresentationHistoryFrame>();
+        frame->tick=103U;frame->scene=true;frame->vi_rate=50U;
+        jfg::publish_presentation_snapshot(&owner,frame);
+        require(!jfg::presentation_next_scene_due(100U,7U,120U));
+        require(jfg::presentation_next_scene_due(100U,8U,120U)==103U);
+        frame->vi_rate=60U;require(jfg::presentation_next_scene_due(100U,6U,120U)==103U);
+        frame->scene=false;require(!jfg::presentation_next_scene_due(100U,8U,120U));
+        jfg::publish_presentation_snapshot(&owner,nullptr);
+    }
+    {
+        jfg::PresentationHistory pal;pal.set_vi_rate(50U);
+        require(pal.record({},100,true).source_rate==0U);
+        auto frame=pal.record({},102,true);require(frame.source_rate==25U && frame.vi_rate==50U);
+        require(pal.record({},107,true).source_rate==10U);
+        require(pal.record({},110,true).source_rate==0U); // Existing conservative integer-cadence policy.
+        pal.set_vi_rate(60U);require(pal.record({},112,true).source_rate==0U);
+        require(pal.record({},115,true).source_rate==20U);
+        bool rejected=false;try {pal.set_vi_rate(0U);}catch(const std::invalid_argument&) {rejected=true;}
+        require(rejected && pal.vi_rate()==60U);
+    }
+
     // The worker's preflight gate must equal the gate recorded by geometry,
     // including offscreen passes, repeat ticks, cadence changes and resets.
     {

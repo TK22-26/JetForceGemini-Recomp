@@ -1014,6 +1014,8 @@ namespace JfgLauncher
                 checks += AutonomousExplorerTests.Run();
                 checks += UnifiedNavigationTests.Run(directory);
                 checks += UpdateCheckerTests.Run();
+                checks += RegionalRomTests.Run(directory);
+                checks += ProgramBundleTests.Run(directory);
                 Console.WriteLine("Launcher checks passed: " + checks);
                 return 0;
             }

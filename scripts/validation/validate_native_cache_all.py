@@ -16,7 +16,8 @@ def main():
  if not cl:p.error('Run from an x64 MSVC developer shell.')
  subprocess.run([sys.executable,str(root/'scripts/build/prepare_native_cache_all.py'),'--generated-root',str(g),'--output',str(out/'cache.inc')],check=True,timeout=30)
  shutil.copy2(root/'include/jfg/boot/original_timing_fast.h',out/'timing.h')
- raw=(g/'baseline/fn_000_1568_recomp.c').read_text();unit=out/'reference.c';unit.write_text(raw.replace('#include "funcs.h"','#include "timing.h"').replace('fn_000_1568_recomp','cache_all_reference'))
+ from scripts.regional.native_operations import load,source
+ operations,_,_=load(g);raw,row=source(g,operations,'sdk.osWritebackDCacheAll');unit=out/'reference.c';unit.write_text(raw.replace('#include "funcs.h"','#include "timing.h"').replace(row['symbol'],'cache_all_reference'))
  common=['/nologo','/O2','/Ob2','/fp:precise','/DNDEBUG','/MD','/wd4702','/I'+str(out),'/I'+str(g/'include'),'/I'+str(root/'include')]
  with (out/'build.log').open('w') as log:
   for args in [[cl,*common,'/std:c11','/c',str(unit),'/Fo'+str(out/'reference.obj')],

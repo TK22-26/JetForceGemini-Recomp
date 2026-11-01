@@ -52,13 +52,13 @@ Assert-Setup ($script:commands[1] -contains 'gcc-multilib') 'Missing matching-EL
 $before = $script:installs.Count + $script:commands.Count
 Ensure-BuildTools
 Assert-Setup (($script:installs.Count + $script:commands.Count) -eq $before) 'Retry must reuse installed components.'
-$CheckOnly = $false; $SourceCommit = 'a' * 40
+$CheckOnly = $false; $SourceCommit = 'a' * 40; $ValidatorAssembly = $null
 $RomPath = Join-Path ([IO.Path]::GetTempPath()) ('jfg-invalid-' + [Guid]::NewGuid().ToString('N') + '.z64')
 [IO.File]::WriteAllBytes($RomPath, [byte[]]@(1,2,3,4))
 try {
     $rejected = $false
-    try { Invoke-Setup } catch { $rejected = $_.Exception.Message -like '*supported 32 MiB*' }
-    Assert-Setup $rejected 'Setup must reject an unsupported ROM before installation.'
+    try { Invoke-Setup } catch { $rejected = $_.Exception.Message -like '*ValidatorAssembly*' }
+    Assert-Setup $rejected 'Setup must require the shared validator before installation.'
     Assert-Setup (($script:installs.Count + $script:commands.Count) -eq $before) 'Bad ROM triggered a download.'
     $rejected = $false
     try { Get-PinnedSource '../main' } catch { $rejected = $_.Exception.Message -like '*source revision*' }

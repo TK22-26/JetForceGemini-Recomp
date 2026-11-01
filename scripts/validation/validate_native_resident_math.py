@@ -24,18 +24,34 @@ def main():
  shutil.copy2(root/"include/jfg/boot/original_timing_fast.h",out/"timing.h")
  common=["/nologo","/O2","/Ob2","/fp:precise","/DNDEBUG","/MD",
   "/I"+str(out),"/I"+str(generated/"include"),"/I"+str(root/"include")]
- definitions=[
-  ("angle","baseline/fn_000_0723_recomp.c","fn_000_0723_recomp","jfg_native_angle_try(ram,ctx)",0),
-  ("diff","baseline/fn_000_0724_recomp.c","fn_000_0724_recomp","jfg_native_angle_diff_try(ram,ctx)",1),
-  ("sin","support/fn_000_0722.c","fn_000_0722","jfg_native_trig_try(ram,ctx,false)",2),
-  ("cos","baseline/fn_000_0721_recomp.c","fn_000_0721_recomp","jfg_native_trig_try(ram,ctx,true)",3)]
+ from scripts.regional.native_operations import load
+ operations,bindings,descriptor=load(generated)
+ sections={row['id']:row for row in descriptor['model']['sections']}
+ def address(category,name):
+  ref=bindings[category][name];section=sections[ref['section']]
+  base=section['linked_vram']
+  if category=='data':base+=section['text_size']+(section['data_size'] if ref['domain']=='bss' else 0)
+  return base+ref['offset']
+ coordinates=[address('data','math.sineTable'),address('data','math.atanTable'),
+  address('instructions','math.angle_direct_return'),address('instructions','math.angle_return'),
+  address('code','game.mathDiffAngle'),address('instructions','math.diff_return'),
+  address('instructions','math.diff_subtract_return'),address('instructions','math.diff_add_return'),
+  address('code','game.Cosf'),address('code','game.Sinf'),address('instructions','math.trig_return')]
+ (out/'math-layout.hpp').write_text('inline constexpr JfgNativeMathLayout kMathLayout{'+','.join(hex(x)+'U' for x in coordinates)+'};\n')
+ definitions=[]
+ for name,operation,call,kind in (
+  ('angle','game.Arctanf','jfg_native_angle_try(kMathLayout,ram,ctx)',0),
+  ('diff','game.mathDiffAngle','jfg_native_angle_diff_try(kMathLayout,ram,ctx)',1),
+  ('sin','game.Sinf','jfg_native_trig_try(kMathLayout,ram,ctx,false)',2),
+  ('cos','game.Cosf','jfg_native_trig_try(kMathLayout,ram,ctx,true)',3)):
+  row=operations['operations'][operation];definitions.append((name,row['source'],row['symbol'],call,kind))
  results=[]
  for name,relative,symbol,call,kind in definitions:
   case=out/name;case.mkdir();reference=generated/relative
   source=reference.read_text().replace('#include "funcs.h"','#include "timing.h"')
   if source.count("void "+symbol+"(")!=1:raise ValueError("Unexpected generated reference: "+relative)
   for role in ("reference","original"):(case/(role+".c")).write_text(source.replace(symbol,"math_"+role))
-  (case/"candidate.cpp").write_text('#include "timing.h"\n#include "jfg/boot/native_resident_math.h"\nextern "C" void math_original(uint8_t*,recomp_context*);\nextern "C" void math_candidate(uint8_t* ram,recomp_context* ctx) {if(!'+call+')math_original(ram,ctx);}\n')
+  (case/"candidate.cpp").write_text('#include "timing.h"\n#include "jfg/boot/native_resident_math.h"\n#include "math-layout.hpp"\nextern "C" void math_original(uint8_t*,recomp_context*);\nextern "C" void math_candidate(uint8_t* ram,recomp_context* ctx) {if(!'+call+')math_original(ram,ctx);}\n')
   with (case/"build.log").open("w") as log:
    for unit in ("reference","original"):
     subprocess.run([cl,*common,"/std:c11","/c",str(case/(unit+".c")),"/Fo"+str(case/(unit+".obj"))],stdout=log,stderr=subprocess.STDOUT,check=True,timeout=120)

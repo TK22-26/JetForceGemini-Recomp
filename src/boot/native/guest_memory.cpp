@@ -174,10 +174,11 @@ LONG CALLBACK mmio_exception_handler(EXCEPTION_POINTERS *exception) {
             ++g_mmio_trace->vi_acknowledgements;
           g_mmio_trace->mi_pending &= ~8U;
         }
-        if (offset == 0x18U)
-          g_mmio_trace->vi_v_sync = value;
-        if (offset == 0x1cU)
-          g_mmio_trace->vi_h_sync = value;
+        if (!g_mmio_trace->vi_clock.write(offset,value,g_mmio_trace->guest_count))
+          g_mmio_trace->device_error = "invalid-vi-clock-transaction";
+        g_mmio_trace->vi_next=g_mmio_trace->vi_clock.deadline().value_or(UINT64_MAX);
+        g_mmio_trace->mi_pending=(g_mmio_trace->mi_pending&~8U) |
+            (g_mmio_trace->vi_clock.interrupt()?8U:0U);
       }
       if (g_mmio_trace->pending_page_index == 7U) {
         g_mmio_trace->device_si_offset = offset;
@@ -195,7 +196,7 @@ LONG CALLBACK mmio_exception_handler(EXCEPTION_POINTERS *exception) {
       if (g_mmio_trace->pending_page_index == 4U) {
         if (!g_mmio_trace->ai_dma.write(
                 offset, value, g_mmio_trace->guest_count,
-                g_mmio_trace->device_rdram.size(), g_mmio_trace->vi_period))
+                g_mmio_trace->device_rdram.size()))
           g_mmio_trace->device_error = "unsupported-ai-transaction";
         g_mmio_trace->mi_pending = (g_mmio_trace->mi_pending & ~4U) |
                                    (g_mmio_trace->ai_dma.interrupt() ? 4U : 0U);
@@ -210,10 +211,10 @@ LONG CALLBACK mmio_exception_handler(EXCEPTION_POINTERS *exception) {
                 [](void *device, bool to_ram, std::uint32_t cart,
                    std::uint32_t dram, std::uint32_t length,
                    std::span<std::uint8_t> ram) {
-                  return static_cast<jfg::boot::ReferenceFlashBus *>(device)
-                      ->transfer(to_ram, cart, dram, length, ram);
+                  auto& owner=*static_cast<MmioTrace*>(device);
+                  return owner.flash_bus.transfer(to_ram,cart,dram,length,ram,owner.guest_count);
                 },
-                &g_mmio_trace->flash_bus,
+                g_mmio_trace,
                 g_mmio_trace->native_rom_completion &&
                     g_mmio_trace->native_elapsed_time))
           g_mmio_trace->device_error = "unsupported-pi-transaction";
@@ -224,10 +225,10 @@ LONG CALLBACK mmio_exception_handler(EXCEPTION_POINTERS *exception) {
       if (g_mmio_trace->pending_page_index >= 10U) {
         const bool valid =
             offset == 0U && (g_mmio_trace->pending_page_index == 10U
-                                 ? g_mmio_trace->flash_bus.write_status(value)
+                                 ? g_mmio_trace->flash_bus.write_status(value,g_mmio_trace->guest_count)
                                  : g_mmio_trace->pending_page_index == 11U &&
                                        g_mmio_trace->flash_bus.command(
-                                           value, g_mmio_trace->device_rdram));
+                                           value, g_mmio_trace->guest_count));
         if (!valid)
           g_mmio_trace->device_error = "unsupported-flash-command";
       }
@@ -331,6 +332,8 @@ LONG CALLBACK mmio_exception_handler(EXCEPTION_POINTERS *exception) {
     if (g_mmio_trace->guest_execution && !write && index >= 10U) {
       if (index != 10U || offset != 0U)
         g_mmio_trace->device_error = "unsupported-flash-read";
+      if (!g_mmio_trace->flash_bus.advance(g_mmio_trace->guest_count))
+        g_mmio_trace->device_error = "flash-clock-or-completion";
       const auto value = g_mmio_trace->flash_bus.status();
       std::memcpy(reinterpret_cast<void *>(address), &value, 4U);
     }
@@ -361,18 +364,11 @@ LONG CALLBACK mmio_exception_handler(EXCEPTION_POINTERS *exception) {
                   4U);
     if (g_mmio_trace->guest_execution && !write && index == 3U &&
         offset == 0x10U) {
-      const auto origin = g_mmio_trace->vi_next - g_mmio_trace->vi_period;
-      const auto elapsed =
-          g_mmio_trace->native_elapsed_time
-              ? jfg::boot::native_periodic_phase(g_mmio_trace->guest_count,
-                                                 g_mmio_trace->vi_next,
-                                                 g_mmio_trace->vi_period)
-              : g_mmio_trace->guest_count - origin;
-      const auto line = g_mmio_trace->vi_period == 783520U
-                            ? static_cast<std::uint32_t>(
-                                  (elapsed * 263U) / g_mmio_trace->vi_period) *
-                                  2U
-                            : static_cast<std::uint32_t>(elapsed / 1500U) & ~1U;
+      const auto current=g_mmio_trace->vi_clock.current(g_mmio_trace->guest_count);
+      if (!current) g_mmio_trace->device_error="invalid-vi-clock-read";
+      const auto line=current.value_or(0U);
+      g_mmio_trace->mi_pending=(g_mmio_trace->mi_pending&~8U) |
+          (g_mmio_trace->vi_clock.interrupt()?8U:0U);
       std::memcpy(reinterpret_cast<void *>(address), &line, 4U);
     }
     if (index == 9U && (!g_mmio_trace->guest_pif_boot || offset != 0x7fcU)) {

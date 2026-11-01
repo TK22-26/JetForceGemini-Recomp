@@ -1,9 +1,10 @@
+#include "regional_game_fixture.hpp"
 // Per-port control ownership and Floyd's independent native input route.
 static void modern_player_context_tests() {
   using namespace jfg::mod;
   for(bool swapped:{false,true}) {
     std::vector<std::uint8_t> bytes(4194304);
-    Memory m(bytes,swapped);
+    jfg::test::GameMemory m(bytes,swapped);
     auto put8=[&](std::uint32_t a,std::uint8_t v){bytes[(a&0x1FFFFFFFU)^(swapped?3U:0U)]=v;};
     auto put32=[&](std::uint32_t a,std::uint32_t v){for(unsigned i=0;i<4;++i)put8(a+i,static_cast<std::uint8_t>(v>>(24-i*8)));};
     for(unsigned p=0;p<4;++p)put8(0x800FB100U+p,static_cast<std::uint8_t>(p));
@@ -70,10 +71,10 @@ static void modern_player_context_tests() {
     put8(0x800A4FC4U,0);put8(0x800A4FD8U,0);
     constexpr auto menu=0x80160000U;
     put32(menu+0x2A34U,0x27BDFFC8U);put32(menu+0x2B14U,0x306E2000U);
-    put8(menu+0x342DU,1);put8(menu+0x3438U,2);check(pc_floyd_pause_screen(m,menu));
-    put8(menu+0x3438U,5);check(!pc_floyd_pause_screen(m,menu));put8(menu+0x3438U,2);
-    put8(menu+0x342DU,0);check(!pc_floyd_pause_screen(m,menu));
-    put8(menu+0x342DU,1);put32(menu+0x2B14U,0);check(!pc_floyd_pause_screen(m,menu));
+    put8(menu+0x342DU,1);put8(menu+0x3438U,2);check(pc_floyd_pause_screen(m,menu,FloydPauseLayout{0x3444,0x342c,0x3438,{0x2a34,0x27bdffc8},{0x2b14,0x306e2000}}));
+    put8(menu+0x3438U,5);check(!pc_floyd_pause_screen(m,menu,FloydPauseLayout{0x3444,0x342c,0x3438,{0x2a34,0x27bdffc8},{0x2b14,0x306e2000}}));put8(menu+0x3438U,2);
+    put8(menu+0x342DU,0);check(!pc_floyd_pause_screen(m,menu,FloydPauseLayout{0x3444,0x342c,0x3438,{0x2a34,0x27bdffc8},{0x2b14,0x306e2000}}));
+    put8(menu+0x342DU,1);put32(menu+0x2B14U,0);check(!pc_floyd_pause_screen(m,menu,FloydPauseLayout{0x3444,0x342c,0x3438,{0x2a34,0x27bdffc8},{0x2b14,0x306e2000}}));
     put32(fc+0x24U,0x80400000U);check(!pc_floyd_context(m));put32(fc+0x24U,owner);
     put32(0x8002F85CU,0);check(!pc_floyd_context(m));
   }

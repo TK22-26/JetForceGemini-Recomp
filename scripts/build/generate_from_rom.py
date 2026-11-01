@@ -27,29 +27,17 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from scripts.transform_private_n64recomp_inputs import Layout, parse_headers, parse_records, infer_main_code_delta
 from scripts.probe_n64recomp_cpu import verify_private_work_directory
-from scripts.rom_profiles import require_native_rom
+from scripts.rom_profiles import identify_rom
+from scripts.regional.reconstruction import reconstruct
+from scripts.regional.pipeline import generate_cpu
+from scripts.regional.generation_receipt import capture as capture_generation
+from scripts.regional.audio_payloads import extract as extract_audio_payloads
 
 
 def derive_layout(rom: bytes, map_text: str, context: dict) -> dict:
-    def symbol(name: str) -> int:
-        matches = re.findall(r"^\s*(0x[0-9a-fA-F]+)\s+" + re.escape(name) + r"\s*=", map_text, re.M)
-        if len(matches) != 1:
-            raise ValueError("Missing or ambiguous linker boundary: " + name)
-        return int(matches[0], 16)
-    layout = Layout(*(symbol(name + "_ROM_START") for name in
-        ("mainRelocTable", "overlayRomTable", "overlayTable", "overlay_1")),
-        symbol("main_TEXT_SIZE"), symbol("main_DATA_SIZE") + symbol("main_RODATA_SIZE"))
-    if not (0 < layout.main_relocation_start < layout.overlay_reference_table_start <
-            layout.overlay_table_start < layout.overlay_data_start < len(rom)):
-        raise ValueError("Invalid linker boundary ordering")
-    main = [section for section in context["section"] if section["name"] == ".main"]
-    if len(main) != 1:
-        raise ValueError("Expected one main executable section")
-    records = parse_records(rom, layout, parse_headers(rom, layout))
-    delta = infer_main_code_delta(rom, layout, main[0], records)
-    if not 0 <= delta < layout.main_text_size:
-        raise ValueError("Invalid inferred entry prefix")
-    return asdict(replace(layout, main_text_size=layout.main_text_size - delta))
+    # Compatibility API; the shared original-instruction owner defines domains.
+    from scripts.regional.linker_layout import derive_layout as derive
+    return asdict(derive(rom,map_text,context))
 
 
 def audio_configuration(program: bytes, data: bytes) -> str:
@@ -91,11 +79,12 @@ def audio_configuration(program: bytes, data: bytes) -> str:
         f'{{ offset = {secondary_offset}, size = {secondary_size} }}]\n')
 
 
-def generate_audio(workspace: Path, decomp: Path, rsp: Path, run, rom: bytes, cache_ready: bool) -> None:
+def generate_audio(workspace: Path, model, rsp: Path, run, rom: bytes, reconstruction, cpu_generation) -> None:
     audio = workspace / "audio"
     audio.mkdir(exist_ok=True)
-    program = (decomp / "assets/ucode_audio.textbin.bin").read_bytes()
-    audio_data = (decomp / "assets/data_audio.databin.bin").read_bytes()
+    payloads, payload_receipt = extract_audio_payloads(rom, model)
+    program, audio_data = payloads["program"], payloads["data"]
+    (audio / "payloads.json").write_text(json.dumps(payload_receipt, indent=2)+"\n")
     (audio / "program.bin").write_bytes(program)
     (audio / "input.toml").write_text(audio_configuration(program, audio_data))
     run("generate-audio", [str(rsp), "input.toml"], audio)
@@ -112,13 +101,9 @@ def generate_audio(workspace: Path, decomp: Path, rsp: Path, run, rom: bytes, ca
         shutil.copy2(ROOT / "src/bootstrap" / name, audio / name)
     (audio / "brokered-jfg-audio-probe.cpp").write_text(
         '#include "brokered-rsp.hpp"\n#include "jfg-audio-probe.cpp"\n')
-    manifest_files = ("normalized/sources.json", "libultra.json", "audio/production-audio-adapter.cpp",
-                      "audio/brokered-rsp.hpp", "audio/brokered-jfg-audio-probe.cpp", "audio/jfg-audio-probe.cpp", "normalized/jfg_original_timing.h", "normalized/original-timing.json", "normalized/jfg_original_timing_fast.h", "normalized/funcs.h")
-    (workspace / "generation.json").write_text(json.dumps({"complete": True,
-        "rom_sha1": hashlib.sha1(rom).hexdigest(),
-        "files": {name: hashlib.sha256((workspace / name).read_bytes()).hexdigest() for name in manifest_files},
-        "fresh_matching_elf": True, "fresh_cpu": True, "fresh_audio": True,
-        "tool_cache_reused": cache_ready}, indent=2) + "\n")
+    profile,_,_=identify_rom(rom)
+    result={"schema_version":3,"kind":"jfg-regional-generation","complete":True,"revision_id":profile.revision_id,"rom_sha1":profile.sha1,"model_sha256":model.fingerprint(),"generation_input_sha256":cpu_generation["generation_input_sha256"],**capture_generation(workspace),"fresh_matching_elf":reconstruction["matching_rom"],"fresh_cpu":True,"fresh_audio":True,"tool_cache_reused":reconstruction["tool_cache_reused"],"rsp_compiler_sha256":hashlib.sha256(rsp.read_bytes()).hexdigest(),"scope":"Generation only; native gameplay qualification is separate"}
+    (workspace/"generation.json").write_text(json.dumps(result,indent=2)+"\n")
 
 
 def main() -> int:
@@ -132,8 +117,12 @@ def main() -> int:
         parser.error("Run this stage inside WSL/Linux")
     workspace, deps = args.workspace.resolve(), args.dependency_root.resolve()
     verify_private_work_directory(workspace)
-    rom = args.rom.read_bytes()
-    require_native_rom(rom)
+    profile, rom, input_byte_order = identify_rom(args.rom.read_bytes(), normalize=True)
+    if not 1 <= args.jobs <= 32: parser.error("--jobs must be 1..32")
+    if any((workspace/name).exists() for name in ("original-private.z64", "generation.json", "metadata", "context", "program", "normalized", "audio", "reconstruction.json", "cpu-generation.json")):
+        raise ValueError("Generation output already contains stage artifacts; choose a fresh workspace")
+    workspace.mkdir(parents=True, exist_ok=True)
+    (workspace / "original-private.z64").write_bytes(rom)
     for name in ("git", "make", "gcc", "mips-linux-gnu-as", "mips-linux-gnu-objcopy", "readelf", "cmake", "ninja"):
         if not shutil.which(name):
             raise ValueError("Required WSL tool missing: " + name)
@@ -148,29 +137,13 @@ def main() -> int:
             subprocess.run(command, cwd=cwd, check=True, stdout=log, stderr=subprocess.STDOUT)
 
     decomp = scratch / "decomp"
-    source = deps / "Jet-Force-Gemini"
-    run("clone-metadata", ["git", "clone", "--no-hardlinks", str(source), str(decomp)])
-    run("decomp-submodules", ["git", "submodule", "update", "--init", "--recursive"], decomp)
-    (decomp / "baseroms").mkdir(exist_ok=True)
-    (decomp / "baseroms/baserom.us.z64").write_bytes(rom)
-    # Only tool caches may be reused. Never copy assets, asm, ELF or maps.
-    # A venv from another WSL distribution can exist yet contain packages for
-    # a different Python version. Always create this environment locally.
-    run("python-environment", [sys.executable, "-m", "venv", str(decomp / ".venv")])
-    run("python-dependencies", [str(decomp / ".venv/bin/python3"), "-m", "pip",
-        "install", "-r", str(decomp / "requirements.txt")], decomp)
-    cache_ready = all((source / item).exists() for item in
-        ("tools/ido-recomp/linux/cc", "tools/n64crc", "tools/objdiff/objdiff-cli"))
-    if cache_ready:
-        for item in ("ido-recomp", "objdiff"):
-            shutil.copytree(source / "tools" / item, decomp / "tools" / item)
-        shutil.copy2(source / "tools/n64crc", decomp / "tools/n64crc")
-    else:
-        run("setup-metadata-tools", ["make", "-C", "tools"], decomp)
-    run("extract-rom", ["make", "extract"], decomp)
-    run("matching-elf", ["make", f"-j{args.jobs}", "COLOR=0"], decomp)
-    if hashlib.sha1((decomp / "build/jfg.us.z64").read_bytes()).hexdigest() != hashlib.sha1(rom).hexdigest():
-        raise ValueError("Rebuilt ROM does not match the supplied ROM")
+    elf, linker_map, reconstruction = reconstruct(rom, deps / "Jet-Force-Gemini", decomp, args.jobs, run)
+    reconstruction["input_byte_order"] = input_byte_order
+    (workspace / "reconstruction.json").write_text(json.dumps(reconstruction, indent=2)+"\n")
+    lock = json.loads((ROOT / "dependencies.lock.json").read_text())
+    recomp_pin = next(v["commit"] for v in lock["repositories"] if v["id"] == "n64recomp")
+    if subprocess.check_output(["git", "-C", str(deps / "N64Recomp"), "rev-parse", "HEAD"], text=True).strip() != recomp_pin:
+        raise ValueError("Recompiler source differs from the dependency pin")
     # Prepare the exact patched recompiler in its own checkout.
     recomp = scratch / "N64Recomp"
     run("clone-recompiler", ["git", "clone", "--no-hardlinks", str(deps / "N64Recomp"), str(recomp)])
@@ -181,43 +154,8 @@ def main() -> int:
         "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release"])
     run("build-recompiler", ["cmake", "--build", str(recomp / "build"), "--target", "N64RecompCLI", "RSPRecomp", "-j", str(args.jobs)])
     cpu, rsp = recomp / "build/N64Recomp", recomp / "build/RSPRecomp"
-    elf = decomp / "build/jfg.us.elf"
-    # The current CPU root includes six SDK routines missing FUNC metadata in
-    # the upstream ELF. Existing recovery validates their control flow and
-    # callers against this ROM and proves all allocated ELF bytes unchanged.
-    for helper in ("task", "pi-init", "vi-main", "cont-read-pack", "printf-field", "printf-float"):
-        recovered = workspace / ("helper-" + helper)
-        run("recover-" + helper, [sys.executable, "-m", "scripts.phase9_recover_task_helper",
-            str(recovered), "--elf", str(elf), "--elf-sha256", hashlib.sha256(elf.read_bytes()).hexdigest(),
-            "--rom", str(args.rom), "--helper", helper])
-        elf = recovered / ("input-with-" + helper + "-helper.elf")
-    context = workspace / "context"
-    context.mkdir()
-    run("context-config", [sys.executable, str(ROOT / "scripts/build/prepare_n64recomp_context_dump.py"),
-        "--elf", str(elf), "--generated-output", str(context / "unused"),
-        "--output-config", str(context / "input.toml")])
-    run("context-dump", [str(cpu), str(context / "input.toml"), "--dump-context"], context)
-    layout = derive_layout(rom, (decomp / "build/jfg.us.map").read_text(),
-                           tomllib.loads((context / "dump.toml").read_text()))
-    (workspace / "layout.json").write_text(json.dumps(layout))
-    transform = workspace / "transform"
-    run("transform", [sys.executable, str(ROOT / "scripts/build/transform_private_n64recomp_inputs.py"),
-        "--rom", str(args.rom), "--elf", str(elf), "--readelf", shutil.which("readelf"),
-        "--layout", str(workspace / "layout.json"), "--context", str(context / "dump.toml"),
-        "--data-context", str(context / "data_dump.toml"), "--output-dir", str(transform)])
-    from scripts import original_timing_generation as original_timing
-    timing_sites = original_timing.configure(transform)
-    run("generate-cpu", [str(cpu), "recompile-private.toml"], transform)
-    paired_transfers = original_timing.prepare_raw(transform / "generated")
-    run("normalize", [sys.executable, str(ROOT / "scripts/build/build_private_generated_root.py"),
-        "--raw-generated", str(transform / "generated"), "--symbols", str(transform / "symbols-private.toml"),
-        "--original-context", str(context / "dump.toml"), "--runtime-manifest", str(transform / "runtime-link-private.json"),
-        "--recomp-header", str(recomp / "include/recomp.h"), "--output", str(workspace / "normalized")])
-    original_timing.finish(workspace / "normalized", timing_sites, paired_transfers)
-    run("identify-sdk", [sys.executable, str(ROOT / "scripts/build/identify_libultra.py"),
-        "--decomp-symbols", str(decomp / "ver/symbols/symbol_addrs.us.txt"),
-        "--generated-symbols", str(transform / "symbols-private.toml"), "--private-out", str(workspace / "libultra.json")])
-    generate_audio(workspace, decomp, rsp, run, rom, cache_ready)
+    model, cpu_generation = generate_cpu(rom, elf, linker_map, cpu, recomp / "include/recomp.h", workspace, run)
+    generate_audio(workspace, model, rsp, run, rom, reconstruction, cpu_generation)
     print("Fresh CPU and audio generation complete.", flush=True)
     return 0
 
