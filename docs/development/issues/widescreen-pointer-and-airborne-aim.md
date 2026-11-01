@@ -132,7 +132,7 @@ Decouple view/action intent from locomotion instead of freezing a grounded state
 during jumps. Check the landing boundary and the native guest call ABI, not
 only takeoff or a visible crosshair.
 
-Source: [runtime adapters](../../../src/boot/native_boot.cpp),
+Source: [runtime adapters](../../../src/boot/native/guest_execution.cpp),
 [launcher viewport](../../../launcher/native/game_viewport.hpp),
 [pointer fixtures](../../../include/jfg/runtime/menu_pointer.hpp).
 See [prior navigation work](modern-pause-navigation.md) and

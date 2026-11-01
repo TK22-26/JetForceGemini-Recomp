@@ -6,6 +6,8 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+
+from scripts.native_source_files import NATIVE_MODULE_CLOSURE
 import subprocess
 import time
 
@@ -36,7 +38,7 @@ TOOL_FILES = (
     "scripts/diagnostics/phase9_point_probe.py",
     "scripts/diagnostics/phase9_bizhawk_oracle.lua", "scripts/exploration/phase95_bridge.py",
     "src/boot/native_boot.cpp",
-)
+) + NATIVE_MODULE_CLOSURE
 SOURCE_NAMES = ("export-manifest.json", "controller.input", "initial.flash",
                 "initial.pak")
 

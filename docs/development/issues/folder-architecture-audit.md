@@ -135,3 +135,21 @@ callbacks and generated ABI needs semantic review and private-runtime validation
 not proof that this deeper refactoring is complete. Future changes should give each contract one
 owner, migrate consumers atomically, check links from their actual parent, preserve resource IDs,
 and distinguish hardware evidence, emulator evidence, tested changes and live acceptance.
+
+## November 1 deferred follow-ups
+
+The owner approved three hours for the deferred runtime, Git-history and regional/Walkway work.
+[Native modularization](native-runtime-modularization.md) now records explicit source owners and
+actual private-runtime qualification. [History cleanup](repository-history-hygiene.md) preserves
+all original objects and stashes externally and resolves the actual checkout's full history gate.
+[Walkway](flight-transition-missing-music.md) now follows the corrected NTSC expectation; the
+October 31 pending-rollback statements above describe that earlier documentation-only commit.
+[Regional metadata](regional-rom-support.md) reconstructs both PAL/JP originals and all overlays;
+playable regional integration remains open. None of these results closes GitHub issues or releases
+an executable. The initial 1,589-file inventory remains historical; new source outputs and updated
+file dispositions are appended to the same audit rather than counted as original baseline files.
+
+The follow-up CSV edit exposed a Windows default-codepage decode/re-encode error in four existing
+Unicode descriptions. Explicit UTF-8 reads restored the original punctuation/names. Every unchanged
+baseline CSV row was then compared field for field; only the intended dispositions and additions
+remain different. No distribution license or source payload was changed by that failed edit.

@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from scripts.transform_private_n64recomp_inputs import Layout, parse_headers, parse_records, infer_main_code_delta
 from scripts.probe_n64recomp_cpu import verify_private_work_directory
+from scripts.rom_profiles import require_native_rom
 
 
 def derive_layout(rom: bytes, map_text: str, context: dict) -> dict:
@@ -132,8 +133,7 @@ def main() -> int:
     workspace, deps = args.workspace.resolve(), args.dependency_root.resolve()
     verify_private_work_directory(workspace)
     rom = args.rom.read_bytes()
-    if len(rom) != 32*1024*1024 or hashlib.sha1(rom).hexdigest() != "493ced9008dbe932d6e91179b68e8630cf23a023":
-        raise ValueError("ROM does not match the supported US revision")
+    require_native_rom(rom)
     for name in ("git", "make", "gcc", "mips-linux-gnu-as", "mips-linux-gnu-objcopy", "readelf", "cmake", "ninja"):
         if not shutil.which(name):
             raise ValueError("Required WSL tool missing: " + name)

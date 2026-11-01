@@ -38,8 +38,9 @@ int main() {
   setup(s);put(0x800FB12C,0x803FFFF0);check(!jfg::flight_transition_next_music(ram,s.level,0x80046FC8));
   setup(s);put(0x800FB124,413);check(!jfg::flight_transition_next_music(ram,s.level,0x80046FC8));
  }
- // Incoming Walkway and unrelated scenes must retain original selections.
- for(const auto& s:std::array<jfg::FlightMusicScene,7>{{{15,0,15,2,0x010E0001},{22,0,22,2,0},{94,0,46,7,0},{102,0,104,7,0},{368,0,368,7,0},{271,0,272,7,0},{342,1,342,7,0}}}){
+ // Both Walkway directions must retain original metadata and bytes: the owner
+ // reconfirmed outbound silence on NTSC hardware. Other scenes remain untouched.
+ for(const auto& s:std::array<jfg::FlightMusicScene,8>{{{15,1,15,2,0x010E0001},{15,0,15,2,0x010E0001},{22,0,22,2,0},{94,0,46,7,0},{102,0,104,7,0},{368,0,368,7,0},{271,0,272,7,0},{342,1,342,7,0}}}){
   setup(s);const auto before=bytes;check(!jfg::flight_transition_next_music(ram,s.level,0x80046FC8));check(!jfg::apply_flight_transition_music_header(ram));check(bytes==before);
  }
  std::cout<<"PASS "<<checks<<" flight music boundary checks\n";

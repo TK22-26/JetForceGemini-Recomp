@@ -66,7 +66,7 @@ and acceptance](#contiguous-candidate-qualification-and-handoff) below.
 
 `HostCountClock` in
 [`include/jfg/boot/host_count_clock.hpp`](../../../include/jfg/boot/host_count_clock.hpp)
-and its integration in [`native_boot.cpp`](../../../src/boot/native_boot.cpp)
+and its integration in [native integration](../../../src/boot/native/guest_execution.cpp)
 remove modeled console CPU/cache costs from the private interactive build's
 timeline. The explicit `JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING` build option remains
 off by default; reference probes retain their deterministic instruction clock.

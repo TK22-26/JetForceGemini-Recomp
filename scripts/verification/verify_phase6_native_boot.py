@@ -20,6 +20,8 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
+from scripts.native_source_files import NATIVE_MODULE_CLOSURE
+
 
 ROOT = Path(__file__).resolve().parents[2]
 EXPECTED_ROM_SHA1 = "493ced9008dbe932d6e91179b68e8630cf23a023"
@@ -59,7 +61,7 @@ SOURCE_CLOSURE = (
     "src/runtime/recomp_support/minimal_runtime.cpp",
     "scripts/build/prepare_phase6_native_dispatch_table.py",
     "scripts/verification/verify_phase6_native_boot.py",
-)
+) + NATIVE_MODULE_CLOSURE
 
 
 def canonical(document: object) -> bytes:

@@ -127,7 +127,7 @@ ordinary actor interpolation.
 
 Source: [F3DDKR adapter](../../../src/renderer/rt64_f3ddkr.cpp),
 [presentation identity](../../../include/jfg/renderer/presentation_identity.hpp),
-[native conversion observer](../../../src/boot/native_boot.cpp). Related:
+[native conversion observer](../../../src/boot/native/guest_execution.cpp). Related:
 [Vela proximity fade](vela-skirt-focus-tearing.md),
 [actor history fallback](camera-turn-actor-jumps.md).
 

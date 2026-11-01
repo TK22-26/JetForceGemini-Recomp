@@ -80,7 +80,7 @@ new player or area.
 ## Implementation
 
 - [Modern view, movement conversion and identity](../../../include/jfg/runtime/pc_input.hpp).
-- [Player/physics scopes, area lifetime and input suspension](../../../src/boot/native_boot.cpp).
+- [Player/physics scopes, area lifetime and input suspension](../../../src/boot/native/gameplay_scopes.hpp).
 - [Coordinate and view-lifetime regression tests](../../../tests/runtime/pc_input_tests.cpp).
 
 A bounded diagnostic suspension interval can exercise the actual input-blocking

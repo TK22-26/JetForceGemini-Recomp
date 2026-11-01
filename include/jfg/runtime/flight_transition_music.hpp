@@ -7,10 +7,11 @@ namespace jfg {
 struct FlightMusicScene {
   std::uint32_t level,group,asset,track,metadata;
 };
-// US departure shots whose headers/global scripts omit the neighboring shots'
-// flight theme. Metadata is the exact five-byte level summary (tune excluded).
-inline constexpr std::array<FlightMusicScene,3> flight_music_scenes{{
-  {15,1,15,2,0x010E0001U}, {88,0,91,21,0x01060001U},
+// Remaining Vela departure candidates; their original-region expectations still
+// need individual review. Walkway is deliberately excluded: NTSC hardware omits
+// its departure music. Metadata is the exact level summary (tune excluded).
+inline constexpr std::array<FlightMusicScene,2> flight_music_scenes{{
+  {88,0,91,21,0x01060001U},
   {20,0,20,23,0x010A0001U}
 }};
 // Correct only the loaded header copy, before levelTunePlay compares it with

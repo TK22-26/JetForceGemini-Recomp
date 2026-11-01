@@ -27,7 +27,7 @@ current run alone may not identify the landing transition. No agent gameplay
 or visual verification is authorized in the owner-led review workflow.
 
 Inspect ModernShoulderScope / modern_shoulder_physics in
-[src/boot/native_boot.cpp](../../../src/boot/native_boot.cpp) and shoulder
+[native integration](../../../src/boot/native/controller_input.cpp) and shoulder
 ownership in [pc_input.hpp](../../../include/jfg/runtime/pc_input.hpp).
 Ordinary airborne aim already has a landing pitch-retention path, but special
 landing/recovery states may discard the persistent view and reacquire the

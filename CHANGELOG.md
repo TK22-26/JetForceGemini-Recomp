@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Split native startup from private guest memory, host audio/window input, overlays,
+  saves, task submission, diagnostics and guest execution modules. Preserve single
+  timing/cache ownership and the generated ABI. The Windows host rebuild and scoped
+  replays pass; shared state and regional host assumptions remain documented limits.
+  [Runtime validation](docs/development/issues/native-runtime-modularization.md).
+- Add exact PAL/Japanese ROM identification and private metadata preparation. Both
+  originals reconstruct byte for byte with 155 executable overlays each. Native
+  regional gameplay remains unsupported; US admission checks remain enforced.
+  [Regional work and gaps](docs/development/issues/regional-rom-support.md).
+- Finish owner-approved local Git cleanup after verifying an independent retained
+  database of all original objects and six stashes. Keep main/develop and public
+  commit/tag identities; the actual checkout's full history hygiene check passes.
+  [Recovery and scope](docs/development/issues/repository-history-hygiene.md).
+
 - Reorganize build/release/validation/diagnostic tools, tests, native launcher source
   and CMake targets by responsibility. Preserve published setup entry points and
   shared Python imports; remove the broken Quarry shortcut, obsolete launcher-only
@@ -136,9 +150,10 @@
 
 - Correct the #45 assessment after the owner's October 31 NTSC hardware recheck:
   leaving Walkway also lacks music in the original. The local Walkway insertion
-  is withdrawn as a fidelity fix, but source/preview rollback is still pending.
+  is removed from current source, with scoped normal/skip and exit-chain replay checks.
+  Older preview packages still contain the superseded insertion.
   The owner subsequently confirms music in PAL EmuHawk, establishing a regional
-  difference for this route. PAL/Japanese ROM support is separate future work;
+  difference for this route. PAL/Japanese native integration remains open;
   the two Vela routes remain
   unverified. Existing candidate tests prove the insertion, not its correctness
   relative to hardware. #45 remains open; no release is claimed.

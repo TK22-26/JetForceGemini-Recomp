@@ -1,6 +1,6 @@
 # Known issues
 
-Reviewed 2026-10-31. The published v1.4.0 bundle and the current `develop` source have different
+Reviewed 2026-11-01. The published v1.4.0 bundle and the current `develop` source have different
 validation status. A tested local candidate is not automatically released or accepted by its reporter.
 Use the [issue index](development/issues/README.md) for full reproduction, attempts, causes and evidence;
 [project status](status.md) and the [changelog](../CHANGELOG.md) describe delivered features.
@@ -45,10 +45,12 @@ unavailable pinned local WSL sanitizer boundary and the existing Linux quarantin
 
 Leaving Walkway has **no music on the owner's NTSC N64** and **does have music in PAL EmuHawk**.
 Only this departure was rechecked; the two Vela routes remain unverified. The US insertion candidate
-is withdrawn as a fidelity fix but remains in current source/preview pending separate removal.
+has been removed from current source and rebuilt with scoped replay checks. Older preview packages
+still contain the superseded insertion.
 [Issue #45's record](development/issues/flight-transition-missing-music.md) retains that correction.
 PAL hardware and Japanese behavior are untested; [PAL/JP recomp support](development/issues/regional-rom-support.md)
-is separate future work. The current recomp accepts only its pinned US ROM.
+now has matching metadata for all 155 overlays in each region; native integration and gameplay
+qualification remain open. The current recomp accepts only its pinned US ROM.
 
 The [native N64 catalog](original-game/README.md) distinguishes confirmed hardware bugs from emulator
 observations and regional differences. Tawfret's camera-helper square is hardware-confirmed and was

@@ -386,7 +386,7 @@ not ordinary player movement.
 
 Sources: [Modern action catalogue and mapping](../../../include/jfg/runtime/modern_controls.hpp),
 [Original controller mapping](../../../include/jfg/runtime/controller_mapping.hpp),
-and [native input dispatch](../../../src/boot/native_boot.cpp). Frozen source
+and [native input dispatch](../../../src/boot/native/gameplay_scopes.hpp). Frozen source
 anchors and hashes are retained privately because concurrent work can move lines.
 
 | Input path | Observed output | Interpretation |

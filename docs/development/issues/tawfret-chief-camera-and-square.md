@@ -305,7 +305,7 @@ camera actor. Unrecognized objects and incompatible instruction/header layouts
 are left alone. The change is independent of frame rate and logging.
 
 Source: [camera-helper draw scope](../../../include/jfg/renderer/camera_helper_presentation.hpp),
-[native dispatch integration](../../../src/boot/native_boot.cpp), and
+[native dispatch integration](../../../src/boot/native/guest_execution.cpp), and
 [semantic presentation tests](../../../tests/renderer/semantic_presentation_tests.cpp).
 The separate cut correction is in
 [interpolation history](../../../include/jfg/renderer/interpolation_history.hpp).

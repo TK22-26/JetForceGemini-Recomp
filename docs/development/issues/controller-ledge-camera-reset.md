@@ -21,7 +21,7 @@ Character and exact ledge are not specified.
 
 The v1.3 [mouse landing/ledge correction](mouse-camera-high-landing-reset.md)
 deliberately retained mouse ownership only. The modern_ledge_view_current
-gate in [native_boot.cpp](../../../src/boot/native_boot.cpp) requires the mouse
+gate in [native integration](../../../src/boot/native/controller_input.cpp) requires the mouse
 device selector. This identifies a coverage gap, not a complete measured cause
 for the controller report. The earlier mouse acceptance is not controller proof.
 
@@ -141,7 +141,7 @@ native body heading again instead of preserving the player's chosen camera.
 Both Modern paths share the rejected swimming-state gate.
 
 The candidate adds camera-only swimming ownership in
-[native_boot.cpp](../../../src/boot/native_boot.cpp). It retains yaw/pitch and
+[native integration](../../../src/boot/native/controller_input.cpp). It retains yaw/pitch and
 integrates look input while native swimming continues to own heading and
 movement. A session that starts in water can acquire its native initial view.
 The ordinary shoulder locomotion predicate still excludes swimming. Updates
@@ -219,7 +219,7 @@ The correction separates retained direction from ground-distance recovery.
 keeps the native collision-resolved swimming endpoint, applies the established
 near-plane clearance, and clears the ground boom history. Ground states use the
 existing solver unchanged. The call in
-[native_boot.cpp](../../../src/boot/native_boot.cpp) selects this branch only
+[native integration](../../../src/boot/native/controller_input.cpp) selects this branch only
 for qualified Modern swimming, without the ground-only height-plane override.
 Direction retention, mouse/controller look integration, native water movement
 and the water-to-air/shore safeguards remain. The trace distinguishes
@@ -321,7 +321,7 @@ it on actor/control, room, mode or gameplay-ownership changes.
 
 `ModernShoulderScope` records that origin after acquiring the current identity.
 `ModernAirPhysicsScope` in
-[native_boot.cpp](../../../src/boot/native_boot.cpp) leaves the native body
+[native integration](../../../src/boot/native/controller_input.cpp) leaves the native body
 heading untouched during the complete water-origin airborne excursion, except
 when the existing qualified air-aim path deliberately takes ownership. Aiming
 does not erase water origin, so releasing aim during that same jump returns to

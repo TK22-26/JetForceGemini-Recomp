@@ -43,7 +43,7 @@ its own lineage. This investigation does not replace the active
 Relevant local sources:
 [shell](../../src/renderer/rt64_shell.cpp),
 [F3DDKR decoder](../../src/renderer/rt64_f3ddkr.cpp),
-[task snapshot, writeback and VI presentation](../../src/boot/native_boot.cpp),
+[task snapshot, writeback and VI presentation](../../src/boot/native/live_tasks.cpp),
 [address contract](../../include/jfg/renderer/rt64_f3ddkr_address.hpp).
 Upstream observations are pinned in the
 [reference comparison](../upstream/high-refresh-reference-review-2026-10-11.md).

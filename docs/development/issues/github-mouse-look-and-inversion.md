@@ -132,7 +132,7 @@ Evidence: mouse-evidence-20261021/helper-baseline.log, helper-candidate.log,
 runtime-diagnostics/history-final-receipt.json, history-roundtrip/result.json
 and native-history-compile/result.json. Implementation:
 [diagnostics header](../../../include/jfg/runtime/mouse_input_diagnostics.hpp),
-[runtime integration](../../../src/boot/native_boot.cpp),
+[runtime integration](../../../src/boot/native/controller_input.cpp),
 [export allowlist](../../../launcher/windows/Support.cs),
 [report file inventory](../../../launcher/windows/Diagnostics.cs) and
 [focused regression](../../../tests/runtime/mouse_input_diagnostics_tests.cpp).

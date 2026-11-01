@@ -91,7 +91,7 @@ at most 256 entries (otherwise an `actor-table-invalid` event); rows include
 name words, 32 actor words and eight words each of properties and control data,
 with `ffffffff` for invalid reads. The authoritative payload order is in
 `trace_gameplay_state` and the `gameplay_trace.event` calls in
-`src/boot/native_boot.cpp`. Paired replays with tracing off and on produced
+`src/boot/native/runtime_reports.cpp` and the owning `src/boot/native/` modules. Paired replays with tracing off and on produced
 identical final RAM. Trace files contain raw guest memory: keep them private.
 
 ## Validation

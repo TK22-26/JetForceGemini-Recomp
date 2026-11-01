@@ -92,7 +92,7 @@ No reporter support ZIP or timing capture is attached as of this review.
 
 ## Source review and hypotheses
 
-[src/boot/native_boot.cpp](../../../src/boot/native_boot.cpp) opens SDL queued
+[native integration](../../../src/boot/native/host_audio_device.cpp) opens SDL queued
 audio at the guest frequency. Normal interactive play disables the additional
 200 ms audio-queue throttle because the game already follows its VI clock.
 The overrun threshold is two seconds; crossing it increments a counter but

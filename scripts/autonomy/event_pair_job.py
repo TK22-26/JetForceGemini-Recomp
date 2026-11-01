@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+
+from scripts.native_source_files import NATIVE_MODULE_CLOSURE
 import subprocess
 import time
 
@@ -36,7 +38,7 @@ TOOL_FILES = (
     "scripts/diagnostics/phase9_bizhawk_oracle.lua", "scripts/diagnostics/compare_phase9_poll_hashes.py",
     "scripts/diagnostics/compare_phase9_update_hashes.py", "scripts/exploration/phase95_bridge.py",
     "scripts/diagnostics/build_phase9_route_replays.py", "src/boot/native_boot.cpp",
-)
+) + NATIVE_MODULE_CLOSURE
 CAPABILITY_MARKER = b"JFG_PHASE9_EVENT_TRACE_RANGE"
 
 

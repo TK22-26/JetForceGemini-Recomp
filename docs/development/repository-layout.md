@@ -39,9 +39,11 @@ shared release metadata checks. Generic controller art aliases the Xbox payload;
 reserved so later resource numbers do not shift. Licenses with separate distribution roles and the
 separate baseline/patch link probes remain even when bytes match.
 
-Large native runtime state and generated-code adapters are not split merely to reduce line count.
-Their semantic boundaries require thread/state/callback and generated-ABI review plus private-runtime
-validation. Folder ownership is changed here; that deeper runtime refactoring remains an explicit follow-up.
+`src/boot/native_boot.cpp` coordinates child startup and the run loop. Its private `native/` modules
+own guest memory, host audio/window input, overlay adaptation, save storage, live tasks, reporting
+and guest execution. [Module responsibilities and qualification](issues/native-runtime-modularization.md)
+record the ABI/thread checks. Shared State and the large guest-dispatch implementation remain coupled;
+this is not a claim that every game hook is independently designed or region-neutral.
 
 ## Working data
 

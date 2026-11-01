@@ -32,6 +32,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from scripts.native_source_files import NATIVE_MODULE_CLOSURE
+
 ROOT = Path(__file__).resolve().parents[2]
 NAMESPACE = "jfg-phase6-completion-v1"
 SIGNING_POLICY_PATH = ROOT / "config" / "phase6-completion-signing.json"
@@ -105,7 +107,7 @@ BOUND_FILES = (
     "tests/evidence/test_phase6_policy.py",
     "tests/build/test_prepare_phase6_native_dispatch_table.py",
     "tests/verification/test_verify_phase6_native_boot.py",
-)
+) + NATIVE_MODULE_CLOSURE
 
 REQUIRED_CTEST_NAMES = (
     "jfg.boot",
@@ -183,7 +185,7 @@ SOURCE_CLOSURE = (
     "src/runtime/recomp_support/minimal_runtime.cpp",
     "scripts/build/prepare_phase6_native_dispatch_table.py",
     "scripts/verification/verify_phase6_native_boot.py",
-)
+) + NATIVE_MODULE_CLOSURE
 
 
 class CompletionError(RuntimeError):

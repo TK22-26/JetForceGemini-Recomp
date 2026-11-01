@@ -23,9 +23,10 @@ import time
 import uuid
 from scripts.build_paths import windows_cache, check_binary_path
 from scripts.runtime_identity import write_identity
+from scripts.rom_profiles import US_ROM, require_native_rom
 
 ROOT = Path(__file__).resolve().parents[2]
-ROM_SHA1 = "493ced9008dbe932d6e91179b68e8630cf23a023"
+ROM_SHA1 = US_ROM.sha1
 NAMES = {"jfg-decomp": "Jet-Force-Gemini", "n64recomp": "N64Recomp",
          "n64modernruntime": "N64ModernRuntime", "rt64": "rt64"}
 
@@ -33,10 +34,7 @@ NAMES = {"jfg-decomp": "Jet-Force-Gemini", "n64recomp": "N64Recomp",
 def validate_rom(path: Path) -> str:
     if not path.is_file() or path.stat().st_size != 32 * 1024 * 1024:
         raise ValueError("Select the supported 32 MiB US big-endian .z64 ROM.")
-    digest = hashlib.sha1(path.read_bytes()).hexdigest()
-    if digest != ROM_SHA1:
-        raise ValueError("ROM checksum does not match the supported US revision.")
-    return digest
+    return require_native_rom(path.read_bytes()).sha1
 
 
 def wsl_path(path: Path) -> str:

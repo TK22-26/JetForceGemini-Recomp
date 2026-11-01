@@ -1,8 +1,8 @@
 # TOOLING-HISTORY-20261031: Retained local objects fail the whole-history hygiene gate
 
-- Status: classified; current source/index passes hygiene, retained local-object cleanup remains separate open work.
+- Status: resolved locally on 2026-11-01; verified external retention and active-checkout cleanup completed, whole-local-history hygiene passes.
 - Severity: medium for the maintainer history-scan gate; no demonstrated game regression or new public-tree contamination.
-- Reported/updated: 2026-10-31 UTC during the repository reorganization.
+- Reported: 2026-10-31 UTC during the repository reorganization; cleanup verified 2026-11-01 UTC.
 - Affected: this local Git object database and retained refs; no remote repository result is inferred.
 
 ## Symptoms and reproduction
@@ -57,3 +57,25 @@ State whether a check covers working files, the index, one branch's reachable hi
 local object. Retained archive refs and stashes can fail the last scope while being absent from
 the candidate branch. Keep all results and their boundaries visible rather than reporting a
 passing source check as a clean whole-repository history scan.
+
+## Completed local cleanup, November 1
+
+The owner approved the deferred cleanup. Before removal, a separate retained Git database copied
+6,989 files (48,988,335 bytes), verified their hashes and the availability of all 6,939 original
+objects, and preserved every original ref. All six stash commits also have explicit retained refs,
+so restoring an older stash does not depend on a reflog expiring later. Private retention ID:
+`git-history-20261101-022947`; its `RESTORE.txt` and preservation receipt describe recovery.
+
+The active checkout then removed only six `refs/archive/worktrees-20261013/` refs and `refs/stash`,
+expired unreachable reflog entries and pruned unreachable objects. Branch, remote-tracking and tag
+object IDs were compared before/after and are unchanged. No historical commit or timestamp was
+rewritten. There are still two local branches, `main` and `develop`, and one source worktree.
+All six stashes remain in the external retained database; the active stash list is empty.
+
+`check_repository_hygiene.py --history` now passes in the actual checkout. Scanner rules and
+allowlists are unchanged. The private `reorganization-followups-20261101` receipt records the
+removed refs, preserved refs, original stash IDs, backup verification and passing scan. This
+resolves the local history gate; it is not a claim about a remote database or a release.
+
+Recover historical work in an isolated checkout from the retained database. Reintroducing its
+retired refs or private blobs into this checkout can legitimately reproduce the original findings.

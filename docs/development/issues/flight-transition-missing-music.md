@@ -1,43 +1,34 @@
 # AUDIO-FLIGHT-045: Music absent during some flight transitions
 
 - Severity: regional audio-fidelity report; Walkway omission reconfirmed as original NTSC behavior.
-- Status: October 31 owner correction: leaving Walkway has no flight music on native NTSC hardware. The Walkway music-insertion candidate is withdrawn as a fidelity fix, but remains in source and the current preview pending removal. PAL music is owner-confirmed in the separate original-ROM EmuHawk session; the two Vela departures are not covered by this recheck and remain unverified. #45 remains open; no release or GitHub change.
-- Reported/updated: 2026-10-24 UTC intake; reopened assessment 2026-10-30 UTC; tested candidate and local review 2026-10-31 UTC.
-- Affected: v1.4.0; reporter uses Windows 10, GTX 1080, Xbox controller, 60 FPS.
+- Status: unsupported NTSC Walkway music override removed from source and rebuilt; scoped native replay checks pass. Final source qualification is recorded below. PAL music is owner-confirmed in EmuHawk; both Vela departures remain individually unverified. #45 remains open, with no release or remote issue change.
+- Reported/updated: 2026-10-24 UTC intake; corrected hardware expectation 2026-10-31; rollback and runtime refactor 2026-11-01.
+- Original affected report: v1.4.0; Windows 10, GTX 1080, Xbox controller, 60 FPS.
 - Report: [GitHub #45](https://github.com/TK22-26/JetForceGemini-Recomp/issues/45).
 
-## Current owner correction: NTSC Walkway, October 31
+## Current finding and remedy
 
-The owner initially said the restored music should be present, then corrected
-that expectation after another native-hardware check: the earlier cutscene was
-misidentified. Asked which route was rechecked, the owner specified **leaving
-Walkway**. This is the outbound Walkway-to-SS-Anubis report (candidate scene
-15, group 1); the exact internal IDs come from the retained native capture,
-not a new hardware trace.
+The owner corrected the earlier request to add music after rechecking **leaving Walkway on physical
+NTSC N64 hardware**: this departure has no flight music in the original. The earlier cutscene was
+misidentified. The same departure has music in the owner's original PAL ROM session in EmuHawk.
+PAL hardware and Japanese music behavior remain untested. The regional code/asset cause is unknown.
 
-The missing music therefore matches the owner's NTSC hardware observation for
-this route. The Walkway part of the October 31 music-insertion candidate must
-not be accepted as a fidelity fix. The candidate's implementation and automated
-tests remain valid evidence that it adds music, not evidence that the original
-NTSC scene should contain that music. Its source and review executable have
-not yet been reverted by this documentation update.
+The unsupported Walkway descriptor (scene 15, group 1, asset 15) is removed from the shared override
+list in [flight_transition_music.hpp](../../../include/jfg/runtime/flight_transition_music.hpp).
+That removes both loaded-header mutation and next-scene tune prediction for this route, restoring
+original US selection. Outbound and inbound Walkway are explicit no-mutation regression cases.
+The original scene selects track 2; the later scene 102 selects track 7. A track-selection trace is
+not itself fresh owner listening or a claim that every sound in either scene is silent.
 
-The subsequent **PAL** original-ROM EmuHawk comparison is now owner-confirmed:
-leaving Walkway has music, while the owner reconfirms NTSC does not. This is
-PAL emulator listening evidence versus the earlier NTSC native-hardware check;
-no PAL-hardware result, automated audio capture or Japanese behavior is claimed.
-The Sekhmet and Goldwood/Vela departure changes
-remain unverified: the latest Walkway check neither accepts nor disproves them.
-Keep #45 open for scoped regional/route assessment; do not close it wholesale.
+The two Vela overrides are retained as separate candidates. The Walkway hardware correction neither
+accepts nor disproves them, and their original-game expectations still need individual verification.
+Keep #45 open for that scoped route/regional assessment. Earlier tests below prove that the old
+candidate inserted music; they cannot prove that NTSC should contain it.
 
-The Audio Settings review launcher opened earlier runs the unchanged issue45
-v2 game executable, which still contains all three music overrides. Its
-accepted Audio Settings window correction is independent. Follow-up: remove
-or disable the unsupported Walkway override, qualify the restored original
-behavior, and retain the separate PAL observation while qualifying variants
-and normal-versus-skipped playback explicitly. No runtime rollback or new
-automated audio qualification is claimed here. Earlier claims below are chronological evidence and
-are superseded for Walkway by this correction.
+The October 31 Audio Settings review package still contains the historical three-override runtime.
+This source follow-up does not silently replace an already-open or older preview. Its accepted
+standalone Audio Settings window and unknown original delay cause are independent of this rollback.
+[Regional support](regional-rom-support.md) records matching PAL/JP metadata and remaining native work.
 
 ## Regional comparison and separate future ROM support, October 31
 
@@ -71,11 +62,10 @@ Private evidence: `pal-walkway-review-20261031/provenance.json`,
 saves, ROMs and emulator snapshots remain private. No new audio capture is
 claimed; the music result is the owner's live listening report.
 
-The owner explicitly requests [PAL and Japanese ROM support](regional-rom-support.md)
-as **separate future work**, outside this reorganization. Current US/NTSC
-fidelity must not acquire PAL music unconditionally. The existing Walkway
-music override remains pending removal from the US runtime; no rollback,
-region-support implementation, release, commit or GitHub closure occurred here.
+At this October 31 stage the owner requested [PAL and Japanese ROM support](regional-rom-support.md)
+as separate future work; the initial documentation-only reorganization did not remove the override
+or implement regional support. The November 1 follow-up below removes the unsupported US insertion
+and adds matching regional metadata. US/NTSC fidelity must not acquire PAL music unconditionally.
 
 ## Symptoms and reproduction
 
@@ -388,3 +378,17 @@ runtime hash assertion rejected it before creating a profile or play shortcut.
 The corrected package uses the tested second-candidate executable; the failed
 receipt and runtime identities are retained privately. No game-code change or
 additional replay was needed for this packaging error.
+
+## November 1 follow-up: restore original NTSC Walkway behavior
+
+The owner approved this follow-up within the three-hour runtime/history/regional work. The Walkway
+entry is removed from both header-selection and next-tune prediction overrides by removing its
+shared scene descriptor. The outbound and inbound Walkway cases now explicitly assert no metadata
+or RAM mutation. The two Vela candidates remain separate and unverified against original behavior.
+The rebuilt Windows host runtime passes the 118-case CTest suite. Copied-profile replays cover
+normal and skipped Walkway departure, the retained Goldwood/Vela candidate, a before/after Water
+Ruin control and the native Walkway exit/prompt chain. The last uses diagnostic positioning before
+real native confirmation; it is not an entirely natural player route. Walkway produces no override
+events, and the skipped chain completes. Final artifact checks are retained in the private
+`reorganization-followups-20261101` receipt. No fresh owner listening, release or issue closure is
+claimed. [Runtime module validation](native-runtime-modularization.md) records the build boundary.

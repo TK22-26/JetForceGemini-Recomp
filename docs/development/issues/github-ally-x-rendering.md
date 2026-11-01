@@ -487,7 +487,7 @@ and store at `0x80045B2C` account for the additional eligible call.
 Rain setup resets that height at `0x8005BD24`. The current build uses this
 same generated source directory; searches of host source found these weather
 targets in the read-only
-[diagnostic scope](../../../src/boot/native_boot.cpp), without a host override
+[diagnostic scope](../../../src/boot/native/guest_execution.cpp), without a host override
 for the fade gate. Private extracts retain the exact source paths and operations.
 
 This establishes the cause of the **archived generation delay**. It supports
@@ -653,7 +653,7 @@ Private final evidence under `D:/JFG-private/tawfret-rain-delay-20261019`:
 `overlay-review/candidate-independent-review-v2.json`,
 `solution/native-compile-v2/result.json`, and `solution/preview-receipt.json`.
 Source: [rain fade policy](../../../include/jfg/renderer/rain_fade.hpp),
-[native hooks](../../../src/boot/native_boot.cpp),
+[native hooks](../../../src/boot/native/guest_execution.cpp),
 [tests](../../../tests/renderer/rain_fade_tests.cpp). No commit or release was created.
 
 Transferable lesson: CPU framebuffer effects must use the fade belonging to

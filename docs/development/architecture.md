@@ -26,6 +26,15 @@ The four [execution profile axes](../adr/0002-execution-profiles.md) (behavior,
 execution backend, presentation, feature set) govern how optional behavior and
 deterministic testing are separated.
 
+## Native host ownership
+
+[Native modularization](issues/native-runtime-modularization.md) maps the private implementation
+files under `src/boot/native/`. `native_boot.cpp` coordinates startup and the run loop; memory,
+window, audio, overlay loading, saves, task submission and diagnostics have separate owners.
+Shared State preserves its member order and single timing/cache ownership. Guest execution still
+contains coupled OS/game hooks and US address assumptions. The regional metadata tool reconstructs
+PAL/JP overlays, but those images remain unsupported by the playable native path.
+
 ## Generated CPU code and overlays
 
 Recorded inventory for the supported US build:
@@ -123,7 +132,8 @@ conflicting CPU write rejects the whole operation, and bytes outside tracked
 framebuffer ranges are refreshed from the CPU snapshot. Original-timing builds
 (the default generation) write back all completed color and depth output;
 otherwise only completed 8-bit intensity buffers are written back
-(`renderer_writeback_probe` in `src/boot/native_boot.cpp`).
+(selection in `src/boot/native_boot.cpp`; task submission/writeback in
+`src/boot/native/live_tasks.cpp`).
 
 Phase 7 accepted the renderer with real boot/title and gameplay tasks, three
 byte-identical readbacks per scene and identical simulation hashes with

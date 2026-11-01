@@ -61,6 +61,22 @@ if(JFG_ENABLE_GENERATED_CODE)
             DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build/prepare_phase6_native_dispatch_table.py" "${jfg_phase6_libultra_identification}"
             VERBATIM)
         add_executable(jfg-native-boot src/app/jfg_native_boot_main.cpp src/boot/native_boot.cpp "${jfg_phase6_dispatch_table}")
+        target_sources(jfg-native-boot PRIVATE
+            src/boot/native/guest_memory.cpp
+            src/boot/native/host_audio_device.cpp
+            src/boot/native/generated_overlay_table.cpp
+            src/boot/native/live_window.cpp
+            src/boot/native/controller_input.cpp
+            src/boot/native/live_frontend.cpp
+            src/boot/native/runtime_reports.cpp
+            src/boot/native/save_storage.cpp
+            src/boot/native/overlay_loading.cpp
+            src/boot/native/live_tasks.cpp
+            src/boot/native/runtime_diagnostics.cpp
+            src/boot/native/guest_execution.cpp
+            src/boot/native/rom_image.cpp
+            src/boot/native/process_supervisor.cpp
+        )
         set_source_files_properties("${jfg_phase6_dispatch_table}" PROPERTIES HEADER_FILE_ONLY TRUE)
         target_include_directories(jfg-native-boot SYSTEM PRIVATE "${JFG_GENERATED_ROOT}/include" "${JFG_GENERATED_ROOT}")
         target_compile_definitions(jfg-native-boot PRIVATE "JFG_PHASE6_DISPATCH_TABLE_INC=\"${jfg_phase6_dispatch_table}\"")

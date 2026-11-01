@@ -254,7 +254,7 @@ producer deadline. Transition-gap attribution remains separate. No new preview
 package, full-route owner acceptance or stable release is claimed.
 
 Source: [snapshot ownership](../../../src/renderer/rt64_shell.cpp),
-[task preparation and saved aspect](../../../src/boot/native_boot.cpp),
+[task preparation and saved aspect](../../../src/boot/native/live_tasks.cpp),
 [presentation queue integration](../../../cmake/renderer/rt64_video_settings.cmake), and
 [offscreen decoder work](../../../src/renderer/rt64_f3ddkr.cpp).
 
