@@ -1760,3 +1760,29 @@ These source candidates are newer than the immutable v28 runtime/v30 launcher
 handoff. Current source and producer fingerprints differ; do not label the
 old compiled candidates as containing these fixes. No all-regions visual
 acceptance, native replacement, push or release is claimed.
+
+## Presentation regression handoff, 2026-11-02
+
+Local `owner-review-v31` supersedes the v30 test handoff for these corrections.
+It combines the unchanged v30 launcher with newly qualified US/PAL/JP native
+runtimes and separately copied owner settings/saves. Full builds and normal
+name-entry replays pass; each scene fully interpolates all 41 key draws.
+The shorter PAL/JP native blur operation now passes the shared recognizer and
+original-emitter consumer regressions. The earlier Modern Aim-return and body
+bank corrections are also linked. Their live behavior and PAL/JP rescue
+appearance still need owner review. No release or whole-campaign acceptance
+is implied. See [keyboard evidence](name-entry-key-animation-cadence.md),
+[rescue blur](vela-rescue-cutscene-stutter-resolution.md) and the resolved
+[enhanced-build compiler pressure](build-blur-audit-compiler-memory.md).
+
+Two private handoff-assembler errors were rejected before delivery: assuming
+US used a regional subfolder (its canonical save root remains the profile),
+and supplying source-build manifests without the portable CRT closure. The
+helper now derives the save root from the existing profile contract and uses
+the established portable runtime manifest/verified dependencies. Actual managed
+init/setup succeeds for all regions; original profiles and earlier failure logs
+are preserved. These were assembly errors, not new game-runtime regressions.
+
+The final packaged launcher also starts the correct new native executable and
+closes normally for each revision in isolated, explicitly muted profiles.
+The handoff saves remain unchanged. Receipt: `launcher-smoke-v31.result.json`.

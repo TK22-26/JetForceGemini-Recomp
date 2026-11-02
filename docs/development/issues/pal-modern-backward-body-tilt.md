@@ -1,7 +1,7 @@
 # PAL Modern backward movement tilts Juno
 
 - ID: ANIM-PAL-BACKWARD-20261102.
-- Status: shared conversion regression localized; source correction and regression checks pass; native rebuild/live verification pending.
+- Status: shared conversion corrected and component-tested; linked in all three v31 test runtimes; live pose verification pending.
 - Severity: visible Modern locomotion regression.
 - Affected: current v30 launcher/v28 enhanced runtime. Owner reproduced PAL; focused numeric replays reproduce leftover bank in PAL and US. JP has the same incorrect source binding but no dedicated live reproduction.
 
@@ -80,3 +80,24 @@ and keep camera state distinct from body animation state.
 
 Local source commit: `504aebdcbe843c0c493ca0da3400b340c125996d` on `develop`.
 Not pushed or released; native rebuild and live acceptance remain pending.
+
+## Native integration follow-up, 2026-11-02
+
+After removing the independently diagnosed compiler-memory blocker, the first
+full PAL compile exposed an incorrect call adapter in the earlier candidate:
+`pc_clear_turn_bank` received read-only `ResidentMemory`, which has neither
+`put16` nor member lookup. Its component test correctly used the mutable memory
+contract, so that test did not instantiate the erroneous native call site.
+Pass `NativeGameMemory` directly, matching neighboring typed field writes and
+the existing ownership tests. No field mapping or bank behavior changes here.
+Evidence: `regional-presentation-20261102-owner2h/candidate-v2-pal/build.log`.
+Full regional compile and live visual qualification remain distinct gates.
+
+The source correction is now compiled and linked in all three verified regional
+runtimes in local `owner-review-v31`. Its keyboard replays establish normal Play
+only; they do not verify this camera/locomotion behavior. Owner verification
+remains pending. The earlier build failure is retained as historical evidence;
+see [compiler-memory cause](build-blur-audit-compiler-memory.md).
+
+Local implementation commit: `0e97d2e347b1bd33c714de9de3ef678aa0e48cec` on `develop`.
+The local test package is not a published release.

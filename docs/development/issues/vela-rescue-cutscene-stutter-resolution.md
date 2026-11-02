@@ -1243,3 +1243,68 @@ proof of the live draw's selected preference. No completed rescue trace is
 available from the earlier name-entry recording. A targeted PAL rescue
 pass/pairing/blend-coefficient capture and failing behavior regression test
 remain required before choosing a fix. Existing US acceptance is retained.
+
+## PAL and Japanese scope confirmed, 2026-11-02
+
+The owner clarifies that excessive rescue blur is present only in PAL and JP;
+US looks correct. Treat both as owner-reproduced regional reports and retain US
+as the visual reference. The owner approved two further hours for keyboard
+interpolation and rescue-blur corrections, including meaningful regression
+checks. This is the same guarded investigation; all prior charges remain.
+New private evidence: `regional-presentation-20261102-owner2h`. Automated games
+are muted with a test-only configuration. Existing manual profiles and saves
+remain separate from reproductions. Cause and fix remain under investigation.
+
+### Source mismatch in native blur recognition
+
+Reviewing the original blurUpdate consumers shows that PAL/JP omit the second
+scissor and viewport commands emitted by the US implementation after the
+blend/environment colors. The current recognizer requires that US prefix and
+623 commands; the shorter PAL/JP list has 621 commands with the same sixty
+texture strips. It is therefore rejected before GPU composite/history and
+persisted blur-strength adaptation can apply. This is a demonstrated source
+contract mismatch; original-list execution and a rebuilt live rescue remain
+separate qualification steps. Add bounded recognition for both complete
+command forms, not a region flag or an unchecked partial match.
+
+### Candidate and consumer regression coverage
+
+The shared recognizer now validates either complete 621-command or 623-command
+operation. It still requires the exact setup, all sixty strips, footer, aligned
+bounded memory and disjoint framebuffer allocations. The blend/environment
+commands retain their original positions and reduced/off strength handling.
+
+A new `jfg.native_blur` consumer test exercises both independently constructed
+GBI forms, every mutated opcode, truncated input, wrong layout and invalid or
+overlapping buffers. It also checks Original/Reduced/Off coefficients. This test,
+video-settings and interpolation-history tests pass. This is component evidence;
+a rebuilt regional rescue scene and owner appearance check remain pending.
+
+The original US/PAL/JP blur-emitter instruction streams were also replayed in a
+private bounded harness using synthetic documented setup-helper contracts and
+320x240 buffers. Their emitted lists contain 623/621/621 commands. The compiled
+pre-change recognizer accepts US and rejects PAL/JP; the candidate accepts all
+three with the correct source and destination. This independently qualifies the
+regional emitter/consumer mismatch, but the setup helpers are fixtures and this
+is not live cutscene execution. Private evidence: `original-blur-emitter` and
+`original-blur-consumer` beneath the current investigation root.
+
+Implementation: [complete blur recognizer](../../../include/jfg/renderer/native_blur.hpp).
+The [synthetic consumer regression](../../../tests/renderer/native_blur_tests.cpp)
+constructs both command forms independently and is registered as `jfg.native_blur`.
+Compatibility lesson: share the operation contract across revisions, while
+validating each legitimate complete encoding. A US-only command prefix can
+silently disable a shared rendering correction even when settings persist.
+
+### Rebuilt regional handoff
+
+The corrected recognizer is linked into all three verified enhanced runtimes
+in local `owner-review-v31`. Full builds and normal keyboard Play pass in each
+region. The strengthened consumer regression mutates both opcode and fixed
+first-word parameter bits for every command in both forms and passes.
+These checks do not execute the live rescue sequence: PAL/JP rescue appearance
+and live effect/source-pairing confirmation remain for manual review. Existing
+US visual acceptance applies to its prior behavior, not a new visual test.
+
+Local implementation commit: `0e97d2e347b1bd33c714de9de3ef678aa0e48cec` on `develop`.
+The local test package is not a published release.

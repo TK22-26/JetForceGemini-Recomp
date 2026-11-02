@@ -9,9 +9,9 @@ Use the [issue index](development/issues/README.md) for full reproduction, attem
 
 | Problem | Current evidence and limit |
 |---|---|
-| [Modern backward body tilt](development/issues/pal-modern-backward-body-tilt.md) | PAL owner report and PAL/US baseline pose measurements identify a shared wrong-field conversion. Distinct bank binding and regressions pass; rebuilt runtime/live verification pending. |
-| [Name-entry keyboard cadence](development/issues/name-entry-key-animation-cadence.md) | PAL trace/replay confirms incomplete scene interpolation at120FPS/25Hz. Individual key ownership/cause and correction remain open. |
-| [PAL Vela rescue blur](development/issues/vela-rescue-cutscene-stutter-resolution.md#pal-owner-regression-2026-11-02) | Owner reports excessive blur despite a profile storing Reduced. PAL pass recognition/pairing/coefficient capture and a behavior regression test remain pending. |
+| [Modern backward body tilt](development/issues/pal-modern-backward-body-tilt.md) | PAL owner report and PAL/US baseline pose measurements identify a shared wrong-field conversion. Distinct bank binding and regressions pass; included in all three v31 runtimes, with live pose verification pending. |
+| [Name-entry keyboard cadence](development/issues/name-entry-key-animation-cadence.md) | US/PAL/JP native replays interpolate every keyboard vertex and retain all 41 key identities. Included in local v31; owner appearance review pending. |
+| [PAL/JP Vela rescue blur](development/issues/vela-rescue-cutscene-stutter-resolution.md#pal-owner-regression-2026-11-02) | PAL/JP omit two commands required by the old recognizer. Both complete forms pass consumer regressions and are linked in local v31; live rescue and owner review pending. US appearance remains owner-accepted. |
 | [Original FPS simulation parity](development/issues/original-mode-simulation-parity.md) | Ordinary Play uses a host-clock policy; Original output does not restore the N64 simulation clock. Matching motion states does not prove matching elapsed time. Open. |
 | [Flying-enemy speed #48](development/issues/github-flying-enemy-speed.md) | An elapsed-VI movement candidate passes portable checks and twelve native replays. Its stable three-VI reference does not reproduce every loaded N64 cadence; owner review and the Original timing policy remain open. |
 | [Intermittent mouse look #32](development/issues/github-mouse-look-and-inversion.md) | A local candidate fixes reproduced raw-mouse delivery loss across the hosted process boundary. Two-process checks pass; reporter and inversion-Off retests remain pending. |
@@ -147,6 +147,6 @@ for current verification and compatibility limits.
 The owner reports that releasing Aim in Modern controls snaps the camera back
 instead of sweeping into normal view. A shared source candidate preserves the
 actual aimed position through the collision solver; focused components pass.
-The full native build failed under the guarded memory envelope, so the current
-handoff does not contain this candidate and live verification remains pending.
+The compiler-memory blocker is corrected and all three v31 test runtimes now
+contain this candidate. Live camera-transition verification remains pending.
 See the [issue record](development/issues/modern-aim-release-camera-snap.md).

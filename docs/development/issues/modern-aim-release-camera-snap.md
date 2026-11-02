@@ -2,7 +2,7 @@
 
 - ID: MODERN-AIM-RELEASE-20261102.
 - Reported: 2026-11-02 during owner manual testing.
-- Status: source candidate and focused component checks pass; full native build and live verification pending.
+- Status: candidate and focused components pass; linked in all three v31 test runtimes; live camera verification pending.
 - Severity: visible camera transition regression in Modern controls.
 - Affected: current local v30 launcher/v28 enhanced native handoff (`5bac0c8`); the observed manual session uses the US runtime. PAL/JP and older releases are not individually reproduced.
 
@@ -78,3 +78,9 @@ escalation was attempted. All full native/live acceptance remains open.
 
 Local source commit: `504aebdcbe843c0c493ca0da3400b340c125996d` on `develop`.
 Not pushed or released; native rebuild and live acceptance remain pending.
+
+The source correction is now compiled and linked in all three verified regional
+runtimes in local `owner-review-v31`. Its keyboard replays establish normal Play
+only; they do not verify this camera/locomotion behavior. Owner verification
+remains pending. The earlier build failure is retained as historical evidence;
+see [compiler-memory cause](build-blur-audit-compiler-memory.md).
