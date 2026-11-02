@@ -14,8 +14,9 @@ import sys
 
 
 def real_python_executable() -> str:
-    """Avoid Windows Store app-execution aliases that exit before job assignment."""
+    """Return an unpackaged Python; Store workers can escape job inheritance."""
     if os.name == "nt":
+        _require_unpacked_process(_kernel32.GetCurrentProcess())
         candidate = Path(sys.base_prefix) / "python.exe"
         if candidate.is_file():
             return str(candidate)
@@ -71,6 +72,71 @@ if os.name == "nt":
     _kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
     _kernel32.WaitForSingleObject.restype = wintypes.DWORD
 
+    _kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    _kernel32.GetPackageFullName.argtypes = [wintypes.HANDLE,
+                                             ctypes.POINTER(wintypes.UINT),
+                                             wintypes.LPWSTR]
+    _kernel32.GetPackageFullName.restype = wintypes.LONG
+    _kernel32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    _kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+
+    class _ThreadEntry(ctypes.Structure):
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                    ("th32ThreadID", wintypes.DWORD),
+                    ("th32OwnerProcessID", wintypes.DWORD),
+                    ("tpBasePri", wintypes.LONG), ("tpDeltaPri", wintypes.LONG),
+                    ("dwFlags", wintypes.DWORD)]
+
+    for _name in ("Thread32First", "Thread32Next"):
+        _function = getattr(_kernel32, _name)
+        _function.argtypes = [wintypes.HANDLE, ctypes.POINTER(_ThreadEntry)]
+        _function.restype = wintypes.BOOL
+    _kernel32.OpenThread.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    _kernel32.OpenThread.restype = wintypes.HANDLE
+    _kernel32.ResumeThread.argtypes = [wintypes.HANDLE]
+    _kernel32.ResumeThread.restype = wintypes.DWORD
+
+    def _require_unpacked_process(handle: int) -> None:
+        length = wintypes.UINT()
+        result = _kernel32.GetPackageFullName(handle, ctypes.byref(length), None)
+        if result == 15700:  # APPMODEL_ERROR_NO_PACKAGE
+            return
+        if result in (0, 122):  # Package identity, with or without a name buffer.
+            raise OSError("packaged workers are unsupported: run the supervisor "
+                          "with an unpackaged Python installation")
+        raise OSError(result, "GetPackageFullName failed; containment unverified")
+
+    def _resume_initial_thread(pid: int) -> None:
+        # Popen closes the CreateProcess primary-thread handle. A process created
+        # suspended has exactly one thread; recover it without running user code.
+        snapshot = _kernel32.CreateToolhelp32Snapshot(0x4, 0)  # SNAPTHREAD
+        if snapshot == ctypes.c_void_p(-1).value:
+            raise OSError(ctypes.get_last_error(), "thread snapshot failed")
+        threads = []
+        try:
+            entry = _ThreadEntry()
+            entry.dwSize = ctypes.sizeof(entry)
+            available = _kernel32.Thread32First(snapshot, ctypes.byref(entry))
+            while available:
+                if entry.th32OwnerProcessID == pid:
+                    threads.append(entry.th32ThreadID)
+                entry.dwSize = ctypes.sizeof(entry)
+                available = _kernel32.Thread32Next(snapshot, ctypes.byref(entry))
+            if ctypes.get_last_error() != 18:  # ERROR_NO_MORE_FILES
+                raise OSError(ctypes.get_last_error(), "thread enumeration failed")
+        finally:
+            _kernel32.CloseHandle(snapshot)
+        if len(threads) != 1:
+            raise OSError("suspended worker does not have exactly one initial thread")
+        thread = _kernel32.OpenThread(0x2, False, threads[0])  # SUSPEND_RESUME
+        if not thread:
+            raise OSError(ctypes.get_last_error(), "OpenThread failed")
+        try:
+            if _kernel32.ResumeThread(thread) != 1:
+                raise OSError("unexpected suspended worker thread state")
+        finally:
+            _kernel32.CloseHandle(thread)
+
     _EXTENDED_LIMIT_CLASS = 9
     _KILL_ON_CLOSE = 0x00002000
     _JOB_MEMORY = 0x00000200
@@ -122,8 +188,37 @@ class WorkerJob:
 
     def assign(self, process: subprocess.Popen[bytes]) -> None:
         if os.name == "nt":
+            _require_unpacked_process(process._handle)
+            if not self.handle:
+                raise OSError("cannot assign to a closed worker job")
             if not _kernel32.AssignProcessToJobObject(self.handle, process._handle):
                 raise OSError(ctypes.get_last_error(), "AssignProcessToJobObject failed")
+
+    def launch(self, argv: list[str], **kwargs) -> subprocess.Popen:
+        """Assign before any worker code runs; terminate on every setup failure.
+
+        Windows packaged workers are rejected even when their Python process
+        itself can be assigned: that does not establish native-child inheritance.
+        POSIX callers retain their existing process-group options.
+        """
+        if os.name != "nt":
+            return subprocess.Popen(argv, **kwargs)
+        _require_unpacked_process(_kernel32.GetCurrentProcess())
+        if not self.handle:
+            raise OSError("cannot launch from a closed worker job")
+        flags = kwargs.get("creationflags", 0)
+        if flags & 0x01000000:  # CREATE_BREAKAWAY_FROM_JOB
+            raise ValueError("guarded workers cannot request job breakaway")
+        kwargs["creationflags"] = flags | 0x4  # CREATE_SUSPENDED
+        process = subprocess.Popen(argv, **kwargs)
+        try:
+            self.assign(process)
+            _resume_initial_thread(process.pid)
+        except BaseException:
+            process.kill()
+            process.wait(timeout=5)
+            raise
+        return process
 
     def close(self) -> None:
         if self.handle is not None:

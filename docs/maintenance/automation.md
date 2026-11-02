@@ -12,6 +12,12 @@ The [production progress guard](../planning/autonomy-progress-guard.md) must sta
 enabled. Recover the existing investigation and remaining budget before work.
 Run experiments, builds, replays, and coding workers through guarded execution.
 Foreground orchestration is not a replacement for a guarded child process.
+On Windows, run the supervisor with an unpackaged Python installation. Store
+Python is rejected because native descendants escaped its job in a reproduced
+build. Use `WorkerJob.launch` to assign suspended workers before execution;
+launching first and calling `assign` later cannot provide that guarantee.
+Guard receipts use schema 2; old receipts do not prove safe expired-attempt
+recovery. See [the containment record](../development/issues/windows-packaged-python-child-containment.md).
 
 Never reset counters, rename or re-root the same problem for another allowance,
 or run directly after a denial. Preserve original failures, evidence, and user
@@ -63,7 +69,7 @@ Read-only status checks may inspect the ledger. Do not infer current job state
 from dated reports. Use the actual supervisor CLI definitions and `--help` for
 task arguments; old run packets are tied to their recorded inputs.
 
-Relevant tests are `tests/test_autonomy_*.py`. The progress-guard acceptance
+Relevant tests are `tests/autonomy/test_autonomy_*.py`. The progress-guard acceptance
 recipe is retained in its [contract](../planning/autonomy-progress-guard.md).
 All agent-launched validation still runs through the supervisor; test fixtures
 must not mutate the production ledger.

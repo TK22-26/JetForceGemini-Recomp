@@ -175,7 +175,7 @@ class FrontierCycleJobTests(unittest.TestCase):
                 prior = state / "attempts" / job_id / "0001"
                 prior.mkdir(parents=True)
                 (prior / "frontier.guard.json").write_text(json.dumps({
-                    "schema": 1, "state": "finished", "owner_pid": 999999}))
+                    "schema": 2, "state": "finished", "owner_pid": 999999}))
                 job_dir = cycle / "job-0000-01"
                 job_dir.mkdir()
                 (job_dir / "result.json").write_text(json.dumps({
@@ -212,7 +212,7 @@ class FrontierCycleJobTests(unittest.TestCase):
                 prior = state / "attempts" / job_id / "0001"
                 prior.mkdir(parents=True)
                 (prior / "frontier.guard.json").write_text(json.dumps({
-                    "schema": 1, "state": "guarded", "owner_pid": 999999,
+                    "schema": 2, "state": "guarded", "owner_pid": 999999,
                     "child_pid": 999998}))
                 current = json.loads((cycle / "state.json").read_text())
                 current["attempt"] = 1

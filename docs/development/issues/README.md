@@ -46,6 +46,7 @@ Detailed per-issue records are added as those issues receive further work.
 
 | ID | Issue | Current recorded status | Investigation / resolution |
 |---|---|---|---|
+| AUTONOMY-CHILD-CONTAINMENT-20261102 | Packaged Python native children escape the process job | Verified by Windows regressions and actual native compiler containment; unreleased | [Report](windows-packaged-python-child-containment.md) |
 | FLASH-CONTRACT-20261101 | FlashRAM sector and command semantics | Shared device and final all-three fresh original-OS new-slot/reload plus enhanced reload checks pass; broader persistence acceptance pending | [Report](flashram-device-contract.md) |
 | LAUNCHER-EXPLORER-SHUTDOWN-20261101 | Map explorer worker outlives window close | Bounded worker completion passes actual-window regression; live verification pending | [Report](launcher-explorer-shutdown.md) |
 | ARCH-NATIVE-20261101 | Native runtime modularization | Implemented module ownership; Windows build, 118 CTests and scoped native replays pass; shared State and Linux live limitations recorded; unreleased | [Report](native-runtime-modularization.md) |

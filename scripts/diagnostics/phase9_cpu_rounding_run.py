@@ -117,12 +117,11 @@ def run(output: Path, emulator: Path, rom: Path, rom_sha256: str,
             (output / "stderr.log").open("wb") as stderr, \
             WorkerJob(memory_limit_bytes=8 * 1024 * 1024 * 1024,
                       cpu_seconds=timeout) as guard:
-        process = subprocess.Popen(
+        process = guard.launch(
             [str(isolated / emulator.name), str(rom), f"--lua={script}"],
             cwd=isolated, env=environment, stdout=stdout, stderr=stderr,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         try:
-            guard.assign(process)
             (output / "process.json").write_text(json.dumps({"pid": process.pid}) + "\n")
             exit_code = process.wait(timeout=timeout)
         except BaseException:

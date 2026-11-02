@@ -345,11 +345,10 @@ def replay(source, output, executable, rom, rom_sha256, *, timeout=1800,
                         "--watchdog-ms", str(timeout * 1000)]
         else:
             command += ["--probe-retraces", str(target)]
-        process = subprocess.Popen(command, env=environment,
+        process = guard.launch(command, env=environment,
                                    stdout=stdout, stderr=stderr,
                                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         try:
-            guard.assign(process)
             (output / "process.json").write_text(json.dumps({"pid": process.pid}) + "\n")
             exit_code = process.wait(timeout=timeout)
         except subprocess.TimeoutExpired as error:

@@ -149,11 +149,10 @@ class Worker:
         self.logs = [(root / name).open("wb") for name in ("stdout.log", "stderr.log")]
         try:
             self.guard = WorkerJob(memory_limit_bytes=8 * 1024 * 1024 * 1024)
-            self.process = subprocess.Popen(
+            self.process = self.guard.launch(
                 [str(isolated / emulator.name), str(rom.resolve()), f"--lua={script.resolve()}"],
                 cwd=isolated, env=env, stdout=self.logs[0], stderr=self.logs[1],
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-            self.guard.assign(self.process)
         except BaseException:
             self.close()
             raise

@@ -137,6 +137,18 @@ Continuations never reopen shelved investigations. The one bootstrap admission
 the owner approved on 2026-09-27, made with the original budget and charges,
 is not a standing authorization.
 
+## Windows worker containment
+
+Use an unpackaged Python installation for the supervisor and worker.
+`WorkerJob.launch` rejects packaged/unknown process identities, assigns the
+suspended worker before it executes, and resumes only after assignment succeeds.
+All launch consumers use this path. Kill-on-close, CPU/memory limits and the
+production ledger remain separate enforced layers. Schema-2 guard receipts
+identify the new launch contract; old schema-1 receipts remain evidence but
+cannot establish safe expired-attempt recovery. Native descendants and cleanup
+are covered by regressions, not inferred from Python-only membership.
+See [cause, evidence and compatibility](../development/issues/windows-packaged-python-child-containment.md).
+
 ## Acceptance
 
 ```powershell

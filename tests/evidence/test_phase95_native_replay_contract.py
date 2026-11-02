@@ -135,8 +135,8 @@ class NativeReplayContractTests(unittest.TestCase):
                 def wait(self, timeout):
                     return 0
 
-            with mock.patch("scripts.phase95_native_replay.WorkerJob"), \
-                    mock.patch("scripts.phase95_native_replay.subprocess.Popen", FakeProcess):
+            with mock.patch("scripts.phase95_native_replay.WorkerJob") as guard_type:
+                guard_type.return_value.__enter__.return_value.launch.side_effect = FakeProcess
                 result = replay(source, root / "output", executable, rom, digest(rom),
                                 timeout=30, stop_by_polls=True)
             self.assertEqual(commands[0][-4:], ["--probe-polls", "2", "--watchdog-ms", "30000"])
@@ -146,15 +146,15 @@ class NativeReplayContractTests(unittest.TestCase):
             self.assertEqual(result["target_controller_polls"], 2)
             self.assertIsNone(result["target_retraces"])
             self.assertEqual(result["post_eof_neutral_polls"], 0)
-            with mock.patch("scripts.phase95_native_replay.WorkerJob"), \
-                    mock.patch("scripts.phase95_native_replay.subprocess.Popen", FakeProcess):
+            with mock.patch("scripts.phase95_native_replay.WorkerJob") as guard_type:
+                guard_type.return_value.__enter__.return_value.launch.side_effect = FakeProcess
                 retrace_result = replay(source, root / "retrace-output", executable,
                                         rom, digest(rom), timeout=30)
             self.assertEqual(commands[1][-2:], ["--probe-retraces", "12"])
             self.assertTrue(retrace_result["probe_target_reached"])
             self.assertEqual(retrace_result["stop_mode"], "vi-retraces")
-            with mock.patch("scripts.phase95_native_replay.WorkerJob"), \
-                    mock.patch("scripts.phase95_native_replay.subprocess.Popen", FakeProcess):
+            with mock.patch("scripts.phase95_native_replay.WorkerJob") as guard_type:
+                guard_type.return_value.__enter__.return_value.launch.side_effect = FakeProcess
                 prefix_result = replay(source, root / "prefix-output", executable,
                                        rom, digest(rom), timeout=30,
                                        target_retraces=6, update_hashes=True)
@@ -200,8 +200,8 @@ class NativeReplayContractTests(unittest.TestCase):
                 def wait(self, timeout):
                     return 0
 
-            with mock.patch("scripts.phase95_native_replay.WorkerJob"), \
-                    mock.patch("scripts.phase95_native_replay.subprocess.Popen", FakeProcess):
+            with mock.patch("scripts.phase95_native_replay.WorkerJob") as guard_type:
+                guard_type.return_value.__enter__.return_value.launch.side_effect = FakeProcess
                 with self.assertRaisesRegex(RuntimeError, "bounded target"):
                     replay(source, root / "output", executable, rom, digest(rom),
                            timeout=30, stop_by_polls=True)

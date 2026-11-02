@@ -1030,7 +1030,7 @@ class SupervisorTests(unittest.TestCase):
         prior = self.state / "attempts" / "candidate-1" / "0001"
         prior.mkdir(parents=True)
         (prior / "agent.guard.json").write_text(
-            json.dumps({"schema": 1, "state": "finished", "owner_pid": 99999999}),
+            json.dumps({"schema": 2, "state": "finished", "owner_pid": 99999999}),
             encoding="utf-8")
         (prior / "tracked.patch").write_bytes(b"")
         with zipfile.ZipFile(prior / "untracked.zip", "w") as archive:
@@ -1555,7 +1555,7 @@ class SupervisorTests(unittest.TestCase):
                   "match": False, "first_divergence": {"retrace": 1}}
         (prior / "comparison.json").write_text(json.dumps(report), encoding="utf-8")
         (prior / "comparator.guard.json").write_text(
-            json.dumps({"schema": 1, "state": "finished", "owner_pid": 99999999}),
+            json.dumps({"schema": 2, "state": "finished", "owner_pid": 99999999}),
             encoding="utf-8")
         (prior / "result.json").write_text(json.dumps({
             "schema": 1, "complete": True, "kind": "comparison-execution",
