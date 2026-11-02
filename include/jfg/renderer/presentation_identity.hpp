@@ -64,6 +64,7 @@ struct PresentationRigidIdentity {
   std::uint32_t matrix = 0, actor = 0;
   std::uint64_t lifetime = 0, camera = 0;
   RigidPresentationPose pose;
+  std::uint32_t sub_id = 0;
 };
 // US behavior 68 / beamDraw: two eight-vertex buffers in actor control data.
 // The physical buffer alternates; actor lifetime, control allocation and shape
@@ -378,7 +379,7 @@ inline std::array<std::uint64_t, 4> presentation_rigid_key(
   }
   if (!geometry) return {};
   return {owner->lifetime, (std::uint64_t(owner->actor) << 32U) | geometry->instance,
-          geometry->model, owner->camera};
+          (std::uint64_t(owner->sub_id) << 32U) | geometry->model, owner->camera};
 }
 class PresentationGuestView {
 public:
@@ -557,7 +558,7 @@ public:
   // after it returns. capture() accepts only an exact live actor and unchanged
   // emitted matrix bytes, so unrelated transforms/buffer reuse cannot bind.
   void rigid(std::span<const std::uint8_t> data, std::uint32_t matrix,
-             std::uint32_t actor, std::uint64_t tick) {
+             std::uint32_t actor, std::uint64_t tick, std::uint32_t sub_id = 0) {
     const PresentationGuestView ram(data);
     level(ram.u32(layout_.level));
     const auto physical = PresentationGuestView::physical(matrix);
@@ -578,6 +579,7 @@ public:
       binding.pose.view[i]=std::bit_cast<float>(ram.u32(layout_.view_matrix+i*4U));
       binding.pose.projection[i]=std::bit_cast<float>(ram.u32(layout_.projection_matrix+i*4U));
     }
+    binding.sub_id = sub_id;
     rigids_[physical] = binding;
   }
   // Observe only the verified objPrintCustomObject projectile callers,
@@ -820,20 +822,29 @@ public:
       }
     }
     const auto list = ram.u32(layout_.objects), count = ram.u32(layout_.object_count);
-    if (count > 256U || !ram.valid(list, count * 4U)) {
-      actors_.clear();
-      return result;
-    }
+    std::vector<std::uint32_t> scene_actors;
+    if (count <= 256U && ram.valid(list, count * 4U))
+      for (std::uint32_t i=0;i<count;++i) scene_actors.push_back(ram.u32(list+i*4U));
+    // The repeated name-entry key object lives outside the world object list.
+    // Its qualified global binds the ordinary model/vertex ownership; each
+    // native key draw additionally supplies its own rigid sub-identity.
+    // Leaving the screen retires this allocation lifetime.
+    const auto keyboard_actor = layout_.frontend_mode && layout_.keyboard_key_actor &&
+        ram.valid(layout_.frontend_mode,1U) && ram.u8(layout_.frontend_mode)==24U &&
+        ram.valid(layout_.keyboard_key_actor,4U) ? ram.u32(layout_.keyboard_key_actor) : 0U;
+    if (keyboard_actor) scene_actors.push_back(keyboard_actor);
     std::map<std::uint32_t, Lifetime> live;
-    for (std::uint32_t i = 0; i < count; ++i) {
-      const auto actor = ram.u32(list + i * 4U);
+    for (const auto actor:scene_actors) {
       if (!ram.valid(actor, 0xA1U) || ram.u8(actor + layout_.actor_deleted) != 0U ||
           live.contains(actor))
         continue;
       const auto header = ram.u32(actor + layout_.actor_header),
                  models = ram.u32(actor + layout_.actor_models);
       const auto model_count = ram.u8(header + layout_.header_modelCount);
-      if (!ram.valid(header, 0x20U) || model_count > 16U ||
+      // KeyboardKeys contains the letter and keyboard variants (51 in PAL).
+      // Its native signed-byte model count exceeds the gameplay-only cap.
+      const auto model_limit = actor == keyboard_actor ? 127U : 16U;
+      if (!ram.valid(header, 0x20U) || model_count > model_limit ||
           (model_count != 0U && !ram.valid(models, model_count * 4U)))
         continue;
       auto old = actors_.find(actor);
@@ -1051,7 +1062,7 @@ public:
           actor == actors_.end() || actor->second.header != rigid.header ||
           actor->second.models != rigid.models) it = rigids_.erase(it);
       else {
-        result.rigids.push_back({it->first, rigid.actor, actor->second.serial, rigid.camera, rigid.pose});
+        result.rigids.push_back({it->first, rigid.actor, actor->second.serial, rigid.camera, rigid.pose, rigid.sub_id});
         ++it;
       }
     }
@@ -1108,6 +1119,7 @@ private:
     std::uint64_t tick, camera;
     std::array<std::uint32_t, 16> words;
     RigidPresentationPose pose{};
+    std::uint32_t sub_id = 0;
   };
   struct Shadow {
     PresentationShadowIdentity identity;

@@ -3013,6 +3013,19 @@
           "body_sha256": "c2024ca0916cc716a9ae7e53214d9181850d0777b79169e626417523dc27f804",
           "body_size": 456,
           "entry_offset": 0
+        },
+        "owner.renderer.keyboard": {
+          "section_kind": "overlay",
+          "body_sha256": "18a7a4e145ee6c410a6275703faeb08f9cfca9622437c965303f77ed005b4bf8",
+          "body_size": 11016,
+          "entry_offset": 0,
+          "overlay_slot": 42
+        },
+        "game.frontDrawObject": {
+          "section_kind": "main",
+          "body_sha256": "d9861d59a84ecbab8fcb5f3207f7e18523bb0a7e27679a96fea0d374fff27bdd",
+          "body_size": 1100,
+          "entry_offset": 0
         }
       },
       "data": {
@@ -4826,6 +4839,14 @@
           "writable": false,
           "hi_offset": 4,
           "lo_offset": 28
+        },
+        "renderer.keyboardKeyActor": {
+          "source": "owner.renderer.keyboard",
+          "size": 4,
+          "alignment": 4,
+          "writable": false,
+          "relocation_offset": 9284,
+          "target_slot": 0
         }
       },
       "runlink_abi": {
@@ -6365,6 +6386,10 @@
         "guard.control.lupus.turnBank": {
           "source": "overlay.lupus.movement_handler",
           "instruction_offset": 1744
+        },
+        "render.keyboard.key_draw": {
+          "source": "owner.renderer.keyboard",
+          "instruction_offset": 9996
         }
       }
     },
@@ -9378,6 +9403,19 @@
           "body_sha256": "07063fd647e61e9593d94152f65e5e35b89ef175619239114deff77f0e3ec0a6",
           "body_size": 456,
           "entry_offset": 0
+        },
+        "owner.renderer.keyboard": {
+          "section_kind": "overlay",
+          "body_sha256": "a31445c1c2dba6fafc22a326279bc221534390b1d7fcd1757050c150e9a837e9",
+          "body_size": 11016,
+          "entry_offset": 0,
+          "overlay_slot": 42
+        },
+        "game.frontDrawObject": {
+          "section_kind": "main",
+          "body_sha256": "40660162ceb2b0fff33f4603a8a972cb30a49bbcbd959476ecb3273b8afd91a4",
+          "body_size": 1100,
+          "entry_offset": 0
         }
       },
       "data": {
@@ -11191,6 +11229,14 @@
           "writable": false,
           "hi_offset": 4,
           "lo_offset": 28
+        },
+        "renderer.keyboardKeyActor": {
+          "source": "owner.renderer.keyboard",
+          "size": 4,
+          "alignment": 4,
+          "writable": false,
+          "relocation_offset": 9284,
+          "target_slot": 0
         }
       },
       "runlink_abi": {
@@ -12730,6 +12776,10 @@
         "guard.control.lupus.turnBank": {
           "source": "overlay.lupus.movement_handler",
           "instruction_offset": 1752
+        },
+        "render.keyboard.key_draw": {
+          "source": "owner.renderer.keyboard",
+          "instruction_offset": 9996
         }
       }
     },
@@ -15743,6 +15793,19 @@
           "body_sha256": "2f7ae84990dd00a750ddc0c955f5eb4af0979f322815f07f590d2d7f71137fa3",
           "body_size": 456,
           "entry_offset": 0
+        },
+        "owner.renderer.keyboard": {
+          "section_kind": "overlay",
+          "body_sha256": "a586ef6a7269edc67dc25f32448076377668b646900ede15e7683088e2d0ed04",
+          "body_size": 11316,
+          "entry_offset": 0,
+          "overlay_slot": 42
+        },
+        "game.frontDrawObject": {
+          "section_kind": "main",
+          "body_sha256": "f52e64bc383ca9774f9afb88b21b53e6cff13503abfc23290c54230ebac94ea5",
+          "body_size": 1100,
+          "entry_offset": 0
         }
       },
       "data": {
@@ -17556,6 +17619,14 @@
           "writable": false,
           "hi_offset": 4,
           "lo_offset": 28
+        },
+        "renderer.keyboardKeyActor": {
+          "source": "owner.renderer.keyboard",
+          "size": 4,
+          "alignment": 4,
+          "writable": false,
+          "relocation_offset": 9352,
+          "target_slot": 0
         }
       },
       "runlink_abi": {
@@ -19095,6 +19166,10 @@
         "guard.control.lupus.turnBank": {
           "source": "overlay.lupus.movement_handler",
           "instruction_offset": 1740
+        },
+        "render.keyboard.key_draw": {
+          "source": "owner.renderer.keyboard",
+          "instruction_offset": 10064
         }
       }
     }

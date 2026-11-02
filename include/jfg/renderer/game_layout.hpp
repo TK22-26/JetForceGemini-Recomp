@@ -142,6 +142,8 @@ struct RendererGameLayout {
   std::uint32_t glassControl_commands1{};
   std::uint32_t shadowControl_flags{};
   std::uint32_t shadowControl_scale{};
+  std::uint32_t frontend_mode{};
+  std::uint32_t keyboard_key_actor{};
   constexpr RainOperation rain_operation(std::uint32_t target) const noexcept {
     if (target) for (unsigned i=0;i<rain_targets.size();++i)
       if (target==rain_targets[i]) return static_cast<RainOperation>(i+1U);

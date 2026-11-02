@@ -555,6 +555,12 @@ target_compile_features(jfg_interpolation_history_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_interpolation_history_tests)
 add_test(NAME jfg.interpolation_history COMMAND jfg_interpolation_history_tests)
 
+add_executable(jfg_native_blur_tests renderer/native_blur_tests.cpp)
+target_include_directories(jfg_native_blur_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_compile_features(jfg_native_blur_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_native_blur_tests)
+add_test(NAME jfg.native_blur COMMAND jfg_native_blur_tests)
+
 add_executable(jfg_video_settings_tests renderer/video_settings_tests.cpp)
 target_include_directories(jfg_video_settings_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
 target_compile_features(jfg_video_settings_tests PRIVATE cxx_std_20)

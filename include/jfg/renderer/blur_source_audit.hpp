@@ -1,7 +1,7 @@
 #pragma once
 #include "jfg/renderer/native_blur_mode.hpp"
 #include <algorithm>
-#include <array>
+#include <vector>
 #include <mutex>
 #include <chrono>
 #include <cstdint>
@@ -36,7 +36,10 @@ struct BlurSourceAuditRow {
 };
 class BlurSourceAudit {
     static constexpr std::size_t capacity = 262144;
-    std::array<BlurSourceAuditRow, capacity> rows_{};
+    // Keep storage bounded, allocated once when this opt-in collector starts.
+    // A giant value-initialized std::array makes MSVC expand hundreds of
+    // thousands of row initializers in every consumer translation unit.
+    std::vector<BlurSourceAuditRow> rows_ = std::vector<BlurSourceAuditRow>(capacity);
     std::size_t count_ = 0;
     std::mutex mutex_;
     std::filesystem::path path_;

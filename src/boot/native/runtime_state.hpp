@@ -462,6 +462,8 @@ inline constexpr jfg::RendererGameLayout kRendererGameLayout{
   game_member("layout.glassControl.commands1"),
   game_member("layout.shadowControl.flags"),
   game_member("layout.shadowControl.scale"),
+  game_data("globals.frontendMode"),
+  game_data("renderer.keyboardKeyActor"),
 };
 
 consteval std::uint32_t original_os_entry(std::string_view name) {
@@ -519,6 +521,7 @@ struct State : JfgOriginalTimingFast {
   bool ledgered = false;
 #if defined(JFG_PHASE8_LIVE_RUNTIME)
   bool presentation_identity_enabled = false;
+  std::uint32_t presentation_keyboard_key = UINT32_MAX;
   jfg::PresentationIdentityTracker presentation_identities{kRendererGameLayout};
   struct CameraFade { std::uint32_t actor=0,control=0,header=0; std::uint64_t tick=0, update=0; unsigned alpha=255; };
   std::array<CameraFade,4> pc_camera_fades{};

@@ -1,5 +1,6 @@
 #include "runtime_services.hpp"
 #include "gameplay_scopes.hpp"
+#include "jfg/renderer/keyboard_presentation.hpp"
 namespace jfg::boot::native::detail {
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
 #include "../flying_motion.inl"
@@ -2110,6 +2111,15 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
 #endif
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  const bool keyboard_draw = target == game_code("game.frontDrawObject");
+  const bool keyboard_caller = state.presentation_identity_enabled && section_addresses &&
+      static_cast<std::uint32_t>(context->r31) ==
+          static_cast<std::uint32_t>(section_addresses[game_module(OriginalModule::save_keyboard)]) +
+          game_overlay_site("render.keyboard.key_draw", OriginalModule::save_keyboard) + 8U;
+  jfg::KeyboardPresentationScope keyboard_scope(state.presentation_keyboard_key,
+      keyboard_draw, keyboard_caller,
+      keyboard_draw ? jfg::PresentationGuestView({rdram,kRdramSize}).u8(kRendererGameLayout.frontend_mode) : 0U,
+      static_cast<std::uint32_t>(context->r4), static_cast<std::uint32_t>(context->r17));
   // Interpolated presentation keeps the camera's four low angle bits.
   // Original mode and all non-camera trig calls retain the native result.
   const bool precision_camera_call=jfg::camera_precision_call(kRendererGameLayout,
@@ -2870,7 +2880,11 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const bool observe_shuriken = (state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) && target == game_overlay_token("overlay.shuriken.matrix");
         const bool observe_rigid = (state.presentation_identity_enabled || jfg::shadow_quality_preference().load(std::memory_order_relaxed)==jfg::ShadowQuality::enhanced) &&
             (target == game_code("game.camPushModelMtx") || observe_shuriken);
-        const auto rigid_actor = observe_rigid ? static_cast<std::uint32_t>(context->r6) : 0U;
+        const auto keyboard_sub_id = observe_rigid && !observe_shuriken &&
+            state.presentation_keyboard_key < 41U ? state.presentation_keyboard_key + 1U : 0U;
+        const auto rigid_actor = keyboard_sub_id ?
+            jfg::PresentationGuestView({rdram,kRdramSize}).u32(kRendererGameLayout.keyboard_key_actor) :
+            observe_rigid ? static_cast<std::uint32_t>(context->r6) : 0U;
         const auto rigid_output = observe_rigid ? static_cast<std::uint32_t>(context->r5) : 0U;
         const auto rigid_matrix = observe_rigid ? jfg::PresentationGuestView({rdram,kRdramSize}).u32(rigid_output) : 0U;
 #endif
@@ -3079,7 +3093,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         }
         if (observe_rigid && (!observe_shuriken ||
             jfg::PresentationGuestView({rdram,kRdramSize}).u32(rigid_output)==rigid_matrix+64U)) {
-          state.presentation_identities.rigid({rdram,kRdramSize},rigid_matrix,rigid_actor,state.vi_retraces);
+          state.presentation_identities.rigid({rdram,kRdramSize},rigid_matrix,rigid_actor,state.vi_retraces,keyboard_sub_id);
+          if (keyboard_sub_id && state.gameplay_trace)
+            state.gameplay_trace.event("keyboard-key-matrix",{state.vi_retraces,keyboard_sub_id-1U,rigid_actor,rigid_matrix});
           if(observe_shuriken)
             state.gameplay_trace.event("shuriken-matrix",{state.vi_retraces,rigid_actor,rigid_matrix});
         }

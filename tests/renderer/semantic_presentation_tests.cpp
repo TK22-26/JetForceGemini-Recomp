@@ -1,4 +1,5 @@
 #include "renderer_game_fixture.hpp"
+#include "jfg/renderer/keyboard_presentation.hpp"
 #include "jfg/renderer/enhanced_shadow_footprint.hpp"
 #include "jfg/renderer/tracer_presentation.hpp"
 #include "jfg/renderer/attached_effect_history.hpp"
@@ -969,6 +970,43 @@ int main() {
   w8(0x801000A0U, 0);
   w32(0x800F2CA8U, 257);
   require(tracker.capture(ram, 114).models.empty());
+  // Frontend models are registered outside the world object array. Repeated
+  // keyboard shapes need native joint/vertex ownership, including bank swaps.
+  {
+    const auto saved_ram=ram;
+    auto layout=jfg::test::renderer_layout;
+    layout.frontend_mode=0x801f0000U;layout.keyboard_key_actor=0x801f0004U;
+    w8(layout.frontend_mode,24U);w32(layout.keyboard_key_actor,0x80100000U);
+    w32(layout.object_count,0U);
+    // Native KeyboardKeys has 51 variants, outside the ordinary actor cap.
+    w8(0x8011001fU,51U);
+    for (unsigned i=1;i<51U;++i) w32(0x80120000U+i*4U,0U);
+    jfg::PresentationIdentityTracker keyboard{layout};
+    const auto key_scene=keyboard.capture(ram,120);
+    require(key_scene.models.size()==1U);
+    const auto key0=jfg::presentation_vertex_identity(key_scene,0x170000U,0x160000U);
+    const auto key1=jfg::presentation_vertex_identity(key_scene,0x170040U,0x160000U);
+    const auto bank1=jfg::presentation_vertex_identity(key_scene,0x170100U,0x160000U);
+    require(key0.owner && key0.geometry && key1.owner && bank1.owner);
+    require(key0.joint==0U && key1.joint==1U && bank1.joint==key0.joint);
+    require(key0.owner->lifetime==bank1.owner->lifetime);
+    require(keyboard.capture(ram,122).models[0].lifetime==key0.owner->lifetime);
+    // A duplicate registration cannot create ambiguous owners.
+    w32(layout.object_count,1U);
+    require(keyboard.capture(ram,124).models.size()==1U);
+    w32(layout.object_count,0U);w8(layout.frontend_mode,23U);
+    require(keyboard.capture(ram,126).models.empty());
+    w8(layout.frontend_mode,24U);
+    require(keyboard.capture(ram,128).models[0].lifetime!=key0.owner->lifetime);
+    keyboard.retire(0x80100000U);
+    require(keyboard.capture(ram,130).models[0].lifetime!=key0.owner->lifetime);
+    w8(0x8011001fU,128U);
+    require(keyboard.capture(ram,132).models.empty());
+    w8(0x8011001fU,51U);
+    w32(layout.keyboard_key_actor,0xfffffff0U);
+    require(keyboard.capture(ram,134).models.empty());
+    ram=saved_ram;
+  }
   // Camera snapshots must retain captured operands and reject buffer reuse.
   w32(0x800F2CA8U,1);w32(0x80180000U,0x80190000U);
   tracker.camera(ram,0x80180000U,114);
@@ -1360,6 +1398,42 @@ int main() {
   require(jfg::presentation_rigid_key(rigid_scene,0x190000U,0x160001U,1)[0]==0);
   require(jfg::presentation_rigid_key(rigid_scene,0x190000U,0x160000U,4)[0]==0);
   require(jfg::presentation_rigid_key(rigid_scene,0x190000U,0x160000U,0)[0]==0);
+  {
+    // The same key actor/model is drawn repeatedly. Native key indices must
+    // distinguish identical geometry, independent of matrix address/draw order.
+    jfg::PresentationIdentityTracker keys{jfg::test::renderer_layout};
+    keys.rigid(ram,0x80191000U,0x80100000U,200,1);
+    keys.rigid(ram,0x80191100U,0x80100000U,200,2);
+    auto keys_first_scene=keys.capture(ram,200);
+    const auto key_one=jfg::presentation_rigid_key(keys_first_scene,0x191000U,0x160000U,3);
+    const auto key_two=jfg::presentation_rigid_key(keys_first_scene,0x191100U,0x160000U,3);
+    require(key_one[0] && key_two[0] && key_one!=key_two);
+    keys.rigid(ram,0x80191200U,0x80100000U,202,2);
+    keys.rigid(ram,0x80191300U,0x80100000U,202,1);
+    auto keys_second_scene=keys.capture(ram,202);
+    require(jfg::presentation_rigid_key(keys_second_scene,0x191200U,0x160000U,3)==key_two);
+    require(jfg::presentation_rigid_key(keys_second_scene,0x191300U,0x160000U,3)==key_one);
+    w32(0x80191200U,0xdeadbeefU);
+    require(!jfg::presentation_rigid_key(keys.capture(ram,202),0x191200U,0x160000U,3)[0]);
+    keys.retire(0x80100000U);
+    keys.rigid(ram,0x80191300U,0x80100000U,204,1);
+    require(jfg::presentation_rigid_key(keys.capture(ram,204),0x191300U,0x160000U,3)!=key_one);
+    require(keys.capture(ram,211).rigids.empty());
+  }
+  {
+    using Scope=jfg::KeyboardPresentationScope;
+    std::uint32_t key_context=Scope::inactive;
+    {
+      Scope key(key_context,true,true,24,52,40);require(key_context==40);
+      { Scope nested(key_context,false,false,0,0,0);require(key_context==40); }
+      { Scope other(key_context,true,false,24,52,2);require(key_context==Scope::inactive); }
+      require(key_context==40);
+    }
+    require(key_context==Scope::inactive);
+    { Scope invalid(key_context,true,true,24,52,41);require(key_context==Scope::inactive); }
+    { Scope screen(key_context,true,true,23,52,2);require(key_context==Scope::inactive); }
+    { Scope model(key_context,true,true,24,51,2);require(key_context==Scope::inactive); }
+  }
   rigid_tracker.rigid(ram,0x80190100U,0x80100000U,202);
   rigid_scene=rigid_tracker.capture(ram,202);
   require(jfg::presentation_rigid_key(rigid_scene,0x190100U,0x160000U,3)==rigid_key);
