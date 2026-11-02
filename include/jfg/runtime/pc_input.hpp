@@ -10,6 +10,13 @@
 #include <string_view>
 
 namespace jfg {
+// Clear only the native body bank caused by a turn which Modern replaced.
+// Camera turn delta, terrain roll and special-state poses remain independent.
+template<class Memory>
+inline void pc_clear_turn_bank(Memory memory,std::uint32_t control) {
+  memory.put16(control+memory.member_offset("layout.playerControl.turnBank"),0);
+}
+
 // Windows virtual keys, with two portable binding IDs for wheel pulses.
 inline constexpr int kPcWheelUp = 256, kPcWheelDown = 257;
 struct PcInputConfig {
@@ -473,8 +480,40 @@ struct PcCameraBoom {
     return at(selected);
   }
 };
+// Aiming owns a different camera position. Return from that actual pose before
+// scenery resolution, without filtering the player's normal look or movement.
+// This state belongs to the same actor/control lifetime as the retained view.
+struct PcAimCameraReturn {
+  bool aimed=false,returning=false,pending_origin=false;
+  PcOrbitPoint origin{},offset{};
+  static bool finite(PcOrbitPoint point) {
+    return std::isfinite(point.x) && std::isfinite(point.y) && std::isfinite(point.z);
+  }
+  void observe_aim() { aimed=true;returning=false;pending_origin=false;offset={}; }
+  bool release(PcOrbitPoint actual) {
+    if(!aimed)return false;
+    aimed=false;returning=finite(actual);pending_origin=returning;origin=actual;
+    return returning;
+  }
+  PcOrbitPoint apply(PcOrbitPoint desired,float seconds) {
+    if(!returning)return desired;
+    if(!finite(desired)){*this={};return desired;}
+    if(pending_origin) {
+      offset={origin.x-desired.x,origin.y-desired.y,origin.z-desired.z};
+      pending_origin=false;
+    }
+    const float dt=std::isfinite(seconds)?std::clamp(seconds,0.0F,0.25F):0.0F;
+    const float decay=std::exp(-dt/0.18F);
+    offset={offset.x*decay,offset.y*decay,offset.z*decay};
+    if(std::hypot(offset.x,offset.y,offset.z)<0.01F) {
+      returning=false;offset={};return desired;
+    }
+    return {desired.x+offset.x,desired.y+offset.y,desired.z+offset.z};
+  }
+};
 struct PcShoulder {
   PcCameraBoom camera_boom{};
+  PcAimCameraReturn aim_return{};
   PcMoveVelocity movement_before_update{};
   unsigned movement_before_state=0;
   int movement_before_yaw=0;

@@ -281,6 +281,7 @@ inline constexpr game::NamedInstructionRef memory_instructions[]{
   {"layout.actor.objectData", {"jfg-us-r0",0,589836U},2353332284U},
   {"layout.actor.animation", {"jfg-us-r0",0,589840U},2689335355U},
   {"layout.actor.animationFrame", {"jfg-us-r0",0,589844U},2219442216U},
+  {"layout.playerControl.turnBank", {"jfg-us-r0",0,204364U},0xa6f80120U},
   {"layout.playerControl.turnDelta", {"jfg-us-r0",0,589848U},2785018122U},
   {"layout.playerControl.heading", {"jfg-us-r0",0,589852U},2226651420U},
   {"layout.playerControl.cameraYaw", {"jfg-us-r0",0,589856U},2792882630U},

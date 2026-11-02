@@ -889,6 +889,16 @@
         "contains a spaced hexadecimal payload"
       ],
       "reason": "Reviewed bounded original instruction-operand and exit-sentinel decision signatures used to reject incompatible regional layouts. These are small verification signatures, not complete game routines or generated game code; all other payload, credential, ROM and archive checks remain active."
+    },
+    {
+      "git_blob": "9f7a9b5b47e01ef745104a8a5b470ae159f98bd1",
+      "sha256": "be13f2a9c0643494e1a2d30c93d97185a53014dc37964d3ba743c173a4ca8f15",
+      "bytes": 41053,
+      "path": "scripts/build/regional/bindings.py",
+      "exceptions": [
+        "contains a spaced hexadecimal payload"
+      ],
+      "reason": "Fresh review after turn-bank ownership validation: flagged public MIPS opcode-classification lists are byte-identical to the previously reviewed body. New handwritten semantic checks contain no ROM, generated code or private payload; all other hygiene checks remain active."
     }
   ]
 }

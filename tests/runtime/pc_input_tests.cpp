@@ -9,6 +9,63 @@ namespace {
 int checks=0;
 void check(bool result,const char* what){++checks;if(!result){std::cerr<<what<<'\n';std::exit(1);}}
 
+void check_turn_bank_ownership() {
+  for(bool native_words:{false,true})for(std::uint16_t bank:std::array<std::uint16_t,4>{1U,8192U,57344U,65535U}) {
+    std::array<std::uint8_t,8192> bytes{};
+    jfg::test::GameMemory memory(bytes,native_words);
+    constexpr std::uint32_t control=0x80000400U;
+    memory.put16(control+0x120U,bank);
+    memory.put16(control+0x10aU,0x3456U); // Camera delta is a different field.
+    memory.put16(control+0x11eU,0x789aU);
+    memory.put16(control+0x122U,0xbcdeU);
+    const auto before=bytes;
+    jfg::pc_clear_turn_bank(memory,control);
+    check(memory.u16(control+0x120U)==0,"Modern clears signed native body turn bank");
+    check(memory.u16(control+0x10aU)==0x3456U,"body bank does not clear camera delta");
+    memory.put16(control+0x120U,bank);
+    check(bytes==before,"turn-bank correction preserves every unrelated pose byte");
+  }
+}
+
+void check_aim_camera_return() {
+  const jfg::PcOrbitPoint aimed{12,40,20},desired{0,60,200};
+  const auto distance=[](jfg::PcOrbitPoint a,jfg::PcOrbitPoint b) {
+    return std::hypot(a.x-b.x,a.y-b.y,a.z-b.z);
+  };
+  jfg::PcAimCameraReturn transition;
+  check(distance(transition.apply(desired,1.0F/30.0F),desired)==0,
+    "ordinary look has no camera-return filtering");
+  check(!transition.release(aimed),"normal frames cannot start an Aim return");
+  transition.observe_aim();check(transition.release(aimed),"actual aimed pose starts the return");
+  check(distance(transition.apply(desired,0),aimed)<0.0001F,
+    "release starts at the actual camera, including lateral and vertical offset");
+  const auto first=transition.apply(desired,1.0F/30.0F);
+  check(distance(first,desired)>100 && distance(first,aimed)<40,
+    "first return update sweeps partway instead of snapping to the shoulder");
+  const auto old_offset=transition.offset;
+  const jfg::PcOrbitPoint moving{desired.x+25,desired.y+7,desired.z-12};
+  const auto moved=transition.apply(moving,0);
+  check(distance(moved,{moving.x+old_offset.x,moving.y+old_offset.y,moving.z+old_offset.z})<0.0001F,
+    "new look and player movement are immediate while the inherited offset decays");
+  jfg::PcAimCameraReturn ntsc,pal;
+  ntsc.observe_aim();pal.observe_aim();ntsc.release(aimed);pal.release(aimed);
+  jfg::PcOrbitPoint n{},p{};
+  for(int i=0;i<30;++i)n=ntsc.apply(desired,1.0F/60.0F);
+  for(int i=0;i<25;++i)p=pal.apply(desired,1.0F/50.0F);
+  check(distance(n,p)<0.001F,"equal elapsed NTSC/PAL simulation time produces the same return");
+  transition.observe_aim();const jfg::PcOrbitPoint reaimed{-20,80,30};
+  transition.release(reaimed);
+  check(distance(transition.apply(desired,0),reaimed)<0.0001F,
+    "rapid re-aim returns from the newest actual pose, never the prior origin");
+  for(int i=0;i<120;++i)transition.apply(desired,1.0F/60.0F);
+  check(!transition.returning && distance(transition.apply(moving,0),moving)==0,
+    "the bounded residual settles and ordinary direct look resumes");
+  jfg::PcShoulder view;view.acquire(1,2,0,0);view.aim_return.observe_aim();
+  view.aim_return.release(aimed);view.acquire(1,3,0,0);
+  check(!view.aim_return.returning && !view.aim_return.aimed,
+    "replacement control lifetime cannot inherit a camera return");
+}
+
 void check_swimming_camera_collision() {
   // The captured regression has a valid far endpoint above the water while
   // the recovering ground boom repeatedly meets the surface clearance band.
@@ -165,6 +222,8 @@ void check_boss_aim() {
 }
 int main() {
   check_boss_aim();
+  check_turn_bank_ownership();
+  check_aim_camera_return();
   check_swimming_camera_collision();
   jfg::PcInputConfig config,roundtrip;
   check(!jfg::pc_experiments_enabled(""),"missing switch stays disabled");

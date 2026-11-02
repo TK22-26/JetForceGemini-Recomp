@@ -285,6 +285,21 @@ def member_operand(word):
     return word&0xffff
 
 
+def qualify_turn_bank_layout(instructions):
+    """Keep movement-generated body bank distinct from camera turn delta.
+
+    The initializer and all three independently hashed character handlers must
+    agree on the field. A valid memory operand alone cannot establish its role.
+    """
+    bank=member_operand(instructions['layout.playerControl.turnBank']['original_word'])
+    turn=member_operand(instructions['layout.playerControl.turnDelta']['original_word'])
+    if bank==turn:raise ValueError('Turn bank aliases camera turn delta')
+    for character in ('juno','vela','lupus'):
+        word=instructions['guard.control.'+character+'.turnBank']['original_word']
+        if word>>26!=41 or (word>>21)&31!=16 or member_operand(word)!=bank:
+            raise ValueError('Character turn-bank writer disagrees with initializer')
+
+
 def relocated_data_operand(body, source_section, source_offset, offset, target_slot, sections, relocations):
     """Resolve a field through the reproduced original relocation inventory.
 
@@ -360,6 +375,7 @@ def qualify(root:Path):
     mi=bodies['sdk.osSetIntMask']
     if any(struct.unpack_from('>I',mi,offset)[0]!=word for offset,word in ((36,0x3c0aa430),(40,0x8d4a000c),(104,0x3c01a430),(108,0xac2a000c))):
         raise ValueError('Unreviewed original interrupt-mask instructions')
+    qualify_turn_bank_layout(instructions)
     qualify_audio_layout(bodies,code,sections)
     qualify_sound_queue_layout(bodies)
     ai=bodies['audio.ai_submit']

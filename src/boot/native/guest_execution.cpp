@@ -1315,10 +1315,25 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           orbit.pitch=std::clamp(orbit.pitch-state.pc_camera_look.y,-8192,12288);
         }
         const auto point=jfg::pc_orbit_point(orbit.yaw,orbit.pitch,radius);
+        const jfg::PcOrbitPoint desired{px+point.x,py+point.y,pz+point.z};
+        auto requested=desired;
+        if(modern_shoulder_camera_current(state,port,actor)) {
+          auto& transition=state.pc_shoulders[port].aim_return;
+          const bool returning=transition.returning;
+          requested=transition.apply(desired,state.pc_camera_ticks/60.0F);
+          if(returning)state.gameplay_trace.event("pc-aim-return",{state.vi_retraces,actor,
+            std::bit_cast<std::uint32_t>(state.pc_camera_ticks),
+            std::bit_cast<std::uint32_t>(requested.x),std::bit_cast<std::uint32_t>(requested.y),
+            std::bit_cast<std::uint32_t>(requested.z),std::bit_cast<std::uint32_t>(desired.x),
+            std::bit_cast<std::uint32_t>(desired.y),std::bit_cast<std::uint32_t>(desired.z),
+            transition.returning?1U:0U});
+        }
+        // The complete transition point goes through the existing scenery and
+        // clearance solver. Never blend the final collision-safe position later.
         hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
-        (void)memory.write_u32(stack+0x8CU,std::bit_cast<std::uint32_t>(px+point.x));
-        (void)memory.write_u32(stack+0x90U,std::bit_cast<std::uint32_t>(py+point.y));
-        (void)memory.write_u32(stack+0x94U,std::bit_cast<std::uint32_t>(pz+point.z));
+        (void)memory.write_u32(stack+0x8CU,std::bit_cast<std::uint32_t>(requested.x));
+        (void)memory.write_u32(stack+0x90U,std::bit_cast<std::uint32_t>(requested.y));
+        (void)memory.write_u32(stack+0x94U,std::bit_cast<std::uint32_t>(requested.z));
         state.gameplay_trace.event("pc-orbit",{state.vi_retraces,state.controller_samples,port,
           static_cast<std::uint16_t>(orbit.yaw),static_cast<std::uint16_t>(orbit.pitch),
           std::bit_cast<std::uint32_t>(radius),static_cast<std::uint32_t>(state.pc_camera_look.x),
@@ -1503,6 +1518,17 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               jfg::pc_camera_delta(frame.pc_mode,look,ticks);
             state.pc_camera_ticks=ticks;
             state.pc_camera_resolved_valid=false;
+            if(shoulder) {
+              const auto camera=game_view(ram).u32(game_data_ref("globals.controlledCamera"));
+              if(ram.valid(camera,0x4CU)) {
+                const jfg::PcOrbitPoint actual{ram.f32(camera+game_member("layout.camera.x")),
+                  ram.f32(camera+game_member("layout.camera.y")),ram.f32(camera+game_member("layout.camera.z"))};
+                if(state.pc_shoulders[port].aim_return.release(actual))
+                  state.gameplay_trace.event("pc-aim-return-start",{state.vi_retraces,actor,
+                    std::bit_cast<std::uint32_t>(actual.x),std::bit_cast<std::uint32_t>(actual.y),
+                    std::bit_cast<std::uint32_t>(actual.z)});
+              }
+            }
             original(rdram,context);
             if(shoulder && state.pc_camera_resolved_valid) {
               // Use the collision-resolved position this update. The original
@@ -1532,7 +1558,11 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
             state.pc_camera_actor=state.pc_camera_control=state.pc_camera_stack=0;state.pc_camera_look={};
             return 1;
           }
-        } else state.pc_orbits[port].active=false;
+        } else {
+          state.pc_orbits[port].active=false;
+          if(shoulder && !normal_view && state.pc_shoulders[port].aiming)
+            state.pc_shoulders[port].aim_return.observe_aim();
+        }
       }
     }
   }

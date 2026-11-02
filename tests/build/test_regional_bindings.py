@@ -229,3 +229,26 @@ class TrackSchemaTests(unittest.TestCase):
                     qualify_track_arrays(changed)
 
 if __name__=='__main__':unittest.main()
+
+class TurnBankOwnershipTests(unittest.TestCase):
+    def fixture(self,bank=0x120):
+        fields={'layout.playerControl.turnBank':0xa6f80000|bank,
+                'layout.playerControl.turnDelta':0xa600010a}
+        fields.update({'guard.control.'+who+'.turnBank':word|bank for who,word in
+                       [('juno',0xa60b0000),('vela',0xa6190000),('lupus',0xa60a0000)]})
+        return {name:{'original_word':word} for name,word in fields.items()}
+    def test_initializer_and_independent_character_writers_own_bank(self):
+        from scripts.regional.bindings import qualify_turn_bank_layout
+        for bank in (0x120,0x122,0x124):
+            qualify_turn_bank_layout(self.fixture(bank))
+    def test_regional_conversion_cannot_alias_bank_to_camera_delta(self):
+        from scripts.regional.bindings import qualify_turn_bank_layout
+        fields=self.fixture();fields['layout.playerControl.turnBank']=fields['layout.playerControl.turnDelta']
+        with self.assertRaisesRegex(ValueError,'aliases'):qualify_turn_bank_layout(fields)
+    def test_wrong_character_field_or_read_only_witness_is_rejected(self):
+        from scripts.regional.bindings import qualify_turn_bank_layout
+        for who in ('juno','vela','lupus'):
+            for wrong in (0xa60b010a,0x860b0120):
+                fields=self.fixture();fields['guard.control.'+who+'.turnBank']['original_word']=wrong
+                with self.subTest(character=who,word=wrong),self.assertRaises(ValueError):
+                    qualify_turn_bank_layout(fields)

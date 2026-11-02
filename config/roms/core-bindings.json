@@ -6349,6 +6349,22 @@
         "layout.trackBlock.batchCount": {
           "source": "owner.layout.trackPlanes",
           "instruction_offset": 92
+        },
+        "layout.playerControl.turnBank": {
+          "source": "owner.layout.controlPlayerInit",
+          "instruction_offset": 284
+        },
+        "guard.control.juno.turnBank": {
+          "source": "overlay.juno.movement_handler",
+          "instruction_offset": 1940
+        },
+        "guard.control.vela.turnBank": {
+          "source": "overlay.vela.movement_handler",
+          "instruction_offset": 1840
+        },
+        "guard.control.lupus.turnBank": {
+          "source": "overlay.lupus.movement_handler",
+          "instruction_offset": 1744
         }
       }
     },
@@ -12698,6 +12714,22 @@
         "layout.trackBlock.batchCount": {
           "source": "owner.layout.trackPlanes",
           "instruction_offset": 92
+        },
+        "layout.playerControl.turnBank": {
+          "source": "owner.layout.controlPlayerInit",
+          "instruction_offset": 284
+        },
+        "guard.control.juno.turnBank": {
+          "source": "overlay.juno.movement_handler",
+          "instruction_offset": 2032
+        },
+        "guard.control.vela.turnBank": {
+          "source": "overlay.vela.movement_handler",
+          "instruction_offset": 1932
+        },
+        "guard.control.lupus.turnBank": {
+          "source": "overlay.lupus.movement_handler",
+          "instruction_offset": 1752
         }
       }
     },
@@ -19047,6 +19079,22 @@
         "layout.trackBlock.batchCount": {
           "source": "owner.layout.trackPlanes",
           "instruction_offset": 92
+        },
+        "layout.playerControl.turnBank": {
+          "source": "owner.layout.controlPlayerInit",
+          "instruction_offset": 284
+        },
+        "guard.control.juno.turnBank": {
+          "source": "overlay.juno.movement_handler",
+          "instruction_offset": 2028
+        },
+        "guard.control.vela.turnBank": {
+          "source": "overlay.vela.movement_handler",
+          "instruction_offset": 1928
+        },
+        "guard.control.lupus.turnBank": {
+          "source": "overlay.lupus.movement_handler",
+          "instruction_offset": 1740
         }
       }
     }

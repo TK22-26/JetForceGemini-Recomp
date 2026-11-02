@@ -183,7 +183,7 @@ public:
         {std::bit_cast<float>(ram.u32(control+game_member("layout.playerControl.sideVelocity"))),std::bit_cast<float>(ram.u32(control+game_member("layout.playerControl.forwardVelocity")))});
     state.gameplay_trace.event("pc-locomotion",{state.vi_retraces,actor,ram.u8(control+game_member("layout.playerControl.movement")),
       ram.u8(actor+game_member("layout.actor.animation")),static_cast<std::uint32_t>(context.r6),ram.u8(control+game_member("layout.playerControl.direction")),
-      ram.u32(control+game_member("layout.playerControl.forwardVelocity")),ram.u32(control+game_member("layout.playerControl.sideVelocity")),ram.u16(control+game_member("layout.playerControl.turnDelta")),ram.u32(actor+game_member("layout.actor.animationFrame")),requested,family});
+      ram.u32(control+game_member("layout.playerControl.forwardVelocity")),ram.u32(control+game_member("layout.playerControl.sideVelocity")),ram.u16(control+game_member("layout.playerControl.turnBank")),ram.u32(actor+game_member("layout.actor.animationFrame")),requested,family});
   }
   ~ModernAnimationScope(){state_.pc_animation_actor=previous_;}
 };
