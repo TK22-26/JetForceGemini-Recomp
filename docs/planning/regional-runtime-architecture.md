@@ -1,7 +1,7 @@
 # Architecture plan: US, PAL and Japanese native support
 
 - Date: 2026-11-01.
-- Status: common implementation and bounded three-region local qualification complete; feature, campaign and release acceptance remain open.
+- Status: common implementation and bounded enhanced three-region handoff qualified; public-default resource-bounded compilation, feature, campaign and release acceptance remain open.
 - Source baseline: `54a8b54` on `develop`.
 - Scope: the three exact original ROM revisions currently identified as `us`, `pal` and `jpn`.
 - Outcome: one maintained architecture that generates, runs, packages and validates all three revisions through the same contracts.
@@ -16,20 +16,20 @@ owns completed work, failures and evidence. [Current runtime architecture](../de
 describes the implementation that exists today. Proposed paths and types below do not yet exist
 unless identified as current files.
 
-## Implementation checkpoint (2026-11-01)
+## Implementation checkpoint (2026-11-02)
 
-The [regional issue](../development/issues/regional-rom-support.md#five-hour-continuation--current-checkpoint)
+The [regional issue](../development/issues/regional-rom-support.md#additional-automated-check-continuation)
 owns current source/build identities, exact evidence and historical failures.
 
 | Gate | Implemented or observed | Remaining acceptance |
 |---|---|---|
 | M0 | Reference inventory, code/data ownership, record schemas and final source/build correspondence reviewed | Owner feature acceptance |
-| M1 | Common catalog, typed bindings, immutable bundles, isolated storage and actual final launcher handoff pass | Broader historical-install migration |
+| M1 | Common catalog, typed bindings, immutable bundles, isolated storage and actual final launcher handoff pass; actual assembly/frontend upgrades preserve a v1.4-produced private profile | Full historical installer/prerequisite/reboot acceptance; public-default compilation under the tested resource envelope |
 | M2 | All three final v28 reconstructions, generation, native builds, boot and bounded enhanced Play pass | Owner feature acceptance |
 | M3 | US uses the common pipeline; final regressions, enhanced Goldwood replay and fresh save/reload pass | Owner campaign checks |
 | M4 | PAL/JP final builds boot, create/reload fresh saves and pass enhanced Goldwood replays | Owner regional language/feature/campaign checks |
-| M5 | All-three build admission, actual launcher/setup/direct Play/support exports and development-profile upgrades pass; exact fractional cadence and PAL display units implemented | Live Modern/Floyd/flight/boss/spatial-wipe and other feature matrix |
-| M6 | Scoped evidence, failures and compatibility limits retained | Campaign, performance/platform coverage and release review |
+| M5 | All-three build admission, actual launcher/setup/direct Play/support exports and development/legacy-profile upgrades pass; scripted Modern aim/fire/jump/crouch/pause/Save runs pass; exact fractional cadence and PAL display units implemented | Physical input and complete Modern/Floyd/co-op/flight/boss/spatial-wipe feature matrix |
+| M6 | Normal enhanced Play creates/reloads fresh slots; corruption and exact-path write-failure recovery pass; sequential 15-minute opening-area runs have zero audio underruns/overruns; exceptions retained | Campaign, broader performance/platform coverage and release review |
 
 v27 native and enhanced Play results apply to its frozen source. v28 includes
 later record contracts and build-admission changes; fresh generation, native
@@ -551,8 +551,8 @@ scheduling. They are observations and pending validation work, not permission to
 change dependency pins or assume the cited behavior has been qualified locally.
 
 Implementation and local qualification used the owner's eight-hour approval,
-four-hour continuation and five-hour continuation in the same guarded
-investigation. The initial ledger observation below is
+four-hour continuation, five-hour continuation and additional four-hour
+automated-check continuation in the same guarded investigation. The initial ledger observation below is
 historical. Shared generation, typed resident bindings/memory, original module
 ownership, device clocks/FlashRAM, regional bundles and launcher resolution are
 implemented candidates; the issue record distinguishes passed tests, preserved

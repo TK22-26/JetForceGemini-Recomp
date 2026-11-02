@@ -1,6 +1,6 @@
 # Known issues
 
-Reviewed 2026-11-01. The published v1.4.0 bundle and the current `develop` source have different
+Reviewed 2026-11-02. The published v1.4.0 bundle and the current `develop` source have different
 validation status. A tested local candidate is not automatically released or accepted by its reporter.
 Use the [issue index](development/issues/README.md) for full reproduction, attempts, causes and evidence;
 [project status](status.md) and the [changelog](../CHANGELOG.md) describe delivered features.
@@ -9,6 +9,9 @@ Use the [issue index](development/issues/README.md) for full reproduction, attem
 
 | Problem | Current evidence and limit |
 |---|---|
+| [Modern backward body tilt](development/issues/pal-modern-backward-body-tilt.md) | PAL owner report and PAL/US baseline pose measurements identify a shared wrong-field conversion. Distinct bank binding and regressions pass; rebuilt runtime/live verification pending. |
+| [Name-entry keyboard cadence](development/issues/name-entry-key-animation-cadence.md) | PAL trace/replay confirms incomplete scene interpolation at120FPS/25Hz. Individual key ownership/cause and correction remain open. |
+| [PAL Vela rescue blur](development/issues/vela-rescue-cutscene-stutter-resolution.md#pal-owner-regression-2026-11-02) | Owner reports excessive blur despite a profile storing Reduced. PAL pass recognition/pairing/coefficient capture and a behavior regression test remain pending. |
 | [Original FPS simulation parity](development/issues/original-mode-simulation-parity.md) | Ordinary Play uses a host-clock policy; Original output does not restore the N64 simulation clock. Matching motion states does not prove matching elapsed time. Open. |
 | [Flying-enemy speed #48](development/issues/github-flying-enemy-speed.md) | An elapsed-VI movement candidate passes portable checks and twelve native replays. Its stable three-VI reference does not reproduce every loaded N64 cadence; owner review and the Original timing policy remain open. |
 | [Intermittent mouse look #32](development/issues/github-mouse-look-and-inversion.md) | A local candidate fixes reproduced raw-mouse delivery loss across the hosted process boundary. Two-process checks pass; reporter and inversion-Off retests remain pending. |
@@ -52,7 +55,13 @@ PAL hardware and Japanese behavior are untested; [PAL/JP recomp support](develop
 now uses one generation/runtime architecture and admits all three exact revisions for local
 builds. Final native candidates pass fresh save/reload probes and bounded enhanced
 Goldwood Play. The committed launcher passes actual import/setup/direct Play, clean
-exit, save isolation and support exports for all three. Campaign, feature, language,
+exit, save isolation and support exports for all three. Additional normal-Play
+save creation/reload, checksum validation, exact-path write-failure recovery and
+15-minute sessions pass. Sparse audio underrun counters in other runs remain
+unexplained; the owner will report any audible problems during manual testing.
+These observations do not block the handoff.
+A separate public-default source-build test reaches its 8 GiB memory ceiling;
+its complete compile/link qualification remains open. Campaign, feature, language,
 hardware and release acceptance remain open;
 published v1.4.0 packages support their pinned US ROM. The regional issue retains historical
 failures, exact build identities and the current acceptance matrix.
@@ -107,13 +116,37 @@ Support collection is local and best effort; nothing uploads automatically. Incl
 location and reproduction steps using the [reporting guide](playtesting.md).
 
 FlashRAM has a shared-device candidate with passing sector, program-buffer,
-bitwise-write and command-deadline tests. Native integration and valid in-game
-save/reload checks for each region remain open; see the
+bitwise-write and command-deadline tests. Final native integration, fresh slots
+and separate reloads pass for each region in original-OS probes and normal
+enhanced Play. Full-size checksum/padding menus and controlled failed atomic
+replacement followed by an exact-path retry also pass on all three. Broader
+campaign durability, power loss and hardware timing remain open; see the
 [FlashRAM record](development/issues/flashram-device-contract.md).
 
 ### PAL presentation cadence (regional source candidate)
 
-The current shared history holds endpoints for PAL intervals that do not divide
-50 Hz (for example, three VIs). Exact fractional duration still needs to reach
-world/blur pairing and output scheduling. The 50/60 Hz clock correction does not
-complete that enhancement. See the [regional implementation record](development/issues/regional-rom-support.md#remaining-pal-interpolation-duration-contract).
+Exact VI intervals and the VI clock now reach shared history, world/blur
+pairing and RT64 output scheduling, including PAL intervals such as three or
+four VIs. Component tests and final native interpolation traces pass. Requested
+output rate remains distinct from measured presentation performance; broader
+regional motion, display and hardware acceptance remain open. See the
+[regional implementation record](development/issues/regional-rom-support.md#five-hour-continuation--current-checkpoint).
+
+### Windows automation containment
+
+Guarded Windows work now requires unpackaged Python and uses suspended launch
+before job assignment. Store Python allowed native compiler children to escape
+the job despite Python itself being assigned. The 507 affected tests and actual
+native compiler containment checks pass; earlier
+receipts are not retroactive proof of child containment. See the
+[containment issue](development/issues/windows-packaged-python-child-containment.md)
+for current verification and compatibility limits.
+
+### Modern Aim release camera transition
+
+The owner reports that releasing Aim in Modern controls snaps the camera back
+instead of sweeping into normal view. A shared source candidate preserves the
+actual aimed position through the collision solver; focused components pass.
+The full native build failed under the guarded memory envelope, so the current
+handoff does not contain this candidate and live verification remains pending.
+See the [issue record](development/issues/modern-aim-release-camera-snap.md).

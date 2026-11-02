@@ -134,3 +134,31 @@ receipt: `regional-architecture-20261101-owner5h/regional-save-v28-qualified.res
 Actual launcher Play confirms other-region saves remain unchanged. This is
 bounded game-save evidence on final binaries, not all-character campaign,
 enhanced new-slot feature, power-loss or physical-device acceptance.
+
+## Additional normal-Play qualification
+
+The `regional-automation-20261101-owner4h` continuation independently creates
+fresh private slots through normal enhanced Play on all three final v28
+binaries, then reloads each in a separate 180-second process. All three game
+checksums validate, the reloads retain the original save hashes, and inspected
+frames show Juno in Goldwood. All six processes close normally with zero
+unsupported accesses.
+
+Twelve subsequent file-select cases verify full-size checksum behavior:
+payload/checksum corruption shows a new slot, while untouched slots and changed
+unused padding retain the existing slot. Every fixture stays byte-for-byte
+unchanged and all final menu frames were inspected, including JP labels.
+Evidence: `checksum-menus.qualified.json` in the same private root.
+
+Controlled host-write failure now also passes on all three: a read lease
+prevents atomic replacement, the original erased fixture stays unchanged, and
+an explicit `flash-persist` trap stops execution. After releasing the lease,
+a separate process writes a checksum-valid slot at that exact same destination,
+without copying or resetting its contents. Failed-byte snapshots are preserved,
+no temporary files remain, and all successful retries close normally with zero
+unsupported accesses or audio underruns/overruns. Evidence:
+`same-path-save-recovery.qualified.json`. Earlier copied-fixture retry results
+remain separately scoped. Changed Modern pause/Save outputs also reload with
+unchanged save hashes and visible ammunition 97/96/97; one JP reload audio
+underrun is retained in the regional record. Campaign durability, actual
+power loss and hardware timing are not inferred from these passes.

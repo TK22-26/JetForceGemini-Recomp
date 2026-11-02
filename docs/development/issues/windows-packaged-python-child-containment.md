@@ -102,6 +102,9 @@ but failed a cmd input/exit check; a subsequent generated helper had a quoting
 syntax error and did not run; the corrected PowerShell preflight passed. These
 are harness failures, not successful gameplay runs.
 
+Implementation commit on `develop`: `582cda8eeff576415b44c4cf5fc7fa2888180b28`.
+No release or push was performed.
+
 ## Transferable lesson and remaining limits
 
 Verify the actual native workload and descendant lifetime, not just the Python

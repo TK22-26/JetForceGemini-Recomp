@@ -31,8 +31,9 @@ matching package manifest and runtime beside the launcher.
 Released packages retain their documented US support. The current development
 launcher recognizes the catalogued US, PAL and Japanese retail inputs in all
 three standard N64 byte orders. It normalizes only its private copy and records
-the detected revision. PAL and Japan can be imported while their Play admission
-remains closed for native qualification. Recognition is not a gameplay claim.
+the detected revision. Development Play admits all three exact revisions with
+a matching verified bundle. Scoped native and launcher checks pass; campaign,
+feature and release acceptance remain separate from ROM recognition.
 
 A development runtime bundle contains `jfg-program.json` beside the executable
 and required host libraries. The manifest follows

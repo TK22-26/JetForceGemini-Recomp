@@ -1222,3 +1222,24 @@ The source-only diagnostic remains an investigation aid; normal native effects
 remain enabled. The owner locates the brief reported 50/20 dip at the transition
 from Vela to the first cut. Timing attribution remains open; do not equate all
 gaps in the long owner session with this single cut.
+
+## PAL owner regression, 2026-11-02
+
+The owner reports that PAL does not reduce the excessive blur in Vela's
+rescue cutscene, unlike the prior correction. The owner explicitly confirmed the rescue scene.
+Current affected handoff: v30 launcher/v28 enhanced PAL runtime. Treat this as
+an open regional regression report; prior US acceptance does not qualify PAL.
+Check persisted blur preference, native pass recognition, source pairing and
+the resulting blend coefficients separately. Do not assume authored PAL
+softness, a missing correction or a setting error before evidence.
+The owner requests a regression test. It must exercise the failing PAL consumer
+and guard US/JP behavior; general boot or preference parsing is insufficient.
+No cause, remedy, live verification or new release is claimed.
+
+The owner confirms this is the rescue cutscene. The inspected PAL campaign
+profile stores `blur=reduced`, Custom120FPS and VSync. That rules out an
+obvious persisted Original setting in that profile, but is not a captured
+proof of the live draw's selected preference. No completed rescue trace is
+available from the earlier name-entry recording. A targeted PAL rescue
+pass/pairing/blend-coefficient capture and failing behavior regression test
+remain required before choosing a fix. Existing US acceptance is retained.

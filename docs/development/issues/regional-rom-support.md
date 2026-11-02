@@ -1,10 +1,191 @@
 # ROM-REGIONS: PAL and Japanese ROM support
 
-- Status: shared three-region implementation, final native/Play, fresh save/reload and launcher handoff checks pass; owner feature/campaign acceptance open; unreleased.
+- Status: shared three-region implementation and enhanced native/launcher handoff qualified within the documented scope; public-default resource-bounded compilation and owner feature/campaign acceptance remain open; unreleased.
 - Severity: regional compatibility and acceptance limitation. Development build admission includes US/PAL/JP; the published v1.4.0 package remains US-only.
 - Affected: ROM generation, regional host address/timing assumptions, launcher/runtime admission and gameplay qualification.
 
+## Additional automated-check continuation
+
+Owner approval: four hours, 2026-11-01 23:02:40 UTC through
+2026-11-02 03:02:40 UTC. Private evidence root:
+`regional-automation-20261101-owner4h`. The same production investigation,
+ledger, roots, counters and deadline are preserved. This pass extends the
+existing v28 native/v30 launcher handoff from implementation `5bac0c8`;
+it does not certify every feature, campaign route or a public release.
+
+| Check | US | PAL | JP | Evidence and limit |
+|---|---|---|---|---|
+| Normal enhanced Play: fresh slot and separate 180-second reload | Pass | Pass | Pass | Valid 131,072-byte saves; unchanged reload hashes; Goldwood frames inspected; `normal-save-lifecycle.qualified.json` |
+| Five-minute scripted Modern actions | Pass | Pass | Pass | Aim/look/fire, jump, crouch, pause/Save/resume and intro skip; `modern-actions.qualified.json` |
+| Separate reload of changed Modern saves | Pass | Pass | Pass | Saved ammunition 97/96/97 visible; save bytes unchanged; `modern-save-reload.qualified.json` |
+| Sequential 15-minute enhanced Play | Pass | Pass | Pass | Repeated movement, pause and intro skip; normal exit, no unsupported accesses or audio underruns/overruns; `sustained-play.qualified.json` |
+| Full-size checksum and padding menus | Pass | Pass | Pass | Four cases per region, every frame reviewed; `checksum-menus.qualified.json` |
+| Denied atomic replacement, then exact-destination retry | Pass | Pass | Pass | Preserved failed bytes, release read lease, retry without copying/resetting; `same-path-save-recovery.qualified.json` |
+| Malformed save lengths at actual native startup | Pass | Pass | Pass | Nine unchanged rejected fixtures: 1, 131,071 and 131,073 bytes; `invalid-save-startup.result.json` |
+| Actual legacy-profile upgrade and import recovery | Pass | Pass | Pass | Installed assembly and frontend init/import/setup; isolated v1.4-signoff fixture; `product-recovery.result.json`, `legacy-frontend-upgrade.result.json` |
+| Public build resume input validation/configuration | Pass | Pass | Pass | Damaged generation rejected before configure; valid generation configures; not complete compile/link |
+| Public-default native compile/link under bounded test resources | Not qualified | Interrupted | Interrupted | US 8 GiB failures below; distinct from passed enhanced v28 builds |
+| Unskipped story to character selection | Pass | Pass | Pass | All frames reviewed; no skip confirmations; `unskipped-story.qualified.json` |
+| Saved-slot confirmation into gameplay without cutscene skipping | Pass | Pass | Pass | At least 60 seconds in gameplay, all Goldwood frames reviewed; `unskipped-entry.qualified.json` |
+
+The WSL follow-up runs 172 tests with no failures and six explicit skips
+(166 passes). It executes compiler, Linux invocation and symlink checks that
+were absent from the Windows run. The remaining skips concern Windows-only
+policies/fixed-toolchain harnesses or unavailable historical inputs. It does
+not qualify Linux live gameplay or resolve every prior skipped test.
+
+### Storage, controls and product scope
+
+Checksum/padding cases observe the original file-select behavior: valid slots
+and changed unused padding retain the existing slot; changed payload or stored
+checksum presents a new slot. All files stay unchanged merely by viewing the
+menu. Japanese file-select labels were inspected; this is not complete language
+or font acceptance.
+
+The exact-path write tests deny delete sharing through a read lease. Each
+native process reports `flash-persist` and leaves the erased fixture unchanged.
+After releasing the lease, a separate process writes a valid slot at that same
+path without resetting or copying its contents. Failed-byte snapshots and
+separate attempt logs remain preserved; no temporary files remain. All successful
+retries close normally with zero unsupported accesses and audio underruns/overruns.
+Earlier copied-fixture retries are retained separately in
+`save-write-failure.qualified.json`; they are not relabeled as exact-path tests.
+No personal saves, power loss or complete campaign durability were tested.
+
+Modern reloads retain 24/22/24 changed bytes relative to the original fresh
+US/PAL/JP fixtures and show the saved ammunition counts. These are logical
+input replays in Juno's Goldwood opening area, not physical keyboard/controller,
+rumble, Floyd/co-op, all-character or campaign-wide feature acceptance.
+
+The sustained runs enter the pause root 12/10/12 times and finish in inspected
+Goldwood shallow-water scenes. Final-five-minute combined private memory stays
+within 987.9-988.1 MiB (US), 1009.2-1012.3 MiB (PAL), and 991.3-991.6 MiB (JP).
+Requested 120 Hz is not a measured presentation-rate guarantee or an indefinite
+leak test. The opening walkway is not qualification of the separately documented
+Walkway departure music route.
+
+Actual product checks preserve legacy campaign/controller data produced by the
+retained v1.4 signoff helper (`2cb7236`), isolate regional/navigation namespaces,
+reject wrong bundles and foreign/unmarked regional profiles, and recover after
+locked-destination import failures. All three original ROM byte orders normalize;
+modified imports preserve the prior valid ROM and a subsequent valid retry works.
+This covers local session preparation and frontend upgrade, not historical
+installer/prerequisite/reboot acceptance.
+
+### Opening and entry scope
+
+The fresh-slot story reaches native character selection (mode 5), where it
+waits for input. The original driver incorrectly required gameplay mode 16
+without supplying character confirmation. Its three failed assertions remain
+preserved. Independent qualification checks the expected selection screen,
+normal exit, actual native job membership, checksum-valid save and zero skip
+confirmations. Actual durations are 651.0/557.3/242.6 seconds for US/PAL/JP;
+PAL/JP close normally after selection is stable, rather than waiting out the
+650-second maximum.
+
+Separate saved-slot processes use title Start and ordinary A confirmations,
+with no Start input after poll 242. They reach Goldwood gameplay without a
+cutscene-skip confirmation and remain there for at least 60 seconds before a
+normal owned-window close. Actual durations are 225.1/196.6/224.7 seconds;
+480 seconds is a maximum, not an asserted completed duration. Every final
+image was reviewed. The helper initially expected its own closer to supply
+the window receipt; the independent monitor's actual WM_CLOSE receipts establish
+normal closure instead. This also preserves the helper failures honestly.
+A first monitor found the supervisor process but omitted its native window
+child and closed nothing; the corrected monitor verifies the whole owned tree.
+
+The owner began separate manual sessions during the later checks, then asked
+for muted automation. Only guarded game audio sessions were muted; manual
+sessions were excluded. Saved-slot entry runs receive a private muted profile
+before launch. An idle waiter restart first rejected its harmless console
+helper, then was corrected without interrupting a game. Input scheduling was
+extended before execution to cover delayed character confirmation. No future
+underrun diagnosis is implied by collecting the normal counters.
+
+### Audio exceptions
+
+The first US fresh-slot run records four underruns while WSL/import checks run.
+The PAL five-minute Modern run records one with no heavy compiler running;
+its empty/resume trace observations are about 29.4 ms apart, not a measured
+audible-gap duration. A US copied-fixture write retry records one during
+compilation, and JP's changed-save reload records one without a compiler run.
+The extended PAL story records one more underrun. Their causes and audible effects remain unknown. No audio remedy is claimed.
+The isolated repeat of the same US native identity, input and 180-second
+duration records zero underruns/overruns after compiler and other gameplay
+runs finish. The earlier four events are not reproduced; that does not prove
+their cause or audible quality. Lightweight documentation/orchestration continued.
+Evidence: `isolated-intro-audio.qualified.json`.
+
+The owner explicitly deferred further underrun investigation until manual
+listening identifies an audible issue. Retain these counters as observations;
+they do not block the manual-testing handoff or establish an audible defect.
+
+All other initial fresh/reload runs, the three sustained sessions, all twelve
+checksum menus and all exact-path successful retries record zero underruns and
+overruns. Those passes do not erase the exceptions or replace listening tests.
+
+### Guard repair and source-build limits
+
+Read-only process queries found native compiler descendants outside the
+Windows job despite the packaged Python worker itself being assigned. The
+unfinished builds and queued helpers were stopped. An unpackaged worker was
+explicitly attached to the same production job before its gate opened; actual
+native membership is recorded in later replay receipts. Earlier observations
+remain evidence, but earlier native containment and resource accounting are
+not retroactively established.
+
+The [containment repair](windows-packaged-python-child-containment.md), committed
+as `582cda8`, rejects packaged workers, assigns suspended processes before
+execution, migrates guard consumers and rejects historical receipts during
+expired-attempt recovery. Final affected suites pass 507 tests with no skips;
+a real synthetic CMake/MSBuild/CL build verifies native membership and resource
+accounting. The production guard stays enabled with no counter/root reset.
+
+The resumed public-default US build fails with C1060 heap-exhaustion and D8040
+child-process errors under an 8 GiB nested test limit. Reducing compilation to
+one job also fails: MSBuild reports StackOverflowException, and the recorded
+peak reaches about 8 GiB. The exact compiler/.NET allocation is unlocalized.
+The serial retry conservatively subtracts all prior outer-job CPU from the
+original 5,000-second build allowance; no resource limit is raised. Both failed
+logs/status/source receipts remain retained. The serial helper exits and closes
+its job; a later cleanup request rejects the already-stale PID before any kill.
+No third retry or direct fallback was made. Public-default compile/link remains
+unqualified in this resource envelope; these failures do not establish a source
+defect on an unconstrained host or invalidate the enhanced v28 bundles.
+
+The guard repair changed automation code and one CPU microcase runner included
+in the conservative native-source closure; its checkpoint retained all compiled
+game/runtime sources and 145 launcher inputs. The supplied handoff manifests
+remain immutable at `5bac0c8`. A subsequent owner report opened a separate
+[Modern Aim-release camera candidate](modern-aim-release-camera-snap.md);
+that candidate changes game-source inputs and requires its own build/play
+qualification. Earlier v28 results are not relabeled as tests of that change.
+See `guard-change-handoff-correspondence.json`. Stale launcher, bootstrap,
+FlashRAM and PAL-cadence summaries were corrected to match their actual evidence.
+
+Original private orchestration failures are retained in both step manifests:
+a status-print variable error after helper launch, a wrong replay directory
+corrected before execution, quoting/encoding failures, a shadowed accounting
+variable after launch, and a missing import before staging. Running helpers were
+verified rather than duplicated; failed steps are not test passes. The closeout
+auditor also initially assumed every receipt had a `complete` field, then
+compared raw ROM hashes with normalized bundle identities. Those two audit
+assertions were corrected to use the WSL receipt's actual result schema and
+canonical ROM byte order; no ROM or runtime change was needed. No personal
+save, ROM, generated game body or private capture is committed.
+
+Remaining acceptance covers all-character campaign progression, broader Modern
+features, Floyd/co-op, flight, bosses, transitions/cinematics, PAL languages,
+Japanese text, physical controllers, listening, host/platform coverage and
+release review. Optional PAL/JP flying-motion enhancement still needs a regional
+reference; original regional movement remains active. No unrun manual check is
+assumed passed.
+
 ## Five-hour continuation — current checkpoint
+
+This checkpoint predates the additional automated checks above. Its evidence
+and then-current remaining work are preserved; later results narrow only their
+explicitly tested scope.
 
 The owner approved this continuation from 2026-11-01 20:35:42 UTC through
 2026-11-02 01:35:42 UTC. The production guard remains enabled on the same
@@ -1558,3 +1739,24 @@ dispatch assumed resident source section zero; PAL's main section is one.
 That ordinal gate is removed in favor of resident ownership plus the exact
 revision-bound operation dispatch. Renderer data-owner migration is underway.
 The v18 frozen candidate predates these further renderer changes.
+
+## Manual testing regressions, 2026-11-02
+
+The owner reports Modern Aim-release camera snapping, PAL backward body tilt,
+PAL name-entry keyboard cadence and PAL Vela rescue blur. Earlier boot,
+action-delivery and save passes do not establish those visual behaviors.
+The [Aim-return candidate](modern-aim-release-camera-snap.md) passes components
+but its full native rebuild fails within the guarded resource envelope.
+The [backward-pose correction](pal-modern-backward-body-tilt.md) restores a
+distinct body-bank binding accidentally replaced with camera delta; original
+US/PAL/JP binding qualification and focused regressions pass, full native/live
+verification remains pending. Baseline PAL and US both retain the unwanted bank.
+[Keyboard capture](name-entry-key-animation-cadence.md) confirms partial scene
+interpolation while presenting near120FPS; exact key ownership remains open.
+[PAL Vela rescue blur](vela-rescue-cutscene-stutter-resolution.md#pal-owner-regression-2026-11-02)
+requires its own captured draw-path diagnosis and regression test.
+
+These source candidates are newer than the immutable v28 runtime/v30 launcher
+handoff. Current source and producer fingerprints differ; do not label the
+old compiled candidates as containing these fixes. No all-regions visual
+acceptance, native replacement, push or release is claimed.
