@@ -1561,8 +1561,6 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           }
         } else {
           state.pc_orbits[port].active=false;
-          if(shoulder && !normal_view && state.pc_shoulders[port].aiming)
-            state.pc_shoulders[port].aim_return.observe_aim();
         }
       }
     }

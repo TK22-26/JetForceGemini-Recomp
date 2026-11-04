@@ -464,9 +464,21 @@ void modern_shoulder_aim_camera(State &state,std::uint32_t target,
   if(!modern_shoulder_current(state,port,actor) || !state.pc_shoulders[port].aiming)return;
   const auto camera=game_view(ram).u32(game_data_ref("globals.controlledCamera"));
   if(!ram.valid(camera,0x4CU))return;
-  const auto &view=state.pc_shoulders[port];
+  auto &view=state.pc_shoulders[port];
   ram.put16(camera+game_member("layout.camera.yaw"),static_cast<std::uint16_t>(jfg::pc_shoulder_camera_yaw(view.yaw)));
   ram.put16(camera+game_member("layout.camera.pitch"),static_cast<std::uint16_t>(view.pitch));
+  // Ground Aim selects its own native camera branch and never calls the normal
+  // follow-camera adapter. Observe ownership after that branch has published
+  // its actual pose. Air Aim still uses the normal camera and must not re-arm
+  // this return on every airborne update.
+  const auto movement=ram.u8(control+game_member("layout.playerControl.movement"));
+  if(movement==10U || movement==11U) {
+    view.aim_return.observe_aim();
+    state.gameplay_trace.event("pc-aim-camera",{state.vi_retraces,actor,
+      ram.u32(camera+game_member("layout.camera.x")),ram.u32(camera+game_member("layout.camera.y")),
+      ram.u32(camera+game_member("layout.camera.z")),ram.u16(camera+game_member("layout.camera.yaw")),
+      ram.u16(camera+game_member("layout.camera.pitch"))});
+  }
 }
 
 bool diagnostic_weather() {
