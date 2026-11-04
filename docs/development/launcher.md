@@ -248,6 +248,15 @@ For UI review only, `JFG-Launcher.exe --preview-update --profile <separate-folde
 
 The owner-approved card and browser actions are delivered locally from `628d1ff40ff14ce44a6921e89e594050b290b766`. Reopen High Refresh Preview or Jitter Capture for real discovery, or Update Button Preview for the forced sample. The game runtime and owner profiles are preserved. [Delivery and limits](../../evidence/launcher-update-button.json).
 
+## Transient notifications (current source; unreleased)
+
+Bottom-left controller/audio notices appear immediately in a vertical stack.
+New notices enter at the bottom and push older ones upward. Every notice keeps
+its own animation and 4.62-second lifetime; arrivals and consecutive duplicates
+do not reset it. Reduced motion disables movement. A burst retains the eight
+newest notices, without a waiting queue. Live-map mod-error notices use the same
+presentation. [Implementation and validation](issues/launcher-notification-stack.md).
+
 ## Data folder (v1.3 candidate)
 
 Open **Game > Settings...** to see the current data folder. **Change directory...**

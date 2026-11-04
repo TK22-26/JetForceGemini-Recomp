@@ -9,6 +9,7 @@ Use the [issue index](development/issues/README.md) for full reproduction, attem
 
 | Problem | Current evidence and limit |
 |---|---|
+| [Stacked launcher notices](development/issues/launcher-notification-stack.md) | Local v35 stacks notices with independent animation and expiry; native UI checks pass. Owner visual acceptance remains pending. |
 | [Regional ROM selector](development/issues/launcher-regional-rom-selection.md) | Local v34 has cartridge selection, remembered region and `--region`; native UI, CLI and restart checks pass. Physical-pointer owner review remains pending. |
 | [Modern Aim release](development/issues/modern-aim-release-camera-snap.md) | v33 passes targeted native checks in all three versions and is owner-approved on PAL/controller. USA/JP manual testing remains pending; unreleased. |
 | [Original FPS simulation parity](development/issues/original-mode-simulation-parity.md) | Ordinary Play uses a host-clock policy; Original output does not restore the N64 simulation clock. Matching motion states does not prove matching elapsed time. Open. |

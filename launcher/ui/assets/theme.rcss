@@ -53,14 +53,6 @@ h1 { font-family:Chakra Petch; font-weight:bold; font-size:58dp; margin:10dp 0 3
 .tabs .selected { border-color:#ffb23e; color:#ffb23e; background:#1a2236; }
 .dialog-footer { display:flex; justify-content:space-between; align-items:center; padding:14dp 24dp; border-top:1dp #222b40; }
 #modal { display:none; }
-#toast { position:absolute; bottom:48dp; left:50%; transform:translate(-50%,96dp); opacity:0; background:#121826; border:1dp #2e3a57; border-radius:8dp; padding:16dp 22dp; }
-#toast.visible { opacity:1; }
-@keyframes toast {
- 0% { transform:translate(-50%,96dp); opacity:0; }
- 8.7% { transform:translate(-50%,0dp); opacity:1; }
- 95.2% { transform:translate(-50%,0dp); opacity:1; }
- 100% { transform:translate(-50%,120dp); opacity:0; }
-}
 scrollbarvertical { width:8dp; background:#0e1320; }
 scrollbarvertical sliderbar { background:#3a4663; border-radius:4dp; }
 
@@ -207,7 +199,10 @@ input.volume sliderprogress { height:4dp; background:#ffb23e; }
 .game-popup { z-index:6; top:24dp; width:280dp; box-sizing:border-box; border-radius:0 0 8dp 8dp; }
 .game-popup button { height:36dp; padding:8dp 14dp; font-size:14dp; }
 .pause-label { position:static; padding:3dp 8dp; border:1dp #4a4231; border-radius:4dp; color:#ffcf86; font-size:11dp; letter-spacing:1dp; margin-right:8dp; }
-#toast { display:flex; align-items:center; gap:10dp; left:20dp; bottom:48dp; padding:12dp 16dp; font-size:14dp; pointer-events:none; max-width:85%; }
+#toast { display:block; position:absolute; left:20dp; bottom:48dp; width:420dp; max-width:85%; height:0; pointer-events:none; z-index:7; }
+.toast-item { display:flex; position:absolute; left:0; bottom:0; align-items:center; gap:10dp; width:100%; box-sizing:border-box; padding:12dp 16dp; background:#121826; border:1dp #2e3a57; border-radius:8dp; font-size:14dp; pointer-events:none; }
+.toast-message { display:block; flex:1; min-width:0; }
+.toast-item .notice-dot { flex-shrink:0; }
 .notice-dot { width:7dp; height:7dp; background:#6fd3ee; border-radius:4dp; }
 .playing #toast { bottom:20dp; }
 .panel-open #toast { opacity:0; visibility:hidden; }

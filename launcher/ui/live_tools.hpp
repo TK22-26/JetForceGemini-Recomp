@@ -1,4 +1,5 @@
 #pragma once
+#include "notification_stack.hpp"
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Elements/ElementFormControl.h>
 #include <RmlUi/Core/RenderManager.h>
@@ -439,7 +440,7 @@ class ToolUi : public Rml::EventListener {
   float height = 0;
   ULONGLONG lastRead = 0, lastSuccess = 0;
   unsigned commandId = 0, lastModError = 0;
-  double toastUntil = 0;
+  NotificationStack notifications;
   bool modsWriteFailed = false, modsCommandPending = false;
   ULONGLONG modsSentAt = 0;
   std::function<void(const std::string &)> action;
@@ -466,19 +467,10 @@ class ToolUi : public Rml::EventListener {
     }
   }
   void modsError() {
-    label("toast-text", "Error loading mods");
-    if (auto toast = el("toast")) toast->SetClass("visible", true);
-    toastUntil=Rml::GetSystemInterface()->GetElapsedTime()+4.62;
+    notifications.show(*doc,"Error loading mods",Rml::GetSystemInterface()->GetElapsedTime());
   }
   void animateToast() {
-    if(!toastUntil)return;
-    auto toast=el("toast");if(!toast)return;
-    double now=Rml::GetSystemInterface()->GetElapsedTime(),elapsed=now-(toastUntil-4.62),y=0,opacity=1;
-    if(now>=toastUntil){toast->SetClass("visible",false);toast->SetProperty("opacity","0");toastUntil=0;return;}
-    if(elapsed<.4){double t=std::clamp(elapsed/.4,0.,1.),q=t-1;double eased=1+2.70158*q*q*q+1.70158*q*q;y=96*(1-eased);opacity=t;}
-    else if(elapsed>4.4){double t=std::clamp((elapsed-4.4)/.22,0.,1.);y=120*t*t;opacity=1-t;}
-    toast->SetProperty("transform","translate(0dp, "+std::to_string(scene&&scene->reducedMotion?0:y)+"dp)");
-    toast->SetProperty("opacity",std::to_string(opacity));
+    notifications.tick(Rml::GetSystemInterface()->GetElapsedTime(),scene && scene->reducedMotion);
   }
   void command(const std::string &value) {
     auto path = root / ("command-" + std::to_string(GetTickCount64()) + "-" +

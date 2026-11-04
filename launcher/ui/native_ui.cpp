@@ -1,3 +1,4 @@
+#include "notification_stack.hpp"
 // Native launcher presentation and live settings over the game viewport.
 #define UNICODE
 #define _UNICODE
@@ -413,11 +414,12 @@ struct Ui : Rml::EventListener {
   fs::path profile;
   int volume = 100, player = 0;
   bool muted = false;
-  double toastUntil = 0, decorationTick = -1;
+  double decorationTick = -1;
   std::array<bool, jfg::kControllerDeviceCount> connected{};
   std::array<WORD, jfg::kControllerDeviceCount> buttons{};
   std::array<bool, jfg::kControllerDeviceCount> activated{};
-  std::deque<std::string> notices;
+  NotificationStack notifications;
+  std::function<double()> notificationClock=[] {return Rml::GetSystemInterface()->GetElapsedTime();};
   bool reducedMotion = false;
   bool updatePending = false, updatePreview = false;
   double updateDeadline = 0, updatePoll = 0;
@@ -485,18 +487,7 @@ struct Ui : Rml::EventListener {
     return {std::istreambuf_iterator<char>(f), {}};
   }
   void status(const std::string &s) { label("status", s); }
-  void toast(const std::string &s) {
-    if (toastUntil > Rml::GetSystemInterface()->GetElapsedTime()) {
-      if ((notices.empty() || notices.back() != s) && notices.size() < 8)
-        notices.push_back(s);
-      return;
-    }
-    label("toast-text", s);
-    el("toast")->SetClass("visible", false);
-    doc->GetContext()->Update();
-    el("toast")->SetClass("visible", true);
-    toastUntil = Rml::GetSystemInterface()->GetElapsedTime() + 4.62;
-  }
+  void toast(const std::string &s) { notifications.show(*doc,s,notificationClock()); }
   void refreshController() {
     if (current != "controllers" || !el("assignment"))
       return;
@@ -631,36 +622,9 @@ struct Ui : Rml::EventListener {
       modal("controllers");
       label("dialog-note", "Mapping timed out. No binding was changed.");
     }
-    if (toastUntil) {
-      double elapsed = Rml::GetSystemInterface()->GetElapsedTime() -
-                       (toastUntil - 4.62),
-             y = 0, opacity = 1;
-      if (elapsed < 0.4) {
-        double t = std::clamp(elapsed / 0.4, 0.0, 1.0), q = t - 1;
-        double eased = 1 + 2.70158 * q * q * q + 1.70158 * q * q;
-        y = 96 * (1 - eased);
-        opacity = t;
-      } else if (elapsed > 4.4) {
-        double t = std::clamp((elapsed - 4.4) / 0.22, 0.0, 1.0);
-        y = 120 * t * t;
-        opacity = 1 - t;
-      }
-      el("toast")->SetProperty(
-          "transform",
-          "translate(0dp, " + std::to_string(reducedMotion ? 0 : y) + "dp)");
-      el("toast")->SetProperty("opacity", std::to_string(opacity));
-    }
-    if (toastUntil &&
-        Rml::GetSystemInterface()->GetElapsedTime() > toastUntil) {
-      el("toast")->SetClass("visible", false);
-      toastUntil = 0;
-      if (!notices.empty()) {
-        auto n = notices.front();
-        notices.pop_front();
-        toast(n);
-      }
-    }
+    notifications.tick(notificationClock(),reducedMotion);
   }
+
   void loadAudio() {
     if (auto settings = jfg::audio::read_volume(profile / "audio.ini")) {
       volume = static_cast<int>(settings->percent);

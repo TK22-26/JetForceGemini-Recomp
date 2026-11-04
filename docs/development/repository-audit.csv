@@ -1778,3 +1778,6 @@ tests/evidence/test_aim_release_trace.py,add,tests/evidence/test_aim_release_tra
 launcher/ui/rom_cartridge.hpp,add,launcher/ui/rom_cartridge.hpp,Native launcher cartridge decoration,Beveled region tiles using the existing RmlUi renderer.
 docs/development/issues/launcher-regional-rom-selection.md,add,docs/development/issues/launcher-regional-rom-selection.md,Persistent issue history,Regional launcher selection cause implementation and verification.
 launcher/ui/tests/rom_library_ui_tests.cpp,add,launcher/ui/tests/rom_library_ui_tests.cpp,Native launcher interaction regression,Exercise loaded empty busy and DPI cartridge selection states.
+launcher/ui/notification_stack.hpp,add,launcher/ui/notification_stack.hpp,Shared native notification presentation,Independent notice lifetimes and upward stack motion.
+docs/development/issues/launcher-notification-stack.md,add,docs/development/issues/launcher-notification-stack.md,Persistent issue history,Notification queue cause replacement and verification.
+launcher/ui/tests/notification_stack_ui_tests.cpp,add,launcher/ui/tests/notification_stack_ui_tests.cpp,Native notification regression,Independent lifetimes movement wrapped heights reduced motion and bounded bursts.
