@@ -60,6 +60,20 @@ namespace JfgLauncher
             Directory.CreateDirectory(unknownPath);File.WriteAllBytes(Path.Combine(unknownPath,"jfg.flash"),oldSave);
             Reject(delegate {RegionalStorage.Prepare(unknown,pal,false);},"unidentified regional save silently relabeled");
             Check(!File.Exists(Path.Combine(unknownPath,RegionalStorage.MarkerName)),"failed profile preparation published identity");
+            string library=Path.Combine(directory,"rom-library");Directory.CreateDirectory(Path.Combine(library,"roms"));
+            foreach(var entry in RomLibrary.Scan(library))Check(entry.State=="empty","absent library entry verified");
+            File.WriteAllBytes(ImportedRom.FileName(library,us),new byte[]{1});
+            File.WriteAllBytes(ImportedRom.FileName(library,pal),new byte[]{2});
+            var scanned=RomLibrary.Scan(library,delegate(string path){return path==ImportedRom.FileName(library,us)?us:jp;});
+            Check(Array.Find(scanned,e=>e.Revision.Code=="us").State=="verified","valid library entry missing");
+            Check(Array.Find(scanned,e=>e.Revision.Code=="pal").State=="invalid","wrong-region file verified by name");
+            Check(Array.Find(scanned,e=>e.Revision.Code=="jpn").State=="empty","missing JP entry changed");
+            Check(RomLibrary.Snapshot("jpn",scanned).StartsWith("jfg-rom-library-1\njpn\n"),"empty selected region not retained");
+            Check(!RomLibrary.Snapshot("pal",scanned).Contains("pal\tverified"),"invalid region advertised as verified");
+            scanned=RomLibrary.Scan(library,delegate(string path){throw new InvalidDataException("damaged");});
+            Check(Array.Find(scanned,e=>e.Revision.Code=="us").State=="invalid","corrupt file prevents library reporting");
+            Check(File.ReadAllBytes(ImportedRom.FileName(library,us))[0]==1,"library scan modified an import");
+            Reject(delegate{RomLibrary.Region("europe");},"unknown region accepted");
             return checks;
         }
     }

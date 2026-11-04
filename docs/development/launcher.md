@@ -307,6 +307,23 @@ imported ROM and compatible runtime. `--portable` selects portable storage behav
 still requires completion through the launcher. These switches do not select an in-game save slot
 or warp to a level.
 
+The home screen lists USA, PAL and JP as selectable cartridge tiles. Imported
+ROMs are verified against the supported catalog. The selected region survives
+closing and reopening, including an empty selection; Play never substitutes
+another region. Each region retains its own save namespace.
+
+Use `--region usa|pal|jp` to choose a region at startup. `us` and `jpn` are also
+accepted, case-insensitively. The argument overrides and updates the remembered
+selection. Without `--play`, it opens the launcher with that region selected:
+
+```text
+JFG-Launcher.exe --play --region pal
+JFG-Launcher.exe --region jp
+```
+
+See the [regional selector record](issues/launcher-regional-rom-selection.md)
+for verification and pending owner review.
+
 The runtime can also start without the launcher:
 
 ```text

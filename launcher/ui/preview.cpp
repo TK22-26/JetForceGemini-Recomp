@@ -1,3 +1,4 @@
+#include "rom_cartridge.hpp"
 // Native RmlUi design review harness. Game/process integration remains
 // separate.
 #define WIN32_LEAN_AND_MEAN
@@ -283,9 +284,9 @@ struct Ui : Rml::EventListener {
     dialog.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
     if (GetOpenFileNameW(&dialog)) {
       fs::path p(path);
-      label("rom-name", u8(p.filename().wstring()));
-      label("rom-folder", u8(p.parent_path().wstring()));
-      label("rom-badge", "SELECTED");
+      label("rom-title-us", u8(p.filename().wstring()));
+      label("rom-path-us", u8(p.parent_path().wstring()));
+      label("rom-state-us", "PREVIEW");
       status("ROM selected. Verification is performed by setup.");
     }
   }
@@ -299,6 +300,9 @@ struct Ui : Rml::EventListener {
     if (a == "close") {
       current.clear();
       el("modal")->SetProperty("display", "none");
+    } else if (a.rfind("region-",0)==0) {
+      for(const auto* code:{"us","pal","jpn"})el((std::string("action-region-")+code).c_str())->SetClass("selected",a==std::string("region-")+code);
+      status("Design preview only. Use the main launcher to verify and play ROMs.");
     } else if (a == "rom")
       rom();
     else if (a == "play") {
@@ -363,6 +367,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     Backend::Shutdown();
     return 2;
   }
+  Rml::ElementInstancerGeneric<RomCartridge> cartridgeInstancer;
+  Rml::Factory::RegisterElementInstancer("rom-cartridge", &cartridgeInstancer);
   Rml::LoadFontFace("ui/fonts/Barlow-Regular.ttf");
   Rml::LoadFontFace("ui/fonts/Barlow-SemiBold.ttf");
   Rml::LoadFontFace("ui/fonts/ChakraPetch-Bold.ttf");

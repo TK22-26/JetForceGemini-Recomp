@@ -9,6 +9,7 @@ Use the [issue index](development/issues/README.md) for full reproduction, attem
 
 | Problem | Current evidence and limit |
 |---|---|
+| [Regional ROM selector](development/issues/launcher-regional-rom-selection.md) | Local v34 has cartridge selection, remembered region and `--region`; native UI, CLI and restart checks pass. Physical-pointer owner review remains pending. |
 | [Modern Aim release](development/issues/modern-aim-release-camera-snap.md) | v33 passes targeted native checks in all three versions and is owner-approved on PAL/controller. USA/JP manual testing remains pending; unreleased. |
 | [Original FPS simulation parity](development/issues/original-mode-simulation-parity.md) | Ordinary Play uses a host-clock policy; Original output does not restore the N64 simulation clock. Matching motion states does not prove matching elapsed time. Open. |
 | [Flying-enemy speed #48](development/issues/github-flying-enemy-speed.md) | An elapsed-VI movement candidate passes portable checks and twelve native replays. Its stable three-VI reference does not reproduce every loaded N64 cadence; owner review and the Original timing policy remain open. |

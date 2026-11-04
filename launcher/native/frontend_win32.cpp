@@ -75,7 +75,7 @@ struct App {
   HBRUSH background = CreateSolidBrush(RGB(18, 27, 40));
   fs::path profile, helper, dataRoot, localRoot, executable;
   bool portable = false, customProfile = false, restartStorage = false, settingsDialogOpen = false;
-  std::wstring inputReplay, progressOutput, diagnosticsDirectory, cutsceneReviewRequest;
+  std::wstring inputReplay, progressOutput, diagnosticsDirectory, cutsceneReviewRequest, initialRegion;
   bool weatherDiagnostics = false;
   bool quickPlay = false, previewUpdate = false;
   Process session, dialog;
@@ -188,6 +188,8 @@ bool launch(Process &process, const wchar_t *action, HWND owner) {
       quote(app.helper.wstring()) + L" --frontend-worker " + action + L" " +
       quote(app.profile.wstring()) + L" " +
       std::to_wstring(reinterpret_cast<std::uintptr_t>(owner));
+  if(std::wstring(action)==L"init" && !app.initialRegion.empty())
+    command+=L" --region "+quote(app.initialRegion);
   if (std::wstring(action) == L"play") {
     if (!app.inputReplay.empty())
       command += L" --input-replay " + quote(app.inputReplay);
@@ -552,11 +554,18 @@ void uiAction(const std::string &a) {
     ShellExecuteW(app.window, L"open", L"https://github.com/TK22-26/JetForceGemini-Recomp/releases/latest", nullptr, nullptr, SW_SHOWNORMAL);
     return;
   }
+  if(a=="region-us" || a=="region-pal" || a=="region-jpn") {
+    if(app.session.running() || app.dialog.running())return;
+    const auto code=wide(a.substr(7));
+    if(write(L"frontend-region-request.txt",code) && launch(app.session,L"select-rom",app.window))
+      status(L"Selecting game region...");
+    return;
+  }
   if (a == "play") {
+    if(app.session.running() || app.dialog.running())return;
     if (text(app.rom).empty()) {
-      pick(true);
-      if (text(app.rom).empty())
-        return;
+      status(L"Add a ROM for this region or choose a loaded region to play.");
+      return;
     }
     std::error_code runtimeError;
     if (!fs::is_regular_file(fs::path(text(app.runtime)), runtimeError)) {
@@ -942,6 +951,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
       if (app.session.running() || app.dialog.running())
         break;
       if (LOWORD(wparam) == Play) {
+        if(text(app.rom).empty()) {status(L"Choose a loaded region to play.");break;}
         const auto graphics = jfg::frontend::graphics_availability();
         if (graphics != jfg::frontend::GraphicsAvailability::hardware) {
           status(L"Cannot start: a compatible hardware graphics device is required.");
@@ -1167,6 +1177,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     const std::wstring option = argv[i];
     if (option == L"--play" && !app.quickPlay)
       app.quickPlay = true;
+    else if(option==L"--region" && i+1<argc && app.initialRegion.empty()) {
+      app.initialRegion=argv[++i];
+      for(auto& c:app.initialRegion)if(c>=L'A' && c<=L'Z')c=static_cast<wchar_t>(c-L'A'+L'a');
+      if(app.initialRegion==L"usa")app.initialRegion=L"us";
+      if(app.initialRegion==L"jp")app.initialRegion=L"jpn";
+      if(app.initialRegion!=L"us" && app.initialRegion!=L"pal" && app.initialRegion!=L"jpn")validArguments=false;
+    }
     else if (option == L"--preview-update" && !app.previewUpdate)
       app.previewUpdate = true;
     else if (option == L"--portable")
@@ -1193,7 +1210,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
   if (!validArguments || (!app.quickPlay && (!app.inputReplay.empty() || !app.progressOutput.empty())) ||
       (!app.cutsceneReviewRequest.empty() && (app.diagnosticsDirectory.empty() || !app.inputReplay.empty()))) {
     MessageBoxW(nullptr,
-                L"Use JFG-Launcher.exe [--play] [--profile <folder>] [--portable] [--diagnostics <folder>] [--preview-update]. "
+                L"Use JFG-Launcher.exe [--play] [--region usa|pal|jp] [--profile <folder>] [--portable] [--diagnostics <folder>] [--preview-update]. "
                 L"Diagnostic --input-replay <file> and --progress-output <file> require --play.",
                 L"Jet Force Gemini", MB_OK | MB_ICONERROR);
     return 2;

@@ -1775,3 +1775,6 @@ tests/renderer/native_blur_tests.cpp,add,tests/renderer/native_blur_tests.cpp,Re
 include/jfg/renderer/keyboard_presentation.hpp,add,include/jfg/renderer/keyboard_presentation.hpp,Renderer presentation identity,Scope verified native keyboard key indices through repeated object drawing.
 tests/evidence/aim_release_trace.py,add,tests/evidence/aim_release_trace.py,Native trace regression,"Qualify emitted Modern Aim-return boundaries, clear paths and projection continuity from completed private native replays."
 tests/evidence/test_aim_release_trace.py,add,tests/evidence/test_aim_release_trace.py,Native trace regression tests,"Reject initial lurches, bent clear paths, projection jumps, instant or delayed snaps and invalid coverage while handling native VI boundary crossings."
+launcher/ui/rom_cartridge.hpp,add,launcher/ui/rom_cartridge.hpp,Native launcher cartridge decoration,Beveled region tiles using the existing RmlUi renderer.
+docs/development/issues/launcher-regional-rom-selection.md,add,docs/development/issues/launcher-regional-rom-selection.md,Persistent issue history,Regional launcher selection cause implementation and verification.
+launcher/ui/tests/rom_library_ui_tests.cpp,add,launcher/ui/tests/rom_library_ui_tests.cpp,Native launcher interaction regression,Exercise loaded empty busy and DPI cartridge selection states.

@@ -6,6 +6,7 @@
 #include "native_ui.hpp"
 #include "frontend_build_info.hpp"
 #include "home_scene.hpp"
+#include "rom_cartridge.hpp"
 #include "live_tools.hpp"
 #include "video_settings_ui.hpp"
 #include "storage_settings_ui.hpp"
@@ -600,7 +601,7 @@ struct Ui : Rml::EventListener {
         }
       }
       if (pressed && on && previouslyConnected && current.empty() &&
-          !state.playing && !state.busy && (pressed & XINPUT_GAMEPAD_A))
+          !state.playing && !state.busy && !state.rom.empty() && !state.runtime.empty() && (pressed & XINPUT_GAMEPAD_A))
         action("play");
       buttons[i] = on ? s.Gamepad.wButtons : 0;
     }
@@ -708,7 +709,7 @@ struct Ui : Rml::EventListener {
     fill("@VERSION@", jfg::frontend::version);
     fill("@BUILD@", jfg::frontend::revision);
     fill("@DATE@", jfg::frontend::built);
-    fill("@ROM@", state.rom.empty() ? "Not imported" : state.playing ? "US \xC2\xB7 verified" : "Imported on this PC");
+    fill("@ROM@", state.rom.empty() ? "Not imported" : state.playing ? libraryRegion+" \xC2\xB7 verified" : "Imported on this PC");
     return html;
   }
   void toggleMute() {
@@ -922,24 +923,48 @@ struct Ui : Rml::EventListener {
     }
     modernOverlay();
   }
-  void rom() {
-    wchar_t path[32768]{};
-    OPENFILENAMEW dialog{};
-    dialog.lStructSize = sizeof(dialog);
-    dialog.hwndOwner = GetActiveWindow();
-    dialog.lpstrFile = path;
-    dialog.nMaxFile = 32768;
-    dialog.lpstrFilter = L"N64 ROM\0*.z64;*.n64;*.v64\0";
-    dialog.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
-    if (GetOpenFileNameW(&dialog)) {
-      fs::path p(path);
-      label("rom-name", u8(p.filename().wstring()));
-      label("rom-folder", u8(p.parent_path().wstring()));
-      label("rom-badge", "SELECTED");
-      status("ROM selected. Click Play to verify and start the game.");
+  std::string libraryWire,libraryRegion="us";
+  double libraryPoll=0;
+  bool libraryBusy=false,libraryReady=false;
+  void pollRomLibrary(const FrontendUiState& next) {
+    if(controllerWindow || !el("rom-card"))return;
+    const double now=Rml::GetSystemInterface()->GetElapsedTime();
+    const bool busy=next.busy || next.playing;
+    if(now<libraryPoll && busy==libraryBusy)return;
+    libraryPoll=now+.2;
+    const auto wire=read("frontend-rom-library.tsv");
+    const bool ready=!next.rom.empty() && !next.runtime.empty();
+    if(wire==libraryWire && busy==libraryBusy && ready==libraryReady && !libraryWire.empty())return;
+    libraryWire=wire;libraryBusy=busy;libraryReady=ready;
+    std::istringstream input(wire);std::string header,selected,line;std::getline(input,header);std::getline(input,selected);
+    const bool valid=header=="jfg-rom-library-1" && (selected=="us" || selected=="pal" || selected=="jpn");
+    libraryRegion=valid?selected:"us";int count=0;bool selectedLoaded=false;std::string selectedLabel;
+    for(const auto* code:{"us","pal","jpn"}) {
+      std::string state="empty",path;std::istringstream rows(wire);std::getline(rows,line);std::getline(rows,line);
+      while(std::getline(rows,line)) {
+        const auto first=line.find('\t'),second=first==std::string::npos?first:line.find('\t',first+1);
+        if(valid && first!=std::string::npos && second!=std::string::npos && line.substr(0,first)==code) {state=line.substr(first+1,second-first-1);path=line.substr(second+1);break;}
+      }
+      const bool loaded=state=="verified" && !path.empty(),on=libraryRegion==code;
+      const std::string region=std::string(code)=="us"?"USA":std::string(code)=="pal"?"PAL":"JP";
+      auto* tile=el((std::string("action-region-")+code).c_str());
+      tile->SetClass("loaded",loaded);tile->SetClass("selected",on);tile->SetClass("invalid",state=="invalid");
+      tile->SetAttribute("aria-checked",on?"true":"false");tile->SetAttribute("aria-label",region+(loaded?", verified":state=="invalid"?", needs replacement":", not loaded"));
+      if(busy)tile->SetAttribute("disabled","");else tile->RemoveAttribute("disabled");
+      label((std::string("rom-state-")+code).c_str(),loaded?"VERIFIED":state=="invalid"?"INVALID":"EMPTY");
+      label((std::string("rom-title-")+code).c_str(),loaded?(std::string(code)=="jpn"?"Star Twins (Japan)":"Jet Force Gemini ("+region+")"):"No "+region+" ROM loaded");
+      auto* location=el((std::string("rom-path-")+code).c_str());
+      const auto separator=path.find_last_of("/\\");
+      label(location->GetId().c_str(),loaded?(separator==std::string::npos?path:path.substr(0,separator+1)):"Select, then Add ROM...");location->SetAttribute("title",path);
+      if(loaded)++count;if(on){selectedLoaded=loaded;selectedLabel=region;}
     }
+    label("rom-count",std::to_string(count)+" of 3 regions loaded");
+    label("action-rom",(selectedLoaded?"Change ":"Add ")+selectedLabel+" ROM...");
+    el("action-rom")->SetClass("add-rom",!selectedLoaded);
+    if(busy)el("action-rom")->SetAttribute("disabled","");else el("action-rom")->RemoveAttribute("disabled");
+    if(busy || !selectedLoaded || !ready)el("action-play")->SetAttribute("disabled","");else el("action-play")->RemoveAttribute("disabled");
+    label("rom-play-note",!selectedLoaded?"Add the "+selectedLabel+" ROM or pick a loaded region to play.":!ready?"Verify game files to play the "+selectedLabel+" version.":"Plays the "+selectedLabel+" version in this window.");
   }
-
   void ProcessEvent(Rml::Event &event) override {
     if (building)
       return;
@@ -1295,6 +1320,7 @@ struct Surface {
   TextInputMethodEditor_Win32 ime;
   Resources files;
   Rml::ElementInstancerGeneric<HomeScene> homeInstancer;
+  Rml::ElementInstancerGeneric<RomCartridge> cartridgeInstancer;
   Rml::ElementInstancerGeneric<jfg_live::MapScene> mapInstancer;
   std::unique_ptr<jfg_live::ToolUi> live;
   std::unique_ptr<jfg_video::Ui> video;
@@ -1442,6 +1468,7 @@ bool FrontendUiInit(HWND w, const fs::path &profile,
       throw std::runtime_error("Cannot initialize RmlUi");
     s.initialized = true;
     Rml::Factory::RegisterElementInstancer("home-scene", &s.homeInstancer);
+    Rml::Factory::RegisterElementInstancer("rom-cartridge", &s.cartridgeInstancer);
     Rml::Factory::RegisterElementInstancer("map-scene", &s.mapInstancer);
     for (const char *font :
          {"Barlow-Regular.ttf", "Barlow-SemiBold.ttf", "ChakraPetch-Bold.ttf"})
@@ -1560,16 +1587,7 @@ void FrontendUiFrame(const FrontendUiState &state) {
   }
   if (state.fullscreen != ui.state.fullscreen)
     ui.doc->SetClass("fullscreen", state.fullscreen);
-  ui.doc->SetClass("rom-imported", !state.rom.empty());
-  if (state.rom != ui.state.rom) {
-    ui.action("assets");
-    fs::path p(state.rom);
-    ui.label("rom-name", state.rom.empty() ? "Import your game ROM"
-                                           : u8(p.filename().wstring()));
-    ui.label("rom-folder", state.rom.empty() ? "Import once. Your copy stays on this PC."
-                                             : u8(p.parent_path().wstring()));
-    ui.label("rom-badge", state.rom.empty() ? "" : "IMPORTED");
-  }
+  ui.pollRomLibrary(state);
   if (state.status != ui.state.status) {
     ui.status(u8(state.status));
     if (auto *e = ui.el("setup-status"))

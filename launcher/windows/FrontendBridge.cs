@@ -105,6 +105,30 @@ internal static class FrontendBridge
         return revision.Title+" ("+revision.Code+") imported. "+(revision.NativeBuildAdmitted
             ? "Click Play to use its matching runtime." : "Native gameplay support is still being qualified.");
     }
+    private static void SelectRom(string code)
+    {
+        RomLibrary.Region(code);State("Checking loaded ROMs...");
+        var entries=RomLibrary.Scan(root);RomLibrary.Entry selected=null;
+        foreach(var entry in entries)if(entry.Revision.Code==code)selected=entry;
+        if(selected==null)throw new InvalidDataException("Unknown game region.");
+        // Selection, import and Play share the profile mutex. Never retain a
+        // previous region's executable when resolution of the new one fails.
+        Write("frontend-runtime.txt","");
+        Write("frontend-rom.txt",selected.State=="verified" ? selected.Path : "");
+        Write("frontend-revision.txt",selected.State=="verified" ? selected.Revision.Id : "");
+        Write("frontend-region.txt",code);
+        Write("frontend-rom-library.tsv",RomLibrary.Snapshot(code,entries));
+        var settings=LocalSetup.LoadSettings(root);settings.RomPath=Read("frontend-rom.txt");settings.RuntimePath="";
+        LocalSetup.SaveSettings(root,settings);
+        if(selected.State!="verified")
+        {
+            State(selected.State=="invalid" ? "The selected ROM could not be verified. Replace it or choose another region." : "Add a ROM for this region or choose a loaded region to play.");
+            return;
+        }
+        string runtime=selected.Revision.NativeBuildAdmitted ? PortablePackage.FromLauncher(selected.Revision,State) : "";
+        Write("frontend-runtime.txt",runtime);settings.RuntimePath=runtime;LocalSetup.SaveSettings(root,settings);
+        PrepareBackground();State(RomStatus(selected.Revision));
+    }
     private static void PrepareBackground() {
         try {InventoryImages.ExportShips(Read("frontend-rom.txt"),Path.Combine(root,"frontend-ships.bin"));}
         catch(InvalidDataException){}catch(IOException){}catch(UnauthorizedAccessException){}catch(ArgumentException){}
@@ -284,50 +308,42 @@ internal static class FrontendBridge
             using(var tool=NativeLiveTools.OpenWindow(action,root,owner))await Task.Run(delegate{tool.WaitForExit();});
             return 0;
         }
+        if (action == "select-rom")
+        {
+            string code=Read("frontend-region-request.txt");RomLibrary.Region(code);
+            await Task.Run(delegate { SelectRom(code); });
+            File.Delete(Path.Combine(root,"frontend-region-request.txt"));
+            return 0;
+        }
         if (action == "import-rom")
         {
-            State("Importing your ROM. This only needs to be done once...");
-            string imported = await Task.Run(delegate { return ImportedRom.Import(root, Read("frontend-rom-source.txt")); });
-            Write("frontend-rom.txt", imported);
-            var saved = LocalSetup.LoadSettings(root);
-            saved.RomPath = imported;
-            LocalSetup.SaveSettings(root, saved);
-            await Task.Run((Action)PrepareBackground);
-            File.Delete(Path.Combine(root, "frontend-rom-source.txt"));
+            State("Importing your ROM...");
+            string imported=await Task.Run(delegate {return ImportedRom.Import(root,Read("frontend-rom-source.txt"));});
             var importedRevision=RegionalRom.Identify(imported);
-            Write("frontend-revision.txt",importedRevision.Id);
-            State(RomStatus(importedRevision));
+            await Task.Run(delegate {SelectRom(importedRevision.Code);});
+            File.Delete(Path.Combine(root,"frontend-rom-source.txt"));
             return 0;
         }
         if (action == "init")
         {
-            var settings = LocalSetup.LoadSettings(root);
-            if (!File.Exists(Path.Combine(root, "frontend-rom.txt")))
-                Write("frontend-rom.txt", settings.RomPath ?? "");
-            string stored = ImportedRom.FileName(root);
-            string selected = Read("frontend-rom.txt");
-            if (File.Exists(stored) || File.Exists(selected)) {
-                State("Checking your local ROM...");
-                string imported = await Task.Run(delegate { return ImportedRom.Import(root, File.Exists(selected) ? selected : stored); });
-                Write("frontend-rom.txt", imported);
-                settings.RomPath = imported;
-                LocalSetup.SaveSettings(root, settings);
-            }
-            else if (!File.Exists(selected)) Write("frontend-rom.txt", "");
-            // Resolve only the identified revision; a retained US import never overrides a PAL/JP selection.
-            RomCatalogEntry detected=null;
-            if(File.Exists(Read("frontend-rom.txt")))
+            var settings=LocalSetup.LoadSettings(root);
+            string selected=Read("frontend-rom.txt");
+            if(String.IsNullOrEmpty(selected))selected=settings.RomPath ?? "";
+            string code=Read("frontend-region.txt");
+            // Migrate the old selection once; an explicitly empty region persists.
+            if(String.IsNullOrEmpty(code))
             {
-                detected=RegionalRom.Identify(Read("frontend-rom.txt"));
-                Write("frontend-revision.txt",detected.Id);
-                Write("frontend-runtime.txt",detected.NativeBuildAdmitted
-                    ? await Task.Run(delegate {return PortablePackage.FromLauncher(detected,State);}) : "");
+                if(!File.Exists(selected))selected=ImportedRom.FileName(root);
+                if(File.Exists(selected))
+                {
+                    string imported=await Task.Run(delegate {return ImportedRom.Import(root,selected);});
+                    code=RegionalRom.Identify(imported).Code;
+                }
+                else code="us";
             }
-            else {Write("frontend-runtime.txt","");Write("frontend-revision.txt","");}
-            if (!File.Exists(ControllerProfile.FileName(root)))
-                new ControllerProfile().Save(root);
-            await Task.Run((Action)PrepareBackground);
-            State(detected!=null ? RomStatus(detected) : "Import your US, PAL or Japanese ROM once, then select its matching installed runtime.");
+            if(args.Length==6)code=RomLibrary.Region(args[5]).Code;
+            if(!File.Exists(ControllerProfile.FileName(root)))new ControllerProfile().Save(root);
+            await Task.Run(delegate {SelectRom(code);});
             return 0;
         }
         State("Checking your imported ROM...");
@@ -467,18 +483,21 @@ internal static class FrontendBridge
         System.Threading.Mutex launchLock = null;
         try
         {
-            if (args.Length > 4 && args[1] != "play")
-                throw new InvalidDataException("Replay options require a play action.");
+            if(args.Length>4 && args[1]!="play") {
+                if(args[1]!="init" || args.Length!=6 || args[4]!="--region")
+                    throw new InvalidDataException("Unexpected frontend options.");
+                RomLibrary.Region(args[5]);
+            }
             root = LocalSetup.FullPath(args[2]);
             Directory.CreateDirectory(root);
             long handle;
             if (!Int64.TryParse(args[3], out handle))
                 throw new InvalidDataException("Invalid frontend owner.");
             if (Array.IndexOf(
-                    new[] { "updates", "init", "import-rom", "assets", "setup", "play", "direct-play", "shortcut", "controllers", "audio", "support", "map", "inventory", "map-data", "inventory-data", "sessions", "export" },
+                    new[] { "updates", "init", "import-rom", "select-rom", "assets", "setup", "play", "direct-play", "shortcut", "controllers", "audio", "support", "map", "inventory", "map-data", "inventory-data", "sessions", "export" },
                     args[1]) < 0)
                 throw new InvalidDataException("Unknown frontend action.");
-            if (args[1] == "play" || args[1] == "direct-play" || args[1] == "import-rom" || args[1] == "init") {
+            if (args[1] == "play" || args[1] == "direct-play" || args[1] == "import-rom" || args[1] == "select-rom" || args[1] == "init") {
                 string key;
                 using (var hash = System.Security.Cryptography.SHA256.Create())
                     key = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(root.ToUpperInvariant()))).Replace("-", "");
