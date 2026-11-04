@@ -359,7 +359,7 @@ struct PcOrbitPoint { float x=0,y=0,z=0; };
 // ceiling clearance). A position is accepted only when that query leaves it
 // unchanged. Never interpolate an off-ray correction through solid geometry.
 struct PcCameraBoom {
-  float distance=-1.0F,hold_seconds=0.0F;
+  float distance=-1.0F,hold_seconds=0.0F,requested_distance=-1.0F;
   unsigned queries=0;
   bool constrained=false,fallback=false;
   template<class Resolve>
@@ -376,7 +376,7 @@ struct PcCameraBoom {
     };
     if(!finite(focus) || !finite(wanted) || !finite(native_resolved) ||
        !std::isfinite(length) || length<4.0F) {
-      distance=-1;hold_seconds=0;fallback=true;return native_resolved;
+      distance=-1;hold_seconds=0;requested_distance=-1;fallback=true;return native_resolved;
     }
     const auto at=[&](float d) {
       const float scale=d/length;
@@ -447,13 +447,21 @@ struct PcCameraBoom {
       // Bounded safety fallback, still subject to the native collision check.
       return clear(4.0F)?4.0F:-1.0F;
     };
+    // A clear camera follows authored radius changes directly. Only a prior
+    // obstruction can retain recovery distance; do not turn Aim animation or
+    // a moving focus into another collision-recovery filter.
+    if(distance>=0 && requested_distance>=0 && distance>=requested_distance-0.01F) {
+      distance=length;
+      hold_seconds=0;
+    }
+    requested_distance=length;
     float safe=length;
     if(!unchanged(wanted,native_resolved)) {
       constrained=true;safe=limit(length,native_resolved);
       if(safe<0) {
         // No accepted point exists near the pivot. Retain the game's safe
         // correction for this exceptional configuration, never force clipping.
-        distance=-1;hold_seconds=0;fallback=true;return native_resolved;
+        distance=-1;hold_seconds=0;requested_distance=-1;fallback=true;return native_resolved;
       }
     }
     const float dt=std::isfinite(seconds)?std::clamp(seconds,0.0F,0.25F):0.0F;
@@ -463,7 +471,11 @@ struct PcCameraBoom {
       hold_seconds=std::max(0.0F,hold_seconds-dt);
       selected=safe-(safe-distance)*std::exp(-remaining/0.18F);
       if(safe-selected<0.01F)selected=safe;
-    } else if(distance>=0 && safe<distance-0.25F)hold_seconds=0.08F;
+    } else if(distance>=0 && safe<distance-0.25F) {
+      // Moving the desired view inside the already safe radius is immediate.
+      // Only a newly imposed obstruction needs the anti-chatter hold.
+      hold_seconds=constrained?0.08F:0.0F;
+    }
     // Recheck the recovered distance on this frame's ray. A turned camera or
     // moving obstacle invalidates yesterday's safety, even at a shorter radius.
     if(selected!=safe) {
@@ -486,13 +498,14 @@ struct PcCameraBoom {
 struct PcAimCameraReturn {
   bool aimed=false,returning=false,pending_origin=false;
   PcOrbitPoint origin{},offset{};
+  float elapsed=0.0F;
   static bool finite(PcOrbitPoint point) {
     return std::isfinite(point.x) && std::isfinite(point.y) && std::isfinite(point.z);
   }
-  void observe_aim() { aimed=true;returning=false;pending_origin=false;offset={}; }
+  void observe_aim() { aimed=true;returning=false;pending_origin=false;offset={};elapsed=0; }
   bool release(PcOrbitPoint actual) {
     if(!aimed)return false;
-    aimed=false;returning=finite(actual);pending_origin=returning;origin=actual;
+    aimed=false;returning=finite(actual);pending_origin=returning;origin=actual;elapsed=0;
     return returning;
   }
   PcOrbitPoint apply(PcOrbitPoint desired,float seconds) {
@@ -503,7 +516,13 @@ struct PcAimCameraReturn {
       pending_origin=false;
     }
     const float dt=std::isfinite(seconds)?std::clamp(seconds,0.0F,0.25F):0.0F;
-    const float decay=std::exp(-dt/0.18F);
+    // Critically damped return from rest: zero initial velocity, followed by
+    // a smooth acceleration and settle. Simple exponential decay spends its
+    // largest step on the very first release update and visibly lurches.
+    constexpr float response=0.12F;
+    const float next=elapsed+dt;
+    const float decay=((response+next)/(response+elapsed))*std::exp(-dt/response);
+    elapsed=next;
     offset={offset.x*decay,offset.y*decay,offset.z*decay};
     if(std::hypot(offset.x,offset.y,offset.z)<0.01F) {
       returning=false;offset={};return desired;
@@ -522,6 +541,12 @@ struct PcShoulder {
   std::uint32_t actor=0,control=0;
   std::uint64_t retrace=0;
   int yaw=0,pitch=0;
+  // Ground Aim has its own native position and collision owner. Its return
+  // starts at that actual pose, not at a shortened boom from before aiming.
+  void observe_ground_aim() {
+    camera_boom={};
+    aim_return.observe_aim();
+  }
   // A brief surface hop is still part of swimming. Per-update movement history
   // is insufficient: keep the origin until native locomotion reaches land or
   // another special state. Aim may temporarily own facing without losing it.

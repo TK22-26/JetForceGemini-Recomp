@@ -40,8 +40,12 @@ void check_aim_camera_return() {
   check(distance(transition.apply(desired,0),aimed)<0.0001F,
     "release starts at the actual camera, including lateral and vertical offset");
   const auto first=transition.apply(desired,1.0F/30.0F);
-  check(distance(first,desired)>100 && distance(first,aimed)<40,
-    "first return update sweeps partway instead of snapping to the shoulder");
+  check(distance(first,desired)>100 && distance(first,aimed)<8,
+    "release begins gently instead of spending a large part of the return in one update");
+  const auto second=transition.apply(desired,1.0F/30.0F);
+  const auto third=transition.apply(desired,1.0F/30.0F);
+  check(distance(first,aimed)<distance(second,first) && distance(second,first)<distance(third,second),
+    "settled Aim release accelerates smoothly from rest");
   const auto old_offset=transition.offset;
   const jfg::PcOrbitPoint moving{desired.x+25,desired.y+7,desired.z-12};
   const auto moved=transition.apply(moving,0);
@@ -60,6 +64,17 @@ void check_aim_camera_return() {
   for(int i=0;i<120;++i)transition.apply(desired,1.0F/60.0F);
   check(!transition.returning && distance(transition.apply(moving,0),moving)==0,
     "the bounded residual settles and ordinary direct look resumes");
+  jfg::PcShoulder blocked_view;blocked_view.acquire(1,2,0,0);
+  blocked_view.camera_boom.distance=25;
+  blocked_view.camera_boom.requested_distance=200;
+  blocked_view.camera_boom.hold_seconds=.08F;
+  blocked_view.observe_ground_aim();
+  blocked_view.aim_return.release(aimed);
+  const auto requested=blocked_view.aim_return.apply(desired,1.0F/30.0F);
+  const auto safe=blocked_view.camera_boom.solve({0,0,0},requested,requested,1.0F/30.0F,
+    [](jfg::PcOrbitPoint point){return point;});
+  check(distance(requested,safe)<.001F && distance(safe,aimed)<8,
+    "native Aim ownership retires the previous obstructed camera boom before release");
   jfg::PcShoulder view;view.acquire(1,2,0,0);view.aim_return.observe_aim();
   view.aim_return.release(aimed);view.acquire(1,3,0,0);
   check(!view.aim_return.returning && !view.aim_return.aimed,
@@ -362,6 +377,22 @@ int main() {
   for(int n=0;n<150;++n)motion=jfg::pc_original_acceleration(motion,{},2);
   check(std::hypot(motion.side,motion.forward)<0.000001F,"released keys settle without persistent drift");
   check(std::abs(jfg::pc_original_acceleration({0,-8},{},2).forward)<=4.0625F,"special-state momentum cannot reintroduce excessive ground speed");
+  // An unobstructed changing camera radius is an authored transition, not
+  // recovery from a wall. The two states must not filter each other.
+  {
+    const jfg::PcOrbitPoint focus{19,40,790};
+    const auto clear=[](jfg::PcOrbitPoint point){return point;};
+    jfg::PcCameraBoom boom;
+    for(const auto point:std::array<jfg::PcOrbitPoint,6>{{
+        {26.289F,100.607F,600.798F},{20.777F,73.874F,742.573F},
+        {21.709F,78.394F,718.606F},{22.483F,82.149F,698.691F},
+        {23.127F,85.269F,682.142F},{26.289F,100.607F,600.798F}}}) {
+      const auto actual=boom.solve(focus,point,point,1.0F/30.0F,clear);
+      check(std::hypot(actual.x-point.x,actual.y-point.y,actual.z-point.z)<0.001F,
+        "clear Aim camera path is not shortened or bent by boom recovery");
+      check(boom.hold_seconds==0,"an authored radius contraction cannot arm obstacle recovery hold");
+    }
+  }
   // Environmental correction must stay on the user's viewing ray. Synthetic
   // obstacles exercise the contract independently of the game's implementation.
   const jfg::PcOrbitPoint pivot{0,40,0},low_view{0,-40,200};
@@ -379,6 +410,11 @@ int main() {
   check(wall_safe.z<=88.1F && wall_safe.z>87 && !blocked.fallback,
     "wall collision retains inward near-plane clearance");
   const auto open=[](jfg::PcOrbitPoint p){return p;};
+  auto shorter=blocked;
+  const jfg::PcOrbitPoint near_view{0,40,60};
+  const auto near_clear=shorter.solve(pivot,near_view,near_view,1.0F/30.0F,open);
+  check(std::hypot(near_clear.x-near_view.x,near_clear.y-near_view.y,near_clear.z-near_view.z)<.001F,
+    "a requested clear view inside the prior safe radius is not shortened by old obstacle debt");
   auto retreat=blocked.solve(pivot,flat_view,flat_view,1.0F/30.0F,open);
   check(retreat.z>wall_safe.z && retreat.z<200,"obstruction release returns gradually");
   auto new_wall=[](jfg::PcOrbitPoint p){p.z=std::min(p.z,50.0F);return p;};

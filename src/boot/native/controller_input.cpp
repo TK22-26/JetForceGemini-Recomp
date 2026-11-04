@@ -473,7 +473,7 @@ void modern_shoulder_aim_camera(State &state,std::uint32_t target,
   // this return on every airborne update.
   const auto movement=ram.u8(control+game_member("layout.playerControl.movement"));
   if(movement==10U || movement==11U) {
-    view.aim_return.observe_aim();
+    view.observe_ground_aim();
     state.gameplay_trace.event("pc-aim-camera",{state.vi_retraces,actor,
       ram.u32(camera+game_member("layout.camera.x")),ram.u32(camera+game_member("layout.camera.y")),
       ram.u32(camera+game_member("layout.camera.z")),ram.u16(camera+game_member("layout.camera.yaw")),

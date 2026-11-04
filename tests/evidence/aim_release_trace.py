@@ -2,7 +2,8 @@
 
 Run with JFG_DIAGNOSTIC_CAMERA_MOTION=1 and JFG_GAMEPLAY_TRACE. The fixture
 must hold ground Aim to settle, release without moving/looking, and remain
-idle for at least 40 source updates. This is a trajectory contract, not a
+idle for at least 40 source updates on an unobstructed route. The first return
+update must be at most 50 ms. This is a trajectory contract, not a
 visual, collision, multiplayer or whole-game acceptance test.
 """
 from __future__ import annotations
@@ -40,9 +41,10 @@ def analyze(lines, minimum_releases=2, settle_frames=40):
     frames = []
     pending_normal = {}
     pending_start = set()
+    pending_time = {}
     counts = {}
     lengths = {"pc-shoulder": 15, "pc-shoulder-camera": 7,
-               "pc-aim-return-start": 5, "camera-emitted-pose": 54}
+               "pc-aim-return-start": 5, "pc-aim-return": 10, "camera-emitted-pose": 54}
     for line in lines:
         cells = line.strip().split("\t")
         if len(cells) < 2 or cells[1] not in lengths:
@@ -56,29 +58,34 @@ def analyze(lines, minimum_releases=2, settle_frames=40):
             # VI can advance between player update and camera emission. Pair
             # the ordered producer calls, not equal VI timestamps.
             frame = {"state": words, "views": [],
-                     "started": words[1] in pending_start}
+                     "started": words[1] in pending_start,
+                     "seconds": pending_time.pop(words[1], None)}
             pending_start.discard(words[1])
             if words[1] in pending_normal:
                 frame["normal"] = pending_normal.pop(words[1])
             frames.append(frame)
         elif event == "pc-shoulder-camera":
             pending_normal[words[1]] = floats(words[4:7])
+        elif event == "pc-aim-return":
+            pending_time[words[1]] = floats(words[2:3])[0]/60
         elif event == "pc-aim-return-start":
             if words[1] in pending_start:
                 raise ValueError("duplicate return start")
             pending_start.add(words[1])
         elif frames:
             frames[-1]["views"].append((words[1], words[3], words[4],
-                                       words[5], words[6:22]))
+                                       words[5], words[6:22], words[22:38]))
     ordered = []
     maximum_adapter_error = 0.0
+    projections = []
+    durations = []
     for index, frame in enumerate(frames):
         if not frame["views"]:
             if index == len(frames)-1:
                 continue  # Clean close may interrupt the final unrendered update.
             raise ValueError("player update has no emitted camera")
         views = [(level, vp0, vp1, update, camera_position(matrix))
-                 for level, vp0, vp1, update, matrix in frame["views"]]
+                 for level, vp0, vp1, update, matrix, _ in frame["views"]]
         level, vp0, vp1, update, point = views[0]
         if any((a, b, c, d) != (level, vp0, vp1, update) or math.dist(p, point) > 0.005
                for a, b, c, d, p in views):
@@ -88,6 +95,11 @@ def analyze(lines, minimum_releases=2, settle_frames=40):
             maximum_adapter_error = max(error, maximum_adapter_error)
             if error > 0.01:
                 raise ValueError("rendered camera differs from the final normal-camera adapter")
+        projection = floats(frame["views"][0][5])
+        if projection[0] <= 0 or projection[5] <= 0 or abs(projection[11]+1) > 0.001 or abs(projection[15]) > 0.001:
+            raise ValueError("camera observation has no valid perspective projection")
+        projections.append(projection)
+        durations.append(frame["seconds"])
         state = frame["state"]
         ordered.append((state[0], state, level, point, frame["started"]))
     releases = []
@@ -122,14 +134,35 @@ def analyze(lines, minimum_releases=2, settle_frames=40):
         monotonic = all(b <= a+0.02 for a, b in zip(residuals, residuals[1:]))
         changing = sum(step > 0.05 for step in steps)
         settled = max(math.dist(point, target) for point in points[-5:]) <= max(0.1, distance*0.005)
-        passed = max(steps)/distance < 0.55 and changing >= 6 and monotonic and settled and started
+        direction = tuple((b-a)/distance for a, b in zip(points[0], target))
+        deviations = []
+        for point in points:
+            delta = tuple(b-a for a, b in zip(points[0], point))
+            along = sum(a*b for a, b in zip(delta, direction))
+            deviations.append(math.sqrt(sum((a-along*b)**2 for a, b in zip(delta, direction))))
+        path_error = max(deviations)/distance
+        zoom = projections[index-1:index+settle_frames]
+        projection_step = max(abs(b[k]/a[k]-1) for a, b in zip(zoom, zoom[1:]) for k in (0, 5))
+        # This deliberately rejects a large first hop followed by a smooth tail,
+        # and a bent/stalled recovery path even if distance to the end decreases.
+        seconds = durations[index:index+settle_frames]
+        rates = [step/distance/dt if dt is not None and dt > 0 else
+                 (0 if step < 0.01 else math.inf) for step, dt in zip(steps, seconds)]
+        first_interval_valid = seconds[0] is not None and 0 < seconds[0] <= 0.050001
+        passed = (first_interval_valid and steps[0]/distance < 0.10 and max(rates) < 4.0 and
+                  path_error < 0.01 and projection_step < 0.03 and
+                  changing >= 6 and monotonic and settled and started)
         releases.append({"vi": vi, "distance": distance,
                          "first_step_fraction": steps[0]/distance,
                          "maximum_step_fraction": max(steps)/distance,
+                         "maximum_step_rate_per_second": max(rates) if math.isfinite(max(rates)) else None,
+                         "first_update_seconds": seconds[0],
+                         "maximum_path_deviation_fraction": path_error,
+                         "maximum_projection_step_fraction": projection_step,
                          "changing_updates": changing, "monotonic": monotonic,
                          "settled": settled, "return_started": started, "passed": passed})
         if not passed:
-            failures.append("rendered return snaps, fails to settle, or was not armed")
+            failures.append("rendered return lurches, bends, changes projection abruptly, fails to settle, or was not armed")
     if len(releases) < minimum_releases:
         failures.append("insufficient qualified ground-Aim releases")
     return {"complete": not failures, "releases": releases, "failures": failures,
