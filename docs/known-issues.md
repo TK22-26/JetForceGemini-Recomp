@@ -1,6 +1,6 @@
 # Known issues
 
-Reviewed 2026-11-02. The published v1.4.0 bundle and the current `develop` source have different
+Reviewed 2026-11-03. The published v1.4.0 bundle and the current `develop` source have different
 validation status. A tested local candidate is not automatically released or accepted by its reporter.
 Use the [issue index](development/issues/README.md) for full reproduction, attempts, causes and evidence;
 [project status](status.md) and the [changelog](../CHANGELOG.md) describe delivered features.
@@ -9,9 +9,7 @@ Use the [issue index](development/issues/README.md) for full reproduction, attem
 
 | Problem | Current evidence and limit |
 |---|---|
-| [Modern backward body tilt](development/issues/pal-modern-backward-body-tilt.md) | PAL owner report and PAL/US baseline pose measurements identify a shared wrong-field conversion. Distinct bank binding and regressions pass; included in all three v31 runtimes, with live pose verification pending. |
-| [Name-entry keyboard cadence](development/issues/name-entry-key-animation-cadence.md) | US/PAL/JP native replays interpolate every keyboard vertex and retain all 41 key identities. Included in local v31; owner appearance review pending. |
-| [PAL/JP Vela rescue blur](development/issues/vela-rescue-cutscene-stutter-resolution.md#pal-owner-regression-2026-11-02) | PAL/JP omit two commands required by the old recognizer. Both complete forms pass consumer regressions and are linked in local v31; live rescue and owner review pending. US appearance remains owner-accepted. |
+| [Modern Aim release](development/issues/modern-aim-release-camera-snap.md) | The failed v31 candidate never observed the real Aim-camera path. The replacement passes emitted-view native checks in US/PAL/JP, plus PAL mouse/quick re-aim; v32 owner visual retest pending. |
 | [Original FPS simulation parity](development/issues/original-mode-simulation-parity.md) | Ordinary Play uses a host-clock policy; Original output does not restore the N64 simulation clock. Matching motion states does not prove matching elapsed time. Open. |
 | [Flying-enemy speed #48](development/issues/github-flying-enemy-speed.md) | An elapsed-VI movement candidate passes portable checks and twelve native replays. Its stable three-VI reference does not reproduce every loaded N64 cadence; owner review and the Original timing policy remain open. |
 | [Intermittent mouse look #32](development/issues/github-mouse-look-and-inversion.md) | A local candidate fixes reproduced raw-mouse delivery loss across the hosted process boundary. Two-process checks pass; reporter and inversion-Off retests remain pending. |
@@ -30,6 +28,7 @@ they require reporter clarification, not a claim that this port has fixed those 
 
 | Change | Acceptance and remaining limits |
 |---|---|
+| [Name-entry keyboard](development/issues/name-entry-key-animation-cadence.md), [backward body tilt](development/issues/pal-modern-backward-body-tilt.md), and [regional rescue blur](development/issues/vela-rescue-cutscene-stutter-resolution.md) | Owner confirms these three fixes in the v31 retest on November 3. The owner identifies the retest as PAL with a controller; separate US/JP visual qualification is not inferred. |
 | [Audio settings window](development/issues/audio-settings-window-delay.md) | Owner confirms the replacement separate window opens immediately. The old approximately 20-second delay's cause remains unknown. Restart an existing launcher to use the new route. |
 | [Enhanced Shadows](development/issues/github-character-shadow-jitter.md) | Owner approved v26 visually; focused combat/chief/cinematic checks pass. Broader campaign/performance qualification remains pending. Original mode keeps native silhouettes. |
 | [Shot effects](development/issues/high-refresh-shot-effects.md) and [actor camera motion](development/issues/camera-turn-actor-jumps.md) | Travelling tracers, grenade shockwaves/fire, opening sparkle and Vela ship-beam corrections have their recorded owner acceptance. Suspected muzzle-flash jitter remains unconfirmed. |
@@ -148,5 +147,9 @@ The owner reports that releasing Aim in Modern controls snaps the camera back
 instead of sweeping into normal view. A shared source candidate preserves the
 actual aimed position through the collision solver; focused components pass.
 The compiler-memory blocker is corrected and all three v31 test runtimes now
-contain this candidate. Live camera-transition verification remains pending.
+contain this candidate. On November 3, the owner retested it and reported that
+release remains instant. The ownership observer was attached to the normal-camera
+path that ground Aim bypasses. The replacement observes the actual Aim camera
+and passes two emitted-view returns in each region, plus PAL mouse/quick re-aim.
+Local v32 is ready for owner visual retesting; it is not a published resolution.
 See the [issue record](development/issues/modern-aim-release-camera-snap.md).

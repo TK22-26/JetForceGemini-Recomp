@@ -2,8 +2,8 @@
 
 - Follow-up: https://github.com/TK22-26/JetForceGemini-Recomp/issues/21 (1.3, including general performance work).
 - Severity: significant visual interruption.
-- Status: opt-in GPU composite/history candidate passes scoped boss checks and
-  rescue still/reference checks; remaining late updates and moving/live visual review open.
+- Status: owner accepts the regional rescue-blur correction in the v31 retest;
+  locally accepted, unreleased. Historical cadence/fidelity limits remain below.
 - Reported: 2026-10-18 UTC.
 - Affected build: official Windows v1.2.0, Ichor owner capture on the SSD runtime.
 
@@ -1308,3 +1308,16 @@ US visual acceptance applies to its prior behavior, not a new visual test.
 
 Local implementation commit: `0e97d2e347b1bd33c714de9de3ef678aa0e48cec` on `develop`.
 The local test package is not a published release.
+
+## Regional blur owner acceptance, 2026-11-03
+
+Following the v31 four-item handoff, the owner reports that Modern Aim release
+is still instant and "the rest is fixed". This accepts the rescue-blur correction
+in the tested session. PAL/JP were the affected reports; the follow-up does not
+identify a separate visual run for each region. Do not invent a new US comparison,
+live pairing trace or zero-stall guarantee. The command-list cause, remedy and
+regression evidence above remain applicable. Earlier pending appearance review
+is superseded for this owner test; the local package remains unreleased.
+
+The owner subsequently identifies this retest as **PAL with a controller**.
+Retain that scope for the accepted result; no separate US/JP visual pass is inferred.

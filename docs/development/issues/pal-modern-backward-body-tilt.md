@@ -1,7 +1,7 @@
 # PAL Modern backward movement tilts Juno
 
 - ID: ANIM-PAL-BACKWARD-20261102.
-- Status: shared conversion corrected and component-tested; linked in all three v31 test runtimes; live pose verification pending.
+- Status: owner confirms backward body tilt fixed in the v31 retest; accepted locally, unreleased.
 - Severity: visible Modern locomotion regression.
 - Affected: current v30 launcher/v28 enhanced runtime. Owner reproduced PAL; focused numeric replays reproduce leftover bank in PAL and US. JP has the same incorrect source binding but no dedicated live reproduction.
 
@@ -101,3 +101,15 @@ see [compiler-memory cause](build-blur-audit-compiler-memory.md).
 
 Local implementation commit: `0e97d2e347b1bd33c714de9de3ef678aa0e48cec` on `develop`.
 The local test package is not a published release.
+
+## Owner acceptance, 2026-11-03
+
+Following the v31 four-item handoff, the owner reports that Modern Aim release
+is still instant and "the rest is fixed". This accepts modern backward body tilt in
+the tested session. The exact tested region/device is not restated; this is
+not three independent regional visual checks. Earlier pending-review passages
+are historical. Implementation and test evidence remain as recorded above;
+the local package is not a published release.
+
+The owner subsequently identifies this retest as **PAL with a controller**.
+Retain that scope for the accepted result; no separate US/JP visual pass is inferred.

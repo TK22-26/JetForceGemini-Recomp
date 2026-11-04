@@ -1773,3 +1773,5 @@ docs/development/issues/pal-modern-backward-body-tilt.md,add,docs/development/is
 docs/development/issues/build-blur-audit-compiler-memory.md,add,docs/development/issues/build-blur-audit-compiler-memory.md,Persistent issue history,"Compiler memory failure cause, bounded remedy and actual dependency/collector verification."
 tests/renderer/native_blur_tests.cpp,add,tests/renderer/native_blur_tests.cpp,Renderer tests,Complete native blur recognition for both regional command forms and malformed-list rejection.
 include/jfg/renderer/keyboard_presentation.hpp,add,include/jfg/renderer/keyboard_presentation.hpp,Renderer presentation identity,Scope verified native keyboard key indices through repeated object drawing.
+tests/evidence/aim_release_trace.py,add,tests/evidence/aim_release_trace.py,Native trace regression,"Qualify emitted Modern Aim-return camera trajectories from completed private native replays."
+tests/evidence/test_aim_release_trace.py,add,tests/evidence/test_aim_release_trace.py,Native trace regression tests,"Reject instant or delayed snaps and invalid coverage while handling native VI boundary crossings."

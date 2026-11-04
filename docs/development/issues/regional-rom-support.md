@@ -1786,3 +1786,21 @@ are preserved. These were assembly errors, not new game-runtime regressions.
 The final packaged launcher also starts the correct new native executable and
 closes normally for each revision in isolated, explicitly muted profiles.
 The handoff saves remain unchanged. Receipt: `launcher-smoke-v31.result.json`.
+
+## Owner PAL retest and Aim-return replacement, 2026-11-03/04
+
+The owner confirms the name-entry keyboard, rescue blur and backward body tilt
+fixed on PAL with a controller. Modern Aim release remained instant in v31.
+The [Aim-release record](modern-aim-release-camera-snap.md) documents the failed
+candidate, actual missed camera-ownership path and replacement.
+
+The shared replacement builds in US/PAL/JP and passes two actual emitted-view
+controller returns in every region, plus a separate PAL mouse/quick-reaim replay.
+Local v32 combines those runtimes with the existing launcher and copies of current
+v31 profiles. Owner visual retesting of Aim remains pending; the three accepted
+PAL fixes do not imply full regional campaign or independent US/JP visual acceptance.
+
+The completed v32 package also passes actual launcher init/setup/direct Play
+and normal close for every matching runtime in isolated muted profiles.
+The handoff saves remain unchanged. Evidence: launcher-smoke-v32.result.json.
+Owner visual confirmation of the new Aim return remains pending.

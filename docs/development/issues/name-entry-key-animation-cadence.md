@@ -1,7 +1,7 @@
 # Name-entry keyboard key animation cadence
 
 - ID: MENU-KEY-CADENCE-20261102.
-- Status: US/PAL/JP native replays verify complete key interpolation; owner appearance review pending.
+- Status: owner confirms the keyboard fixed in the v31 retest; accepted locally, unreleased. Regional native replay coverage remains documented below.
 - Severity: visible presentation limitation on the in-game New Game name-entry keyboard.
 - Affected: local v30 launcher/v28 enhanced PAL runtime (`5bac0c8`), owner testing at requested 120 FPS with VSync. US/JP are suspected by the owner but not independently reproduced.
 
@@ -156,3 +156,15 @@ The handoff saves remain unchanged. Receipt: `launcher-smoke-v31.result.json`.
 
 Local implementation commit: `0e97d2e347b1bd33c714de9de3ef678aa0e48cec` on `develop`.
 The local test package is not a published release.
+
+## Owner acceptance, 2026-11-03
+
+Following the v31 four-item handoff, the owner reports that Modern Aim release
+is still instant and "the rest is fixed". This accepts name-entry keyboard animation in
+the tested session. The exact tested region/device is not restated; this is
+not three independent regional visual checks. Earlier pending-review passages
+are historical. Implementation and test evidence remain as recorded above;
+the local package is not a published release.
+
+The owner subsequently identifies this retest as **PAL with a controller**.
+Retain that scope for the accepted result; no separate US/JP visual pass is inferred.

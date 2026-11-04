@@ -746,3 +746,11 @@ The local preview now retains CPU-drawn framebuffer edits on high-refresh output
 The high-refresh candidate now preserves CPU reticle masks before the presentation queue can discard an older VI, including both submission-time and VI-time imports. Real-weapon checks cover sustained recorded aiming and 120/360 output phases. The custom shuriken matrix builder now supplies explicit actor ownership for resting/rolling projectile interpolation. Modern crouch aiming also receives the same pitch convention as standing, without changing the saved inversion preference. Bounded checks pass; [qualification and remaining live limits](../../evidence/high-refresh-shuriken-followup.json).
 
 The shuriken/crouch followup above is delivered locally with source `95efb8f97b47717921aa4c29ab17245771c3ff22` through High Refresh Preview and Jitter Capture. The owner reports no noticeable slowdowns and the reported shuriken/crouch issues resolved in live play; see [qualification and delivery](../../evidence/high-refresh-shuriken-followup.json).
+
+### Regional presentation acceptance (2026-11-03)
+
+The owner confirms the [name-entry keyboard animation](../development/issues/name-entry-key-animation-cadence.md)
+and [Vela rescue blur correction](../development/issues/vela-rescue-cutscene-stutter-resolution.md)
+fixed in the v31 PAL/controller retest. Existing three-region automated evidence
+remains distinct from that PAL appearance acceptance. The v32 Aim-return handoff
+retains these fixes; neither local package is a published release.

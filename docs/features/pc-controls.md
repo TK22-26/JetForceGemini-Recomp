@@ -90,3 +90,12 @@ available; native SDL/DualSense rumble, gyro and adaptive triggers remain future
 [Implementation and historical qualification](../development/runtime/modern-controls.md) separates
 code design and original-ROM comparison from these instructions. [Issue records](../development/issues/README.md)
 retain failed experiments, source identities, reported regressions and actual verification limits.
+
+## Current local camera corrections
+
+The v32 test build restores a gradual return after releasing ground Aim in
+Modern Controls. US/PAL/JP native camera-trajectory checks and PAL mouse-input/
+quick-reaim replays pass; owner visual retesting remains pending. See the
+[Aim-release record](../development/issues/modern-aim-release-camera-snap.md).
+The owner accepts the separate [backward body-tilt correction](../development/issues/pal-modern-backward-body-tilt.md)
+on PAL with a controller. These local results are not v1.4.0 release claims.
