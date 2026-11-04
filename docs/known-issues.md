@@ -9,7 +9,7 @@ Use the [issue index](development/issues/README.md) for full reproduction, attem
 
 | Problem | Current evidence and limit |
 |---|---|
-| [Modern Aim release](development/issues/modern-aim-release-camera-snap.md) | The failed v31 candidate never observed the real Aim-camera path. The replacement passes emitted-view native checks in US/PAL/JP, plus PAL mouse/quick re-aim; v32 owner visual retest pending. |
+| [Modern Aim release](development/issues/modern-aim-release-camera-snap.md) | v33 passes targeted native checks in all three versions and is owner-approved on PAL/controller. USA/JP manual testing remains pending; unreleased. |
 | [Original FPS simulation parity](development/issues/original-mode-simulation-parity.md) | Ordinary Play uses a host-clock policy; Original output does not restore the N64 simulation clock. Matching motion states does not prove matching elapsed time. Open. |
 | [Flying-enemy speed #48](development/issues/github-flying-enemy-speed.md) | An elapsed-VI movement candidate passes portable checks and twelve native replays. Its stable three-VI reference does not reproduce every loaded N64 cadence; owner review and the Original timing policy remain open. |
 | [Intermittent mouse look #32](development/issues/github-mouse-look-and-inversion.md) | A local candidate fixes reproduced raw-mouse delivery loss across the hosted process boundary. Two-process checks pass; reporter and inversion-Off retests remain pending. |
@@ -151,5 +151,8 @@ contain this candidate. On November 3, the owner retested it and reported that
 release remains instant. The ownership observer was attached to the normal-camera
 path that ground Aim bypasses. The replacement observes the actual Aim camera
 and passes two emitted-view returns in each region, plus PAL mouse/quick re-aim.
-Local v32 is ready for owner visual retesting; it is not a published resolution.
+The owner rejected v32: a large initial step and stale collision recovery produce
+a jagged scope-out. v33 addresses both and passes the final native checks in all three regions.
+The owner approves PAL/controller. USA/JP manual testing remains pending.
+The local v33 build is unreleased. Scope-in retains its native implementation.
 See the [issue record](development/issues/modern-aim-release-camera-snap.md).

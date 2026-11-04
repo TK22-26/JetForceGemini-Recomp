@@ -2,7 +2,7 @@
 
 - ID: MODERN-AIM-RELEASE-20261102.
 - Reported: 2026-11-02 during owner manual testing.
-- Status: replacement passes US/PAL/JP native rendered-camera regressions and PAL mouse/quick-reaim checks; local v32 awaits owner visual retest; unreleased.
+- Status: owner confirms smooth scope-out and natural scope-in on PAL/controller; USA/JP manual testing pending; US/PAL/JP native regressions pass; local v33, unreleased.
 - Severity: visible camera transition regression in Modern controls.
 - Affected: initial US v30/v28 owner report and confirmed v31 PAL controller retest. The v31 return candidate never armed on the native ground-Aim path. A separate JP owner reproduction is not claimed.
 
@@ -37,7 +37,7 @@ without a regional or weapon-specific workaround.
 The native trace regression rejects the old PAL executable and passes two
 stationary controller releases per region in the new builds. PAL mouse-input
 semantics and rapid re-aim also pass. These are automated native checks;
-the owner's visual retest of v32 remains pending.
+the owner subsequently rejected v32's initial release jump and jagged path; see the boundary investigation below.
 
 ## Evidence and hypotheses (initial investigation)
 
@@ -226,3 +226,159 @@ The handoff saves remain unchanged. Evidence: launcher-smoke-v32.result.json.
 Owner visual confirmation of the new Aim return remains pending.
 
 Local replacement implementation and native regression commit: `a363722823b23f1e47a09371143f3cd670e14083` on develop. Not pushed or released.
+
+## Owner rejects v32 scope-out continuity, 2026-11-04 UTC
+
+On PAL with a controller, the owner reports an instant jump to an intermediate
+distance followed by smoothing. Scope-in feels smooth and natural; scope-out
+remains jagged and awkward. v32 is an incomplete fix despite passing the earlier
+stationary trajectory checks. The initial release boundary and perceived zoom
+continuity need stronger qualification; the remaining cause is not established.
+Preserve the accepted scope-in behavior. The owner offered a short logged
+zoom-in/out capture if needed and approved one further guarded hour.
+
+The same production investigation retains its root and prior charges, with one
+additional authorized attempt. Guarded evidence: private
+aim-boundary-20261104-owner1h. Automated sessions remain privately muted.
+
+### Recorded initial jump and recovery interference
+
+The owner supplied a second, verified PAL/controller recording with nine Aim
+releases at several pitch angles. Level and upward releases reproduce a roughly
+24-unit first movement followed by near-stalling and vertical deviation. The
+projection changes gradually through those boundaries. The earlier stationary
+v32 native trace also has a 17% first step and about 7% deviation from its direct
+unobstructed return path. The previous checker accepted both because it required
+only a multi-update monotonic approach to the endpoint.
+
+Two mechanisms contribute: a simple exponential offset decay starts at its
+highest velocity, and camera-boom recovery treats an authored radius contraction
+as if an obstacle forced it inward. The latter arms an unnecessary hold and
+filters the radius again on subsequent clear updates, bending the camera path.
+
+The replacement uses a critically damped return with zero initial velocity,
+and carries obstacle shortening independently of changes in the requested
+radius. Existing wall/floor queries and validation remain authoritative. The
+native Aim-entry camera and its zoom are unchanged. Strengthened component
+regressions fail the old first-step behavior and pass the new behavior; existing
+obstruction, water, timing, Modern controls and roll cases also pass.
+
+The native trace consumer now bounds the initial step, total step, deviation
+from an unobstructed path and projection changes. Twelve consumer tests pass,
+including a large first hop with a smooth tail and a bent path. It correctly
+rejects both formerly passing v32 stationary returns. Native rebuilt validation
+is still pending; this is not yet a visually accepted fix.
+
+Capture setup evidence is retained: the first launch inherited diagnostic flags
+that ordinary launcher Play intentionally sanitizes, so it produced no detailed
+trace. The corrected direct native session uses copied owner preferences and
+verified recording, with a normal window close. An initial membership checker
+also referenced the previous worker receipt; direct verification confirmed the
+new launch remained inside the current production job. These setup failures do
+not count as game verification. Private evidence: owner-pal-capture-v2,
+v32-strengthened-regression.json and boundary-components.json.
+
+The first rebuilt candidate passes the clear stationary PAL route (first step
+3.2%, essentially zero off-path deviation) and improves four exact-body/angle
+owner-recorded comparisons. It is nevertheless rejected: later downward-looking
+releases in the same owner replay have 44-52-unit initial jumps. Slight analog
+integration differences in the replay do not justify accepting these regressions.
+Collision-recovery state retained across the native Aim ownership interval is
+being investigated. The failing candidate and all traces remain preserved.
+
+### Collision ownership correction
+
+The rejected downward candidate's first requested return point is unchanged by
+the native scenery solver, but the retained boom then shortens it to the focus
+or roughly ten units from it. That directly explains the remaining jump: the
+previous normal view's obstacle shortening survived the interval in which the
+native Aim camera owned position and collision.
+
+Ground-Aim observation now retires normal-camera obstruction history while
+arming its position return. The next normal view evaluates collision from the
+actual aimed pose afresh. Radius adjustment also retains the solver's minimum
+four-unit distance. A component regression seeds a shortened/held boom, enters
+native Aim ownership, releases and checks that the clear return keeps its
+requested position. All three input/Modern/roll suites pass with this correction.
+New native qualification is in progress in the candidate-v2 runtimes.
+
+The comparison helper initially required identical world positions and angles
+between recorded/replayed runs. Native input grouping can slightly alter later
+analog integration, so exact-body/angle pairs are qualified separately. The
+later mismatches remain visible observations; they were not used to excuse the
+downward regression. A private comparison-script syntax failure was also fixed
+without changing runtime evidence. All failed checks remain in the private log.
+
+### Owner PAL acceptance of the final candidate
+
+The owner reports "Both feel smooth" for the corrected PAL/controller build,
+then explicitly approves it as fixed. Scope-out and scope-in feel correct in
+that test. The owner clarifies that USA and JP still need manual testing; do
+not extend PAL visual acceptance to those versions. The exact tested runtime
+identity is retained in private owner-feedback.json. Final regional automated
+checks and local packaging are still completing; no release is claimed.
+
+The final mouse replay exposed a checker assumption: a legitimate three-tick
+update moved 15.2% of the return, slightly above the original per-update 15%
+limit. The production camera was unchanged. The checker now uses the recorded
+native simulation interval to bound travel rate, while retaining the stricter
+initial-step, clear-path and projection checks. Fourteen consumer tests pass,
+including variable intervals and missing timing rejection. The old v32 trace
+still fails, and the same completed final mouse trace passes. The initial
+fixed-step checker failure remains preserved.
+
+### Final local v33 qualification, 2026-11-04 UTC
+
+The final boom policy carries recovery only while a prior obstruction still
+shortens the requested view. A clear camera follows its authored radius changes
+directly. A newly requested point inside the prior safe radius is accepted
+immediately; only actual obstruction contractions arm the recovery hold. This
+replaces the intermediate candidate's fixed shortening-offset approach, which
+could retain unnecessary shortening after a requested clear contraction. A
+separate regression fails that intermediate implementation and passes the final
+policy. Ground-Aim ownership also retires the prior boom history, and the return
+starts with zero velocity rather than a large exponential first step.
+
+All three rebuilt regional runtimes pass two completed native stationary
+rendered-camera releases with the strengthened boundary, straight-path and
+projection checks. The final PAL replay covers all nine releases in the owner's
+recording, including downward views: every first movement is under eight world
+units. The final replay independently qualifies all nine clear release boundaries. It
+starts one movement update away from the recording; matching directions and
+world-position differences are reported without claiming identical game states.
+The separate PAL mouse-semantics/quick-reaim replay passes, as do the fourteen trace
+consumer tests and the PC-input, Modern-controls and Modern-roll suites.
+
+Scope-in's native position/zoom implementation is unchanged. The capture/replay
+comparison has normal update-grouping variation, so it does not establish
+byte-identical scope-in motion. Owner feel feedback is recorded separately below.
+Original wall/floor validation and immediate collision contraction remain in
+place; these fixtures do not establish every weapon, location or multiplayer view.
+
+The v33 package contains the final three runtimes and the existing launcher UI.
+Actual packaged launcher setup, direct Play and normal close pass for all three
+revisions using isolated muted profiles. Current v32 manual settings/saves were
+copied and their originals preserved; manual audio preferences are retained.
+No push or release occurred.
+
+Private evidence: candidate-v3-build.result.json, v3-final-qualification.json,
+v3-owner-route-comparison.json, v3-mouse-qualification.json,
+shorter-radius-regression.json, final-components.json and handoff-v33.result.json
+under aim-closeout-20261104-owner20m, with inherited-evidence.json identifying
+original receipts from aim-boundary-20261104-owner1h. The earlier guarded worker
+ended with Windows quota status 0xC0000044 before USA/JP final qualification and
+packaging; the exact quota cause was not established. The owner approved a
+20-minute guarded continuation under the same investigation. USA/JP traces and
+launcher checks completed in that continuation; earlier interrupted evidence and
+rejected candidates are retained in their original directories.
+
+Transferable lesson: distinguish authored camera motion from obstacle recovery,
+retire recovery state when its camera owner changes, and qualify the first
+rendered release steps as well as the later smooth tail. A monotonic distance
+to the endpoint alone can conceal a lurch and an off-path dip.
+
+Final owner feedback: Owner approves PAL/controller as fixed: scope-out is smooth at the requested test angles and scope-in remains natural. USA and JP manual verification is explicitly pending.
+
+Final v33 implementation and regression commit: `571acde2ea9ba1ddd9ef3558aa8095151fc9a9f3` on develop.
+PAL/controller is owner-approved. USA/JP manual checks remain pending.
+Not pushed or released.

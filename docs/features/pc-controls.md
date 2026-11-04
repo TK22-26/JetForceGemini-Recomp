@@ -93,9 +93,11 @@ retain failed experiments, source identities, reported regressions and actual ve
 
 ## Current local camera corrections
 
-The v32 test build restores a gradual return after releasing ground Aim in
-Modern Controls. US/PAL/JP native camera-trajectory checks and PAL mouse-input/
-quick-reaim replays pass; owner visual retesting remains pending. See the
+The v33 replacement starts the Modern Aim return gently, separates authored
+position changes from obstacle recovery, and clears old recovery when native Aim
+owns the camera. The owner confirms natural scope-in and smooth scope-out on
+PAL/controller. All three versions pass the targeted native checks; USA/JP still
+await manual verification. The local v33 build is unreleased. See the
 [Aim-release record](../development/issues/modern-aim-release-camera-snap.md).
 The owner accepts the separate [backward body-tilt correction](../development/issues/pal-modern-backward-body-tilt.md)
 on PAL with a controller. These local results are not v1.4.0 release claims.

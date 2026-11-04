@@ -1804,3 +1804,15 @@ The completed v32 package also passes actual launcher init/setup/direct Play
 and normal close for every matching runtime in isolated muted profiles.
 The handoff saves remain unchanged. Evidence: launcher-smoke-v32.result.json.
 Owner visual confirmation of the new Aim return remains pending.
+
+## Final scope-out boundary handoff, 2026-11-04 UTC
+
+v32 was rejected for an initial jump followed by smoothing on PAL/controller.
+The [Aim record](modern-aim-release-camera-snap.md) preserves the owner capture,
+rejected intermediate candidate and final onset/collision-ownership correction.
+The owner approves smooth scope-out and natural scope-in on PAL/controller.
+All three regional native regressions pass; USA/JP manual testing remains pending.
+The local v33 build is unreleased.
+The v33 package preserves the previously accepted keyboard, rescue-blur and
+backward-pose changes. Full campaign and independent US/JP visual acceptance
+remain separate from these targeted native checks.
