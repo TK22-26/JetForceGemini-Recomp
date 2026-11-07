@@ -769,6 +769,34 @@ namespace JfgLauncher
                     }
                 }
                 File.WriteAllText(support.NativePath, "native=running\nfailure=runlink/guest-overlay-load\nPRIVATE-PATH-CANARY\nnative_exception=0xc0000005\n");
+                // Exercise the actual archive path: the native logger already emits these
+                // records, but a sanitizer-only test cannot prove ZIP delivery.
+                const string audioRecovery = "audio=latency-recovery/before_ms=1133/after_ms=108/discarded_bytes=90278/recoveries=2";
+                const string audioFailure = "audio=latency-recovery-queue-failed";
+                const string audioZero = "audio=latency-recovery/before_ms=0/after_ms=0/discarded_bytes=0/recoveries=0";
+                string maximumCounter = UInt64.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                string audioMaximum = "audio=latency-recovery/before_ms=" + maximumCounter + "/after_ms=" + maximumCounter +
+                    "/discarded_bytes=" + maximumCounter + "/recoveries=" + maximumCounter;
+                string audioEvidence = audioRecovery + "\n" + audioFailure + "\n" + audioZero + "\n" + audioMaximum + "\n";
+                string[] rejectedAudio = {
+                    "audio=PRIVATE-PATH-CANARY",
+                    "audio=latency-recovery",
+                    "audio=latency-recovery/before_ms=1133/after_ms=108/discarded_bytes=90278",
+                    "audio=latency-recovery/before_ms=1133/after_ms=108/discarded_bytes=",
+                    audioRecovery.Replace("before_ms=1133", "before_ms=-1133"),
+                    audioRecovery.Replace("after_ms=108", "after_ms=1.08"),
+                    audioRecovery.Replace("recoveries=2", "recoveries=" + new string('9',21)),
+                    audioRecovery.Replace("before_ms=1133/after_ms=108", "after_ms=108/before_ms=1133"),
+                    audioRecovery + "/recoveries=3",
+                    audioRecovery + "/path=C:/PRIVATE-PATH-CANARY",
+                    audioRecovery + " PRIVATE-PATH-CANARY",
+                    audioFailure + "/error=PRIVATE-PATH-CANARY",
+                    "audio=latency-recovery-queue-failed-extra",
+                    "audio=unrecognized-event",
+                    audioRecovery.Replace("recoveries=2", "recoveries=\u0662"),
+                    audioRecovery + new string('x',257)
+                };
+                File.AppendAllText(support.NativePath, audioEvidence + String.Join("\n", rejectedAudio) + "\n");
                 File.WriteAllText(Path.Combine(support.DirectoryPath, "jfg.flash"), "SAVE-CONTENTS-CANARY");
                 File.WriteAllText(Path.Combine(support.DirectoryPath, "game.z64"), "ROM-CONTENTS-CANARY");
                 string assetCache=Path.Combine(support.DirectoryPath,"asset-cache");Directory.CreateDirectory(assetCache);
@@ -817,11 +845,31 @@ namespace JfgLauncher
                     Check(combined.Contains("mod=navigation-enabled"), "mod context lost from support report");
                     Check(combined.Contains(presentationEvidence), "presentation evidence lost during export");
                     Check(combined.Contains(mouseEvidence), "effective mouse settings or delivery counters lost during export");
+                    using (StreamReader reader = new StreamReader(zip.GetEntry("native.log").Open())) {
+                        Check(reader.ReadToEnd() == "native=running\nfailure=runlink/guest-overlay-load\nnative_exception=0xc0000005\n" + audioEvidence,
+                            "audio recovery success/failure lost or malformed/private records admitted by final ZIP export");
+                    }
+
                     if (!String.IsNullOrEmpty(diagnosticFixture)) {
                         Check(combined.Contains("snapshot=crash-v1") && combined.Contains("snapshot=hang-v1") && combined.Contains("/jfg-support-fixture.exe/"), "native stack evidence lost during ZIP export");
                     }
                     Check(combined.Contains("native_exception=0xc0000005") && combined.Contains("omitted="), "exception or omitted count lost");
                 }
+                string audioBoundaryPath = Path.Combine(directory,"audio-boundary.log");
+                Check(SupportSession.SanitizeFile(audioBoundaryPath) == "", "missing audio diagnostic file must be optional");
+                foreach (string rejected in rejectedAudio) {
+                    File.WriteAllText(audioBoundaryPath,rejected + "\n",new UTF8Encoding(false));
+                    Check(SupportSession.SanitizeFile(audioBoundaryPath) == "", "malformed audio record accepted: " + rejected);
+                }
+                string repeatedAudio = audioRecovery + "\n";
+                int completeAudioRecords = SupportSession.MaximumBytes / repeatedAudio.Length;
+                StringBuilder largeAudio = new StringBuilder();
+                for (int i=0;i<completeAudioRecords+2;++i) largeAudio.Append(repeatedAudio);
+                File.WriteAllText(audioBoundaryPath,largeAudio.ToString(),Encoding.ASCII);
+                string boundedAudio = SupportSession.SanitizeFile(audioBoundaryPath);
+                Check(boundedAudio == largeAudio.ToString(0,completeAudioRecords*repeatedAudio.Length) &&
+                    Encoding.ASCII.GetByteCount(boundedAudio)<=SupportSession.MaximumBytes,
+                    "audio history exceeds support cap or admits truncated record at cap");
                 SupportSession later = new SupportSession(reportRoot, "launch"); later.Exit(0);
                 Check(SupportSession.Sessions(reportRoot).Find(delegate(SupportChoice c) { return c.Path == support.DirectoryPath; }).Failed, "failed session lost after successful launch");
                 string oldZip = SupportSession.Export(reportRoot, Path.Combine(directory, "exports"));
