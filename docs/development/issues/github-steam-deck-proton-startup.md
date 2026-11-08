@@ -1,6 +1,150 @@
 # GH-040: Windows release does not start through Steam Deck Proton
 
-## Delivery and issue status — 2026-10-22 UTC
+## Candidate correction delivered for retest - 2026-11-07
+
+Status: corrected source with Windows/Proton integration verification; owner
+Bazzite/NVIDIA and Steam Deck acceptance pending. Unreleased and uncommitted.
+Updated private package: `E:/JFG-Issue-40-Bazzite-20261107`, with `E:/handoff.md`.
+Launcher SHA-256: `a5fe71ccc1a1989ca2f377f556c31a4d7c0ea4d7411459e74a9f6bfd2cd04dfc`. Base develop `067f9a8` plus local UI changes;
+`game/launcher-build.json` pins the exact input hashes. Regional runtimes unchanged.
+
+The actual source cause was fallback capture explicitly hiding the hosted game
+viewport. An opaque root HWND swap chain could not provide the intended overlay.
+[`fallback_overlay.hpp`](../../../launcher/ui/fallback_overlay.hpp) now presents
+the panel rectangle in an owned, nonactivating popup with its own HWND swap chain
+on the UI device. The viewport remains visible; root capture and coordinate
+forwarding handle popup clicks. Cancel/deactivation releases capture and dismisses
+dropdowns. The default DirectComposition route remains in use where available.
+
+Final checks: 116 Windows composition and 165 fallback menu checks; 165 actual
+GE-Proton11-11 checks; 70 ROM-library and 247 Video checks on both platforms.
+The fixture asserts hosted-game visibility, bounded popup coverage, actual popup
+swap-chain HWND, forwarded selection, cancellation and existing resize/input
+behavior. The actual final launcher naturally selected the window backend under
+Proton, initialized its helper and exited cleanly. Also passed: 778 managed,
+28 mocked setup, graphics/viewport/storage checks. Windows ROM/search framebuffer
+images were inspected at representative 100/125/150 percent scales.
+
+Proton environment: WSL2 Ubuntu24.04, GE-Proton11-11 x64, umu1.4.4, steamrt4
+4.0.20261021.265997, DXVK3.1.1 and llvmpipe25.2.8 software Vulkan. These are
+integration checks with synthetic hosted windows, not actual Bazzite/RTX4070
+game pixels, physical-pointer or Steam Deck acceptance. Fullscreen/focus and
+normal gameplay retests remain in the owner checklist.
+
+The updater preserves saves/settings/runtimes/notes and backs up replaced files.
+Before replacement it copies existing results archives and collects current logs
+back to USB. Repeated Linux fixture updates and corrupt-payload refusal pass;
+USB payload hashes and unchanged original ROM/other files are verified. Old
+launcher files are in `previous-build/`. No owner logs were present on E: during
+this review, so the opening [skip](cutscene-skip-completion-time.md) and
+[audio](opening-invasion-audio-proton.md) reports remain unlocalized.
+
+Private evidence: `gh40-ui-fixes-20261107`. A first layout candidate collapsed the
+button text and was rejected on framebuffer review; a final capture-cancellation
+edge was corrected and retested. One orchestration assertion failed after partial
+edits; follow-up steps verified the resulting source. These are retained attempts,
+not hidden clean-run claims. The production guard remained enabled on the same
+investigation with counters preserved. No commit, push or public issue action.
+
+Lesson: testing menu pixels alone missed the simultaneous gameplay requirement.
+Assert both window visibility and presentation ownership, then obtain actual
+hardware acceptance. The earlier sections below describe superseded checkpoints.
+
+
+## Owner retest: menus render but hide gameplay - 2026-11-07
+
+**Status: incomplete; owner reports a remaining Proton presentation defect.**
+After the Bazzite handoff, the owner reports that opening a dropdown hides the
+game and blacks out the rest of the window, leaving only the menu visible. The
+launcher start screen is not hidden by the same action. The owner identifies
+this as the platform-specific finding; the separately reported ROM-button/search
+layout and About-opening delay also affect Windows.
+
+The test context is the supplied private bundle for Bazzite x64 with an RTX 4070,
+launcher source `067f9a8` and v33 game runtimes. Exact installed Proton version,
+in-game location, capture settings and repetition counts were not supplied in
+this feedback. The menu screenshot shows readable entries over the start screen;
+the gameplay blackout is described by the owner, not independently replayed here.
+
+The source directly explains the difference. In
+[`sync_ui_capture_windows`](../../../launcher/native/ui_capture_windows.hpp),
+the non-composited backend shows the hosted viewport only when `!capturing`.
+[`syncUiCapture`](../../../launcher/native/frontend_win32.cpp) includes ordinary
+dropdown capture in that flag. The start screen belongs to the launcher's own
+surface; gameplay belongs to a separate hosted child window. Hiding that child
+therefore removes the game, while an opaque fallback swap chain cannot expose it
+through the transparent playing background.
+
+The prior correction fixed missing menu contents, but did not provide an overlay
+over visible gameplay. The existing menu fixture explicitly expects the fallback
+to hide the viewport during capture; its 105 passing checks accepted this
+limitation. They must not be cited as verification that gameplay stays visible
+behind menus. The earlier source/Proton results remain valid for their narrower
+menu-content and input checks. No full owner acceptance or #40 closure is claimed.
+
+Required correction: present usable menus above the hosted game while retaining
+the game outside the menu bounds, including dismissal, focus, resize and
+fullscreen transitions. Simply keeping the child visible under the root's
+opaque swap chain would reintroduce clipping; the presentation arrangement needs
+to support both surfaces. Add a regression that asserts visible gameplay outside
+the open dropdown, not just rendered text in the menu buffer. No implementation
+or new execution has occurred for this report; the production guard remains
+enabled and shelved after the completed handoff scope.
+
+Evidence: owner feedback and three screenshots retained in private artifact
+`gh40-owner-feedback-20261107`; hashes and shared UI findings are in
+[launcher layout](launcher-rom-and-search-layout.md) and
+[About-window delay](launcher-about-window-delay.md). The USB handoff and binary
+hashes are preserved as the tested baseline; no updated USB build is claimed.
+
+## Current qualification and owner handoff - 2026-11-07
+
+The known blank-menu defect is fixed in current source and freshly verified in
+the launcher built from `067f9a898ceff90b789e0af779693f6cdc64a300`. The correction
+was consolidated in `279fce1`: the HWND backend hides the invisible input shield
+and routes input through the root window; DirectComposition retains its overlay
+shield. The added November 7 audio-support exporter fix is also in this launcher.
+No additional runtime or launcher code change was required for this handoff.
+
+Fresh Windows verification passed 778 managed checks, 28 mocked setup checks,
+graphics/viewport/storage checks, 104 composition menu checks and 105 fallback
+menu checks. Actual GE-Proton11-11 x86_64, umu 1.4.4 and steamrt4
+4.0.20261021.265997 on WSL2 Ubuntu 24.04 passed all 105 fallback UI checks,
+including rendered menu text, selection, resize and repeated viewport/input
+transitions. That fixture forces unavailable composition. A separate probe of
+the actual production launcher naturally selected `backend=window` with
+`composition_hresult=0x80004001`, initialized its real helper and exited cleanly.
+The shipped helper's init, USA ROM import and complete runtime verification also
+passed under Proton. No full-game Linux session or Bazzite/NVIDIA hardware pass
+is inferred from those checks.
+
+The owner identified an available **Bazzite x64 PC with an RTX 4070**. A private
+test bundle, pinned Proton archive, integrity manifest, setup/log-collection
+scripts and `handoff.md` were copied to the requested E: drive and hash-verified.
+It contains the current launcher plus the verified v33 USA/PAL/JP runtimes used
+in v35, with fresh profile creation and no copied personal saves. The existing
+USA ROM on the drive was verified and preserved. Owner gameplay/menu/settings,
+save/restart and input testing on Bazzite is pending; Steam Deck reporter
+verification remains separate. No GitHub reply, closure or release occurred.
+
+The first UI fixture invocation rejected an existing output directory before
+testing; fresh-directory execution passed. Initial Linux staging stopped because
+WSL did not mount removable E:, corrected by private staging of the verified ROM.
+The test's accessibility/D-Bus services briefly held the private image mount;
+only services carrying that exact test home/runtime environment were stopped,
+and unmount succeeded. These were test-harness issues, not game regressions.
+
+Evidence: private artifact `gh40-bazzite-handoff-20261107`, including
+`package-verification.json`, `proton-result.json`, `proton-menu-result/result.json`,
+`production-launcher-result/result.json`, `linux-cleanup.json` and
+`delivery-result.json`. The E: bundle includes compact verification receipts.
+The production guard remained enabled with the same investigation/root and all
+prior counters, under the explicitly approved 60-minute/three-attempt scope.
+
+Earlier dated sections below retain historical status and verification limits.
+
+
+## Delivery and issue status â€” 2026-10-22 UTC
 
 The Windows-tested launcher fallback ships in v1.4.0. On October 22, the reporter confirmed that the latest Windows release now boots through Proton on Steam Deck and displays gameplay. Launcher menus still replace gameplay with a blank background; toggling the menu returns to gameplay. #40 remains open for this unresolved menu rendering failure. Full Deck compatibility and a native Linux release are not claimed.
 
@@ -252,4 +396,25 @@ Transferable lesson: a child used only to intercept input for composited content
 
 ### Host-style and pixel qualification
 
+November 7 owner follow-up: after the updated USB handoff, the owner reports
+everything looks good except unusually long cutscene skips. Record this as
+positive Bazzite feedback, without inventing individual checklist results or
+Steam Deck acceptance. The returned archive identifies the original launcher,
+not the latest USB candidate, so the tested build remains unconfirmed. See the
+[archive receipt and skip follow-up](cutscene-skip-completion-time.md#returned-archive-and-owner-feedback)
+for hashes, capture limits and collection instructions. No public issue closure.
+
+Subsequent manual transfer succeeds: the 10:07 UTC collector archive identifies
+the latest `e35e7769...` launcher installation and contains a newer USA session
+from 09:17 UTC, normal shutdown, and About/presentation logs. CRC and private-copy
+hash checks pass. This supplies current-build evidence alongside the owner's
+positive Bazzite UI feedback. Individual checklist items and Steam Deck reporter
+verification are still not inferred; the cutscene skip report remains open.
+
 The integration fixture now includes the launcher's WS_CLIPCHILDREN style, which the earlier simplified window omitted. It also reads back menu pixels and checks for rendered text, retaining the three-cycle child visibility/focus checks. Windows composition passes 104 checks; Windows HWND fallback and actual GE-Proton pass 105 each. Captured menu images are retained privately for review. These checks establish rendered menu content and the correct host hierarchy; they still do not substitute for a Steam Deck hardware pass.
+
+November 8 owner follow-up: the owner manually tested the current mouse behavior
+on Bazzite and reports it fully working. This complements the earlier positive
+Bazzite UI feedback and accepted opening-skip improvement. It does not substitute
+for the Steam Deck reporter check or individually verified checklist coverage.
+See the [mouse acceptance record](proton-mouse-confinement.md#owner-acceptance-2026-11-08).

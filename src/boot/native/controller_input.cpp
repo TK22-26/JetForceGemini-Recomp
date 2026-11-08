@@ -573,10 +573,8 @@ void reload_controller_ports(State &state) {
     for(auto &latch:state.modern_aim_latch)latch.reset();
     for(auto &scope:state.modern_scope_zoom)scope.reset();
     state.pc_mouse.clear();state.pc_wheel.clear();state.pc_wheel_key=0;
-    const bool was_captured=state.pc_mouse_captured.exchange(false);
-    if(was_captured && state.play_mode && state.native_window) {
-      ClipCursor(nullptr);SetCursor(LoadCursorW(nullptr,MAKEINTRESOURCEW(32512)));
-    }
+    state.pc_mouse_requested.store(false);
+    state.pc_mouse_captured.store(false);
     (void)state.controller_input_gate.blocked(true,state.controller_ports.samples);
   }
 
@@ -1005,14 +1003,13 @@ void sample_live_controller(State &state) noexcept {
   }
   want_mouse=want_mouse && state.pc_raw_available && !block_physical && !state.input_replay_loaded &&
     (state.input_record_path.empty() || state.pc_record_extended);
-  if(want_mouse && state.native_window) {
-    const HWND window=static_cast<HWND>(state.native_window);RECT rect{};GetClientRect(window,&rect);
-    MapWindowPoints(window,nullptr,reinterpret_cast<POINT*>(&rect),2);ClipCursor(&rect);SetCursor(nullptr);
-  } else {
-    if(state.pc_mouse_captured){ClipCursor(nullptr);SetCursor(LoadCursorW(nullptr,MAKEINTRESOURCEW(32512)));}
+  // The HWND thread owns confinement, cursor visibility and acknowledgement.
+  // Intent is not proof that the host successfully captured the pointer.
+  state.pc_mouse_requested.store(want_mouse && state.native_window);
+  if(!want_mouse || !state.native_window) {
+    state.pc_mouse_captured.store(false);
     state.pc_mouse.clear();
   }
-  state.pc_mouse_captured=want_mouse;
   if(state.pc_input_blocked){state.pc_aim.fill({});state.pc_wheel.clear();state.pc_mouse.clear();for(auto &motion:state.pc_stick_motion)motion.clear();for(auto &motion:state.pc_scope_motion)motion.clear();for(auto &motion:state.pc_boss_aim_motion)motion.clear();for(auto &motion:state.modern_scope_sensitivity)motion.clear();}
   for(std::size_t p=0;p<4;++p) {
     if(!actions[p]) {
@@ -1185,6 +1182,9 @@ void sample_live_controller(State &state) noexcept {
   }
   if(state.cutscene_skip_hold.sample(skip_scene,skip_scene!=0,(buttons&0x8000U)!=0,
        skip_focused,skip_now,(buttons&0x5000U)!=0)) {
+    state.cutscene_skip_request_ms.store(GetTickCount64(),std::memory_order_relaxed);
+    jfg::cutscene_support_event(jfg::CutsceneSupportPhase::request,
+        static_cast<unsigned>(skip_scene>>48U),static_cast<unsigned>((skip_scene>>32U)&0xFFFFU),0,0,0,0);
     state.cutscene_skip_request.store(skip_scene,std::memory_order_release);
     state.cutscene_skip_release=true;
     state.gameplay_trace.event("cutscene-skip-confirm",{state.vi_retraces,skip_scene});

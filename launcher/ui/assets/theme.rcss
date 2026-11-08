@@ -317,8 +317,8 @@ h1 { margin-bottom:24dp; }
 #rom-card { max-width:880dp; }
 .rom-library-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14dp; gap:16dp; }
 #rom-count { margin-left:14dp; color:#6f7a91; font-size:13dp; }
-#action-rom { height:34dp; padding:0 14dp; font-size:13dp; font-weight:bold; }
-#action-rom.add-rom { background:#ffb23e; border-color:#ffb23e; color:#1a1206; }
+#rom-library-import { display:block; box-sizing:border-box; height:34dp; line-height:32dp; padding:0 14dp; font-size:13dp; font-weight:bold; flex-shrink:0; }
+#rom-library-import.add-rom { background:#ffb23e; border-color:#ffb23e; color:#1a1206; }
 .rom-tiles { display:flex; gap:14dp; }
 .rom-tile { display:block; position:relative; flex:1; min-width:0; height:168dp; padding:0; border:0; border-radius:0; background:transparent; text-align:left; }
 .rom-tile:hover, .rom-tile:focus, .rom-tile:disabled { background:transparent; }

@@ -1,0 +1,13 @@
+<rml><head>
+<link type="text/rcss" href="theme.rcss"/>
+<link type="text/rcss" href="about.rcss"/>
+<style>
+#dialog { position:relative; left:0; top:0; transform:none; width:100%; height:100%; max-width:none; max-height:none; border:0; border-radius:0; }
+.dialog-body { max-height:none; }
+.dialog-footer { justify-content:flex-end; }
+</style></head><body class="help about-window">
+<div class="dialog" id="dialog">
+<div class="dialog-header"><span id="dialog-title">JFG RECOMP<span class="about-title-divider">/</span><span class="about-title-section">About</span></span></div>
+<div class="dialog-body" id="dialog-body"/>
+<div class="dialog-footer"><button class="primary" id="about-done" data-action="close">Done</button></div>
+</div></body></rml>

@@ -1,5 +1,65 @@
 # GH-032: Intermittent mouse look and ineffective vertical inversion setting
 
+## Manual verification handoff — 2026-11-06
+
+Status remains **implemented delivery candidate; live verification pending**.
+The owner is resuming issue-by-issue manual testing. A fresh GitHub read still
+finds #32 open with the October 30 v1.4.0 report as the latest comment; no
+affected-reporter retest of the newer delivery candidate is recorded.
+
+Read-only source and package inspection confirmed that the local v35 launcher
+handoff uses the v33 regional runtimes. Their source inventory includes the
+same `live_window.cpp` and `pc_input.hpp` bytes as current develop `ed5f7c7`:
+explicit `RIDEV_INPUTSINK` routing, capture/foreground/settings consumption gates,
+and the existing mouse inversion application. The launcher hash matches its
+packaging receipt; all three runtime executable hashes and their manifests
+match the package's recorded hashes. Private package/evidence IDs are
+`launcher-notifications-20261104/owner-review-v35` and
+`aim-closeout-20261104-owner20m/native-source-inputs-candidate-v3.json`.
+This is package/source identification, not a new physical-input test. The
+November 4 diagnostic/export receipt was re-read; those tests were not rerun.
+
+Suggested owner test (start with USA to match the original released report):
+
+1. Use the complete local v35 package. In Controllers, select P1, Mouse and
+   keyboard, and Modern Controls. Set its **Invert vertical** to Off; the
+   original controller mapping has a separate setting.
+2. Load ordinary Juno gameplay in a clear area. Check horizontal/vertical look
+   with Aim released and held (right mouse by default). Off must make upward
+   mouse motion look upward; On must reverse it. Check both values after a full
+   close/reopen, then return to the preferred value.
+3. Open/close the Escape menu five times. After each return, click into gameplay
+   if necessary and verify motion still controls the camera.
+4. Alt-Tab away/back five times; if using two monitors, also click another
+   monitor and return. Motion must resume after reactivation/capture. The game
+   must not respond to background mouse movement.
+5. Fully close/reopen the launcher and load gameplay five times. Check motion on
+   every launch. Keep normal controller/input utilities unchanged initially;
+   DS4Windows is not an established cause and is not required for this test.
+
+If it fails, move the mouse briefly, note the exact preceding action and region,
+then create a support report for that session promptly, ideally within a minute.
+Retain a working-session report for comparison. Report inversion direction
+separately because unsigned motion counters cannot prove it. A local pass adds
+owner verification for the tested region/setup; affected-reporter confirmation
+and release delivery remain separate. No issue closure or public reply occurred.
+
+The production guard was read without writes: enabled, investigation
+`high-refresh-rendering-20261011` shelved at 134/134 attempts and 110/110 activity,
+with 707912.766 seconds charged. No experiment, build, replay, or coding worker
+was launched; no budget, counter, or investigation state was changed.
+
+## Current evidence — 2026-11-04 UTC
+
+Four October 30 v1.4.0 captures are now analyzed. Both failing sessions have
+zero accepted nonzero motion and zero camera-consumption counts; both working
+sessions have positive counts at each stage. The captures support delivery loss
+before camera processing, without establishing its exact trigger. The develop
+hosted-window delivery candidate remains awaiting affected-user verification;
+ineffective inversion is not resolved by unsigned motion counters. The owner's
+default/reset-Off acceptance remains valid. Details and limits are in the new
+analysis below; earlier sections retain their original dates and scope.
+
 ## Delivery and issue status — 2026-10-22 UTC
 
 The default/reset inversion-Off preference and bounded support diagnostics ship in v1.4.0. #32 remains open: intermittent mouse-look loss and the reported ineffective inversion setting are not reproduced or claimed fixed. The approved reply requests a current-session support ZIP if they persist.
@@ -394,3 +454,112 @@ and [RAWINPUTDEVICE flags](https://learn.microsoft.com/en-us/windows/win32/api/w
 The fixture validates this delivery defect and remedy, not the reporter's exact
 machine. A failed cursor clip or a hosted overlay could expose it; neither was
 established in their limited ZIP. Do not claim a reporter-confirmed resolution.
+
+## New attachment intake, 2026-11-04 UTC
+
+The owner challenged the open-issue status review because newer support evidence
+had arrived. The live [October 30 comment](https://github.com/TK22-26/JetForceGemini-Recomp/issues/32#issuecomment-6514944875)
+contains four v1.4.0 support ZIPs: failing sessions `22e981ea36af48eaab573697b3976c28`
+and `b5ff2b48743d4cc485705100f43ba83f`, and working sessions
+`ed98c07451f34ec8931f6fd82869d2cc` and `62f8e0a8d02b417382a0a2ac82e3a035`.
+Their contents were not inspected in the November 4 status/PR review; that review
+read comments and existing evidence only. No new build, input fixture or game
+replay was run. Compare these available failing/working captures before asking
+for more evidence or treating affected-user retest as the only next action.
+They concern released v1.4.0, not a qualified retest of the develop delivery fix.
+The production guard remains enabled; its existing investigation is shelved at
+the attempt/activity caps. This intake does not reopen or renew that allowance.
+
+## October 30 paired-capture analysis — 2026-11-04 UTC
+
+The owner explicitly approved two hours to research these attachments after the
+intake above. This authorized one bounded continuation of the same guarded
+investigation; it did not reset counters or disable protection. All four ZIPs
+were downloaded, hashed and safely inspected as text. No game replay, production
+runtime change, public reply or new manual acceptance occurred.
+
+### Provenance and interpretation
+
+The [reporter's comment](https://github.com/TK22-26/JetForceGemini-Recomp/issues/32#issuecomment-6514944875)
+labels the first two captures failing and the last two working. All four identify
+clean runtime source `521f66620e734671a06a07f118e874076f02a133`, launcher v1.4.0
+source `5ec705f7d1575135e7965fe1376666b225f22ee1`, and runtime SHA-256
+`ca182f75001132eb006b884349d44293a2d2118c63c4df5e39dd9a812e368596`.
+They are not retests of current develop `ed5f7c7`.
+
+The exact released [schema/formatter](../../../include/jfg/runtime/mouse_input_diagnostics.hpp)
+matches the current header after newline normalization. Records are cumulative
+counters plus approximately one-second state samples, limited to 60 snapshots.
+`accepted_nonzero` counts nonzero relative packets received while captured;
+`mailbox_nonzero` and `look_nonzero` count later consumption, not packets or
+physical mouse distance. Counts at different stages need not match numerically.
+
+| Capture | Samples / elapsed seconds | Relative packets | Accepted nonzero | Dropped uncaptured | Mailbox / look consumption |
+|---|---|---:|---:|---:|---:|
+| Failing A, `22e981ea...` | 40 / 0–39.047 | 0 | 0 | 0 | 0 / 0 |
+| Failing B, `b5ff2b48...` | 41 / 0–40.031 | 2,084 | 0 | 2,084 | 0 / 0 |
+| Working A, `ed98c074...` | 37 / 0–36.047 | 3,550 | 1,787 | 1,761 | 254 / 95 |
+| Working B, `62f8e0a8...` | 31 / 0–30.031 | 7,169 | 1,120 | 6,049 | 144 / 56 |
+
+Failing B's raw counter reaches 2,084 by 5.000 seconds and stays there through
+the remainder of the capture. Its 11 consecutive captured samples, 26.031 through
+36.031 seconds, record no new raw motion. Failing A has two captured samples,
+28.031 and 29.031 seconds, also without raw motion. These differ from the working
+captures, where raw input, accepted motion and downstream consumption increase.
+Do not describe Failing B as having received no raw input at all.
+
+In captured gameplay samples, all four report successful registration, the
+expected registration target, flags zero, root foreground, known child focus,
+settings closed, input unblocked and no replay. The effective P0 profile selects
+Modern keyboard/mouse with mouse aim enabled, sensitivity 100 and both inversion
+flags Off. All four have zero read-error and absolute-motion counts. Thus these
+captures do not support a bad saved inversion preference, absolute-coordinate
+input, a recorded read failure or a wrong sampled registration target as the
+explanation for absent motion.
+
+### Cause limits and relation to the candidate
+
+The exact delivery trigger remains unknown. The logs contain no physical motion
+trace, pointer location or continuous focus history. One-second observations do
+not prove the window/capture state at every packet. The reporter's DS4Windows or
+controller-touch hypothesis remains unverified; matching sampled registration
+cannot establish what another process or virtual device did.
+[GetRegisteredRawInputDevices](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getregisteredrawinputdevices)
+reports the current application's registration, not a system-wide ownership map.
+
+The existing candidate in [live_window.cpp](../../../src/boot/native/live_window.cpp)
+uses `RIDEV_INPUTSINK` and explicitly gates consumption on capture, foreground
+root and settings closed. Microsoft's [RAWINPUTDEVICE contract](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-rawinputdevice)
+allows that delivery with a specified target even when its process is not
+foreground. The released captures' flags zero are consistent with the older
+foreground-dependent path. This supports testing the existing remedy; it does
+not prove that the earlier two-process fixture reproduces the reporter's exact
+trigger. The October 27 fixture results remain historical, not rerun here.
+
+Unsigned counters and Off values cannot establish vertical direction. Check
+normal and scoped camera direction with Off and On independently. In current
+source the raw accepted counter is also earlier than the extra foreground/settings
+consumer gates; retain downstream counts when evaluating a current-build capture.
+
+### New verification and next evidence
+
+The production C++ counter/history suite passes, including its 60-snapshot ring,
+unknown-focus behavior and 53,040-byte maximum file. All 149 mouse-issue snapshots
+and 60 audio-reporter mouse snapshots round-trip exactly through the production
+formatter. The actual v35 managed sanitizer preserves all five complete mouse
+logs byte-for-byte after newline normalization. This validates decoding/export
+coverage, not physical input delivery or user-visible direction.
+
+Next useful test: repeated startup, menu return and foreground return on the
+current candidate, with the affected user's normal controller/DS4Windows setup.
+Compare the same effective profile and accepted/mailbox/look counters in a working
+and failing capture; only isolate external input software if failure persists.
+The existing captures have been analyzed, so requesting them again adds nothing.
+No affected-user acceptance or issue closure is inferred.
+
+Private evidence: `reporter-evidence-20261104/attachment-manifest.json` (all URLs,
+original and member SHA-256 hashes), `mouse-comparison.json`, per-session parsed
+JSON and `validation-v2/*-timeline.csv`, `verification.json`, counter-test and
+209-snapshot round-trip logs. Raw attachments remain private. Transferable lesson:
+registration success and a hidden/captured cursor are not proof of delivered
+motion; compare the delivery, mailbox and camera stages independently.

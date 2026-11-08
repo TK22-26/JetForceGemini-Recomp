@@ -899,6 +899,16 @@
         "contains a spaced hexadecimal payload"
       ],
       "reason": "Fresh review after turn-bank ownership validation: flagged public MIPS opcode-classification lists are byte-identical to the previously reviewed body. New handwritten semantic checks contain no ROM, generated code or private payload; all other hygiene checks remain active."
+    },
+    {
+      "git_blob": "b694203efb99c7bf32d1b3f2a9c1dff2bf35588a",
+      "sha256": "0be1ffb7bb69908b5f2d86b23618f5ad163116b9fe48763693738ad0484470ec",
+      "bytes": 37650,
+      "path": "launcher/ui/assets/github-mark.tga",
+      "exceptions": [
+        "binary"
+      ],
+      "reason": "Owner-requested official GitHub white Invertocat project-link icon, derived from retained SVG in GitHub brand toolkit; transparent native UI texture, no game assets"
     }
   ]
 }

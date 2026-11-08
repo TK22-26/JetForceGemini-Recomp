@@ -4847,6 +4847,14 @@
           "writable": false,
           "relocation_offset": 9284,
           "target_slot": 0
+        },
+        "os.pi_manager": {
+          "source": "sdk.osPiGetCmdQueue",
+          "hi_offset": 0,
+          "lo_offset": 4,
+          "size": 28,
+          "alignment": 4,
+          "writable": false
         }
       },
       "runlink_abi": {
@@ -11237,6 +11245,14 @@
           "writable": false,
           "relocation_offset": 9284,
           "target_slot": 0
+        },
+        "os.pi_manager": {
+          "source": "sdk.osPiGetCmdQueue",
+          "hi_offset": 0,
+          "lo_offset": 4,
+          "size": 28,
+          "alignment": 4,
+          "writable": false
         }
       },
       "runlink_abi": {
@@ -17627,6 +17643,14 @@
           "writable": false,
           "relocation_offset": 9352,
           "target_slot": 0
+        },
+        "os.pi_manager": {
+          "source": "sdk.osPiGetCmdQueue",
+          "hi_offset": 0,
+          "lo_offset": 4,
+          "size": 28,
+          "alignment": 4,
+          "writable": false
         }
       },
       "runlink_abi": {

@@ -1,6 +1,6 @@
 # Known issues
 
-Reviewed 2026-11-03. The published v1.4.0 bundle and the current `develop` source have different
+Reviewed 2026-11-08. The published v1.4.0 bundle and the current `develop` source have different
 validation status. A tested local candidate is not automatically released or accepted by its reporter.
 Use the [issue index](development/issues/README.md) for full reproduction, attempts, causes and evidence;
 [project status](status.md) and the [changelog](../CHANGELOG.md) describe delivered features.
@@ -14,11 +14,17 @@ Use the [issue index](development/issues/README.md) for full reproduction, attem
 | [Modern Aim release](development/issues/modern-aim-release-camera-snap.md) | v33 passes targeted native checks in all three versions and is owner-approved on PAL/controller. USA/JP manual testing remains pending; unreleased. |
 | [Original FPS simulation parity](development/issues/original-mode-simulation-parity.md) | Ordinary Play uses a host-clock policy; Original output does not restore the N64 simulation clock. Matching motion states does not prove matching elapsed time. Open. |
 | [Flying-enemy speed #48](development/issues/github-flying-enemy-speed.md) | An elapsed-VI movement candidate passes portable checks and twelve native replays. Its stable three-VI reference does not reproduce every loaded N64 cadence; owner review and the Original timing policy remain open. |
-| [Intermittent mouse look #32](development/issues/github-mouse-look-and-inversion.md) | A local candidate fixes reproduced raw-mouse delivery loss across the hosted process boundary. Two-process checks pass; reporter and inversion-Off retests remain pending. |
-| [Stepwise audio delay #35](development/issues/audio-crackle-persistent-latency.md) | Unreleased host-queue recovery passes component, fault-recovery, sanitizer and native audio checks. Owner listening found no regression; the reporter's trigger is unknown and affected-user retest is pending. RTSS-related crackling is a separate report. |
-| [Steam Deck / Proton #40](development/issues/github-steam-deck-proton-startup.md) | An unreleased HWND fallback corrects the invisible menu input shield. Windows and actual GE-Proton menu/input/pixel checks pass; Steam Deck hardware remains unverified. |
+| [Intermittent mouse look #32](development/issues/github-mouse-look-and-inversion.md) | Four released-v1.4.0 captures distinguish zero accepted motion in failing sessions from working delivery. Develop fixes a reproduced hosted-window delivery gap; exact reporter trigger, current-build retest and inversion direction remain unverified. |
+| [Stepwise audio delay #35](development/issues/audio-crackle-persistent-latency.md) | Develop host-queue recovery has component verification and owner regression-listening acceptance. New November 1 logs contain no audio queue/device timing; the trigger and affected-user current-build result remain unknown. RTSS crackling is separate. |
+| [Audio recovery support export](development/issues/audio-recovery-support-export.md) | Fixed in develop commit 067f9a8 with bounded event grammar and actual ZIP regressions. Diagnostic transport is verified; this does not establish the remaining #35 audible-delay cause. |
+| [Steam Deck / Proton #40](development/issues/github-steam-deck-proton-startup.md) | Fallback now presents menus in an owned popup while keeping the game visible. Windows/Proton integration checks pass; owner reports positive Bazzite UI results and later accepts the mouse behavior. Steam Deck reporter verification remains pending. |
+| [ROM-button and search-field layout](development/issues/launcher-rom-and-search-layout.md) | Main/menu ROM IDs and styles separated; label alignment and search height corrected. Windows/Proton checks and scoped visual inspection pass; owner acceptance pending. |
+| [Opening Invasion audio on Bazzite](development/issues/opening-invasion-audio-proton.md) | Owner reports audible glitch and awkward opening skip; saved Linux evidence and exact cause pending. |
+| [About is not a separate window](development/issues/launcher-about-separate-window.md) | Dedicated native About window now passes Windows/Proton UI and process checks. Updated Windows and USB builds delivered; owner acceptance pending. |
+| [About-window opening delay](development/issues/launcher-about-window-delay.md) | Controlled Windows/Proton opens do not reproduce the delay. Bounded timing logging delivered; owner capture, cause and remedy remain open. |
 | [Windows 10 black screen #58](development/issues/github-black-screen-audio.md) | Cause requires reporter evidence. A local candidate adds bounded presentation diagnostics; its support ZIP has privacy and size checks. |
-| [Cutscene skip completion #41](development/issues/cutscene-skip-completion-time.md) | Qualified outgoing fades are shorter in a tested local candidate; three native routes complete. Owner batch review remains pending. Unsupported scripts retain ordinary playback. |
+| [Cutscene skip completion #41](development/issues/cutscene-skip-completion-time.md) | Thousands of emulated ROM transfers cause the long opening skip. Checked native SDK completion improves local timings while retaining all nine scenes; USA/PAL/JP tests pass. Owner confirms the opening skip works on Proton; the supplied USA capture measures 1.828 seconds. Wider manual coverage remains unrecorded. |
+| [Vulkan diagnostic frame readback](development/issues/vulkan-diagnostic-frame-readback.md) | Screenshot capture can crash in the pinned Vulkan image-copy path. Normal no-screenshot Proton Play passes; capture remains unfixed. |
 | [Gems through vines](development/issues/vine-gem-occlusion.md) | A candidate adds depth for fully opaque foliage pixels while preserving holes/blending. Component, GPU replay and normal-game checks pass; owner batch review remains pending. Original-ROM EmuHawk also shows the overlap. |
 | [Buried Goldwood drone](development/issues/drone-buried-after-hut-collision.md) | The captured actor is below the floor. The collision sequence and original-game parity remain unconfirmed. |
 | [Intermittent ledge-route stutter](development/issues/tawfret-lighting-preview-stutter.md) | Captured once and not reproduced on repeated routes; cause remains unlocalized. |
@@ -30,6 +36,7 @@ they require reporter clarification, not a claim that this port has fixed those 
 
 | Change | Acceptance and remaining limits |
 |---|---|
+| [Proton mouse confinement](development/issues/proton-mouse-confinement.md) | Owner manually confirms the current build is fully working on Bazzite on November 8. Prior failed capture is preserved; precise cause remains unconfirmed. No separate Steam Deck or regional acceptance inferred. |
 | [Name-entry keyboard](development/issues/name-entry-key-animation-cadence.md), [backward body tilt](development/issues/pal-modern-backward-body-tilt.md), and [regional rescue blur](development/issues/vela-rescue-cutscene-stutter-resolution.md) | Owner confirms these three fixes in the v31 retest on November 3. The owner identifies the retest as PAL with a controller; separate US/JP visual qualification is not inferred. |
 | [Audio settings window](development/issues/audio-settings-window-delay.md) | Owner confirms the replacement separate window opens immediately. The old approximately 20-second delay's cause remains unknown. Restart an existing launcher to use the new route. |
 | [Enhanced Shadows](development/issues/github-character-shadow-jitter.md) | Owner approved v26 visually; focused combat/chief/cinematic checks pass. Broader campaign/performance qualification remains pending. Original mode keeps native silhouettes. |
@@ -46,6 +53,11 @@ Their individual [issue records](development/issues/README.md) retain owner-revi
 unavailable pinned local WSL sanitizer boundary and the existing Linux quarantine.
 
 ## Original game and regional behavior
+
+The owner reports a [texture wash over Goldwood's starting bridge](development/issues/goldwood-starting-bridge-texture-wash.md)
+in native NTSC and requests that it be documented and preserved. Both screenshots
+are retained; cause and capture setup are unspecified, and PAL/JP were not compared.
+No fix is planned.
 
 Leaving Walkway has **no music on the owner's NTSC N64** and **does have music in PAL EmuHawk**.
 Only this departure was rechecked; the two Vela routes remain unverified. The US insertion candidate

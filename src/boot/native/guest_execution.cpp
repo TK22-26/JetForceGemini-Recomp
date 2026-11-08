@@ -502,7 +502,10 @@ public:
     if(!state.diagnostic_function_profile)return;
     struct ProfileLocalTag;
     auto& local=jfg::runtime::execution_local<ThreadData,ProfileLocalTag>();
-    const bool root=(target==game_code("game.mainUpdate") || target==game_code("game.amHandleFrameMsg") || target==game_code("game.amHandleDoneMsg")) && !local.profile.active();
+    // Mode 3 starts a scope at the first dispatch on every guest stack, so
+    // ROM-manager work is visible while the game thread is parked. Long-lived
+    // thread entries reached before the bounded VI window stay outside it.
+    const bool root=(state.diagnostic_function_profile==3U || target==game_code("game.mainUpdate") || target==game_code("game.amHandleFrameMsg") || target==game_code("game.amHandleDoneMsg")) && !local.profile.active();
     if(root) {
       if(state.vi_retraces<state.diagnostic_profile_first_vi ||
          state.vi_retraces>=state.diagnostic_profile_last_vi)return;
@@ -584,6 +587,9 @@ public:
         data_->start_vi,data_->start_poll,data_->thread,row.target,row.parent,row.calls,
         row.wall,row.self_wall,row.cycles,row.self_cycles,row.wait,row.instructions,
         row.max_wall,row.max_cycles,row.valid});
+      trace.event("function-profile-wall",{state_->vi_retraces,state_->controller_samples,
+        data_->start_vi,data_->start_poll,data_->thread,row.target,row.parent,row.calls,
+        row.wall,row.self_wall,row.max_wall,row.wall_valid});
     }
     trace.event("function-profile-end",{state_->vi_retraces,state_->controller_samples,
       data_->start_vi,data_->start_poll,data_->thread,state_->diagnostic_function_profile,
@@ -770,6 +776,13 @@ std::uint8_t* cutscene_credits_memory(State& state,const NativeGameMemory& ram) 
      !ram.instruction_matches("guard.game.mainTitlePageInit.entry0"))return nullptr;
   return bytes;
 }
+void report_cutscene_transition(State& state,jfg::CutsceneSupportPhase phase,
+                                unsigned level,unsigned group) {
+  if(!state.cutscene_prompt.transition)return;
+  jfg::cutscene_support_event(phase,level,group,state.cutscene_chain_level,
+      state.cutscene_chain_group,state.cutscene_chain_count,
+      jfg::cutscene_elapsed_ms(state.cutscene_transition_started_ms,GetTickCount64()));
+}
 void update_cutscene_completion(State& state,recomp_context& context) {
   NativeGameMemory ram({state.rdram,kRdramSize});
   const auto level=game_view(ram).u32(game_data_ref("globals.currentLevel")),header=game_view(ram).u32(game_data_ref("globals.levelHeader"));
@@ -778,6 +791,7 @@ void update_cutscene_completion(State& state,recomp_context& context) {
   const bool cinematic=ram.valid(header,game_member("layout.levelHeader.kind")+1U) &&
     (ram.u8(header+game_member("layout.levelHeader.kind"))==1U||ram.u8(header+game_member("layout.levelHeader.kind"))==2U);
   if(!cinematic || level==0U || level==127U) {
+    report_cutscene_transition(state,jfg::CutsceneSupportPhase::settled,level,group);
     state.cutscene_skip_scene=0;state.cutscene_chain=false;state.cutscene_prompt.transition=false;return;
   }
   if(game_view(ram).u32(game_data_ref("globals.cutsceneOwner"))==0 || game_view(ram).u32(game_data_ref("globals.cutscenePlaying"))!=1U ||
@@ -831,14 +845,20 @@ void update_cutscene_completion(State& state,recomp_context& context) {
         }
     }
   if(first) {
-    if(!state.cutscene_chain)state.cutscene_prompt.transition=false;
+    if(!state.cutscene_chain) {
+      report_cutscene_transition(state,jfg::CutsceneSupportPhase::destination,level,group);
+      state.cutscene_prompt.transition=false;
+    }
     state.gameplay_trace.event("cutscene-skip-scene",{state.vi_retraces,level,group,
       static_cast<unsigned>(state.cutscene_script.status),qualified?1U:0U,start,
       plan.has_value()?1U:0U,actors_reviewed?1U:0U,cursor-start,game_view(ram).u32(game_data_ref("globals.cutsceneSequence"))});
     // Let the newly loaded scene perform its first ordinary update.
     return;
   }
-  if(!qualified) {state.cutscene_chain=false;state.cutscene_prompt.transition=false;return;}
+  if(!qualified) {
+    report_cutscene_transition(state,jfg::CutsceneSupportPhase::unqualified,level,group);
+    state.cutscene_chain=false;state.cutscene_prompt.transition=false;return;
+  }
   const auto requested=state.cutscene_skip_request.load(std::memory_order_acquire);
   if(requested!=scene && !state.cutscene_chain)return;
   const auto stack=static_cast<std::uint32_t>(context.r29)-0x80U;
@@ -874,6 +894,7 @@ void update_cutscene_completion(State& state,recomp_context& context) {
   if(!state.cutscene_chain) {
     state.cutscene_chain_count=0;
     state.cutscene_transition_started=state.vi_retraces;
+    state.cutscene_transition_started_ms=state.cutscene_skip_request_ms.load(std::memory_order_relaxed);
   }
   state.cutscene_prompt.transition=true;
   // mainSyncNextLevel makes the loader wait for a cue from the unplayed
@@ -958,8 +979,9 @@ void update_cutscene_completion(State& state,recomp_context& context) {
   state.cutscene_prompt.visible=false;
   state.gameplay_trace.event("cutscene-skip-complete",{state.vi_retraces,level,group,
     plan->destination,plan->group,plan->conditional?1U:0U,state.cutscene_chain_count});
-  jfg::support_event("cutscene=explicit-completion level="+std::to_string(level)+
-      " group="+std::to_string(group));
+  jfg::cutscene_support_event(jfg::CutsceneSupportPhase::complete,level,group,
+      plan->destination,plan->group,state.cutscene_chain_count,
+      jfg::cutscene_elapsed_ms(state.cutscene_transition_started_ms,GetTickCount64()));
 }
 #endif
 
@@ -1090,6 +1112,8 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       if(game_view(skip_ram).u8(game_data_ref("globals.transitionCountdown"))==0 && skip_ram.valid(skip_header,game_member("layout.levelHeader.kind")+1U) &&
          (skip_level==0U || skip_level==127U ||
           (skip_ram.u8(skip_header+game_member("layout.levelHeader.kind"))!=1U && skip_ram.u8(skip_header+game_member("layout.levelHeader.kind"))!=2U))) {
+        report_cutscene_transition(state,jfg::CutsceneSupportPhase::settled,skip_level,
+            game_view(skip_ram).u32(game_data_ref("globals.cutsceneGroup")));
         state.cutscene_prompt.transition=false;state.cutscene_chain=false;
       }
     }
@@ -1097,6 +1121,10 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     // transition cover behind indefinitely if a destination fails to settle.
     if(state.cutscene_prompt.transition &&
        state.vi_retraces-state.cutscene_transition_started>900U) {
+      const NativeGameMemory timeout_ram({state.rdram,kRdramSize});
+      report_cutscene_transition(state,jfg::CutsceneSupportPhase::timeout,
+          game_view(timeout_ram).u32(game_data_ref("globals.currentLevel")),
+          game_view(timeout_ram).u32(game_data_ref("globals.cutsceneGroup")));
       state.cutscene_prompt.transition=false;state.cutscene_chain=false;
       jfg::support_event("cutscene=completion-timeout-resume");
     }
@@ -2161,6 +2189,32 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
     }
   }
 #endif
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+  if(target==game_code("sdk.osPiStartDma") && state.guest_os_probe &&
+      state.native_rom_api && state.diagnostic_host_clock && state.mmio_trace &&
+      state.mmio_trace->native_rom_completion) {
+    hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
+    const auto stack=static_cast<std::uint32_t>(context->r29);
+    jfg::boot::NativeRomDmaRequest request{
+        static_cast<std::uint32_t>(context->r4),static_cast<std::uint32_t>(context->r5),
+        static_cast<std::uint32_t>(context->r6),static_cast<std::uint32_t>(context->r7),0,0,0,stack};
+    const bool idle=!state.mmio_trace->pi_dma.deadline() &&
+        !state.mmio_trace->pi_dma.interrupt() && !(state.mmio_trace->mi_pending&16U);
+    if(memory.read_u32(stack+0x10U,request.destination) && memory.read_u32(stack+0x14U,request.length) &&
+        memory.read_u32(stack+0x18U,request.completion) &&
+        jfg::boot::complete_native_rom_dma({rdram,kRdramSize},{state.rom,state.rom_size},
+          game_data("os.pi_manager"),request,idle)) {
+      ++state.native_rom_api_reads;state.native_rom_api_bytes+=request.length;
+      if(state.native_rom_api_reads==1U)jfg::support_event("assets=native-rom-api-active");
+      ++state.mmio_trace->execution_io_revision;state.native_fast_ready=false;
+      context->r2=0;
+      if((state.native_rom_api_reads&1023U)==1U)
+        state.gameplay_trace.event("native-rom-api-total",{state.vi_retraces,state.controller_samples,
+            state.native_rom_api_reads,state.native_rom_api_bytes});
+      return 1;
+    }
+  }
+#endif
   if (state.guest_os_probe && state.native_audio_source &&
       target == kAudioSourceLayout.callback) {
     hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
@@ -2653,6 +2707,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
         const auto update_started = measure_update ? std::chrono::steady_clock::now()
                                                   : std::chrono::steady_clock::time_point{};
         const auto update_count = measure_update ? state.cpu_count : 0U;
+        const auto rom_api_reads_before=state.native_rom_api_reads,rom_api_bytes_before=state.native_rom_api_bytes;
         const auto rom_before=measure_update && state.mmio_trace ?
             state.mmio_trace->pi_dma.rom_transfers() : jfg::boot::OriginalTimingPiDma::RomTransfers{};
         const auto update_idle = measure_update ? state.profile_idle_count_ticks : 0U;
@@ -3172,6 +3227,9 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
               state.vi_retraces,state.controller_samples,GetCurrentThreadId(),
               valid?1U:0U,ticks(user),ticks(kernel),cycles});
           }
+          if(state.native_rom_api_reads!=rom_api_reads_before)
+            state.gameplay_trace.event("native-rom-api",{state.vi_retraces,state.controller_samples,
+                state.native_rom_api_reads-rom_api_reads_before,state.native_rom_api_bytes-rom_api_bytes_before});
           if (state.native_cache_all_enabled)
             state.gameplay_trace.event("native-cache-all",{state.vi_retraces,state.controller_samples,state.native_cache_all_calls-cache_all_before});
           if (state.native_spans_enabled) {

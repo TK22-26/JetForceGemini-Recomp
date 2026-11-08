@@ -1207,7 +1207,7 @@ int run_child(const char *path, const unsigned retrace_target,
   const bool diagnostic_hidden_window =
       GetEnvironmentVariableA("JFG_DIAGNOSTIC_HIDDEN_WINDOW",hidden_validation,2U)==1U &&
       hidden_validation[0]=='1';
-  LiveRt64Window live_window(state.window_input, state.pc_mouse_captured,
+  LiveRt64Window live_window(state.window_input, state.pc_mouse_captured, state.pc_mouse_requested,
       state.mouse_diagnostics, play_mode && !diagnostic_hidden_window);
   state.native_window = live_window.get();
   state.pc_raw_available = live_window.raw_available();
@@ -1443,7 +1443,7 @@ int run_child(const char *path, const unsigned retrace_target,
   char function_profile_flag[2]{};
   const auto function_profile_length=GetEnvironmentVariableA("JFG_DIAGNOSTIC_FUNCTION_PROFILE",function_profile_flag,2U);
   if(function_profile_length!=0U && (function_profile_length!=1U ||
-      (function_profile_flag[0]!='1' && function_profile_flag[0]!='2') ||
+      (function_profile_flag[0]!='1' && function_profile_flag[0]!='2' && function_profile_flag[0]!='3') ||
       !state.gameplay_trace || memory_trace_length!=1U))return 3;
   state.diagnostic_function_profile=function_profile_length==1U?unsigned(function_profile_flag[0]-'0'):0U;
   for(const auto& item:std::array<std::pair<const char*,std::uint64_t*>,2>{{
@@ -1597,6 +1597,16 @@ int run_child(const char *path, const unsigned retrace_target,
     if(state.mmio_trace->native_rom_completion)
       jfg::support_event("assets=native-rom-completion");
   }
+  char rom_api_flag[2]{};
+  const auto rom_api_length=GetEnvironmentVariableA("JFG_DIAGNOSTIC_NATIVE_ROM_API",rom_api_flag,2U);
+  if(rom_api_length && (rom_api_length!=1U || (rom_api_flag[0]!='0' && rom_api_flag[0]!='1') ||
+      (rom_api_flag[0]=='1' && !state.diagnostic_host_clock_requested)))return 3;
+  // Qualified immutable-ROM SDK completion in ordinary native Play. Recorded
+  // clocks and instruction observers retain the original PI/OS execution path.
+  const bool native_rom_api_requested=rom_api_length ? rom_api_flag[0]=='1' : native_preview_play;
+  state.native_rom_api=native_rom_api_requested && state.mmio_trace &&
+      state.mmio_trace->native_rom_completion;
+  if(state.native_rom_api)jfg::support_event("assets=native-rom-api-enabled");
   if(state.diagnostic_host_clock && state.native_audio_playback && state.mmio_trace &&
       !state.mmio_trace->ai_dma.native_queue_capacity(4U))
     fail_closed_dispatch(state,"audio","native-queue-capacity",0U);

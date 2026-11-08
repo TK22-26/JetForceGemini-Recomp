@@ -5,6 +5,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include "native_ui.hpp"
+#include "fallback_overlay.hpp"
 #include "frontend_build_info.hpp"
 #include "home_scene.hpp"
 #include "rom_cartridge.hpp"
@@ -85,7 +86,7 @@ struct LogSystem : Rml::SystemInterface {
   }
 };
 struct Ui : Rml::EventListener {
-  bool building = false, controllerWindow = false;
+  bool building = false, controllerWindow = false, aboutWindow = false;
   HWND window = nullptr;
   std::function<void(const std::string &)> action;
   FrontendUiState state;
@@ -157,7 +158,7 @@ struct Ui : Rml::EventListener {
   #include "modern_controls_ui.inl"
   void close() {
     modernCapture=-1;modernPanel.clear();modernRetry.reset();modernNavReady=false;
-    if(controllerWindow){PostMessageW(window,WM_CLOSE,0,0);return;}
+    if(controllerWindow || aboutWindow){PostMessageW(window,WM_CLOSE,0,0);return;}
     current.clear();
     doc->SetClass("panel-open", false);
     doc->SetClass("menu-open", false);
@@ -661,6 +662,28 @@ struct Ui : Rml::EventListener {
            escape(text) + (shortcut.empty() ? "" :
                "<span class=\"menu-shortcut\">" + escape(shortcut) + "</span>") + "</button>";
   }
+  ULONGLONG aboutRequested = 0, aboutBuilt = 0;
+  unsigned aboutSequence = 0;
+  DWORD aboutMessageAge = 0;
+  void recordAboutPresentation(ULONGLONG frameStart) {
+    if (!aboutRequested || current != "help") return;
+    const auto finished = GetTickCount64();
+    try {
+      const auto path = profile / "frontend-ui-timing.log";
+      std::error_code error;
+      const auto bytes = fs::file_size(path, error);
+      if (error || bytes < 65536) {
+        std::ofstream log(path, std::ios::app);
+        log << "panel=about/open=" << ++aboutSequence
+            << "/message_age_ms=" << aboutMessageAge
+            << "/build_ms=" << (aboutBuilt - aboutRequested)
+            << "/wait_ms=" << (frameStart > aboutBuilt ? frameStart - aboutBuilt : 0)
+            << "/frame_ms=" << (finished - frameStart)
+            << "/total_ms=" << (finished - aboutRequested) << "\n";
+      }
+    } catch (...) { }
+    aboutRequested = 0;
+  }
   std::string aboutHtml() const {
     const auto resource = FindResourceW(nullptr, MAKEINTRESOURCEW(209), RT_RCDATA);
     const auto data = resource ? LockResource(LoadResource(nullptr, resource)) : nullptr;
@@ -687,6 +710,7 @@ struct Ui : Rml::EventListener {
   }
   bool popup() const { return current.rfind("menu-", 0) == 0; }
   void modal(const std::string &page) {
+    if (page == "help" && !aboutWindow) { close(); action("about"); return; }
     if(page=="pc-input"){modal("controllers");return;}
     struct Building {
       bool &b;
@@ -923,9 +947,9 @@ struct Ui : Rml::EventListener {
       if(loaded)++count;if(on){selectedLoaded=loaded;selectedLabel=region;}
     }
     label("rom-count",std::to_string(count)+" of 3 regions loaded");
-    label("action-rom",(selectedLoaded?"Change ":"Add ")+selectedLabel+" ROM...");
-    el("action-rom")->SetClass("add-rom",!selectedLoaded);
-    if(busy)el("action-rom")->SetAttribute("disabled","");else el("action-rom")->RemoveAttribute("disabled");
+    label("rom-library-import",(selectedLoaded?"Change ":"Add ")+selectedLabel+" ROM...");
+    el("rom-library-import")->SetClass("add-rom",!selectedLoaded);
+    if(busy)el("rom-library-import")->SetAttribute("disabled","");else el("rom-library-import")->RemoveAttribute("disabled");
     if(busy || !selectedLoaded || !ready)el("action-play")->SetAttribute("disabled","");else el("action-play")->RemoveAttribute("disabled");
     label("rom-play-note",!selectedLoaded?"Add the "+selectedLabel+" ROM or pick a loaded region to play.":!ready?"Verify game files to play the "+selectedLabel+" version.":"Plays the "+selectedLabel+" version in this window.");
   }
@@ -949,6 +973,10 @@ struct Ui : Rml::EventListener {
     }
     if (t->HasAttribute("disabled")) return;
     auto a = t->GetAttribute<Rml::String>("data-action", "");
+    if (aboutWindow) {
+      if (event.GetType() == "click") { if (a == "close") close(); else action(a); }
+      return;
+    }
     if(modernEvent(event,t,a))return;
     if (event.GetType() == "change") {
       if(a.rfind("pc-key",0)==0) {
@@ -1221,7 +1249,7 @@ struct Resources : Rml::FileInterface {
                                  {"theme.rcss", 202},
                                  {"Barlow-Regular.ttf", 203},
                                  {"Barlow-SemiBold.ttf", 204},
-                                 {"ChakraPetch-Bold.ttf", 205}, {"live-map.rml", 206}, {"live-inventory.rml", 207}, {"live-tools.rcss", 208}, {"about.rml", 209}, {"about.rcss", 210}, {"modern-controls.rcss",211}, {"xbox.tga",212}, {"dualsense.tga",213}, {"mouse.tga",214}, {"generic.tga",212}, {"chips.tga",216}, {"highlights.tga",217},{"toolbar-pad.tga",218},{"ui-details.tga",219},{"video-settings.rml",220},{"video-settings.rcss",221},{"settings.rml",222},{"settings.rcss",223},{"video-icons.tga",224},{"mods-icons.tga",225},{"audio-settings.rml",226},{"audio-settings.rcss",227}};
+                                 {"ChakraPetch-Bold.ttf", 205}, {"live-map.rml", 206}, {"live-inventory.rml", 207}, {"live-tools.rcss", 208}, {"about.rml", 209}, {"about.rcss", 210}, {"modern-controls.rcss",211}, {"xbox.tga",212}, {"dualsense.tga",213}, {"mouse.tga",214}, {"generic.tga",212}, {"chips.tga",216}, {"highlights.tga",217},{"toolbar-pad.tga",218},{"ui-details.tga",219},{"video-settings.rml",220},{"video-settings.rcss",221},{"settings.rml",222},{"settings.rcss",223},{"video-icons.tga",224},{"mods-icons.tga",225},{"audio-settings.rml",226},{"audio-settings.rcss",227},{"about-window.rml",228},{"github-mark.tga",229}};
     for (auto &e : entries)
       if (fs::path(path).filename() == e.name) {
         auto r = FindResourceW(nullptr, MAKEINTRESOURCEW(e.id), RT_RCDATA);
@@ -1273,6 +1301,8 @@ struct Resources : Rml::FileInterface {
 };
 struct Surface {
   HWND window = nullptr, inputChild = nullptr, mouseWindow = nullptr;
+  jfg::frontend::FallbackOverlay fallbackOverlay;
+  bool ownsMouseCapture = false, closing = false;
   ComPtr<ID3D11Device> device;
   ComPtr<ID3D11DeviceContext> gpu;
   ComPtr<IDXGISwapChain1> swap;
@@ -1319,7 +1349,7 @@ struct Surface {
     if (GetCursorPos(&cursor)) {
       const HWND next = WindowFromPoint(cursor);
       // The hosted game is deliberately excluded: it is not part of this UI.
-      if (next == window || (inputChild && next == inputChild)) {
+      if (next == window || next == fallbackOverlay.window() || (inputChild && next == inputChild)) {
         POINT local = cursor;
         ScreenToClient(window, &local);
         RECT client{};
@@ -1332,7 +1362,42 @@ struct Surface {
     }
     context->ProcessMouseLeave();
   }
+  void syncOverlayInput() {
+    const bool capture = !closing && GetForegroundWindow() == window && !composition && !ui.current.empty() && !ui.controllerWindow && !ui.aboutWindow &&
+                         !live && !video && !storage && !audio;
+    if (capture && !ownsMouseCapture) {
+      ownsMouseCapture = true;
+      SetCapture(window);
+    } else if (!capture && ownsMouseCapture) {
+      ownsMouseCapture = false;
+      if (GetCapture() == window) ReleaseCapture();
+    }
+    if (!capture) fallbackOverlay.hide();
+  }
+  void presentOverlay() {
+    if (composition || ui.current.empty() || ui.controllerWindow || ui.aboutWindow || !ui.state.playing ||
+        live || video || storage || audio) { fallbackOverlay.hide(); return; }
+    auto* panel = ui.el(ui.popup() ? "game-popup" : "dialog");
+    if (!panel || !panel->IsVisible(true)) { fallbackOverlay.hide(); return; }
+    const auto size = panel->GetBox().GetSize(Rml::BoxArea::Border);
+    auto origin = panel->GetAbsoluteOffset(Rml::BoxArea::Border);
+    auto center = origin + size * 0.5f;
+    auto projected = center;
+    if (panel->Project(projected)) origin += center - projected;
+    RECT bounds{std::max(0L, static_cast<LONG>(std::floor(origin.x))),
+                std::max(0L, static_cast<LONG>(std::floor(origin.y))),
+                std::min(static_cast<LONG>(width), static_cast<LONG>(std::ceil(origin.x + size.x))),
+                std::min(static_cast<LONG>(height), static_cast<LONG>(std::ceil(origin.y + size.y)))};
+    Microsoft::WRL::ComPtr<ID3D11Resource> buffer;
+    target->GetResource(&buffer);
+    gpu->OMSetRenderTargets(0, nullptr, nullptr);
+    fallbackOverlay.present(window, device.Get(), gpu.Get(), buffer.Get(), bounds);
+  }
   ~Surface() {
+    closing = true;
+    ownsMouseCapture = false;
+    if (GetCapture() == window) ReleaseCapture();
+    fallbackOverlay.hide();
     cancelMouseTracking();
     if (initialized) {
       if (ui.doc) {
@@ -1444,9 +1509,18 @@ bool FrontendUiInit(HWND w, const fs::path &profile,
     s.ui.updatePreview = previewUpdate;
     s.ui.action = std::move(action);
     s.ui.controllerWindow=tool=="controllers";
-    s.ui.doc = s.context->LoadDocument(tool=="audio"?"audio-settings.rml":tool=="settings"?"settings.rml":tool=="video"?"video-settings.rml":tool.empty() || s.ui.controllerWindow?"main.rml":tool=="map"?"live-map.rml":"live-inventory.rml");
+    s.ui.aboutWindow=tool=="about";
+    s.ui.doc = s.context->LoadDocument(tool=="about"?"about-window.rml":tool=="audio"?"audio-settings.rml":tool=="settings"?"settings.rml":tool=="video"?"video-settings.rml":tool.empty() || s.ui.controllerWindow?"main.rml":tool=="map"?"live-map.rml":"live-inventory.rml");
     if (!s.ui.doc)
       throw std::runtime_error("Cannot load UI document");
+    if (s.ui.aboutWindow) {
+      auto& ui=s.ui;
+      ui.current="help";ui.aboutRequested=GetTickCount64();ui.aboutMessageAge=60001;
+      ui.state.rom=RmlWin32::ConvertToUTF16(ui.read("frontend-rom.txt"));
+      ui.el("dialog-body")->SetInnerRML(ui.aboutHtml());
+      ui.doc->AddEventListener("click",&ui);ui.doc->Show();FrontendUiResize();
+      ui.aboutBuilt=GetTickCount64();return true;
+    }
     if(tool=="audio") {
       s.audio=std::make_unique<jfg_audio::Ui>();s.audio->init(w,s.ui.doc,profile);
       s.ui.doc->Show();FrontendUiResize();return true;
@@ -1511,10 +1585,16 @@ void FrontendUiResize() {
   s.renderer->SetViewport(w, h);
 }
 void FrontendUiFrame(const FrontendUiState &state) {
-  if (!surface || !surface->context || IsIconic(surface->window))
-    return;
+  if (!surface || !surface->context) return;
+  if (IsIconic(surface->window)) { surface->fallbackOverlay.hide(); return; }
   auto &s = *surface;
   auto &ui = s.ui;
+  const auto frameStart = GetTickCount64();
+  if (ui.aboutWindow) {
+    s.context->Update();const float clear[]={0,0,0,0};s.gpu->ClearRenderTargetView(s.target.Get(),clear);
+    s.renderer->BeginFrame();s.context->Render();s.renderer->EndFrame(s.target.Get());s.swap->Present(1,0);
+    ui.recordAboutPresentation(frameStart);return;
+  }
   if(ui.modernDeferredRefresh){ui.modernDeferredRefresh=false;if(ui.current=="controllers")ui.modal("controllers");}
   if (s.live || s.video || s.storage || s.audio) {
     if(s.live)s.live->tick();if(s.audio)s.audio->tick();s.context->Update();const float clear[]={0,0,0,0};s.gpu->ClearRenderTargetView(s.target.Get(),clear);s.renderer->BeginFrame();s.context->Render();s.renderer->EndFrame(s.target.Get());s.swap->Present(1,0);return;
@@ -1603,10 +1683,21 @@ void FrontendUiFrame(const FrontendUiState &state) {
   s.renderer->BeginFrame();
   s.context->Render();
   s.renderer->EndFrame(s.target.Get());
+  s.syncOverlayInput();
+  s.presentOverlay();
   s.swap->Present(1, 0);
+  ui.recordAboutPresentation(frameStart);
 }
 void FrontendUiInputChild(HWND child) { if (surface) surface->inputChild = child; }
 void FrontendUiMessage(UINT m, WPARAM w, LPARAM l, HWND source) {
+  if (surface && !surface->composition &&
+      ((m == WM_ACTIVATEAPP && !w) || m == WM_CANCELMODE || (m == WM_CAPTURECHANGED && surface->ownsMouseCapture &&
+                             reinterpret_cast<HWND>(l) != surface->window))) {
+    surface->ownsMouseCapture = false;
+    if (surface->ui.popup()) surface->ui.close();
+    if (GetCapture() == surface->window) ReleaseCapture();
+    surface->fallbackOverlay.hide();
+  }
   if (surface && surface->context && (m == WM_MOUSEMOVE || m == WM_MOUSELEAVE)) {
     // RmlUi's generic Win32 backend assumes one input HWND. Our launcher also
     // receives pointer events through a child shield over the embedded game.
@@ -1614,6 +1705,10 @@ void FrontendUiMessage(UINT m, WPARAM w, LPARAM l, HWND source) {
     if (m == WM_MOUSEMOVE) surface->mouseMove(source, l);
     else surface->mouseLeave(source);
     return;
+  }
+  if (surface && surface->ui.aboutWindow) {
+    if (m==WM_KEYDOWN && w==VK_ESCAPE) {surface->ui.close();return;}
+    RmlWin32::WindowProcedure(surface->context,surface->ime,surface->window,m,w,l);return;
   }
   if(surface && surface->audio) {
     if(surface->audio->keyboard(m,w))return;
@@ -1722,6 +1817,6 @@ void FrontendUiPanel(const std::string &name) {
   }
 }
 void FrontendUiToggleMute() { if(surface && surface->audio)surface->audio->toggleMute();else if (surface && !surface->live) surface->ui.toggleMute(); }
-bool FrontendUiCapturing() { return surface && !surface->ui.current.empty(); }
+bool FrontendUiCapturing() { if (surface) surface->syncOverlayInput(); return surface && !surface->ui.current.empty(); }
 
 bool FrontendUiModalOpen() { return surface && !surface->ui.current.empty() && !surface->ui.popup(); }

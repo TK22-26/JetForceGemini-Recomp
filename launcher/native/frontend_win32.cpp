@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 #include "graphics_check.hpp"
+#include "frontend_commands.hpp"
 #include "game_viewport.hpp"
 #include "ui_capture_windows.hpp"
 #include "video_settings_dialog.hpp"
@@ -30,26 +31,7 @@ constexpr UINT kReady = WM_APP + 20, kHotkey = WM_APP + 21;
 #ifdef JFG_RML_UI
 constexpr int kMuteShortcut = 0x4a46;
 #endif
-enum : UINT {
-  Play = 100,
-  Stop,
-  Setup,
-  Cancel,
-  Rom,
-  Runtime,
-  Controllers,
-  Audio,
-  Fullscreen,
-  Map,
-  Inventory,
-  Support,
-  Saves,
-  Guide,
-  Quit,
-  Mods,
-  Video,
-  Settings
-};
+using enum jfg::frontend::Command;
 struct Process {
   HANDLE handle = nullptr, job = nullptr;
   void release() {
@@ -78,7 +60,7 @@ struct App {
   std::wstring inputReplay, progressOutput, diagnosticsDirectory, cutsceneReviewRequest, initialRegion;
   bool weatherDiagnostics = false;
   bool quickPlay = false, previewUpdate = false;
-  Process session, dialog;
+  Process session, dialog, about;
   std::vector<std::unique_ptr<Process>> tools;
   std::vector<HWND> liveModals;
   bool playing = false, setting = false, fullscreen = false, closing = false,
@@ -202,7 +184,7 @@ bool launch(Process &process, const wchar_t *action, HWND owner) {
   }
   fs::path executable=app.helper;
 #ifdef JFG_RML_UI
-  if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory" || std::wstring(action)==L"controllers" || std::wstring(action)==L"video" || std::wstring(action)==L"audio" || std::wstring(action)==L"settings") {
+  if(std::wstring(action)==L"map" || std::wstring(action)==L"inventory" || std::wstring(action)==L"controllers" || std::wstring(action)==L"video" || std::wstring(action)==L"audio" || std::wstring(action)==L"settings" || std::wstring(action)==L"about") {
     wchar_t module[32768]{};GetModuleFileNameW(nullptr,module,32768);executable=module;
     command=quote(executable.wstring())+L" --live-tool "+action+L" --profile "+quote(app.profile.wstring())+L" --helper "+quote(app.helper.wstring())+L" --owner "+std::to_wstring(reinterpret_cast<std::uintptr_t>(owner));
   }
@@ -587,6 +569,8 @@ void uiAction(const std::string &a) {
     command = Video;
   else if (a == "audio")
     command = Audio;
+  else if (a == "about")
+    command = About;
   else if (a == "settings")
     command = Settings;
   else if (a == "controllers")
@@ -599,12 +583,8 @@ void uiAction(const std::string &a) {
     command = Saves;
   else if (a == "guide")
     command = Guide;
-  else if (a == "project" || a == "known-issues" || a == "notices") {
-    const wchar_t *url = a == "project" ? L"https://github.com/TK22-26/JetForceGemini-Recomp"
-        : a == "known-issues" ? L"https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/known-issues.md"
-        : L"https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/THIRD_PARTY_NOTICES.md";
-    ShellExecuteW(app.window, L"open", url, nullptr, nullptr, SW_SHOWNORMAL);
-  }
+  else if (a == "project" || a == "known-issues" || a == "notices")
+    command = jfg::frontend::about_command(a);
   else if (a == "mods")
     command = Mods;
   else if (a == "quit")
@@ -738,7 +718,7 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
        message == WM_MOUSELEAVE ||
        message == WM_KEYDOWN || message == WM_KEYUP || message == WM_CHAR ||
        message == WM_SYSKEYDOWN || message == WM_SYSKEYUP || message == WM_ACTIVATEAPP ||
-       message == WM_SETFOCUS || message == WM_KILLFOCUS)) {
+       message == WM_SETFOCUS || message == WM_KILLFOCUS || message == WM_CANCELMODE || message == WM_CAPTURECHANGED)) {
     FrontendUiMessage(message, wparam, lparam);
     syncUiCapture();
     // Do not let DefWindowProc enter its system-menu loop for our menu keys.
@@ -1049,6 +1029,27 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     case Audio:
       settings(L"audio");
       break;
+    case About:
+#ifdef JFG_RML_UI
+      if (!app.about.running()) launch(app.about, L"about", window);
+      else EnumWindows([](HWND candidate, LPARAM parameter)->BOOL {
+        DWORD pid=0;GetWindowThreadProcessId(candidate,&pid);
+        if (pid==static_cast<DWORD>(parameter) && IsWindowVisible(candidate)) {
+          if (IsIconic(candidate)) ShowWindow(candidate,SW_RESTORE);
+          SetForegroundWindow(candidate);return FALSE;
+        }
+        return TRUE;
+      },static_cast<LPARAM>(GetProcessId(app.about.handle)));
+#endif
+      break;
+    case Project:
+    case KnownIssues:
+    case Notices: {
+      const wchar_t* url=LOWORD(wparam)==Project ? L"https://github.com/TK22-26/JetForceGemini-Recomp"
+        : LOWORD(wparam)==KnownIssues ? L"https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/known-issues.md"
+        : L"https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/THIRD_PARTY_NOTICES.md";
+      ShellExecuteW(window,L"open",url,nullptr,nullptr,SW_SHOWNORMAL);break;
+    }
     case Support:
       settings(L"support");
       break;
@@ -1066,8 +1067,13 @@ LRESULT CALLBACK procedure(HWND window, UINT message, WPARAM wparam,
     case Guide: {
       wchar_t module[32768]{};
       GetModuleFileNameW(nullptr, module, 32768);
-      const auto guide = fs::path(module).parent_path() / L"START HERE.txt";
-      ShellExecuteW(window, L"open", guide.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+      auto guide = fs::path(module).parent_path() / L"START HERE.txt";
+      std::error_code guideError;
+      if (!fs::is_regular_file(guide,guideError))
+        guide = fs::path(module).parent_path() / L"READ ME.txt";
+      const wchar_t* target=fs::is_regular_file(guide,guideError) ? guide.c_str()
+          : L"https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/getting-started.md";
+      ShellExecuteW(window, L"open", target, nullptr, nullptr, SW_SHOWNORMAL);
       break;
     }
     case Mods:

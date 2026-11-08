@@ -28,5 +28,22 @@ int main() {
  if(!p.valid() || p.overflow() || p.calls()!=1)return 9;
  p.reset();p.enter(1,at(0));p.enter(2,at(1));p.leave(at(20));p.leave(at(10));
  if(p.valid())return 10;
+ // Unsupported CPU cycles must not discard valid wall-clock attribution.
+ p.reset();p.enter(1,at(0,false));p.enter(2,at(10,false));
+ p.leave(at(30,false));p.leave(at(100,false));
+ if(p.valid() || !p.wall_valid())return 11;
+ std::uint64_t wall=0;
+ for(const auto& x:p.rows())if(x.calls) {
+   if(x.valid || !x.wall_valid || x.cycles || x.self_cycles)return 12;
+   wall+=x.self_wall;
+   if(x.target==2 && (x.wall!=200 || x.self_wall!=200))return 13;
+ }
+ if(wall!=1000)return 14;
+ // A backwards clock or a different participant invalidates wall samples too.
+ p.reset();p.enter(1,at(10,false));p.leave(at(5,false));if(p.wall_valid())return 15;
+ p.reset();p.enter(1,at(0,false));p.leave(at(10,false,9));if(p.wall_valid())return 16;
+ p.reset();p.enter(1,at(0,false));p.enter(2,at(1,false));p.leave(at(20,false));p.leave(at(10,false));
+ if(p.wall_valid())return 17;
+ p.reset();p.enter(1,at(0));p.leave(at(10));if(!p.wall_valid() || !p.valid())return 18;
  return 0;
 }

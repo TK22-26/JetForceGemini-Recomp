@@ -8,9 +8,10 @@
 namespace jfg::boot::native::detail {
 LiveRt64Window::LiveRt64Window(jfg::WindowInputMailbox &input,
                                std::atomic<bool> &captured,
+                               std::atomic<bool> &requested,
                                jfg::MouseInputDiagnostics &diagnostics,
                                const bool visible)
-    : input_(input), captured_(captured), diagnostics_(diagnostics) {
+    : input_(input), captured_(captured), requested_(requested), diagnostics_(diagnostics) {
   // No guest state is accessed by this thread. A window move/resize can enter
   // Win32's modal loop for arbitrarily long without parking the guest CPU.
   std::promise<void> ready;
@@ -53,6 +54,7 @@ LiveRt64Window::LiveRt64Window(jfg::WindowInputMailbox &input,
             parent, nullptr, instance_, this);
       }
       if (window_) {
+        SetTimer(window_, kCaptureTimer, 16U, nullptr);
         // The render child and launcher root belong to separate processes.
         // Foreground-only delivery depends on which hosted window receives
         // the pointer. Subscribe explicitly, then gate consumption by our
@@ -78,7 +80,11 @@ LiveRt64Window::LiveRt64Window(jfg::WindowInputMailbox &input,
         TranslateMessage(&message);
         DispatchMessageW(&message);
       }
-      ClipCursor(nullptr);
+      requested_.store(false);
+      relative_mouse_.release();
+      captured_.store(false);
+      diagnostics_.capture(relative_mouse_.state());
+      KillTimer(window_, kCaptureTimer);
       DestroyWindow(window_);
     }
     if (atom_)
@@ -100,6 +106,11 @@ HWND LiveRt64Window::get() const noexcept { return window_; }
 
 DWORD LiveRt64Window::thread_id() const noexcept { return thread_id_; }
 
+void LiveRt64Window::sync_mouse_capture() noexcept {
+  captured_.store(relative_mouse_.update(window_, requested_.load() && !capture_suspended_));
+  diagnostics_.capture(relative_mouse_.state());
+}
+
 LRESULT CALLBACK LiveRt64Window::window_proc(HWND window, UINT message,
                                              WPARAM wparam, LPARAM lparam) {
   if (message == WM_NCCREATE) {
@@ -111,6 +122,14 @@ LRESULT CALLBACK LiveRt64Window::window_proc(HWND window, UINT message,
       GetWindowLongPtrW(window, GWLP_USERDATA));
   if (!self)
     return DefWindowProcW(window, message, wparam, lparam);
+  if (message == WM_TIMER && wparam == kCaptureTimer) {
+    self->sync_mouse_capture();
+    return 0;
+  }
+  if (message == WM_ENTERSIZEMOVE || message == WM_EXITSIZEMOVE) {
+    self->capture_suspended_ = message == WM_ENTERSIZEMOVE;
+    self->sync_mouse_capture();
+  }
   if (message == WM_APP + 28 && wparam <= 1 &&
       reinterpret_cast<HWND>(lparam) == GetAncestor(window, GA_ROOT)) {
     jfg::configure_shadow_quality(wparam ? jfg::ShadowQuality::enhanced
@@ -255,15 +274,20 @@ LRESULT CALLBACK LiveRt64Window::window_proc(HWND window, UINT message,
   }
   if (message == WM_KILLFOCUS || (message == WM_ACTIVATEAPP && !wparam)) {
     self->diagnostics_.increment(jfg::MouseCount::focus_lost);
+    self->requested_.store(false);
     self->captured_.store(false);
+    self->relative_mouse_.release();
+    self->diagnostics_.capture(self->relative_mouse_.state());
     self->buttons_.fill(false);
     if (GetCapture() == window)
       ReleaseCapture();
-    ClipCursor(nullptr);
     self->input_.lose_focus();
     return 0;
   }
   if (message == WM_CLOSE) {
+    self->capture_suspended_ = true;
+    self->requested_.store(false);
+    self->sync_mouse_capture();
     self->input_.close();
     return 0;
   }

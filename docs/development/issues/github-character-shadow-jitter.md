@@ -925,3 +925,40 @@ Status: owner-approved local Enhanced Shadows v26; unreleased.
 Use stable high-resolution, pose-driven Enhanced shadows with actual caster/receiver geometry, shared actor bounds and detached-limb provenance. No silent Original fallback.
 
 Verification: Owner: shadows look good now; Preserved v26 caster/receiver and native combat qualification; Vine candidate combat: 314889 Enhanced draws across 4305 phases, zero missing casters. No GitHub action was performed.
+
+## Open PR #56 review, 2026-11-04 UTC
+
+The owner requested a complete open-issue/PR status report. Static review of
+[PR #56](https://github.com/TK22-26/JetForceGemini-Recomp/pull/56), head
+`0302fc52061135baf2491beb4483ccc33aac5dfd`, compared all six changed files with
+`develop` at `ed5f7c79e02040d8277dcf04434e0b08b7c97952`. No PR build, experiment,
+gameplay run, merge, remote review or contributor message was performed.
+
+This is a different GPU-mask approach from the accepted Enhanced v26 path.
+The owner liked an earlier community implementation after the October 9 opacity
+correction; that historical comparison does not accept this exact PR head.
+GitHub reports mergeable against main but blocked, with no submitted review or
+reported checks. The precise branch-rule reason for the block was not established.
+
+Source-review concerns apply to the unmerged proposal, not a demonstrated
+regression in current develop:
+
+- `gpu_shadow_framebuffer()` selects every framebuffer narrower than 128 pixels
+  without format or proven caster ownership. Its import/writeback exceptions
+  need narrower ownership and reused-memory qualification.
+- GPU mode still skips CPU mask processing when the custom pipeline is absent
+  or blur is disabled. The 8/14 opacity conversion is in that custom shader;
+  standard reinterpretation is therefore not equivalent to restoring CPU
+  opacity. Too-dark/raw-mask output is a static failure-path concern, without
+  a fresh driver-failure or blur-Off reproduction.
+- Globally enabling GPU copies conflicts with the newer architecture's deliberate
+  CPU-mask policy and narrowly qualified screen-effect exceptions. Current
+  generated RT64 shader-library modifications also serve camera fading. Integration
+  must preserve those modifications rather than replace their generated units.
+
+Recommendation: do not merge unchanged. Prefer explaining the newer accepted
+Enhanced implementation with contributor credit, or request a separate integrated
+option with ownership, opacity/fallback, high-refresh, lifecycle and performance
+coverage. The PR author reports Windows/RTX 2070 Super testing at 60 Hz, not
+high-refresh/Unlimited or regional qualification. This review changes neither
+v26 owner acceptance nor the existing release status; no PR disposition was sent.

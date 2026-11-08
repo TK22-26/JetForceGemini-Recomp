@@ -38,6 +38,7 @@
 #endif
 #include "jfg/boot/hle.hpp"
 #include "jfg/boot/native_audio_source.hpp"
+#include "jfg/boot/native_rom_dma.hpp"
 #include "jfg/boot/sound_queue_recovery.hpp"
 #include "jfg/boot/reset_handoff.hpp"
 #include "jfg/boot/ipl_handoff.hpp"
@@ -120,6 +121,7 @@
 #include "jfg/runtime/pc_rumble_output.hpp"
 #include "jfg/runtime/pc_camera_visibility.hpp"
 #include "jfg/runtime/support_log.hpp"
+#include "jfg/runtime/cutscene_skip_diagnostics.hpp"
 #include "jfg/runtime/support_snapshot.hpp"
 #include <iterator>
 #include "jfg/runtime/rt64_overlay_address.hpp"
@@ -611,6 +613,8 @@ struct State : JfgOriginalTimingFast {
   bool guest_os_probe = false;
   std::uint64_t diagnostic_input_suspend_begin=0,diagnostic_input_suspend_end=0;
   bool native_audio_source = false;
+  bool native_rom_api = false;
+  std::uint64_t native_rom_api_reads=0,native_rom_api_bytes=0;
   bool native_audio_playback = false;
   std::uint64_t native_audio_source_requests = 0;
   bool timing_fixture = false;
@@ -738,6 +742,8 @@ struct State : JfgOriginalTimingFast {
   ModernRollUpdate modern_roll_update{};
   jfg::CutsceneSkipHold cutscene_skip_hold;
   std::atomic<std::uint64_t> cutscene_skip_scene{0}, cutscene_skip_request{0};
+  std::atomic<std::uint64_t> cutscene_skip_request_ms{0};
+  std::uint64_t cutscene_transition_started_ms=0;
   std::atomic<unsigned> cutscene_skip_gesture{0};
   bool cutscene_skip_release=false;
   std::array<std::uint64_t,4> cutscene_input_observation{};
@@ -809,6 +815,7 @@ struct State : JfgOriginalTimingFast {
   std::uint64_t mouse_support_last=0,mouse_support_origin=0;
   int pc_wheel_key = 0;
   std::atomic<bool> pc_mouse_captured{false};
+  std::atomic<bool> pc_mouse_requested{false};
   bool pc_input_blocked = true, pc_raw_available = false;
   jfg::WindowInputMailbox window_input;
   jfg::MenuPointerFrame menu_pointer_frame{};

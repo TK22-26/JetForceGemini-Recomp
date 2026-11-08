@@ -1,5 +1,36 @@
 # Native ROM loading
 
+Ordinary native Play now has two qualified immutable-ROM paths. The checked SDK
+adapter completes eligible `osPiStartDma` reads directly from the resident ROM;
+unsupported or busy requests retain original SDK/PI execution, where the existing
+next-Count-tick bus policy can still apply. Save devices retain their own path.
+
+The SDK adapter checks the original region-bound PI manager and queue layouts,
+requires an idle manager/access/event/completion state with no waiting completion
+consumer, validates all addresses/ranges and rejects aliasing before mutation.
+It writes the original descriptor fields, preserves status, copies the same
+native-word-layout payload as the PI model, and enqueues the actual descriptor
+pointer. The real game `romCopy` and `osRecvMesg` continue normally. Unsupported
+states fall back without partial writes. This preserves the qualified SDK
+contract; internal queue positions and PI registers need not match emulated
+transfer execution in native elapsed-time mode.
+
+`JFG_DIAGNOSTIC_NATIVE_ROM_API=0` disables the SDK adapter for comparisons.
+An explicit `1` requires native elapsed timing and remains suppressed whenever
+the inherited ROM policy excludes recorded clocks or instruction observers.
+Ordinary support logs report enabled policy and first actual admission. Optional
+`native-rom-api-total` rows contain VI/poll, cumulative reads and bytes;
+`native-rom-api` rows contain per-update reads/bytes. Neither is a CPU duration.
+
+See [GH-041](../issues/cutscene-skip-completion-time.md) for causal evidence,
+regional validation, current identities and pending owner acceptance. The change
+removes thousands of emulated transfer/interrupt/thread round trips during the
+opening skip, while retaining scene initialization and script effects. Normal
+Play's Original FPS setting still uses its existing timing policy; the separate
+instruction-timed reference path is what the compatibility comparisons protect.
+
+## Earlier next-tick PI policy and its historical qualification
+
 An explosion in Goldwood creates shockwaves and explosion sprites, including eleven newly loaded texture frames. Full profiling identifies roughly 11 ms inside sprite loading; ROM section reads account for most of that interval. These nested durations overlap. The host already copies ROM bytes synchronously, but native play also waited for the simulated cartridge-bus duration before delivering the normal PI completion interrupt.
 
 Native play now schedules successful immutable-ROM reads for the next Count tick after the copy. All destination/source bounds, byte layout, busy status, interrupt delivery and acknowledgement remain. FlashRAM retains its separate timing and transfer path. This changes loading latency; game simulation still follows elapsed time. Original instruction timing, recorded-clock comparisons and instruction observers retain the original bus model. The decompressor, textures and gameplay behavior code are unchanged.

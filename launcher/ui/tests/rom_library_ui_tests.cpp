@@ -79,9 +79,11 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     library("pal",false);pointerClick("action-play");demand(lastAction=="play","Play uses host active selection");
     pointerClick("action-region-jpn");demand(lastAction=="region-jpn","empty JP remains selectable");library("jpn",false);
     demand(element("action-play")->HasAttribute("disabled"),"empty selected region cannot launch prior ROM");
-    demand(element("action-rom")->GetInnerRML().find("Add JP")!=std::string::npos,"empty region offers Add");capture("jp-empty.tga");
+    demand(element("rom-library-import")->GetInnerRML().find("Add JP")!=std::string::npos,"empty region offers Add");capture("jp-empty.tga");
     library("jpn",true);demand(element("action-region-jpn")->IsClassSet("selected"),"JP selection retained after load");
     demand(element("rom-count")->GetInnerRML().find("3 of 3")!=std::string::npos,"all three count");capture("three-loaded.tga");
+    demand(element("rom-library-import")->GetClientWidth()>100,"ROM button has room for its visible label");
+    pointerClick("rom-library-import");demand(lastAction=="rom","library import remains clickable");
     frameState.busy=true;settle();demand(element("action-region-us")->HasAttribute("disabled") && element("action-play")->HasAttribute("disabled"),"busy selection and Play locked");
     frameState.busy=false;settle();element("action-region-us")->Focus();FrontendUiMessage(WM_KEYDOWN,VK_RETURN,0);demand(lastAction=="region-us","keyboard selects region");
     for(float dpi:{1.f,1.5f}) {

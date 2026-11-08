@@ -76,7 +76,7 @@ scrollbarvertical sliderbar { background: #2e3a57; border-radius: 4dp; }
 /* Sidebar sections adapted from the owner's Video.dc.html reference. */
 #video-layout { display: flex; flex: 1; min-height: 0; }
 #video-nav { width: 200dp; flex-shrink: 0; padding: 14dp 10dp; background: #0e1320; border-right: 1dp #222b40; }
-#video-search { width: 100%; height: 38dp; padding: 0 10dp; background: #0b0f17; border: 1dp #2e3a57; border-radius: 8dp; }
+#video-search { width: 100%; box-sizing: border-box; height: 32dp; line-height: 20dp; padding: 5dp 10dp; background: #0b0f17; border: 1dp #2e3a57; border-radius: 8dp; }
 #video-tabs { margin-top: 14dp; }
 .video-tab { display: flex; width: 100%; height: 46dp; padding: 0 10dp; margin-bottom: 4dp; text-align: left; justify-content: flex-start; color: #a7b0c2; border-color: transparent; border-radius: 8dp; background: transparent; font-weight: bold; }
 .video-tab:hover { background: #161d2e; }

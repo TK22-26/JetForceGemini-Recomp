@@ -1,4 +1,7 @@
 #include "jfg/runtime/cutscene_skip.hpp"
+#include "jfg/runtime/cutscene_skip_diagnostics.hpp"
+#include <filesystem>
+#include <fstream>
 #include "jfg/runtime/cutscene_skip_button.hpp"
 #include "jfg/runtime/cutscene_script.hpp"
 #include "jfg/runtime/cutscene_completion.hpp"
@@ -8,6 +11,38 @@
 #define CHECK(x) do { if(!(x)){std::cerr<<"line "<<__LINE__<<": "<<#x<<'\n';return 1;} ++checks;}while(false)
 int main() {
  unsigned checks=0;
+ {
+   CHECK(jfg::cutscene_elapsed_ms(1000,4350)==3350);
+   CHECK(jfg::cutscene_elapsed_ms(1000,999)==0);
+   for(unsigned phase=0;phase<6;++phase) {
+     const auto record=jfg::cutscene_support_record(static_cast<jfg::CutsceneSupportPhase>(phase),
+         ~0U,~0U,~0U,~0U,~0U,std::numeric_limits<std::uint64_t>::max());
+     const std::string_view text=record.data();
+     CHECK(!text.empty() && text.size()<=160);
+     CHECK(text.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789=_-/")==std::string_view::npos);
+   }
+   CHECK(jfg::cutscene_support_record(static_cast<jfg::CutsceneSupportPhase>(99),0,0,0,0,0,0)[0]=='\0');
+#if defined(_WIN32)
+   const auto folder=std::filesystem::temp_directory_path()/
+       (L"jfg-cutscene-support-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64()));
+   CHECK(std::filesystem::create_directory(folder));
+   const auto log=folder/L"native.log";
+   wchar_t previous[32768]{};const auto previous_size=GetEnvironmentVariableW(L"JFG_SUPPORT_LOG",previous,32768);
+   CHECK(previous_size<32768);
+   CHECK(SetEnvironmentVariableW(L"JFG_SUPPORT_LOG",log.c_str()));
+   jfg::cutscene_support_event(jfg::CutsceneSupportPhase::request,322,0,0,0,0,0);
+   jfg::cutscene_support_event(jfg::CutsceneSupportPhase::complete,323,3,0,0,9,2993);
+   jfg::cutscene_support_event(jfg::CutsceneSupportPhase::settled,127,0,323,3,9,3415);
+   std::string text;
+   {std::ifstream file(log);text.assign(std::istreambuf_iterator<char>(file),{});}
+   CHECK(text=="cutscene=request_level=322_group=0_next=0_next_group=0_n=0_ms=0\n"
+       "cutscene=complete_level=323_group=3_next=0_next_group=0_n=9_ms=2993\n"
+       "cutscene=settled_level=127_group=0_next=323_next_group=3_n=9_ms=3415\n");
+   CHECK(SetEnvironmentVariableW(L"JFG_SUPPORT_LOG",previous_size?previous:nullptr));
+   CHECK(std::filesystem::remove(log));CHECK(std::filesystem::remove(folder));
+#endif
+ }
+
  for(unsigned hz: {20U,30U,60U,120U,360U}) {
    jfg::CutsceneSkipHold s;
    CHECK(!s.sample(1,true,false,true,0));

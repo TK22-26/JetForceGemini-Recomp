@@ -5,7 +5,7 @@ A bug belongs in the confirmed list only after observation on a physical N64. Or
 results are useful evidence, but must name the emulator and remain distinct from hardware confirmation.
 A difference between ROM regions is not automatically a bug.
 
-- [Confirmed native bugs](bugs.md): reproduction, hardware provenance, actual cause and the recomp's decision.
+- [Native bug catalog](bugs.md): hardware-confirmed and owner-reported observations, reproduction, provenance, cause and the recomp's decision.
 - [Regional differences](regional-differences.md): NTSC/PAL/JP observations and unanswered comparisons.
 - [Investigation records](../development/issues/README.md): detailed attempts and fixes, including recomp-only defects.
 

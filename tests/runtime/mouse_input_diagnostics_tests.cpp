@@ -14,7 +14,9 @@ static std::uint64_t count(const jfg::MouseSupportSnapshot& s,jfg::MouseCount c)
 }
 int main(int argc,char** argv) {
     jfg::MouseInputDiagnostics d;
+    d.capture({1,1,1,1,1,1,2,0});
     auto s=d.snapshot();
+    assert(s.capture[0]==1 && s.capture[1]==1 && s.capture[6]==2 && s.capture[7]==0);
     assert(count(s,jfg::MouseCount::messages)==0 && count(s,jfg::MouseCount::accepted_nonzero)==0);
     assert(s.state[5]==0 && s.state[6]==0); // unknown focus must not claim a focus measurement
     d.registration(true,999);s=d.snapshot();assert(s.state[0]==1 && s.state[1]==0);
@@ -69,6 +71,7 @@ int main(int argc,char** argv) {
     for(auto& v:s.counts)v=std::numeric_limits<std::uint64_t>::max();
     s.elapsed_ms=std::numeric_limits<std::uint64_t>::max();
     for(auto& v:s.state)v=std::numeric_limits<std::uint32_t>::max();
+    for(auto& v:s.capture)v=std::numeric_limits<std::uint32_t>::max();
     for(auto& p:s.players)for(auto& v:p)v=std::numeric_limits<std::uint16_t>::max();
     assert(jfg::format_mouse_support(s,formatted));
     const std::string maximum=formatted;assert(maximum.size()<1024);
@@ -77,7 +80,7 @@ int main(int argc,char** argv) {
         const auto end=maximum.find('\n',start);assert(end!=std::string::npos && end-start<=256);
         start=end+1;++lines;
     }
-    assert(lines==8);
+    assert(lines==9);
     jfg::MouseSupportHistory maximum_history;
     for(std::size_t i=0;i<75;++i)maximum_history.push(s);
     std::size_t history_bytes=0;
@@ -85,7 +88,7 @@ int main(int argc,char** argv) {
         assert(jfg::format_mouse_support(maximum_history.at(i),formatted));
         history_bytes+=std::strlen(formatted);
     }
-    assert(maximum_history.size()==60 && history_bytes==53040 && history_bytes<65536);
+    assert(maximum_history.size()==60 && history_bytes==maximum.size()*60U && history_bytes<65536);
 #if defined(_WIN32)
     if(argc==2) {
         assert(jfg::write_mouse_support(maximum_history));
@@ -93,7 +96,7 @@ int main(int argc,char** argv) {
         const std::string actual((std::istreambuf_iterator<char>(input)),{});
         std::string expected_maximum;
         for(std::size_t i=0;i<60;++i)expected_maximum+=maximum;
-        assert(actual==expected_maximum && actual.size()==53040);
+        assert(actual==expected_maximum && actual.size()==maximum.size()*60U);
     }
 #endif
     std::cout<<"mouse diagnostics tests passed; maximum snapshot bytes="<<maximum.size()<<"; maximum history bytes="<<history_bytes<<"\n";

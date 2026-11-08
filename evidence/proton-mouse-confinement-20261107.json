@@ -1,0 +1,239 @@
+{
+  "schema": 1,
+  "status": "owner-manually-verified-working-on-bazzite-unreleased",
+  "date": "2026-11-07",
+  "regions": {
+    "us": {
+      "identity": {
+        "schema_version": 2,
+        "kind": "jfg-native-program-identity",
+        "revision_id": "jfg-us-r0",
+        "rom_sha1": "493ced9008dbe932d6e91179b68e8630cf23a023",
+        "rom_size": 33554432,
+        "descriptor_abi": 1,
+        "binding_abi": 3,
+        "program_model_sha256": "35a215fba8a41f24b85e61d3ddcf0268f97d51231d6838c54590cdbab8151e92",
+        "generation_input_sha256": "d5a2a875cd936c26701e1dae02f3c68825f015614f31e60b701e11485fc0dc41",
+        "initial_tv_mode": 1,
+        "qualification": "candidate",
+        "build_identity": "MSVC-19.40.33811.0-Release-NativeTimingPreview-NativePlayOptimized",
+        "build": {
+          "source_sha256": "92637d53a333fa5ede370f80a3093453f7a70375c5a192d9b42f61ef54710a8f",
+          "generated_sources_sha256": "5642970963d5c669cdd2b32cf3441ce3f565a030013a1b87def9d7ab3bc14c0e",
+          "descriptor_sha256": "dee470a3db6b968186d28889d66acccc80d7a5884baadb138f6fa66390c47883",
+          "bindings_sha256": "842fefc45dd6f5b8c6a348a3c136bba1e2d2ba6e760d03f5a7162279e9a6c11f",
+          "generator_sha256": "93f67bb52c079cc289e47c017c8f55fb1a16ba88cc62749a17f407abad000990",
+          "audio_sha256": "5f34780c81c9685087b391c0a69054450ceb1fbb83ab585f8de169e1655a6d91",
+          "dependencies_sha256": "6d189e4214087791c67ddbd4a6bbfe0a9711db5f4700dd635a32409052eae563",
+          "configuration_sha256": "3233cb41ca023904214bf89c2ad0dbb70197858af843e0199b0f88c31ac401bb",
+          "build_sha256": "059dd7e614e9d8efda11e4aa6e96bac0490013877cce8dea13b220de1b157921"
+        }
+      },
+      "runtime_sha256": "d2af03c8ca6de568aff2c1e01d188e05c4fdd004ab26e472c62eb3558831c282",
+      "save_load": {
+        "exit_code": 0,
+        "front_mode": 16,
+        "unsupported_accesses": 0,
+        "journal_overflow": false,
+        "frame_reviewed": true,
+        "private_original_save_preserved": true
+      }
+    },
+    "pal": {
+      "identity": {
+        "schema_version": 2,
+        "kind": "jfg-native-program-identity",
+        "revision_id": "jfg-pal-r0",
+        "rom_sha1": "50651c4e0c46332f7f0b45870263f0a8b9a49602",
+        "rom_size": 33554432,
+        "descriptor_abi": 1,
+        "binding_abi": 3,
+        "program_model_sha256": "5bc99cdef9e795c1df5ad921cbbae91fd1627d11602fcb3ab9bae5c07bf0f250",
+        "generation_input_sha256": "ea88ac10d79ae49fbc24e182f4a3bebb0c5325a1cf2b86fc2981ac97307bf7ec",
+        "initial_tv_mode": 0,
+        "qualification": "candidate",
+        "build_identity": "MSVC-19.40.33811.0-Release-NativeTimingPreview-NativePlayOptimized",
+        "build": {
+          "source_sha256": "92637d53a333fa5ede370f80a3093453f7a70375c5a192d9b42f61ef54710a8f",
+          "generated_sources_sha256": "bb15ae4fd58b0e29382687c3951ee67dbbaffd819aa20ce4b6bb91f952bd4b58",
+          "descriptor_sha256": "a547562578a9b8a2f70bbc7f4f1a7b00a245cd59edd19453014c409fa72b51b9",
+          "bindings_sha256": "9967c4e511320e0a53c1e18a21bda816ee7cb32211b7dddaa9c04c887d815ffd",
+          "generator_sha256": "93f67bb52c079cc289e47c017c8f55fb1a16ba88cc62749a17f407abad000990",
+          "audio_sha256": "5f34780c81c9685087b391c0a69054450ceb1fbb83ab585f8de169e1655a6d91",
+          "dependencies_sha256": "8572958fd3ed7b7176bc7c010d21aa95fca7c7522bad785f9397d1e14541d3d4",
+          "configuration_sha256": "4282257a8a2fd557e46cd86d30e0a0e139713361aefe91a25c64394b77a98bb4",
+          "build_sha256": "86252c332906814076e021f9efca51315f6c26f45f21e75cfc4d73a4c56b3cd0"
+        }
+      },
+      "runtime_sha256": "c70fd76ad483d8065780691fed6289965365a97e5e21dffcdc256cb5344c32f6",
+      "save_load": {
+        "exit_code": 0,
+        "front_mode": 16,
+        "unsupported_accesses": 0,
+        "journal_overflow": false,
+        "frame_reviewed": true,
+        "private_original_save_preserved": true
+      }
+    },
+    "jpn": {
+      "identity": {
+        "schema_version": 2,
+        "kind": "jfg-native-program-identity",
+        "revision_id": "star-twins-jp-r0",
+        "rom_sha1": "15099233760b36e7afad7da36b9464da1512c4b1",
+        "rom_size": 33554432,
+        "descriptor_abi": 1,
+        "binding_abi": 3,
+        "program_model_sha256": "685429ff694a56c9a1bb2d29259dd005f2fc8536e995750404a8201311508d3e",
+        "generation_input_sha256": "a1385aa5039f9e0ce52f233339830c5432a75f2d9852cf000ea14b149bb19285",
+        "initial_tv_mode": 1,
+        "qualification": "candidate",
+        "build_identity": "MSVC-19.40.33811.0-Release-NativeTimingPreview-NativePlayOptimized",
+        "build": {
+          "source_sha256": "92637d53a333fa5ede370f80a3093453f7a70375c5a192d9b42f61ef54710a8f",
+          "generated_sources_sha256": "ff11c1558c5d47c9170377d08cc8cc21dab17ab58d9d857060e071302fbadcf4",
+          "descriptor_sha256": "8f88d85a69e3f91e00bae4b42eb9ad0e67cbf1285e7e5b4f7f9b0bbf6fb8d40a",
+          "bindings_sha256": "a1a1e91aef8c5b0c23f6f1fbee214c67e1b4a39f544a52bace641ffbff771aae",
+          "generator_sha256": "93f67bb52c079cc289e47c017c8f55fb1a16ba88cc62749a17f407abad000990",
+          "audio_sha256": "5f34780c81c9685087b391c0a69054450ceb1fbb83ab585f8de169e1655a6d91",
+          "dependencies_sha256": "242fc5e2f50c61c36e9b5bcec6a8090638646703ff5977d6de7ab584b5262751",
+          "configuration_sha256": "1a84dde522382a4358ed81cf6acce9d3be44f64f6ce49d36e28aa8f799480c1f",
+          "build_sha256": "70feda4b1c0f6ba7622019bc01142223cb515f485b92b32fcdeb1b43ad2d23b4"
+        }
+      },
+      "runtime_sha256": "eb62c3d75f756ebc016b8adde2c4b88a216422078064742470b01a28f0cc2a08",
+      "save_load": {
+        "exit_code": 0,
+        "front_mode": 16,
+        "unsupported_accesses": 0,
+        "journal_overflow": false,
+        "frame_reviewed": true,
+        "private_original_save_preserved": true
+      }
+    }
+  },
+  "owner_evidence": {
+    "region": "jfg-us-r0",
+    "runtime_sha256": "fd8cfcb976a468d9184cfbea9338c138ca9f9632036611c99208950ba3abcda3",
+    "window_mode": "windowed",
+    "opening_skip_ms": 1828,
+    "focus_lost_delta": 10,
+    "accepted_nonzero_delta": 13470,
+    "look_nonzero_delta": 854,
+    "clip_success_observed": false
+  },
+  "capture_tests": {
+    "windows": true,
+    "ge_proton_x11": true,
+    "scope": [
+      "denied clip API",
+      "center confinement",
+      "resize",
+      "settings release",
+      "focus gating",
+      "owner thread",
+      "reacquire"
+    ]
+  },
+  "rendered_proton": {
+    "exit_code": 0,
+    "active_samples_checked": 20,
+    "independently_observed_pointer_positions": 1,
+    "nonzero_mailbox_frames": 78,
+    "nonzero_camera_frames": 78,
+    "baseline_also_confined_on_x11": true
+  },
+  "diagnostics": {
+    "maximum_sample_bytes": 986,
+    "maximum_history_bytes": 59160,
+    "history_cap_bytes": 65536,
+    "launcher_sanitizer_tests": true
+  },
+  "limits": [
+    "Owner acceptance is the current Bazzite local build, not a tagged release or separate Steam Deck/regional qualification.",
+    "Prior failed retest and narrower local checks remain preserved; the precise failure/recovery mechanism is unconfirmed.",
+    "No runtime change was made during the final focused-diagnostics continuation.",
+    "X11 pointer sampling is independent of Wine API queries but is not direct compositor observation.",
+    "Automated sessions muted; no additional audio-underrun remediation."
+  ],
+  "private_evidence_id": "proton-mouse-capture-20261107",
+  "actual_launcher_proton": {
+    "passed": true,
+    "scope": "Actual current launcher and USA runtime on GE-Proton11-11, isolated X11, software Vulkan, muted private profile, no replay or detailed trace",
+    "exit_code": 0,
+    "captured_samples_before_menu": 28,
+    "released_samples_in_menu": 5,
+    "captured_samples_after_menu": 18,
+    "independent_pointer_positions_while_captured": 1,
+    "camera_resumed": true,
+    "aim_fire_buttons_exercised": true,
+    "aim_fire_semantics_require_manual_confirmation": true,
+    "owner_wayland_retest_required": true
+  },
+  "owner_retest": {
+    "session_utc": "2026-11-07T20:07:04Z",
+    "runtime_sha256": "d2af03c8ca6de568aff2c1e01d188e05c4fdd004ab26e472c62eb3558831c282",
+    "driver": "winex11.drv",
+    "proton": "GE-Proton11-11",
+    "result": "failed: pointer escapes, outside clicks lose focus, motion stops at monitor edge",
+    "api_checks_all_pass_while_reported_failure": true,
+    "root_cause_confirmed": false,
+    "default_proton_log_has_cursor_driver_trace": false
+  },
+  "renewed_compositor_checks": {
+    "private_evidence_id": "proton-mouse-retest-20261107",
+    "environment": "KWin 5.27, Xwayland, software Vulkan, GE-Proton11-11, actual launcher and USA runtime, private muted profile",
+    "unbounded_seat_input_and_menu_reentry": {
+      "exit_code": 0,
+      "samples": 92,
+      "maximum_camera_outputs": 67,
+      "passed": true,
+      "relative_motion_pixels": 2500
+    },
+    "native_wayland_focus_change": {
+      "exit_code": 0,
+      "samples": 107,
+      "maximum_camera_outputs": 65,
+      "capture_state_assertion_passed": false,
+      "observation": "Win32 capture state remains active while native Wayland terminal receives focus; camera delivery stops and resumes on return. Not proof of owner escape cause."
+    },
+    "optional_native_wine_wayland": {
+      "exit_code": 124,
+      "samples": 0,
+      "maximum_camera_outputs": 0,
+      "passed": false,
+      "observation": "Driver loads but hosted-game test does not reach active capture and times out; not offered as a qualified workaround."
+    }
+  },
+  "focused_trace_tool": {
+    "live_proton_check": true,
+    "function_counts": {
+      "NtUserClipCursor": 4,
+      "process_wine_clipcursor": 4,
+      "grab_clipping_window": 2,
+      "ungrab_clipping_window": 2
+    },
+    "trace_bytes": 960,
+    "x11_samples": 501,
+    "usb_copy_verified": true,
+    "windows_unit_tests": {
+      "passed": 8,
+      "skipped": 1
+    },
+    "linux_unit_tests": {
+      "passed": 9,
+      "skipped": 0
+    },
+    "raw_trace_is_private": true,
+    "final_tool_sha256": "0d88e29eaf83e240ace013503199236977a0d5f953f51e71bbfbfd1f15484686"
+  },
+  "owner_acceptance": {
+    "recorded_utc": "2026-11-08",
+    "statement": "I manually tested on bazzite and its now fully working",
+    "kind": "owner manual confirmation",
+    "supersedes_prior_failed_retest": true,
+    "new_driver_capture_analyzed": false,
+    "precise_cause_confirmed": false,
+    "separate_region_or_steam_deck_coverage_inferred": false
+  }
+}

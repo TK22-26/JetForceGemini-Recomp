@@ -12,12 +12,13 @@ Set these variables in the environment of a developer runtime process, using a n
 | JFG_GAMEPLAY_TRACE_MEMORY=1 | Buffer up to 256 MiB in RAM; write the TSV on normal finish. Required for this profiler. |
 | JFG_DIAGNOSTIC_FUNCTION_PROFILE=1 | Major update stages: entities, drones, pathfinding, animation and level drawing. |
 | JFG_DIAGNOSTIC_FUNCTION_PROFILE=2 | Every dispatch reached on the root update's host thread, aggregated by function and caller per update. |
+| JFG_DIAGNOSTIC_FUNCTION_PROFILE=3 | Full dispatch scopes rooted independently on each participating guest thread within the bounded VI window. |
 | JFG_DIAGNOSTIC_PROFILE_FIRST_VI | First VI at which to start profiling a root update; default 3300. |
 | JFG_DIAGNOSTIC_PROFILE_LAST_VI | Exclusive start cutoff; default 4500. At most 3600 VIs per capture window. |
 | JFG_DIAGNOSTIC_UPDATE_CYCLES=1 | Independent root-thread cycle observation paired with update-work. |
 | JFG_DIAGNOSTIC_GPU_COSTS=1 | Framebuffer and regular-workload GPU timestamp queries; requires function profiling. |
 
-A root that starts inside the window is measured through its return. The VI window includes elapsed game/menu time; select it from a prior route capture. Function recording includes native dispatch paths as well as generated bodies. It covers the owning update thread, not all renderer/audio threads. Process-cycle deltas and guest-baton wake measurements provide separate wider observations.
+A root that starts inside the window is measured through its return. The VI window includes elapsed game/menu time; select it from a prior route capture. Function recording includes native dispatch paths as well as generated bodies. Modes 1/2 cover the owning update thread; mode 3 includes guest PI/audio/OS threads, but not arbitrary renderer/host workers. Process-cycle deltas and guest-baton wake measurements provide separate wider observations.
 
 Normal finish writes the memory trace. A crash/forced termination can lose that buffer. Overflow writes an explicit limit marker and stops recording; it never silently wraps. The optional memory mode opens/truncates the selected output at startup and defers gameplay rows until finish. Other diagnostics such as the FPS CSV can still use their own buffered writer.
 
@@ -79,3 +80,22 @@ Each update also carries the most recent transition call and its age. This prese
 ROM loading observations are available without full function profiling. The rare rom-dma record reports per-update reads, copied bytes, reference bus ticks, scheduled ticks and native-read count after VI/poll. It distinguishes synchronous host copying from deferred emulated cartridge completion; durations are scheduling counters, not thread CPU measurements. See [native ROM policy](native-rom-loading.md).
 
 Private RT64 stage instrumentation altered a padding-dependent cache defect and hid its hitch. A clean rebuild restored the event; external thread sampling located hash-table growth without modifying the function. Treat instrumentation-induced disappearance as an observer effect until an independently failing regression and unprofiled corrected run support a remedy. See [PERF-003](../issues/renderer-cache-key-instability.md).
+
+## Wall timing when host cycle counters are unavailable
+
+`function-profile-wall` adds end VI/poll, start VI/poll, host thread, target,
+parent, calls, inclusive wall nanoseconds, exclusive wall nanoseconds, maximum
+call wall nanoseconds and independent wall validity. Unavailable cycle samples
+must not erase valid steady-clock durations. Thread mismatch, backwards clocks,
+depth/edge overflow and invalid child sums still invalidate wall observations.
+
+Multiple independent roots can share VI/poll/thread identity. Preserve each
+contiguous emission block and validate its exclusive/root totals; do not silently
+overwrite repeated keys. Inclusive times across guest threads overlap while
+threads wait for one another. Wall time is not CPU time or pure switch overhead.
+
+The existing analyzer retains its strict cycle-complete mode 1/2 contract; it
+does not yet summarize mode 3 or wall-only Proton profiles. The GH-041 private
+analysis validates wall emission blocks independently and retains this limitation.
+Use unprofiled comparisons to validate performance. These diagnostic changes are
+off by default; current qualification is linked from the GH-041 issue record.

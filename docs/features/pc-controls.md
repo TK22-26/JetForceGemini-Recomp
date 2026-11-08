@@ -101,3 +101,12 @@ await manual verification. The local v33 build is unreleased. See the
 [Aim-release record](../development/issues/modern-aim-release-camera-snap.md).
 The owner accepts the separate [backward body-tilt correction](../development/issues/pal-modern-backward-body-tilt.md)
 on PAL with a controller. These local results are not v1.4.0 release claims.
+
+Windowed relative mouse capture is owned by the render-window thread and locks
+the desktop pointer at the client center while consuming raw motion. Menus,
+settings and focus loss release it. The [Proton confinement implementation](../development/issues/proton-mouse-confinement.md)
+passes local Windows/X11 checks. After an earlier failed retest, the owner manually
+confirms the current build is fully working on Bazzite on November 8. The precise
+cause remains unconfirmed; API acceptance alone is not proof of physical confinement.
+This acceptance is local and unreleased; separate regional/Steam Deck coverage is
+not inferred.

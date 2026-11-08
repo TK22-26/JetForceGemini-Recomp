@@ -19,6 +19,12 @@ target_compile_features(jfg_game_descriptor_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_game_descriptor_tests)
 add_test(NAME jfg.game_descriptor COMMAND jfg_game_descriptor_tests)
 
+add_executable(jfg_native_rom_dma_tests runtime/native_rom_dma_tests.cpp)
+target_link_libraries(jfg_native_rom_dma_tests PRIVATE jfg_boot)
+target_compile_features(jfg_native_rom_dma_tests PRIVATE cxx_std_20)
+jfg_set_project_warnings(jfg_native_rom_dma_tests)
+add_test(NAME jfg.native_rom_dma COMMAND jfg_native_rom_dma_tests)
+
 add_executable(jfg_native_audio_source_tests runtime/native_audio_source_tests.cpp)
 target_link_libraries(jfg_native_audio_source_tests PRIVATE jfg_boot)
 target_compile_features(jfg_native_audio_source_tests PRIVATE cxx_std_20)
@@ -724,3 +730,12 @@ target_include_directories(jfg_rom_assets_tests PRIVATE "${PROJECT_SOURCE_DIR}/i
 target_compile_features(jfg_rom_assets_tests PRIVATE cxx_std_20)
 jfg_set_project_warnings(jfg_rom_assets_tests)
 add_test(NAME jfg.rom_assets COMMAND jfg_rom_assets_tests)
+
+if(WIN32)
+  add_executable(jfg_win32_relative_mouse_tests runtime/win32_relative_mouse_tests.cpp)
+  target_include_directories(jfg_win32_relative_mouse_tests PRIVATE "${PROJECT_SOURCE_DIR}/include")
+  target_compile_features(jfg_win32_relative_mouse_tests PRIVATE cxx_std_20)
+  target_link_libraries(jfg_win32_relative_mouse_tests PRIVATE user32)
+  jfg_set_project_warnings(jfg_win32_relative_mouse_tests)
+  # Interactive window contract; run explicitly with the other Windows UI tests.
+endif()

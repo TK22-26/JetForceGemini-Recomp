@@ -31,7 +31,11 @@ excluded. GitHub issue attachments are the intake; nothing uploads automatically
   distinguishes stalled emulation from continuing progress.
 
 - **Mouse delivery.** Counts and effective input settings, without coordinates,
-  window handles, titles or key histories.
+  window handles, titles or key histories. The additive `mouse_capture` record has eight
+  unsigned fields: requested, active, geometry valid, clip API accepted, returned
+  rectangle matches, queried pointer inside, cumulative clip attempts and last
+  error. These are host API observations, not independent compositor proof.
+  The 60-sample history stays below 64 KiB even at maximum counter values.
 - **Presentation.** The fixed backend enum, composition HRESULT, and bounded
   window visibility/size/parent flags help investigate an audible but black
   game window. No window titles, handles, paths or screenshots are exported.
@@ -114,3 +118,25 @@ nonzero exit. These checks do not cover clean-machine UAC setup or gameplay.
 API references: [process snapshots](https://learn.microsoft.com/en-us/windows/win32/api/processsnapshot/nf-processsnapshot-psscapturesnapshot),
 [thread records](https://learn.microsoft.com/en-us/windows/win32/api/processsnapshot/ns-processsnapshot-pss_thread_entry),
 [DbgHelp stack walking](https://learn.microsoft.com/en-us/windows/win32/api/dbghelp/nf-dbghelp-stackwalk64).
+
+## Focused Proton pointer capture
+
+For the open [windowed Proton confinement defect](issues/proton-mouse-confinement.md),
+run `bash scripts/diagnostics/capture-proton-mouse.sh --install --root /path/to/JFG`
+on Linux and use the single Steam launch option it prints. The installation must
+contain `game/JFG-Launcher.exe`. Restore the prior Steam launch options afterward.
+Keep the two tool files together. Installation from removable media adds a verified
+copy back to that folder; an unavailable USB leaves the local archive intact.
+
+The wrapper filters Wine cursor/focus function records in memory before writing,
+reads only input-policy registry keys, and samples X11 pointer/focus for at most
+five minutes. Its 16 MiB driver log excludes key/window text; numeric handles and
+pointer coordinates are intentionally retained for this private investigation.
+Only the allowlisted new session logs are included, each capped at 2 MiB. A normal
+close creates `mouse-captures/<timestamp>.tar.gz`. No upload, prefix modification,
+ROM/save collection or change to manual audio settings occurs. This archive is
+separate from the sanitized support ZIP described above and should stay private.
+A missing registry/display/grab trace is an explicit limitation, not a pass.
+
+The live KWin/Xwayland/GE-Proton check qualifies the collector and USB copy;
+it does not establish a fix on the owner's Bazzite/NVIDIA compositor.

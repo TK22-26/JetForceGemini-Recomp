@@ -807,9 +807,11 @@ namespace JfgLauncher
                 const string mouseFlow = "mouse_flow=14/32/0/2/16/15";
                 const string mouseState = "mouse_state=6000/1/0/0/1/1/1/1/0/0/0/1/1/1/0";
                 const string mousePlayer = "mouse_player=0/1/1/1/1/100/80/120/0/0/1/1/3";
-                string mouseEvidence = "mouse_schema=1\n" + mouseCounts + "\n" + mouseFlow + "\n" + mouseState + "\n" + mousePlayer + "\n";
+                const string mouseCapture = "mouse_capture=1/1/1/1/1/1/2/0";
+                string mouseEvidence = "mouse_schema=1\n" + mouseCounts + "\n" + mouseFlow + "\n" + mouseState + "\n" + mouseCapture + "\n" + mousePlayer + "\n";
                 string mousePath = Path.Combine(support.DirectoryPath, "mouse.log");
                 File.WriteAllText(mousePath, mouseEvidence + "mouse_schema=2\nmouse_counts=1/2\nmouse_flow=-1/0/0/0/0/0\nmouse_player=0/1/1/1/1/100/80/120/0/0/1/1/3/9\nmouse_path=PRIVATE-PATH-CANARY\nmouse_counts=" + new string('9', 21) + "/0/0/0/0/0/0/0\n");
+                File.AppendAllText(mousePath, "mouse_capture=1/1/1/1/1/1/2/0/9\nmouse_capture=1/1/1/1/1/1/-2/0\nmouse_capture=PRIVATE-CANARY\nmouse_capture=1/1/1/1/1/1/99999999999/0\n");
                 Check(SupportSession.SanitizeFile(mousePath) == mouseEvidence, "bounded mouse diagnostics rejected or private/malformed data accepted");
                 File.WriteAllText(Path.Combine(directory, "frontend-presentation.log"),
                     "backend=window\ncomposition_hresult=0x80004001\nbackend=PRIVATE-PATH-CANARY\n");

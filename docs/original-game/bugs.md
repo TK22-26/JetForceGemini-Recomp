@@ -1,6 +1,11 @@
-# Confirmed bugs on original N64 hardware
+# Original N64 bugs
 
-## N64-001: Tawfret chief cinematic shows a camera-helper square
+Hardware-confirmed observations and owner-reported native behavior are recorded
+separately. A screenshot alone does not establish the console or capture setup.
+
+## Confirmed on original N64 hardware
+
+### N64-001: Tawfret chief cinematic shows a camera-helper square
 
 - **Symptom:** a small yellow floating square is visible beside the chief in several cinematic shots.
 - **Reproduction:** view the Tawfret chief cinematic and inspect the background around the chief;
@@ -24,4 +29,23 @@ The separate bad-angle camera-cut interpolation was a recomp defect, not this na
 See the [complete investigation, failures, source and validation](../development/issues/tawfret-chief-camera-and-square.md)
 and [published qualification](../releases/qualification-1.4.0.md).
 
-No other observation is promoted to confirmed hardware-bug status by this documentation cleanup.
+## Owner-reported native bugs
+
+### N64-002: Texture wash over the Goldwood starting bridge (NTSC)
+
+- **Symptom:** the owner describes a weird texture that "washes over" the
+  Goldwood starting bridge. Two supplied screenshots show the bridge deck from
+  nearby views; the reported moving effect is not captured by still images alone.
+- **Reported:** 2026-11-07, by the owner, who identifies this as an original-game
+  bug in **NTSC**. Exact ROM revision, console/display and screenshot capture
+  source were not specified. This records the native-game report without
+  inferring a separate physical-N64 test from the screenshots.
+- **Location/reproduction:** inspect the starting bridge in Goldwood. Exact
+  movement, camera angle, timing and repeatability were not recorded.
+- **Cause:** unknown; no rendering cause has been established or investigated.
+- **Recomp decision: preserve; no fix requested.** The owner explicitly asked
+  for documentation only. No runtime change, experiment or fix is scheduled.
+- **Limits:** cosmetic report; no gameplay effect reported. PAL and JP behavior
+  is unverified, not assumed to match NTSC.
+- **Evidence:** both original screenshots are retained privately with hashes in
+  the [issue record](../development/issues/goldwood-starting-bridge-texture-wash.md).

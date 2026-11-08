@@ -1,5 +1,16 @@
 # AUDIO-004: Persistent audio latency (#35); earlier crackling report #29 closed
 
+## Current evidence — 2026-11-04 UTC
+
+The six November 1 attachments are now analyzed. They identify the released
+v1.4.0 runtime and contain a late 113.563-second pause-like breadcrumb gap, but
+no audio queue, device-consumption or latency measurements. The delay's trigger
+remains unknown. The recovery candidate is now on develop; the owner's SS Anubis
+regression-listening acceptance stands, while affected-user retest remains open.
+A separate [support export defect](audio-recovery-support-export.md) was reproduced:
+the current exporter removes recovery-event records written by the runtime.
+That limits future diagnosis; it does not establish the cause of #35.
+
 ## Delivery and issue status — 2026-10-22 UTC
 
 On October 22, the #35 reporter supplied six logs from v1.4.0 and confirmed that latency still increases in sudden steps, sometimes repeatedly. Pause/unpause restores synchronization. Device and display settings are now supplied, but the cause remains unlocalized and no latency fix is claimed. #35 stays open. The separate RTSS finding for #29 is retained.
@@ -457,3 +468,114 @@ Status: local backlog recovery accepted for owner regression route; affected rep
 Recover a sustained host audio backlog after a temporary output stall without changing healthy buffering; retain the changelog request to retest.
 
 Verification: Existing eight audio suites and fault/parity checks passed; Owner SS Anubis listening pass reported no regression; owner did not originally have the fault; No affected-machine retest or new root trigger established. No GitHub action was performed.
+
+## New attachment intake, 2026-11-04 UTC
+
+The live [November 1 report](https://github.com/TK22-26/JetForceGemini-Recomp/issues/35#issuecomment-6553137165)
+adds a second affected v1.4.0 user and six individual attachments: mouse,
+breadcrumbs, build, controller, launcher and native logs (attachment IDs
+34231130, 34231132, 34231131, 34231127, 34231128 and 34231129 respectively).
+The reporter describes roughly 20-minute onset, a 45-minute session and pause
+resynchronization; those remain reporter statements, not newly parsed findings.
+The original reporter separately reports onset within five minutes or less.
+
+The November 4 status/PR review read those comments but did not inspect these
+six attachment contents or run additional audio tests. Analyze the available
+logs before requesting more evidence. Released-v1.4.0 failures do not establish
+failure of the unreleased backlog-recovery candidate. Owner regression listening
+remains accepted; affected-machine resolution remains unverified. The enabled
+production guard's existing investigation is shelved at its attempt/activity
+caps; this intake does not reopen it or grant further execution.
+
+## November 1 attachment analysis — 2026-11-04 UTC
+
+Following the intake above, the owner approved a two-hour research continuation
+under the same enabled production guard. The six linked logs were retrieved and
+hashed. No game session, listening test, underrun-remediation work or production
+runtime change was performed. The prior guard exhaustion and prior checks retain
+their dates; this is new attachment analysis, not retrospective verification.
+
+### What the additional reporter supplied
+
+The [November 1 comment](https://github.com/TK22-26/JetForceGemini-Recomp/issues/35#issuecomment-6553137165)
+describes roughly 20-minute onset, growing delay up to about five seconds,
+pause/unpause resynchronization and a roughly 45-minute session with a two-minute
+pause near the end. The original reporter separately reports onset within five
+minutes or less. These are reporter observations, not latency measurements.
+
+The second reporter lists Windows 11 Pro build 26200, RTX 3080 Ti / driver
+617.14, 144 Hz cap with VSync, 16-bit 48 kHz desktop audio, an Xbox controller,
+ASUS Sonic Studio Virtual Mixer and NVIDIA Virtual Audio Device, and no RTSS.
+The attachments do not contain the actual output endpoint or its consumption
+clock. Listing installed devices does not identify the active audio route.
+Together with the earlier Audigy 2 report, this widens the affected configurations;
+it does not establish a shared trigger, condemn a specific device or connect
+this delay to the separate closed RTSS crackling report.
+
+All six files belong to clean runtime source
+`521f66620e734671a06a07f118e874076f02a133`, runtime SHA-256
+`ca182f75001132eb006b884349d44293a2d2118c63c4df5e39dd9a812e368596`.
+The launcher identifies v1.4.0 / `5ec705f7d1575135e7965fe1376666b225f22ee1`.
+This is the same released runtime as the four October 30 mouse ZIPs; it does not
+include the later sustained-backlog recovery (`1d631c0`). Failures on this build
+therefore cannot show that the unreleased recovery failed.
+
+### What the files establish
+
+- `breadcrumbs.log` has 60 retained records. Its elapsed timestamps span
+  2,697,718–2,869,515 ms (44:57.718–47:49.515 from breadcrumb origin), not a
+  continuous log of the entire session or the reported first delay.
+- One adjacent pair advances 113,563 ms while VI frames advance 29, retraces 30
+  and controller samples 15: `2749765/150863/150857/74804` to
+  `2863328/150892/150887/74819`. This is consistent with the reported long pause,
+  not proof of an audio-device stall. The source samples progress when execution
+  reaches breadcrumb calls; a long gap alone cannot identify why they stopped.
+- `native.log` contains only boot/ROM-ready/renderer-ready/running markers.
+  `launcher.log` identifies launch but has no exit or closed marker. Do not
+  promote this capture to a clean-exit result.
+- The 60 mouse snapshots select a connected Modern controller, with mouse
+  capture inactive and zero accepted mouse motion. That is not another mouse
+  failure. The records preserve progress/settings context, not audio timing.
+- None of the six logs records queued audio milliseconds, produced/consumed or
+  discarded samples, underrun/overrun timing, device endpoint, hardware buffer
+  latency or recovery events. They cannot distinguish a software backlog from
+  latency farther down the output route, or measure the reported five seconds.
+
+The launcher's `os=6.2.9200.0` comes from `Environment.OSVersion` in the recorded
+launcher source. It is not an independently verified Windows build and does not
+supersede the reporter's explicit Windows 11 description.
+
+### Diagnostic gap and next useful evidence
+
+The current production recovery logger does write slash-separated success and
+failure records. An actual v35 ZIP export removes both because `Support.cs` has
+no matching `audio=` allowlist rule. A native producer-to-managed-export fixture
+reproduces this with synthetic numeric events; see
+[audio-recovery-support-export.md](audio-recovery-support-export.md) for the
+exact cause, hashes, privacy checks and retained failed fixture attempts.
+This concerns future current-build captures. The supplied v1.4.0 runtime lacks
+that recovery producer, so missing events in these older files do not establish
+that export filtering hid a recovery on the reporter's machine.
+
+Before relying on an ordinary support ZIP to assess the candidate, preserve the
+bounded recovery records through the exporter and verify the actual exported
+archive. For cause isolation, correlate the audible onset and pause recovery
+with queue duration, produced/consumed/discarded samples and device/pause state.
+Recovery events alone are not a continuous queue history. A healthy software
+queue with audible delay would direct investigation farther downstream.
+Do not request the already supplied basic settings again or infer audible
+latency from underrun counts.
+
+The pinned [upstream review](../../upstream/reference-review-2026-10-01.md) and
+catalog entry JFG-UP-024 describe guest scheduling edge cases; the new attachments
+contain no evidence tying those cases to this fault. Existing component/WASAPI
+checks and the owner's SS Anubis pass retain their original scope. Affected-user
+current-build retest remains the acceptance gate; keep #35 open.
+
+Private evidence: `reporter-evidence-20261104/attachment-manifest.json`, six
+`raw/new-audio-*.log` originals, `audio-summary.json`, `new-audio-parsed.json`,
+`validation-v2/verification.json` and `producer-export/result.json`. All 60 mouse
+snapshots round-trip through the pinned schema and survive the current sanitizer.
+Transferable lesson: progress breadcrumbs, software queue timing and audible
+output latency are different measurements; verify diagnostics through the final
+export boundary before depending on their absence.

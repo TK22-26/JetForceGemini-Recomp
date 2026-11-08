@@ -146,3 +146,32 @@ Status: owner-approved local reflected geometry and motion corrections; unreleas
 Correct mirrored face culling and keep mirrored skeletal presentation history separate from ordinary actor draws.
 
 Verification: Recorded Original/120 native and Goldwood replays passed; Owner approved after two checks; unspecified additional route coverage is not assumed. No GitHub action was performed.
+
+## Open PR #59 review, 2026-11-04 UTC
+
+Static review of [PR #59](https://github.com/TK22-26/JetForceGemini-Recomp/pull/59),
+head `b075dd46101c2fbeb3fa82a8e036a4004f123bba`, compared its complete single-file
+diff with `develop` at `ed5f7c79e02040d8277dcf04434e0b08b7c97952`. No PR code was
+built or run, and no merge, remote review, closure or contributor message followed.
+
+The proposed guest-front-cull tracking, task reset and double-sided handling
+substantially overlap the accepted develop fix. It does not add our separate
+reflected skeletal animation history. Owner acceptance on October 25 belongs to
+our implementation, not this PR head; the contributor's own gameplay tests are
+separate evidence.
+
+There is one real semantic difference to resolve before substituting algorithms:
+current `dma_triangles` combines viewport sign with the guest mirror bit; the PR
+removes viewport-sign handling. Their single-sided negative-viewport cull choices
+are opposite. Current `rt64_f3ddkr_texture_tests.cpp` explicitly covers those two
+cases. The PR cites original-microcode analysis; existing test expectations alone
+also do not prove that develop's rule matches the microcode. This static comparison
+establishes a disagreement, not a newly reproduced game defect in either version.
+
+Recommendation: treat the main visual fix as substantially superseded, retain
+contributor credit, and narrow any further review to the viewport rule with an
+original-microcode/reference comparison and regression evidence. Do not blindly
+merge the older main-based patch or claim it is needed for the already accepted
+reflection visuals. GitHub reports mergeable against main but blocked, with no
+submitted review or reported checks; the precise block reason is unestablished.
+Existing owner acceptance and pending reporter/release status remain unchanged.
