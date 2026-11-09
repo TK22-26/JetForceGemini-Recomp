@@ -54,7 +54,7 @@ int main(){
   case 18:f.request.destination=0x80007300;break;case 19:f.request.completion=0x80006000;break;case 20:f.request.stack=0x8001fff0;break;
   case 21:f.request.destination=f.request.stack;break;case 22:f.request.message=0x80007300;break;
  }f.reject();}
- for(const auto [address,value]:std::array<std::pair<std::uint32_t,std::uint32_t>,23>{{
+ for(const auto& [address,value]:std::array<std::pair<std::uint32_t,std::uint32_t>,23>{{
   {0x80001000,0},{0x80001004,0xfffffff0},{0x80001008,0},{0x8000100c,0},{0x80001010,0},
   {0x80002000,0},{0x80002004,0},{0x80002008,0},{0x80002010,4U<<16U},{0x80003000,1},{0x80003004,0},
   {0x80006000,0x80003000},{0x80006008,1},{0x80006108,1},{0x80006208,0},{0x80006210,2},{0x80007200,1},

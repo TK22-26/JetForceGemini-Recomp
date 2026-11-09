@@ -33,7 +33,7 @@ def cpp_view() -> str:
         "  for (const auto& revision : kRevisions) if (revision.id == id) return &revision;\n"
         "  return nullptr;\n}\n"
         "consteval const RomRevision& known_revision(std::string_view id) {\n"
-        "  const auto* found = find_revision(id);\n  if (!found) throw \"Unknown ROM revision\";\n  return *found;\n}\n"
+        "  for (const auto& revision : kRevisions) if (revision.id == id) return revision;\n  throw \"Unknown ROM revision\";\n}\n"
         "} // namespace jfg::roms\n")
 
 def csharp_view() -> str:

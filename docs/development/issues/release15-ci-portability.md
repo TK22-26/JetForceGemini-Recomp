@@ -1,0 +1,29 @@
+# 1.5.0 CI compile portability
+
+Status: reproduced and corrected in focused GCC checks; full PR CI pending.
+Severity: release-blocking source build failure, not an observed gameplay defect.
+
+PR #60 at source `37f09fb` exposed two failures in the first required CI run:
+GCC 13.3 with AddressSanitizer/UBSan rejected the generated catalog's `consteval`
+nullable-pointer test, and ordinary Linux compilation rejected a copying
+structured-binding loop in the native ROM DMA regression under warnings-as-errors.
+Evidence: [CI run](https://github.com/TK22-26/JetForceGemini-Recomp/actions/runs/42567794764).
+The Windows lane independently received HTTP 504 while downloading its pinned
+SDL archive; that network failure is not evidence of a compiler defect.
+
+Both source failures reproduce with the same compiler options in isolated local
+checks. The catalog's immediate lookup now returns a matching array entry directly
+and still rejects unknown revisions during constant evaluation. Runtime nullable
+lookup, ROM identities and catalog data remain unchanged. The DMA test binds each
+pair by const reference. No warning, sanitizer or required CI check was disabled.
+
+After correction, the catalog consumer and all-three-region descriptor static
+assertions compile with both sanitizers; the DMA fixture compiles with the full
+warning set. A negative compile confirms unknown revisions are still rejected.
+Private evidence: `release15-merge-20261109/before-catalog.log`, `before-dma.log`,
+`after-catalog.log`, `after-dma.log`, `after-descriptor.log` and
+`unknown-rejected.log`. Full remote CI remains authoritative for the merge.
+
+Lesson: a passing Windows runtime build does not qualify generated constant
+expressions for GCC sanitizer builds. Keep compile-time catalog use covered for
+every region and preserve strict warning checks in test targets.

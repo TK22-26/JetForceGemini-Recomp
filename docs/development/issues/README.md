@@ -41,6 +41,8 @@ implied by this index. [Comment punctuation](github-comment-punctuation.md) and
 
 ## Active and historical issue index
 
+[1.5.0 CI compile portability](release15-ci-portability.md) records the GCC catalog and DMA-test build blockers, focused corrections and pending full-CI qualification.
+
 The historical rows below index existing evidence; they do not claim a new retest.
 Detailed per-issue records are added as those issues receive further work.
 

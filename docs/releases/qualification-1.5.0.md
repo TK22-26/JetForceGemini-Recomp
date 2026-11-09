@@ -46,3 +46,5 @@ release metadata and packaging fixture tests, the rebuilt launcher checks and
 the Video Settings UI regression suite. These are source-integration checks;
 they do not manufacture fresh hardware acceptance or a distributable runtime.
 The required GitHub PR checks remain the merge gate.
+
+The first PR CI run exposed [GCC compile portability failures](../development/issues/release15-ci-portability.md). Focused corrections preserve sanitizer/warning coverage; full CI must pass before merge. The separate SDL download HTTP 504 requires a successful runner retry.

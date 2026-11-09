@@ -4,6 +4,10 @@
 #include <iostream>
 using namespace jfg::game;
 namespace {
+// Exercise immediate lookup for every catalog row in all compiler/sanitizer lanes.
+static_assert(jfg::roms::known_revision("jfg-us-r0").country == 'E');
+static_assert(jfg::roms::known_revision("jfg-pal-r0").country == 'P');
+static_assert(jfg::roms::known_revision("star-twins-jp-r0").country == 'J');
 int failures = 0;
 void check(bool value, const char* message) { if (!value) { ++failures; std::cerr << message << '\n'; } }
 constexpr std::string_view fingerprint = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
