@@ -55,3 +55,16 @@ across compaction, session restart and handoff.
 - Record transferable lessons and compatibility implications for future changes.
   Keep this practice in compaction/handoff summaries. It does not override the
   production guard, reopen shelved investigations, or authorize extra execution.
+
+# Automated game audio
+
+The owner requires future automated game sessions to be muted by default.
+Pass `JFG_MASTER_VOLUME_CONFIG` pointing to a private test-only `audio.ini`
+containing `version=1`, `volume=100` and `muted=1` on separate lines, with a
+final newline. Keep audio processing and diagnostic counters enabled. Do not
+change system volume, the owner's profiles or manual-testing audio settings.
+
+The owner will report audible issues found during manual testing. Retain
+underrun counters as observations; do not pursue further underrun remediation
+without an audible report or new authorization. Preserve this preference
+through compaction and handoff.

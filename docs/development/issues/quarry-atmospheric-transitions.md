@@ -109,7 +109,6 @@ Runtime: df9a915f83cbc889176467a5810d98eb42bbf015f935610c654cbcb82eead5f7.
 Actual diagnostic events and the atmospheric cause remain unverified until
 that capture arrives. This is not a new atmospheric fix.
 
-
 ## Live diagnostic capture (2026-10-21 UTC)
 
 Capture 20261021-003237-2ef90a424c05479dabc9ba507a5e7878 used the pinned
@@ -192,11 +191,9 @@ precision candidate is installed with all 14 package entries verified and
 save/profile/checklist hashes preserved. Runtime SHA-256:
 1107dd9a4efc8d6f2e4bb6a7e8bde32c3a02b11c75f034c2d791156267831722. Owner visual acceptance remains pending.
 
-
 ## Owner review: precision candidate regresses to strobing
 
 Owner reported "weird now the fog strobes" on runtime 1107dd9a4efc8d6f2e4bb6a7e8bde32c3a02b11c75f034c2d791156267831722. This candidate is rejected pending investigation; passing component tests did not establish visual correctness. Investigate render-command matching, native/smoothed coefficient alternation, and task snapshot timing using the new owner capture. Do not describe the atmosphere issue as fixed.
-
 
 ## Strobing cause and frame ownership correction
 
@@ -226,7 +223,6 @@ Private query-vs-update-mismatch.json and strobe-trace-summary.json preserve
 the count and timing evidence. Live correction acceptance is still pending.
 
 The query-bound candidate passes native Release and the daynight_fog, video_settings and rt64_f3ddkr_texture suites. Runtime SHA-256: ca94e6b4c3437fa86086c7bc8e0009767144313c2eef0654ce020d8265ccd50d. All package entries and copied save/profile/checklist preservation verified. Owner visual review remains pending; the first candidate stays recorded as rejected.
-
 
 ## Owner acceptance and capture verification (2026-10-21 UTC)
 

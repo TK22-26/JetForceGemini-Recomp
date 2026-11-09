@@ -442,7 +442,7 @@ FlashRamResult FlashRamStore::stage_write(
     return flash_result(FlashRamError::none);
 }
 
-FlashRamResult FlashRamStore::begin_program(const std::size_t page_index) {
+FlashRamResult FlashRamStore::begin_program(const std::size_t page_index, const FlashRamProgramMode mode) {
     if (operation_ != FlashRamOperation::none) {
         return flash_result(FlashRamError::busy);
     }
@@ -452,6 +452,9 @@ FlashRamResult FlashRamStore::begin_program(const std::size_t page_index) {
     if (!write_buffer_valid_) {
         return flash_result(FlashRamError::write_buffer_empty);
     }
+    if (mode != FlashRamProgramMode::clear_bits && mode != FlashRamProgramMode::reference_replace)
+        return flash_result(FlashRamError::invalid_argument);
+    program_mode_ = mode;
     operation_ = FlashRamOperation::program_page;
     operation_page_ = page_index;
     return flash_result(FlashRamError::none);
@@ -469,6 +472,14 @@ FlashRamResult FlashRamStore::begin_erase_page(const std::size_t page_index) {
     return flash_result(FlashRamError::none);
 }
 
+FlashRamResult FlashRamStore::begin_erase_sector(const std::size_t page_index) {
+    if (operation_ != FlashRamOperation::none) return flash_result(FlashRamError::busy);
+    if (page_index >= kFlashRamPageCount) return flash_result(FlashRamError::out_of_bounds);
+    operation_ = FlashRamOperation::erase_sector;
+    operation_page_ = (page_index / kFlashRamSectorPages) * kFlashRamSectorPages;
+    return flash_result(FlashRamError::none);
+}
+
 FlashRamResult FlashRamStore::begin_erase_all() {
     if (operation_ != FlashRamOperation::none) {
         return flash_result(FlashRamError::busy);
@@ -482,15 +493,18 @@ std::vector<std::uint8_t> FlashRamStore::completed_image() const {
     std::vector<std::uint8_t> candidate = bytes_;
     if (operation_ == FlashRamOperation::program_page) {
         const std::size_t offset = operation_page_ * kFlashRamPageBytes;
-        std::copy(
-            write_buffer_.begin(),
-            write_buffer_.end(),
-            candidate.begin() + static_cast<std::ptrdiff_t>(offset));
+        for (std::size_t i = 0; i < write_buffer_.size(); ++i)
+            candidate[offset+i] = program_mode_ == FlashRamProgramMode::reference_replace
+                ? write_buffer_[i] : static_cast<std::uint8_t>(candidate[offset+i] & write_buffer_[i]);
     } else if (operation_ == FlashRamOperation::erase_page) {
         const std::size_t offset = operation_page_ * kFlashRamPageBytes;
         std::fill_n(candidate.begin() + static_cast<std::ptrdiff_t>(offset),
                     kFlashRamPageBytes,
                     static_cast<std::uint8_t>(0xFFU));
+    } else if (operation_ == FlashRamOperation::erase_sector) {
+        const auto offset = operation_page_ * kFlashRamPageBytes;
+        std::fill_n(candidate.begin() + static_cast<std::ptrdiff_t>(offset),
+                    kFlashRamSectorBytes, static_cast<std::uint8_t>(0xFFU));
     } else if (operation_ == FlashRamOperation::erase_all) {
         std::fill(candidate.begin(), candidate.end(), static_cast<std::uint8_t>(0xFFU));
     }

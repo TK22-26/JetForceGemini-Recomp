@@ -15,7 +15,6 @@ No runtime remedy was attempted in this launcher-only review. Next qualification
 
 Lesson: a bare access-violation exit code is not a diagnosis; generic camera fixes must not be used to close a startup crash without corresponding evidence.
 
-
 ## Reproduction and existing remedy identified (1.2.0 qualification)
 
 The exact published runtime now reproduces the report when **keyboard** is selected and experimental controls are enabled before launch: it reaches ROM-ready and exits with `0xc0000005`. Disabling that flag with the same keyboard profile reaches the 120-retrace target. The first attempt used automatic device selection with a connected gamepad and did not reproduce; preserve that informative mismatch rather than count it as crash coverage.

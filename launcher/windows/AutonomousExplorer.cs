@@ -102,6 +102,12 @@ namespace JfgLauncher {
             running=false;launchPending=false;failure=reason;exits.Stop(reason);
             if(trial!=null)trial.Cancelled=true;
         }
+        internal bool WaitForStop(int milliseconds) {
+            if(milliseconds<0)throw new ArgumentOutOfRangeException("milliseconds");
+            // The worker owns the last stop command. Its lifetime must end before
+            // a window or profile relinquishes ownership of that command file.
+            return worker==null || worker.Join(milliseconds);
+        }
         internal void Start(MapSnapshot map,long now) {
             if(Busy)throw new InvalidDataException("The previous action is stopping; wait before restarting.");
             worker=null;trial=null;done=false;failure=null;waitingForMap=false;attempted.Clear();

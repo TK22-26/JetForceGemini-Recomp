@@ -85,7 +85,6 @@ and CPU mask remain distinct from Juno's interpolated skeleton. Translating
 the current footprint or matching clipped vertex ordinals would be unsafe
 across changing terrain/topology. No qualified shadow correction is selected.
 
-
 A further pinned-source audit rules out scratch polygon offset +0xA as a stable
 receiver-triangle identity. Original instructions at 0x8001E99C/0x8001E9A4 derive
 that field from (batchFlags >> 22) & 7, stored at 0x8001ED5C. It is not a unique

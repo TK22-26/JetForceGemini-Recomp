@@ -1,0 +1,9 @@
+#audio-value { font-family: Chakra Petch; font-weight: bold; font-size: 24dp; color: #ffb23e; }
+.volume-row { border-width: 0; }
+.volume-row button { width: 36dp; padding: 0; }
+#audio-volume { flex: 1; height: 24dp; margin: 0 14dp; }
+#audio-volume slidertrack { height: 4dp; margin-top: 10dp; background: #2e3a57; border-radius: 2dp; }
+#audio-volume sliderbar { width: 12dp; height: 24dp; background: #ffb23e; border-radius: 4dp; }
+#audio-volume sliderbar:hover { background: #ffc872; }
+#audio-error { display: none; margin-bottom: 12dp; padding: 10dp; border: 1dp #8f4d43; border-radius: 6dp; background: #291b20; color: #f5a396; }
+.footer .small { flex: 1; }

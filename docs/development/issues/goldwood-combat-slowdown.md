@@ -4,7 +4,7 @@
 - Reported: 2026-10-11 UTC. Last updated: 2026-10-16 UTC.
 - Affected: modern-controls v1.1 local preview with original instruction-clock runtime;
   source capture runtime SHA-256 `de2737396c3f840291de8a9155eaed415f6076beaf4d27200be6505cde11c538`.
-- [Implementation investigation and research](../../features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation).
+- [Implementation investigation and research](https://github.com/TK22-26/JetForceGemini-Recomp/blob/db9ea90b41b9bf14d806ab6aea1aefbddbb80efa/docs/features/pc-controls.md#2026-10-11-critical-goldwood-timing-investigation).
 - Related: CAMERA-001 small boom-distance steps; CAMERA-002 large collision pull-ins.
 
 ## Symptoms and reproduction
@@ -66,7 +66,7 @@ and acceptance](#contiguous-candidate-qualification-and-handoff) below.
 
 `HostCountClock` in
 [`include/jfg/boot/host_count_clock.hpp`](../../../include/jfg/boot/host_count_clock.hpp)
-and its integration in [`native_boot.cpp`](../../../src/boot/native_boot.cpp)
+and its integration in [native integration](../../../src/boot/native/guest_execution.cpp)
 remove modeled console CPU/cache costs from the private interactive build's
 timeline. The explicit `JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING` build option remains
 off by default; reference probes retain their deterministic instruction clock.
@@ -134,7 +134,6 @@ Primary architectural references: [N64ModernRuntime timer](https://github.com/N6
 and [Fix Your Timestep](https://gafferongames.com/post/fix_your_timestep/).
 These guide architecture; they are not drop-in fixes for this runtime.
 
-
 ### Follow-up: simultaneous device events and timer precision
 
 The high-resolution wait run stopped at VI 4098: PI, SP and DP all had absolute
@@ -160,7 +159,6 @@ The generated native inline rebuild did not complete within this build step; con
 is not a performance acceptance result. The installed runtime hash was checked
 and remains unchanged. Additional owner-approved work continues under the same
 production guard and investigation with all prior charges retained.
-
 
 ### Continuation: native scheduling qualification
 
@@ -204,7 +202,6 @@ rejection. Integration and performance outcomes follow below.
 
 No completed matched combat comparison for this revision; acceptance remains pending.
 
-
 ### CPU versus GPU work
 
 RT64 already renders on the GPU. The diagnosed clock charges, ordinary instruction
@@ -219,7 +216,6 @@ baton. Context-switch overhead is a possible additional cost, not a confirmed
 bottleneck in this recording. Do not replace it merely because fibers might be
 faster; quantify the cost and preserve context, exceptions, sanitizer support,
 thread-local state and guest scheduler behavior before changing the transport.
-
 
 ### Completed scheduling replay pass
 
@@ -236,7 +232,6 @@ Matched combat prefix memory, Count, VI and poll equality: **True**.
 - Native seconds 1-21: update median **50.01 ms**, p95 **54.91 ms**; final audio counters [19124224, 19113728, 2, 0] (queued/consumed/underflows/overflows).
 
 Windows timer deadline/reuse/lifetime check process exit: 0.
-
 
 The owner approved six additional hours on the same investigation. This does not
 reset counters, disable the production guard or change the installed preview.
@@ -271,7 +266,6 @@ which the runtime rejects (exit 3). Its ownership assertion masked that status;
 a repaired wrapper recorded it. The corrected finite native-clock diagnostic
 omits screenshot/memory captures. These failed requests are retained, not passes.
 
-
 The recovery-only ordinary Play replay improves the four measured windows from
 19.8/19.8/22.1/19.6 to 27.4/26.9/23.9/25.2 scenes/s, with zero audio underruns.
 This is a partial improvement, not sustained-30 completion. Source diagnostics
@@ -281,7 +275,6 @@ candidate tests a 512-instruction quantum. Per-instruction IO revision, exceptio
 interrupt and deadline checks remain; no modeled clock or guest timestep is
 changed. Reference-mode and both sampling-boundary policies need qualification.
 
-
 The clean recovery/particle runtime with the existing 128-instruction quantum
 measures 29.47/29.78/29.83/27.31 scenes/s across the same four windows. The 512
 experiment measures 29.38/23.49/24.78/28.01; it does not establish a benefit and
@@ -289,7 +282,6 @@ is rejected. Host-load/route variability limits attribution. Restore 128 for
 delivery; retain the boundary tests and failed-hypothesis evidence. Do not claim
 that reducing clock polling fixed combat. Real overload and full-game live
 acceptance remain open, even though removing the sticky recovery helps.
-
 
 ## Retained correction and final qualification (2026-10-13 UTC)
 
@@ -331,7 +323,6 @@ and further genuine host-cost work remain.** No public release.
 See [qualification](../../../evidence/combat-particles.json) and
 [particle issue](pickup-particle-desync.md). Large private evidence stays on D:.
 
-
 ### Performance acceptance remains open
 
 The final combat runs record **8 audio underruns at 120 and 62 at a 360 target**.
@@ -345,7 +336,6 @@ difference to this change or claiming sustained 30/360 performance.
 
 Functional/state/pixel checks pass, while combat remains critical/open and this
 preview is a partial correction. Preserve both successful and failed measurements.
-
 
 ## Delivery held for performance verification
 
@@ -563,7 +553,6 @@ Reference full-replay RDRAM SHA-256: `757b7094a9d6fabd671e4c90ba7d50e54a52741d3e
 
 The critical issue remains open; installed preview unchanged. Pause/stall, audio, startup/cutscene, movement, Save/reload and owner live verification remain part of promotion acceptance.
 
-
 ### Scheduling phase handoff and bridge comparison
 
 The all-function inline candidate reduced out-of-line instruction callbacks from 56.74% to 0.924%, but both new combat replays remained near 50.1 ms per update (about 20 Hz). It did not solve the remaining slowdown. Reduced callback count is not a demonstrated performance improvement. Preserve the result and measure remaining handler, renderer and execution costs before choosing the next remedy.
@@ -573,13 +562,11 @@ The late-bridge comparison did not complete; preserve the failed/skipped command
 
 The installed preview hash remains `059328317aeedccf1342156b884a6b8221573acd7f669636744649d8669f3cdd`. The native timing policy is diagnostic and default off. The next authorized phase measures the synchronous GPU framebuffer queue and validates pause/resume and host stalls before any promotion. The critical issue remains open.
 
-
 ### Hidden pause fixture correction
 
 The first hidden pause attempt received no acknowledgement: the ordinary non-play probe does not service frontend window commands. This is a harness limitation, not evidence of a broken interactive pause. The existing hidden real-time replay flag was restricted to the older cooperative runtime. Its validation now also admits the unified guest OS when that runtime owns pacing; the shared window service returns before the cooperative frame pacer, preventing double pacing. The corrected bounded fixture remains hidden and uses copied saves, without foreground or physical input changes. Acceptance awaits the corrected run.
 
 The reference bridge replay reached its requested ending, then failed at `guest-capture/final-image`; the paired comparison was skipped. This diagnostic capture failure is retained and not counted as gameplay/timing acceptance.
-
 
 ### Direct GPU measurements and timing qualification
 
@@ -616,7 +603,6 @@ lookup cost is being measured before selecting a remedy. Generated lookup tables
 change at overlay lifecycle boundaries, so any cached resolution must preserve
 publication, rebasing and invalidation semantics; a blind address cache is unsafe.
 
-
 ### Generated entry lookup cost and remedy
 
 Diagnostic-only measurements found a median 666,854 table probes across 54
@@ -648,7 +634,6 @@ The second surface-size attempt was still one pixel short because the inspecting
 process used a different DPI-awareness context from the owned runtime window.
 The revised fixture uses that window's DPI context for both sizing and
 measurement. These failed size checks did not count as GPU evidence.
-
 
 ### Entry metadata validation, CPU samples and missed video deadlines
 
@@ -720,7 +705,6 @@ preview remains unchanged and native timing remains diagnostic/default off.
 PERF-001 remains CRITICAL OPEN; final controls, startup/audio, pause/save,
 stall regressions and owner live verification are still required for promotion.
 
-
 ### Cached eligibility qualification and rejected Count-store experiment
 
 The cached eligibility candidate built and passed 250,000 reference and 65,536
@@ -767,7 +751,6 @@ as independent costs. The separately recorded final-image probe failure is
 PERF-001 remains **CRITICAL OPEN**. The installed preview is unchanged and the
 native timing policy remains diagnostic/default off. Hidden qualification does
 not replace the owner's reserved physical-input/focus and fight/bridge checks.
-
 
 ### Separate regular GPU and dispatch observations
 
@@ -827,7 +810,6 @@ Building it is not proof of a performance gain. No actor, collision, animation,
 movement or camera work is skipped. Future 60+ Hz rendering still needs separate
 simulation/interpolation work; bounded instruction safepoints remain required.
 
-
 ### Conditional native-span qualification (2026-10-11)
 
 Candidate runtime `43e65779b7cbd5da3dbcb5d61f392b57d0675dcd69165c473d08bb63f2f65b2b`
@@ -872,7 +854,6 @@ Private evidence: `span-qualified-combat-comparison.json`,
 `span-qualified-reference-parity`, and the guarded qualification spool.
 Installed preview unchanged; no live verification or release claimed.
 
-
 The native transcript comparison passed: 8,589,363 clock observations were
 consumed exactly, with identical final Count (10,200,870,393), instruction total
 (11,629,409,591), save and RAM
@@ -902,7 +883,6 @@ remained 50.699 and 50.205 ms. The residual slowdown is not explained by actor
 logging alone. Private evidence: `span-light-combat-comparison.json`,
 `native-span-transcript-parity.json`, `native-span-memory-expression-audit.json`
 and the `span-tick-*` fixtures.
-
 
 ### Contiguous native instruction candidate
 
@@ -939,7 +919,6 @@ Physical input/focus and visible/audible verification remain reserved for the
 owner. A successful compile does not resolve PERF-001.
 
 Candidate binary SHA-256: `251700d98118a137fdcbae8af50bdc4351c0276e9c4d0d1c525a65a18505f554`. Installed preview unchanged at build completion.
-
 
 ### Contiguous candidate qualification and handoff
 
@@ -1021,7 +1000,6 @@ or Git commit is claimed. The desktop preview and capture shortcuts retain their
 existing targets. Owner acceptance remains the drone fight, bridge, physical
 KBM/XInput and focus, and audible/visible timing checks.
 
-
 ### Remaining costs in the final candidate
 
 The final candidate received a separate CPU sampling and detailed timing pass
@@ -1066,7 +1044,6 @@ a higher reported frame rate.
 Private evidence: `contiguous-remaining-costs-detailed-costs.json` and
 `contiguous-remaining-costs-cpu-sampling.json`. The latter retains source locations
 and owned-thread CPU accounting for subsequent investigation.
-
 
 ### Owner live feedback after native preview
 
@@ -1420,7 +1397,6 @@ instruction/handler/graphics counters. This is observation only: the scheduler,
 context-transfer rules, thread implementation and game timing are unchanged.
 A transport optimization requires measured cost and exact-state qualification.
 
-
 The measured baton wake totals are approximately 0.31-0.39 ms median per update
 in four dense-route windows, about 1% of active update wall time. The larger
 __osEnqueueAndYield self-time label includes other work and is not evidence that
@@ -1430,7 +1406,6 @@ trace while keeping cost counters; its RAM/save/instruction equality passes.
 This separates ordinary history work from expensive diagnostic comparison passes.
 These instrumented captures are cost observations, not uncontended FPS acceptance.
 Evidence: transport-timing-review.json and single-policy-cost-review.json.
-
 
 ## Checked overlay-identity index candidate
 
@@ -1445,7 +1420,6 @@ publication and lifecycle handling are unchanged. No unchecked lifetime cache
 is introduced. This is a small CPU-work candidate, not a combat-FPS resolution.
 Actual replay and native comparison are required before selection. Evidence:
 overlay-inventory-cost-review.json and inventory-index-prototype/result.json.
-
 
 The byte-checked overlay index passes the dense recorded combat replay and full
 17,000-VI Original replay: RAM, save, complete instruction trace and reference
@@ -1464,7 +1438,6 @@ normal generated code is unchanged. Preserve span-alias-prototype/decision.json
 and mismatch-details.log. Compiler hints require state-level differential proof,
 even when a pointer-separation argument appears sound.
 
-
 The rejected restricted-alias leaf's first difference is a NaN representation
 at RAM offset 0x32c: baseline 0xffc00000 versus candidate 0x7fc00001. CPU snapshot
 equality alone would miss this memory-result difference. The prototype remains
@@ -1475,7 +1448,6 @@ new inventory-loaded120/360 reversed-order runs therefore retain all process
 observations instead of stopping when another compiler appears. They are loaded
 host observations, not isolated performance acceptance or proof that a slowdown
 is caused by this candidate. Exact release state is checked independently.
-
 
 The corrected 360 FPS comparison verifies saved `fps=360` and VSync disabled.
 Both runs share the exact release point; output averages roughly 354-359 FPS,
@@ -1491,7 +1463,6 @@ is removed/rebuilt afterward. In the busy window, texture upload wait is about
 Other renderer work is distributed across several stages. No dominant queue
 wait was found, and synchronization is retained. Evidence: sync-stage-probe-normalized.
 
-
 ## Post-lifetime-correction native observations, 2026-10-15 UTC
 
 The non-observer candidate completes the extended owner-input route at both
@@ -1505,7 +1476,6 @@ path-cache lifetime fix addresses memory corruption; PERF-001 remains open.
 Evidence: overlay-cold-native120/360, overlay-lifetime-cadence-review and
 capture-overhead-native-review. Preserve source-update intervals alongside
 output averages; level/mode stability alone cannot identify damage events.
-
 
 ## Replay coverage and health-event qualification, 2026-10-15 UTC
 
@@ -1531,7 +1501,6 @@ and health-window-cadence-review.json. PERF-001 remains open. Transferable lesso
 record actual location, transition identity and health state before attributing
 a long update interval to combat or accepting a nominal full-length input replay.
 
-
 ## Shape-history storage candidate, 2026-10-15 UTC
 
 Current captures attribute about 0.5 ms per scene to shape/rigid ownership and
@@ -1550,13 +1519,11 @@ Production exact-state and native qualification remain pending; the desktop
 package is unchanged. Evidence: shape-history-paired-cost, shape-history-oracle
 and shape-history-candidate. No lifetime/camera/geometry gate is relaxed.
 
-
 The first production shape-history build stops on a warnings-as-errors test
 variable shadowing an existing local. Source is restored and rebuilt before the
 replacement renames only that local; dependent replay requests are withdrawn
 without execution. This is a test-source compile issue, not a running-game
 regression. All failed logs and unchanged counters are retained.
-
 
 The production shape-history candidate passes its recorded-clock dense replay:
 all physical guest RAM and save bytes, 1,847 complete guest instruction/update
@@ -1577,7 +1544,6 @@ shape-history-candidate-native-review. Compatibility lesson: replacing a lookup
 container must preserve full identity equality, duplicate rejection and scene
 lifetime rules, including collision and storage-reuse behavior.
 
-
 The local high-refresh preview and jitter-capture desktop links now include the
 qualified shape-history storage change (80293adb), alongside the
 prior overlay-lifetime and optional formatter fixes. Installed runtime:
@@ -1588,7 +1554,6 @@ state/readback comparison, not normal-play performance or audio acceptance.
 The separate native 120/360 captures each report zero audio underruns.
 Full-route damage/combat consistency and the remaining visual limitations stay
 open. This is local delivery, not a public release or all-issues-fixed claim.
-
 
 ### 2026-10-15 finite-presentation queue investigation
 
@@ -1602,14 +1567,12 @@ still has missing presentation scenes. Neither variant is delivered. Queue
 latency, native combat consistency and damage timing remain open; a successful
 exact-state replay does not establish performance acceptance.
 
-
 The private bounded two-retrace finite-window test removes normal-run audio
 underruns seen with the unbounded sequence handoff, but still has slow game
 updates and repeated phases. The active-Present storage experiment is rejected
 because it moves stalls to WorkloadQueue and increases measured latency.
 Details and failed-attempt evidence are recorded in RENDER-003's bounded native
 presentation window section. Both remain unselected; desktop package unchanged.
-
 
 Owner acceptance clarified on 2026-10-15: eliminate combat drops to 20 source
 FPS, retaining the original 30-FPS simulation target. A high interpolated
@@ -1618,7 +1581,6 @@ this target. The remaining slow updates are being compared by actual active
 work, idle waits and time outside main update; no counter smoothing or game
 clock acceleration is accepted as a substitute. Evidence: bounded-source-
 critical-path-review on D:.
-
 
 The bounded normal capture's 66 three-retrace updates have 34.24 ms median
 active update work, compared with 26.88 ms for its two-retrace updates. Median
@@ -1629,7 +1591,6 @@ window change. This narrows the residual investigation to active work and
 its scheduling, not a cosmetic FPS label. Active wall time can include host
 preemption; CPU profiling is being considered alongside graphics preparation.
 The source remains unselected and no stable-30 resolution is claimed.
-
 
 ### Parallel graphics-history prototype and rejected CPU leaf, 2026-10-15
 
@@ -1652,7 +1613,6 @@ it is not a selected per-frame thread architecture. Normal native observations
 and a same-recorded-clock RAM/save/instruction/matching differential are kept
 in parallel-semantic-review and parallel-semantic-dense-review. Source and
 normal runtime are restored after capture; desktop package unchanged.
-
 
 ### Controlled parallel cost and entity-count question, 2026-10-15
 
@@ -1689,7 +1649,6 @@ include host preemption and instrumentation, so they must not be labelled pure
 on-CPU time. Negative residuals must be reported, never silently converted into
 a precise percentage. Detailed state and matching checks are recorded in
 detailed-function-cost-profile; its source/runtime are restored after capture.
-
 
 ### Detailed stage profiling and direct MI-mask candidate, 2026-10-15
 
@@ -1728,7 +1687,6 @@ they are not a pie chart. Microsoft explicitly advises against converting
 [QueryThreadCycleTime](https://learn.microsoft.com/en-us/windows/win32/api/realtimeapiset/nf-realtimeapiset-querythreadcycletime)
 counts into elapsed time. Profiler results locate work; final FPS must be checked
 with expensive instrumentation removed.
-
 
 ### Measured combat attribution and qualification limits, 2026-10-15
 
@@ -1773,7 +1731,6 @@ identify entity work, especially drone/pathfinding routines, as substantial
 CPU targets alongside renderer submission. Heavy profiling is removed for final
 FPS acceptance. All captures here were muted and hidden; desktop unchanged.
 
-
 ### Integer entity-span compiler candidate, 2026-10-15
 
 After sparse profiling identified entity/pathfinding CPU cost, a private compiler
@@ -1786,7 +1743,6 @@ Evidence, exact-state results and paired costs: integer-entity-span-alias-paired
 and integer-entity-span-distinct-paired/review.json on D:. No selection or stable
 30 FPS claim follows from compilation alone; private sources are restored.
 
-
 The isolated mask-access benchmark measures about 13.9-14.9 microseconds for
 a guarded read/write pair versus 18-21 nanoseconds for direct model calls.
 This establishes an access-cost reduction, not a whole-game speedup; the
@@ -1798,14 +1754,12 @@ effects; reference timing remains on the original access path. Generated-site
 rewriting, artifact inventory updates and runtime qualification are pending.
 Evidence: native-mi-bridge-implementation. No new desktop package is delivered.
 
-
 The first integration build stops at the generated-root freshness check because
 the normalizer changed. This produces no replay result. The private incremental
 migration updates the new runtime exports, symbol inventory, link registry and
 qualified instruction sites together, then records the new generator digest.
 Local declarations avoid changing the shared generated header. The guard and
 build freshness checks remain enabled. Evidence: native-mi-bridge-generation.
-
 
 The broader integration build exposes missing original-timing exports in the
 link-only smoke executable. Its registry deliberately does not run guest
@@ -1818,7 +1772,6 @@ wrapper also stopped on an existing evidence directory; no evidence was erased.
 The timing-hook link stubs are shared by all three link-only audit executables;
 the first harness adjustment fixed smoke linking but baseline/patch audits
 exposed the same missing exports. No runtime timing code is stubbed.
-
 
 The integrated MI-mask candidate passes the full Release build, 12 focused
 CTest checks, exact 4,000-VI recorded-state comparison and exact 17,000-VI
@@ -1833,7 +1786,6 @@ from existing native 360 pacing/resource problems. Evidence:
 native-mi-bridge-qualification, mi-bridge-native360 and mi-bridge-native360-control.
 A review/commit wrapper had a Python syntax error and committed nothing.
 
-
 The 360 FPS comparison wrapper restored both diagnostic source edits, but its
 final rebuild failed with LNK1180 (insufficient disk space). Two dependent
 checkpoint jobs then stopped at their prerequisite assertions without editing
@@ -1842,7 +1794,6 @@ Recovery relocated only the investigation's build tree to D: after a complete
 file-hash comparison and retained the original C: path through a junction. The
 ordinary candidate rebuild succeeded; earlier failure records remain intact.
 Evidence: build-drive-recovery-20261015. The desktop preview is unchanged.
-
 
 ### MI-mask source checkpoint; qualification remains incomplete
 
@@ -1866,7 +1817,6 @@ incremental migration, not a digest-only freshness override.
 
 {"case": "mi-control360-direct-access", "audio_underruns": 0, "host_cpu_median": 34.8, "top_observed_cpu": [{"name": "jfg-native-boot.exe", "mean_one_core_percent": 157.7145628791479}, {"name": "wezterm-gui.exe", "mean_one_core_percent": 82.17584582959971}, {"name": "python3.11.exe", "mean_one_core_percent": 62.78593839091493}, {"name": "dwm.exe", "mean_one_core_percent": 34.02654898415906}, {"name": "System", "mean_one_core_percent": 32.37957178027382}, {"name": "python.exe", "mean_one_core_percent": 19.58336000021389}, {"name": "msedge.exe", "mean_one_core_percent": 16.559118079025712}, {"name": "explorer.exe", "mean_one_core_percent": 16.28926111976895}]}
 
-
 The integrated parallel semantic-history candidate restores each worker's prior
 floating-point environment on normal return and exception unwinding. The worker
 owns its input copy and separate history, and joins before consumption. A shared
@@ -1877,7 +1827,6 @@ worker restoration and cadence agreement. Exact-state and native FPS
 qualification remain pending. Evidence: parallel-semantic-scoped-environment-recovered
 and parallel-fenv-unused-local-recovery. No desktop package is changed.
 
-
 The renderer submission boundary now preserves bounded exception text and source
 VI in captured stderr while retaining its existing error code. Previously, the
 catch-all erased the original exception behind submit-15, preventing diagnosis
@@ -1885,7 +1834,6 @@ of the unreproduced native 360 failure. This is observability, not a crash fix.
 No allocation is required on this error path, and normal frames add no logging.
 Build and existing renderer-shell tests pass; repeated native checks follow.
 Evidence: renderer-submit-exception-context.
-
 
 ### Post-move continuation and parallel candidate qualification
 
@@ -1909,7 +1857,6 @@ Its passing build/shell-test result and source edit are retained. Only steps
 legacy-preservation-resume-correction-20261015.json. Historical evidence is
 unchanged; new requests will qualify the remaining candidates.
 
-
 A distinct private rounding-control fixture targets repeated CFC1/CTC1
 rounding changes in the measured drone/pathfinding routines. It compares the
 existing generated helpers with direct MSVC-x64 MXCSR round-bit access, retaining
@@ -1921,7 +1868,6 @@ The x64-specific scope follows Microsoft's documented SSE2 control environment;
 other architectures retain the portable helpers. Whole-game correspondence
 and performance remain prerequisites even if the isolated fixture passes.
 
-
 A private dispatch experiment gates temporary counter snapshots to the scopes
 that consume them. Actual counters, timing hooks and observations remain active;
 this only avoids reading unused baselines on unrelated guest calls. Identical
@@ -1929,7 +1875,6 @@ recorded inputs/timing are compared in alternating order with heavy profiling
 off. Source and the ordinary candidate executable are restored afterward.
 Evidence: dispatch-snapshot-gating. Performance selection requires review;
 this is not a completed combat remedy.
-
 
 The rounding-control fixture passes 4,096 control-state and 6,400 arithmetic
 comparisons. A save/set/get/restore microbenchmark drops from about 75 ns to
@@ -1939,7 +1884,6 @@ strictly inside the int32 range use the hardware intrinsic; denormals, zeros,
 NaNs, infinities and out-of-range operands retain the CRT implementation.
 Evidence: rounded-conversion-fixture/result.json. Runtime selection remains
 pending exact-state and measured whole-update comparisons.
-
 
 ### Controlled parallel-history cost and rejected micro-optimizations
 
@@ -1972,16 +1916,13 @@ tests, dense recorded comparison and 17,000-VI Original comparison passed as
 recorded above. Native 360 robustness and the owner's full route remain open.
 This checkpoint does not update the installed desktop preview.
 
-
 ### October 15 reference and native instruction sampling
 
 The owner-requested [VibinToast review](../../upstream/reference-review-2026-10-15-vibintoast.md) distinguishes its real 60 Hz scheduler, disabled matrix interpolation path and unqualified release timings. Its operating-system replacement architecture is a useful performance lead; no claim of eliminating combat drops is accepted without measurement.
 
 The scoped native sampler now follows the actual update thread and preserves exact recorded RAM, save, instruction and interpolation comparisons. Combat samples include generated drone/path work, dispatch and lookup bookkeeping, rounded conversion, and a large wait-state share. Wait samples and sampler observer effects prevent treating these proportions as CPU-cycle percentages. The earlier all-thread sample limit expired before combat, so that capture cannot support combat attribution. Evidence: pc-sampling-update-thread, including timer/thread-selection fixtures and restored.json. No sampling hooks remain in the committed runtime. The native sampled run retained three-VI updates and one audio underrun; it is diagnostic evidence, not FPS acceptance.
 
-
 A private dispatch-cache experiment combines immutable target-to-mapping and linked-section metadata in a bounded tagged array. Dynamic generated-function lookup, overlay allocation/publication, relocation and instruction boundaries remain unchanged. Collision replacement only causes metadata recomputation. Alternating recorded-clock comparisons require exact RAM/save, per-update instructions and interpolation decisions. Evidence: dispatch-metadata-cache-paired. The source/runtime are restored after this experiment; selection requires measured whole-update benefit and broader qualification.
-
 
 A private native-only rounding/conversion comparison modifies only the nine
 previously measured entity/pathfinding functions that actually call the relevant
@@ -1993,9 +1934,7 @@ require exact RAM/save, per-update instructions and interpolation decisions.
 Evidence: rounding-hot-functions-paired. Source/runtime restoration occurs even
 on failure; any performance choice requires review, not a build-only claim.
 
-
 The private Clang hot-function comparison compiles nine unchanged generated CPU bodies and links them ahead of the normal archive in an isolated executable. It retains every timing hook and dynamically checked operation. The special-value leaf fixture differs in NaN payloads; the separate finite fixture and exact recorded-route comparison do not erase that limitation or authorize delivery. Evidence: clang-hot-functions-paired. All source is unchanged and the ordinary runtime is restored after the experiment.
-
 
 ### October 15 controlled compiler and helper comparisons
 
@@ -2009,23 +1948,17 @@ All four runs of each comparison preserve exact recorded RAM/save, per-update in
 
 Clang reduces combat median host work by roughly 0.8-1.8 ms in these pairs, but candidate 95th-percentile work remains 41.5-43.9 ms, above the 33.3 ms budget. An 8,192-case finite-input matrix fixture matches the baseline, while the exceptional-input fixture differs in NaN payload bits. Real-route correspondence does not establish equivalence for those inputs. No compiler candidate is selected or delivered. Evidence IDs: clang-generated-leaf-toolchain, clang-finite-leaf-cost, and the three experiment directories named above.
 
-
 A broader private Clang comparison compiles the unchanged generated bodies observed at least five times in the pinned combat samples (capped at 64 functions) and links them ahead of the normal archive in an isolated executable. It retains every timing hook and dynamically checked operation. The special-value leaf fixture differs in NaN payloads; the separate finite fixture and exact recorded-route comparison do not erase that limitation or authorize delivery. Evidence: clang-sampled-functions-paired. All source is unchanged and the ordinary runtime is restored after the experiment.
-
 
 A private grouped-memory-validation prototype combines repeated bounds/alignment predicates for stable base registers inside existing native spans. Every original fallback and timing hook remains, and a failed combined predicate uses the existing individual checks. Boundary/random address proofs precede four exact recorded-clock comparisons. Evidence: span-range-guards-paired. This experiment restores the ordinary runtime; no generator change or preview is selected by this test alone.
 
-
 The broader private Clang candidate also receives four alternating real-time 120 FPS route runs with muted audio and copied initial state. Actual VI intervals and underruns are counted independently of rendered FPS. Native timing changes can produce different game paths, so these are repeated robustness observations, not exact-state CPU comparisons. Evidence: clang-sampled-native120. The ordinary runtime and desktop preview are preserved; special-value compiler compatibility remains open.
-
 
 The broader 62-function Clang comparison preserves all recorded comparisons. Combat medians are 29.464/30.005 ms for baseline and 26.444/26.511 ms for candidate; candidate p95 remains 44.700/44.197 ms. This supports a component throughput improvement, not a no-dip claim. Four real-time route comparisons are tracked separately. The inspected baseline executable contains about 589.6 MiB of machine code versus 13.5 MiB in the independently built reference release. Different runtimes/features prevent treating that ratio as a CPU speed ratio. It motivates a private experiment sharing repeated fallback timing code, with every observation preserved. No candidate is selected from file size alone.
 
 The inline-symbol resolver now passes its forced-inline fixture (24 of 54 outer-function bytes resolve to the nested helper) and loads the matching pinned PDB. In combat it resolves inline attribution for only 52/1088 and 65/1095 executable-address observations. This sparse subset cannot establish a timing-bookkeeping CPU percentage. Prior fixture attempts failed symbol loading; loading the live fixture module and supplying the captured module size resolves that harness problem. Evidence: inline-pc-attribution-loaded-module. No new game sampling was needed.
 
-
 Existing sparse stage captures are additionally partitioned by measured active update duration above/below 33.33 ms, preserving complete nested scopes and exact root-to-update joins. This asks whether tail updates have different CPU work or renderer/wait costs rather than relying on whole-window averages. Instrumented wall durations remain observations, not uninstrumented FPS acceptance. Evidence: slow-update-stage-attribution. No new game logging or runtime mutation is needed for this analysis.
-
 
 ### Real-time compiler comparison and unselected memory predicates
 
@@ -2044,24 +1977,17 @@ The stable-base memory-predicate prototype passes 87,516 address-boundary/random
 
 The shared fallback wrapper's complete leaf fixture returned 3. Evidence: outlined-native-fallbacks/fixture/result.json. The candidate stops before whole-runtime testing; no generator change is selected.
 
-
 The private fallback-outlining matrix fixture failed special-value RAM comparison immediately (NaN payloads at offsets 0x118 and 0x134), so no whole-runtime outlined candidate was built. Clang's additional classification also finds a CPU-state mismatch at case 112; treating RAM NaNs as one class does not establish equivalence. Both broad candidates remain unselected. The integer-only compiler comparison was withdrawn before execution to keep the owner's reference tutorial capture free of concurrent game/build work. Evidence: outlined-native-fallbacks/fixture, clang-float-payload-classification, and immutable request withdrawal records. The unchanged preview remains installed.
-
 
 Owner tutorial follow-up: severe stalls are confirmed in the recorded Original-mode route, including 15.0-update/s diagnostic windows. The capture inherited debug cheats, forced pistol selection and inactive dual-stick controls; it is not a clean default-game comparison. See [DIAG-002](reference-owner-capture-contamination.md) for the full audit, per-level timing and prepared correction. Missed-input causation and matching original-game targeting remain open; no auto-aim cheat was identified among the enabled overrides.
 
-
 A narrower compiler comparison replaces only eleven sampled generated bodies with no floating-point operations or register access. Every called function, timing hook, memory check and original source remains. The complete RAM, save, instruction counts and interpolation decisions must match across the recorded route. Evidence: clang-integer-functions-paired. This does not qualify compiler-wide exceptional floating behavior. The ordinary executable is restored afterward.
-
 
 The floating-state diagnostic classifies differing 32-bit words only in RAM and floating registers; all integer/control state, timing structures, counters, hook calls and exception flags must remain exact. Classification preserves the earlier strict failures and does not redefine exact equivalence or select a runtime. Evidence: floating-state-difference-classification/result.json.
 
-
 The follow-up cold-original-helper performance diagnostic runs only after the complete 8,192-case classification found differences confined to NaN sign/payload representations. All finite values, integer/control state, timing state and exception flags matched in that fixture. Strict equivalence remains false; the diagnostic must preserve exact recorded game RAM/save/instruction/interpolation decisions and does not select or install a runtime. Evidence: cold-original-classified-paired.
 
-
 The resumed integer-only compiler comparison passed all four exact recorded-route checks. Combat medians were 38.148/32.236 ms baseline and 29.443/33.681 ms candidate; host contention and inconsistent pair results prevent a repeatable benefit claim. It remains unselected. The complete exceptional-value classification found only NaN sign/payload changes in the matrix fixture (Clang: 1,009 affected cases; cold original helper: 204), with all 8,192 cases matching finite/non-floating state, timing, hooks and exception flags. This clarifies the prior CPU mismatch but does not make either candidate byte-exact or qualified for delivery. Evidence: clang-integer-functions-paired and floating-state-difference-classification. The owner ended upstream debugging; performance work continues solely on our runtime.
-
 
 ### Owner-requested pause and compiler attribution limit
 
@@ -2076,8 +2002,7 @@ The owner requested a pause after the current comparison to take stock. The four
 
 These are recorded-clock CPU-cost observations, not new native FPS acceptance. The slower tail still exceeds the 33.3 ms update budget. Audit of the original compiler command revealed a confound: production generated C uses /fp:precise and /std:c11, while the manual candidate commands use /fp:strict and omit /std:c11. Consequently the measured effect cannot be attributed solely to helper outlining or solely to changing the compiler. Existing exact-route matches remain valid for the tested binaries; causal optimization claims require matched compiler/language settings. The prepared one-factor size audit and production-mode compatibility fixture were withdrawn before execution at the owner's pause request, along with additional transition tests. No results are claimed for them.
 
-See [the pause checkpoint](../high-refresh-checkpoint-2026-10-15.md) for verified improvements, open issues and recommended next steps. The production guard remains enabled; pausing preserves its existing investigation, attempts and charges.
-
+See [the pause checkpoint](high-refresh-rendering.md) for verified improvements, open issues and recommended next steps. The production guard remains enabled; pausing preserves its existing investigation, attempts and charges.
 
 ### Owner-approved optimized implementation direction
 
@@ -2087,38 +2012,27 @@ For native optimization candidates, fewer guest instructions, different scratch/
 
 Initial work isolates the compiler/code-size confound, then examines measured drone/pathfinding costs for native equivalents or algorithm improvements. No external recomp debugging is resumed. The desktop preview is unchanged until a candidate is qualified.
 
-
 A bounded native angle-lookup candidate targets the sampled Arctanf movement/collision helper. The private independent implementation reads the existing guest lookup table and preserves finite-input return angles rather than substituting host atan2. Boundary, random, signed-zero, subnormal and four-rounding-mode checks compare its return value, original path length, final timing boundary and floating exception flags with the generated reference. Nonfinite inputs retain the original fallback. Evidence: native-angle-leaf-fixture/result.json. This is a local fixture candidate, not yet a game-tested or delivered optimization. Fixture result: 0.
-
 
 The angle candidate additionally preserves the complete guest register result and original timing count, permitting stronger exact replay qualification despite the owner allowing ABI-only equivalence. A bounded 37-operation entry certificate, finite-input and floating-register-layout checks retain the generated fallback for unsupported cases. A separate 100,000-case fixture varies poll budgets and fallback preconditions and compares full CPU/timing/FENV state, excluding only batching diagnostic counters. Evidence: native-angle-context-fixture/result.json; fixture return code 0. No runtime candidate is selected by this fixture alone.
 
-
 All 2,909 compact-helper bodies compiled successfully. The initial link command exceeded the Windows linker response-file per-line limit (LNK1170 at 131,071 characters); dependent game runs were refused by their prerequisites and did not execute. The link is retried with one object per line, reusing the verified objects and preserving the failed response/log. Angle fixture results independently passed 993,888 finite/boundary/rounding cases and 100,000 complete-context/timing cases (57,317 optimized, 42,683 fallback). This is build/fixture progress, not FPS acceptance. The attempted QueryInformationJobObject(NULL) resource report covers an inner Python job (only six processes), not the production supervisor tree, and must not be used as remaining-budget evidence.
-
 
 The controlled compiler audit reproduces the baseline machine-code hash with its actual compiler settings. For the sampled routine, C11 versus legacy language mode does not change machine code; precise versus strict floating mode changes only a few bytes. Outlining the original timing helper reduces that routine from 3,324,678 to 46,483 bytes with production options held constant. The all-function private candidate retains those options across all 2,909 generated bodies, then compares the recorded combat route. Evidence: compiler-size-factor-audit and compact-clock-all-functions. This demonstrates a code-generation effect, not by itself a no-dip fix; real-time and broader route qualification remain required.
 
-
 The all-function compact timing-helper candidate receives four alternating real-time 120 FPS route runs with muted audio and copied initial state, after the exact recorded comparisons. Actual VI intervals and underruns are counted independently of rendered FPS. Native timing can change later game paths, so these are repeated robustness observations, not exact-state CPU comparisons. Evidence: compact-clock-native120. The ordinary runtime and desktop preview are preserved; no no-dip claim follows solely from lower code size.
-
 
 The bounded native angle candidate is compared against the compact-helper build using four alternating exact recorded combat replays. Both sides share the same compiler settings and all other generated functions. Full RAM/save, per-update original instruction counts and interpolation decisions must match; CPU costs are recorded independently. Evidence: native-angle-paired/runs.json. Ordinary runtime/source and the desktop preview are preserved. This is a component optimization comparison, not a no-20-FPS acceptance result.
 
-
 The compact-helper candidate also receives the retained 17,000-VI Original-mode comparison and a muted native 360 FPS stress route. Original RAM/save, complete update instruction records, renderer hashes and probe output must match the retained reference. Native mode reports actual update intervals and audio underruns separately. Evidence: compact-clock-original-and-360/runs.json. These are private qualification captures; the installed preview remains unchanged.
-
 
 A private native Count-publication candidate removes redundant volatile stores from instructions and spans that cannot advance time. Certificate refresh publishes Count once; all runtime native clock mutations already publish before recertification, and the Original path remains. The invariant is tested at certificate refresh, with native differential comparisons starting from the published value. Exceptional matrix outputs are classified without suppressing non-NaN or FENV differences, then the 62 previously sampled hot bodies use matched production compiler settings for four exact recorded-route cost comparisons against the compact-helper baseline. Evidence: native-count-publication-sampled. The earlier strict NaN-payload failure remains historical evidence; source and the ordinary runtime are restored. No performance or delivery selection follows from compilation alone.
 
-
 The compact native captures receive an encounter check that carries unchanged actor state forward and respects removals. It records level/active drone counts, proximity, and every extended-window update longer than two VIs with its measured work and wait. This avoids mistaking sparse changed-actor rows for a complete actor census. Native paths still differ and are not exact workload pairs. Evidence: compact-clock-native120/encounter-and-slow-update-review.json.
-
 
 ### Compact timing helper selected for source integration
 
 The repeated exact combat comparison reduces median active work from 29.486/29.509 ms to 25.852/25.765 ms with matched production compiler options. The executable shrinks from 627,766,272 to 146,052,096 bytes. The retained Original-mode comparison and native 120/360 robustness checks qualify the component, while native slow updates remain. The public timing header now uses a portable noinline declaration for the original cache-model helper; native checks and algorithms remain. The generation pipeline already copies this header, and the active private generated header is refreshed from the same source. Focused timing-model and generation tests pass. This source commit is a component improvement, not a resolved PERF-001 or a preview deployment; the ordinary runtime rebuild and package qualification follow separately. Earlier NaN representation differences in synthetic matrix fixtures remain documented, and do not become a universal bit-equivalence claim.
-
 
 ### Compact code and native angle review, 2026-10-15
 
@@ -2157,15 +2071,11 @@ native-angle-context-fixture: return code 0. PASS cases=100000 admitted=57317 fa
 
 Evidence: compact-and-angle-evidence-review/review.json links the private fixture, recorded-cost, native cadence, Original/360 qualification and nested-job accounting results (not production budget evidence). No preview deployment or resolved no-dip status is implied. All captures were muted. The 32-entry path search is not prioritized: prior combat profiling observed about 3.6 calls/update, versus about 2,421 calls/update to Arctanf; these older instrumented counts guide target choice, not speedup acceptance.
 
-
 Four alternating native 120/VSync comparisons additionally remove actor snapshots, interpolation comparison tracing and PCM capture, retaining the basic update timeline and buffered frame timings. Both sides use the same reduced instrumentation. This checks whether slow updates persist closer to the normal FPS-logging configuration; hidden windows still do not qualify monitor scanout or visual smoothness, and native paths may differ. Evidence: compact-minimal-native120.
-
 
 A controlled Clang follow-up compiles only the 62 pinned sampled bodies against the compact header, with production precise/C11 options on both sides. The other 2,847 bodies are identical. A classified special-value matrix comparison precedes four exact recorded RAM/save/instruction/interpolation comparisons. This distinguishes compiler effects from the newly isolated inline-policy effect; no compiler or preview is selected from this private experiment alone. Evidence: compact-clang-frontend-options. The preceding compact-clang-sampled compilation refused the MSVC-only /Gm- option under warnings-as-errors; no game ran in that attempt. The retry removes that obsolete driver option and uses the Clang warning equivalents already recorded by the repository. Optimization, floating mode and C11 remain unchanged.
 
-
 Four alternating native 120/VSync comparisons additionally remove actor snapshots, interpolation comparison tracing and PCM capture, retaining the basic update timeline and buffered frame timings. Both sides use the same reduced instrumentation. This checks whether slow updates persist closer to the normal FPS-logging configuration; hidden windows still do not qualify monitor scanout or visual smoothness, and native paths may differ. Evidence: native-count-minimal120. The baseline is the compact-helper build, and the candidate changes Count publication only in the 62 pinned sampled bodies; any all-body source integration needs a coherent rebuild and qualification.
-
 
 ### Narrow update-thread diagnostic for remaining hitches
 
@@ -2173,18 +2083,15 @@ A reduced-instrumentation repeat still records an 83.409 ms active-wall update w
 
 The optional JFG_DIAGNOSTIC_UPDATE_CYCLES=1 observation adds only two QueryThreadCycleTime queries per measured game update and one buffered update-thread-cycles row (VI, input poll, validity, host thread ID, cycle delta, guest instructions). It requires gameplay tracing and stays off by default. The same-thread validity check prevents attributing a different thread; cycles are not converted to milliseconds and exclude other guest/renderer threads. Unlike the full function profiler it does not time every dispatch. This is diagnostic source awaiting build/correspondence qualification, not a hitch remedy. Evidence: update-thread-cycle-source.
 
-
 ### Ordinary build consumer check and deferred Count-store candidate
 
 The new callable helper exposed MSVC warning C4505 in a C++ consumer that uses the native timing refresh but never calls the Original helper. A C++-only maybe_unused declaration resolves that diagnostic without disabling warnings or changing generated C execution. The W4/WX consumer compile, focused timing tests and generation tests pass after the correction. Evidence: timing-header-consumer-build (failure), timing-header-consumer-build-fixed and compact-header-consumer-fix.
 
 The sampled native Count-store reduction is not selected. Four reduced-instrumentation native 120 runs recorded extended-window median work of 24.660/22.800 ms for the compact baseline and 25.393/24.200 ms for the Count candidate; three-VI updates were 9/8 versus 21/11. The earlier recorded-clock tail improvement did not establish a real-time benefit. Its source stays private; existing native Count publication remains unchanged. Evidence: native-count-minimal120/runs.json. Clang remains unselected after consistently slower matched compact runs. The ordinary preview rebuild therefore includes only the confirmed compact helper and the opt-in update-cycle diagnostic from this round.
 
-
 ### Candidate: consolidate repeated stable-base RAM guards
 
 A private generator experiment groups four or more cached-RAM checks sharing an unchanged base register inside an already admitted native span. Endpoint bounds and the widest compatible alignment prove the covered addresses. Unknown relocation forms, intervening base writes and incompatible alignment residues retain the existing checks. On preflight failure, the candidate commits the already executed prefix and resumes the unchanged original instruction sequence from the first check. All actual memory operations, timing admission/counts, callbacks and reference fallback remain. A bounded address/alignment property fixture and mutation rejection checks precede compilation. Evidence: native-span-range-certificate. This is an unselected candidate; no source/runtime or preview change is implied by the fixture.
-
 
 ### Compact-timing standard build qualified and delivered locally
 
@@ -2200,17 +2107,13 @@ The High Refresh Preview and Jitter Capture desktop links now select the compact
 
 The transferable compiler lesson is to reproduce production flags and isolate one factor before attributing a speedup. Removing duplicated cold timing code produced a repeatable recorded-workload improvement; changing the compiler or reducing an isolated operation did not reliably improve real-time cadence. Use native cycle/submit observations to identify remaining long updates before another implementation change.
 
-
 The stable-base guard candidate compiles the 51 changed sampled bodies using matched production options, with the ordinary compact runtime as control. Four alternating recorded-clock combat comparisons test RAM/save, instruction counts and interpolation decisions while measuring both active wall time and root-thread cycles. The remaining generated bodies and public source are unchanged, and the ordinary runtime is restored afterward. Evidence: native-span-range-paired. This remains unselected until the repeated costs and qualification limits are reviewed.
 
-
 Two further muted native 120/VSync observations use only the ordinary FPS CSV and its cached overlay, with gameplay/actor/interpolation tracing, cycle queries, PCM/RAM capture and the all-process host monitor disabled. The retained input replay is still automated. Scene submission times are reconstructed from scene_age_us; inconsistent atomic snapshots are reported and unobserved scene gaps are not silently treated as one update. SCENES are submissions, not an independent simulation-tick counter. These observations are closer to normal FPS logging, but differing native paths and host load prevent attributing a difference solely to instrumentation. Evidence: compact-fps-only-native120. They do not establish full-route or physical-display acceptance.
-
 
 ### Detailed profiler requested by owner
 
 The owner requested hyper-detailed profiling because root update duration alone cannot identify the remaining spikes. An opt-in bounded function profiler records every reached dispatch edge in mode 2, or major stages in mode 1, on the root update's host thread. It reports per-update call counts, inclusive/exclusive thread cycles and wall duration, maximum call cost, known wait and observed guest instructions. Child costs are subtracted once; invalid counters, capacity limits and cross-thread samples invalidate precise attribution. Other guest threads and renderer execution are not silently counted as this thread's CPU work. Profiling defaults off and initially covers VI 3300-4500. A separate 256 MiB bounded memory trace defers gameplay TSV file writes until finish; overflow is explicit and crash-before-finish loses buffered evidence. This is instrumentation awaiting fixtures, build and same-workload overhead/correspondence checks, not a slowdown fix. Evidence: hyper-profile-source.
-
 
 ### Later comparison decisions and detailed attribution
 
@@ -2218,33 +2121,25 @@ The stable-base RAM-check consolidation passes its 661,374 boundary/alignment ch
 
 The ordinary FPS-only observations retain slow scenes with no full gameplay tracing or process monitor: the first extended window has 94 three-VI and 20 longer scene intervals, while the second has four three-VI intervals. Scene submissions are not independent simulation ticks, and differing native paths prevent causal claims about instrumentation. Evidence: native-span-range-paired and compact-fps-only-native120.
 
-The owner requested hyper-detailed profiling. The implemented profiler now captures all reached function/caller edges or selected stages, plus same-update root/process cycles, wake latency, graphics submission, GPU completed timestamps and history/RDP-sync timings. Exact recorded state checks and the disabled Original comparison pass. Full profiling materially raises update cost, so its induced 20-FPS updates are not a normal-play regression claim. The lower-overhead native captures still contain genuine budget overruns. Earlier correlated captures show 10-16 ms of graphics submission in several slow updates, alongside substantial entity/pathfinding CPU costs; the recorded GPU timestamp totals are much smaller but not a complete root-owned GPU interval. This motivates splitting CPU-side interpolation preparation from RT64 synchronization; it does not yet establish one universal slowdown cause. See [profiler guide](../function-profiling.md), [PERF-002](frame-diagnostics.md), and [qualified diagnostics receipt](../../../evidence/high-refresh-function-profile.json). PERF-001 remains open.
-
+The owner requested hyper-detailed profiling. The implemented profiler now captures all reached function/caller edges or selected stages, plus same-update root/process cycles, wake latency, graphics submission, GPU completed timestamps and history/RDP-sync timings. Exact recorded state checks and the disabled Original comparison pass. Full profiling materially raises update cost, so its induced 20-FPS updates are not a normal-play regression claim. The lower-overhead native captures still contain genuine budget overruns. Earlier correlated captures show 10-16 ms of graphics submission in several slow updates, alongside substantial entity/pathfinding CPU costs; the recorded GPU timestamp totals are much smaller but not a complete root-owned GPU interval. This motivates splitting CPU-side interpolation preparation from RT64 synchronization; it does not yet establish one universal slowdown cause. See [profiler guide](../runtime/function-profiling.md), [PERF-002](frame-diagnostics.md), and [qualified diagnostics receipt](../../../evidence/high-refresh-function-profile.json). PERF-001 remains open.
 
 ### Profiler-directed resident math dispatch experiment
 
 The full capture finds roughly 2,435 Arctanf and 1,335 mathDiffAngle calls per combat update. An earlier angle-body replacement did not prove a gain. A distinct private candidate now tests whether bounded native equivalents can also avoid generic generated-dispatch metadata and scope setup. Dispatch history, MMIO failure checks, generated-call counts and the outer function profiler remain. Focused/instruction observers and Original timing retain fallback; admission preserves clock sampling boundaries. C++ helper fixtures compare 200,000 complete CPU/timing/FENV states against the generated C reference. The candidate is unselected pending repeated exact-workload comparisons. Evidence: native-pure-dispatch-fixtures and native-pure-dispatch-build.
 
-
 The first private dispatch build failed because its insertion placed the helper under the unused fallback-header branch and duplicated CRLF line endings. Its dependent comparison correctly refused to run. The corrected private build normalizes only the candidate text and places helpers after the selected timing header. Original source bytes/runtime are restored in both attempts; no failed executable was delivered. Evidence: native-pure-dispatch-build and native-pure-dispatch-build-fixed.
-
 
 The first native math comparison completed its muted control capture, then the review rejected an expected ai_submission_overflows field absent from this play-mode summary. The corrected review explicitly checks the present unsupported-access/audio underflow/overflow fields and reuses the exact saved first capture; it does not rerun or replace that evidence. Evidence: native-pure-dispatch-native.
 
-
 The profiler also identifies sine/cosine table lookups as frequent CPU calls. A private extension retains the existing guest table, exact register effects and counted paths, requires a bounded 20-instruction native certificate, and falls back for unsupported/nonfinite table entries. It changes no guest memory or lookup approximation. A further 200,000 C++ versus generated-C context/timing/FENV comparisons precede the combined four-helper build and exact recorded comparisons. Evidence: native-trig-dispatch-fixtures and native-four-math-build. This remains a candidate, not a no-dip remedy.
 
-
 The shared-prefix review initially requested play-only audio fields from the finite original-OS probe summary and refused that analysis. The corrected review uses the existing 14-field tick records for audio underflow/overflow counters and reports both release-boundary totals and native-suffix deltas. Recorded-prefix audio overflows are preserved and separated from new native-suffix errors. It reuses the already completed first capture and does not replace evidence. Evidence: native-four-math-prefix-native.
-
 
 ### Selected resident-math source candidate, final build awaiting qualification
 
 The four resident math replacements preserve the original guest table and full observed CPU/timing/FENV effects, with 400,000 differential checks against locally generated C. Four exact recorded combat comparisons preserve RAM/save/instructions/interpolation and show about 1.1-1.5 ms lower median update work within the two pairs. The source enables these bounded helpers only in the experimental native preview; Original timing, insufficient timing budget, unsupported inputs and explicit instruction/focused observers retain generated execution. JFG_DIAGNOSTIC_RESIDENT_MATH=0 selects the reference dispatch path for comparison. A reusable validation script and original synthetic fixture permit local reproduction without publishing generated game code. Shared-prefix/native evidence remains separate from final-build qualification and the no-20-FPS goal remains open. Evidence: native-four-math-recorded, native-four-math-prefix-native and resident-math-source-build.
 
-
 The first public helper fixture build correctly refused an invalid include-contract test: the selected timing header undefines its internal inline macro at its end. Removing that macro check keeps the documented include order and the compiler type checks; it changes no math or timing logic. The corrected 400,000-case local reference comparison and build are recorded separately. Evidence: resident-math-source-build (failed header contract) and resident-math-source-build-fixed. No failed executable was delivered.
-
 
 ### Resident-math and profiler final qualification
 
@@ -2258,87 +2153,66 @@ Four shared-prefix tests begin from exactly equal recorded state, then run in re
 | resident-final-native120 | 24.140 | 86 | 0 |
 | resident-final-native360 | 24.802 | 8 | 0 |
 
-The full-profile row includes substantial observer overhead; it must not be read as ordinary gameplay FPS. Default profiling is off. Source and reproducible fixtures are integrated, with package delivery tracked separately. The no-20-FPS goal, late-route visual acceptance and shadow cadence remain open. See [native math notes](../native-resident-math.md) and [combined qualification](../../../evidence/high-refresh-resident-math.json).
-
+The full-profile row includes substantial observer overhead; it must not be read as ordinary gameplay FPS. Default profiling is off. Source and reproducible fixtures are integrated, with package delivery tracked separately. The no-20-FPS goal, late-route visual acceptance and shadow cadence remain open. See [native math notes](../runtime/native-resident-math.md) and [combined qualification](../../../evidence/high-refresh-resident-math.json).
 
 ### Combined preview delivered locally
 
 Both High Refresh Preview and Jitter Capture desktop shortcuts now select the profiled-math package, runtime source commit 4a54d903853471bfd248cfd2da12ac97f14df1cb and SHA-256 3e898fc20e96d4c189e4645807f5a439bf01c0d84f684ea3bd1dc1f7d02186ec. Manifest and launcher/runtime setup protocol checks pass; both shortcut arguments and all 40 checked profile files are preserved, and the previous package/links remain available for rollback. Full profiling stays off in ordinary play. This is an additional measured component improvement with diagnostic tooling; occasional three-VI game updates and the no-20-FPS goal remain open. See [combined qualification and delivery](../../../evidence/high-refresh-resident-math.json).
-
 
 ### Eight-hour profiled continuation: geometry and submission attribution
 The final default-on resident math capture verifies over one million helper uses without an enabling environment variable, zero audio under/overruns and zero unsupported accesses. At 120/VSync it still records 39 three-VI and four four-VI intervals. Stage profiling measures 24.537 ms median active work and a 55.930 ms maximum; this remains an instrumented observation, not visual acceptance.
 The new per-update review finds roughly 28% of root-thread cycles in SmartMover and its unselected descendants. This supersedes the earlier call-count-only decision to deprioritize pathfinding: few calls do not imply low cost. Above-budget updates also have longer graphics submission (12.063 ms median versus 8.172 ms for within-budget updates), with both history preparation and RDP synchronization contributing. These nested costs must not be summed into root time twice.
 A private shadow geometry implementation computes point-in-region results alongside the unchanged generated routine, restoring the host floating-point environment. A bounded capture will compare its answers and measure repeated collision/path queries before proposing an algorithm or cache. No geometry replacement is enabled or delivered. Evidence: resident-default-stage-profile, resident-final-slow-update-review, resident-profiled-stage-review, geometry-query-shadow-build.
 
-
 The first geometry shadow capture preserves exact RAM/save/instructions/interpolation and identifies many repeated query arguments, but its predictor rejects all calls because the two overlay globals live in the checked synthetic overlay mapping rather than cached RDRAM. This is a diagnostic address-range defect, not a game failure or verified predicate. The correction allows only the two pinned globals of the already leased overlay; geometry pointers still require aligned cached RDRAM. Failed evidence is retained. Evidence: geometry-query-shadow-recorded and geometry-query-shadow-build-fixed.
-
 
 ### Geometry predicate and ABI candidate
 The corrected shadow calculation matches all 53,272 point-in-region returns in the recorded combat window, with zero unsupported queries and exact final RAM/save/instruction/interpolation correspondence. Of those calls, 35,208 repeat the recorded arguments within a VI interval; the collision traversal similarly has 149,940 repeats among 229,818 calls. These figures establish repeated work, not permission to cache mutable state.
 A private next candidate tests a direct geometry implementation that preserves the input context except the return value and reproduces the original private stack saves. The ABI test first executes the unchanged guest routine and then restores that proposed register contract, retaining original guest timing and memory effects; exact downstream replay correspondence is required before enabling the replacement. The actual native replacement skips emulated instruction accounting and therefore requires separate real-time behavior/performance qualification. It is opt-in, unselected, and unavailable from the desktop preview. Evidence: geometry-query-shadow-recorded-fixed and native-region-abi-build.
 
-
 The point-query ABI replay passes 76,699 calls with exact final RAM/save/instructions/interpolation. A separate 200,000-case generated-C differential fixture covers randomized BSP chains, zero/degenerate edges, vertex-adjacent points and four rounding modes; it verifies return values, private stack saves, the proposed preserved-register contract and eight fallback cases. Initial real-time control/candidate medians are 23.022/22.887 ms, while three-VI intervals are 3/11 plus one four-VI candidate interval. Native paths and host timings differ; this does not select the candidate or establish a cadence improvement. A bounded revision limits traversal to 64 nodes/edges, rejects noncanonical or unsupported inputs, and retains generated execution during recorded-clock prefixes and explicit instruction observers. Evidence: native-region-abi-recorded, native-region-reference-fixture, native-region-native120 and native-region-bounded-build.
-
 
 ### Shared-prefix region candidate result
 All four bounded-region comparisons start from an exactly matching recorded release fingerprint and complete without new native-suffix audio under/overruns or unsupported accesses. Extended median active work is 19.754/20.925 ms for the controls and 19.057/20.212 ms for the candidates. The candidate pair suggests a modest component saving, but its second run has 30 three-VI and three four-VI updates, versus zero/two three-VI control updates. The native paths and host timing diverge after release; these results do not establish a robust cadence improvement. The candidate remains private and unselected while submission costs are examined. Evidence: native-region-prefix120 and submit-sync-breakdown-review.
 A local standard-library source check also confirms that this MSVC build implements std::async through Concurrency::create_task. It must not be described as necessarily creating a new operating-system thread for every scene. A dedicated worker proposal would require measured queueing evidence, not that assumption.
 
-
 ### Snapshot-copy and synchronization breakdown
 The six-site submission probe preserves exact recorded RAM/save/instructions/interpolation and completes a native 120 capture without unsupported accesses or audio errors. Normal update medians include 7.380 ms submission, 1.151 ms snapshot preparation, 1.200 ms interpolation history, and 2.963 ms RDP synchronization. Above-budget updates have 12.751 ms submission; the worst 55.073 ms update has 33.618 ms submission. Fence/texture waits explain only part of that time, with large CPU-side or scheduling residuals. Nested costs are not additive to root work.
 A private comparison replaces block-compare-then-copy with ordinary memcpy only for the renderer's full snapshot import, using the same checked buffer sizes and preserving the identical-pointer no-op. Gameplay's earlier snapshot creation and GPU/CPU ownership remain unchanged. Exact replay and repeated timing comparisons will decide whether this is useful; it is not delivered. Evidence: submit-sync-breakdown-captures, submit-sync-breakdown-review and snapshot-direct-copy-build-fixed. The first build rejected deprecated getenv under warnings-as-errors; it restored all source/runtime and never ran a candidate.
 
-
 ### Native line-intersection candidate
 DoLinesIntersect accounts for about 2.1 percent of root-thread cycles in the retained full-profile capture. A private direct implementation uses the same 32-bit wraparound arithmetic and signed division/rounding, including degenerate/collinear results and optional short-coordinate outputs. It rejects unsupported pointers, overlap with live input stack arguments and signed-division overflow before mutation. Differential tests compare the original generated routine's return and all touched memory while checking the proposed preserved-register ABI; game-callsite validation is still required. Evidence: native-line-reference-fixture-fixed. The initial fixture omitted the reference break-handler link stub and never executed; the correction aborts on any unexpected reference break and retains that failure evidence. It is unselected and does not change the desktop preview.
 
-
 The line-intersection differential fixture evaluates one million randomized/degenerate/extreme inputs: 971,701 admitted cases match the original return and all touched memory; 28,299 unsupported cases are identified before native execution, and eight explicit invalid-context/pointer cases delegate. The next opt-in runtime ABI check executes the original routine, verifies predicted outputs and restores only the proposed caller-visible register contract. Direct execution remains disabled during a recorded-clock prefix, and Original/instruction observers retain reference execution. Evidence: native-line-reference-fixture-fixed and native-line-abi-build.
-
 
 The four alternating direct-copy recorded comparisons preserve RAM/save/instructions/interpolation. Per-snapshot medians improve from 0.518/0.548 ms to 0.472/0.478 ms, but whole combat-update medians are 26.676/27.259 ms for controls and 27.373/27.858 ms for direct copy. The small component change does not establish a robust update improvement, so direct copy is not selected. Evidence: snapshot-direct-copy-recorded.
 The next private diagnostic records the actual graphics-submission owner's thread cycles and operating-system CPU-time counters around snapshot/decode/writeback. This distinguishes elapsed blocking/preemption from CPU work without attributing renderer work to the guest update thread. OS CPU times can be coarse per sample, and cycle counts cannot be converted to milliseconds. Evidence: submit-thread-attribution-build.
 
-
 The line helper ABI check passes all 179,256 reached recorded calls with exact RAM/save/instruction/interpolation correspondence. Four native shared-prefix runs have equal release state and zero new audio errors/unsupported accesses. Controls measure 19.860/20.159 ms extended medians; native line replacement measures 19.712/21.172 ms, with 519,572/605,305 helper calls and no fallback. Three-VI intervals are 0/0 for controls and 0/1 for candidates. This is not a repeatable overall gain, so the line helper remains private and unselected. Evidence: native-line-abi-recorded and native-line-prefix120.
 The newer submission-owner capture confirms the renderer executes on a different host thread from the root game update. Slow native updates contain increased CPU-cycle totals on both: median root cycles 36.0 million within budget versus 74.1 million above budget, and submission cycles 24.4 versus 39.9 million. This capture's longest update is 72.194 ms active with 16.821 ms submission and 2.427 ms measured renderer waits. These are observations, not a complete universal cause; nested wall costs are not added, and cycles are not converted to milliseconds. OS CPU-time counters are quantized in 15.625 ms steps here, making per-frame medians unhelpful. Evidence: submit-thread-attribution-review.
-
 
 ### Broader collision closure, isolated feasibility fixture
 The two standalone predicate replacements produced insufficient repeatable benefit. A private next experiment translates the collision BSP helper and its two arithmetic callees as one closed CPU-only operation, retaining the generated arithmetic/register/memory behavior while removing per-instruction timing from the isolated fixture. The owner explicitly allows native implementations that preserve observable AI behavior rather than original instruction accounting. This is not runtime admission: bounded traversal, memory ownership, clock-poll responsiveness and actual-call differential checks still need proof before enabling it. The original fallback implementation is retained. Synthetic checks compare complete CPU context, touched stack/globals, host floating environment and periodic full RAM, with generated sources kept private. Evidence: native-bsp-closure-fixture.
 
-
-
 ### Collision shadow runtime rejection
 The raw closed collision operation passes 50,000 isolated inputs but its first sampled game run fails a live comparison. Native execution remains unselected; the original routine still supplies every gameplay result. The first trace was buffered and lost at fail-closed exit, so a bounded diagnostic follow-up drains it and retains private entry state and detailed original/candidate differences. Generated C's unreachable paths initially triggered the host C++ warnings-as-errors policy; the diagnostic build confines suppression to its private translation unit and restores normal source/runtime after execution. The exact mismatch and remedy remain under investigation. Evidence: bsp-shadow-recorded-fixed, bsp-shadow-recorded-diagnostic, dispatch-and-bsp-shadow-review.
-
 
 ### Live shadow qualification and bounded traversal fixture
 The live rejection was an overbroad test range: CPU context, collision globals and floating environment matched, while 244 changed bytes lay above the helper's stack arguments. The first difference was 1,925 bytes above entry SP, outside its write footprint. Source analysis bounds the helper/callee stack below SP with at most 16 argument bytes above it; a 4,112-byte comparison preserves all of that space for the already bounded 32-level shadow tree. The corrected capture passes all 256 sampled game calls, zero skips/mismatches, and exact final RAM/save/instructions/interpolation.
 A separate private mixed-execution fixture now constrains native work to 32 nodes, 128 edges, 16 edges per leaf and 24 recursion levels, with a 50-microsecond admission deadline checked at node entry. It falls back at the current node, never restarts a partly executed parent, and retains every original arithmetic/register/stack effect. Tests deliberately exhaust different budgets and compare full CPU, floating environment, stack/globals and periodic full RAM. This is not a delivered optimization; runtime clock refresh and live performance still require qualification. Evidence: native-bsp-shadow-recorded-footprint and native-bsp-bounded-fixture.
 
-
 The bounded BSP runtime candidate preserves the 4,000-VI recorded route and 17,000-VI Original reference, including RAM/save/instructions/interpolation and Original probe/renderer hashes. Live alternating comparisons retain the same verified release state; results and limitations are in native-bsp-bounded-review. It remains private and opt-in pending the comparison decision. Native instruction accounting is intentionally not 1:1 under the owner authorization, while Original and observers retain the reference path.
 
-
 A second private collision variant annotates only the generated CPU-context parameter as non-aliasing and permits the two arithmetic leaves to inline. Guest RAM remains unrestricted because timing/fallback callbacks also access it through runtime state. The CPU context is distinct from mapped guest memory, and child calls receive the same derived context pointer. Full mixed-fallback differential checks are required before runtime comparison; this is an optimization candidate, not a selected change. Evidence: native-bsp-restrict-fixture.
-
 
 ### Source integration candidate
 Repeated private native-collision comparisons reduce combat update medians from 21.743/22.174 ms to 20.468/20.045 ms, with all measured 120 FPS update intervals at two VIs and no audio or unsupported-access errors. The paired 360 target captures also keep two-VI game updates; rendered output is about 356-359 FPS in the sampled candidate bins. These captures share a verified release state but their later timing-dependent paths can diverge.
 Identical synthetic workloads show roughly 69-70 ms native collision execution versus 114-119 ms reference execution over 50,000 cases with full runtime budgets. Reference timing callbacks are inert in that fixture, so this is a component result, not an absolute gameplay saving. Extra inlining/non-alias annotations do not show a material independent benefit; source integration retains the ordinary generated context parameter and leaf attributes.
 The candidate moves bounded traversal into a separate host module, generates its three qualified bodies only inside the private build tree, rejects unqualified source digests/callees, and preserves complete reference fallback. It is a rebuild/qualification candidate until the integrated executable passes its own checks. Evidence: native-bsp-restrict-prefix120, native-bsp-restrict-prefix360, native-bsp-full-budget-benchmark, native-bsp-restrict-full-route and native-collision-source.
 
-
 Both long private comparison runs consume all 7,276 saved input samples by 17,000 VIs with zero new audio errors and unsupported accesses. The native candidate has two isolated three-VI update intervals later in the route, plus two long gaps of 67 and 37 VIs. These are being correlated with game state, level changes, cold overlays and graphics submission before classifying them as gameplay drops or loading transitions. The combat window remains at two VIs per update. Evidence: native-bsp-restrict-full-route and native-bsp-full-route-review. Input consumption alone does not prove identical navigation after timing-dependent AI diverges.
 
-
 The longer native route exposed two cold-overlay stalls, including a same-level reload that cannot be identified as damage versus death from generic state alone. Added rare trace markers at the existing level-change and death-restart counters so the next full route can establish whether a stall contains an explicit transition call. Historical captures without these markers remain ambiguous; they are not retroactively labeled.
-
 
 ### Integrated bounded collision and cadence diagnostics qualified
 
@@ -2359,12 +2233,10 @@ The final normal Play run consumes all saved route inputs, admits 2,124,488 nati
 | 6588 | 64 | 811.905 / 264.957 | [] (prior []) | current=True, prior=False |
 | 6591 | 3 | 18.049 / 24.755 | [] (prior []) | current=True, prior=True |
 
-The explicit level/death markers distinguish those calls from an unclassified gameplay hitch. A cold-overlay correlation alone is not assigned a cause. Late crate/light/bridge and shadow visual acceptance remain pending. The candidate is qualified for local preview packaging, not released or claimed as an all-level no-dip fix. [Compatibility and fixture](../native-collision.md); [final binary evidence](../../../evidence/high-refresh-native-collision.json).
-
+The explicit level/death markers distinguish those calls from an unclassified gameplay hitch. A cold-overlay correlation alone is not assigned a cause. Late crate/light/bridge and shadow visual acceptance remain pending. The candidate is qualified for local preview packaging, not released or claimed as an all-level no-dip fix. [Compatibility and fixture](../runtime/native-collision.md); [final binary evidence](../../../evidence/high-refresh-native-collision.json).
 
 ### Bounded collision preview delivered locally
 Both High Refresh Preview and Jitter Capture desktop shortcuts now select source commit 8f94f148ec367e4a221679a40255f12e6353af07 and runtime SHA-256 34ce90c9a11bba75a9ae47f3ae3d8a40d635b20357bf8c52391f4bd015a6bff1. Package and launcher/runtime setup checks pass; shortcut arguments and all 40 checked profile files are preserved. Previous package and links remain available for rollback. The qualified collision optimization, expanded submission diagnostics, cadence analyzer and explicit transition markers are included. Detailed function profiling remains off for ordinary play. This is a local preview, not a release or universal no-20-FPS claim. Late crate/light/bridge jitter and shadow cadence still require owner visual review. [Current evidence](../../../evidence/high-refresh-native-collision.json).
-
 
 ### Final delivery audit
 
@@ -2380,9 +2252,7 @@ proof that every update met 30 FPS. Frequent audio interruptions and late bridge
 strobing remain, tracked in AUDIO-002 and RENDER-006. Do not claim complete
 smooth-play acceptance from this report.
 
-
 The audio/bridge qualification retains a repeatable ordinary Goldwood update gap: poll 2387 (VI 4935 at 120 output, VI 4932 at 360 output) expands from 45 to 48 actors and takes about 32.27 ms of measured active work plus 15-16 ms of known wait. No cold overlay or level/death transition occurs in that interval. This is a remaining 3-VI update, not a no-dip pass. A narrow full-function capture around that event is being reviewed; profiler overhead must be separated from ordinary-play timing. The new audio/bridge package stays selected while this follow-up remains private. The first capture timed out because its stop monitor read the memory-buffered trace before shutdown; it produced no usable trace and is excluded. The recovery monitors the independent FPS CSV for its stop target, then closes normally to flush the trace. Evidence: residual-cadence-roots and residual-goldwood-profile-recovery under route-audio-bridge-20261016.
-
 
 A narrower full-function capture reproduces the poll-2387 explosion: shockwave/expsprite creation loads 11 texture frames. texLoadSprite includes 11.13 ms and its texture ROM section reads include 8.35 ms; decompression itself is about 1.95 ms. These inclusive profile times overlap and are not summed. A private opt-in candidate lets a validated immutable-ROM PI read complete on the next Count tick after its host copy, retaining normal register/interrupt delivery, validation and unchanged FlashRAM timing. This removes the simulated cartridge-bus delay only in native elapsed-time mode; Original retains its existing model. It is not selected or delivered until unprofiled comparisons and compatibility checks establish the result. Evidence: explosion-decompression-profile and native-rom-completion-build.
 
@@ -2390,34 +2260,99 @@ The first ROM-completion fixture build stopped on signed/unsigned optional-value
 
 The second control stayed at two VIs for the explosion despite a 36.815 ms root duration, so the initial all-controls-miss promotion assertion refused before changing source. Preserve that mixed outcome. Both candidate explosion roots are shorter (33.198/33.974 ms versus 48.161/36.815 ms), all four have the same 45-to-48 actor-count change, and both candidate combat windows have no three-VI updates or audio errors. Native paths and scheduling phases differ; these results admit integration/compatibility qualification of a loading-latency improvement, not a universal no-dip claim. Final default-policy and Original comparisons are still required.
 
-
 ## Native ROM completion qualified (2026-10-16 UTC)
 
-The final integrated binary passes Original and recorded-clock correspondence, including an explicit fast-ROM request that stays on reference timing during recorded replay. Final native 120/360 combat windows each contain 749 two-VI intervals and no missed intervals; audio under/overruns, rejected submissions and payload mismatches are zero. The six-minute capture remains in Goldwood after a death restart rather than reproducing the owner late-cave route. It retains three gaps: death/reload, a 67.115 ms interval containing 40.72 ms graphics submission/39.60 ms full synchronization, and a 49.96 ms cold-overlay load. The 67 ms update performs no ROM reads, so its renderer path is separate work. The native ROM improvement is qualified for local packaging, not a universal no-20-FPS resolution. [Policy, measurements and compatibility](../native-rom-loading.md); [binary qualification](../../../evidence/high-refresh-native-rom.json).
-
+The final integrated binary passes Original and recorded-clock correspondence, including an explicit fast-ROM request that stays on reference timing during recorded replay. Final native 120/360 combat windows each contain 749 two-VI intervals and no missed intervals; audio under/overruns, rejected submissions and payload mismatches are zero. The six-minute capture remains in Goldwood after a death restart rather than reproducing the owner late-cave route. It retains three gaps: death/reload, a 67.115 ms interval containing 40.72 ms graphics submission/39.60 ms full synchronization, and a 49.96 ms cold-overlay load. The 67 ms update performs no ROM reads, so its renderer path is separate work. The native ROM improvement is qualified for local packaging, not a universal no-20-FPS resolution. [Policy, measurements and compatibility](../runtime/native-rom-loading.md); [binary qualification](../../../evidence/high-refresh-native-rom.json).
 
 The High Refresh Preview and Jitter Capture desktop links now select the native-ROM package: source 8277a80611e73c0dc57285e32e0761e9b7519e41, runtime SHA-256 5f902049bd3e4a991a020f17e63a51d0291f28709057a9aa7efc03097692764b. Launcher/setup checks pass; all 40 checked profile files and shortcut arguments are preserved. Earlier audio and bridge remedies are included. Owner listening/visual acceptance, later renderer/load hitches and the broader no-20-FPS goal remain open. [Qualification and delivery](../../../evidence/high-refresh-native-rom.json).
-
 
 The qualified native-ROM binary reproduces the later hitch at VI 15347/poll 7620: 67.307 ms between update returns, 41.834 ms graphics submission, 0.409 ms interpolation preparation and 40.371 ms inside RT64 fullSync. The six measured waits total only 0.7247 ms; the submission owner records 153,826,280 decode-stage thread cycles. This narrows the repeated hitch to CPU-side RT64 work rather than interpolation preparation, without excluding unmeasured locks or scheduling. A private stage-attribution build is being captured; the desktop package remains unchanged. Evidence: late-renderer-attribution and rt64-stage-candidate.
 
 The exact installed binary repeats the late poll-7620 hitch (66.941 ms interval; RT64 synchronization 38.059 ms), while two stage-instrumented builds do not. All use the same input/save but native timing can diverge. A clean rebuild with all added stage timers removed is being compared before attributing the difference to instrumentation or build provenance. No additional renderer optimization is selected. Evidence: late-renderer-cross-capture-review and clean-renderer-rebuild.
 
-
 External CPU sampling reproduced the renderer hitch without source instrumentation and observed unsigned-64/bool unordered-map growth. The pinned DrawCallKey hashes all 88 object bytes, although its members occupy only 84; fromDrawCall does not initialize the four tail bytes. A regression deliberately varies those bytes and fails against the original dependency. Its equality also returns raw memcmp, reversing logical equality and reading the same padding. The candidate hashes/compares the checked member range and avoids negative cache entries when the material-preset library is empty. Dependency source remains pristine through a hash-guarded build-tree patch. Runtime hitch and reference comparisons are pending. Evidence: external-renderer-sampling-review, sampled-hitch-time-correlation and draw-key-fix.
-
 
 The deterministic draw-call key correction passes failing-then-passing regression checks, renderer interpolation tests, exact Original/recorded comparisons and final 120/360 native checks. The previously repeated poll-7620 renderer hitch is absent in the unprofiled corrected replay; restart/load gaps and full-route acceptance remain open. [PERF-003](renderer-cache-key-instability.md) records the cache defect, observer effects and bounded remedy.
 
-
 Local delivery: both High Refresh Preview and Jitter Capture desktop links select source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e, runtime SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6. Manifest and launcher/profile checks pass; all 40 checked profile files and shortcut arguments are preserved. Includes native audio, bending bridge interpolation and ROM loading improvements. Owner live acceptance and broader restart/load gaps remain open. [Current qualification](../../../evidence/high-refresh-draw-key.json).
-
 
 ## Longer owner acceptance capture (2026-10-16 UTC)
 
 The owner reports that dips are no longer visually apparent in the draw-key preview and requests a longer recorded measurement. This is subjective improvement, not a clean quantitative result. A fresh owner-driven capture uses the delivered runtime unchanged (SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6), 120 FPS with VSync, existing controls/save, and asynchronous frame/VI/update/audio diagnostics. Full function profiling remains off. Startup/idle, loading/death transitions and active gameplay will be reported separately; every observed gap remains in the evidence. The detailed gameplay stream has an existing 256 MiB ceiling; unbounded game-update timing, final counters and rotating frame CSVs must be checked for full-run coverage before any clean result is claimed. Private evidence: final-measurement-20261016. Recording/review pending; no release claim.
 
-
 ## Longer owner capture completed (2026-10-16 UTC)
 
 The owner reports no perceptible gameplay slowdown, with choppiness and audible interruptions during the Goldwood exit cutscene. This is not a full clean acceptance. The 21-minute recording retains all 131,288 presentation records with no queue drops, but the detailed gameplay/audio trace reached its 256 MiB cap at about 18:27. No unbounded game-update rows or final audio-health totals were written in the live path. The earlier expectation of full-run update/audio coverage was incorrect. Thus later cutscene audio cannot be cleared using the earlier zero counters. Preserve the final report as open; review timing and reproduce the exit under bounded muted tests. Private evidence: final-measurement-20261016, measurement-review.json. The native cutscene/bridge physics conclusions are unchanged.
+
+## Consolidated supporting record
+
+The following dated evidence preserves the earlier investigation and its original acceptance limits. The current status at the top of this issue takes precedence over historical candidate wording.
+
+## Profile-directed combat optimization, 2026-10-16
+
+The no-20-FPS goal remains open. The installed profiled-math preview already contains the earlier compact timing and bounded resident-math improvements. This continuation adds qualified diagnostics and tests further candidates; it does not declare all remaining drops fixed.
+
+### What the measurements establish
+
+Game updates and synchronous graphics submission can execute on different host threads; some recorded/Original paths instead nest submission on the root owner. A later native capture shows both thread-cycle totals increasing in slow updates. Renderer fence/texture/queue waits explain only part of submission time. Wall durations include scheduling and blocking; nested costs are never added twice. Windows OS CPU-time deltas are coarse here, so use aggregate observations and preserve cycle units.
+
+The permanent profiler now emits snapshot/decode/writeback timings, six renderer wait totals/counts, and actual submission-owner cycle/CPU-time observations. Its analyzer pairs repeated scene keys in order and reports incomplete or invalid joins. Ordinary F8 FPS logging leaves this expensive detail disabled. [Controls and interpretation](../runtime/function-profiling.md); [qualification](../../../evidence/high-refresh-submission-profile.json).
+
+### Candidate decisions
+
+| Candidate | Correctness evidence | Decision |
+|---|---|---|
+| Direct snapshot memcpy | Four exact recorded state comparisons | Unselected: about 0.1 ms per-update component saving, no repeatable overall improvement |
+| Direct point-in-region predicate | 53,272 shadow answers; 76,699 ABI calls; 200,000 synthetic cases | Unselected: modest native saving, slow updates remain |
+| Direct line-intersection predicate | 971,701 supported synthetic cases; 179,256 recorded ABI calls | Unselected: native overall improvement inconsistent |
+| Closed collision BSP/arithmetic operation | 50,000 raw and 50,000 mixed-fallback fixture cases; 256 live shadows; exact recorded and long Original fallback checks | Private bounded native candidate; live timing comparison and selection tracked below |
+| Windows thread-dispatch profiling | Owned-thread fixture succeeds without hardware counters or driver changes | Private diagnostic; runtime validation tracked separately |
+
+Real-time comparisons share a verified initial state where stated, but their later paths and host scheduling can diverge. Exact recorded comparisons verify preserved behavior and same-workload costs; replaying an old timing transcript is not native FPS acceptance.
+
+Private artifacts, generated code and captures remain on D:. Failed and inconclusive attempts are preserved. The production guard remains enabled with the same investigation identity and counters. The eight-hour extension changes only admitted allowance.
+
+Further details and historical evidence: [combat slowdown](goldwood-combat-slowdown.md), [frame diagnostics](frame-diagnostics.md).
+
+### Later scheduling and collision checks
+
+The corrected private Windows dispatch collector accumulates wait-reason bits through nested readers. Recorded capture preserves exact state/instructions/interpolation; a native 120 run has 1,250 selected updates, 20.667 ms median, 24.732 ms p95 and 27.808 ms maximum active duration, with all 1,249 measured update intervals at two VIs and no audio or unsupported-access errors. This bounded run is not universal no-dip acceptance. Earlier slow captures remain relevant. Dispatch-cycle observations closely track QueryThreadCycleTime in this run; wait bits/counts do not provide wait duration or a CPU-time percentage. Evidence: thread-dispatch-profile-review-nested.
+The first larger collision shadow runtime builds after suppressing the generated code's existing unreachable-path warnings in that private translation unit only. Live shadow comparison then detects a difference and fails closed. No replacement is enabled. The initial in-memory trace was lost on fail-closed exit; the next diagnostic explicitly drains it and retains original/candidate CPU, stack, collision globals and floating environments plus private entry memory for isolated reproduction. This failure is retained, not treated as a qualified candidate. Evidence: native-bsp-shadow-build, native-bsp-shadow-build-fixed, bsp-shadow-recorded-fixed, native-bsp-shadow-diagnostic-build and dispatch-and-bsp-shadow-review.
+
+#### Bounded collision candidate reaches live comparisons
+
+The corrected live shadow comparison passes 256 sampled calls and exact final replay state. The earlier mismatch lay outside the helper's stack write footprint; the first changed byte was 1,925 bytes above entry SP. The mixed native/original fixture also passes all 50,000 cases, exercising 121,613 native nodes and 37,156 fallbacks with varied budgets.
+The private runtime admits only the selected overlay in native elapsed-time mode, with Original, recorded-clock prefixes and instruction observers retaining reference execution. Each entry allows up to 32 nodes/128 edges, at most 16 edges per leaf and 24 recursion levels; a 50-microsecond deadline is checked before admitting each node. That check is not a hard wall-time guarantee, especially across OS preemption or original fallback. Any native work invalidates the clock fast path on return so the next generated instruction refreshes clocks/events. The reference fallback begins at the current node and preserves partial parent work. The exact replay and long 17,000-VI Original checks pass before live comparisons. Evidence: native-bsp-bounded-build, native-bsp-bounded-recorded, native-bsp-bounded-prefix120 and native-bsp-bounded-review.
+
+#### Integrated bounded collision and cadence diagnostics qualified
+
+The separate production module passes 50,000 mixed-budget original-C comparisons, 18 admission rejections and cancellation cleanup. The final executable passes exact recorded combat and the 17,000-VI Original comparison. Detailed profiling passes on both recorded and native execution, with submission owner/wait records present and valid; full profiling remains off during ordinary play.
+
+| Final native comparison | Combat median active work (ms) | Combat p95 (ms) | Extended VI intervals |
+|---|---:|---:|---|
+| collision-final-prefix120-off-a | 20.349 | 24.367 | {'2': 1229} |
+| collision-final-prefix120-on-a | 19.892 | 24.233 | {'2': 1229} |
+| collision-final-prefix360-on-a | 19.931 | 23.883 | {'2': 1229} |
+
+The repeated integration comparisons used the same compiled arithmetic before rare transition markers were added. Enabled 120 medians were 19.796, 19.713 ms; controls were 20.467, 20.797 ms. These are component observations, not universal or identical-path native acceptance.
+
+The final normal Play run consumes all saved route inputs, admits 2,124,488 native nodes and reports no unsupported memory accesses or audio under/overruns. Its post-prefix update intervals are {'2': 6700, '64': 1, '3': 1}. The following gaps are all retained, including transition-adjacent ones:
+
+| VI | Delta VIs | Active / known wait (ms) | Explicit transition calls | Cold overlay activity |
+|---:|---:|---|---|---|
+| 6588 | 64 | 811.905 / 264.957 | [] (prior []) | current=True, prior=False |
+| 6591 | 3 | 18.049 / 24.755 | [] (prior []) | current=True, prior=True |
+
+The explicit level/death markers distinguish those calls from an unclassified gameplay hitch. A cold-overlay correlation alone is not assigned a cause. Late crate/light/bridge and shadow visual acceptance remain pending. The candidate is qualified for local preview packaging, not released or claimed as an all-level no-dip fix. [Compatibility and fixture](../runtime/native-collision.md); [final binary evidence](../../../evidence/high-refresh-native-collision.json).
+
+#### Bounded collision preview delivered locally
+
+Both High Refresh Preview and Jitter Capture desktop shortcuts now select source commit 8f94f148ec367e4a221679a40255f12e6353af07 and runtime SHA-256 34ce90c9a11bba75a9ae47f3ae3d8a40d635b20357bf8c52391f4bd015a6bff1. Package and launcher/runtime setup checks pass; shortcut arguments and all 40 checked profile files are preserved. Previous package and links remain available for rollback. The qualified collision optimization, expanded submission diagnostics, cadence analyzer and explicit transition markers are included. Detailed function profiling remains off for ordinary play. This is a local preview, not a release or universal no-20-FPS claim. Late crate/light/bridge jitter and shadow cadence still require owner visual review. [Current evidence](../../../evidence/high-refresh-native-collision.json).
+
+The production guard remains enabled with all investigation counters and earlier evidence retained. Further gameplay optimization should be guided by a fresh owner capture; hidden playback does not settle the remaining visual reports. The full profiler now identifies pathfinding and the point-in-region wrapper as remaining expensive groups, but its per-call overhead biases small-function percentages. Previously rejected isolated-predicate experiments remain documented; they are not silently promoted to fixes.
+
+#### Final delivery audit
+
+The final binary also completes a muted capture-mode comparison with actor, interpolation, poll and progress logging enabled (recorded inputs replace live input recording). Its combat median active duration is 20.392 ms; extended update intervals are {'2': 1229}. No new audio-buffer errors or unsupported accesses occur. This bounded comparison does not remove the observer-cost caveat for full function profiling.
+
+The cadence analyzer now includes transition calls anywhere between consecutive update returns, including calls outside either measured root. Final normal-Play gap associations: [{"vi": 6588, "delta_vi": 64, "transition_kinds": [], "latest_transition": {"stamp_us": 109416093, "vi": 6494, "poll": 3170, "kind": "death_restart", "age_ms": 1568.366}}, {"vi": 6591, "delta_vi": 3, "transition_kinds": [], "latest_transition": {"stamp_us": 109416093, "vi": 6494, "poll": 3170, "kind": "death_restart", "age_ms": 1611.178}}]. These are actual observed transition entries, not causes inferred from a level number alone. Further owner visual review is still required for the reported late scenery/shadow jitter; a fresh route is also needed to judge combat under live inputs.

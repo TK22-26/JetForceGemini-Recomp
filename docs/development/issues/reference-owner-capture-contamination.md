@@ -40,7 +40,6 @@ The analysis begins at first observed player displacement, removes the final two
 
 The setup correction is prepared, not live-verified or released. Any new capture must retain an explicit environment/configuration receipt and verify the active controller mode before user handoff. Keep debug gameplay overrides separate from logging. A zero-valued environment variable can still activate presence-based debug code. Never infer disabled cheats merely from a settings file that does not persist them. Future timing conclusions must retain this run's confounders rather than silently replacing its history.
 
-
 On October 15 the owner clarified that the reference is useful only as a source of ideas for our implementation and explicitly declined further upstream debugging. The source build was canceled with its descendants identified and its cancellation receipt preserved; it did not complete. The prepared clean capture remains unexecuted. This closes the reference follow-up scope without claiming a clean comparison or a verified upstream fix. Further work returns to PERF-001 in our runtime.
 
 ## Owner original-game shooting-assist verification (2026-10-16 UTC)

@@ -53,14 +53,6 @@ h1 { font-family:Chakra Petch; font-weight:bold; font-size:58dp; margin:10dp 0 3
 .tabs .selected { border-color:#ffb23e; color:#ffb23e; background:#1a2236; }
 .dialog-footer { display:flex; justify-content:space-between; align-items:center; padding:14dp 24dp; border-top:1dp #222b40; }
 #modal { display:none; }
-#toast { position:absolute; bottom:48dp; left:50%; transform:translate(-50%,96dp); opacity:0; background:#121826; border:1dp #2e3a57; border-radius:8dp; padding:16dp 22dp; }
-#toast.visible { opacity:1; }
-@keyframes toast {
- 0% { transform:translate(-50%,96dp); opacity:0; }
- 8.7% { transform:translate(-50%,0dp); opacity:1; }
- 95.2% { transform:translate(-50%,0dp); opacity:1; }
- 100% { transform:translate(-50%,120dp); opacity:0; }
-}
 scrollbarvertical { width:8dp; background:#0e1320; }
 scrollbarvertical sliderbar { background:#3a4663; border-radius:4dp; }
 
@@ -207,7 +199,10 @@ input.volume sliderprogress { height:4dp; background:#ffb23e; }
 .game-popup { z-index:6; top:24dp; width:280dp; box-sizing:border-box; border-radius:0 0 8dp 8dp; }
 .game-popup button { height:36dp; padding:8dp 14dp; font-size:14dp; }
 .pause-label { position:static; padding:3dp 8dp; border:1dp #4a4231; border-radius:4dp; color:#ffcf86; font-size:11dp; letter-spacing:1dp; margin-right:8dp; }
-#toast { display:flex; align-items:center; gap:10dp; left:20dp; bottom:48dp; padding:12dp 16dp; font-size:14dp; pointer-events:none; max-width:85%; }
+#toast { display:block; position:absolute; left:20dp; bottom:48dp; width:420dp; max-width:85%; height:0; pointer-events:none; z-index:7; }
+.toast-item { display:flex; position:absolute; left:0; bottom:0; align-items:center; gap:10dp; width:100%; box-sizing:border-box; padding:12dp 16dp; background:#121826; border:1dp #2e3a57; border-radius:8dp; font-size:14dp; pointer-events:none; }
+.toast-message { display:block; flex:1; min-width:0; }
+.toast-item .notice-dot { flex-shrink:0; }
 .notice-dot { width:7dp; height:7dp; background:#6fd3ee; border-radius:4dp; }
 .playing #toast { bottom:20dp; }
 .panel-open #toast { opacity:0; visibility:hidden; }
@@ -284,8 +279,7 @@ selectarrow { width:6dp; height:6dp; margin-right:7dp; margin-top:5dp; border-ri
 .input-device-card .label { font-size:11dp; }
 @media (max-width:700dp) { .controller-window .tabs button { min-width:40%; } }
 
-/* One-time import leaves the home screen focused on Play. */
-.rom-imported #rom-card { display: none; }
+/* Imported regions remain visible and selectable on the home screen. */
 
 /* Reference update card below Play, using JFG amber and dark surfaces. */
 #update-notice { display:none; box-sizing:border-box; width:100%; max-width:700dp; min-height:78dp; margin-top:28dp; padding:14dp 16dp 14dp 18dp; align-items:center; gap:14dp; background:#121826; color:#e8ecf4; border:2dp #ffb23e; border-radius:16dp; }
@@ -316,3 +310,43 @@ selectarrow { width:6dp; height:6dp; margin-right:7dp; margin-top:5dp; border-ri
 .verify-progress { width:100%; height:5dp; margin-top:12dp; overflow:hidden; background:#232d43; border-radius:3dp; }
 #verify-progress-fill { width:25%; height:5dp; background:#ffb23e; border-radius:3dp; }
 #verify-progress-time { margin-top:8dp; }
+
+/* Regional cartridge library: dimensions and colors from the owner's mockup. */
+.content, .has-update .content { top:19%; bottom:48dp; overflow-y:auto; padding-right:4dp; }
+h1 { margin-bottom:24dp; }
+#rom-card { max-width:880dp; }
+.rom-library-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14dp; gap:16dp; }
+#rom-count { margin-left:14dp; color:#6f7a91; font-size:13dp; }
+#rom-library-import { display:block; box-sizing:border-box; height:34dp; line-height:32dp; padding:0 14dp; font-size:13dp; font-weight:bold; flex-shrink:0; }
+#rom-library-import.add-rom { background:#ffb23e; border-color:#ffb23e; color:#1a1206; }
+.rom-tiles { display:flex; gap:14dp; }
+.rom-tile { display:block; position:relative; flex:1; min-width:0; height:168dp; padding:0; border:0; border-radius:0; background:transparent; text-align:left; }
+.rom-tile:hover, .rom-tile:focus, .rom-tile:disabled { background:transparent; }
+rom-cartridge { display:block; position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; }
+.rom-tile-content { display:flex; position:relative; flex-direction:column; box-sizing:border-box; height:100%; padding:16dp 18dp; gap:8dp; pointer-events:none; }
+.rom-slot { display:block; flex-shrink:0; height:6dp; margin:-6dp 22dp 4dp; border-radius:0 0 3dp 3dp; background:#222b40; }
+.selected .rom-slot { background:#ffb23e; }
+.rom-tile-heading { display:flex; align-items:center; justify-content:space-between; }
+.rom-region { font-family:Chakra Petch; font-weight:bold; font-size:30dp; letter-spacing:2dp; line-height:1; color:#4a556e; }
+.loaded .rom-region { color:#f2f4f8; }
+.selected .rom-region { color:#ffc872; }
+.rom-state { display:flex; align-items:center; gap:6dp; color:#4a556e; font-size:11dp; font-weight:bold; letter-spacing:1dp; }
+.loaded .rom-state { color:#6fd3ee; }
+.invalid .rom-state { color:#e99b74; }
+.rom-dot { width:7dp; height:7dp; border:1dp #4a556e; border-radius:4dp; box-sizing:border-box; }
+.loaded .rom-dot { background:#6fd3ee; border-color:#6fd3ee; }
+.rom-title { display:block; font-size:14dp; font-weight:bold; line-height:1.35; color:#6f7a91; }
+.loaded .rom-title { color:#c9d1e0; }
+.rom-path { display:block; margin-top:auto; font-size:12dp; color:#6f7a91; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.actions { margin-top:18dp; gap:22dp; }
+.play { height:54dp; padding:0 36dp; font-size:20dp; letter-spacing:4dp; border-radius:8dp; }
+.play:disabled { background:#2a3348; color:#6f7a91; border-color:#2a3348; }
+#rom-play-note { color:#a7b0c2; }
+@media (max-width:800dp) { .content { left:5%; right:5%; } .rom-tile-content { padding:16dp 12dp; } .rom-state { font-size:10dp; letter-spacing:0; } }
+@media (max-width:580dp) { .rom-tiles { flex-direction:column; } .rom-tile { flex:auto; min-height:142dp; } h1 { font-size:36dp; } .rom-library-header { flex-wrap:wrap; } .content, .has-update .content { top:12%; } }
+@media (max-height:620dp) { .content, .has-update .content { top:12%; } h1 { font-size:42dp; margin-bottom:14dp; } }
+
+@media (max-height:620dp) { .has-update .content { top:9%; } .has-update h1 { font-size:34dp; margin-bottom:12dp; } .has-update .rom-tile { height:134dp; } .has-update .actions { margin-top:14dp; } .has-update #update-notice { margin-top:14dp; } }
+
+.rom-tile.selected { background:transparent; }
+.play { line-height:50dp; }

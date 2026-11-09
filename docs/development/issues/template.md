@@ -4,6 +4,10 @@
 - Status: reported / reproduced / candidate / verified in tests / awaiting live verification / resolved or released
 - Reported and last updated (UTC):
 - Affected versions, execution profile, platform and settings:
+
+- Evidence origin: recomp / original ROM in emulator (name/core) / physical N64 (console/display).
+- Original-game comparisons: ROM region/revision, observer/date, expected versus actual, and uncertainties.
+- Native-game decision, if applicable: preserve / fix / optional correction / undecided.
 - Related report, feature notes and source locations:
 
 ## Symptoms and reproduction

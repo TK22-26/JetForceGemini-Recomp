@@ -87,7 +87,6 @@ the source inspection and owner-session state. No gameplay was driven automatica
 Automatic assignment and explicit removal are distinct intents. Test with untouched
 default ports and with both physical-device identity and persisted profile state.
 
-
 ### Completed automated verification
 
 Persistent device-identity exclusions are shared by launcher/runtime; explicit Add

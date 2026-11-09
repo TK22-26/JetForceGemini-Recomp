@@ -2,10 +2,23 @@
 
 ## Delivery and issue status — 2026-10-22 UTC
 
-Rain and reticle presentation and the brief room-entry rain delay are released in v1.4.0 after local owner approval. The approved reply closes #25 and invites a new report if any symptom persists. Ally X hardware retesting and the separate hut slowdown are not claimed as verified fixes.
+Rain and reticle presentation and the brief room-entry rain delay are released in v1.4.0 after local owner approval. On October 22, the original reporter confirmed that all originally reported bugs are fixed and reported being able to play at 120 FPS on the Ally X. This includes their cutscene complaint; it is reporter verification, not an independently measured performance guarantee across every area. #25 remains closed.
 
 [Release v1.4.0](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.4.0); [verified issue action](https://github.com/TK22-26/JetForceGemini-Recomp/issues/25#issuecomment-6332070678).
 Earlier entries below preserve their original investigation and verification scope.
+
+### Reporter confirmation reviewed October 23 UTC
+
+[@duke912's October 22 retest](https://github.com/TK22-26/JetForceGemini-Recomp/issues/25#issuecomment-6346820937)
+confirms all reported symptoms resolved and improved performance. No new failure
+or follow-up request accompanied it. The private issue snapshot is
+`post-v14-issue-review-20261023/issue-25.json`. A thank-you reply is drafted for
+owner approval only; nothing was posted during this review.
+
+The result supersedes the reporter-pending status in the historical entries
+below. Their unsuccessful v1.3 checks remain relevant evidence: a successful
+owner capture did not establish that the ordinary release path worked for the
+reporter. Keep those differing test conditions when investigating regressions.
 
 - Status: PARTIALLY RESOLVED LOCALLY: owner confirms the unreleased timestamp correction restores missing rain/reticles and approves the replacement spatial-fade preview as fixing the Tawfret rain delay. Release, original reporter/Ally X retest and hut performance remain open.
 - Report: https://github.com/TK22-26/JetForceGemini-Recomp/issues/25
@@ -53,7 +66,6 @@ The production guard remains enabled with the same investigation and counters.
 The owner approved two hours for this rain continuation. No autonomous gameplay
 or emulator runs; the owner verifies the candidate.
 
-
 ### Focused Tawfret diagnostic prepared (2026-10-19 UTC)
 
 The latest owner capture is level 0x9e, Original presentation, VSync on and
@@ -89,7 +101,6 @@ diagnostic argument; that launcher supplies the normal package identity and
 keeps the map/settings menus available. No recording or save change occurred
 in the rejected launch.
 
-
 ### First focused capture reviewed (2026-10-19 UTC)
 
 Owner capture 20261019-034831-1010b4b44f124fabac6b32474af5f777
@@ -107,7 +118,6 @@ Private summary and header observations: owner-weather-summary.json and
 owner-header.json under the investigation evidence directory. Reticle review
 remains queued; the owner requested a Map / Settings / Mods all-weapons action
 to make each weapon available for testing.
-
 
 ### Landing-room hypothesis resolved against original assets
 
@@ -127,7 +137,6 @@ room, with an option to prepare a direct starting point. Rain remains the
 owner-prioritized investigation; all-weapons packaging and live FPS follow-up
 are secondary. The weapons test byte-diff check initially assumed swapped
 memory even in the unswapped fixture; the fixture was corrected, rerun pending.
-
 
 ### Owner confirms rain past the landing zone
 
@@ -313,14 +322,13 @@ Private evidence: wet-reticle-writes.json, wet-overlay-event-inventory.json and
 wet-retained-delta-groups.json under D:/JFG-private/v131-rnd-20261019.
 Owner is concurrently testing the official release at the reported settings.
 
-
 ## Reusable offline analysis
 
-Added [analyze_runtime_effects.py](../../../scripts/analyze_runtime_effects.py)
+Added [analyze_runtime_effects.py](../../../scripts/diagnostics/analyze_runtime_effects.py)
 to summarize actual changed-pixel calls and software audio queue age from an
 existing closed gameplay.tsv. Example:
 
-    python scripts/analyze_runtime_effects.py <closed-session>/gameplay.tsv
+    python scripts/diagnostics/analyze_runtime_effects.py <closed-session>/gameplay.tsv
 
 It excludes the first ten seconds by default; use --from-seconds 0 for startup.
 It keeps paused/prebuffer audio separate from active playback, validates sample
@@ -333,7 +341,6 @@ Five focused unit tests pass, including zero-write reticle calls, a persistent
 startup/paused buffers, and malformed evidence. Applying it to the historical
 full-run and wet-room captures reproduces the source-review measurements.
 No game executable or active user profile was modified.
-
 
 ### Owner reproduces the reporter configuration (2026-10-19, 22:45 UTC)
 
@@ -358,14 +365,12 @@ actual VI-derived dimensions and buffer lifecycle before altering acceptance,
 mask lifetime or composition. No frame-rate or camera setting has been changed
 by the investigation while the owner tests. No GitHub response has been posted.
 
-
 Controlled comparison update: the owner disabled in-game widescreen while
 preserving the other settings; neither falling rain nor the missing reticles
 returned. This rejects an immediate aspect-toggle recovery, but does not rule
 out state retained from startup. The next comparison keeps widescreen off and
 changes only Custom FPS to 120 with a full game stop/start to clear renderer
 state. That result is pending. No fix claim is made.
-
 
 Second comparison: the owner restarted with widescreen off and Custom 120 FPS;
 neither effect returned. Widescreen-off and raising the FPS target therefore do
@@ -382,7 +387,6 @@ code defect; a logging-disabled regression test and correction are being
 prepared. Live verification of the remedy and coverage of each reported weapon
 remain pending; no claim yet that this explains every #25 symptom.
 
-
 ### Production output timestamp correction
 
 The retained CPU-mask selector uses the output sample's VI tick to reject
@@ -398,7 +402,7 @@ logging. File tracing is still optional. Framebuffer matching, immutable mask
 ownership and the existing two-VI lifetime are unchanged; this does not force
 native rain or reticle visibility, change controller input, or disable safety
 checks. Source: [output metadata](../../../include/jfg/renderer/interpolation_bridge.hpp)
-and [regression coverage](../../../tests/rt64_interpolation_tests.cpp).
+and [regression coverage](../../../tests/renderer/rt64_interpolation_tests.cpp).
 
 The new logging-disabled regression failed against the released header and
 passes after the correction. It checks actual retained-mask selection, rejects
@@ -427,7 +431,6 @@ Transferable lesson: production rendering decisions must never consume state
 that is only populated by diagnostics. Test fixes with instrumentation disabled
 as well as enabled; diagnostic success alone can conceal a release defect.
 
-
 ## Owner candidate verification, 2026-10-19
 The owner reports that falling rain and the previously missing aimed weapon reticles
 both return in the candidate. They also report that rain appears about half a second
@@ -440,7 +443,6 @@ reported during the same session is tracked separately in
 [INPUT-012](controller-remove-auto-reassignment.md).
 
 Owner follow-up: brief room-entry rain delay remains a required fix, separate from accepted missing-rain/reticle correction. Not waived by release acceptance of other features.
-
 
 ## Guarded room-entry delay investigation (2026-10-20 UTC)
 
@@ -485,7 +487,7 @@ and store at `0x80045B2C` account for the additional eligible call.
 Rain setup resets that height at `0x8005BD24`. The current build uses this
 same generated source directory; searches of host source found these weather
 targets in the read-only
-[diagnostic scope](../../../src/boot/native_boot.cpp), without a host override
+[diagnostic scope](../../../src/boot/native/guest_execution.cpp), without a host override
 for the fade gate. Private extracts retain the exact source paths and operations.
 
 This establishes the cause of the **archived generation delay**. It supports
@@ -651,8 +653,8 @@ Private final evidence under `D:/JFG-private/tawfret-rain-delay-20261019`:
 `overlay-review/candidate-independent-review-v2.json`,
 `solution/native-compile-v2/result.json`, and `solution/preview-receipt.json`.
 Source: [rain fade policy](../../../include/jfg/renderer/rain_fade.hpp),
-[native hooks](../../../src/boot/native_boot.cpp),
-[tests](../../../tests/rain_fade_tests.cpp). No commit or release was created.
+[native hooks](../../../src/boot/native/guest_execution.cpp),
+[tests](../../../tests/renderer/rain_fade_tests.cpp). No commit or release was created.
 
 Transferable lesson: CPU framebuffer effects must use the fade belonging to
 the completed image, not newer simulation globals. Keep auxiliary graphics
@@ -705,7 +707,6 @@ its package/ROM/protocol validation. See
 [package contract](../../../launcher/windows/PortablePackage.cs) and
 [frontend setup](../../../launcher/windows/FrontendBridge.cs).
 
-
 ### Returned rain-delay preview recording (2026-10-20 UTC)
 
 The owner reports "it seems acceptable but not perfect", then clarifies:
@@ -740,7 +741,6 @@ generic interpolation summary parsed its timestamp column as an event name;
 that output is retained as an informative analysis error and superseded by
 the format-specific summary. The guarded review remains in the original
 investigation and originally approved parallel window.
-
 
 ### Confirmed unsupported transition and spatial remedy work (2026-10-20 UTC)
 
@@ -871,7 +871,7 @@ now includes spatial acceptance/scissor counters and processed line/pixel counts
 Source: [frame ownership and native hooks](../../../include/jfg/renderer/rain_fade.hpp),
 [spatial mesh/scissor capture](../../../include/jfg/renderer/rain_spatial_fade.hpp),
 [native line replay](../../../include/jfg/renderer/native_rain_line.hpp), and
-[regression checks](../../../tests/rain_fade_tests.cpp).
+[regression checks](../../../tests/renderer/rain_fade_tests.cpp).
 Private evidence under `recording-review/`: `native-spatial-integration/`,
 `tracker-tests-spatial/result.json`, `spatial-fade/`, `native-compile-v3/result.json`,
 `native-compile-v3/identity-provenance.json`, `before-spatial-deployment/`, and
@@ -901,7 +901,6 @@ was performed for this status update.
 The rain-delay portion is accepted locally. The broader RENDER-016 report
 remains open for original reporter/Ally X verification, hut performance and
 release. No commit, public issue closure or release is implied by this approval.
-
 
 ## Related crosshair report (2026-10-21 UTC)
 

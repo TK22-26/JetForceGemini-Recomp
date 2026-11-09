@@ -8,7 +8,7 @@ if ($picker.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { exit 0 }
 $romPath = $picker.FileName
 $picker.Dispose()
 $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-& python (Join-Path $repoRoot 'scripts/build_from_rom.py') --rom $romPath --play
+& python (Join-Path $repoRoot 'scripts/build/build_from_rom.py') --rom $romPath --play
 if ($LASTEXITCODE -ne 0) {
     Write-Host 'Build stopped. Read the diagnostic path printed above.'
     exit $LASTEXITCODE

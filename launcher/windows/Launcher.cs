@@ -14,8 +14,8 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("JFG Launcher")]
 [assembly: AssemblyDescription("Jet Force Gemini Recomp; import your own ROM once")]
-[assembly: AssemblyVersion("1.4.0.0")]
-[assembly: AssemblyInformationalVersion("1.4.0")]
+[assembly: AssemblyVersion("1.5.0.0")]
+[assembly: AssemblyInformationalVersion("1.5.0")]
 
 namespace JfgLauncher
 {
@@ -41,8 +41,8 @@ namespace JfgLauncher
 
     internal static class LocalSetup
     {
-        internal const long RomSize = 33554432;
-        internal const string RomSha1 = "493ced9008dbe932d6e91179b68e8630cf23a023";
+        internal const long RomSize = RomCatalog.UsSize;
+        internal const string RomSha1 = RomCatalog.UsSha1;
         internal static readonly string Guide = "https://github.com/TK22-26/JetForceGemini-Recomp/blob/" + BuildInfo.SourceCommit + "/docs/development/launcher.md";
 
         internal static string ProfileRoot
@@ -118,7 +118,7 @@ namespace JfgLauncher
             DirectoryInfo directory = new DirectoryInfo(Path.GetFullPath(start));
             for (int depth = 0; directory != null && depth < 8; depth++, directory = directory.Parent)
             {
-                if (File.Exists(Path.Combine(directory.FullName, "scripts", "build_from_rom.py")) &&
+                if (File.Exists(Path.Combine(directory.FullName, "scripts/build/build_from_rom.py")) &&
                     File.Exists(Path.Combine(directory.FullName, "CMakeLists.txt"))) return directory.FullName;
             }
             return null;
@@ -128,10 +128,10 @@ namespace JfgLauncher
         {
             string root = FullPath(sourceRoot);
             if (FindSourceRoot(root) != root)
-                throw new InvalidDataException("Select the source repository folder containing scripts/build_from_rom.py.");
+                throw new InvalidDataException("Select the source repository folder containing scripts/build/build_from_rom.py.");
             ProcessStartInfo info = new ProcessStartInfo();
             info.FileName = "python";
-            info.Arguments = Quote(Path.Combine(root, "scripts", "build_from_rom.py")) + " --rom " + Quote(FullPath(romPath));
+            info.Arguments = Quote(Path.Combine(root, "scripts/build/build_from_rom.py")) + " --rom " + Quote(FullPath(romPath));
             info.WorkingDirectory = root;
             info.UseShellExecute = false;
             info.CreateNoWindow = true;
@@ -177,6 +177,18 @@ namespace JfgLauncher
             FileStream input = new FileStream(FullPath(path), FileMode.Open, FileAccess.Read, FileShare.Read);
             try { ValidateRom(input, RomSize, RomSha1); return input; }
             catch { input.Dispose(); throw; }
+        }
+
+        internal static FileStream OpenVerifiedRom(string path, RomCatalogEntry revision)
+        {
+            FileStream input=new FileStream(FullPath(path),FileMode.Open,FileAccess.Read,FileShare.Read);
+            try {
+                var image=RegionalRom.Read(input);
+                if(image.Revision.Id!=revision.Id || image.SourceByteOrder!="big-endian")
+                    throw new InvalidDataException("Import the matching ROM before launching its runtime.");
+                return input;
+            }
+            catch {input.Dispose();throw;}
         }
 
         internal static void ValidatePe(string path)
@@ -605,7 +617,7 @@ namespace JfgLauncher
             busy = true;
             foreach (Control control in inputs) control.Enabled = false;
             progress.Visible = true;
-            FileStream checkedRom = null;
+            RegionalSession regionalSession = null;
             SupportSession support = null;
             try
             {
@@ -614,15 +626,14 @@ namespace JfgLauncher
                 await Task.Run(delegate { try { support.SystemDetails(); } catch (IOException) { support.Write("diagnostic=system-partial"); } catch (UnauthorizedAccessException) { support.Write("diagnostic=system-partial"); } });
                 string game = LocalSetup.ValidateRuntime(runtime.Text);
                 bool captureAvailable = await Task.Run(delegate { try { return support.RuntimeDetails(game, LocalSetup.ProfileRoot); } catch (IOException) { return false; } catch (UnauthorizedAccessException) { return false; } });
-                string selectedRom = LocalSetup.FullPath(rom.Text);
+                string selectedRom = await Task.Run(delegate {return ImportedRom.Import(LocalSetup.ProfileRoot,rom.Text);});
                 status.Text = "Verifying your ROM locally...";
-                checkedRom = await Task.Run(delegate { return LocalSetup.OpenVerifiedRom(selectedRom); });
+                regionalSession = await Task.Run(delegate {return RegionalSession.Open(game,selectedRom,LocalSetup.ProfileRoot,navigation.Checked);});
                 LocalSetup.SaveSettings(LocalSetup.ProfileRoot, new Settings { RuntimePath = game, RomPath = selectedRom });
                 using (Process process = new Process())
                 {
-                    process.StartInfo = navigation.Checked
-                        ? LocalSetup.NavigationStartInfo(game, selectedRom, LocalSetup.ProfileRoot)
-                        : LocalSetup.LiveToolsStartInfo(game, selectedRom, LocalSetup.ProfileRoot);
+                    process.StartInfo = regionalSession.StartInfo;
+                    support.ProgramDetails(regionalSession.Identity);
                     support.Write(navigation.Checked ? "mod=navigation-enabled" : "mod=disabled");
                     process.StartInfo.EnvironmentVariables["JFG_SUPPORT_LOG"] = support.NativePath;
                     new AudioPreferences { Volume = volume.Value, Muted = mute.Checked }.Save(LocalSetup.ProfileRoot);
@@ -652,7 +663,7 @@ namespace JfgLauncher
             {
                 activeSupport = null; activeGame = null; freeze.Enabled = false;
                 if (support != null) support.Finish();
-                if (checkedRom != null) checkedRom.Dispose();
+                if (regionalSession != null) regionalSession.Dispose();
                 busy = false;
                 progress.Visible = false;
                 foreach (Control control in inputs) control.Enabled = true;

@@ -351,15 +351,19 @@
   }
   std::string modernAdvancedHtml() {
     const auto& c=modern[player];
+    const auto freeMovement=modernSwitch("mc-movement-default","Free movement by default",
+      "Turn toward movement while looking independently. Aim always strafes. Bind Toggle movement to switch during play.",c.free_movement);
+    const auto combatFade=modernSwitch("mc-combat-transparency","Combat transparency",
+      "Fade the player while aiming or firing. Turn off to stay visible; a camera very close to the body still fades it.",c.combat_transparency);
     const auto automaticRoll=modernSwitch("mc-automatic-roll","Automatic movement rolling",
       pcKeyboard()?"Roll with sideways movement keys while crouched or crawling. Turn off to use only your Roll left and Roll right bindings.":
         "Roll with sideways movement stick input while crouched or crawling. Turn off to use only your Roll left and Roll right bindings.",c.automatic_roll);
     if(pcKeyboard())return "<div id=\"mc-settings-scroll\" class=\"mc-settings-scroll\"><div class=\"mc-settings-grid\"><section id=\"mc-movement-card\" class=\"mc-settings-card\"><div class=\"mc-section-title\">MOVEMENT</div>"+
       modernSwitch("mc-original-acceleration","Original movement acceleration",
-        "Ease into movement and slow down gradually when releasing keys. Off gives immediate starts and stops. Top speed stays the same.",c.mouse_original_acceleration)+automaticRoll+"</section></div></div>";
+        "Ease into movement and slow down gradually when releasing keys. Off gives immediate starts and stops. Top speed stays the same.",c.mouse_original_acceleration)+freeMovement+combatFade+automaticRoll+"</section></div></div>";
     return "<div id=\"mc-settings-scroll\" class=\"mc-settings-scroll\"><div class=\"mc-settings-grid\"><div class=\"mc-settings-column\"><section class=\"mc-settings-card\"><div class=\"mc-section-title\">VERTICAL LOOK</div>"+
       modernRange("vertical","Vertical sensitivity",c.look.stick_vertical_sensitivity,10,300)+
-      modernSwitch("mc-floyd-flight-invert","Invert Floyd flight steering","Floyd missions: push up to fly down. Turn off to fly up.",c.pad_floyd_flight_invert_y)+"</section><section id=\"mc-movement-card\" class=\"mc-settings-card\"><div class=\"mc-section-title\">MOVEMENT</div>"+automaticRoll+"</section></div><div class=\"mc-settings-column\"><section class=\"mc-settings-card\"><div class=\"mc-section-title\">BINDING THRESHOLDS</div>"+
+      modernSwitch("mc-floyd-flight-invert","Invert Floyd flight steering","Floyd missions: push up to fly down. Turn off to fly up.",c.pad_floyd_flight_invert_y)+"</section><section id=\"mc-movement-card\" class=\"mc-settings-card\"><div class=\"mc-section-title\">MOVEMENT</div>"+freeMovement+combatFade+automaticRoll+"</section></div><div class=\"mc-settings-column\"><section class=\"mc-settings-card\"><div class=\"mc-section-title\">BINDING THRESHOLDS</div>"+
       modernRange("axis","Button axis threshold",c.axis_threshold,1000,32000,"",true)+modernRange("trigger","Trigger threshold",c.trigger_threshold,1000,32000,"",true)+"</section></div></div></div>";
   }
   std::string modernHtml() {
@@ -380,23 +384,24 @@
 
   std::string modernActionDescription(std::size_t index) const {
     static constexpr const char* descriptions[]{
-      "Bring up precision aiming and the sniper scope.", "Fire the equipped weapon.",
+      "Bring up precision aiming and the sniper scope.", "Fire the equipped weapon, use a race trap or cycle Floyd mission objectives.",
       "Jump outside the sniper aiming stance.", "Crouch outside the sniper aiming stance.",
       "Interact with objects or start a conversation. Use Confirm to advance dialogue.", "Equip the previous weapon.",
       "Equip the next weapon.", "Step through sniper magnification levels, then wrap to the lowest.",
       "Increase magnification while scoped.", "Decrease magnification while scoped.",
       "Open or close the pause menu.", "Advance dialogue, confirm a menu option or close an information page.", "Go back in menus.",
-      "Move forward.", "Move backward.", "Strafe left.", "Strafe right.",
+      "Move forward.", "Move backward.", "Move left.", "Move right.",
       "Hold for full movement speed.", "Move up in menus.", "Move down in menus.",
       "Move left in menus.", "Move right in menus.", "Save from the pause menu when Save Game is available.",
-      "Roll left while crouched or crawling.", "Roll right while crouched or crawling."
+      "Roll left while crouched or crawling.", "Roll right while crouched or crawling.",
+      "Switch between strafing and free movement. Aiming always uses strafing."
     };
     static_assert(std::size(descriptions)==jfg::kModernActionCount);
     return index<std::size(descriptions)?descriptions[index]:"";
   }
   std::string modernPickerHtml(bool captureAction=false,bool scopeOnly=false) {
     struct ActionGroup {const char* title;std::vector<int> actions;};
-    const std::vector<ActionGroup> groups{{"MOVEMENT & COMBAT",{13,14,15,16,17,0,1,2,3,static_cast<int>(jfg::ModernAction::roll_left),static_cast<int>(jfg::ModernAction::roll_right),4}},
+    const std::vector<ActionGroup> groups{{"MOVEMENT & COMBAT",{13,14,15,16,17,0,1,2,3,static_cast<int>(jfg::ModernAction::roll_left),static_cast<int>(jfg::ModernAction::roll_right),static_cast<int>(jfg::ModernAction::movement_toggle),4}},
       {"WEAPONS",{5,6}},{"SNIPER SCOPE",{7,8,9}},{"SYSTEM",{10}},{"MENUS",{11,12,18,19,20,21,22}}};
     const auto& binds=pcKeyboard()?modern[player].keys:modern[player].pad;
     std::string html="<div class=\"mc-picker-list\">";

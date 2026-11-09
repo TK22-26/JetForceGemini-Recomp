@@ -18,13 +18,14 @@ from scripts.compare_phase9_rdram_transition import compare as compare_transitio
 
 
 TOOL_FILES = (
+    "scripts/__init__.py",
     "scripts/autonomy/vi_boundary_job.py",
-    "scripts/compare_phase9_vi_boundary.py",
-    "scripts/compare_phase9_rdram_transition.py",
-    "scripts/compare_phase9_focus_rdram.py",
-    "scripts/compare_phase9_update_hashes.py",
-    "scripts/compare_phase9_retrace_hashes.py",
-    "scripts/build_phase9_route_replays.py",
+    "scripts/diagnostics/compare_phase9_vi_boundary.py",
+    "scripts/diagnostics/compare_phase9_rdram_transition.py",
+    "scripts/diagnostics/compare_phase9_focus_rdram.py",
+    "scripts/diagnostics/compare_phase9_update_hashes.py",
+    "scripts/diagnostics/compare_phase9_retrace_hashes.py",
+    "scripts/diagnostics/build_phase9_route_replays.py",
 )
 
 

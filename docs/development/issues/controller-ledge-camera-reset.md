@@ -21,7 +21,7 @@ Character and exact ledge are not specified.
 
 The v1.3 [mouse landing/ledge correction](mouse-camera-high-landing-reset.md)
 deliberately retained mouse ownership only. The modern_ledge_view_current
-gate in [native_boot.cpp](../../../src/boot/native_boot.cpp) requires the mouse
+gate in [native integration](../../../src/boot/native/controller_input.cpp) requires the mouse
 device selector. This identifies a coverage gap, not a complete measured cause
 for the controller report. The earlier mouse acceptance is not controller proof.
 
@@ -37,7 +37,6 @@ No source change, new component test, build or delivery exists yet. Public
 comments remain on hold until owner review. Keep the mouse issue's historical
 acceptance separate. Lesson: ownership fixes must explicitly cover each input
 device path rather than assuming Modern Controls is one common path.
-
 
 ## Source cause and candidate (2026-10-19)
 
@@ -122,7 +121,6 @@ and the accepted ledge/landing behavior when investigating this case.
 
 Keep #30 open for the added trigger. No public reply or closure was performed.
 
-
 ## Owner reproduction and authorized fix (2026-10-20)
 
 The owner reproduced the water camera reset in the latest capture and requested
@@ -132,7 +130,6 @@ Runtime: `ab2ebd46007a8b28d5fee5302319ac502c6a82143eb7d37e9c00d494cb6726d5`.
 The owner reproduction supersedes the intake's unconfirmed status. Cause analysis
 and correction are in progress; no fix or completed validation is claimed yet.
 The existing production guard/root/counters remain enabled and unchanged.
-
 
 ## Water camera cause and manual preview (2026-10-20)
 
@@ -144,7 +141,7 @@ native body heading again instead of preserving the player's chosen camera.
 Both Modern paths share the rejected swimming-state gate.
 
 The candidate adds camera-only swimming ownership in
-[native_boot.cpp](../../../src/boot/native_boot.cpp). It retains yaw/pitch and
+[native integration](../../../src/boot/native/controller_input.cpp). It retains yaw/pitch and
 integrates look input while native swimming continues to own heading and
 movement. A session that starts in water can acquire its native initial view.
 The ordinary shoulder locomotion predicate still excludes swimming. Updates
@@ -193,7 +190,6 @@ state cannot establish compatibility or acceptance for that state.
 
 Preview runtime SHA-256: `154e5806a5a747a30f8f669d07c82443ac8cbba28d8fc50bc52af4f86238b77d`.
 
-
 ## Water preview regression reported by owner (2026-10-20)
 
 The owner reports that the camera gets stuck on Juno, cannot look out of the
@@ -206,7 +202,6 @@ Severity: gameplay usability regression. Reproduce as Juno entering/swimming
 and attempting an overhead view with the candidate. Cause under analysis;
 retained direction versus swimming camera framing/collision must be separated.
 No replacement or validation is claimed at this intake.
-
 
 ## Trapped swimming camera: confirmed cause and correction (2026-10-20)
 
@@ -224,14 +219,14 @@ The correction separates retained direction from ground-distance recovery.
 keeps the native collision-resolved swimming endpoint, applies the established
 near-plane clearance, and clears the ground boom history. Ground states use the
 existing solver unchanged. The call in
-[native_boot.cpp](../../../src/boot/native_boot.cpp) selects this branch only
+[native integration](../../../src/boot/native/controller_input.cpp) selects this branch only
 for qualified Modern swimming, without the ground-only height-plane override.
 Direction retention, mouse/controller look integration, native water movement
 and the water-to-air/shore safeguards remain. The trace distinguishes
 `pc-swimming-camera` from `pc-camera-boom`.
 
 Validation:
-- 106 added collision checks in [pc_input_tests.cpp](../../../tests/pc_input_tests.cpp)
+- 106 added collision checks in [pc_input_tests.cpp](../../../tests/runtime/pc_input_tests.cpp)
   reproduce the surface-band trap, retain the valid overhead endpoint at
   30/60/120 updates, preserve native ceiling/wall corrections, clear distance
   history before landing, and compare ground results with the previous solver.
@@ -308,7 +303,6 @@ Lesson: remembering only the previous update's movement state cannot preserve
 ownership over a multi-update excursion. Track the origin and actual end of
 the movement episode separately from per-update physics state.
 
-
 ## Water-air facing implementation authorized (2026-10-21 UTC)
 
 Owner approved one hour to fix the diagnosed body-facing snap. The accepted
@@ -316,7 +310,6 @@ water camera remains the baseline. Candidate implementation and tests are in
 progress for both Modern input paths; no new live acceptance is claimed.
 Private evidence: `D:/JFG-private/water-air-facing-20261021/`. Same production
 guard, root and counters are retained; no parallel agents, commit or release.
-
 
 ## Water-origin airborne facing candidate and checks (2026-10-21 UTC)
 
@@ -328,7 +321,7 @@ it on actor/control, room, mode or gameplay-ownership changes.
 
 `ModernShoulderScope` records that origin after acquiring the current identity.
 `ModernAirPhysicsScope` in
-[native_boot.cpp](../../../src/boot/native_boot.cpp) leaves the native body
+[native integration](../../../src/boot/native/controller_input.cpp) leaves the native body
 heading untouched during the complete water-origin airborne excursion, except
 when the existing qualified air-aim path deliberately takes ownership. Aiming
 does not erase water origin, so releasing aim during that same jump returns to
@@ -375,7 +368,6 @@ Candidate runtime SHA-256: `7fc37d2d185da7bc746afcfdc0c15cfe63af14e81c4f4035ad57
 Recorded transition result: `RECORDED excursions=39 samples=1482 changed_body_frames=1365 aim_samples=0
 PASS 8883 water-view actual-scope checks`.
 
-
 ## Camera jump report and isolated relaunch (2026-10-21 UTC)
 
 Owner reported the camera jumping behind Juno, then clarified that two agents
@@ -388,7 +380,6 @@ launcher/game was active; a single visible launcher was verified. Single-instanc
 owner retest is pending, with diagnostics directed to the candidate evidence
 folder. Preserve the reported regression until that retest resolves attribution.
 Private receipt: `D:/JFG-private/water-air-facing-20261021/preview-reopen-20261021.json`.
-
 
 ## Owner acceptance after isolated relaunch (2026-10-21 UTC)
 

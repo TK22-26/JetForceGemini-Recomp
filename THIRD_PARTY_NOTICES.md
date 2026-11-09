@@ -62,6 +62,7 @@ to the upstream algorithm; the project license does not override upstream rights
 | FreeType 2.14.1 | [FreeType License](launcher/ui/licenses/FreeType-FTL.txt) and [component notices](launcher/ui/licenses/FreeType-ThirdParty.txt), including BDF/PCF, The Open Group, hashing, zlib and HarfBuzz-derived source |
 | Barlow | [SIL OFL 1.1](launcher/ui/fonts/Barlow-OFL.txt) |
 | Chakra Petch | [SIL OFL 1.1](launcher/ui/fonts/ChakraPetch-OFL.txt) |
+| GitHub Invertocat project-link mark | GitHub-owned trademark artwork; [source and usage](launcher/ui/assets/github-mark.md), outside the project MIT license |
 
 The launcher package includes these complete notices under `licenses/`, along
 with font and notice provenance manifests. The package builder checks that
@@ -76,8 +77,8 @@ The Jet Force Gemini decompilation project
 (https://github.com/Ryan-Myers/Jet-Force-Gemini) was **consulted** during
 Phase 6 for the sole purpose of identifying which addresses in our own
 generated set correspond to libultra (N64 SDK) functions. Only factual
-symbol data — libultra function names (public SDK API) mapped to ROM
-addresses — was used, to guide independently authored HLE implementations.
+symbol data â€” libultra function names (public SDK API) mapped to ROM
+addresses â€” was used, to guide independently authored HLE implementations.
 **No decomp source, headers, or implementation was copied.** The libultra
 HLE code in this project is original work authored to the public SDK
 contract (see `src/boot/PROVENANCE.md`).

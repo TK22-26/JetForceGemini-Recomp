@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "kind": "jfg-shared-audio-payload-recipes",
+  "payloads": {
+    "program": {
+      "size": 6208,
+      "sha256": "b1da840baa8b9e73c705b17354e24f672974e1c87d45a3f7a99da9ab879be9ba",
+      "prefix_size": 32,
+      "prefix_sha256": "ab9638cafbfcbbc5641de1dfb3193a06aa89559dd3919285315dd2f446460b3a",
+      "alignment": 8
+    },
+    "data": {
+      "size": 704,
+      "sha256": "5bbdf9a5ca5cf838d6383f02b1a9965e0ceed377290ca2fc15a4d95882653304",
+      "prefix_size": 32,
+      "prefix_sha256": "9ae5c55dff5c3bb13902a48d594b6a2e95f817618dbb91fd3a92c87c14a8c09d",
+      "alignment": 8
+    }
+  }
+}

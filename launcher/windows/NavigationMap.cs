@@ -1036,7 +1036,13 @@ namespace JfgLauncher
             };
             KeyPreview=true;KeyDown+=delegate(object sender,KeyEventArgs args){if(args.KeyCode==Keys.Escape){StopAi();args.Handled=true;}};
             stopAi.Click += delegate { StopAi(); };
-            FormClosing += delegate { StopAi(); };
+            FormClosing += delegate(object sender,FormClosingEventArgs args) {
+                StopAi();
+                if(!explorer.WaitForStop(2000)) {
+                    args.Cancel=true;
+                    aiStatus.Text="Waiting for the movement worker to release controls. Close again when it stops.";
+                }
+            };
             timer.Interval = 200; timer.Tick += delegate { RefreshMap(); };
             BindDirectory(path); timer.Start();
             FormClosed += delegate { timer.Stop(); timer.Dispose(); };

@@ -31,7 +31,7 @@ for the Phase 6 boot runtime.
 | `include/jfg/boot/thread_scheduler.hpp`, `src/boot/thread_scheduler.cpp` | priority-ordered guest thread lifecycle, queue blocking/wakeup, pause, and deterministic virtual VI events | ROM-free scheduler tests plus three original-entry processes |
 | `include/jfg/boot/hle.hpp`, `src/boot/hle.cpp` | reached libultra thread/queue/event/PI DMA/cache/interrupt/controller ABI | ROM-free ABI/error-path tests and guarded native execution |
 | `include/jfg/boot/reset_handoff.hpp`, `src/boot/reset_handoff.cpp` | checked reset subset and delay-slot transfer from `0x80000400` | synthetic reset/fault/budget tests and original-entry execution |
-| `src/boot/native_boot.cpp` | validated image load, guest aliases, exact-ROM overlay data, fail-closed generated dispatch, guarded MMIO register model, VI-manager bridge, watchdog, state hash, and ordered journal | repeated native run, AddressSanitizer run, invalid-ROM run, and BizHawk queue-ring observation |
+| `src/boot/native_boot.cpp`, private `src/boot/native/` modules | validated image load, guest aliases, exact-ROM overlay data, fail-closed generated dispatch, guarded MMIO register model, VI-manager bridge, watchdog, state hash, and ordered journal | repeated native run, AddressSanitizer run, invalid-ROM run, and BizHawk queue-ring observation |
 | `src/runtime/recomp_support/minimal_runtime.cpp` | generated-code register helpers and scheduler handoff for generated pause-self boundaries | generated link/object audits and original-entry execution |
 
 ## Modeling notes (disclosed, not hidden)
@@ -291,3 +291,11 @@ ROM observations. The incorrect ledge-trial assumption was removed: the
 recorded intermediate stop is supported on a gently tilted box top.
 Live tests confirmed ordinary jumps through the five SS Anubis platforms;
 automatic whole-route discovery and item interaction require separate evidence.
+
+## November 1 source ownership update
+
+The private `native/` modules extract this project's existing independently authored host code
+from `native_boot.cpp`; they do not copy a third-party runtime implementation. The original
+attestation and historical qualification remain attached to their recorded revisions. Current
+module ownership, platform boundaries and finite rebuild/replay checks are recorded in
+[native modularization](../../docs/development/issues/native-runtime-modularization.md).

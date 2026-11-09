@@ -1,10 +1,13 @@
 #pragma once
+#include "jfg/renderer/game_layout.hpp"
+#include "jfg/renderer/graphics_api.hpp"
 
 #include "jfg/renderer/daynight_fog.hpp"
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -34,6 +37,7 @@ enum class Rt64ShellError {
     not_initialized,
     renderer_exception,
     conflicting_cpu_write,
+    setup_graphics_api_override,
 };
 
 enum class Rt64MemoryLayout {
@@ -76,6 +80,8 @@ struct Rt64ShellConfiguration {
     unsigned experimental_refresh_rate = 0U;
     bool unlimited_presentation = false;
     bool vsync = true;
+    std::optional<RendererGameLayout> game_layout;
+    GraphicsApi graphics_api = GraphicsApi::automatic;
 };
 
 struct Rt64RdramRange {

@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+
+from scripts.native_source_files import NATIVE_MODULE_CLOSURE
 import subprocess
 import time
 
@@ -22,20 +24,21 @@ from scripts.phase9_controller_callers import analyze as analyze_callers
 
 
 TOOL_FILES = (
+    "scripts/__init__.py",
     "scripts/autonomy/atomic_file.py",
     "scripts/autonomy/event_pair_job.py", "scripts/autonomy/supervisor.py",
     "scripts/autonomy/poll_lag_job.py", "scripts/autonomy/job_store.py",
-    "scripts/autonomy/process_guard.py", "scripts/phase9_event_pair.py",
-    "scripts/phase9_event_trace.py", "scripts/phase9_poll_semantic_pair.py",
-    "scripts/phase9_controller_callers.py",
-    "scripts/phase9_update_alignment.py",
-    "scripts/phase95_native_replay.py", "scripts/phase95_oracle_replay.py",
-    "scripts/phase9_oracle_instruction_effects.py",
-    "scripts/phase9_point_probe.py",
-    "scripts/phase9_bizhawk_oracle.lua", "scripts/compare_phase9_poll_hashes.py",
-    "scripts/compare_phase9_update_hashes.py", "scripts/phase95_bridge.py",
-    "scripts/build_phase9_route_replays.py", "src/boot/native_boot.cpp",
-)
+    "scripts/autonomy/process_guard.py", "scripts/diagnostics/phase9_event_pair.py",
+    "scripts/diagnostics/phase9_event_trace.py", "scripts/diagnostics/phase9_poll_semantic_pair.py",
+    "scripts/diagnostics/phase9_controller_callers.py",
+    "scripts/diagnostics/phase9_update_alignment.py",
+    "scripts/exploration/phase95_native_replay.py", "scripts/exploration/phase95_oracle_replay.py",
+    "scripts/diagnostics/phase9_oracle_instruction_effects.py",
+    "scripts/diagnostics/phase9_point_probe.py",
+    "scripts/diagnostics/phase9_bizhawk_oracle.lua", "scripts/diagnostics/compare_phase9_poll_hashes.py",
+    "scripts/diagnostics/compare_phase9_update_hashes.py", "scripts/exploration/phase95_bridge.py",
+    "scripts/diagnostics/build_phase9_route_replays.py", "src/boot/native_boot.cpp",
+) + NATIVE_MODULE_CLOSURE
 CAPABILITY_MARKER = b"JFG_PHASE9_EVENT_TRACE_RANGE"
 
 

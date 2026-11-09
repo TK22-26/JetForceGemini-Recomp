@@ -1,6 +1,7 @@
 # Getting started
 
-Play the Windows x64 v1.3.0 release using your own supported North American
+Play the Windows x64 v1.4.0 release using your own supported North American
+
 Jet Force Gemini ROM. The release is prebuilt; no Git, Python, Visual Studio,
 WSL, or first-run compilation is needed.
 
@@ -30,7 +31,8 @@ are included in the release.
 
 ## Update an existing installation
 
-Extract v1.3.0 into a new folder and open its launcher. Your existing profile,
+Extract v1.4.0 into a new folder and open its launcher. Your existing profile,
+
 saves, and settings are reused. A valid previously selected ROM is imported
 automatically; if its original file is missing, use **Select ROM…** again.
 Old build tools are no longer prerequisites for the released package.
@@ -53,7 +55,7 @@ Then run these commands in PowerShell:
 ```powershell
 git clone https://github.com/TK22-26/JetForceGemini-Recomp.git
 cd JetForceGemini-Recomp
-python scripts/build_from_rom.py --rom 'D:\Games\my-copy.z64' --play
+python scripts/build/build_from_rom.py --rom 'D:\Games\my-copy.z64' --play
 ```
 
 Replace the example ROM path with your own. This command downloads pinned
@@ -62,7 +64,7 @@ Record `git rev-parse HEAD` if you report a source-build problem.
 
 The released launcher uses the runtime bundled beside it. Maintainers can
 prepare a matching package from a reviewed source build using
-[the release instructions](development/releases.md).
+[the release instructions](maintenance/releases.md).
 
 ## Start playing
 

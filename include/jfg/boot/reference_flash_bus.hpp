@@ -43,7 +43,7 @@ public:
         if (!source_ || *source_ > ram.size() || 128U > ram.size() - *source_) return false;
         std::array<std::uint8_t, 128> page{};
         for (unsigned i = 0; i < page.size(); ++i) page[i] = ram[(*source_ + i) ^ 3U];
-        if (!store_->stage_write(page).ok() || !store_->begin_program(page_).ok() || !store_->complete().ok()) return false;
+        if (!store_->stage_write(page).ok() || !store_->begin_program(page_,jfg::FlashRamProgramMode::reference_replace).ok() || !store_->complete().ok()) return false;
         ++mutations_;
       } else if (mode_ == Mode::erase) {
         if (!store_->begin_erase_page(page_).ok() || !store_->complete().ok()) return false;

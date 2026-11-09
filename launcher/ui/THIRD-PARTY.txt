@@ -36,6 +36,13 @@ SDL 2.26.3 controller API
   Zlib license: licenses/SDL2-zlib.txt
   SDL2.dll is loaded from the selected local runtime.
 
+GitHub project-link mark
+  Official white Invertocat SVG from https://brand.github.com/GitHub_Logos.zip
+  GitHub and the Invertocat design are trademarks of GitHub, Inc.
+  Used to link to this project on GitHub; no affiliation or endorsement implied.
+  Artwork remains GitHub property, outside the project MIT license.
+  Source and usage terms: https://brand.github.com/foundations/logo
+
 Pinned upstream source paths and notice hashes: licenses/provenance.json
 
 This archive contains the launcher, not the locally built game runtime.

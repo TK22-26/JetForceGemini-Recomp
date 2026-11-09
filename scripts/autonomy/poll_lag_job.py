@@ -18,16 +18,17 @@ from scripts.phase9_poll_call_phase import (
 
 
 TOOL_FILES = (
+    "scripts/__init__.py",
     "scripts/autonomy/atomic_file.py",
     "scripts/autonomy/poll_lag_job.py",
     "scripts/autonomy/supervisor.py",
     "scripts/autonomy/job_store.py",
-    "scripts/phase9_poll_lag_analysis.py",
-    "scripts/phase9_poll_call_phase.py",
-    "scripts/compare_phase9_poll_hashes.py",
-    "scripts/compare_phase9_retrace_hashes.py",
-    "scripts/build_phase9_route_replays.py",
-    "scripts/phase95_bridge.py",
+    "scripts/diagnostics/phase9_poll_lag_analysis.py",
+    "scripts/diagnostics/phase9_poll_call_phase.py",
+    "scripts/diagnostics/compare_phase9_poll_hashes.py",
+    "scripts/diagnostics/compare_phase9_retrace_hashes.py",
+    "scripts/diagnostics/build_phase9_route_replays.py",
+    "scripts/exploration/phase95_bridge.py",
 )
 PAIR_NAMES = (
     "plan.json", "pair-result.json", "comparison.json",

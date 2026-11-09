@@ -60,10 +60,6 @@
 .report-icon { color:#6fd3ee; }
 .book-icon { width:12dp; height:15dp; border:1.5dp #ffb23e; border-left-width:3dp; border-radius:2dp; }
 .download-icon { width:12dp; height:8dp; border-left:2dp #6fd3ee; border-bottom:2dp #6fd3ee; transform:rotate(-45deg); margin-top:-5dp; }
-.branch-icon { position:absolute; left:10dp; top:8dp; width:12dp; height:14dp; border-left:2dp #c9d1e0; border-bottom:2dp #c9d1e0; border-right:2dp #c9d1e0; border-radius:4dp; }
-.branch-dot { position:absolute; width:4dp; height:4dp; border:1.5dp #c9d1e0; border-radius:4dp; background:#1a2236; }
-.branch-dot.first { left:8dp; top:5dp; }
-.branch-dot.second { left:20dp; top:5dp; }
 .external-icon { flex-shrink:0; width:8dp; height:8dp; border-top:1.5dp #6f7a91; border-right:1.5dp #6f7a91; }
 .next-icon { flex-shrink:0; width:7dp; height:7dp; border-top:1.5dp #6f7a91; border-right:1.5dp #6f7a91; transform:rotate(45deg); margin-right:2dp; }
 .about-credits { margin-top:14dp; font-size:12dp; line-height:1.5; color:#6f7a91; }
@@ -72,3 +68,4 @@
 .about-notices:hover, .about-notices:focus { color:#ffc872; background:#1a2236; }
 @media (max-width:950dp) { .about-hero { flex-wrap:wrap; gap:16dp; } .about-build { width:100%; display:flex; gap:20dp; } .about-build div { flex:1; margin:0; } .about-nav { width:270dp; } .about-title { font-size:26dp; } .help .dialog-body { padding:20dp 24dp; } }
 @media (max-width:740dp) { .about-columns { display:block; } .about-main { width:100%; } .about-nav { width:100%; margin-top:16dp; } .about-build { flex-wrap:wrap; gap:8dp 20dp; } .about-build div { min-width:150dp; } .about-title { font-size:23dp; } .about-emblem { display:none; } .help .dialog-footer { padding-left:24dp; } }
+.github-mark { width:24.5dp; height:24dp; }

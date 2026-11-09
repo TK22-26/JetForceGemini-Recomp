@@ -46,7 +46,6 @@ not establish live reticle feel, multiplayer camera behavior or mission completi
 Those remain pending owner testing. Source profile/save preserved. Evidence:
 D:/JFG-private/floyd-p2-modern-20261021/delivery.json and launch.json.
 
-
 ## Final owner disposition for v1.4.0 (2026-10-21)
 
 The owner states that #37 and the associated Floyd work are fully approved

@@ -32,7 +32,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_REF_TYPE: ${{ github.ref_type }}
-        run: python scripts/release_launcher.py check
+        run: python scripts/release/release_metadata.py check
 
   validate:
     name: Validate the tagged revision
@@ -65,4 +65,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_REF_TYPE: ${{ github.ref_type }}
-        run: python scripts/release_prebuilt.py publish --output build/release
+        run: python scripts/release/release_prebuilt.py publish --output build/release

@@ -14,9 +14,7 @@ Compare signed input and camera pitch through locomotion transitions before chan
 
 Record candidate changes, informative failures, exact checks and remaining live acceptance here. Preserve game timing, saves and other preferences. See [shuriken reticle recurrence](shuriken-reticle-flicker.md).
 
-
 Candidate cause: movement state 5 uses controlGetManualAim outside shoulder ownership. The old hook negated camera-space pitch only while shoulder ownership was active, making crouch consume the opposite sign. Candidate converts modern action-table look independently of shoulder ownership; legacy modes retain their established convention. Baseline and candidate comparisons are recorded below.
-
 
 ## Established cause and checks
 
@@ -26,14 +24,11 @@ The same positive-look tape produces 25 consecutive crouch steps of -30 before t
 
 Lesson: translate coordinate conventions at their input boundary, independently of which camera owns the current locomotion state. Do not migrate user preferences to compensate for a state-dependent sign bug.
 
-
 The shared followup runtime and bounded checks are pinned in [qualification](../../../evidence/high-refresh-shuriken-followup.json). Owner confirmation was subsequently received on 2026-10-16; see the final confirmation below.
-
 
 ### Followup delivery (2026-10-16)
 
 Source `95efb8f97b47717921aa4c29ab17245771c3ff22` is delivered through both **JFG - High Refresh Preview** and **JFG - Jitter Capture** desktop shortcuts. Three setup/protocol checks selected the new runtime with fresh and copied profiles; all 41 original profile files remained unchanged. Previous packages and shortcut backups are retained. This is a local tested preview, with sustained owner visual confirmation still pending. [Qualification and limits](../../../evidence/high-refresh-shuriken-followup.json).
-
 
 ### Owner live confirmation (2026-10-16)
 

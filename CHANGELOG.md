@@ -1,5 +1,195 @@
 # Changelog
 
+## 1.5.0
+
+Source prepared for the 1.5.0 merge. Publication and downloadable package
+availability are tracked separately in the [qualification record](docs/releases/qualification-1.5.0.md).
+
+- Add USA, PAL and Japanese ROM tiles, persistent region selection and regional
+  command-line startup. Stack launcher notifications independently.
+- Smooth Modern Aim release, correct regional backward-walking poses, interpolate
+  save-name keyboard buttons and reduce the excessive PAL/Japanese rescue blur.
+- Add Auto, Direct3D 12 and Vulkan in Video Settings > Rendering, with bounded
+  requested/selected API and presentation-result diagnostics in support exports.
+  This improves investigation of #58; its reported black screen is not yet resolved.
+
+- Split native startup from private guest memory, host audio/window input, overlays,
+  saves, task submission, diagnostics and guest execution modules. Preserve single
+  timing/cache ownership and the generated ABI. The Windows host rebuild and scoped
+  replays pass; shared state and regional host assumptions remain documented limits.
+  [Runtime validation](docs/development/issues/native-runtime-modularization.md).
+- Build a shared US/PAL/Japanese program architecture: exact original reconstruction,
+  common CPU/audio generation, typed resident/overlay/member bindings, strict native
+  bundle identity and revision save storage. Final builds pass fresh save/reload
+  probes and bounded enhanced Goldwood Play for all three revisions. Add exact
+  fractional PAL cadence, shared display units, qualified record schemas and local
+  all-three build admission. Actual launcher import/setup/direct Play, clean exit,
+  save isolation and support exports pass; development-profile upgrades preserve
+  saves/settings. Owner campaign/feature and release acceptance remain open.
+  [Regional implementation and evidence](docs/development/issues/regional-rom-support.md).
+- Finish owner-approved local Git cleanup after verifying an independent retained
+  database of all original objects and six stashes. Keep main/develop and public
+  commit/tag identities; the actual checkout's full history hygiene check passes.
+  [Recovery and scope](docs/development/issues/repository-history-hygiene.md).
+
+- Reorganize build/release/validation/diagnostic tools, tests, native launcher source
+  and CMake targets by responsibility. Preserve published setup entry points and
+  shared Python imports; remove the broken Quarry shortcut, obsolete launcher-only
+  packaging and stale manual workflows. Consolidate duplicate controller artwork.
+- Rewrite and consolidate project, player and maintainer documentation, with a
+  complete file-disposition audit and one durable record per investigation. Add an
+  original N64 bugs catalog, keeping hardware-confirmed Tawfret behavior separate
+  from the NTSC/PAL Walkway music difference and future regional support.
+  [Audit, validation and remaining limits](docs/development/issues/folder-architecture-audit.md).
+
+- Fix Audio Settings opening as an inline modal: use a separate native window
+  with live volume/mute controls. Focused UI and menu-route tests pass; on
+  October 31 the owner confirms immediate opening and accepts the fix. The
+  original delay's cause remains unknown.
+  [Record](docs/development/issues/audio-settings-window-delay.md).
+
+- Add a local candidate for flying-enemy timing (#48): advance the shared flight
+  and falling movement by elapsed game time, using a three-VI reference measured
+  across two original-ROM encounters. Keep output FPS independent, preserve
+  native velocity units and leave existing elapsed-time AI/animation clocks
+  unchanged. Finite native replay checks pass. The owner deferred #48 for this
+  version; it is not claimed resolved.
+  Follow-up found variable pacing in a matched loaded encounter, so this does
+  not satisfy exact Original FPS timing. Controlled tests isolate the native
+  host-clock policy, which also applies to Original output; removing the flight
+  correction alone restores the old speed-up. The separate diagnostic clock remains
+  unqualified for default use: it also omits workload-dependent RSP/DMA time
+  and still has loading-time audio gaps. Controlled original-ROM interventions
+  isolate the device-time effect; reference-core timing tests prevent treating
+  emulator agreement as hardware qualification.
+  [Original timing follow-up](docs/development/issues/original-mode-simulation-parity.md).
+  [Reference, implementation and limits](docs/development/issues/github-flying-enemy-speed.md).
+- Recover omitted original SDK formatting functions in the generation pipeline.
+  A sound-allocation warning exposed the missing integer-field helper; the
+  transitive audit also recovered its floating conversion dependency. Loaded
+  game bytes remain unchanged. Formatter execution and final native replays pass.
+  [Cause and recovery](docs/development/issues/sdk-printf-field-metadata.md).
+
+- Restore Floyd objective cycling and Jeff's Arcade trap controls in Modern mode.
+  Arcade trap controls passed owner testing in USA, PAL and Japan.
+- Add optional free movement, free-camera and combat transparency controls.
+  The owner accepted these options and the adjusted nontransparent Aim distance;
+  native scenery collision and scoped-weapon behavior remain authoritative.
+- Correct Proton menu visibility, opening-cutscene skip delay and mouse capture.
+  The owner accepted the Bazzite x64 PC fixes; this does not establish Steam Deck
+  acceptance or resolve every cutscene timing limitation.
+- Preserve high-resolution sampling for night vision and damage tint while keeping
+  CPU shadow-mask ownership. Owner route testing passed in all three regions.
+- Remove transparent icon borders in widescreen menus and smooth the authored
+  title vignette without replacing game assets. Decoder/GPU and actual menu
+  captures pass; owner batch review is pending.
+- Include bounded launcher presentation details in support reports for black
+  video with working audio. The reported Windows 10 failure remains unverified.
+  Actual support-ZIP exports pass real-session and contaminated-file privacy
+  checks. Keep each sanitized log within 64 KiB even when the input ends in a
+  valid unterminated line at the exact limit.
+
+- Prevent gems from drawing through fully opaque vine pixels while preserving
+  transparent gaps and blended edges. Captured-frame GPU, material-state and
+  normal-game checks pass; owner batch review is pending.
+  [Cause and verification](docs/development/issues/vine-gem-occlusion.md).
+
+- Add Actor LOD Original/High under Video Settings > Enhancements. High retains
+  detailed actor models at a distance and applies live when saved. Original
+  remains the default; Apply/Cancel, persistence and aligned help text are covered
+  by launcher checks. High may increase rendering cost in crowded scenes.
+  [Implementation and review](docs/development/issues/actor-lod-option.md).
+- Smooth high-refresh cinematic camera motion by retaining the low angle bits
+  lost by the original camera trigonometry. Preserve native results in Original
+  FPS mode and for non-camera calls. Owner review confirms the space/Goldwood
+  improvement and smooth Cerulean entry at 120 FPS.
+- Preserve ship interpolation when attached engine geometry appears, and allow
+  the first continuous scene to use its verified framebuffer/history before the
+  display target has a prior-frame entry. Keep camera-cut, lifetime and target
+  selection checks. Two repeated owner flight reviews passed.
+- Correct the two mid-flight space-backdrop jumps during Goldwood departure by
+  tracking the sky actor's camera transform separately from ordinary actors.
+  The final operand order preserves native matrix validation; targeted replay
+  and owner review pass. [Camera and flight findings](docs/development/issues/cutscene-camera-cadence.md).
+- Correct Vela's apparent skirt separation on slopes during close-camera fading,
+  including Original FPS. Resolve the nearest player surface into a separate
+  layer and blend it once, preventing overlapping internal surfaces from showing
+  through. Keep the fade consistent across focus changes and replace the initial
+  screen-door pattern with smooth transparency. Native aim/death fades keep their
+  existing path. [Cause and accepted remedy](docs/development/issues/vela-skirt-focus-tearing.md).
+- Interpolate Vela's ship-underside light-beam motion and wrapped texture scrolling
+  at high output rates. Preserve native animation speed and actual camera cuts.
+  Targeted checks, controlled rendering comparison and owner review pass.
+- Smooth travelling bullets and expanding grenade shockwaves by tracking their
+  custom vertex buffers with the actual live projectile/effect and camera.
+  Valid motion near the camera no longer fails solely because its projected
+  screen displacement is large; real discontinuities still reject history.
+  [Effect evidence and limits](docs/development/issues/high-refresh-shot-effects.md).
+- Prevent drones and tribals from jumping sideways during camera turns when they
+  reappear or change detail models. Unmatched geometry retains its current world
+  pose while following the verified interpolated camera, without inventing an
+  earlier pose. [Owner-verified correction](docs/development/issues/camera-turn-actor-jumps.md).
+- Improve grenade-fire motion by keeping known sprite-transform identity stable
+  when animated local mesh topology changes. Native texture/shape frame cadence
+  is unchanged. The owner subsequently confirmed grenade fire visually; resolved
+  locally and unreleased.
+- Smooth opening exit-marker sparkles while turning the camera. The native marker
+  sorts 20 persistent sparkles by camera distance and draws them through temporary
+  transforms; tracking their logical slots prevents draw order from breaking
+  interpolation. Owner review passed at 120 FPS. The cone's geometry was already
+  interpolating. [Investigation and lessons](docs/development/issues/exit-marker-fire-cadence.md).
+- Recover from a sustained host audio backlog after a temporary output stall
+  while preserving normal buffering behavior. Component parity/fault checks,
+  native audio suites and the owner's SS Anubis listening pass found no regression.
+  The affected user on [#35](https://github.com/TK22-26/JetForceGemini-Recomp/issues/35)
+  should retest when this change is available; affected-machine verification and
+  the original trigger remain open.
+
+- Correct reflected-model face culling and track mirrored skeletal poses separately
+  from normal actor draws. Native checks and Goldwood replays pass at 120 FPS and
+  Original FPS, and owner visual review passed. [Reflection findings](docs/development/issues/floor-reflection-geometry.md).
+
+- Add Original/Enhanced Shadows under Video Settings > Enhancements. Enhanced
+  uses filtered 512x512 maps from interpolated actor poses and authored light
+  directions at each output frame. Shared pose bounds, sprite/detached-body
+  casters and actual receiving geometry prevent the reproduced clipping, combat
+  crash and double-shadow defects. It has no automatic Original fallback.
+  Original remains the default and retains native silhouette cadence. The owner
+  approved v26 visually; broader campaign/performance coverage remains open.
+  [Evidence and limits](docs/development/issues/github-character-shadow-jitter.md).
+
+### Findings and remaining verification
+
+- The Goldwood wooden bridge’s dark ground strip is built into level vertex shading,
+  using the same texture as brighter adjacent ground. The bridge has no native
+  projected-shadow component; Enhanced actor shadows do not replace that static
+  environmental shading. [Evidence and scope](docs/development/issues/enhanced-shadow-environment-scope.md).
+
+- Correct the #45 assessment after the owner's October 31 NTSC hardware recheck:
+  leaving Walkway also lacks music in the original. The local Walkway insertion
+  is removed from current source, with scoped normal/skip and exit-chain replay checks.
+  Older preview packages still contain the superseded insertion.
+  The owner subsequently confirms music in PAL EmuHawk, establishing a regional
+  difference for this route. The two Vela routes remain unverified. #45 is
+  deferred to a separate native-bug-fixes update; this release preserves the
+  regional Walkway behavior.
+  [Comparison record](docs/development/issues/flight-transition-missing-music.md).
+- The #25 reporter confirms their rain, reticle and performance complaints are
+  resolved in v1.4.0. The #40 reporter confirms Proton startup now works, but
+  launcher menus were blank. The owner subsequently accepted the menu and
+  mouse-capture fixes on a Bazzite x64 PC; original Steam Deck verification
+  remains separate.
+  [Ally X retest](docs/development/issues/github-ally-x-rendering.md),
+  [Proton follow-up](docs/development/issues/github-steam-deck-proton-startup.md).
+- A Goldwood drone was observed below the floor near a broken hut. Saved actor
+  state supports a native position/collision displacement, but the collision
+  sequence and any difference from the original game remain unproved. No collision
+  patch is included. [Evidence](docs/development/issues/drone-buried-after-hut-collision.md).
+- Suspected muzzle-flash jitter and reporter-specific graphics failures remain
+  open. Character shadows (#46) and the adjusted Modern Aim distance (#52)
+  carry their recorded owner acceptance. See the
+  [issue index](docs/development/issues/README.md) and [known issues](docs/known-issues.md).
+
 ## 1.4.0 - 2026-10-22
 
 - Prevent scenery from interpolating through cinematic camera cuts when a distant
@@ -10,7 +200,7 @@
   This corrects an original-game artifact while retaining camera paths and
   scene state. Owner verified all three Tawfret chief shots at 120 FPS with
   diagnostics and FPS logging disabled. See the
-  [investigation write-up](docs/development/tawfret-camera-helper-findings-2026-10-22.md).
+  [investigation write-up](docs/development/issues/tawfret-chief-camera-and-square.md).
 
 - Enable independent Modern controls for P1-P4 and correct Floyd co-op/mission
   fire routing, vertical direction and controller diagonal reach.
@@ -113,7 +303,7 @@
 - Retain the v1.2.1 boss-controls and source-scene FPS counter corrections.
 
 Owner route and targeted visual review are complete; exact seeded parity is not
-claimed. See the [release qualification](docs/development/releases-1.3.0-qualification.md)
+claimed. See the [release qualification](docs/releases/qualification-1.3.0.md)
 for validation evidence and limits.
 Reporter-specific reticle/hut behavior and the exact invasion-replay report
 await v1.3 retests; see [known issues](docs/known-issues.md).
@@ -193,3 +383,5 @@ Initial stable release with the unified launcher, configurable controllers,
 live map and inventory, and the recorded rendering and audio fixes. The v1.0.0
 installer built the game locally from the player's ROM and required developer
 tools. See the [v1.0.0 release](https://github.com/TK22-26/JetForceGemini-Recomp/releases/tag/v1.0.0).
+
+Owner review on October 27: Enhanced Shadows preview v26 visually approved ("shadows look good now"); unreleased. See [shadow investigation](docs/development/issues/github-character-shadow-jitter.md).

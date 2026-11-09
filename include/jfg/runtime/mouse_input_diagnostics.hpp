@@ -21,6 +21,7 @@ struct MouseSupportSnapshot {
     // registered,error,read_error,captured,root_foreground,child_focus,focus_known,
     // settings_open,input_blocked,replay,extended_recording,target_known,target_matches,flags
     std::array<std::uint32_t,14> state{};
+    std::array<std::uint32_t,8> capture{}; // requested,active,geometry,API,rectangle,inside,attempts,error
     // port,device_kind,modern,connected,mouse_aim,normal,aim,vertical,invert_x,invert_y,actions,free_view,mode
     std::array<std::array<std::uint16_t,13>,4> players{};
 };
@@ -43,9 +44,13 @@ public:
         increment(MouseCount::accepted_relative);
         if(nonzero)increment(MouseCount::accepted_nonzero);
     }
+    void capture(const std::array<std::uint32_t,8>& state) noexcept {
+        for(std::size_t i=0;i<state.size();++i)capture_[i].store(state[i],std::memory_order_relaxed);
+    }
     MouseSupportSnapshot snapshot() const noexcept {
         MouseSupportSnapshot result;
         for(std::size_t i=0;i<counts_.size();++i)result.counts[i]=counts_[i].load(std::memory_order_relaxed);
+        for(std::size_t i=0;i<result.capture.size();++i)result.capture[i]=capture_[i].load(std::memory_order_relaxed);
         result.state[0]=registered.load(std::memory_order_relaxed);
         result.state[1]=registration_error.load(std::memory_order_relaxed);
         result.state[2]=last_read_error.load(std::memory_order_relaxed);
@@ -53,6 +58,7 @@ public:
     }
 private:
     std::array<std::atomic<std::uint64_t>,14> counts_{};
+    std::array<std::atomic<std::uint32_t>,8> capture_{};
     std::atomic<std::uint32_t> registered{0},registration_error{0},last_read_error{0};
 };
 // The guest thread owns this ring. Opening support/settings retains the preceding
@@ -89,6 +95,8 @@ inline bool format_mouse_support(const MouseSupportSnapshot& value,char (&output
     for(std::size_t i=8;i<14;++i)if(!number(value.counts[i],i==13))return false;
     if(!text("mouse_state=") || !number(value.elapsed_ms,false))return false;
     for(std::size_t i=0;i<value.state.size();++i)if(!number(value.state[i],i+1==value.state.size()))return false;
+    if(!text("mouse_capture="))return false;
+    for(std::size_t i=0;i<value.capture.size();++i)if(!number(value.capture[i],i+1==value.capture.size()))return false;
     for(const auto& player:value.players) {
         if(!text("mouse_player="))return false;
         for(std::size_t i=0;i<player.size();++i)if(!number(player[i],i+1==player.size()))return false;

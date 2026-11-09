@@ -347,7 +347,7 @@ function(_jfg_add_object_shape_audit name inventory_copy)
         ${ARG_SUPPORT_TARGET}
         ${ARG_RUNTIME_TARGET}
         ${ARG_SMOKE_TARGET}
-        "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/audit_generated_objects.py"
+        "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/diagnostics/audit_generated_objects.py"
         "${inventory_copy}"
     )
     if(ARG_PATCH_TARGET)
@@ -356,7 +356,7 @@ function(_jfg_add_object_shape_audit name inventory_copy)
 
     add_custom_target(${name}_object_shape_audit ALL
         COMMAND "${Python3_EXECUTABLE}"
-            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/audit_generated_objects.py"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/diagnostics/audit_generated_objects.py"
             --tool-kind "${symbol_tool_kind}"
             --tool "${symbol_tool}"
             --compiler-frontend-variant "${CMAKE_C_COMPILER_FRONTEND_VARIANT}"
@@ -434,7 +434,7 @@ function(jfg_add_generated_code)
     endif()
     find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
     set(preparation_script
-        "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/prepare_generated_sources.py"
+        "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build/prepare_generated_sources.py"
     )
     set(preparation_directory
         "${CMAKE_CURRENT_BINARY_DIR}/generated-source-preparation/${ARG_NAME}"
@@ -487,8 +487,20 @@ function(jfg_add_generated_code)
         )
     endif()
     if(ARG_REQUIRE_PRIVATE_ROOT)
+        file(GLOB jfg_regional_producer_sources CONFIGURE_DEPENDS
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build/regional/*.py")
         set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build_private_generated_root.py"
+            ${jfg_regional_producer_sources}
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build/rom_profiles.py"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build/transform_private_n64recomp_inputs.py"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/validation/validate_elf.py"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/config/roms/revisions.json"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/config/roms/core-bindings.json"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/config/roms/relocation-domains.json"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/config/roms/execution-sites.json"
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build/original_timing_generation.py")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            "${_JFG_GENERATED_REPOSITORY_ROOT}/scripts/build/build_private_generated_root.py"
         )
     endif()
 
@@ -681,7 +693,7 @@ function(jfg_add_generated_code_tests)
     # Original-timing generated roots need fail-closed hook definitions too.
     foreach(audit_kind IN ITEMS link_smoke baseline_audit patch_audit)
         target_sources(${ARG_NAME}_${audit_kind} PRIVATE
-            "${PROJECT_SOURCE_DIR}/tests/generated_timing_link_stubs.cpp")
+            "${PROJECT_SOURCE_DIR}/tests/boot/generated_timing_link_stubs.cpp")
     endforeach()
 
     add_test(NAME ${ARG_NAME}.link_smoke COMMAND ${ARG_NAME}_link_smoke)

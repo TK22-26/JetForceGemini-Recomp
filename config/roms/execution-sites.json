@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "revisions": {
+    "jfg-us-r0": {
+      "slow_sites": [
+        {
+          "name": "vi.initialize",
+          "section_kind": "main",
+          "body_sha256": "5fad42f99107cc0f9f9aa3540b526a83d223e1f2eec98156275b49c77440e3e8",
+          "body_size": 332,
+          "instruction_offset": 0
+        },
+        {
+          "name": "vi.manager_idle",
+          "section_kind": "main",
+          "body_sha256": "96d3a00a4c3cf34421da386199d9d4be372c7a738ec98d83a7796ab98456a0ee",
+          "body_size": 376,
+          "instruction_offset": 308
+        }
+      ],
+      "park": {
+        "section_kind": "main",
+        "body_sha256": "4947fd16878655fd902dcee051dedeb168df0668e211e45ad6f8b9644705a567",
+        "body_size": 280,
+        "entry_offset": 0
+      }
+    },
+    "jfg-pal-r0": {
+      "slow_sites": [
+        {
+          "name": "vi.initialize",
+          "section_kind": "main",
+          "body_sha256": "e342858e8663ccde95008b1370f4f3ee0929061ad1e9c7ca02dc4b0c66e34741",
+          "body_size": 332,
+          "instruction_offset": 0
+        },
+        {
+          "name": "vi.manager_idle",
+          "section_kind": "main",
+          "body_sha256": "fc8871324e8cda62d72cce1b31a42ae1561ec3391ae3abf3a4f7ff82d4393df9",
+          "body_size": 376,
+          "instruction_offset": 308
+        }
+      ],
+      "park": {
+        "section_kind": "main",
+        "body_sha256": "494b506ce69031e9d732ec0e25cdaabb7ea7645df5c6f446c7b01a8a1bac5f58",
+        "body_size": 512,
+        "entry_offset": 232
+      }
+    },
+    "star-twins-jp-r0": {
+      "slow_sites": [
+        {
+          "name": "vi.initialize",
+          "section_kind": "main",
+          "body_sha256": "3920e3a4812f2a278e7d756b3962db6283c7a2f5ec81093538cdc70df8e090f9",
+          "body_size": 332,
+          "instruction_offset": 0
+        },
+        {
+          "name": "vi.manager_idle",
+          "section_kind": "main",
+          "body_sha256": "613dabb4c8cbbb0a49e3e3e645feae1678647394f8ef375795f7119949304b7f",
+          "body_size": 376,
+          "instruction_offset": 308
+        }
+      ],
+      "park": {
+        "section_kind": "main",
+        "body_sha256": "79eb0a0de122cdfb0ca7366a1e35f35a5efe21fbc0c9c03c96dad70a20c0990c",
+        "body_size": 280,
+        "entry_offset": 0
+      }
+    }
+  }
+}

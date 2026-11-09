@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "kind": "jfg-original-relocation-exception-recipes",
+  "revisions": {
+    "jfg-us-r0": {
+      "trap": {
+        "section_kind": "main",
+        "body_size": 480,
+        "body_sha256": "b5bd730310362e9624d69d9895c2fb24d876dd03b8dc72caec573de2307d55af",
+        "entry_offset": 0
+      },
+      "unresolved_witnesses": [
+        {
+          "section_kind": "main",
+          "body_size": 396,
+          "body_sha256": "606cd5d136147d67cba2df50ee9fe2103cf827b825eb4ccea0b9ef75cdde6a22",
+          "pairs": [
+            [
+              256,
+              264
+            ]
+          ]
+        },
+        {
+          "section_kind": "main",
+          "body_size": 580,
+          "body_sha256": "ccdfb7cea6a76efa251e3dd7cc868e2f5d67be53ba98be3c404d8c9d6cc6bd9e",
+          "pairs": [
+            [
+              228,
+              232
+            ],
+            [
+              476,
+              480
+            ]
+          ]
+        }
+      ],
+      "records_sha256": "eb871e9d521e318514745c0fe5ac0e82a1b282325a4e73f35e09d963ecf5f43c"
+    },
+    "jfg-pal-r0": {
+      "trap": {
+        "section_kind": "main",
+        "body_size": 480,
+        "body_sha256": "931eb10e40f2c8fc5a5d6cafd9e9bcb4b483b3310ba7ebcc823a8b27eb56fbc4",
+        "entry_offset": 0
+      },
+      "unresolved_witnesses": [
+        {
+          "section_kind": "main",
+          "body_size": 396,
+          "body_sha256": "4f5941e0636d7e468b171f344d84c4cd0aa926f4798229e5937dce5635c570dd",
+          "pairs": [
+            [
+              256,
+              264
+            ]
+          ]
+        },
+        {
+          "section_kind": "main",
+          "body_size": 580,
+          "body_sha256": "d36e3d2d92ceda00e4170ffd2e73366b610d7d3e50c365164fc8d544878407ad",
+          "pairs": [
+            [
+              228,
+              232
+            ],
+            [
+              476,
+              480
+            ]
+          ]
+        }
+      ],
+      "records_sha256": "fbb07f0706f4a5d2045686d4b2e2ab196ad34f4580731b46e9a254a74e01e261"
+    },
+    "star-twins-jp-r0": {
+      "trap": {
+        "section_kind": "main",
+        "body_size": 480,
+        "body_sha256": "a690095229b9b0fea9344e2b9d6580ede2b0caba78b3b3128f7825600a251f91",
+        "entry_offset": 0
+      },
+      "unresolved_witnesses": [
+        {
+          "section_kind": "main",
+          "body_size": 396,
+          "body_sha256": "7e133f9a2bb5e04f314e15abea30f4d85650bae6238bbe7804407a2ed020776c",
+          "pairs": [
+            [
+              256,
+              264
+            ]
+          ]
+        },
+        {
+          "section_kind": "main",
+          "body_size": 580,
+          "body_sha256": "e1976887658f7b4d6a8a75113e1f5ebb9ea8b834644f10b4bd840de08f9c8567",
+          "pairs": [
+            [
+              228,
+              232
+            ],
+            [
+              476,
+              480
+            ]
+          ]
+        }
+      ],
+      "records_sha256": "b4300d9140253a204d265ca9c0147f0ed5bf10d6219400cad3043166b2176942"
+    }
+  }
+}

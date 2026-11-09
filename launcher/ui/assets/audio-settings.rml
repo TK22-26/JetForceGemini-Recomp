@@ -1,0 +1,8 @@
+<rml><head><title>Audio Settings</title><link type="text/rcss" href="video-settings.rcss"/><link type="text/rcss" href="audio-settings.rcss"/></head>
+<body><div id="video-shell"><div id="video-content">
+<div id="audio-error"/>
+<div class="section"><div class="section-heading"><span>AUDIO</span></div>
+<div class="row"><div class="description">Master volume<span class="small">Music and effects</span></div><span id="audio-value"/></div>
+<div class="row volume-row"><button id="audio-down" aria-label="Decrease volume"><span>-</span></button><input id="audio-volume" type="range" min="0" max="100" step="1" value="100" aria-label="Master volume"/><button id="audio-up" aria-label="Increase volume"><span>+</span></button></div>
+<div class="row"><div class="description">Mute<span class="small">Keep your volume setting</span></div><button id="audio-mute" class="switch" aria-label="Mute audio" aria-pressed="false"><span class="knob"/></button></div>
+</div></div><div class="footer"><span class="small">Changes apply immediately.</span><button id="audio-done" class="primary"><span>Done</span></button></div></div></body></rml>

@@ -1,4 +1,6 @@
 #pragma once
+#include "jfg/renderer/enhanced_shadow.hpp"
+#include "jfg/renderer/presentation_cadence.hpp"
 #include "jfg/renderer/rigid_camera.hpp"
 #include <array>
 #include <algorithm>
@@ -35,6 +37,7 @@ struct PresentationMesh {
     std::optional<RigidPresentationPose> rigid_pose;
     std::optional<std::array<std::uint64_t,2>> camera_owner;
     std::optional<RigidPresentationPose> camera_pose;
+    std::optional<RigidPresentationPose> camera_motion_pose;
 };
 // F3DDKR may reload one numeric transform into several RT64 matrix slots.
 // Equal finite transforms still define one triangle space. Keep incomplete
@@ -51,10 +54,11 @@ inline bool allow_shared_matrix_triangle(PresentationMesh& a,
     a.complete_local_topology=b.complete_local_topology=c.complete_local_topology=false;
     return true;
 }
-// Known sprite lifetimes own the transform even when animation changes the
-// local quad dimensions. Retain vertex count and triangle connectivity; unknown
-// meshes still require exact geometry. Texture/local-quad animation itself
-// keeps its authored cadence, while the world anchor follows the shared phase.
+// Known sprite lifetimes own their transform independently of animated local
+// dimensions, texture tiling and triangle connectivity. These keys interpolate
+// only the anchor matrix, not correspondence between the sprite's vertices.
+// Unknown geometry retains exact shape matching; changed lifetime/asset/camera,
+// ambiguous owners and discontinuous motion still fail closed.
 inline void bind_presentation_billboard(PresentationMesh &mesh,
     const std::array<std::uint64_t, 4> &owner) {
     const auto coordinate_words = mesh.positions.size() * 3U;
@@ -62,9 +66,8 @@ inline void bind_presentation_billboard(PresentationMesh &mesh,
         mesh.key.size() < coordinate_words + 2U ||
         mesh.key[coordinate_words] != 0xFFFFFFFFU)
         return;
-    mesh.key.erase(mesh.key.begin(), mesh.key.begin() +
-        static_cast<std::vector<std::uint32_t>::difference_type>(coordinate_words));
-    mesh.key.insert(mesh.key.begin(), 0x42494C4CU);
+    mesh.key.clear();
+    mesh.key.push_back(0x42494C4CU);
     for (auto value : owner) {
         mesh.key.push_back(static_cast<std::uint32_t>(value));
         mesh.key.push_back(static_cast<std::uint32_t>(value >> 32U));
@@ -90,9 +93,11 @@ struct PresentationTransform {
     PresentationMatrix current_world{}, previous_camera{}, current_camera{};
 };
 struct PresentationHistoryFrame {
+    std::shared_ptr<const EnhancedShadowFrame> enhanced_shadows;
     std::vector<PresentationTransform> transforms;
     std::uint64_t tick = 0;
-    unsigned source_rate = 0;
+    PresentationInterval source_interval;
+    unsigned vi_rate = 60; // Explicitly overwritten by the session history.
     bool scene = false;
     bool defer_to_blur = false;
     std::uint32_t blur_source = 0, blur_target = 0;
@@ -199,15 +204,21 @@ class PresentationHistory {
         }
     };
 public:
+    void set_vi_rate(unsigned rate) {
+        if(rate!=50U && rate!=60U)throw std::invalid_argument("Unsupported presentation VI clock");
+        if(rate!=vi_rate_) { *this=PresentationHistory{};vi_rate_=rate; }
+    }
+    unsigned vi_rate() const noexcept {return vi_rate_;}
     bool has_continuous_cadence(std::uint64_t tick, bool scene) const {
         const auto delta = tick > previous_tick_ ? tick - previous_tick_ : 0U;
-        return scene && previous_tick_ != 0U && delta >= 1U && delta <= 6U && 60U % delta == 0U;
+        return scene && previous_tick_ != 0U && delta >= 1U && delta <= 6U;
     }
     PresentationHistoryFrame record(const std::vector<PresentationMesh>& meshes,
                                     std::uint64_t tick, bool scene, bool diagnostic = false) {
         PresentationHistoryFrame result;
         result.scene = scene;
         result.tick = tick;
+        result.vi_rate = vi_rate_;
         result.transforms.resize(meshes.size());
         if (diagnostic) {
             result.debug_reasons.resize(meshes.size());
@@ -220,7 +231,7 @@ public:
         // Shape/lifetime, pose, finite-coordinate and motion checks below
         // still reject discontinuities. Long gaps and repeated ticks hold.
         if (has_continuous_cadence(tick, scene))
-            result.source_rate = static_cast<unsigned>(60U / delta);
+            result.source_interval = {static_cast<unsigned>(delta), vi_rate_};
         next_.clear(meshes.size());
         std::vector<std::size_t> indices(meshes.size(),Shapes::empty);
         for(std::size_t i=0;i<meshes.size();++i) {
@@ -241,10 +252,10 @@ public:
             if(diagnostic) {
                 if(!old)result.debug_reasons[i]|=8U;
                 else result.debug_previous[i]=old->matrix;
-                if(result.source_rate==0U)result.debug_reasons[i]|=16U;
+                if(!result.source_interval)result.debug_reasons[i]|=16U;
                 else if(old && !continuous_presentation_motion(*old,mesh))result.debug_reasons[i]|=32U;
             }
-            if(result.source_rate && old && continuous_presentation_motion(*old,mesh))
+            if(result.source_interval && old && continuous_presentation_motion(*old,mesh))
                 result.transforms[i]={old->matrix,true};
         }
         // Scenery visibility changes can replace every exact geometry key.
@@ -253,18 +264,22 @@ public:
         // claims must agree, and actual cuts/projection changes still hold.
         using CameraKey=std::array<std::uint64_t,2>;
         std::map<CameraKey,std::optional<HistoryEndpoint>> cameras;
+        std::map<CameraKey,std::optional<RigidPresentationPose>> camera_sources;
         const PresentationMatrix identity{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
         for(const auto& mesh:meshes) if(mesh.camera_owner) {
-            bool valid=mesh.eligible && mesh.camera_pose &&
-                mesh.camera_pose->world==identity && (*mesh.camera_owner)[0] && (*mesh.camera_owner)[1];
+            const auto& motion_pose=mesh.camera_motion_pose?mesh.camera_motion_pose:mesh.camera_pose;
+            bool valid=mesh.eligible && mesh.camera_pose && motion_pose &&
+                motion_pose->world==identity && (*mesh.camera_owner)[0] && (*mesh.camera_owner)[1];
             for(const auto& point:mesh.positions)for(float value:point)
                 valid=valid && std::isfinite(value);
+            auto [source,source_fresh]=camera_sources.emplace(*mesh.camera_owner,mesh.camera_pose);
+            valid=valid && (source_fresh || source->second==mesh.camera_pose);
             auto [found,fresh]=cameras.emplace(*mesh.camera_owner,std::nullopt);
             if(fresh) {
                 if(valid && rigid_pose_matches_matrix(*mesh.camera_pose,mesh.matrix))
-                    found->second=HistoryEndpoint{mesh.matrix,mesh.camera_pose};
+                    found->second=HistoryEndpoint{mesh.matrix,motion_pose};
             } else if(!valid || !found->second || found->second->matrix!=mesh.matrix ||
-                      found->second->rigid_pose!=mesh.camera_pose) found->second.reset();
+                      found->second->rigid_pose!=motion_pose) found->second.reset();
         }
         std::map<CameraKey,PresentationMatrix> camera_anchors;
         // A validated camera discontinuity is stronger evidence than a
@@ -293,8 +308,8 @@ public:
                             std::abs(new_pose.projection[component]/old_pose.projection[component]-1.0f));
                 } else ++result.debug_cameras[4];
             }
-            if(result.source_rate && motion)camera_anchors.emplace(key,prior->second.matrix);
-            if(result.source_rate && !motion)camera_cuts.insert(current->matrix);
+            if(result.source_interval && motion)camera_anchors.emplace(key,prior->second.matrix);
+            if(result.source_interval && !motion)camera_cuts.insert(current->matrix);
         }
         previous_cameras_.clear();
         for(const auto& entry:cameras)if(entry.second)
@@ -358,5 +373,6 @@ private:
     Shapes previous_,next_;
     std::map<std::array<std::uint64_t,2>,HistoryEndpoint> previous_cameras_;
     std::uint64_t previous_tick_ = 0;
+    unsigned vi_rate_ = 60U; // Generic fixtures; native composition always supplies its rate.
 };
 } // namespace jfg

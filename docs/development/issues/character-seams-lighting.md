@@ -202,7 +202,6 @@ approval bounds this continuation to three hours. All tests start muted, use
 copied saves/profiles, and run through the guarded supervisor. Receipt:
 `owner-character-seams-3hours.json`.
 
-
 The owner further clarified the thigh symptom as "a see thru thin line between
 parts". Dense muted runs now retain 116 native captures per mode, plus 176 Ares64
 reference frames. Original and Custom preserve identical final guest/render/save
@@ -217,7 +216,6 @@ The diagnostic history-dump build initially failed from escaped newline syntax;
 the corrected v2 run passed. An initial analysis of the failed run had no input
 snapshots and is invalid evidence; v2 explicitly requires all 17 snapshots.
 All failed receipts are retained. The delivered preview remains unchanged.
-
 
 Additional bounded checks do not establish a thigh remedy. In the inspected
 high-refresh samples, pelvis and leg matrices are held at the current pose;
@@ -239,7 +237,6 @@ Private evidence: character-body-motion, character-no-cull,
 character-owner-window-v2, character-modern-camera, character-modern-geometry.
 Two instrumentation scripts failed on Python quoting/slicing before replay;
 corrected v2 receipts are preserved alongside failures. No new remedy shipped.
-
 
 ## Dense thigh follow-up, 2026-10-12
 
@@ -295,7 +292,6 @@ original animation rate in this route. Higher output FPS is not a claim that
 all actor animation has been interpolated. Lighting recovery remains open and
 was not changed by these thigh checks.
 
-
 ## Owner-approved continuation (2026-10-13 UTC)
 
 The owner approved five further hours to continue the open pacing, thigh-gap and
@@ -312,7 +308,6 @@ submission waits around the combined-motion three-VI recovery episode. Reuse
 existing seam/lighting captures to define an exact pixel or spatial boundary;
 avoid repeating broad captures without a new discriminating measurement.
 
-
 ### Owner verification of semantic preview
 
 After closing/reopening the new semantic preview, the owner reports "No seems
@@ -321,7 +316,6 @@ supersedes the earlier report that connected skin was held at source cadence:
 the semantic implementation now interpolates world-space vertex endpoints with
 shared joint/camera ownership. Other frame-rate modes and poses are not newly
 qualified by that statement. Lighting recovery remains under investigation.
-
 
 ### Owner follow-up: stationary camera spin (2026-10-13 UTC)
 

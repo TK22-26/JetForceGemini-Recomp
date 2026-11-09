@@ -56,7 +56,9 @@ private:
       if (file.bad()) return;
       count=static_cast<std::size_t>(file.gcount());
 #endif
-      if (count>128U) return;
+      // An in-place writer can briefly expose an empty file after truncation.
+      // Empty text cannot describe volume settings; preserve the last snapshot.
+      if (count==0U || count>128U) return;
       auto value=std::make_shared<const std::string>(buffer.data(),count);
       std::lock_guard lock(mutex_); latest_=std::move(value);
     } catch (...) {}

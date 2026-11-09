@@ -133,7 +133,7 @@ cached context.
 
 Implementation: `PcBossAimMotion` and `pc_boss_aim_limit` in
 `include/jfg/runtime/pc_input.hpp`, the shared `0x8003AABC` hook in
-`src/boot/native_boot.cpp`, and behavioral coverage in `tests/pc_input_tests.cpp`.
+`src/boot/native_boot.cpp`, and behavioral coverage in `tests/runtime/pc_input_tests.cpp`.
 The hook qualifies the exact native boss argument/stack/output-slot contract
 and boss combat state. It applies to all three character boss handlers, including
 upgraded variants and both Mizar encounters. It does not enlarge a general

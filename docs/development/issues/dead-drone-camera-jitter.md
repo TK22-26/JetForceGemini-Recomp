@@ -11,7 +11,7 @@
 - Validation: focused components, actual captured-memory checks and runtime build pass. Owner says the latest route looks good; exact seeded route and broader cutscene coverage are not verified.
 - Compatibility lesson: acceptance for live drones and glass does not cover the separate grounded/dead actor state.
 
-Related: [actor interpolation](actor-jitter-edge-culling.md), [boss camera sweep](boss-camera-sweep-pop.md), [v1.3 qualification](../releases-1.3.0-qualification.md).
+Related: [actor interpolation](actor-jitter-edge-culling.md), [boss camera sweep](boss-camera-sweep-pop.md), [v1.3 qualification](../../releases/qualification-1.3.0.md).
 
 ## Owner clarification and first evidence
 
@@ -144,7 +144,6 @@ instead of the sustained invalid-sample group, with matching visible geometry.
 A future full-route review should also revisit opening cutscenes; their prior
 invalid groups are not considered resolved without evidence.
 
-
 ## Qualified owner acceptance and latest capture
 
 The owner reports that the second candidate looks good, while explicitly noting
@@ -180,7 +179,7 @@ animation workaround.
 The documented change is included in tag v1.3.0 (launcher/source
 02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
 665596482a7395593e85dbe73f1bd4b016d183d9). See the
-[combined release qualification](../releases-1.3.0-qualification.md) for owner
+[combined release qualification](../../releases/qualification-1.3.0.md) for owner
 acceptance, source CI, package and publication evidence. Earlier failed attempts
 and the scene/device/seed limits above remain part of this record; inclusion
 does not turn an unverified broader report into a confirmed resolution.

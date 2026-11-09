@@ -26,7 +26,7 @@ gate is now supported by current evidence, and the public-safe aggregate in
 7. Developer builds expose the RT64 frame debugger.
 
 Pixel comparison is performed by
-`scripts/compare_phase7_frames.py`. The emulator oracle is scaled uniformly
+`scripts/diagnostics/compare_phase7_frames.py`. The emulator oracle is scaled uniformly
 to fit the RT64 output and centered on black. Raw RGB error and foreground
 coverage remain unfiltered. Before 8x8 SSIM, both luminance planes receive the
 same separable Gaussian prefilter with a sigma of one emulator-oracle pixel;
@@ -48,5 +48,5 @@ command values, image bodies, or ROM-derived identifiers.
 The validator is run with:
 
 ```text
-python scripts/validate_phase7_acceptance.py
+python scripts/validation/validate_phase7_acceptance.py
 ```

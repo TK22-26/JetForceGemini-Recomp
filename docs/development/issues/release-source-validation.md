@@ -4,7 +4,7 @@ Status: resolved for the v1.2.0 release source/build qualification; original fai
 
 Release validation found unregistered controller-prototype rasterizations and launcher screenshots, numeric opcode/section identifiers mistaken for hex payloads, synthetic compiler fixtures mistaken for generated game code, and a repeatedly mis-encoded prototype filename inflating one feature-note line beyond 3 MB. These block publication, not gameplay.
 
-The filename is repaired in the current document; historical evidence remains intact. Exact SHA-256 and Git blob records in `scripts/reviewed_hygiene_bodies.json` document the inspected assets and narrowly scoped historical false positives. No suffix-wide binary exemption or credential/ROM/archive exemption is introduced. Mutated fixtures and artwork must fail again. The controller artwork originates in the owner-provided editable prototype documented beside its SVGs; screenshots show the project launcher/settings.
+The filename is repaired in the current document; historical evidence remains intact. Exact SHA-256 and Git blob records in `scripts/validation/reviewed_hygiene_bodies.json` document the inspected assets and narrowly scoped historical false positives. No suffix-wide binary exemption or credential/ROM/archive exemption is introduced. Mutated fixtures and artwork must fail again. The controller artwork originates in the owner-provided editable prototype documented beside its SVGs; screenshots show the project launcher/settings.
 
 The all-object local history scan additionally sees private stash objects that are never part of a pushed release. Qualification will scan a clean isolated clone of the committed release history, preserving the local stash and all original counters. No history rewrite is performed. Initial failed policy logs remain in the private release qualification directory.
 
@@ -68,14 +68,13 @@ string. The native launcher correctly reports `1.2.0`; its numeric PE fields are
 arguments, without changing the published package. Original failure retained
 in the private publication receipts.
 
-
 ## v1.2.1 publication record
 
 Tagged-source CI and the prebuilt publication workflow pass; the downloaded public assets match the staged hashes and bundle manifest. The issue index accidentally replaced INPUT-011's link cell with a status sentence during release preparation. This documentation-only follow-up restores the link and records actual publication/reporter-retest status; the published tag and binaries remain unchanged. See [boss-control release evidence](github-ichor-boss-controls.md).
 
 ## v1.3 preparation
 
-The current source-policy preflight found two owner-specific paths in new issue notes, a new unregistered project UI icon atlas, and generated-marker matches in three small handwritten synthetic compiler fixtures. Public notes now use private artifact names; exact-body reviews cover the atlas/fixtures with mutation rejection intact. No generated game body, ROM, save or capture is added. Final current-tree/history, compiler, package and CI qualification remain pending in [the v1.3 checklist](../releases-1.3.0-qualification.md).
+The current source-policy preflight found two owner-specific paths in new issue notes, a new unregistered project UI icon atlas, and generated-marker matches in three small handwritten synthetic compiler fixtures. Public notes now use private artifact names; exact-body reviews cover the atlas/fixtures with mutation rejection intact. No generated game body, ROM, save or capture is added. Final current-tree/history, compiler, package and CI qualification remain pending in [the v1.3 checklist](../../releases/qualification-1.3.0.md).
 
 ## v1.3 release CI: randomized fixture width
 
@@ -109,7 +108,7 @@ both supported host platforms without relaxing compiler warnings or source pins.
 Five worktrees are reconciled into develop without dropping unique paths or
 commits. The combined Release runtime and all 123 native/renderer CTest suites
 pass; managed/native launcher checks also pass. See the
-[v1.4 qualification](../releases-1.4.0-qualification.md) for counts and limits.
+[v1.4 qualification](../../releases/qualification-1.4.0.md) for counts and limits.
 
 The 1,807-test local Python run retains the same two sanitizer subtest failures
 and one WSL trust-anchor error documented for v1.2. The installed Microsoft-signed

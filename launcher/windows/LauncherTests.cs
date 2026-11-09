@@ -769,6 +769,34 @@ namespace JfgLauncher
                     }
                 }
                 File.WriteAllText(support.NativePath, "native=running\nfailure=runlink/guest-overlay-load\nPRIVATE-PATH-CANARY\nnative_exception=0xc0000005\n");
+                // Exercise the actual archive path: the native logger already emits these
+                // records, but a sanitizer-only test cannot prove ZIP delivery.
+                const string audioRecovery = "audio=latency-recovery/before_ms=1133/after_ms=108/discarded_bytes=90278/recoveries=2";
+                const string audioFailure = "audio=latency-recovery-queue-failed";
+                const string audioZero = "audio=latency-recovery/before_ms=0/after_ms=0/discarded_bytes=0/recoveries=0";
+                string maximumCounter = UInt64.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                string audioMaximum = "audio=latency-recovery/before_ms=" + maximumCounter + "/after_ms=" + maximumCounter +
+                    "/discarded_bytes=" + maximumCounter + "/recoveries=" + maximumCounter;
+                string audioEvidence = audioRecovery + "\n" + audioFailure + "\n" + audioZero + "\n" + audioMaximum + "\n";
+                string[] rejectedAudio = {
+                    "audio=PRIVATE-PATH-CANARY",
+                    "audio=latency-recovery",
+                    "audio=latency-recovery/before_ms=1133/after_ms=108/discarded_bytes=90278",
+                    "audio=latency-recovery/before_ms=1133/after_ms=108/discarded_bytes=",
+                    audioRecovery.Replace("before_ms=1133", "before_ms=-1133"),
+                    audioRecovery.Replace("after_ms=108", "after_ms=1.08"),
+                    audioRecovery.Replace("recoveries=2", "recoveries=" + new string('9',21)),
+                    audioRecovery.Replace("before_ms=1133/after_ms=108", "after_ms=108/before_ms=1133"),
+                    audioRecovery + "/recoveries=3",
+                    audioRecovery + "/path=C:/PRIVATE-PATH-CANARY",
+                    audioRecovery + " PRIVATE-PATH-CANARY",
+                    audioFailure + "/error=PRIVATE-PATH-CANARY",
+                    "audio=latency-recovery-queue-failed-extra",
+                    "audio=unrecognized-event",
+                    audioRecovery.Replace("recoveries=2", "recoveries=\u0662"),
+                    audioRecovery + new string('x',257)
+                };
+                File.AppendAllText(support.NativePath, audioEvidence + String.Join("\n", rejectedAudio) + "\n");
                 File.WriteAllText(Path.Combine(support.DirectoryPath, "jfg.flash"), "SAVE-CONTENTS-CANARY");
                 File.WriteAllText(Path.Combine(support.DirectoryPath, "game.z64"), "ROM-CONTENTS-CANARY");
                 string assetCache=Path.Combine(support.DirectoryPath,"asset-cache");Directory.CreateDirectory(assetCache);
@@ -779,26 +807,85 @@ namespace JfgLauncher
                 const string mouseFlow = "mouse_flow=14/32/0/2/16/15";
                 const string mouseState = "mouse_state=6000/1/0/0/1/1/1/1/0/0/0/1/1/1/0";
                 const string mousePlayer = "mouse_player=0/1/1/1/1/100/80/120/0/0/1/1/3";
-                string mouseEvidence = "mouse_schema=1\n" + mouseCounts + "\n" + mouseFlow + "\n" + mouseState + "\n" + mousePlayer + "\n";
+                const string mouseCapture = "mouse_capture=1/1/1/1/1/1/2/0";
+                string mouseEvidence = "mouse_schema=1\n" + mouseCounts + "\n" + mouseFlow + "\n" + mouseState + "\n" + mouseCapture + "\n" + mousePlayer + "\n";
                 string mousePath = Path.Combine(support.DirectoryPath, "mouse.log");
                 File.WriteAllText(mousePath, mouseEvidence + "mouse_schema=2\nmouse_counts=1/2\nmouse_flow=-1/0/0/0/0/0\nmouse_player=0/1/1/1/1/100/80/120/0/0/1/1/3/9\nmouse_path=PRIVATE-PATH-CANARY\nmouse_counts=" + new string('9', 21) + "/0/0/0/0/0/0/0\n");
+                File.AppendAllText(mousePath, "mouse_capture=1/1/1/1/1/1/2/0/9\nmouse_capture=1/1/1/1/1/1/-2/0\nmouse_capture=PRIVATE-CANARY\nmouse_capture=1/1/1/1/1/1/99999999999/0\n");
                 Check(SupportSession.SanitizeFile(mousePath) == mouseEvidence, "bounded mouse diagnostics rejected or private/malformed data accepted");
+                File.WriteAllText(Path.Combine(directory, "frontend-presentation.log"),
+                    "backend=window\ncomposition_hresult=0x80004001\nbackend=PRIVATE-PATH-CANARY\n");
+                const string rendererEvidence = "renderer_requested=vulkan\nrenderer_selected=vulkan\nrenderer_host=launcher\nrenderer_setup=ready\nrenderer_result=vulkan/acquire/0x00000000\nrenderer_result=vulkan/present/0xfffffc14\nrenderer_result=d3d12/present/0x887a0005\nrenderer_result=d3d12/resize/0x00000000\nrenderer_result=vulkan/resize/limit\n";
+                const string rejectedRenderer = "renderer_selected=PRIVATE-PATH-CANARY\nrenderer_requested=Vulkan\nrenderer_result=vulkan/present/-1000\nrenderer_result=vulkan/present/0x123456789\nrenderer_result=d3d12/present/0x887A0005\nrenderer_setup=ready/PRIVATE-PATH-CANARY\nrenderer_host=PRIVATE-PATH-CANARY\n";
+                string rendererPath=Path.Combine(directory,"renderer-test.log");
+                File.WriteAllText(rendererPath,rendererEvidence+rejectedRenderer);
+                Check(SupportSession.SanitizeFile(rendererPath)==rendererEvidence,"renderer grammar lost valid evidence or accepted malformed/private values");
+                File.AppendAllText(support.NativePath,rendererEvidence+rejectedRenderer);
+                Check(support.RendererFailureMessage()==null,"resize/presentation status must not claim startup failed");
+                { var failing=new SupportSession(Path.Combine(directory,"renderer-failure"),"launch");
+                    File.WriteAllText(failing.NativePath,"renderer_requested=vulkan\nrenderer_setup=api-unavailable\n");
+                    Check(failing.RendererFailureMessage().StartsWith("Vulkan could not start.",StringComparison.Ordinal),"explicit API startup failure lacks recovery guidance");
+                    File.WriteAllText(failing.NativePath,"renderer_requested=d3d12\nrenderer_setup=override-required\n");
+                    Check(failing.RendererFailureMessage().StartsWith("Direct3D 12 could not start.",StringComparison.Ordinal),"driver override lacks explicit-choice guidance");
+                }
+                const string windowState = "frontend_window=1/1/1/1280/720/1/1280/720/1/0/0/0\n";
+                File.WriteAllText(Path.Combine(directory, "frontend-window.log"),
+                    windowState + "frontend_window=PRIVATE-PATH-CANARY\nfrontend_window=1/1/1/100000/720/1/1280/720/1/0/0/0\n");
+                support.PresentationDetails(directory);
+                string presentationEvidence = SupportSession.SanitizeFile(Path.Combine(support.DirectoryPath, "presentation.log"));
+                Check(presentationEvidence == "frontend_backend=window\nfrontend_composition_hresult=0x80004001\n" + windowState,
+                    "presentation support fields lost or unbounded/private fields accepted");
+                // A valid last line without LF can exactly fill the input cap.
+                // Adding its output LF must not grow the sanitized report past 64 KiB.
+                string boundaryPath=Path.Combine(directory,"support-boundary.log");
+                string boundary=new string('x',0);
+                for(int i=0;i<5040;++i) boundary+="stage=closed\n";
+                boundary+="omitted=12345678";
+                Check(Encoding.ASCII.GetByteCount(boundary)==SupportSession.MaximumBytes,"invalid support boundary fixture");
+                File.WriteAllText(boundaryPath,boundary,Encoding.ASCII);
+                string boundedSupport=SupportSession.SanitizeFile(boundaryPath);
+                Check(Encoding.UTF8.GetByteCount(boundedSupport)<=SupportSession.MaximumBytes &&
+                    !boundedSupport.Contains("omitted=") && boundedSupport.EndsWith("stage=closed\n",StringComparison.Ordinal),
+                    "sanitizer exceeds cap by appending LF or truncates a diagnostic value");
                 string zipPath = SupportSession.Export(reportRoot, Path.Combine(directory, "exports"));
                 using (FileStream file = File.OpenRead(zipPath))
                 using (System.IO.Compression.ZipArchive zip = new System.IO.Compression.ZipArchive(file)) {
-                    Check(zip.Entries.Count == 10, "unexpected support archive members");
+                    Check(zip.Entries.Count == 11, "unexpected support archive members");
                     Check(zip.GetEntry("mouse.log") != null, "mouse diagnostics omitted from support archive");
+                    Check(zip.GetEntry("presentation.log") != null, "presentation diagnostics omitted from support archive");
                     string combined = "";
                     foreach (var entry in zip.Entries) using (StreamReader reader = new StreamReader(entry.Open())) combined += reader.ReadToEnd();
                     Check(!combined.Contains("CANARY") && !combined.Contains(directory), "private contents leaked into support report");
                     Check(combined.Contains("exit=0x00000011") && combined.Contains("native_exit=0xc0000005") && combined.Contains("failure=runlink/guest-overlay-load"), "crash evidence lost");
                     Check(combined.Contains("mod=navigation-enabled"), "mod context lost from support report");
+                    Check(combined.Contains(rendererEvidence), "game graphics API or presentation result evidence lost during ZIP export");
+                    Check(combined.Contains(presentationEvidence), "presentation evidence lost during export");
                     Check(combined.Contains(mouseEvidence), "effective mouse settings or delivery counters lost during export");
+                    using (StreamReader reader = new StreamReader(zip.GetEntry("native.log").Open())) {
+                        Check(reader.ReadToEnd() == "native=running\nfailure=runlink/guest-overlay-load\nnative_exception=0xc0000005\n" + audioEvidence + rendererEvidence,
+                            "audio recovery success/failure lost or malformed/private records admitted by final ZIP export");
+                    }
+
                     if (!String.IsNullOrEmpty(diagnosticFixture)) {
                         Check(combined.Contains("snapshot=crash-v1") && combined.Contains("snapshot=hang-v1") && combined.Contains("/jfg-support-fixture.exe/"), "native stack evidence lost during ZIP export");
                     }
                     Check(combined.Contains("native_exception=0xc0000005") && combined.Contains("omitted="), "exception or omitted count lost");
                 }
+                string audioBoundaryPath = Path.Combine(directory,"audio-boundary.log");
+                Check(SupportSession.SanitizeFile(audioBoundaryPath) == "", "missing audio diagnostic file must be optional");
+                foreach (string rejected in rejectedAudio) {
+                    File.WriteAllText(audioBoundaryPath,rejected + "\n",new UTF8Encoding(false));
+                    Check(SupportSession.SanitizeFile(audioBoundaryPath) == "", "malformed audio record accepted: " + rejected);
+                }
+                string repeatedAudio = audioRecovery + "\n";
+                int completeAudioRecords = SupportSession.MaximumBytes / repeatedAudio.Length;
+                StringBuilder largeAudio = new StringBuilder();
+                for (int i=0;i<completeAudioRecords+2;++i) largeAudio.Append(repeatedAudio);
+                File.WriteAllText(audioBoundaryPath,largeAudio.ToString(),Encoding.ASCII);
+                string boundedAudio = SupportSession.SanitizeFile(audioBoundaryPath);
+                Check(boundedAudio == largeAudio.ToString(0,completeAudioRecords*repeatedAudio.Length) &&
+                    Encoding.ASCII.GetByteCount(boundedAudio)<=SupportSession.MaximumBytes,
+                    "audio history exceeds support cap or admits truncated record at cap");
                 SupportSession later = new SupportSession(reportRoot, "launch"); later.Exit(0);
                 Check(SupportSession.Sessions(reportRoot).Find(delegate(SupportChoice c) { return c.Path == support.DirectoryPath; }).Failed, "failed session lost after successful launch");
                 string oldZip = SupportSession.Export(reportRoot, Path.Combine(directory, "exports"));
@@ -834,9 +921,9 @@ namespace JfgLauncher
                 }
                 Application.EnableVisualStyles();
                 string sourceFixture = Path.Combine(directory, "source with spaces");
-                Directory.CreateDirectory(Path.Combine(sourceFixture, "scripts"));
+                Directory.CreateDirectory(Path.Combine(sourceFixture, "scripts/build"));
                 File.WriteAllText(Path.Combine(sourceFixture, "CMakeLists.txt"), "# fixture");
-                File.WriteAllText(Path.Combine(sourceFixture, "scripts", "build_from_rom.py"), "# fixture");
+                File.WriteAllText(Path.Combine(sourceFixture, "scripts/build/build_from_rom.py"), "# fixture");
                 string nested = Path.Combine(sourceFixture, "build", "launcher");
                 Directory.CreateDirectory(nested);
                 Check(LocalSetup.FindSourceRoot(nested) == sourceFixture, "source root discovery failed");
@@ -991,6 +1078,8 @@ namespace JfgLauncher
                 checks += AutonomousExplorerTests.Run();
                 checks += UnifiedNavigationTests.Run(directory);
                 checks += UpdateCheckerTests.Run();
+                checks += RegionalRomTests.Run(directory);
+                checks += ProgramBundleTests.Run(directory);
                 Console.WriteLine("Launcher checks passed: " + checks);
                 return 0;
             }

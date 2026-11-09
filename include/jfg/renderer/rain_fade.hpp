@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "jfg/renderer/game_layout.hpp"
 #include <initializer_list>
 #include <span>
 #include <optional>
@@ -71,8 +72,9 @@ public:
   }
   SpatialScissor scissor_for_mesh(std::uint32_t cursor) const noexcept {
     return pending_.base && !pending_.sealed && pending_.scissor_end &&
-        pending_.frame.width == 320U && pending_.frame.height == 240U &&
-        pending_.frame.bytes == 320U*240U*2U &&
+        pending_.frame.width>0U && pending_.frame.width<=1023U &&
+        pending_.frame.height>0U && pending_.frame.height<=512U &&
+        pending_.frame.bytes == pending_.frame.width*pending_.frame.height*2U &&
         cursor == pending_.scissor_end+16U ? pending_.scissor : SpatialScissor{};
   }
   void record(std::uint32_t begin, std::uint32_t end, Fade fade) noexcept {
@@ -174,14 +176,15 @@ struct Runtime {
   std::uint64_t scissor_attempts = 0, scissor_accepted = 0;
   std::uint64_t spatial_lines = 0, spatial_pixels = 0;
 };
-// Supported US call sites. Restore temporary line arguments and nesting state.
+// Revision-qualified call sites. Restore temporary line arguments and nesting state.
 // Native fade state, particle tables and frame history remain intact.
 class Dispatch {
+  const RendererGameLayout& layout_;
   Runtime& runtime_;
   Memory memory_;
   std::span<std::uint8_t> bytes_;
   Call call_;
-  std::uint32_t target_;
+  RainOperation operation_;
   Frame frame_;
   const Frame* previous_post_ = nullptr;
   bool previous_rain_ = false, post_scope_ = false, rain_scope_ = false;
@@ -193,72 +196,66 @@ class Dispatch {
   bool scissor_scope_ = false, debug_empty_ = false;
   std::optional<spatial::NativeLineStroke> stroke_;
   std::uint32_t vi_width() const noexcept {
-    const auto mode = memory_.u8(0x800FECA8U);
-    return mode < 4U ? memory_.u32(0x800A392CU+0x28U*mode) : 0U;
+    const auto mode = memory_.u8(layout_.vi_mode);
+    return mode < 4U ? memory_.u32(layout_.resolution_modes+0x28U*mode) : 0U;
   }
   std::uint32_t vi_height() const noexcept {
-    const auto mode = memory_.u8(0x800FECA8U);
-    return mode < 4U ? memory_.u32(0x800A3930U+0x28U*mode) : 0U;
+    const auto mode = memory_.u8(layout_.vi_mode);
+    return mode < 4U ? memory_.u32((layout_.resolution_modes+4U)+0x28U*mode) : 0U;
   }
   bool simple_in() const noexcept {
-    return memory_.u32(0x80102D38U) == 0U && memory_.u8(0x800A67A0U) == 0U;
+    return memory_.u32(layout_.fade_type) == 0U && memory_.u8(layout_.fade_mode) == 0U;
   }
   std::uint32_t vi_bytes() const noexcept {
-    const auto mode = memory_.u8(0x800FECA8U);
-    const auto width = mode < 4U ? memory_.u32(0x800A392CU+0x28U*mode) : 0U;
-    const auto height = mode < 4U ? memory_.u32(0x800A3930U+0x28U*mode) : 0U;
+    const auto mode = memory_.u8(layout_.vi_mode);
+    const auto width = mode < 4U ? memory_.u32(layout_.resolution_modes+0x28U*mode) : 0U;
+    const auto height = mode < 4U ? memory_.u32((layout_.resolution_modes+4U)+0x28U*mode) : 0U;
     return width && width <= 1024U && height && height <= 512U ? width*height*2U : 0U;
   }
 public:
-  static constexpr bool observes(std::uint32_t target) noexcept {
-    switch (target) {
-    case 0x80044FACU: case 0x8006B9CCU: case 0x80050E90U:
-    case 0x80064E8CU: case 0x8006CC20U:
-    case 0x8006BD54U: case 0x8006C124U: case 0x80045A44U:
-    case 0x800237D8U: case 0x80023600U: case 0x8004DA10U: case 0x8006B978U:
-    case 0x004001BCU: case 0x00200788U: case 0x030006F0U: return true;
-    default: return false;
-    }
+  static constexpr bool observes(const RendererGameLayout& layout, std::uint32_t target) noexcept {
+    return layout.rain_operation(target)!=RainOperation::none;
   }
-  Dispatch(Runtime& runtime, std::span<std::uint8_t> bytes,
+  Dispatch(const RendererGameLayout& layout, Runtime& runtime, std::span<std::uint8_t> bytes,
            std::uint32_t target, Call call) noexcept
-      : runtime_(runtime), memory_(bytes), bytes_(bytes), call_(call), target_(target) {
-    if (target == 0x80044FACU) {
-      runtime.supported = memory_.u32(0x80045AB8U) == 0x0C01AE5EU &&
-          memory_.u32(0x80045160U) == 0x0C0143A4U &&
-          memory_.u32(0x800455A8U) == 0x0C011691U;
+      : layout_(layout), runtime_(runtime), memory_(bytes), bytes_(bytes), call_(call), operation_(layout.rain_operation(target)) {
+    const auto operation=operation_;
+    if (operation == RainOperation::main) {
+      runtime.supported = layout_.rain_fade_call.matches(memory_) &&
+          layout_.rain_segment_call.matches(memory_) &&
+          layout_.rain_effects_call.matches(memory_);
       if (!runtime.supported) runtime.tracker = {};
     }
     if (!runtime.supported) return;
-    switch (target) {
-    case 0x8006B9CCU:
+    switch (operation) {
+    case RainOperation::transition:
       ++runtime.transition;
       break;
-    case 0x80050E90U:
-      if (call.a1 != 1U || call.a0 != 0x800FB408U) break;
+    case RainOperation::segment:
+      if (call.a1 != 1U || call.a0 != layout_.dl_cursor) break;
       runtime.tracker.invalidate_pending();
-      if (call.ra == 0x80045168U && call.a2 == memory_.u32(0x800FECB8U)) {
-        const auto index = memory_.u32(0x800FD7C0U);
-        const auto base = index < 2U ? memory_.u32(0x800FB400U + 4U*index) : 0U;
+      if (call.ra == layout_.rain_segment_return && call.a2 == memory_.u32(layout_.render_framebuffer)) {
+        const auto index = memory_.u32(layout_.dl_bank);
+        const auto base = index < 2U ? memory_.u32(layout_.dl_banks + 4U*index) : 0U;
         const auto frame_bytes = vi_bytes();
         if (frame_bytes && memory_.valid(call.a2, frame_bytes) && memory_.valid(base, 8U) &&
             memory_.u32(call.a0) == base+8U)
           runtime.tracker.begin(base, call.a2, frame_bytes, vi_width(), vi_height());
       }
       break;
-    case 0x80064E8CU:
-      if (call.ra == 0x800453B0U && call.a0 == 0x800FB408U) {
+    case RainOperation::debug:
+      if (call.ra == layout_.rain_debug_return && call.a0 == layout_.dl_cursor) {
         cursor_ = memory_.u32(call.a0);
-        debug_empty_ = memory_.u32(0x800A6384U) == 0x80100960U;
+        debug_empty_ = memory_.u32(layout_.debug_end) == layout_.debug_buffer;
         scissor_scope_ = true;
         ++runtime.scissor_attempts;
       }
       break;
-    case 0x8006CC20U:
-      if (call.ra == 0x8006BE54U && call.a0 == 0x800FB408U) {
+    case RainOperation::geometry:
+      if (call.ra == layout_.rain_spatial_return && call.a0 == layout_.dl_cursor) {
         ++runtime.spatial_attempts;
         cursor_ = memory_.u32(call.a0);
-        fade_.spatial = capture_spatial_fade(bytes, call.a0, call.a1, call.ra,
+        fade_.spatial = capture_spatial_fade(layout_, bytes, call.a0, call.a1, call.ra,
             vi_width(), vi_height(), runtime.tracker.scissor_for_mesh(cursor_));
         if (fade_.spatial.supported) {
           fade_.transition = runtime.transition;
@@ -267,27 +264,27 @@ public:
         }
       }
       break;
-    case 0x8006BD54U:
+    case RainOperation::clear:
       runtime.tracker.unsupported();
       break;
-    case 0x8006C124U:
-      if (call.ra == 0x8006BE18U && call.a0 == 0x800FB408U && simple_in()) {
+    case RainOperation::simple:
+      if (call.ra == layout_.rain_simple_return && call.a0 == layout_.dl_cursor && simple_in()) {
         cursor_ = memory_.u32(call.a0);
-        fade_ = {true, memory_.u8(0x80102D88U),
-            (std::uint32_t(memory_.u8(0x80102D50U)) << 24U) |
-            (std::uint32_t(memory_.u8(0x80102D58U)) << 16U) |
-            (std::uint32_t(memory_.u8(0x80102D70U)) << 8U), runtime.transition};
+        fade_ = {true, memory_.u8(layout_.fade_alpha),
+            (std::uint32_t(memory_.u8(layout_.fade_red)) << 24U) |
+            (std::uint32_t(memory_.u8(layout_.fade_green)) << 16U) |
+            (std::uint32_t(memory_.u8(layout_.fade_blue)) << 8U), runtime.transition};
         recorded_ = true;
       }
       break;
-    case 0x80045A44U:
-      if (memory_.u32(0x800A32ACU) != 8U)
+    case RainOperation::effects:
+      if (memory_.u32(layout_.game_scene_mode) != 8U)
         frame_ = runtime.tracker.frame(call.a0);
       previous_post_ = runtime.post;
       post_scope_ = true;
       runtime.post = frame_.buffer && memory_.valid(call.a0, frame_.bytes) ? &frame_ : nullptr;
       break;
-    case 0x800237D8U:
+    case RainOperation::rain:
       previous_rain_ = runtime.rain_draw;
       rain_scope_ = true;
       runtime.rain_draw = false;
@@ -298,12 +295,12 @@ public:
             call.a1*call.a2*2U <= runtime.post->bytes-offset;
       }
       break;
-    case 0x004001BCU: case 0x00200788U: case 0x030006F0U:
+    case RainOperation::shadow: case RainOperation::blur: case RainOperation::reflection:
       previous_auxiliary_ = runtime.auxiliary_type;
       auxiliary_scope_ = true;
-      runtime.auxiliary_type = target == 0x004001BCU ? 3U : target == 0x00200788U ? 4U : 5U;
+      runtime.auxiliary_type = operation == RainOperation::shadow ? 3U : operation == RainOperation::blur ? 4U : 5U;
       break;
-    case 0x80023600U:
+    case RainOperation::line:
       if (runtime.rain_draw && runtime.post && call.sp <= 0xFFFFFFDFU &&
           memory_.valid(call.sp, 0x20U)) {
         color_ = memory_.u32(call.sp+0x1CU);
@@ -347,7 +344,7 @@ public:
     if (!runtime_.supported) return result;
     if (scissor_scope_) {
       const auto end = memory_.u32(call_.a0);
-      const auto scissor = capture_spatial_scissor(bytes_, cursor_, end, call_.ra,
+      const auto scissor = capture_spatial_scissor(layout_, bytes_, cursor_, end, call_.ra,
           debug_empty_, vi_width(), vi_height());
       runtime_.tracker.record_scissor(cursor_, end, scissor);
       if (scissor.verified) ++runtime_.scissor_accepted;
@@ -370,25 +367,25 @@ public:
         runtime_.tracker.record(cursor_, end, fade_);
       else runtime_.tracker.invalidate_pending();
     }
-    if (target_ == 0x80044FACU) runtime_.tracker.seal(memory_.u32(0x800FB408U));
-    if (target_ == 0x8004DA10U) {
+    if (operation_ == RainOperation::main) runtime_.tracker.seal(memory_.u32(layout_.dl_cursor));
+    if (operation_ == RainOperation::submit) {
       const auto type = runtime_.auxiliary_type;
       const auto bytes = type == 3U ? 4096U : vi_bytes();
       if (result == 0U && type >= 3U && type <= 5U && call_.a2 == type && bytes &&
           call_.a1 > call_.a0 && memory_.valid(call_.a0, call_.a1-call_.a0) &&
           memory_.valid(call_.a3, bytes))
-        runtime_.tracker.auxiliary(call_.a0, call_.a1, call_.a3, bytes, memory_.u32(0x800FB408U));
+        runtime_.tracker.auxiliary(call_.a0, call_.a1, call_.a3, bytes, memory_.u32(layout_.dl_cursor));
       else
         runtime_.tracker.submit(call_.a0, call_.a1, call_.a3,
-            result == 0U && call_.ra == 0x80045090U && call_.a2 == 0U);
+            result == 0U && call_.ra == layout_.rain_submit_return && call_.a2 == 0U);
     }
-    if (target_ == 0x8006B978U && call_.ra == 0x80045AC0U && result && runtime_.post) {
+    if (operation_ == RainOperation::enabled && call_.ra == layout_.rain_fade_return && result && runtime_.post) {
       const auto& fade = runtime_.post->fade;
       if (fade.simple_in && fade.alpha < 255U && fade.transition == runtime_.transition &&
-          simple_in() && memory_.u32(0x800A6784U)) return 0U;
+          simple_in() && memory_.u32(layout_.fade_enabled)) return 0U;
       if (fade.spatial.supported && fade.spatial.partially_visible &&
-          fade.transition == runtime_.transition && memory_.u32(0x80102D38U) == 3U &&
-          memory_.u8(0x800A67A0U) == 0U && memory_.u32(0x800A6784U)) return 0U;
+          fade.transition == runtime_.transition && memory_.u32(layout_.fade_type) == 3U &&
+          memory_.u8(layout_.fade_mode) == 0U && memory_.u32(layout_.fade_enabled)) return 0U;
     }
     return result;
   }

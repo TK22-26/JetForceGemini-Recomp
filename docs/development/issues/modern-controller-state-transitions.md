@@ -80,8 +80,8 @@ new player or area.
 ## Implementation
 
 - [Modern view, movement conversion and identity](../../../include/jfg/runtime/pc_input.hpp).
-- [Player/physics scopes, area lifetime and input suspension](../../../src/boot/native_boot.cpp).
-- [Coordinate and view-lifetime regression tests](../../../tests/pc_input_tests.cpp).
+- [Player/physics scopes, area lifetime and input suspension](../../../src/boot/native/gameplay_scopes.hpp).
+- [Coordinate and view-lifetime regression tests](../../../tests/runtime/pc_input_tests.cpp).
 
 A bounded diagnostic suspension interval can exercise the actual input-blocking
 branch in noninteractive replays. It requires a replay and rejects interactive
@@ -172,7 +172,6 @@ terrain-driven camera bounce remains under investigation in
 [camera collision bounce](camera-collision-bounce.md).
 
 The three owner-validated fixes were committed as 7b1ea4ba6228c126757b2b2e966ed7c0e1de8ca4 using the maintainer identity. No public release or push was performed. The subsequent camera-collision candidate retains those fixes; its separate issue record tracks new validation and delivery.
-
 
 ## Follow-up, 2026-10-19
 

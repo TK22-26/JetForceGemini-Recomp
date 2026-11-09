@@ -259,7 +259,6 @@ the capture failure is retained separately. Live pause/resume is also being
 checked with a replay-driven game on the fixture's inactive desktop and isolated
 save, including the runtime acknowledgment and a stopped/resumed VI clock.
 
-
 ### Native controls and final candidate verification
 
 The native Win32 dialog, persisted Original/Custom/Unlimited modes, VSync and
@@ -314,7 +313,6 @@ loading/cutscene transitions and multiplayer. VSync-off output can tear. These
 changes do not fix the separate Goldwood simulation-cadence issue. Preserve the
 production guard, original roots/counters and this evidence for any continuation.
 
-
 ### Committed handoff
 
 Implementation and native controls: `b39533a5b3661544d5322bd70cd64ae9843f5254`
@@ -335,10 +333,10 @@ candidate, with no push, release or replacement of the installed game.
 production ledger remains authoritative for guard state and charges. Finalizing
 this job neither resets its counters nor authorizes further investigation.
 
-
 ## RmlUi design continuation (2026-10-11)
 
-Owner supplied `Child Ãƒâ€šÃ‚Â· Video settings-html.zip` and requested the newer RmlUi
+Owner supplied `Child Ãƒâ€šÃ‚· Video settings-html.zip` and requested the newer RmlUi
+
 appearance in the separate settings window, plus verification of the restart
 chip. The native-controls implementation remains preserved at b39533a/3faa8c9.
 The original investigation resumes under another explicit three-hour window;
@@ -385,7 +383,6 @@ No product persistence behavior was changed for this harness correction.
 Live pause/resume is now rerun with the same corrected pointer path; real RmlUi
 slider and text-widget input are checked in addition to direct change events.
 
-
 ### RmlUi candidate qualification and restart result
 
 Final UI checks: 101 passed, including actual slider pointer input, text-widget
@@ -425,7 +422,6 @@ audio, dependency pin or game save format changes. Exclusive fullscreen remains
 unimplemented, so only Windowed and Borderless fullscreen are shown. Broad game
 rendering acceptance and the previously recorded pacing limitations remain open.
 
-
 ### RmlUi desktop preview handoff
 
 Implementation: `5527611ea10b247dbb2df46ca1870a8d93d365f4` on
@@ -449,7 +445,6 @@ and retained all original charges. The renewed window does not reset counters;
 read the original operational ledger and `rmlvideo-progress.json` before further
 autonomous investigation. Source/binary receipts and failed attempts are preserved.
 
-
 ## Video Settings initial placement (2026-10-11)
 
 Owner report: Video Settings does not open centered over the launcher. Affected
@@ -464,7 +459,6 @@ for pointer tests and therefore did not check its initial position.
 Investigating under the same enabled production guard and unexpired owner
 authorization; all previous investigation counters and evidence retained.
 
-
 Reproduced on actual RmlUi windows at 125% DPI on an inactive test desktop:
 all six initial-position checks failed, while the existing settings controls,
 persistence and process-recovery checks still passed. Windows cascaded the
@@ -477,7 +471,6 @@ owner monitor's work area. When the owner is unavailable or minimized, center
 within that work area. Other live-tool placement stays unchanged. Checking the
 position before the pointer fixture resizes it prevents this coverage gap.
 
-
 Verified in tests: all six actual initial-placement checks pass at 125% DPI,
 including normal opening, reopen, recovery reopening, launcher partially beyond
 the upper-left and lower-right screen edges, and centered launcher. The complete
@@ -487,7 +480,6 @@ pause-preference and child-crash recovery checks still pass. Evidence:
 the previous launcher with only placement errors, establishing the regression.
 No physical input or owner windows were used. Multi-monitor mixed-DPI hardware
 and owner visual confirmation remain pending; this is a local preview candidate.
-
 
 Delivered for owner retest: implementation `68e3a63f190b9416de1bdc3841be89913633bdc0`;
 launcher SHA-256 `23ac4ffbf597162230754dea96f3095449edba8f7ff82f848c28c619ddfb81d2`. The final rebuilt package repeats
@@ -499,7 +491,6 @@ correspondence is recorded in private `video-center-qualification.json`.
 No game renderer, simulation or save data changed. Owner visual confirmation is
 pending; no release or installed update was made. The production guard remains
 enabled and all investigation charges are retained.
-
 
 ## Video Settings chrome and preset outlines (2026-10-11)
 
@@ -515,7 +506,6 @@ renderer or introduce a dependency. Candidate work pending visual and interactio
 checks. Preserve load/save errors in a dedicated, normally hidden content notice.
 This continues the same enabled guard and authorization, retaining all charges.
 
-
 The first changed-action integration run passed persistence, closing, all other
 controls and centering, but failed its blanket expectation that closing always
 clears pause. Source review confirms `refreshPause` retains the independently
@@ -529,7 +519,6 @@ The existing UI checks pass (120) and captures at 100%, 125% and 150% show the
 removed chrome and continuous preset frames. With that chrome removed, the
 initial client height is reduced from 700 to 600 logical pixels to avoid excess
 empty space; resizing/scrolling and centering behavior remain supported.
-
 
 Verified candidate: 120 UI checks pass, including unchanged Apply accepting,
 changed Apply persisting and closing, save failure retaining the draft and
@@ -551,7 +540,6 @@ these launcher-only changes; the renderer/restart qualifications remain those
 of the unchanged runtime. Lesson: accepting a dialog must preserve independent
 pause reasons; UI artwork qualification includes fractional scaling and hits.
 
-
 Delivered preview: implementation `fc9099c2d754b0b953e9b602de581ddc0aa34200`; launcher SHA-256
 `236f345406692882a0e57422894601df96a386d4efe32df8a8691f82df7509f0`. Final rebuilt package passes all launcher integration
 checks, including accepting Apply and nine placement observations, with zero
@@ -567,7 +555,6 @@ checks. The product source was unchanged by this packaging correction. No user
 windows or save files were modified; no push or release. The original production
 guard remains enabled with every prior charge preserved.
 
-
 ## Window-size dropdown text alignment (2026-10-11)
 
 Owner screenshot: "Keep current size" sits above the vertical center of its
@@ -581,7 +568,6 @@ alignment and aligning the arrow to the same control height. Candidate pending
 scaled screenshots and existing dropdown keyboard/pointer checks. Guard remains
 enabled; same investigation, authorization and all accumulated charges retained.
 
-
 Candidate verified with the existing 120 UI checks (including dropdown pointer,
 keyboard selection and Escape handling) and inspected screenshots of the exact
 "Keep current size" label at 100%, 125% and 150%. Selected-value line-height and
@@ -593,7 +579,6 @@ toolbar's alignment remedy without changing selection values or settings format.
 Owner visual confirmation remains pending. Lesson: RmlUi selectvalue is its own
 line box and must be aligned explicitly, not positioned only with parent padding.
 
-
 Delivered alignment preview: implementation `be8af3c5bc70c715f374d0e2526314feebbd2199`; launcher
 SHA-256 `b8050a0018b49ac6514bc7fde6e21ca7fc20ca478b0ce2991e110a82cfc4462b`. The rebuilt package passes the existing real
 launcher integration, including settings persistence, Apply/Cancel, nine
@@ -603,7 +588,6 @@ isolated profile. Previous package and shortcut retained; no save/profile writes
 `video-align-qualification.json` records source, binaries and evidence. Owner
 confirmation remains pending. No renderer, game timing or dependency changes.
 No push/release; production guard enabled with all investigation charges retained.
-
 
 ## FPS preset frame side notches (2026-10-11)
 
@@ -618,7 +602,6 @@ The controller UI's larger nine-patch controls remain unchanged. Candidate pendi
 visual comparison at fractional DPI and existing pointer/keyboard checks. Same
 production guard/investigation, no counter or authorization reset.
 
-
 Verified candidate: rendering the same supersampled atlas frame as one image
 removes the side indentations in inspected 100%, 125% and 150% captures. This
 isolates the visual regression to the split nine-patch rendering on these short
@@ -630,7 +613,6 @@ densities. Evidence: `video-border-ui/result.json`, `dpi100.png`, `dpi125.png`,
 must not be cited as proof that these side edges were already correct. Owner
 confirmation is pending. Compatibility: only these small FPS buttons switch to
 whole-image rendering; larger controller nine-patch controls keep their layout.
-
 
 Delivered border preview: implementation `0f83a2afd458122bdc6fa149c29ebe6da828fe32`; launcher
 SHA-256 `d5cdf5aaf28343ef2b2f34e05f102f87f0caa6a7b7c20c8dda24ee71fa9426fb`. Final rebuilt package passes the existing real
@@ -655,7 +637,6 @@ different interpolation decisions. The tested candidate makes their motion
 consistent; see [RENDER-002](character-seams-lighting.md) for cause, regression,
 muted replays, reference captures and the remaining lighting/Original reports.
 
-
 ## Presentation pacing and diagnostics follow-up
 
 [PERF-002](frame-diagnostics.md) records the owner's F8-off stutter result,
@@ -677,6 +658,77 @@ shadow cadence and Unlimited pacing remain open. The production guard and
 same investigation/counters remain intact; this checkpoint does not authorize
 another attempt or extend the owner's deadline.
 
-
 ### Unlimited stress limit during reticle qualification (2026-10-16)
 The candidate native-clock Unlimited probe reached about 1,007 output FPS but only about 23 scene updates/s in the measured late window, with 265 audio underruns overall. This failed the qualification gate; it is not counted as a clean pass. The installed pre-reticle runtime comparison (pistol Aim, same recorded inputs/profile) reports 281 underruns; its measurements are preserved in shuriken-reticle-20261016/unlimited-installed-control. This comparison uses the native-clock probe, not normal live playback-demand audio, and different reticle drawing prevents an exact cost comparison. The 120/360 reticle tests remain separate, with zero measured underruns and two-VI updates. Unlimited pacing remains open; do not present high output FPS as proof of healthy simulation/audio.
+
+## Consolidated supporting record
+
+The following dated evidence preserves the earlier investigation and its original acceptance limits. The current status at the top of this issue takes precedence over historical candidate wording.
+
+## High-refresh checkpoint, October 15, 2026
+
+Status: paused at the owner's request after completing the current comparison. No new gameplay/build experiment is left queued. This is a checkpoint, not a completed performance fix.
+
+### What is established
+
+- High-refresh presentation preserves the original game-time model. Rendered FPS and game-update FPS are measured separately; 120 rendered frames do not prove 30 stable game updates.
+- The owner reported Juno's thigh seams/delayed dark lighting absent at 120 FPS, and subsequently reported gems and the first Goldwood ground drones looking good. Those observations apply to their recorded previews, not all scenes or rates.
+- Native elapsed-time scheduling removed the earlier modeled console-CPU cap. Reduced timing bookkeeping and renderer/history work improved performance. Parallel semantic history at runtime source checkpoint e90731b78dc145854e9d87b86958756659e84cc0 preserves the compared state and saves roughly 0.6-0.7 ms in its measured component.
+- That source checkpoint is distinct from the installed desktop preview. The preview remains the previously installed high-refresh-history-storage-20261015 package. None of today's compiler/helper experiments was installed.
+- Detailed combat profiling identifies substantial drone, pathfinding and other entity CPU work. Renderer submission/history and waits also contribute. Sample/cycle percentages are not wall-clock milliseconds.
+
+### What remains open
+
+1. **PERF-001: real 20 FPS combat updates.** Native runs still contain three-VI updates. The goal is not achieved. Current controlled tails are around 43-44 ms against a 33.3 ms update budget; medians alone hide the problem.
+2. **RENDER-006: late bridge, exit-light and crate jitter.** Bounded camera/matching corrections pass recorded comparisons, but the owner's full physical tutorial route and crates are not fully qualified.
+3. **RENDER-007: shadow cadence.** Clipped receiver/mask geometry lacks a qualified smooth interpolation fix.
+4. Damage hitches, broader 360+ FPS robustness, and the complete owner route remain acceptance gaps. Pickup-particle correction was delivered locally but still requires its recorded live follow-up.
+
+### Last completed comparison
+
+The cold-helper candidate and baseline each ran twice using the same recorded guest clock and input route. All four preserved exact game RAM, save, instruction counts and interpolation decisions. Ordinary source/runtime were restored.
+
+| Run | Combat active median, ms | Combat active p95, ms |
+|---|---|---|
+| baseline-a | 29.361 | 42.847 |
+| candidate-a | 27.601 | 43.872 |
+| candidate-b | 27.571 | 43.71 |
+| baseline-b | 37.753 | 55.585 |
+
+These numbers describe measured host update cost under a recorded clock. They do not prove real-time game FPS or eliminate the slower tail.
+
+The exceptional floating-point classification ran 8,192 cases for each candidate. Differences were confined to NaN sign/payload bits; other numeric and integer/control state, timing state, hook counts and floating exception flags matched within that fixture. This clarifies prior strict failures; it does not establish byte equivalence or qualify a release.
+
+A new build audit found that manually compiled candidates changed floating-point and C-language options as well as the intended optimization. The normal command uses /fp:precise and /std:c11; the candidates use /fp:strict and omit /std:c11. Large machine-code-size reductions are real observations, but their cause remains unisolated. Prior combined-build throughput results must not be described as a pure compiler or pure helper improvement. Microsoft's [floating-point option documentation](https://learn.microsoft.com/en-us/cpp/build/reference/fp-specify-floating-point-behavior?view=msvc-170) explains that these modes provide different floating-environment guarantees; this is a compatibility consideration as well as a performance variable.
+
+### Reference review disposition
+
+VibinToast's release is not a validated fix donor. Our owner capture inherited debug gameplay overrides and classic controls, so it cannot support a fair default-build quality comparison. The owner explicitly ended upstream debugging; its build was canceled and the clean replacement capture remains unexecuted. No source transplant is selected. See [DIAG-002](reference-owner-capture-contamination.md) and the [pinned review](../../upstream/reference-review-2026-10-15-vibintoast.md). Any future reference idea must prove benefit in our implementation.
+
+### Recommended next decision
+
+Prioritize our generated-code/runtime overhead, beginning with a controlled compiler-factor audit. Reproduce the original compiler command, vary only one setting at a time, inspect code size, and compare the same recorded workload. A fixture for the production floating-point settings is also prepared. Neither was executed before this pause.
+
+Then measure the updates that exceed 33.3 ms, separating active CPU execution, renderer waits and host scheduling delays. Use those results to choose a structural reduction in bookkeeping or submission cost. Do not infer a bottleneck solely from mean FPS, a smaller executable, or a different native route. Preserve timing, input, audio and interpolation correctness; finish with native-time combat and full-route verification.
+
+The immediate objective remains stable game updates through combat. Another round of broad compiler swaps or unrelated upstream debugging is not justified without this isolation.
+
+### Resumption and evidence
+
+The operational progress guard must remain enabled. Recover the existing high-refresh-rendering-20261011 investigation and its current production-ledger state before resuming; do not reset counters, create a fresh root or bypass a denial. This pause grants no new attempt or time budget.
+
+Private evidence IDs: cold-original-classified-paired; floating-state-difference-classification; clang-integer-functions-paired; owner-pause-stocktake-20261015. Prepared requests for cold-original-transition-checks, compiler-size-factor-audit and production-fp-mode-classification were withdrawn before execution. Their scripts and existing evidence remain preserved on the evidence volume. Public records contain no ROM, generated game code or personal save data.
+
+Persistent issue records remain the source of symptoms, attempts, verification limits and eventual resolution: [issue index](README.md), [combat](goldwood-combat-slowdown.md), [late objects](tutorial-late-object-jitter.md), and [shadows](shadow-cadence.md).
+
+### Subsequent owner direction
+
+The owner subsequently approved five hours of resumed work and explicitly authorized faster implementations/algorithms even when they are not instruction-for-instruction authentic, provided AI and gameplay behavior remain equivalent. The pause record above remains historical. The guarded continuation preserves the same investigation and counters. Current validation and implementation direction is recorded in PERF-001; the compiler-factor and floating-mode fixtures may now be executed under this new authorization.
+
+The resumed investigation selected the compact original-timing helper for source integration after four exact recorded comparisons, the retained Original reference, and native 120/360 checks. Median recorded combat work improves by about 3.7 ms; remaining slow native updates keep the no-20-FPS goal open. Standard runtime rebuild/package qualification remain separate from this source checkpoint. See PERF-001 for evidence and limits.
+
+The compact-timing standard build was subsequently qualified and delivered to both high-refresh desktop shortcuts. The expanded function/graphics profiler is now a separately qualified source change, disabled by default; it is not installed on those shortcuts. Controlled median improvement remains about 13%, while native slow updates keep PERF-001 open. Current diagnostic controls and limitations are in [function profiling](../runtime/function-profiling.md).
+
+The detailed profiler led to qualified bounded resident-math dispatch. Exact recorded comparisons show about 1.1-1.5 ms lower median combat work in the two controlled pairs, with a separate integrated confirmation and preserved tested state. The final combined binary passes the Original reference, full diagnostic correspondence and native 120/360 captures; local package delivery is separate. Remaining occasional three-VI updates keep PERF-001 open. The production guard and existing counters remain authoritative; this checkpoint grants no new budget.
+
+The combined profiled-math package has now been qualified and delivered to both desktop links, retaining profiles, arguments and the previous package. Detailed profiling is off by default. PERF-001 remains open; subsequent work should use the new per-update attribution to target collision/pathfinding and CPU-side graphics submission, retaining reference fallbacks and uninstrumented checks. No new investigation root, counter reset or budget extension follows from delivery.

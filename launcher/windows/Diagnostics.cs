@@ -23,7 +23,7 @@ namespace JfgLauncher
 
     internal sealed partial class SupportSession
     {
-        internal static readonly string[] Files = { "launcher.log", "native.log", "system.log", "build.log", "controller.log", "crash.log", "hang.log", "breadcrumbs.log", "mouse.log" };
+        internal static readonly string[] Files = { "launcher.log", "native.log", "system.log", "build.log", "controller.log", "crash.log", "hang.log", "breadcrumbs.log", "mouse.log", "presentation.log" };
         internal static bool Owned(string path) { return Regex.IsMatch(System.IO.Path.GetFileName(path), @"\A[0-9]{8}T[0-9]{9}-[0-9a-f]{32}\z") && (File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0; }
         internal static List<SupportChoice> Sessions(string root)
         {
@@ -83,6 +83,41 @@ namespace JfgLauncher
             } catch (Exception) { Write("diagnostic=controller-unavailable"); }
             string helper = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(runtime), "jfg-support-capture.exe");
             return matched && File.Exists(helper) && manifest.Contains("build_capture_sha256=" + Hash(helper) + "\n");
+        }
+        // Stable user-facing guidance derived only from allowlisted setup status.
+        // Presentation retries during resize are not startup failures.
+        internal string RendererFailureMessage()
+        {
+            string report = SanitizeFile(NativePath);
+            Match setup = Regex.Match(report, @"(?:\A|\n)renderer_setup=(invalid-config|libraries-missing|invalid-api|api-unavailable|device-unavailable|override-required|hook-unavailable|exception)(?:\n|\z)");
+            if (!setup.Success) return null;
+            string api = report.Contains("renderer_requested=vulkan\n") ? "Vulkan" :
+                         report.Contains("renderer_requested=d3d12\n") ? "Direct3D 12" : "The game renderer";
+            return api + " could not start. Open Video Settings > Rendering and try Auto or the other Graphics API. Details are in Help > Support report.";
+        }
+        internal void PresentationDetails(string profile)
+        {
+            try {
+                StringBuilder lines = new StringBuilder();
+                string backend = System.IO.Path.Combine(profile, "frontend-presentation.log");
+                if (File.Exists(backend) && (File.GetAttributes(backend) & FileAttributes.ReparsePoint) == 0) {
+                    // Prefix only the two fixed fields. Never copy arbitrary profile text.
+                    using (FileStream file = new FileStream(backend, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
+                        byte[] data = new byte[512]; int count = file.Read(data, 0, data.Length);
+                        foreach (string raw in Encoding.ASCII.GetString(data, 0, count).Split('\n')) {
+                            string line = raw.TrimEnd('\r');
+                            if (line.StartsWith("backend=", StringComparison.Ordinal))
+                                lines.Append("frontend_").AppendLine(line);
+                            else if (Regex.IsMatch(line, @"\Acomposition_hresult=0x[0-9a-f]{1,8}\z")) {
+                                string value = line.Substring("composition_hresult=0x".Length);
+                                lines.Append("frontend_composition_hresult=0x").Append(value.PadLeft(8, '0')).Append('\n');
+                            }
+                        }
+                    }
+                }
+                lines.Append(SanitizeFile(System.IO.Path.Combine(profile, "frontend-window.log")));
+                SaveLines("presentation.log", lines.ToString());
+            } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
         internal void SystemDetails()
         {

@@ -19,8 +19,12 @@ namespace JfgLauncher
         private int omitted;
         internal string NativePath { get { return Path.Combine(DirectoryPath, "native.log"); } }
         internal static string Root { get { return Path.Combine(FirstRun.Root, "reports"); } }
+        // Match only the production recovery records, never arbitrary audio text.
+        // Counters use the same bounded unsigned decimal grammar as progress logs.
+        private const string AudioRecoveryPattern = @"audio=(?:latency-recovery/before_ms=[0-9]{1,20}/after_ms=[0-9]{1,20}/discarded_bytes=[0-9]{1,20}/recoveries=[0-9]{1,20}|latency-recovery-queue-failed)";
+        private const string RendererPattern = @"renderer_requested=(?:auto|d3d12|vulkan)|renderer_selected=(?:d3d12|vulkan|metal|unknown)|renderer_host=(?:launcher|standalone)|renderer_setup=(?:ready|invalid-config|libraries-missing|invalid-api|api-unavailable|device-unavailable|override-required|hook-unavailable|exception)|renderer_result=(?:d3d12|vulkan)/(?:present|acquire|resize)/(?:0x[0-9a-f]{8}|limit)";
         internal static readonly Regex SafeLine = new Regex(
-            @"\A(?:stage=(?:setup|launch|verify-rom|install-tools|download-source|build-game|ready|restart-required|started|closed|failed)|exit=0x[0-9a-f]{8}|exception=0x[0-9a-f]{8}|runtime_sha256=[0-9a-f]{64}|source=[0-9a-f]{40}|version=[0-9a-z.-]{1,40}|os=[0-9.]{1,40}|utc=[0-9TZ:.+-]{1,40}|omitted=[0-9]{1,10}|mod=(?:disabled|navigation-enabled)|native=(?:boot|rom-ready|renderer-ready|running|closed|controller-connected|controller-disconnected|controller-invalid)|(?:native_exit|native_exception)=0x[0-9a-f]{8}|failure=[a-z0-9-]{1,64}/[a-z0-9-]{1,64}|architecture=x64|cpu_threads=[0-9]{1,4}|windows_build=[0-9.]{1,30}|gpu=[0-7]/[0-9a-f]{4}/[0-9a-f]{4}/[0-9.]{1,40}|build_source=[0-9a-f]{40}|build_dirty=[01]|build_(?:tree|runtime|dependencies|symbols|capture)_sha256=[0-9a-f]{64}|build_symbols_id=[0-9a-f]{32}-[0-9a-f]{8}|build_configuration=release|build_(?:identity|symbols)=unavailable|controller_(?:version|device|stick|deadzone|threshold|trigger|invert_x|invert_y|map[0-9]{1,2})=-?[0-9]{1,5}|setup_(?:step|error)=[a-z0-9-]{1,64}|setup_exit=0x[0-9a-f]{8}|compiler_error=(?:c|lnk|msb)[0-9]{4}|diagnostic=(?:controller-unavailable|gpu-unavailable|system-partial|stack-partial)|capture=(?:requested|complete|failed|timeout)|capture_error=0x[0-9a-f]{8}|capture_scope=(?:direct|child)|snapshot=(?:crash|hang)-v1|elapsed_ms=[0-9]{1,20}|breadcrumb=[0-9]{1,20}/[0-9]{1,20}/[0-9]{1,20}/[0-9]{1,20}|mouse_schema=1|mouse_counts=[0-9]{1,20}(?:/[0-9]{1,20}){7}|mouse_flow=[0-9]{1,20}(?:/[0-9]{1,20}){5}|mouse_state=[0-9]{1,20}(?:/[0-9]{1,10}){14}|mouse_player=[0-9]{1,5}(?:/[0-9]{1,5}){12}|frame=[0-9]{1,10}/[0-9]{1,2}/[a-z0-9_.-]{1,96}/[0-9a-f]{8}/[0-9a-f]{8}/[0-9a-f]{8,16})\z",
+            @"\A(?:rom_revision=(?:" + String.Join("|", Array.ConvertAll(RomCatalog.Revisions, delegate(RomCatalogEntry revision) { return Regex.Escape(revision.Id); })) + @")|program_(?:build|model|generation)_sha256=[0-9a-f]{64}|stage=(?:setup|launch|verify-rom|install-tools|download-source|build-game|ready|restart-required|started|closed|failed)|exit=0x[0-9a-f]{8}|exception=0x[0-9a-f]{8}|runtime_sha256=[0-9a-f]{64}|source=[0-9a-f]{40}|version=[0-9a-z.-]{1,40}|os=[0-9.]{1,40}|utc=[0-9TZ:.+-]{1,40}|omitted=[0-9]{1,10}|mod=(?:disabled|navigation-enabled)|native=(?:boot|rom-ready|renderer-ready|running|closed|controller-connected|controller-disconnected|controller-invalid)|" + AudioRecoveryPattern + "|" + RendererPattern + @"|(?:native_exit|native_exception)=0x[0-9a-f]{8}|failure=[a-z0-9-]{1,64}/[a-z0-9-]{1,64}|frontend_backend=(?:directcomposition|window)|frontend_composition_hresult=0x[0-9a-f]{8}|frontend_window=[01]/[01]/[01]/[0-9]{1,5}/[0-9]{1,5}/[01]/[0-9]{1,5}/[0-9]{1,5}/[01]/[01]/[01]/[01]|architecture=x64|cpu_threads=[0-9]{1,4}|windows_build=[0-9.]{1,30}|gpu=[0-7]/[0-9a-f]{4}/[0-9a-f]{4}/[0-9.]{1,40}|build_source=[0-9a-f]{40}|build_dirty=[01]|build_(?:tree|runtime|dependencies|symbols|capture)_sha256=[0-9a-f]{64}|build_symbols_id=[0-9a-f]{32}-[0-9a-f]{8}|build_configuration=release|build_(?:identity|symbols)=unavailable|controller_(?:version|device|stick|deadzone|threshold|trigger|invert_x|invert_y|map[0-9]{1,2})=-?[0-9]{1,5}|setup_(?:step|error)=[a-z0-9-]{1,64}|setup_exit=0x[0-9a-f]{8}|compiler_error=(?:c|lnk|msb)[0-9]{4}|diagnostic=(?:controller-unavailable|gpu-unavailable|system-partial|stack-partial)|capture=(?:requested|complete|failed|timeout)|capture_error=0x[0-9a-f]{8}|capture_scope=(?:direct|child)|snapshot=(?:crash|hang)-v1|elapsed_ms=[0-9]{1,20}|breadcrumb=[0-9]{1,20}/[0-9]{1,20}/[0-9]{1,20}/[0-9]{1,20}|mouse_schema=1|mouse_capture=[0-9]{1,10}(?:/[0-9]{1,10}){7}|mouse_counts=[0-9]{1,20}(?:/[0-9]{1,20}){7}|mouse_flow=[0-9]{1,20}(?:/[0-9]{1,20}){5}|mouse_state=[0-9]{1,20}(?:/[0-9]{1,10}){14}|mouse_player=[0-9]{1,5}(?:/[0-9]{1,5}){12}|frame=[0-9]{1,10}/[0-9]{1,2}/[a-z0-9_.-]{1,96}/[0-9a-f]{8}/[0-9a-f]{8}/[0-9a-f]{8,16})\z",
             RegexOptions.CultureInvariant);
 
         internal SupportSession(string root, string stage)
@@ -56,6 +60,17 @@ namespace JfgLauncher
                 catch (IOException) { }
                 catch (UnauthorizedAccessException) { }
             }
+        }
+
+        internal void ProgramDetails(ProgramIdentity identity)
+        {
+            // The caller owns the already-verified session lease. Export only
+            // catalog IDs and fixed-size hashes, never ROM paths or bytes.
+            identity.Validate();
+            Write("rom_revision=" + identity.RevisionId);
+            Write("program_build_sha256=" + identity.Build.Hash);
+            Write("program_model_sha256=" + identity.ModelHash);
+            Write("program_generation_sha256=" + identity.InputHash);
         }
 
         internal void Error(Exception error) { Write("exception=0x" + error.HResult.ToString("x8", CultureInfo.InvariantCulture)); Write("stage=failed"); }
@@ -105,7 +120,8 @@ namespace JfgLauncher
                 foreach (string raw in Encoding.ASCII.GetString(data, 0, count).Split('\n'))
                 {
                     string line = raw.TrimEnd('\r');
-                    if (line.Length <= 256 && SafeLine.IsMatch(line)) safe.Append(line).Append('\n');
+                    if (line.Length <= 256 && safe.Length + line.Length + 1 <= MaximumBytes && SafeLine.IsMatch(line))
+                        safe.Append(line).Append('\n');
                 }
                 return safe.ToString();
             }
@@ -135,7 +151,7 @@ namespace JfgLauncher
                 using (StreamWriter writer = new StreamWriter(zip.CreateEntry("README.txt").Open(), new UTF8Encoding(false)))
                     writer.Write("Attach this ZIP to an issue at https://github.com/TK22-26/JetForceGemini-Recomp/issues\n" +
                         "Describe what you were doing, the level/menu, expected behavior, and steps to reproduce.\n" +
-                        "No automatic upload occurs. Report: selected session, build/symbol identity, GPU driver IDs, settings, mouse delivery counts and effective input settings when available, setup codes, recent progress and available crash/freeze stacks.\n" +
+                        "No automatic upload occurs. Report: selected session, build/symbol identity, GPU driver IDs, settings, mouse delivery counts and effective input settings when available, audio recovery events when available, game graphics API and bounded presentation result codes, launcher backend and window visibility/size flags, setup codes, recent progress and available crash/freeze stacks.\n" +
                         "It excludes ROMs, saves, paths, raw console logs and memory dumps. Inspect the text files before sharing. Empty files mean the diagnostic was unavailable. Stack snapshots are not Windows memory dumps.\n");
             }
             return destination;

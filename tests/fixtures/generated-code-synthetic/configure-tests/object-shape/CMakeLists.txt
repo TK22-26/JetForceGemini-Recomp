@@ -15,7 +15,7 @@ file(COPY
     DESTINATION "${private_root}"
 )
 file(SHA256
-    "${JFG_PROJECT_SOURCE_DIR}/scripts/build_private_generated_root.py"
+    "${JFG_PROJECT_SOURCE_DIR}/scripts/build/build_private_generated_root.py"
     normalizer_revision_sha256
 )
 file(READ "${private_root}/sources.json" private_manifest)

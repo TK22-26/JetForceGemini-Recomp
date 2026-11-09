@@ -2,7 +2,7 @@
 
 - ID: **STORAGE-001**
 - Severity: high for autonomous investigation availability; no established game-runtime defect.
-- Status: local storage recovery; long-term retention policy remains open.
+- Status: October 28 bulk cleanup verified; latest enemy-timing set retained, three small supplemental leftovers blocked by approval review. Automatic retention remains open.
 - Reported/observed: 2026-10-12, during AUDIO-001 investigation.
 
 ## Symptoms and cause
@@ -61,7 +61,6 @@ The helper needs hidden-file-aware enumeration and lookup consistently in any fu
 
 At audio-preview handoff, C: has 59.54 GB free (55.45 GiB). This is the current volume reading, not a claim that the archive alone reclaimed that amount; other cleanup and concurrent builds also affect free space. The verified archive remains 51.99 GB of logical data across four directories.
 
-
 ## 2026-10-15 high-refresh build recovery
 
 The ordinary candidate restore link failed with LNK1180 after the control
@@ -108,3 +107,78 @@ paths and are recovery material, not qualified runnable installations. The
 active `C:/JFG-builds` tree remains required. No gameplay fix, release acceptance,
 new investigation allowance or measured disk-space saving follows from this
 administrative move. Work remains paused at the owner's request.
+
+## 2026-10-28 owner-directed test artifact disposal
+
+The owner requested removal of obsolete JFG data on both drives, explicitly
+requiring useful findings to be distilled into text and all old tests removed.
+The confirmed exception is the October 28 enemy-timing research together with
+the October 27 playable Flying Enemy Timing Review, treated as one current set.
+Source test definitions are part of the maintained source, not disposable runs.
+
+The initial inventory measured 274.005 GB of regular files in the D: JFG roots
+and 35.525 GB in the current C: checkout, including old build/private outputs.
+The owner subsequently identified approximately 2.5 TB of unrelated data and
+noted installed games account for additional volume usage. Logical inventory
+totals must not be presented as measured physical space recovered.
+
+Preparation preserves the current source and user changes, personal saves,
+ROMs, signing material, the current released installation and the production
+ledger. Distinct old saves and scratch-repository source deltas are compressed
+with a path/hash manifest. The current timing set is hash-pinned. No gameplay
+experiments or builds are performed by the cleanup. The production guard is
+enabled, no runs are live, and the high-refresh investigation remains shelved
+with its 115 attempts, 94 activities and every earlier charge intact.
+
+Private record: `storage-cleanup-20261028`; human-readable summary:
+`JFG-cleanup-findings-2026-10-28.txt`. It retains the established timing causes,
+candidate-versus-release distinctions, open audio/owner-coverage limitations
+and links to the full source issue records. Selected small historical result
+fields are distilled into a text appendix before raw data disposal.
+
+After disposal, references to removed private artifacts in older reports remain
+historical citations; they are not claims that the original files still exist.
+No historical verification is invented or upgraded. Fresh reproduction would
+require eligible guarded execution and does not receive allowance from this
+maintenance request.
+
+### Verified cleanup outcome
+
+All 582 selected targets were removed with zero deletion errors: 517,496 regular
+files, 37,427 directories and 1,987 links. Recursive removal checked absolute
+boundaries and removed links themselves without traversing their targets.
+Measured free-space increases from a fresh baseline immediately before deletion
+were **33.885 GB on C:** and **265.629 GB on D:**, approximately **299.514 GB**
+combined. A separate approximately 2.67 TB increase on D: occurred before this
+deletion pass and is explicitly excluded from the cleanup result. Concurrent
+ordinary activity can slightly affect volume readings.
+
+All 3,782 pinned current timing/release files still match SHA-256; 1,577 existing
+source files outside the three cleanup documentation edits also match. ROM hashes
+and the separate dirty source checkout's status are unchanged. The production
+ledger passes SQLite quick-check and its enabled guard, investigations, roots,
+states and counters exactly match the initial read-only snapshot. No game build,
+replay, release, commit or new gameplay verification occurred.
+
+One historical checkout already had a dangling Git worktree pointer. Its entire
+non-generated source was preserved in a verified archive rather than claiming a
+Git diff could be obtained. Distinct saves, source deltas and local Git histories
+from removed scratch checkouts were preserved separately. The first preservation
+pass was stopped before deletion because repeated metadata calls were slow;
+directory-enumeration metadata allowed the replacement pass to finish. Neither
+event changed production investigation state or lost original input data.
+
+Automatic approval review rejected a separate supplemental deletion command with
+only "blocked by policy". No alternate deletion route or retry was used. Three
+files remain, totaling 93,357,359 bytes: the superseded incomplete preservation
+archive, an old support-test ZIP and the duplicate Remaining Issues Review
+shortcut. Exact paths and sizes are in the private `policy-blocked-leftovers.json`.
+This is a verified bulk cleanup with those explicit residuals, not a claim that
+every obsolete byte was removed or that an automatic retention mechanism shipped.
+
+The post-cleanup inventory measures approximately 9.728 GB in all D: JFG roots
+and 1.497 GB in the current source checkout. These include current timing data,
+its build/reference/fixture dependencies, maintained source, the released personal
+installation, ROMs, ledger and compact preservation records. Future disposable
+results need bounded retention and distilled findings; copying large old traces
+into another archive alone does not recover space on that volume.

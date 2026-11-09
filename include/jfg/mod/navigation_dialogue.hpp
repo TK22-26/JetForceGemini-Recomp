@@ -47,20 +47,29 @@ struct DialogueState {
   unsigned type{},selected{};
   std::vector<DialogueChoice> rows;
 };
-template<class M> DialogueState read_dialogue(const M &m,std::uint32_t base) noexcept {
+struct OverlayInstructionGuard {
+  std::uint32_t offset{},word{},mask=0xffffffffU;
+  template<class M> bool matches(const M& m,std::uint32_t base) const {
+    return m.valid(base+offset,4) && (m.u32(base+offset)&mask)==(word&mask);
+  }
+};
+struct DialogueLayout {
+  std::uint32_t extent,active,type,text,table,pending,transition,busy,fade,page0,page1,page2;
+  OverlayInstructionGuard accessor,return_site;
+};
+template<class M> DialogueState read_dialogue(const M &m,std::uint32_t base,const DialogueLayout& layout) noexcept {
   DialogueState d;
   try {
-    if((base&3U)||!m.valid(base,0x2C44U)||
-       (m.u32(base+0xD84U)&0xFFFF0000U)!=0x8C420000U||
-       m.u32(base+0xD88U)!=0x03E00008U)return d;
-    const auto active=m.u32(base+0x2A24U),type=m.u32(base+0x2A44U);
+    if((base&3U)||!m.valid(base,layout.extent)||
+       !layout.accessor.matches(m,base)||!layout.return_site.matches(m,base))return d;
+    const auto active=m.u32(base+layout.active),type=m.u32(base+layout.type);
     if(active>1U||type>4U)return d;
     d.known=true;d.active=active!=0;d.type=type;
     if(!d.active)return d;
-    d.text=m.u32(base+0x2A58U);d.table=m.u32(base+0x2A5CU);
+    d.text=m.u32(base+layout.text);d.table=m.u32(base+layout.table);
     d.choices=type==1U||d.text==0U;
-    d.ready=m.u32(base+0x2A28U)==0U&&m.u32(base+0x2A2CU)==0U&&
-      m.u32(base+0x2A38U)==0U&&m.u32(base+0x2A20U)>=256U;
+    d.ready=m.u32(base+layout.pending)==0U&&m.u32(base+layout.transition)==0U&&
+      m.u32(base+layout.busy)==0U&&m.u32(base+layout.fade)>=256U;
     if(d.choices) {
       if(!m.valid(d.table,4))return {};
       const int count=m.s16(d.table),selected=m.s16(d.table+2);
@@ -72,7 +81,7 @@ template<class M> DialogueState read_dialogue(const M &m,std::uint32_t base) noe
       }
     } else if(!m.valid(d.text,1U))return {};
     std::uint32_t hash=2166136261U;
-    for(auto value:{base,type,d.text,d.table,d.selected,m.u32(base+0x2A3CU),m.u32(base+0x2A40U),m.u32(base+0x2A4CU)})
+    for(auto value:{base,type,d.text,d.table,d.selected,m.u32(base+layout.page0),m.u32(base+layout.page1),m.u32(base+layout.page2)})
       hash=(hash^value)*16777619U;
     for(const auto &row:d.rows)hash=(hash^row.action)*16777619U;
     d.token=hash;

@@ -57,7 +57,6 @@ Anubis Ledge Timing Capture preserves that profile at 60 FPS/VSync and adds
 standard phase/input/renderer logging, with the accepted controller ledge fix.
 It starts muted; no game was launched by the agent. Capture/reproduction pending.
 
-
 ## Follow-up capture: not reproduced
 
 The owner repeated the SS Anubis ledge movement and could not reproduce the lag.

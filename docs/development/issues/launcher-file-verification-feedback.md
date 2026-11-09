@@ -13,7 +13,6 @@ are pending. Preserve current profile and checklist while staging any launcher
 replacement. Keep errors actionable and re-enable controls on every completion
 path. Record screenshots/source/test evidence and owner review as work proceeds.
 
-
 Candidate cause/remedy: verification already runs in the external helper, but
 the modal retained a Ready to play heading and unchanged Verify files label,
 with no activity display. The UI timer could also restore the previous result
@@ -25,13 +24,11 @@ the bar static while text/time remain active. Hash validation is unchanged;
 startup package validation is also dispatched to the helper's background task.
 Build and owner UI verification are pending.
 
-
 Implementation note: first source edit step712 stopped at an assertion because
 the existing decoration timer is declared differently than expected. The
 backend/launch-status changes were already written; no preview was replaced.
 Step714 completed the UI changes using the actual per-surface state declaration
 and corrected startup ordering so a fast helper result cannot be overwritten.
-
 
 The native launcher and managed package tests built successfully. The UI fixture
 initially used the unprefixed button ID, then an artificial timestamp before
@@ -39,7 +36,6 @@ process startup; those test errors were corrected. Offscreen native checks now
 exercise the actual button, disabled repeat submission, elapsed activity in the
 modal and home footer, reduced motion, success, failure/retry, and menu routing.
 Candidate awaits owner UI review; no package verification check was bypassed.
-
 
 Installed preview: cutscene-selector-20261020, launcher SHA256
 82e09b09f1031dfa6ec9b26facb2dc6f69c3868b18d502b7534a8be141355bfc.

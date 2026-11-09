@@ -22,7 +22,6 @@ No patch, upstream merge or Linux build was performed in this launcher review. A
 
 Lesson: fix the first compiler error and assess the complete platform path; do not claim whole-platform support from a two-line compiler workaround.
 
-
 ## 1.2.0 candidate work
 
 Owner authorized a two-hour release continuation. The source changes address the recorded portability/setup failures; focused regression tests and platform qualification are in progress. This candidate is not yet a verified or published resolution. Existing guard state and counters remain preserved.
@@ -57,7 +56,6 @@ its ZIP, per-member hashes, package inventory and clean runtime identity verifie
 This release includes the remedy and finite verification described above; it
 does not expand the recorded hardware, Linux, campaign or fresh-install coverage.
 
-
 ## Native Steam Deck follow-up, October 21
 
 The earlier Linux port is recoverable from the reporter's pinned compiler-fix
@@ -67,7 +65,6 @@ Its AppImage builds the game on the user's computer. Integrating current release
 fixes and producing a prebuilt Deck-tested runtime remain unimplemented.
 See [#40's native Linux assessment](github-steam-deck-proton-startup.md).
 No new build or playback verification is claimed.
-
 
 October 21 owner scope decision: native Linux integration is deferred. The
 continuation targets [Windows-package Proton startup](github-steam-deck-proton-startup.md)

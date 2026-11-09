@@ -1,3 +1,5 @@
+#include "notification_stack.hpp"
+#include "rom_cartridge.hpp"
 // Native RmlUi design review harness. Game/process integration remains
 // separate.
 #define WIN32_LEAN_AND_MEAN
@@ -12,6 +14,7 @@
 #include <deque>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <shellapi.h>
 #include <string>
 #include <windows.h>
@@ -67,11 +70,11 @@ struct Ui : Rml::EventListener {
   fs::path profile;
   int volume = 100, player = 0;
   bool muted = false;
-  double toastUntil = 0;
   std::array<bool, 4> connected{};
   std::array<WORD, 4> buttons{};
   std::array<bool, 4> activated{};
-  std::deque<std::string> notices;
+  NotificationStack notifications;
+  std::function<double()> notificationClock=[] {return Rml::GetSystemInterface()->GetElapsedTime();};
   bool reducedMotion = false;
   std::string current;
   Rml::Element *el(const char *id) { return doc->GetElementById(id); }
@@ -83,18 +86,7 @@ struct Ui : Rml::EventListener {
     return {std::istreambuf_iterator<char>(f), {}};
   }
   void status(const std::string &s) { label("status", s); }
-  void toast(const std::string &s) {
-    if (toastUntil > Rml::GetSystemInterface()->GetElapsedTime()) {
-      if (notices.empty() || notices.back() != s)
-        notices.push_back(s);
-      return;
-    }
-    label("toast-text", s);
-    el("toast")->SetClass("visible", false);
-    doc->GetContext()->Update();
-    el("toast")->SetClass("visible", true);
-    toastUntil = Rml::GetSystemInterface()->GetElapsedTime() + 4.62;
-  }
+  void toast(const std::string &s) { notifications.show(*doc,s,notificationClock()); }
   void ports() {
     for (DWORD i = 0; i < 4; i++) {
       XINPUT_STATE s{};
@@ -113,36 +105,9 @@ struct Ui : Rml::EventListener {
       }
       buttons[i] = on ? s.Gamepad.wButtons : 0;
     }
-    if (toastUntil) {
-      double elapsed = Rml::GetSystemInterface()->GetElapsedTime() -
-                       (toastUntil - 4.62),
-             y = 0, opacity = 1;
-      if (elapsed < 0.4) {
-        double t = std::clamp(elapsed / 0.4, 0.0, 1.0), q = t - 1;
-        double eased = 1 + 2.70158 * q * q * q + 1.70158 * q * q;
-        y = 96 * (1 - eased);
-        opacity = t;
-      } else if (elapsed > 4.4) {
-        double t = std::clamp((elapsed - 4.4) / 0.22, 0.0, 1.0);
-        y = 120 * t * t;
-        opacity = 1 - t;
-      }
-      el("toast")->SetProperty(
-          "transform",
-          "translate(-50%, " + std::to_string(reducedMotion ? 0 : y) + "dp)");
-      el("toast")->SetProperty("opacity", std::to_string(opacity));
-    }
-    if (toastUntil &&
-        Rml::GetSystemInterface()->GetElapsedTime() > toastUntil) {
-      el("toast")->SetClass("visible", false);
-      toastUntil = 0;
-      if (!notices.empty()) {
-        auto n = notices.front();
-        notices.pop_front();
-        toast(n);
-      }
-    }
+    notifications.tick(notificationClock(),reducedMotion);
   }
+
   void loadAudio() {
     auto text = read("audio.ini");
     int v = 100, m = 0;
@@ -283,9 +248,9 @@ struct Ui : Rml::EventListener {
     dialog.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
     if (GetOpenFileNameW(&dialog)) {
       fs::path p(path);
-      label("rom-name", u8(p.filename().wstring()));
-      label("rom-folder", u8(p.parent_path().wstring()));
-      label("rom-badge", "SELECTED");
+      label("rom-title-us", u8(p.filename().wstring()));
+      label("rom-path-us", u8(p.parent_path().wstring()));
+      label("rom-state-us", "PREVIEW");
       status("ROM selected. Verification is performed by setup.");
     }
   }
@@ -299,6 +264,9 @@ struct Ui : Rml::EventListener {
     if (a == "close") {
       current.clear();
       el("modal")->SetProperty("display", "none");
+    } else if (a.rfind("region-",0)==0) {
+      for(const auto* code:{"us","pal","jpn"})el((std::string("action-region-")+code).c_str())->SetClass("selected",a==std::string("region-")+code);
+      status("Design preview only. Use the main launcher to verify and play ROMs.");
     } else if (a == "rom")
       rom();
     else if (a == "play") {
@@ -363,6 +331,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     Backend::Shutdown();
     return 2;
   }
+  Rml::ElementInstancerGeneric<RomCartridge> cartridgeInstancer;
+  Rml::Factory::RegisterElementInstancer("rom-cartridge", &cartridgeInstancer);
   Rml::LoadFontFace("ui/fonts/Barlow-Regular.ttf");
   Rml::LoadFontFace("ui/fonts/Barlow-SemiBold.ttf");
   Rml::LoadFontFace("ui/fonts/ChakraPetch-Bold.ttf");

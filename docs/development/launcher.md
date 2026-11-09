@@ -23,8 +23,44 @@ Windows 10 or 11 x64. Players do not need development tools. **Game > Verify
 game files** validates the bundled runtime and imported ROM.
 
 Developers can still build from source; see [ROM build setup](rom-bootstrap.md)
-and [release packaging](releases.md). Local experimental builds require a
+and [release packaging](../maintenance/releases.md). Local experimental builds require a
 matching package manifest and runtime beside the launcher.
+
+## Regional development contract
+
+Released packages retain their documented US support. The current development
+launcher recognizes the catalogued US, PAL and Japanese retail inputs in all
+three standard N64 byte orders. It normalizes only its private copy and records
+the detected revision. Development Play admits all three exact revisions with
+a matching verified bundle. Scoped native and launcher checks pass; campaign,
+feature and release acceptance remain separate from ROM recognition.
+
+A development runtime bundle contains `jfg-program.json` beside the executable
+and required host libraries. The manifest follows
+[the program bundle schema](../../schemas/native-program-bundle.schema.json).
+The executable's `--describe` query reports its embedded ROM/model/input identity
+without loading a ROM or opening saves. Before Play, the managed helper checks
+file hashes and compares the query result with the manifest and imported ROM.
+It holds read leases on the ROM and runtime files until the game exits. Both
+frontend Play/direct-Play and the preview launch use `RegionalSession`.
+
+Bundles may live directly beside the launcher or under
+`runtimes/<revision-id>/`. Discovery chooses only an exact matching descriptor;
+a filename or sidecar cannot relabel a different revision. Old development
+binaries need a fresh regional build manifest. The post-link helper
+`scripts/release/program_bundle.py` requires the successful native build receipt,
+captured source inputs and matching generated corpus before publishing one.
+This candidate manifest does not replace release review or qualification.
+
+The selected profile keeps shared controller, audio and display preferences.
+Existing US campaign saves remain at the historical profile root; existing US
+navigation saves keep their sibling `navigation-mod` path. PAL and Japan use
+`<profile>/revisions/<revision-id>/`, with a separate `navigation-mod` child.
+Each namespace has a `rom-revision.txt` identity marker. Existing unidentified
+PAL/JP save files are rejected rather than assigned a region; there is no
+automatic cross-region save copy or conversion. Build updates do not move saves.
+These paths intentionally preserve the existing US installation without a
+physical save migration; marker publication is atomic and repeatable.
 
 ## Files and locations
 
@@ -49,11 +85,11 @@ the original game controls its cinematic bars. Esc opens or closes the Game menu
 fullscreen the menu bar stays hidden until Esc or F10. Settings dialogs pause
 the game at a frame boundary and resume it when closed; menu dropdowns do not
 pause. **Video > Video settings...** opens a separate RmlUi window with window
-mode/size, **Pause when inactive**, VSync and Original/Custom/Unlimited rendering.
+mode/size, **Pause when inactive**, Graphics API, VSync and Original/Custom/Unlimited rendering.
 Custom offers a 60-1000 FPS slider and exact number; Unlimited removes the cap
 with VSync off. Apply saves and closes, while Cancel discards edits.
 Rendering changes apply on the next game launch; stop and start the game to
-apply FPS/VSync changes. No launcher or Windows restart is needed. The restart
+apply Graphics API/FPS/VSync changes. No launcher or Windows restart is needed. The restart
 chip is hidden when no game is running. Display changes apply when saved.
 High-refresh modes are
 [experimental](../features/high-refresh-rendering.md); Original is the default.
@@ -194,7 +230,7 @@ preview is not a published release.
 
 The launcher checks public GitHub release metadata in a separate background helper
 at startup. A newer stable version produces a persistent home-screen notice.
-**Help > Check for updatesÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦** checks manually and shows installed/latest versions,
+**Help > Check for updates...** checks manually and shows installed/latest versions,
 an error with retry when offline, and **View release / download**. This opens the
 project release page; the launcher does not install files or alter saves. Extract
 the full new ZIP into a new folder and run its launcher to retain the same profile.
@@ -204,15 +240,22 @@ saves or settings. Drafts and prereleases are excluded; version components are
 compared numerically. Requests time out and response sizes are bounded. The existing
 v1.1.0 package predates this feature. See the [issue/validation record](https://github.com/TK22-26/JetForceGemini-Recomp/blob/main/docs/development/issues/launcher-update-discovery.md).
 
-
 ### Release notification and design preview
 
 At startup the launcher checks the project's latest stable GitHub release in a background helper. A newer version displays a large JFG-amber **Update available** card below Play. **What's new** opens the main GitHub repository page; **Update now** opens the GitHub release/download page. Help > Check for updates remains available. Current/older releases do not display the card; a failed check leaves play available and does not claim the installation is current.
 
 For UI review only, `JFG-Launcher.exe --preview-update --profile <separate-folder>` displays a sample update without network discovery or a persistent fake result. The details panel labels the sample. Ordinary launch arguments use the real checker. This preview does not implement automatic installation.
 
-
 The owner-approved card and browser actions are delivered locally from `628d1ff40ff14ce44a6921e89e594050b290b766`. Reopen High Refresh Preview or Jitter Capture for real discovery, or Update Button Preview for the forced sample. The game runtime and owner profiles are preserved. [Delivery and limits](../../evidence/launcher-update-button.json).
+
+## Transient notifications (current source; unreleased)
+
+Bottom-left controller/audio notices appear immediately in a vertical stack.
+New notices enter at the bottom and push older ones upward. Every notice keeps
+its own animation and 4.62-second lifetime; arrivals and consecutive duplicates
+do not reset it. Reduced motion disables movement. A burst retains the eight
+newest notices, without a waiting queue. Live-map mod-error notices use the same
+presentation. [Implementation and validation](issues/launcher-notification-stack.md).
 
 ## Data folder (v1.3 candidate)
 
@@ -254,7 +297,6 @@ Apply updates the running game immediately; fog does not require a restart.
 It does not extend the game's draw distance. [Implementation and validation
 status](issues/optional-fog-removal.md).
 
-
 ### Mouse support evidence candidate (2026-10-21, unreleased)
 
 Support exports now include optional mouse.log evidence from instrumented
@@ -265,3 +307,86 @@ data are excluded. Older runtimes leave this entry empty. Source/native tests
 and the full-size export roundtrip pass; full runtime packaging and live
 verification remain pending. This is diagnostic support for [#32](issues/github-mouse-look-and-inversion.md),
 not a verified mouse behavior fix.
+
+## Command-line launch
+
+Use `JFG-Launcher.exe --play` to launch the configured game immediately after startup. Add
+`--profile "D:/JFG-profile"` to select an existing profile; the profile must already have a valid
+imported ROM and compatible runtime. `--portable` selects portable storage behavior. Missing setup
+still requires completion through the launcher. These switches do not select an in-game save slot
+or warp to a level.
+
+The home screen lists USA, PAL and JP as selectable cartridge tiles. Imported
+ROMs are verified against the supported catalog. The selected region survives
+closing and reopening, including an empty selection; Play never substitutes
+another region. Each region retains its own save namespace.
+
+Use `--region usa|pal|jp` to choose a region at startup. `us` and `jpn` are also
+accepted, case-insensitively. The argument overrides and updates the remembered
+selection. Without `--play`, it opens the launcher with that region selected:
+
+```text
+JFG-Launcher.exe --play --region pal
+JFG-Launcher.exe --region jp
+```
+
+See the [regional selector record](issues/launcher-regional-rom-selection.md)
+for verification and pending owner review.
+
+The runtime can also start without the launcher:
+
+```text
+jfg-native-boot.exe --rom "D:/Games/my-copy.z64" --save "D:/JFG-profile/jfg.flash" --controller-pak "D:/JFG-profile/controller-1.pak" --play
+```
+
+Supply the supported ROM and explicit save paths when testing a separate profile. This enters the
+normal game flow, not a forced level. The launcher's `--play` is the convenient route for saved
+settings and the hosted game window.
+
+### Regional portable bundles
+
+New portable packages use a schema-2 `jfg-package.json` index and
+`runtimes/<revision-id>/jfg-program.json` for each included executable. The
+launcher identifies the imported ROM, validates the selected manifest hash,
+then checks the executable identity and locks its declared files for launch.
+A missing matching revision cannot select another runtime. Source-built flat
+bundles retain their own program manifest and the same session validation.
+Development build admission includes all three exact catalog revisions.
+Published v1.4.0 packages remain US-only; the [regional issue](issues/regional-rom-support.md)
+records final candidate qualification and remaining gameplay/release checks.
+
+The regional architecture candidate also checks `rom-revision.txt` inside the
+native startup boundary, before opening either save device. A valid ROM does
+not permit direct launch against a profile marked for another revision. PAL/JP
+normal Play requires a marked persistent profile; the launcher/build tool owns
+its creation. Bounded private probes can use unmarked inputs, and legacy US
+raw files remain readable without guessing their region. Regional imports never
+convert another revision's save.
+
+Support reports retain the verified catalog revision and program build/model/
+generation hashes from the active session lease. The sanitizer accepts only
+catalog IDs and fixed-size hashes; ROM paths, bytes and save contents remain
+excluded. [Support identity evidence](issues/regional-support-identity.md).
+
+## Graphics API and standalone diagnosis (local candidate)
+
+In **Video > Video settings > Rendering**, select **Auto**, **Direct3D 12** or
+**Vulkan** and Apply. Stop and start the game to use the saved choice. Auto is
+the default for existing profiles and retains renderer compatibility selection.
+If an explicit API cannot start, select Auto or the other API and retain the
+failed session in **Help > Support report**. This setting controls the game
+renderer, independently of the launcher's composition backend.
+
+The renderer API test preview includes `Test-Standalone.ps1`. Close the game,
+then run `powershell -NoProfile -ExecutionPolicy Bypass -File
+"<preview>/Test-Standalone.ps1" -Region usa` (or `pal` / `jp`). Omitting Region
+uses the current selection. It uses the preview's same profile, video settings
+and verified regional executable, with a standalone game window and support
+logs. Close that game before returning to the launcher. Ordinary `--play`
+shortcuts still use the hosted window. The script is a diagnostic preview
+helper, not a new public launcher flag or a save-conversion operation.
+
+For a meaningful comparison, keep ROM/save, Graphics API and window mode the
+same and export both sessions. Success standalone implicates the hosted-window
+interaction; it does not alone prove a launcher-only defect. See [#58's evidence
+and limitations](issues/github-black-screen-audio.md).

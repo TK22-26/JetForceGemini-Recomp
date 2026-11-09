@@ -5,7 +5,7 @@ investigation. It must stay enabled at all times ([AGENTS.md](../../AGENTS.md)).
 It is a bounded-waste control in the supervisor, not completion of the
 autonomous repair loop or game parity. Implemented 2026-09-27 in
 `scripts/autonomy/progress_guard.py`; operator guidance is in
-[automation](../development/automation.md).
+[automation](../maintenance/automation.md).
 
 ## Production ledger
 
@@ -137,10 +137,22 @@ Continuations never reopen shelved investigations. The one bootstrap admission
 the owner approved on 2026-09-27, made with the original budget and charges,
 is not a standing authorization.
 
+## Windows worker containment
+
+Use an unpackaged Python installation for the supervisor and worker.
+`WorkerJob.launch` rejects packaged/unknown process identities, assigns the
+suspended worker before it executes, and resumes only after assignment succeeds.
+All launch consumers use this path. Kill-on-close, CPU/memory limits and the
+production ledger remain separate enforced layers. Schema-2 guard receipts
+identify the new launch contract; old schema-1 receipts remain evidence but
+cannot establish safe expired-attempt recovery. Native descendants and cleanup
+are covered by regressions, not inferred from Python-only membership.
+See [cause, evidence and compatibility](../development/issues/windows-packaged-python-child-containment.md).
+
 ## Acceptance
 
 ```powershell
-python -m unittest discover -s tests -p 'test_autonomy_progress_guard.py'
+python -m unittest discover -s tests -t . -p 'test_autonomy_progress_guard.py'
 python -m scripts.autonomy.progress_guard_smoke tools/private/progress-guard-smoke-NEW
 ```
 

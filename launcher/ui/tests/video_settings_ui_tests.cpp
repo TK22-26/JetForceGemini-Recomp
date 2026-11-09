@@ -29,9 +29,9 @@ static void pointer(const char *id) {
     const auto card=parent->GetId();
     const char* tab=nullptr;
     if(card=="video-card-mode"||card=="video-card-size"||card=="video-card-pause")tab="video-tab-display";
-    else if(card=="video-card-vsync"||card=="video-card-blur")tab="video-tab-rendering";
+    else if(card=="video-card-api"||card=="video-card-vsync"||card=="video-card-blur")tab="video-tab-rendering";
     else if(card=="video-card-fps"||card=="video-card-cap")tab="video-tab-framerate";
-    else if(card=="video-card-fog")tab="video-tab-enhance";
+    else if(card=="video-card-fog"||card=="video-card-lod"||card=="video-card-shadows")tab="video-tab-enhance";
     if(tab&&!parent->IsVisible(true)){click(tab);break;}
   }
   e->ScrollIntoView();
@@ -41,7 +41,7 @@ static void pointer(const char *id) {
   auto *hit = surface->context->GetElementAtPoint(point);
   while (hit && hit != e)
     hit = hit->GetParentNode();
-  demand(hit == e, "visible control receives pointer hits");
+  demand(hit == e, (std::string("visible control receives pointer hits: ") + id).c_str());
   surface->context->ProcessMouseMove(int(point.x), int(point.y), 0);
   surface->context->ProcessMouseButtonDown(0, 0);
   surface->context->ProcessMouseButtonUp(0, 0);
@@ -135,6 +135,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
       surface->video->save = [&](const jfg_video::Ui::Settings &value) {
         std::ofstream(profile / "video.ini")
             << jfg::serialize_video_settings(value.rendering);
+        std::ofstream(profile / "game-settings.ini") << jfg::serialize_actor_lod(value.actor_lod);
+        std::ofstream(profile / "shadows.ini") << jfg::serialize_shadow_quality(value.shadows);
         return true;
       };
     };
@@ -195,6 +197,18 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     demand(!ui.dirty(), "return to initial Reduced clears dirty state");
     jfg::frontend::VideoRequest request;
     demand(jfg::frontend::valid_video_request(request), "default blur protocol valid");
+    request.shadows = 2;
+    demand(!jfg::frontend::valid_video_request(request), "invalid shadow mode accepted");
+    request.shadows = 0;
+    request.actor_lod = 2;
+    demand(!jfg::frontend::valid_video_request(request), "reject invalid LOD protocol");
+    request.actor_lod = 0; request.version = 4;
+    demand(!jfg::frontend::valid_video_request(request), "reject pre-LOD protocol");
+    request.version = 6;
+    demand(!jfg::frontend::valid_video_request(request), "reject pre-API protocol");
+    request.version = 7; request.graphics_api = 3;
+    demand(!jfg::frontend::valid_video_request(request), "reject invalid API protocol");
+    request.graphics_api = 0;
     request.blur = 3;
     demand(!jfg::frontend::valid_video_request(request), "reject invalid blur protocol");
     request.blur = 1; request.version = 1;
@@ -208,6 +222,94 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
            "Apply can accept unchanged values");
     pointer("video-apply");
     accepted();
+    ui.running = true;
+    pointer("video-lod-high");
+    demand(ui.activeTab==3 && element("video-dirty-enhance")->IsVisible(true) &&
+           !element("video-dirty-rendering")->IsVisible(true),
+           "LOD belongs to Enhancements including unsaved change marker");
+    demand(ui.draft.actor_lod == jfg::ActorLod::high && ui.dirty(),
+           "High LOD changes Enhancements draft");
+    demand(element("video-card-lod")->IsVisible(true) &&
+               !element("video-restart")->IsVisible(true),
+           "LOD appears in Enhancements and applies without restart");
+    capture("enhancements-lod.tga");
+    demand(jfg::load_actor_lod(profile) == jfg::ActorLod::original,
+           "LOD choice does not write before Apply");
+    pointer("video-apply");
+    accepted();
+    demand(jfg::load_actor_lod(profile) == jfg::ActorLod::high &&
+               !ui.pendingRestart, "Apply persists High LOD without restart");
+    pointer("video-lod-original");
+    pointer("video-cancel");
+    demand(PeekMessageW(&close, window, WM_CLOSE, WM_CLOSE, PM_REMOVE) != 0 &&
+               jfg::load_actor_lod(profile) == jfg::ActorLod::high,
+           "Cancel leaves saved High LOD unchanged");
+    ui.draft = ui.saved; ui.refresh(); settle();
+    auto goodSave = ui.save;
+    pointer("video-lod-original");
+    ui.save = [](const auto &) { return false; };
+    pointer("video-apply");
+    demand(!ui.error.empty() && ui.saved.actor_lod == jfg::ActorLod::high &&
+               jfg::load_actor_lod(profile) == jfg::ActorLod::high &&
+               !PeekMessageW(&close, window, WM_CLOSE, WM_CLOSE, PM_REMOVE),
+           "failed LOD Apply preserves saved value and keeps dialog open");
+    ui.save = goodSave; ui.draft = ui.saved; ui.error.clear(); ui.refresh();
+    demand(jfg::load_shadow_quality(profile)==jfg::ShadowQuality::original,
+           "Original shadows remain the default");
+    pointer("video-shadow-enhanced");
+    demand(ui.draft.shadows==jfg::ShadowQuality::enhanced && ui.dirty() &&
+           jfg::load_shadow_quality(profile)==jfg::ShadowQuality::original,
+           "Enhanced shadows remain a draft until Apply");
+    pointer("video-apply");accepted();
+    demand(jfg::load_shadow_quality(profile)==jfg::ShadowQuality::enhanced &&
+           !ui.pendingRestart, "Enhanced shadows persist and apply live");
+    pointer("video-shadow-original");pointer("video-cancel");
+    demand(PeekMessageW(&close,window,WM_CLOSE,WM_CLOSE,PM_REMOVE)!=0 &&
+           jfg::load_shadow_quality(profile)==jfg::ShadowQuality::enhanced,
+           "Cancel must not change the active shadow renderer");
+    ui.draft=ui.saved;ui.refresh();settle();capture("enhancements-shadows.tga");
+    ui.running = true;
+    pointer("video-api");
+    auto *api = static_cast<Rml::ElementFormControlSelect *>(element("video-api"));
+    demand(api->IsSelectBoxVisible(), "Graphics API combo opens like Window size");
+    demand(ui.keyboard(WM_KEYDOWN, VK_ESCAPE) && !api->IsSelectBoxVisible(),
+           "Escape dismisses API list first");
+    demand(!PeekMessageW(&close,window,WM_CLOSE,WM_CLOSE,PM_REMOVE),
+           "API dropdown Escape keeps settings open");
+    auto chooseApi = [&](jfg::GraphicsApi wanted) {
+      pointer("video-api");
+      const int delta = static_cast<int>(wanted) - static_cast<int>(ui.draft.rendering.graphics_api);
+      for (int i=0;i<std::abs(delta);++i)
+        surface->context->ProcessKeyDown(delta>0?Rml::Input::KI_DOWN:Rml::Input::KI_UP,0);
+      surface->context->ProcessKeyDown(Rml::Input::KI_RETURN,0);settle();
+      demand(ui.draft.rendering.graphics_api==wanted && !api->IsSelectBoxVisible(),
+             "API combo accepts keyboard selection and closes");
+    };
+    chooseApi(jfg::GraphicsApi::vulkan);
+    demand(ui.draft.rendering.graphics_api == jfg::GraphicsApi::vulkan && ui.dirty() &&
+           element("video-dirty-rendering")->IsVisible(true) && element("video-restart")->IsVisible(true),
+           "API draft is a Rendering change requiring game restart");
+    pointer("video-cancel");
+    demand(PeekMessageW(&close,window,WM_CLOSE,WM_CLOSE,PM_REMOVE)!=0 &&
+           jfg::load_video_settings(profile/"video.ini")->graphics_api == jfg::GraphicsApi::automatic,
+           "Cancel preserves the saved API");
+    ui.save = [](const auto&) { return false; };
+    demand(!ui.apply() && jfg::load_video_settings(profile/"video.ini")->graphics_api == jfg::GraphicsApi::automatic,
+           "failed API save preserves settings");
+    ui.save = goodSave; pointer("video-apply"); accepted();
+    demand(ui.pendingRestart && jfg::load_video_settings(profile/"video.ini")->graphics_api == jfg::GraphicsApi::vulkan,
+           "API Apply persists without changing an active renderer");
+    capture("rendering-api.tga");
+    jfg_video::Ui reopened; reopened.init(window,surface->ui.doc,profile);
+    demand(reopened.draft.rendering.graphics_api == jfg::GraphicsApi::vulkan,"reopen loads selected API");
+    surface->ui.doc->RemoveEventListener("click", &reopened);surface->ui.doc->RemoveEventListener("change", &reopened);
+    // The temporary reopen fixture changed this shared document to Display.
+    // Restore and lay out the original UI before its next pointer assertion.
+    ui.refresh(); settle();
+    ui.running = false;chooseApi(jfg::GraphicsApi::d3d12);pointer("video-apply");accepted();
+    demand(jfg::load_video_settings(profile/"video.ini")->graphics_api == jfg::GraphicsApi::d3d12,"Direct3D 12 persists");
+    chooseApi(jfg::GraphicsApi::automatic);pointer("video-apply");accepted();ui.pendingRestart=false;ui.refresh();
+    ui.running = false;
     pointer("video-preset-360");
     demand(ui.draft.rendering.fps == 360, "360 preset");
     pointer("video-vsync");
@@ -280,6 +382,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     demand(surface->video->draft.rendering.mode ==
                jfg::FrameRateMode::unlimited,
            "reopen restores saved mode");
+    demand(surface->video->draft.actor_lod == jfg::ActorLod::high,
+           "reopen restores saved High LOD");
     pointer("video-fullscreen");
     demand(element("video-size")->HasAttribute("disabled"),
            "window size disabled in fullscreen");

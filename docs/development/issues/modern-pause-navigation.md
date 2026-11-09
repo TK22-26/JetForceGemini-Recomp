@@ -47,7 +47,7 @@ these reports. Record automated checks separately from owner live verification.
 
 ## Related records
 
-- [Previous pause targets and Save](../../features/pc-controls.md#2026-10-11-goldwood-capture-camera-stepping-and-native-pause-save)
+- [Previous pause targets and Save](https://github.com/TK22-26/JetForceGemini-Recomp/blob/db9ea90b41b9bf14d806ab6aea1aefbddbb80efa/docs/features/pc-controls.md#2026-10-11-goldwood-capture-camera-stepping-and-native-pause-save)
 - [Directional airborne movement](modern-controller-state-transitions.md)
 
 ## Candidate progress, 2026-10-13

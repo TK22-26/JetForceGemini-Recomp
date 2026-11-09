@@ -1,0 +1,358 @@
+{
+  "schema": 1,
+  "status": "diagnostic qualification only; exact Original hardware parity open",
+  "source": "owner-confirmed original N64 image capture, North American cartridge, correct playback timing",
+  "source_file_sha256": "ef29e0d4feb2bd3049aa76f6c9e9ad2bd4799ad5fa466a730a01d43fb25a07bb",
+  "reference": {
+    "emulator": "EmuHawk 2.11.1",
+    "core_setting": 1,
+    "cpu": "Mupen64Plus cached interpreter",
+    "video": "Angrylion",
+    "rsp": "cxd4 LLE",
+    "room": 236,
+    "copied_save_entry": 1,
+    "runtime_writes": false,
+    "ordinary_controller_route_reached": true,
+    "flying_actors": 14
+  },
+  "same_reference_clock": {
+    "Original_120_exact_common_motion_and_relative_VI_states": 6825,
+    "actors": 14,
+    "prior_room24_common_states": 1761
+  },
+  "original_ROM_update_observation": {
+    "all_room": {
+      "range": [
+        1909,
+        3550
+      ],
+      "updates": 463,
+      "delta_time_histogram": {
+        "2": 1,
+        "4": 234,
+        "3": 220,
+        "5": 8
+      },
+      "actual_updates_per_60_VI": 16.93341478313989
+    },
+    "flight_active": {
+      "range": [
+        2417,
+        3550
+      ],
+      "updates": 294,
+      "delta_time_histogram": {
+        "3": 53,
+        "4": 233,
+        "5": 8
+      },
+      "actual_updates_per_60_VI": 15.571302037201063
+    },
+    "last_600_VI": {
+      "range": [
+        2950,
+        3550
+      ],
+      "updates": 148,
+      "delta_time_histogram": {
+        "4": 140,
+        "5": 8
+      },
+      "actual_updates_per_60_VI": 14.798657718120806
+    }
+  },
+  "Mupen_vs_native_reference": {
+    "initial_state_alignment": "name, initial position/velocity, spawn order",
+    "identical_movement_prefix_states": 2332,
+    "rows": [
+      {
+        "original_actor": "801c39e0",
+        "native_actor": "801c39e0",
+        "common_states": 189,
+        "Mupen_VI_span": 702,
+        "native_reference_VI_span": 719
+      },
+      {
+        "original_actor": "801c3c90",
+        "native_actor": "801c3c90",
+        "common_states": 70,
+        "Mupen_VI_span": 232,
+        "native_reference_VI_span": 235
+      },
+      {
+        "original_actor": "801c3f40",
+        "native_actor": "801c3f40",
+        "common_states": 69,
+        "Mupen_VI_span": 233,
+        "native_reference_VI_span": 238
+      },
+      {
+        "original_actor": "801c41f0",
+        "native_actor": "801c41f0",
+        "common_states": 274,
+        "Mupen_VI_span": 1068,
+        "native_reference_VI_span": 1135
+      },
+      {
+        "original_actor": "801c44a0",
+        "native_actor": "801c44a0",
+        "common_states": 267,
+        "Mupen_VI_span": 1046,
+        "native_reference_VI_span": 1113
+      },
+      {
+        "original_actor": "801c4750",
+        "native_actor": "801c4750",
+        "common_states": 84,
+        "Mupen_VI_span": 313,
+        "native_reference_VI_span": 317
+      },
+      {
+        "original_actor": "801c4a00",
+        "native_actor": "801c4a00",
+        "common_states": 178,
+        "Mupen_VI_span": 699,
+        "native_reference_VI_span": 727
+      },
+      {
+        "original_actor": "801c4cb0",
+        "native_actor": "801c4cb0",
+        "common_states": 132,
+        "Mupen_VI_span": 520,
+        "native_reference_VI_span": 531
+      },
+      {
+        "original_actor": "801c4f60",
+        "native_actor": "801c4f60",
+        "common_states": 238,
+        "Mupen_VI_span": 957,
+        "native_reference_VI_span": 1019
+      },
+      {
+        "original_actor": "801c5610",
+        "native_actor": "801c5610",
+        "common_states": 231,
+        "Mupen_VI_span": 929,
+        "native_reference_VI_span": 991
+      },
+      {
+        "original_actor": "801c5b90",
+        "native_actor": "801c5b90",
+        "common_states": 224,
+        "Mupen_VI_span": 901,
+        "native_reference_VI_span": 963
+      },
+      {
+        "original_actor": "801c5e40",
+        "native_actor": "801c5e40",
+        "common_states": 163,
+        "Mupen_VI_span": 656,
+        "native_reference_VI_span": 694
+      },
+      {
+        "original_actor": "801c6690",
+        "native_actor": "801c6690",
+        "common_states": 80,
+        "Mupen_VI_span": 317,
+        "native_reference_VI_span": 321
+      },
+      {
+        "original_actor": "801c5340",
+        "native_actor": "801c5340",
+        "common_states": 133,
+        "Mupen_VI_span": 533,
+        "native_reference_VI_span": 559
+      }
+    ]
+  },
+  "audio": {
+    "matched_route_reference_Original_underruns": 2,
+    "matched_route_reference_120_underruns": 2,
+    "matched_route_native_control_underruns": 0,
+    "additional_PCM_observer_underruns": 4,
+    "additional_observer_has_nonzero_PCM_around_gaps": true,
+    "qualification": "Automated muted delivery, not listening approval. Additional observer perturbs counts; native default unchanged."
+  },
+  "visible_hardware_event": {
+    "description": "First clearly visible sustained tumble through ground-impact disappearance",
+    "tumble_onset_bound_seconds": [
+      40.5,
+      40.8
+    ],
+    "ground_impact_bound_seconds": [
+      42.8,
+      42.85
+    ],
+    "interpretation": "Conservative manual image-event bounds, not RAM death-state timestamps or a matched-altitude physics test."
+  },
+  "runtime_sha256": "2405555966e28afbf1242b5f18aa9df090ba4d2f3b8392976662ca4b8634bed3",
+  "default_clock_changed": false,
+  "owner_preview_replaced": false,
+  "release_package_changed": false,
+  "limits": [
+    "Neither timing model is certified hardware exact",
+    "Earlier spawn-kill death duration is not comparable to a natural airborne-to-floor death",
+    "Physical source frame repetition is not physics-update cadence",
+    "No guessed rate or CPU/device constant retuned"
+  ],
+  "private_evidence": "n64-flight-comparison-20261027",
+  "primary_sources": {
+    "N64SyncSettings.cs": {
+      "url": "https://raw.githubusercontent.com/TASEmulators/BizHawk/2.11.1/src/BizHawk.Emulation.Cores/Consoles/Nintendo/N64/N64SyncSettings.cs",
+      "sha256": "acd0a377a81fa8a971f2578110eb7000c93cffac1f3d0675a1c636ef3355d876",
+      "bytes": 4205
+    },
+    "r4300.c": {
+      "url": "https://raw.githubusercontent.com/TASEmulators/BizHawk/2.11.1/libmupen64plus/mupen64plus-core/src/r4300/r4300.c",
+      "sha256": "fefe6440750b526f592ae0b40f28b2c5efdc0a19986538d94288571a1b7f3102",
+      "bytes": 27044
+    },
+    "interupt.c": {
+      "url": "https://raw.githubusercontent.com/TASEmulators/BizHawk/2.11.1/libmupen64plus/mupen64plus-core/src/r4300/interupt.c",
+      "sha256": "f4bb9a1624af14cbabc76647046901499d3e2d22ede49f6e0f0f236173e7f231",
+      "bytes": 17634
+    },
+    "memory.c": {
+      "url": "https://raw.githubusercontent.com/TASEmulators/BizHawk/2.11.1/libmupen64plus/mupen64plus-core/src/memory/memory.c",
+      "sha256": "263ae98e0d0e8e8cfedaa308c39453d59a2d0963b504c5b8845cfbdfbf9a75dd",
+      "bytes": 109945
+    }
+  },
+  "ordinary_Play_sessions_exited_zero": 14,
+  "ordinary_Play_sessions_scope": "Eleven prior sessions, two existing direct-SP optimization trials, one extra function-profile run; successful exits do not certify timing or audio.",
+  "loading_wall_pacing": {
+    "play-matched-route-original-reference": [
+      {
+        "first_VI": 1750,
+        "last_VI": 1800,
+        "wall_seconds": 1.250157,
+        "VI_per_wall_second": 39.994976630935156,
+        "longest_tick_gap_ms": [
+          52.868,
+          1774,
+          1775
+        ],
+        "VI_count": 51
+      },
+      {
+        "first_VI": 2000,
+        "last_VI": 2600,
+        "wall_seconds": 10.029058,
+        "VI_per_wall_second": 59.82615715254614,
+        "longest_tick_gap_ms": [
+          28.025,
+          2459,
+          2460
+        ],
+        "VI_count": 601
+      }
+    ],
+    "play-matched-route-custom-reference": [
+      {
+        "first_VI": 1750,
+        "last_VI": 1800,
+        "wall_seconds": 1.295925,
+        "VI_per_wall_second": 38.58247969597006,
+        "longest_tick_gap_ms": [
+          58.587,
+          1777,
+          1778
+        ],
+        "VI_count": 51
+      },
+      {
+        "first_VI": 2000,
+        "last_VI": 2600,
+        "wall_seconds": 10.028888,
+        "VI_per_wall_second": 59.827171267642036,
+        "longest_tick_gap_ms": [
+          24.31,
+          2229,
+          2230
+        ],
+        "VI_count": 601
+      }
+    ]
+  },
+  "direct_SP_trial": {
+    "play-matched-route-original-reference-direct-sp": {
+      "total_exact_common_states": 6825,
+      "all_common_equal": true,
+      "adapter_events": 0,
+      "direct_sp_last_counters": [
+        4515,
+        1404,
+        26000,
+        43332
+      ],
+      "underruns": 2,
+      "overruns": 0,
+      "wall_intervals": [
+        {
+          "first_VI": 1750,
+          "last_VI": 1800,
+          "wall_seconds": 1.193995
+        },
+        {
+          "first_VI": 1800,
+          "last_VI": 1850,
+          "wall_seconds": 0.835403
+        },
+        {
+          "first_VI": 2000,
+          "last_VI": 2600,
+          "wall_seconds": 10.029275
+        }
+      ]
+    },
+    "play-matched-route-custom-reference-direct-sp": {
+      "total_exact_common_states": 6825,
+      "all_common_equal": true,
+      "adapter_events": 0,
+      "direct_sp_last_counters": [
+        4515,
+        1404,
+        26000,
+        43332
+      ],
+      "underruns": 2,
+      "overruns": 0,
+      "wall_intervals": [
+        {
+          "first_VI": 1750,
+          "last_VI": 1800,
+          "wall_seconds": 1.18599
+        },
+        {
+          "first_VI": 1800,
+          "last_VI": 1850,
+          "wall_seconds": 0.821419
+        },
+        {
+          "first_VI": 2000,
+          "last_VI": 2600,
+          "wall_seconds": 10.028989
+        }
+      ]
+    }
+  },
+  "loading_profile": {
+    "update_VI_range": [
+      1688,
+      1809
+    ],
+    "host_wall_seconds": 2.5447165,
+    "guest_instruction_observations": 80964518,
+    "prominent_self_CPU_costs": [
+      "__osDispatchThread",
+      "__osEnqueueAndYield",
+      "inflate_codes",
+      "huft_build"
+    ],
+    "profile_valid": true,
+    "overflow": false,
+    "underruns": 3,
+    "limits": "Instrumented execution; wall durations include waits/observer overhead and are not release FPS benchmarks. Self CPU cycle ranking is local host participant, not N64 cycle timing.",
+    "code_optimization_promoted": false
+  }
+}

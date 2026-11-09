@@ -26,11 +26,11 @@ struct Ui final : Rml::EventListener {
   void text(const char *id, const std::string &s) { el(id)->SetInnerRML(s); }
   static bool sameRender(const jfg::VideoSettings &a,
                          const jfg::VideoSettings &b) {
-    return a.mode == b.mode && a.vsync == b.vsync && a.blur == b.blur &&
+    return a.graphics_api == b.graphics_api && a.mode == b.mode && a.vsync == b.vsync && a.blur == b.blur &&
            (a.mode != jfg::FrameRateMode::custom || a.fps == b.fps);
   }
   bool dirty() const {
-    return draft.fullscreen != saved.fullscreen ||
+    return draft.shadows != saved.shadows || draft.actor_lod != saved.actor_lod || draft.fullscreen != saved.fullscreen ||
            draft.window_size != saved.window_size ||
            draft.pause_inactive != saved.pause_inactive ||
            !sameRender(draft.rendering, saved.rendering) ||
@@ -58,17 +58,22 @@ struct Ui final : Rml::EventListener {
     saved.fullscreen = (state & 1) != 0;
     saved.pause_inactive = (state & 2) != 0;
     running = (state & 4) != 0;
+    saved.actor_lod=jfg::load_actor_lod(profile).value_or(jfg::ActorLod::original);
+    saved.shadows=jfg::load_shadow_quality(profile).value_or(jfg::ShadowQuality::original);
     draft = saved;
     fpsText = std::to_string(draft.rendering.fps);
     save = [this](const Settings &candidate) {
       if (!IsWindow(owner))
         return false;
       jfg::frontend::VideoRequest request;
+      request.actor_lod=candidate.actor_lod==jfg::ActorLod::high?1U:0U;
+      request.shadows=candidate.shadows==jfg::ShadowQuality::enhanced?1U:0U;
       request.mode = static_cast<unsigned>(candidate.rendering.mode);
       request.fps = candidate.rendering.fps;
       request.vsync = candidate.rendering.vsync;
       request.fog_percent = candidate.rendering.fog_percent;
       request.blur = static_cast<unsigned>(candidate.rendering.blur);
+      request.graphics_api = static_cast<unsigned>(candidate.rendering.graphics_api);
       request.fullscreen = candidate.fullscreen;
       request.window_size = candidate.window_size;
       request.pause_inactive = candidate.pause_inactive;
@@ -98,6 +103,13 @@ struct Ui final : Rml::EventListener {
     selected("video-fullscreen", draft.fullscreen);
     selected("video-pause", draft.pause_inactive);
     selected("video-vsync", draft.rendering.vsync);
+    auto *api = static_cast<Rml::ElementFormControlSelect *>(el("video-api"));
+    api->SetValue(std::string(jfg::graphics_api_name(draft.rendering.graphics_api)));
+    api->SetDisabled(failedLoad);
+    selected("video-shadow-original",draft.shadows==jfg::ShadowQuality::original);
+    selected("video-shadow-enhanced",draft.shadows==jfg::ShadowQuality::enhanced);
+    selected("video-lod-original",draft.actor_lod==jfg::ActorLod::original);
+    selected("video-lod-high",draft.actor_lod==jfg::ActorLod::high);
     static_cast<Rml::ElementFormControlInput*>(el("video-fog"))->SetValue(std::to_string(draft.rendering.fog_percent));
     text("video-fog-value",std::to_string(draft.rendering.fog_percent)+"%");
     selected("video-blur-off", draft.rendering.blur == jfg::BlurMode::off);
@@ -171,8 +183,11 @@ struct Ui final : Rml::EventListener {
       {"mode",0,"window mode windowed borderless fullscreen"},
       {"size",0,"window size resolution dimensions 1280 720 1600 900 1920 1080 2560 1440"},
       {"pause",0,"pause inactive background focus"},
+      {"api",1,"graphics api renderer direct3d directx d3d12 vulkan auto backend"},
       {"vsync",1,"vsync v-sync vertical sync display tearing refresh"},
+      {"lod",3,"actor lod level detail high original distance models graphics"},
       {"blur",1,"motion blur trails ghosting sickness nausea"},
+      {"shadows",3,"shadows original enhanced soft smooth character lighting"},
       {"fps",2,"frame rate framerate fps original custom unlimited smooth cap"},
       {"cap",2,"frame rate cap fps limit 60 120 144 165 240 360 1000"},
       {"fog",3,"remove fog mist distance haze visibility"}
@@ -180,7 +195,7 @@ struct Ui final : Rml::EventListener {
     const char* names[]={"display","rendering","framerate","enhance"};
     const char* titles[]={"Display","Rendering","Frame rate","Enhancements"};
     const char* subtitles[]={"Choose how the game window appears.",
-      "Control frame presentation and motion blur.","Set how many frames per second the game renders.",
+      "Choose the graphics API, synchronization and motion blur.","Set how many frames per second the game renders.",
       "Optional changes to the game's visuals."};
     std::string query=search;
     std::transform(query.begin(),query.end(),query.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
@@ -196,9 +211,9 @@ struct Ui final : Rml::EventListener {
       if(show){++counts[row.tab];++total;}
     }
     const bool changed[]={draft.fullscreen!=saved.fullscreen||draft.window_size!=saved.window_size||draft.pause_inactive!=saved.pause_inactive,
-      draft.rendering.vsync!=saved.rendering.vsync||draft.rendering.blur!=saved.rendering.blur,
+      draft.rendering.graphics_api!=saved.rendering.graphics_api||draft.rendering.vsync!=saved.rendering.vsync||draft.rendering.blur!=saved.rendering.blur,
       draft.rendering.mode!=saved.rendering.mode||fpsText!=std::to_string(saved.rendering.fps),
-      draft.rendering.fog_percent!=saved.rendering.fog_percent};
+      draft.rendering.fog_percent!=saved.rendering.fog_percent||draft.actor_lod!=saved.actor_lod||draft.shadows!=saved.shadows};
     for(unsigned i=0;i<4;++i) {
       auto* tab=el((std::string("video-tab-")+names[i]).c_str());
       tab->SetClass("selected",!searching&&activeTab==i);
@@ -258,6 +273,10 @@ struct Ui final : Rml::EventListener {
           draft.rendering.fps = static_cast<unsigned>(std::round(value));
           fpsText = std::to_string(draft.rendering.fps);
         }
+      } else if (id == "video-api") {
+        const auto value = static_cast<Rml::ElementFormControlSelect *>(target)->GetValue();
+        if (const auto api = jfg::parse_graphics_api(value))
+          draft.rendering.graphics_api = *api;
       } else if (id == "video-size") {
         const auto value =
             static_cast<Rml::ElementFormControlSelect *>(target)->GetValue();
@@ -296,6 +315,14 @@ struct Ui final : Rml::EventListener {
       draft.pause_inactive = !draft.pause_inactive;
     else if (id == "video-vsync")
       draft.rendering.vsync = !draft.rendering.vsync;
+    else if (id == "video-lod-original")
+      draft.actor_lod=jfg::ActorLod::original;
+    else if (id == "video-lod-high")
+      draft.actor_lod=jfg::ActorLod::high;
+    else if (id == "video-shadow-original")
+      draft.shadows=jfg::ShadowQuality::original;
+    else if (id == "video-shadow-enhanced")
+      draft.shadows=jfg::ShadowQuality::enhanced;
     else if (id == "video-blur-off")
       draft.rendering.blur = jfg::BlurMode::off;
     else if (id == "video-blur-reduced")
@@ -322,14 +349,15 @@ struct Ui final : Rml::EventListener {
   bool keyboard(UINT m, WPARAM key) {
     if (m != WM_KEYDOWN)
       return false;
-    auto *size = static_cast<Rml::ElementFormControlSelect *>(el("video-size"));
-    if (size->IsSelectBoxVisible()) {
+    for (const char *id : {"video-size", "video-api"}) {
+      auto *select = static_cast<Rml::ElementFormControlSelect *>(el(id));
+      if (!select->IsSelectBoxVisible()) continue;
       if (key == VK_ESCAPE) {
-        size->CancelSelectBox();
+        select->CancelSelectBox();
         return true;
       }
       if (key == VK_TAB)
-        size->HideSelectBox();
+        select->HideSelectBox();
       else
         return false;
     }

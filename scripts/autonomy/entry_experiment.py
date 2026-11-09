@@ -127,7 +127,7 @@ def measure(context, capture, reference):
 
 def tool_sha():
     files = [Path(__file__), Path(entry_plan.__file__), Path(entry_observation.__file__), entry_plan.SCHEMA_FILE,
-             Path(words.__file__), Path(__file__).parents[1] / "compare_phase9_focus_rdram.py"]
+             Path(words.__file__), Path(__file__).parents[1] / "diagnostics/compare_phase9_focus_rdram.py"]
     return hashlib.sha256(canonical_bytes({**{path.name: file_sha256(path) for path in files},
                                           "word_dependency_closure": words.tool_sha()})).hexdigest()
 

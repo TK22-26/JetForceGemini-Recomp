@@ -67,7 +67,7 @@ use elapsed simulation time for recovery. Do not smooth through solid geometry.
 
 [PcCameraBoom](../../../include/jfg/runtime/pc_input.hpp) separates the desired
 view from the collision-constrained distance. The
-[runtime adapter](../../../src/boot/native_boot.cpp) retains the game's scenery,
+[runtime adapter](../../../src/boot/native/guest_execution.cpp) retains the game's scenery,
 moving-model and floor/ceiling query rather than introducing a second incomplete
 collision database.
 
@@ -133,7 +133,7 @@ evidence that large scenery pull-ins are universally solved.
 
 ## Verification and delivery
 
-[PC input tests](../../../tests/pc_input_tests.cpp) cover floor/wall constraints,
+[PC input tests](../../../tests/runtime/pc_input_tests.cpp) cover floor/wall constraints,
 near-plane margin, inward response, outward hold/recovery, a ridge crossing an
 intermediate recovery point, immediate input rotation, exceptional fallback,
 near-vertical views and equivalent 30/60/120-update recovery. PC input, modern
@@ -212,7 +212,6 @@ using the same guard/root and retaining all previous charges. The issue remains
 open. Evaluate native clearance versus conservative distance selection before
 adding further smoothing.
 
-
 ## 2026-10-13 follow-up: false inward contacts at the actual pond
 
 ### Report, recovered scene and recording limitation
@@ -274,7 +273,7 @@ unknown moving-model registration and possible moving-model bounds retain the
 native response. Scene geometry and registered model bounds are read fresh for
 the solve, not cached across level changes.
 
-The [modern runtime adapter](../../../src/boot/native_boot.cpp) rejects a
+The [modern runtime adapter](../../../src/boot/native/guest_execution.cpp) rejects a
 native **height-only** correction only when both are established:
 
 - The requested endpoint's 16-unit clearance sphere is clear of the complete

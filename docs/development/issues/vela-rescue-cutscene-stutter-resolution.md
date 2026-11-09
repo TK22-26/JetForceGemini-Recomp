@@ -2,8 +2,8 @@
 
 - Follow-up: https://github.com/TK22-26/JetForceGemini-Recomp/issues/21 (1.3, including general performance work).
 - Severity: significant visual interruption.
-- Status: opt-in GPU composite/history candidate passes scoped boss checks and
-  rescue still/reference checks; remaining late updates and moving/live visual review open.
+- Status: owner accepts the regional rescue-blur correction in the v31 retest;
+  locally accepted, unreleased. Historical cadence/fidelity limits remain below.
 - Reported: 2026-10-18 UTC.
 - Affected build: official Windows v1.2.0, Ichor owner capture on the SSD runtime.
 
@@ -109,7 +109,6 @@ than treating every full-width color write as an independent animation frame.
 Keep scheduling, interpolation and apparent-resolution evidence distinct until
 a shared cause is demonstrated. Do not promote partial improvement to a fix.
 
-
 ## Related boss-room rendering report
 
 During the same official capture the owner reports lower apparent resolution
@@ -122,7 +121,6 @@ source rate zero, replacing the displayed sequence. This is a shared rendering
 lead with rescue shots 344/345, not proof of the apparent-resolution cause.
 Private evidence: owner-boss-failure-live-01. Keep input and rendering acceptance
 separate; neither report is resolved by the unbuilt input candidate.
-
 
 ## Closed capture: motion-blur source and GPU-copy policy
 
@@ -151,7 +149,6 @@ over the full route, beyond the capped detailed trace. They remain unresolved;
 the absence of underruns during the earlier rescue interval is narrower.
 Private full-list/route evidence: blur-and-tail-route-review.json.
 
-
 ## Closed-capture rendering follow-up and rejected prototype
 
 Full compact timing and frame logging survive closure. The final health record
@@ -178,7 +175,6 @@ failed. Queue-slot lifetime and compositing still require independent validation
 The focused 1.2.1 preview contains the controls/exit-contact/scene-counter changes,
 not GPU-copy or composite-queue experiments. Rendering resolution, 120 FPS
 presentation in blur scenes, and the remaining audio events are still open.
-
 
 ## 2026-10-18 hotfix preview follow-up
 
@@ -311,7 +307,6 @@ The first mapping keyed only by scene present ID accidentally labelled every
 phase as the final phase. The corrected mapping uses (present ID, phase);
 retain both reports. Image continuity is separate from elapsed-time performance.
 
-
 ### Moving boss check at 360 FPS
 
 The normal-Play moving Ichor route with the map/settings I/O optimizations and
@@ -331,9 +326,7 @@ The image capture is excluded from performance claims.
 Private evidence: vela-composite/play-moving-blur-360,
 small-blur-history-comparison.json and each continuity-review-v2.json.
 
-
 Owner reaffirmed full-resolution visual fidelity as an explicit acceptance item. The original rescue drops to a visibly lower-detail image, so timing alone cannot qualify the remedy. Separate full-size captures will cover each affected rescue shot and compare scene detail, intended temporal blur, CPU shadows and overlays; screenshot overhead is excluded from performance claims.
-
 
 ### Native endpoint and resize checks
 
@@ -348,7 +341,6 @@ A separate normal-Play moving boss route changes the hidden client from
 normal shutdown, no unsupported guest accesses and no audio underrun/overrun
 events. Resizing itself is excluded from steady-state pacing acceptance.
 Private evidence: blur-endpoint-equivalence.json and play-moving-blur-resize.
-
 
 ### Full-size rescue capture and remaining timing failure
 
@@ -385,7 +377,6 @@ Private evidence: rescue-full-size-image-index.json, rescue-fidelity-plan.json,
 rescue-village-wall-review.json, rescue-village-gap-attribution.json,
 current-village and rescue-native-cutscene-route.
 
-
 ### Reference-route recovery and renderer compatibility
 
 The first original-ROM rescue reference attempt stopped in the Brig before
@@ -418,7 +409,6 @@ rescue-native-leafs and current-village-entry-profile. Full-size screenshots
 are fidelity evidence only; their readback overhead excludes them from
 performance acceptance.
 
-
 ### Original-ROM image review
 
 The original-ROM reference now completes all six rescue shots and returns to
@@ -447,7 +437,6 @@ parity. All failed fixture evidence and original saves are preserved.
 Private evidence: original-rescue-waypoint-visual, original-rescue-contact-visual,
 original-rescue-contact-v2-visual and rescue-full-size-image-index.json.
 
-
 ### Additional fidelity fixture limits
 
 The Original-rate capture attempt reached rescue shot 344 but recorded no
@@ -462,7 +451,6 @@ no accepted capsule images. No owner save was changed, and this is not labeled
 a runtime regression. The owner's actual hotfix session and initial save have
 now been located for state-based reproduction. Failed evidence remains in
 rescue-original-rate-shot344-mode0 and vela-locked-capsule-full-size.
-
 
 ### Rescue queue-capacity lead
 
@@ -491,7 +479,6 @@ pending; increased capacity is a candidate, not a declared fix.
 
 Evidence: rescue-resource-comparison-wall-review.json,
 rescue344-submission-profile/attribution.json and queue-wait-correlation.json.
-
 
 ### Original-rate and owner-selection fidelity checks
 
@@ -1235,3 +1222,102 @@ The source-only diagnostic remains an investigation aid; normal native effects
 remain enabled. The owner locates the brief reported 50/20 dip at the transition
 from Vela to the first cut. Timing attribution remains open; do not equate all
 gaps in the long owner session with this single cut.
+
+## PAL owner regression, 2026-11-02
+
+The owner reports that PAL does not reduce the excessive blur in Vela's
+rescue cutscene, unlike the prior correction. The owner explicitly confirmed the rescue scene.
+Current affected handoff: v30 launcher/v28 enhanced PAL runtime. Treat this as
+an open regional regression report; prior US acceptance does not qualify PAL.
+Check persisted blur preference, native pass recognition, source pairing and
+the resulting blend coefficients separately. Do not assume authored PAL
+softness, a missing correction or a setting error before evidence.
+The owner requests a regression test. It must exercise the failing PAL consumer
+and guard US/JP behavior; general boot or preference parsing is insufficient.
+No cause, remedy, live verification or new release is claimed.
+
+The owner confirms this is the rescue cutscene. The inspected PAL campaign
+profile stores `blur=reduced`, Custom120FPS and VSync. That rules out an
+obvious persisted Original setting in that profile, but is not a captured
+proof of the live draw's selected preference. No completed rescue trace is
+available from the earlier name-entry recording. A targeted PAL rescue
+pass/pairing/blend-coefficient capture and failing behavior regression test
+remain required before choosing a fix. Existing US acceptance is retained.
+
+## PAL and Japanese scope confirmed, 2026-11-02
+
+The owner clarifies that excessive rescue blur is present only in PAL and JP;
+US looks correct. Treat both as owner-reproduced regional reports and retain US
+as the visual reference. The owner approved two further hours for keyboard
+interpolation and rescue-blur corrections, including meaningful regression
+checks. This is the same guarded investigation; all prior charges remain.
+New private evidence: `regional-presentation-20261102-owner2h`. Automated games
+are muted with a test-only configuration. Existing manual profiles and saves
+remain separate from reproductions. Cause and fix remain under investigation.
+
+### Source mismatch in native blur recognition
+
+Reviewing the original blurUpdate consumers shows that PAL/JP omit the second
+scissor and viewport commands emitted by the US implementation after the
+blend/environment colors. The current recognizer requires that US prefix and
+623 commands; the shorter PAL/JP list has 621 commands with the same sixty
+texture strips. It is therefore rejected before GPU composite/history and
+persisted blur-strength adaptation can apply. This is a demonstrated source
+contract mismatch; original-list execution and a rebuilt live rescue remain
+separate qualification steps. Add bounded recognition for both complete
+command forms, not a region flag or an unchecked partial match.
+
+### Candidate and consumer regression coverage
+
+The shared recognizer now validates either complete 621-command or 623-command
+operation. It still requires the exact setup, all sixty strips, footer, aligned
+bounded memory and disjoint framebuffer allocations. The blend/environment
+commands retain their original positions and reduced/off strength handling.
+
+A new `jfg.native_blur` consumer test exercises both independently constructed
+GBI forms, every mutated opcode, truncated input, wrong layout and invalid or
+overlapping buffers. It also checks Original/Reduced/Off coefficients. This test,
+video-settings and interpolation-history tests pass. This is component evidence;
+a rebuilt regional rescue scene and owner appearance check remain pending.
+
+The original US/PAL/JP blur-emitter instruction streams were also replayed in a
+private bounded harness using synthetic documented setup-helper contracts and
+320x240 buffers. Their emitted lists contain 623/621/621 commands. The compiled
+pre-change recognizer accepts US and rejects PAL/JP; the candidate accepts all
+three with the correct source and destination. This independently qualifies the
+regional emitter/consumer mismatch, but the setup helpers are fixtures and this
+is not live cutscene execution. Private evidence: `original-blur-emitter` and
+`original-blur-consumer` beneath the current investigation root.
+
+Implementation: [complete blur recognizer](../../../include/jfg/renderer/native_blur.hpp).
+The [synthetic consumer regression](../../../tests/renderer/native_blur_tests.cpp)
+constructs both command forms independently and is registered as `jfg.native_blur`.
+Compatibility lesson: share the operation contract across revisions, while
+validating each legitimate complete encoding. A US-only command prefix can
+silently disable a shared rendering correction even when settings persist.
+
+### Rebuilt regional handoff
+
+The corrected recognizer is linked into all three verified enhanced runtimes
+in local `owner-review-v31`. Full builds and normal keyboard Play pass in each
+region. The strengthened consumer regression mutates both opcode and fixed
+first-word parameter bits for every command in both forms and passes.
+These checks do not execute the live rescue sequence: PAL/JP rescue appearance
+and live effect/source-pairing confirmation remain for manual review. Existing
+US visual acceptance applies to its prior behavior, not a new visual test.
+
+Local implementation commit: `0e97d2e347b1bd33c714de9de3ef678aa0e48cec` on `develop`.
+The local test package is not a published release.
+
+## Regional blur owner acceptance, 2026-11-03
+
+Following the v31 four-item handoff, the owner reports that Modern Aim release
+is still instant and "the rest is fixed". This accepts the rescue-blur correction
+in the tested session. PAL/JP were the affected reports; the follow-up does not
+identify a separate visual run for each region. Do not invent a new US comparison,
+live pairing trace or zero-stall guarantee. The command-list cause, remedy and
+regression evidence above remain applicable. Earlier pending appearance review
+is superseded for this owner test; the local package remains unreleased.
+
+The owner subsequently identifies this retest as **PAL with a controller**.
+Retain that scope for the accepted result; no separate US/JP visual pass is inferred.

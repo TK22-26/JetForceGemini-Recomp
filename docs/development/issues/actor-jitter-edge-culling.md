@@ -42,7 +42,7 @@ Three initially separate hypotheses were established in source and captures:
 Ambiguous palette/geometry ownership still holds endpoints conservatively.
 Semantic provenance survives UV vertex clones. Guest simulation and input rates
 are unchanged. See [identity tracking](../../../include/jfg/renderer/presentation_identity.hpp),
-[guest observation](../../../src/boot/native_boot.cpp), and
+[guest observation](../../../src/boot/native/guest_execution.cpp), and
 [F3DDKR integration](../../../src/renderer/rt64_f3ddkr.cpp).
 
 ## Verification

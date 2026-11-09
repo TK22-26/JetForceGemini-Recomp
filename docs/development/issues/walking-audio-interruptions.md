@@ -94,7 +94,6 @@ ready-task gate. No audio candidate is delivered or audibly verified.
 
 Review of the expanded native queue found a boundary condition: admission must check the final queued deadline, not only the active buffer. The correction rejects aggregate Count overflow while retaining all queued buffers. The physical two-slot path remains unchanged; a near-64-bit-limit regression test covers the four-slot case. This was found before delivery.
 
-
 ## Qualified native playback remedy (2026-10-16 UTC)
 
 The demonstrated chain is lost production time from retrace scheduling,
@@ -104,7 +103,7 @@ the controlled test. The combined remedy uses actual queued playback demand,
 ready-task execution, bounded four-slot native retention and immediate PCM
 delivery. It retains the original synthesizer, sample frequency, game clock and
 separate reference timing path. The native queue policy and exact scope are
-documented in [implementation and compatibility](../native-audio-playback.md).
+documented in [implementation and compatibility](../runtime/native-audio-playback.md).
 
 The combined private candidate completes 12 forced 35 ms stalls with zero
 underruns, rejected submissions or payload mismatches. Its queue range is about
@@ -120,7 +119,6 @@ A completed synthesis task is not proof that its PCM was accepted or delivered.
 Preserve submission outcomes and payload identity when changing scheduling.
 Owner listening verification remains pending; these tests were muted.
 
-
 ## Local preview delivery (2026-10-16 UTC)
 
 Both desktop shortcuts now select source ca6ef7a883b2568da9df2ff0665ec7169c9f4be1 and runtime SHA-256 8dbe521304348ecda93c9f153fbd15f95486b2050b456e37ee221562e30f6a56. Package/launcher setup checks and copied-profile migration pass; all 40 checked live profile files and shortcut arguments are preserved. The previous package and links remain available for rollback. Owner listening and bridge visual review remain pending. [Qualification and delivery](../../../evidence/high-refresh-audio-bridge.json) record the exact scope. This is a local preview, not a public release or completion of the broader no-dip goal.
@@ -129,17 +127,13 @@ A later unprofiled comparison control (native ROM fast completion disabled, PCM 
 
 The later control underrun coincides with a 160.184 ms presentation gap, roughly 168 ms without game/audio progress, and nine coalesced retraces. About 132 ms of queued audio drains before progress resumes. This establishes a long-stall limit; it does not identify the stall initiator or show ordinary walking starvation persists unchanged. Both final native-ROM default replays have zero underruns/overruns, rejected buffers or payload mismatches. Their muted checks do not replace owner listening. Evidence: residual-audio-underrun-timeline and native-rom-audio-late-audit.
 
-
 The High Refresh Preview and Jitter Capture desktop links now select the native-ROM package: source 8277a80611e73c0dc57285e32e0761e9b7519e41, runtime SHA-256 5f902049bd3e4a991a020f17e63a51d0291f28709057a9aa7efc03097692764b. Launcher/setup checks pass; all 40 checked profile files and shortcut arguments are preserved. Earlier audio and bridge remedies are included. Owner listening/visual acceptance, later renderer/load hitches and the broader no-20-FPS goal remain open. [Qualification and delivery](../../../evidence/high-refresh-native-rom.json).
 
-
 Local delivery: both High Refresh Preview and Jitter Capture desktop links select source 27ddef0a5ed4afd1f1f9c26a5590b590cda5fe8e, runtime SHA-256 db65b460f399b550ca8a3ad0d98f5374d5e00a95dc4a7073edfa2649fa6772c6. Manifest and launcher/profile checks pass; all 40 checked profile files and shortcut arguments are preserved. Includes native audio, bending bridge interpolation and ROM loading improvements. Owner live acceptance and broader restart/load gaps remain open. [Current qualification](../../../evidence/high-refresh-draw-key.json).
-
 
 ## Longer owner capture completed (2026-10-16 UTC)
 
 The owner reports no perceptible gameplay slowdown, with choppiness and audible interruptions during the Goldwood exit cutscene. This is not a full clean acceptance. The 21-minute recording retains all 131,288 presentation records with no queue drops, but the detailed gameplay/audio trace reached its 256 MiB cap at about 18:27. No unbounded game-update rows or final audio-health totals were written in the live path. The earlier expectation of full-run update/audio coverage was incorrect. Thus later cutscene audio cannot be cleared using the earlier zero counters. Preserve the final report as open; review timing and reproduce the exit under bounded muted tests. Private evidence: final-measurement-20261016, measurement-review.json. The native cutscene/bridge physics conclusions are unchanged.
-
 
 ### Unlimited stress limit during reticle qualification (2026-10-16)
 The candidate native-clock Unlimited probe reached about 1,007 output FPS but only about 23 scene updates/s in the measured late window, with 265 audio underruns overall. This failed the qualification gate; it is not counted as a clean pass. The installed pre-reticle runtime comparison (pistol Aim, same recorded inputs/profile) reports 281 underruns; its measurements are preserved in shuriken-reticle-20261016/unlimited-installed-control. This comparison uses the native-clock probe, not normal live playback-demand audio, and different reticle drawing prevents an exact cost comparison. The 120/360 reticle tests remain separate, with zero measured underruns and two-VI updates. Unlimited pacing remains open; do not present high output FPS as proof of healthy simulation/audio.

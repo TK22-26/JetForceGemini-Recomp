@@ -1,0 +1,243 @@
+{
+  "schema": 1,
+  "date": "2026-10-27",
+  "status": "bounded reference-clock comparison; physical-hardware parity open",
+  "runtime_sha256": "1d5c5e61a43857789826c82e1e5e43ae181d9e5ef4f78be1ed7a2316e33f61b0",
+  "method": "Copied logical save; fresh original-ROM EmuHawk 2.11.1 Mupen64Plus/Angrylion/cxd4 captures; fresh native instruction-timed probes replay exported input by poll. Original and custom 120 output are tested with the same instruction-timed clock, without the elapsed-flight adapter. No normal Play clock policy changed.",
+  "comparison": {
+    "swamp": {
+      "emulator_vs_original": [
+        {
+          "actor": "801c2d40",
+          "left_samples": 195,
+          "right_samples": 683,
+          "exact_motion_prefix": 195,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 612,
+          "right_VI_span": 653,
+          "relative_VI_equal": false,
+          "VI_difference_range": [
+            -3,
+            44
+          ]
+        },
+        {
+          "actor": "801c34a0",
+          "left_samples": 188,
+          "right_samples": 816,
+          "exact_motion_prefix": 188,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 594,
+          "right_VI_span": 637,
+          "relative_VI_equal": false,
+          "VI_difference_range": [
+            0,
+            45
+          ]
+        },
+        {
+          "actor": "801c3c00",
+          "left_samples": 181,
+          "right_samples": 809,
+          "exact_motion_prefix": 181,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 573,
+          "right_VI_span": 616,
+          "relative_VI_equal": false,
+          "VI_difference_range": [
+            0,
+            46
+          ]
+        }
+      ],
+      "original_vs_high": [
+        {
+          "actor": "801c2d40",
+          "left_samples": 683,
+          "right_samples": 683,
+          "exact_motion_prefix": 683,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 2237,
+          "right_VI_span": 2237,
+          "relative_VI_equal": true,
+          "VI_difference_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "actor": "801c34a0",
+          "left_samples": 816,
+          "right_samples": 816,
+          "exact_motion_prefix": 816,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 2669,
+          "right_VI_span": 2669,
+          "relative_VI_equal": true,
+          "VI_difference_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "actor": "801c3c00",
+          "left_samples": 809,
+          "right_samples": 809,
+          "exact_motion_prefix": 809,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 2648,
+          "right_VI_span": 2648,
+          "relative_VI_equal": true,
+          "VI_difference_range": [
+            0,
+            0
+          ]
+        }
+      ],
+      "adapter_events": [
+        0,
+        0
+      ]
+    },
+    "forest": {
+      "emulator_vs_original": [
+        {
+          "actor": "801c4710",
+          "left_samples": 204,
+          "right_samples": 884,
+          "exact_motion_prefix": 204,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 601,
+          "right_VI_span": 632,
+          "relative_VI_equal": false,
+          "VI_difference_range": [
+            -2,
+            31
+          ]
+        },
+        {
+          "actor": "801c49c0",
+          "left_samples": 196,
+          "right_samples": 877,
+          "exact_motion_prefix": 196,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 581,
+          "right_VI_span": 613,
+          "relative_VI_equal": false,
+          "VI_difference_range": [
+            0,
+            32
+          ]
+        },
+        {
+          "actor": "801c4c70",
+          "left_samples": 189,
+          "right_samples": 870,
+          "exact_motion_prefix": 189,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 564,
+          "right_VI_span": 592,
+          "relative_VI_equal": false,
+          "VI_difference_range": [
+            0,
+            28
+          ]
+        }
+      ],
+      "original_vs_high": [
+        {
+          "actor": "801c4710",
+          "left_samples": 884,
+          "right_samples": 884,
+          "exact_motion_prefix": 884,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 2677,
+          "right_VI_span": 2677,
+          "relative_VI_equal": true,
+          "VI_difference_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "actor": "801c49c0",
+          "left_samples": 877,
+          "right_samples": 877,
+          "exact_motion_prefix": 877,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 2661,
+          "right_VI_span": 2661,
+          "relative_VI_equal": true,
+          "VI_difference_range": [
+            0,
+            0
+          ]
+        },
+        {
+          "actor": "801c4c70",
+          "left_samples": 870,
+          "right_samples": 870,
+          "exact_motion_prefix": 870,
+          "offsets": [
+            0,
+            0
+          ],
+          "left_VI_span": 2640,
+          "right_VI_span": 2640,
+          "relative_VI_equal": true,
+          "VI_difference_range": [
+            0,
+            0
+          ]
+        }
+      ],
+      "adapter_events": [
+        0,
+        0
+      ]
+    }
+  },
+  "identical_original_high_motion_samples": 4939,
+  "limits": [
+    "Finite flight trajectories in rooms 24 and 125, not game-wide parity.",
+    "Native probes use the reference path, not ordinary Play.",
+    "Output mode selection and rendered frames verified; physical high-refresh smoothness and normal Play audio not qualified by these runs.",
+    "Fresh Mupen/native common positions and velocities match by update but elapsed VI spans differ.",
+    "Neither Mupen64Plus nor this runtime reference clock has been established as cycle-exact physical N64 timing.",
+    "Original-hardware measurement is needed before claiming strict N64 timing parity."
+  ],
+  "private_evidence_id": "original-mode-parity-20261027"
+}

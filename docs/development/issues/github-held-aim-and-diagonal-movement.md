@@ -8,7 +8,7 @@
 - Reported launcher revision: `c994c75`, matching the `v1.1.0` tag. Actual game executable/build, control profile and bindings have not been supplied.
 - Owner intent (2026-10-17): target 1.3 if EmuHawk supports the report. The native Expert measurement now supports movement compatibility work for that target; implementation and release verification remain open.
 - Current test status: five guarded supporting jobs completed under the owner's two-hour isolated test approval. The same investigation retained its enabled guard, charges and roots. No runtime change or GitHub message was made.
-- Detailed continuation: [issue 18 handoff](../issue18-native-controls-handoff-2026-10-17.md), including measurements, private evidence identities, guard snapshot, remaining work and an unsent reply.
+- Detailed continuation: [issue 18 handoff](../runtime/issue18-native-controls-handoff-2026-10-17.md), including measurements, private evidence identities, guard snapshot, remaining work and an unsent reply.
 - Public measurement receipt: [native controls evidence](../../../evidence/github-issue18-native-controls.json).
 
 ## Symptoms and reproduction
@@ -33,14 +33,14 @@ during a keyboard/mouse playthrough.
   Its controls overhaul makes a current-package retest useful; it does not prove
   this report fixed. This checkout predates that release, so release claims were
   checked against the tag and live release metadata instead of local README text.
-- [INPUT-003 and the mouse audit](../../features/pc-controls.md#modern-shoulder-camera-and-mouse-audit-2026-10-10)
+- [INPUT-003 and the mouse audit](https://github.com/TK22-26/JetForceGemini-Recomp/blob/db9ea90b41b9bf14d806ab6aea1aefbddbb80efa/docs/features/pc-controls.md#modern-shoulder-camera-and-mouse-audit-2026-10-10)
   record a previous held-aim failure caused by reacquiring mouse capture when a
   second mouse button was pressed. Its correction and historical qualification
   concern that demonstrated mouse-button chord. The new R-input report has not
   been shown to share its cause.
-- [The movement correction](../../features/pc-controls.md#upward-camera-running-speed-and-scripted-input-follow-up-2026-10-10)
+- [The movement correction](https://github.com/TK22-26/JetForceGemini-Recomp/blob/db9ea90b41b9bf14d806ab6aea1aefbddbb80efa/docs/features/pc-controls.md#upward-camera-running-speed-and-scripted-input-follow-up-2026-10-10)
   documents deliberate diagonal normalization in modern ground movement.
-  Existing `tests/pc_input_tests.cpp` also describes normalized aiming movement.
+  Existing `tests/runtime/pc_input_tests.cpp` also describes normalized aiming movement.
   These existing records are not a new test run or proof of the reporter's profile.
 - [Pinned upstream review](../../upstream/reference-review-2026-10-01.md) and
   [catalog JFG-UP-010](../../upstream/reference-catalog.json) describe native stick
@@ -166,7 +166,7 @@ agreed with velocity magnitude within 0.00002 units/tick. The observer's additio
 of timestep/velocity reads has an explicit lineage receipt and restored-RDRAM
 equality check; it did not write gameplay memory.
 
-The [handoff](../issue18-native-controls-handoff-2026-10-17.md) identifies the
+The [handoff](../runtime/issue18-native-controls-handoff-2026-10-17.md) identifies the
 private scripts, traces, screenshots, sealed results and hashes. Only the
 sanitized measurement receipt is copied into public repository evidence; ROM,
 RAM, states, emulator binaries and saves remain private.
@@ -235,7 +235,7 @@ Release-preparation readback verifies the reporter acknowledgement directly: [co
 The documented change is included in tag v1.3.0 (launcher/source
 02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
 665596482a7395593e85dbe73f1bd4b016d183d9). See the
-[combined release qualification](../releases-1.3.0-qualification.md) for owner
+[combined release qualification](../../releases/qualification-1.3.0.md) for owner
 acceptance, source CI, package and publication evidence. Earlier failed attempts
 and the scene/device/seed limits above remain part of this record; inclusion
 does not turn an unverified broader report into a confirmed resolution.

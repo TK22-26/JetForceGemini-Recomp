@@ -11,7 +11,6 @@ Evidence: D:/JFG-private/floyd-bounds-20261021. Production guard retained; owner
 
 First native comparison passed axis endpoints but failed its assumption that a full Modern controller diagonal must reach both square corners. Inspection shows radial stick normalization produces a smaller diagonal target. The second fixture separately verifies cardinal limits and records diagonal reach instead of concealing the discrepancy; original failed log retained. This is a distinct shape/response question, not evidence that widescreen changes the original outer limits. No product change.
 
-
 ## Original-game result
 
 EmuHawk 2.11.1, original supported USA ROM, Mupen64Plus cached interpreter,

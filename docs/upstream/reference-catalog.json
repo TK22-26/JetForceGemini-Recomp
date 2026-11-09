@@ -97,7 +97,7 @@
         }
       ],
       "local_files": [
-        "scripts/build_private_generated_root.py",
+        "scripts/build/build_private_generated_root.py",
         "docs/planning/phase4-acceptance.md"
       ]
     },
@@ -131,7 +131,7 @@
         }
       ],
       "local_files": [
-        "scripts/transform_private_n64recomp_inputs.py",
+        "scripts/build/transform_private_n64recomp_inputs.py",
         "src/runtime/custom_overlay_relocator.cpp"
       ]
     },
@@ -159,8 +159,8 @@
         }
       ],
       "local_files": [
-        "scripts/summarize_overlays.py",
-        "scripts/analyze_phase3_overlays.py"
+        "scripts/diagnostics/summarize_overlays.py",
+        "scripts/diagnostics/analyze_phase3_overlays.py"
       ]
     },
     {
@@ -187,8 +187,8 @@
         }
       ],
       "local_files": [
-        "scripts/runtime_spike_models.py",
-        "scripts/analyze_boot_reachability.py"
+        "scripts/evidence/runtime_spike_models.py",
+        "scripts/diagnostics/analyze_boot_reachability.py"
       ]
     },
     {
@@ -221,7 +221,7 @@
         }
       ],
       "local_files": [
-        "scripts/analyze_boot_reachability.py",
+        "scripts/diagnostics/analyze_boot_reachability.py",
         "patches/n64recomp/README.md"
       ]
     },
@@ -284,7 +284,7 @@
       ],
       "local_files": [
         "docs/legal/dependency-license-inventory.md",
-        "scripts/check_repository_hygiene.py"
+        "scripts/validation/check_repository_hygiene.py"
       ]
     },
     {
@@ -317,8 +317,8 @@
         }
       ],
       "local_files": [
-        "scripts/transform_private_n64recomp_inputs.py",
-        "tests/test_derive_g2_custom_overlay_case.py"
+        "scripts/build/transform_private_n64recomp_inputs.py",
+        "tests/evidence/test_derive_g2_custom_overlay_case.py"
       ]
     },
     {
@@ -346,7 +346,7 @@
       ],
       "local_files": [
         "src/runtime/generated_overlay_runtime.cpp",
-        "tests/generated_overlay_runtime_tests.cpp"
+        "tests/runtime/generated_overlay_runtime_tests.cpp"
       ]
     },
     {
@@ -400,8 +400,8 @@
         }
       ],
       "local_files": [
-        "scripts/phase95_observation.py",
-        "scripts/phase95_keyboard.py",
+        "scripts/exploration/phase95_observation.py",
+        "scripts/exploration/phase95_keyboard.py",
         "src/boot/native_boot.cpp"
       ]
     },
@@ -423,7 +423,7 @@
         }
       ],
       "local_files": [
-        "scripts/transform_private_n64recomp_inputs.py",
+        "scripts/build/transform_private_n64recomp_inputs.py",
         "include/jfg/runtime/custom_overlay_relocator.hpp"
       ]
     },
@@ -458,8 +458,8 @@
       ],
       "local_files": [
         "dependencies.lock.json",
-        "scripts/transform_private_n64recomp_inputs.py",
-        "scripts/build_private_generated_root.py"
+        "scripts/build/transform_private_n64recomp_inputs.py",
+        "scripts/build/build_private_generated_root.py"
       ]
     },
     {
@@ -488,7 +488,7 @@
       "local_files": [
         "src/runtime/generated_overlay_runtime.cpp",
         "include/jfg/runtime/generated_overlay_runtime.hpp",
-        "tests/generated_overlay_runtime_tests.cpp"
+        "tests/runtime/generated_overlay_runtime_tests.cpp"
       ]
     },
     {
@@ -521,8 +521,8 @@
         }
       ],
       "local_files": [
-        "scripts/transform_private_n64recomp_inputs.py",
-        "scripts/build_private_generated_root.py"
+        "scripts/build/transform_private_n64recomp_inputs.py",
+        "scripts/build/build_private_generated_root.py"
       ]
     },
     {
@@ -556,7 +556,7 @@
       ],
       "local_files": [
         "src/runtime/generated_overlay_runtime.cpp",
-        "tests/generated_overlay_runtime_tests.cpp"
+        "tests/runtime/generated_overlay_runtime_tests.cpp"
       ]
     },
     {
@@ -595,7 +595,7 @@
         }
       ],
       "local_files": [
-        "scripts/transform_private_n64recomp_inputs.py"
+        "scripts/build/transform_private_n64recomp_inputs.py"
       ]
     },
     {
@@ -634,7 +634,7 @@
         }
       ],
       "local_files": [
-        "scripts/transform_private_n64recomp_inputs.py",
+        "scripts/build/transform_private_n64recomp_inputs.py",
         "include/jfg/runtime/generated_overlay_runtime.hpp"
       ]
     },
@@ -674,9 +674,9 @@
         }
       ],
       "local_files": [
-        "scripts/transform_private_n64recomp_inputs.py",
+        "scripts/build/transform_private_n64recomp_inputs.py",
         "src/runtime/generated_overlay_runtime.cpp",
-        "tests/generated_overlay_runtime_tests.cpp"
+        "tests/runtime/generated_overlay_runtime_tests.cpp"
       ]
     },
     {
@@ -778,7 +778,7 @@
       ],
       "local_files": [
         "src/boot/native_boot.cpp",
-        "scripts/phase95_observation.py"
+        "scripts/exploration/phase95_observation.py"
       ]
     },
     {
@@ -800,7 +800,7 @@
       ],
       "local_files": [
         "src/boot/native_boot.cpp",
-        "scripts/identify_libultra.py"
+        "scripts/build/identify_libultra.py"
       ]
     },
     {
@@ -839,7 +839,7 @@
         }
       ],
       "local_files": [
-        "tests/audio_task_bridge_tests.cpp",
+        "tests/runtime/audio_task_bridge_tests.cpp",
         "src/boot/native_boot.cpp"
       ]
     },
@@ -874,7 +874,7 @@
       ],
       "local_files": [
         "src/boot/native_boot.cpp",
-        "scripts/phase95_observation.py"
+        "scripts/exploration/phase95_observation.py"
       ]
     },
     {
@@ -907,8 +907,8 @@
         }
       ],
       "local_files": [
-        "scripts/phase95_observation.py",
-        "scripts/phase95_inventory.py"
+        "scripts/exploration/phase95_observation.py",
+        "scripts/exploration/phase95_inventory.py"
       ]
     },
     {
@@ -941,8 +941,8 @@
         }
       ],
       "local_files": [
-        "scripts/identify_libultra.py",
-        "tests/test_identify_libultra.py",
+        "scripts/build/identify_libultra.py",
+        "tests/build/test_identify_libultra.py",
         "dependencies.lock.json"
       ]
     },

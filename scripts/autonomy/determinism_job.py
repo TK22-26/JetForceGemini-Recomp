@@ -27,18 +27,19 @@ from scripts.compare_phase9_update_hashes import compare as compare_updates
 
 
 TOOL_FILES = (
+    "scripts/__init__.py",
     "scripts/autonomy/atomic_file.py",
     "scripts/autonomy/determinism_job.py",
     "scripts/autonomy/execution_contract.py",
     "scripts/autonomy/source_build.py",
     "scripts/autonomy/source_snapshot.py",
     "scripts/autonomy/update_job.py",
-    "scripts/phase95_bridge.py",
+    "scripts/exploration/phase95_bridge.py",
     "scripts/autonomy/supervisor.py",
-    "scripts/phase95_native_replay.py",
-    "scripts/phase9_point_probe.py",
-    "scripts/compare_phase9_retrace_hashes.py",
-    "scripts/compare_phase9_update_hashes.py",
+    "scripts/exploration/phase95_native_replay.py",
+    "scripts/diagnostics/phase9_point_probe.py",
+    "scripts/diagnostics/compare_phase9_retrace_hashes.py",
+    "scripts/diagnostics/compare_phase9_update_hashes.py",
 )
 EVIDENCE_NAMES = (
     "export-manifest.json", "controller.input", "initial.flash", "initial.pak",

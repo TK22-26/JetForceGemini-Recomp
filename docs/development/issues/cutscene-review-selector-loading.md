@@ -78,7 +78,6 @@ session-boundary concern to address. User requested side-by-side testing:
 read-only live note monitoring, immutable running preview, fixes staged separately
 and applied at an agreed stopping point. No scene requests are sent by monitoring.
 
-
 ## Restart replay regression (2026-10-20)
 
 Owner reproduced restarting Play into the previous requested scene after temporary
@@ -102,7 +101,6 @@ package has been updated with this candidate while preserving launcher, copied
 profile, baseline save, selector and notes. Owner restart confirmation remains
 pending. No gameplay was driven by this packaging check.
 
-
 ## Hidden selector handoff
 
 The replacement handoff launched the WinForms selector through PowerShell with
@@ -123,7 +121,6 @@ hypothesis requiring native-source confirmation. Distinguish this diagnostic
 scene-entry/exit limitation from ordinary campaign skip completion.
 Open; no verified remedy yet. Preserve the owner note in its original location.
 
-
 ### 2026-10-20: Credits frontend leaks into subsequently selected room
 
 The owner confirmed Disco Credits text remains over another scene loaded by
@@ -141,7 +138,6 @@ mode changes and missing context. Build/owner verification pending. The owner
 moved the note from361 to360 in their checklist; no checklist edits were made
 by the implementation.
 
-
 ### 2026-10-20: preview blocked by stale package manifest
 
 Installing the tested Quarry checklist runtime replaced the executable but
@@ -153,7 +149,6 @@ support identity and omitted stale symbol metadata. No game settings, copied
 save, baseline or owner notes were changed. This was a local candidate packaging
 regression; it is not a released game fault. Future candidate replacement must
 refresh and validate its package metadata before launching.
-
 
 ### BigShip no longer crashes, but selector appears to do nothing (2026-10-21 UTC)
 
@@ -177,7 +172,6 @@ specified. Preserve existing per-character notes and marks; do not mark this
 entry passed. Safe native setup and/or proper campaign context remains a
 follow-up. No runtime or selector mutation was made during the active review.
 
-
 ### 2026-10-21: Juno-only retest, frontend recovery and input handoff
 
 The owner confirms checked Juno entries pass; historical failure notes do not reopen them. Only unchecked Juno entries are active. In the recorded207/0 run, the completion handler returned to native character selection (room127, mode5); the process continued rendering. The review request handler then refused room127, preventing selection of another test scene. The candidate remembers the loaded review game mode and permits recovery from character selection/title only with that known context. Script-driven Credits entry uses the same retained review mode; native transition cleanup remains responsible for freeing the previous frontend. Normal campaign completion is unchanged.
@@ -190,14 +184,11 @@ bad068704a5fa6f308dc8d42dbe1d77d56cb104a6f0cdc0f458db16a39a95bae.
 Candidate selector SHA-256:
 456456381144975d5ca017d45215878027b858902cf53a285262adcb1c54df11. Evidence: private cutscene-skip/juno-final-retest-20261021. Cross-reference [current retest status](cutscene-owner-retest-20261020.md). No release or owner acceptance is inferred from component checks.
 
-
 The private selector now explains the existing BigShip standalone-entry rejection before sending a request, and shows per-variant context guidance for the other ten unchecked entries without established native exits. All rows, owner notes and checkboxes remain present and untouched. This fixes misleading Load scene feedback; it does not make those variants safe/skippable or mark them passed. Original308 entry at016009B8 and322 entry at02A022E8 both request group0, not the unresolved group1. The275 literal at09800608 is a sound call, not an entry path. No global unreachable/unused claim follows from these limited callers.
 
 An isolated check exposed a selector row-event ordering defect: SelectionChanged can run before CurrentCell updates, so reading CurrentRow there could retain the previous notes target. Changed the handler to CurrentCellChanged, which saves the previous dirty note before displaying the new row. A new direct-row-navigation check proves the old note saves under its original key and the selected row displays its own notes. The initial failed fixture and source are preserved; the corrected smoke and fresh-process reopen pass. The fixture invokes the actual Load handler directly because PerformClick on an invisible test form does not dispatch a click. No owner progress mutation occurred. Initial selection now matches the unchecked376/0 candidate. Live user review remains pending.
 
-
 2026-10-21 relaunch: the selector-presence query matched the orchestration PowerShell process itself because its -Command text contained the literal -File/Review-Cutscenes.ps1 search pattern. It therefore incorrectly concluded a selector existed. Excluding PowerShell -Command/-EncodedCommand hosts from the -File process search resolves the identification error; explicit window enumeration verifies the real review form is visible. No running game, owner note or checklist was modified. The failed presence/window checks are retained in the guarded queue and private candidate evidence.
-
 
 ##207 direct-entry prerequisite failure, October21
 
@@ -207,14 +198,10 @@ Candidate prepares unlock prerequisites0/1/2 through the native flag setter only
 
 Private original-native regression confirms both selection directions loop with the captured207 state, and both reach an eligible character after native unlock preparation. All other game-flag bytes remain unchanged. The first fixture accidentally carried its bounded instruction counter from the expected looping case into preparation, causing an uncaught test-limit exception; resetting that isolated fixture counter per case passes eight checks. Failed fixture logs are retained. This is not a production-guard counter reset or a game crash. Native build and both cutscene suites pass; live review remains pending.
 
-
 Owner acceptance2026-10-21 20:46UTC:376/0 and207/0 work on batch2 (96a6b257);405/2 already passed. Saved Juno boxes agree.335/0 and11 context-dependent entries remain unchecked. This is local owner verification, not a published resolution. See [current retest](cutscene-owner-retest-20261020.md).
-
 
 Owner acceptance20:55UTC:335/0 passed and207/0 re-confirmed. All four targeted Juno retests now pass. Only11 unchecked context-dependent entries and the separate native type145 qualification audit remain; current preview and owner notes unchanged.
 
-
 The remaining11 entries are classified as likely development/setup variants after the original631-exit scan and script audit. Normal exit data selects the already-passed378/2,409/1 and410/1. No actual source or owner notes were changed, and universal unreachability is not claimed. See [the detailed classification](cutscene-owner-retest-20261020.md).
-
 
 Final Juno audit: the type 145 follow-up is complete. It is the native FireWork particle/light control, distinct from type 147 texture animation. Only the incorrect source explanation changed; runtime code and accepted preview remain identical. All four targeted owner retests pass. The remaining 11 rows retain their likely development/setup classification and original notes. See [the final audit](cutscene-owner-retest-20261020.md).

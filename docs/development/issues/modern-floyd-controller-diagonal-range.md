@@ -43,7 +43,6 @@ Preview3 installed into the existing Modern Players and Floyd Preview, with prof
 
 Owner clarifies that mouse can reach corners directly and a held controller stick eventually reaches them. This is partial live confirmation of reach, not full response/centering acceptance. Original EmuHawk at a constant -65/-65 corner target approaches the bound over time: within one source pixel after16 VIs (about0.27s including input polling), numerically exactly -80/+80 after50 VIs. Neutral release returns toward centre. The original native reticle performs this easing; the Modern controller adapter supplies an absolute target and does not accumulate extra range by holding. No speed/bounds change made. A materially longer delay would require the exact physical stick trajectory; the current P1-only recording lacks raw P2 stick samples. Evidence: `floyd-bounds-20261021/hud-overlap-review/original-settling/result.json`.
 
-
 ## Final owner disposition for v1.4.0 (2026-10-21)
 
 The owner states that #37 and the associated Floyd work are fully approved

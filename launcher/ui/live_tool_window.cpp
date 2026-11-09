@@ -4,6 +4,7 @@
 #define NOMINMAX
 #include "native_ui.hpp"
 #include "../native/window_chrome.hpp"
+#include "../native/frontend_commands.hpp"
 #include <algorithm>
 #include <filesystem>
 #include <shellapi.h>
@@ -58,8 +59,8 @@ LRESULT CALLBACK liveProcedure(HWND w, UINT m, WPARAM p, LPARAM l) {
   case WM_GETMINMAXINFO: {
     auto *info = reinterpret_cast<MINMAXINFO *>(l);
     int dpi = static_cast<int>(GetDpiForWindow(w));
-    info->ptMinTrackSize = {MulDiv(live.kind == "settings" ? 620 : live.kind == "video" ? 760 : live.kind == "map" || live.kind == "controllers" ? 720 : 440, dpi, 96),
-                            MulDiv(live.kind == "settings" ? 300 : live.kind == "map" ? 500 : 540, dpi, 96)};
+    info->ptMinTrackSize = {MulDiv(live.kind == "about" ? 640 : live.kind == "audio" ? 440 : live.kind == "settings" ? 620 : live.kind == "video" ? 760 : live.kind == "map" || live.kind == "controllers" ? 720 : 440, dpi, 96),
+                            MulDiv(live.kind == "about" ? 420 : live.kind == "audio" ? 300 : live.kind == "settings" ? 300 : live.kind == "map" ? 500 : 540, dpi, 96)};
     return 0;
   }
   case WM_SIZE:
@@ -116,8 +117,10 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
       live.kind = name == L"map"         ? "map"
                   : name == L"inventory" ? "inventory"
                   : name == L"controllers" ? "controllers"
+                  : name == L"audio" ? "audio"
                   : name == L"video" ? "video"
                   : name == L"settings" ? "settings"
+                  : name == L"about" ? "about"
                                          : "";
       found = true;
     } else if (std::wstring(argv[i]) == L"--profile" && i + 1 < argc)
@@ -149,10 +152,10 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
   RegisterClassW(&cls);
   int density = static_cast<int>(IsWindow(live.owner) ? GetDpiForWindow(live.owner) : GetDpiForSystem());
   int initialX = CW_USEDEFAULT, initialY = CW_USEDEFAULT;
-  RECT size{0, 0, MulDiv(live.kind == "settings" ? 720 : live.kind == "video" ? 840 : live.kind == "map" ? 1200 : live.kind == "controllers" ? 1280 : 486, density, 96),
-            MulDiv(live.kind == "settings" ? 320 : live.kind == "video" ? 576 : live.kind == "map" ? 740 : live.kind == "controllers" ? 920 : 716, density, 96)};
+  RECT size{0, 0, MulDiv(live.kind == "about" ? 960 : live.kind == "audio" ? 520 : live.kind == "settings" ? 720 : live.kind == "video" ? 840 : live.kind == "map" ? 1200 : live.kind == "controllers" ? 1280 : 486, density, 96),
+            MulDiv(live.kind == "about" ? 640 : live.kind == "audio" ? 320 : live.kind == "settings" ? 320 : live.kind == "video" ? 576 : live.kind == "map" ? 740 : live.kind == "controllers" ? 920 : 716, density, 96)};
   AdjustWindowRectExForDpi(&size, WS_OVERLAPPEDWINDOW, FALSE, 0, density);
-  if(live.kind=="controllers" || live.kind=="video" || live.kind=="settings") {
+  if(live.kind=="controllers" || live.kind=="video" || live.kind=="audio" || live.kind=="settings" || live.kind=="about") {
     MONITORINFO monitor{sizeof(MONITORINFO)};
     if(GetMonitorInfoW(MonitorFromWindow(live.owner,MONITOR_DEFAULTTONEAREST),&monitor)) {
       const auto& work=monitor.rcWork;
@@ -167,9 +170,9 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
   }
   live.window = CreateWindowExW(
       0, cls.lpszClassName,
-      live.kind == "settings" ? L"Settings" : live.kind == "video" ? L"Video Settings" : live.kind == "map" ? L"JFG Live Map" : live.kind == "controllers" ? L"JFG Controller Mapping" : L"JFG Live Inventory",
+      live.kind == "about" ? L"About Jet Force Gemini" : live.kind == "audio" ? L"Audio Settings" : live.kind == "settings" ? L"Settings" : live.kind == "video" ? L"Video Settings" : live.kind == "map" ? L"JFG Live Map" : live.kind == "controllers" ? L"JFG Controller Mapping" : L"JFG Live Inventory",
       WS_OVERLAPPEDWINDOW, initialX, initialY, size.right - size.left,
-      size.bottom - size.top, (live.kind=="controllers" || live.kind=="video" || live.kind=="settings")?live.owner:nullptr, nullptr, instance, nullptr);
+      size.bottom - size.top, (live.kind=="controllers" || live.kind=="video" || live.kind=="audio" || live.kind=="settings" || live.kind=="about")?live.owner:nullptr, nullptr, instance, nullptr);
   if (!live.window)
     return 3;
   jfg::frontend::apply_window_chrome(live.window);
@@ -179,7 +182,10 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
   live.ready = FrontendUiInit(
       live.window, live.profile,
       [](const std::string &action) {
-        if (action == "modal-open" || action == "modal-close")
+        if (live.kind == "about") {
+          const auto command=jfg::frontend::about_command(action);
+          if (command && IsWindow(live.owner)) PostMessageW(live.owner,WM_COMMAND,command,0);
+        } else if (action == "modal-open" || action == "modal-close")
           notifyModal();
         else if (action == "inventory") {
           if (IsWindow(live.owner))
@@ -207,7 +213,7 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
     DestroyWindow(live.window);
     return 3;
   }
-  if(live.kind!="controllers" && live.kind!="video" && live.kind!="settings") {
+  if(live.kind!="controllers" && live.kind!="video" && live.kind!="audio" && live.kind!="settings" && live.kind!="about") {
   std::wstring command =
       quoteLive(live.helper.wstring()) + L" --frontend-worker " +
       (live.kind == "map" ? std::wstring(L"map-data")
@@ -248,7 +254,7 @@ int FrontendLiveToolEntry(HINSTANCE instance, int show) {
   CloseHandle(child.hThread);
   }
   if(live.kind=="video" || live.kind=="settings")EnableWindow(live.owner,FALSE);
-  if(live.kind=="controllers" || live.kind=="video" || live.kind=="settings"){SetPropW(live.window,L"JfgLiveModal",reinterpret_cast<HANDLE>(1));notifyModal();}
+  if(live.kind=="controllers" || live.kind=="video" || live.kind=="audio" || live.kind=="settings"){SetPropW(live.window,L"JfgLiveModal",reinterpret_cast<HANDLE>(1));notifyModal();}
   FrontendUiFrame({});
   ShowWindow(live.window, show);
   UpdateWindow(live.window);

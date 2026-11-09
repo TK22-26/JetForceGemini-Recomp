@@ -123,7 +123,7 @@ dispatch_queue_call(GuestMemory &memory,
                     const QueueDispatchCall &call) noexcept;
 
 // Maps identified libultra ROM addresses to HLE handlers. The vram→function
-// pairs come from the private identification (scripts/identify_libultra.py);
+// pairs come from the private identification (scripts/build/identify_libultra.py);
 // they are supplied at construction, never hardcoded from ROM-derived data.
 class HleDispatch final {
 public:

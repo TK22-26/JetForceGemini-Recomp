@@ -2,6 +2,7 @@
 #include <cstdio>
 #include "jfg/runtime/snapshot_copy.hpp"
 #include "jfg/renderer/rt64_shell.hpp"
+#include "jfg/runtime/support_log.hpp"
 #include "jfg/renderer/native_blur.hpp"
 #include "jfg/renderer/native_blur_mode.hpp"
 #include "jfg/renderer/blur_source_audit.hpp"
@@ -237,7 +238,7 @@ void clear_vi_guard_texel(
     // undefined, so linear VI sampling otherwise repeats it as a colored
     // edge. Clip exactly one source texel after VI scaling without touching
     // guest RDRAM or the rendered image interior.
-    const auto display = jfg::vi_presentation_size(vi.hRegion.word, vi.vRegion.word);
+    const auto display = jfg::vi_presentation_size(vi.hRegion.word, vi.vRegion.word, vi.vSync);
     if (!display.valid()) return;
     const double scale = (std::min)(
         static_cast<double>(window_width) / display.width,
@@ -411,6 +412,7 @@ bool CaptureContext::finish() noexcept {
 }
 
 struct Rt64Shell::Impl {
+    std::optional<RendererGameLayout> game_layout;
     std::array<std::uint8_t, kRt64RequiredHeaderBytes> header{};
     std::vector<std::uint8_t> rdram =
         std::vector<std::uint8_t>(kRt64RequiredRdramBytes);
@@ -452,6 +454,7 @@ struct Rt64Shell::Impl {
 
 Rt64ShellError validate_rt64_shell_configuration(
     const Rt64ShellConfiguration& configuration) noexcept {
+    if (!valid_graphics_api(configuration.graphics_api)) return Rt64ShellError::setup_invalid_graphics_api;
     if (configuration.experimental_refresh_rate != 0U &&
         (configuration.experimental_refresh_rate < 60U ||
          configuration.experimental_refresh_rate > 1000U)) {
@@ -891,6 +894,33 @@ Rt64ShellError Rt64Shell::copy_private_rdram_snapshot(
 std::unique_ptr<Rt64Shell> Rt64Shell::create(
     const Rt64ShellConfiguration& configuration,
     Rt64ShellError& error) noexcept {
+    // A scope report covers every early initialization failure as well as success.
+    struct SetupReport {
+        Rt64ShellError& error;
+        ~SetupReport() {
+            const char* event = "renderer_setup=invalid-config";
+            switch (error) {
+            case Rt64ShellError::none: event = "renderer_setup=ready"; break;
+            case Rt64ShellError::setup_dynamic_libraries_missing: event = "renderer_setup=libraries-missing"; break;
+            case Rt64ShellError::setup_invalid_graphics_api: event = "renderer_setup=invalid-api"; break;
+            case Rt64ShellError::setup_graphics_api_not_found: event = "renderer_setup=api-unavailable"; break;
+            case Rt64ShellError::setup_graphics_device_not_found: event = "renderer_setup=device-unavailable"; break;
+            case Rt64ShellError::setup_graphics_api_override: event = "renderer_setup=override-required"; break;
+            case Rt64ShellError::render_hook_unavailable: event = "renderer_setup=hook-unavailable"; break;
+            case Rt64ShellError::renderer_exception: event = "renderer_setup=exception"; break;
+            default: break;
+            }
+            support_event(event);
+        }
+    } report{error};
+    char requested[48]{};
+    std::snprintf(requested, sizeof(requested), "renderer_requested=%s", graphics_api_name(configuration.graphics_api).data());
+    support_event(requested);
+#if defined(_WIN32)
+    const auto renderWindow = static_cast<HWND>(configuration.native_window);
+    support_event(GetParent(renderWindow) && GetPropW(GetAncestor(renderWindow, GA_ROOT), L"JfgFrontend")
+        ? "renderer_host=launcher" : "renderer_host=standalone");
+#endif
     error = validate_rt64_shell_configuration(configuration);
     if (error != Rt64ShellError::none) {
         return nullptr;
@@ -914,6 +944,7 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
             return nullptr;
         }
         impl->simulation_rdram = impl->rdram;
+        impl->game_layout = configuration.game_layout;
         impl->task_rdram_copy = impl->rdram;
         impl->task_rdram = impl->task_rdram_copy;
 
@@ -972,6 +1003,9 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
             error = Rt64ShellError::render_hook_unavailable;
             return nullptr;
         }
+        using Api = RT64::UserConfiguration::GraphicsAPI;
+        impl->application->userConfig.graphicsAPI = configuration.graphics_api == GraphicsApi::d3d12 ? Api::D3D12
+            : configuration.graphics_api == GraphicsApi::vulkan ? Api::Vulkan : Api::Automatic;
         impl->application->userConfig.developerMode =
             configuration.developer_mode;
         // JFG draws CPU overlays into the buffer selected by the N64 VI.
@@ -999,6 +1033,17 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
             error = result;
             return nullptr;
         }
+        const auto selected = impl->application->chosenGraphicsAPI;
+        support_event(selected == Api::D3D12 ? "renderer_selected=d3d12" :
+                      selected == Api::Vulkan ? "renderer_selected=vulkan" :
+                      selected == Api::Metal ? "renderer_selected=metal" : "renderer_selected=unknown");
+        // Retain upstream driver safety rules, but never silently satisfy an
+        // explicit choice with a different API. Auto accepts those fallbacks.
+        if ((configuration.graphics_api == GraphicsApi::d3d12 && selected != Api::D3D12) ||
+            (configuration.graphics_api == GraphicsApi::vulkan && selected != Api::Vulkan)) {
+            error = Rt64ShellError::setup_graphics_api_override;
+            return nullptr;
+        }
         if (impl->application->state == nullptr ||
             impl->application->interpreter == nullptr ||
             impl->application->workloadQueue == nullptr ||
@@ -1007,7 +1052,7 @@ std::unique_ptr<Rt64Shell> Rt64Shell::create(
             return nullptr;
         }
         impl->initialized = true;
-        impl->f3ddkr = std::make_unique<Rt64F3ddkr>(*impl->application, configuration.experimental_refresh_rate != 0U || configuration.unlimited_presentation);
+        impl->f3ddkr = std::make_unique<Rt64F3ddkr>(*impl->application, configuration.experimental_refresh_rate != 0U || configuration.unlimited_presentation, configuration.game_layout);
         error = Rt64ShellError::none;
         return std::unique_ptr<Rt64Shell>(
             new Rt64Shell(std::move(impl)));
@@ -1041,7 +1086,7 @@ Rt64ShellError Rt64Shell::submit(const Rt64GraphicsTask& task) noexcept {
         }
         // CPU post-processing of offscreen results must be visible to texture
         // loads. GPU framebuffer reuse can otherwise bypass those RAM writes.
-        const auto blur = native_blur_pass(impl_->task_rdram, task.command_address);
+        const auto blur = impl_->game_layout ? native_blur_pass(*impl_->game_layout,impl_->task_rdram, task.command_address) : std::nullopt;
         const auto blurMode = native_blur_render_mode();
         const bool gpuBlur = blur && (blurMode == 1U || blurMode >= 3U);
         if (blur && blurMode == 5U)
@@ -1395,6 +1440,8 @@ const char* rt64_shell_error_message(const Rt64ShellError error) noexcept {
         return "RT64 graphics API is unavailable";
     case Rt64ShellError::setup_graphics_device_not_found:
         return "RT64 graphics device is unavailable";
+    case Rt64ShellError::setup_graphics_api_override:
+        return "Selected graphics API requires a driver compatibility fallback; choose Auto in Video Settings";
     case Rt64ShellError::render_hook_unavailable:
         return "RT64 render hook is already owned by another shell";
     case Rt64ShellError::invalid_framebuffer:

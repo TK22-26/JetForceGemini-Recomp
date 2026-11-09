@@ -36,7 +36,7 @@ def derive(state: Path, event_id: str, event: dict, repo: Path) -> tuple[Path, d
         "native_updates_sha256": file_sha256(native),
         "oracle_updates_sha256": file_sha256(oracle),
         "analyzer_sha256": file_sha256(
-            Path(repo) / "scripts" / "phase9_update_poll_alignment.py"),
+            Path(repo) / "scripts/diagnostics/phase9_update_poll_alignment.py"),
         "diagnostic": diagnostic,
         "alignment_validated": False, "parity_verified": False,
     }

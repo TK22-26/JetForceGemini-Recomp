@@ -4,7 +4,7 @@
 - Status: owner-approved amber card and browser actions verified; committed and delivered in the local preview. No public release.
 - Reported: 2026-10-11 UTC; latest followup: 2026-10-16 UTC.
 - Affected: published v1.1.0 Windows x64 launcher and earlier versions.
-- Related: [launcher guide](../launcher.md), [dashboard](../../dashboard.md).
+- Related: [launcher guide](../launcher.md), [dashboard](../../status.md).
 
 ## Symptoms and reproduction
 
@@ -25,7 +25,9 @@ download or ROM-import failure.
 
 Add a background helper that reads the public GitHub latest stable release API,
 compares numeric version components, and writes an atomic frontend result.
-The native UI checks at startup, offers Help > Check for updatesâ€¦, and retains
+
+The native UI checks at startup, offers Help > Check for updates…, and retains
+
 a home-screen notice for newer releases. A fixed project URL opens the download
 page only on request. The helper caps response size and request duration and
 reports offline, invalid-data and rate-limit failures without blocking gameplay.
@@ -100,7 +102,6 @@ request as proof of being current, and keep network requests off the UI thread.
 Use the [GitHub latest-release API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release)
 without accepting remote executable paths or download instructions.
 
-
 ## Owner-approved update card (2026-10-16)
 
 The owner supplied `scooby-launcher.zip` and a screenshot of its larger update card below Play. The final implementation follows that layout with JFG amber, a download icon, version badge, installed-version subtitle and two buttons. **What's new** opens the main project repository; **Update now** opens its latest release/download page. The owner approved this appearance and these destinations. Existing version comparison, background request bounds and offline behavior are retained. No automatic installer or release-note transport was added.
@@ -116,7 +117,6 @@ The initial top-right green menu pill was rejected: the owner wanted the larger 
 The final source passes **78 native update UI assertions**, **28 release-checker cases**, and a real packaged-helper request reporting current / v1.1.0 without touching gameplay status. Checks cover startup/manual retry, newer/current/error/timeout behavior, known-update retention, escaping, pointer actions, gameplay hiding, compact layout and 150% DPI. The imported-ROM card fits above the footer; a small first-run client can scroll. Tests explicitly verify both repository and release actions. The normal API has no newer stable release today, so positive banner behavior uses synthetic versions.
 
 The separate controls audit passes **790 native UI assertions**, including the controller vertical toggle's persistence and effect on both camera and aim. Those tests do not establish hardware-specific startup or full gameplay acceptance. See [release-readiness review](github-release-readiness-20261016.md) and [updater qualification](../../../evidence/launcher-update-button.json). No published v1.1.0 binary is changed retroactively. The owner-accepted game runtime remains unchanged in this launcher update.
-
 
 ### Local delivery
 

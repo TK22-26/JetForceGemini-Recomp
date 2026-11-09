@@ -30,6 +30,7 @@ from scripts.phase95_planner_pin import SOURCES, source_pin
 REGISTRATION = "frontier-registration.json"
 PREFIX = "frontier-cycle-packet:"
 TOOL_FILES = (
+    "scripts/__init__.py",
     "scripts/autonomy/atomic_file.py",
     "scripts/autonomy/frontier_cycle_job.py",
     "scripts/autonomy/supervisor.py",
@@ -44,7 +45,7 @@ def _private(repo: Path) -> Path:
 
 
 def tool_sha256(repo: Path) -> str:
-    planner = source_pin(repo / "scripts" / name for name in SOURCES)
+    planner = source_pin(repo / "scripts/exploration" / name for name in SOURCES)
     entries = {"planner": planner["sha256"]}
     entries.update({name: file_sha256(repo / name) for name in TOOL_FILES})
     return hashlib.sha256(canonical_bytes(entries)).hexdigest()

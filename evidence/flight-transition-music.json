@@ -1,0 +1,848 @@
+{
+  "schema": 1,
+  "issue": 45,
+  "status": "ntsc_walkway_override_removed_replay_verified_vela_expectations_open",
+  "source_base_commit": "d98d7fc265169d6df4a83ec45776dfa5394c739a",
+  "source_dirty": true,
+  "runtime_sha256": "7545c322bb20295acba31b1e105c2af44246fc2209547aec61e595cf2e3092e2",
+  "source_sha256": "3eb154feab34d49ec347cc122e7490ba8b5391ba6a41abd0392ea6f517be1921",
+  "header_sha256": "e65e3bed326bdd5a079b7dcd293dec6f21dbcd0152f1183560bdfe5dc3afd783",
+  "build_method": "Incremental native boot build from current source with retained qualified generated CPU/audio/renderer objects; not a full rebuild of all outstanding source changes. Private diagnostic observer excluded from review executable.",
+  "selection_contracts": [
+    {
+      "level": 15,
+      "group": 1,
+      "sequence_asset": 15,
+      "header_track": 2,
+      "selected_track": 7
+    },
+    {
+      "level": 88,
+      "group": 0,
+      "sequence_asset": 91,
+      "header_track": 21,
+      "selected_track": 7
+    },
+    {
+      "level": 20,
+      "group": 0,
+      "sequence_asset": 20,
+      "header_track": 23,
+      "selected_track": 7
+    }
+  ],
+  "unit_checks": {
+    "flight_transition_music": 486,
+    "cutscene_audio": 62,
+    "cutscene_skip": 8794,
+    "cutscene_review": 74
+  },
+  "route_checks": [
+    {
+      "label": "v2-15-1-custom-60",
+      "mode": "custom",
+      "fps": 60,
+      "skip": false,
+      "levels": [
+        0,
+        385,
+        35,
+        102,
+        236,
+        15,
+        4294967295,
+        127
+      ],
+      "music_starts": [
+        {
+          "level": 15,
+          "group": 1,
+          "track": 7
+        }
+      ],
+      "events": [
+        [
+          "flight-music-next",
+          1578,
+          15,
+          1,
+          7
+        ],
+        [
+          "flight-music-correction",
+          1595,
+          15,
+          1,
+          2,
+          7
+        ]
+      ]
+    },
+    {
+      "label": "v2-20-0-custom-60",
+      "mode": "custom",
+      "fps": 60,
+      "skip": false,
+      "levels": [
+        0,
+        385,
+        236,
+        271,
+        20,
+        4294967295,
+        127
+      ],
+      "music_starts": [
+        {
+          "level": 20,
+          "group": 0,
+          "track": 7
+        }
+      ],
+      "events": [
+        [
+          "flight-music-next",
+          1602,
+          20,
+          0,
+          7
+        ],
+        [
+          "flight-music-correction",
+          1617,
+          20,
+          0,
+          23,
+          7
+        ]
+      ]
+    },
+    {
+      "label": "v2-342-1-custom-60",
+      "mode": "custom",
+      "fps": 60,
+      "skip": false,
+      "levels": [
+        0,
+        385,
+        66,
+        236,
+        342,
+        4294967295,
+        127
+      ],
+      "music_starts": [
+        {
+          "level": 342,
+          "group": 1,
+          "track": 7
+        }
+      ],
+      "events": []
+    },
+    {
+      "label": "v2-15-1-original-60",
+      "mode": "original",
+      "fps": 60,
+      "skip": false,
+      "levels": [
+        0,
+        385,
+        35,
+        102,
+        236,
+        15,
+        4294967295,
+        127
+      ],
+      "music_starts": [
+        {
+          "level": 15,
+          "group": 1,
+          "track": 7
+        }
+      ],
+      "events": [
+        [
+          "flight-music-next",
+          1578,
+          15,
+          1,
+          7
+        ],
+        [
+          "flight-music-correction",
+          1595,
+          15,
+          1,
+          2,
+          7
+        ]
+      ]
+    },
+    {
+      "label": "v2-94-0-custom-120",
+      "mode": "custom",
+      "fps": 120,
+      "skip": false,
+      "levels": [
+        0,
+        385,
+        236,
+        368,
+        88,
+        4294967295,
+        94,
+        127
+      ],
+      "music_starts": [
+        {
+          "level": 94,
+          "group": 0,
+          "track": 7
+        }
+      ],
+      "events": [
+        [
+          "flight-music-next",
+          2453,
+          88,
+          0,
+          7
+        ],
+        [
+          "flight-music-correction",
+          2463,
+          88,
+          0,
+          21,
+          7
+        ]
+      ]
+    },
+    {
+      "label": "v2-20-0-custom-120",
+      "mode": "custom",
+      "fps": 120,
+      "skip": false,
+      "levels": [
+        0,
+        385,
+        236,
+        271,
+        20,
+        4294967295,
+        127
+      ],
+      "music_starts": [
+        {
+          "level": 20,
+          "group": 0,
+          "track": 7
+        }
+      ],
+      "events": [
+        [
+          "flight-music-next",
+          1588,
+          20,
+          0,
+          7
+        ],
+        [
+          "flight-music-correction",
+          1605,
+          20,
+          0,
+          23,
+          7
+        ]
+      ]
+    },
+    {
+      "label": "v2-15-1-custom-60-skip",
+      "mode": "custom",
+      "fps": 60,
+      "skip": true,
+      "levels": [
+        0,
+        385,
+        35,
+        236,
+        15,
+        4294967295,
+        127
+      ],
+      "music_starts": [
+        {
+          "level": 15,
+          "group": 1,
+          "track": 7
+        }
+      ],
+      "events": [
+        [
+          "flight-music-next",
+          1569,
+          15,
+          1,
+          7
+        ],
+        [
+          "flight-music-correction",
+          1585,
+          15,
+          1,
+          2,
+          7
+        ],
+        [
+          "cutscene-skip-confirm",
+          2184,
+          4222131095965956
+        ],
+        [
+          "cutscene-skip-complete",
+          2184,
+          15,
+          1,
+          102,
+          0,
+          0,
+          1
+        ],
+        [
+          "cutscene-skip-complete",
+          2205,
+          102,
+          0,
+          35,
+          0,
+          0,
+          2
+        ]
+      ]
+    },
+    {
+      "label": "v2-94-0-custom-60-skip",
+      "mode": "custom",
+      "fps": 60,
+      "skip": true,
+      "levels": [
+        0,
+        385,
+        236,
+        53,
+        4294967295,
+        94,
+        127
+      ],
+      "music_starts": [
+        {
+          "level": 94,
+          "group": 0,
+          "track": 7
+        }
+      ],
+      "events": [
+        [
+          "cutscene-skip-confirm",
+          2182,
+          26458649961013676
+        ],
+        [
+          "cutscene-skip-complete",
+          2182,
+          94,
+          0,
+          88,
+          0,
+          0,
+          1
+        ],
+        [
+          "flight-music-next",
+          2186,
+          88,
+          0,
+          7
+        ],
+        [
+          "flight-music-correction",
+          2196,
+          88,
+          0,
+          21,
+          7
+        ],
+        [
+          "cutscene-skip-complete",
+          2200,
+          88,
+          0,
+          368,
+          0,
+          0,
+          2
+        ],
+        [
+          "cutscene-skip-complete",
+          2214,
+          368,
+          0,
+          53,
+          0,
+          0,
+          3
+        ]
+      ]
+    },
+    {
+      "label": "v2-20-0-custom-60-skip",
+      "mode": "custom",
+      "fps": 60,
+      "skip": true,
+      "levels": [
+        0,
+        385,
+        236,
+        20,
+        276,
+        4294967295,
+        127
+      ],
+      "music_starts": [
+        {
+          "level": 20,
+          "group": 0,
+          "track": 7
+        }
+      ],
+      "events": [
+        [
+          "flight-music-next",
+          1568,
+          20,
+          0,
+          7
+        ],
+        [
+          "flight-music-correction",
+          1584,
+          20,
+          0,
+          23,
+          7
+        ],
+        [
+          "cutscene-skip-confirm",
+          2183,
+          5629501684614812
+        ],
+        [
+          "cutscene-skip-complete",
+          2183,
+          20,
+          0,
+          271,
+          0,
+          0,
+          1
+        ],
+        [
+          "cutscene-skip-complete",
+          2199,
+          271,
+          0,
+          275,
+          0,
+          0,
+          2
+        ],
+        [
+          "cutscene-skip-complete",
+          2220,
+          275,
+          0,
+          276,
+          0,
+          0,
+          3
+        ]
+      ]
+    },
+    {
+      "label": "v2-sekhmet-60",
+      "mode": "custom",
+      "fps": 60,
+      "skip": false,
+      "levels": [
+        0,
+        385,
+        236,
+        368,
+        88,
+        4294967295,
+        94,
+        127
+      ],
+      "theme_starts": 1,
+      "next_tune": [
+        [
+          2435,
+          88,
+          0,
+          7
+        ]
+      ],
+      "header_corrections": [
+        [
+          2445,
+          88,
+          0,
+          21,
+          7
+        ]
+      ]
+    },
+    {
+      "label": "v2-walkway-native-exit",
+      "mode": "custom",
+      "fps": 60,
+      "skip": false,
+      "levels": [
+        0,
+        385,
+        35,
+        102,
+        236,
+        15,
+        22,
+        4294967295,
+        127
+      ],
+      "diagnostic_inbound_and_exit_contact": true,
+      "native_prompt_and_transition": true,
+      "header_corrections": [
+        [
+          4100,
+          15,
+          1,
+          2,
+          7
+        ]
+      ],
+      "next_tune": [
+        [
+          4089,
+          15,
+          1,
+          7
+        ]
+      ]
+    }
+  ],
+  "pcm_capture": {
+    "frequency_hz": 22018,
+    "format": "stereo signed 16-bit little-endian before host master volume",
+    "nonzero_audio_assertions_passed": true,
+    "unaffected_water_ruin_control": true,
+    "all_three_60_fps_before_after": true,
+    "target_measurements": [
+      {
+        "label": "v2-15-1-custom-60",
+        "level": 15,
+        "rms": 7684.46,
+        "frequency_hz": 22018,
+        "underruns": 0,
+        "overruns": 0
+      },
+      {
+        "label": "v2-sekhmet-60",
+        "level": 88,
+        "rms": 5429.14,
+        "frequency_hz": 22018,
+        "underruns": 0,
+        "overruns": 0
+      },
+      {
+        "label": "v2-20-0-custom-60",
+        "level": 20,
+        "rms": 7361.55,
+        "frequency_hz": 22018,
+        "underruns": 0,
+        "overruns": 0
+      },
+      {
+        "label": "v2-342-1-custom-60",
+        "level": 342,
+        "rms": 8485.64,
+        "frequency_hz": 22018,
+        "underruns": 0,
+        "overruns": 0
+      }
+    ]
+  },
+  "qualification_limits": [
+    "Hardware listening and exact soundtrack/engine-effects mix remain pending.",
+    "Only the supported US ROM was executed; no European ROM comparison was made.",
+    "Most captures use diagnostic scene entry; the Walkway exit test additionally uses diagnostic exit contact followed by the native confirmation and transition.",
+    "Normal captures qualify the reported missing shots and following handoff, not a complete fresh playthrough.",
+    "No release, commit, push, GitHub reply or issue closure."
+  ],
+  "guard": {
+    "enabled": true,
+    "investigation": "high-refresh-rendering-20261011",
+    "owner_authorization": "approved 2 hours",
+    "root_and_all_prior_charges_preserved": true
+  },
+  "candidate_revision": 2,
+  "implementation": "Correct the loaded header before levelTunePlay and supply the same tune to the pinned next-scene levelGetTune comparison, using exact scene/group/asset and pending destination/group/US summary identities. Native code owns stop/keep/start, fades, volume and explicit scripts. ROM and persistent level-summary bytes unchanged.",
+  "historical_status_before_owner_correction": "candidate_test_verified_live_listening_pending",
+  "owner_correction_20261031": {
+    "route": "Leaving Walkway for SS Anubis",
+    "region": "NTSC, owner-reported original N64 hardware",
+    "owner_clarification": "Just rechecked leaving walkway.",
+    "observation": "The original hardware also omits this music; earlier expected-music claim used the wrong cutscene.",
+    "walkway_candidate": "Withdrawn as a fidelity fix; still present in source and review runtime pending removal.",
+    "pal": "Superseded by subsequent PAL EmuHawk owner confirmation below; initial correction preceded that comparison.",
+    "other_candidate_routes": "Sekhmet and Goldwood/Vela departures not covered by this recheck; remain unverified.",
+    "test_evidence": "Historical test results and runtime hashes below are retained unchanged; they demonstrate added music, not original-hardware correctness.",
+    "github_issue": "Remains open; no external update performed."
+  },
+  "owner_regional_comparison_20261031": {
+    "route": "Leaving Walkway for SS Anubis",
+    "ntsc": {
+      "platform": "Original N64 hardware, owner report",
+      "music": "absent"
+    },
+    "pal": {
+      "platform": "Original Europe ROM in EmuHawk 2.11.1 / Mupen64Plus",
+      "normalized_rom_sha1": "50651c4e0c46332f7f0b45870263f0a8b9a49602",
+      "music": "present, owner live listening report",
+      "walkway_placement": "owner confirmed",
+      "automated_audio_capture": false,
+      "physical_pal_hardware_tested": false
+    },
+    "japanese": "Not tested",
+    "interpretation": "Observed regional behavior difference; underlying ROM/code/asset cause not isolated. US Walkway insertion remains withdrawn and removal is pending. Other routes remain unverified.",
+    "future_work": "Owner requested PAL and Japanese ROM support separately; not part of reorganization.",
+    "save_isolation": "Modified only slot 1 in copied SaveRAM plus its checksum; other slots/devices and original source save hash verified unchanged.",
+    "controller_setup": "Temporary positioning loop stopped and analog bindings restored; owner confirmed normal controller input.",
+    "release_status": "No runtime rollback, new region support, commit, release, or GitHub update."
+  },
+  "historical_candidate_scope": "Existing top-level candidate hashes, contracts and route checks describe the superseded October 31 three-route insertion; current rollback evidence is recorded separately below.",
+  "ntsc_walkway_rollback_20261101": {
+    "source_base_commit": "0b691d069a180f469a2f02fddb0ecefe87165044",
+    "source_dirty_at_build": true,
+    "runtime_sha256": "700f84955b3f7d85233111f9194c2af57bc36b97494a4783101670a47b8888d0",
+    "header_sha256": "869953f13764b7abe8fcc8c7b986e1cc1d92c8c1e6fedb26292d8ee02f83ed12",
+    "private_artifact_id": "reorganization-followups-20261101",
+    "build_method": "Changed native host translation units compiled and linked against retained qualified generated CPU/audio/renderer objects; no fresh ROM-to-game generation.",
+    "removed_override": {
+      "level": 15,
+      "group": 1,
+      "asset": 15
+    },
+    "remaining_candidate_levels": [
+      88,
+      20
+    ],
+    "ctest_cases": 118,
+    "python_suite_tests": 1816,
+    "python_suite_skips": 49,
+    "routes": [
+      {
+        "label": "current-walkway-normal",
+        "exit_code": 0,
+        "levels": [
+          0,
+          385,
+          35,
+          102,
+          236,
+          15,
+          4294967295,
+          127
+        ],
+        "seconds": 72.61,
+        "diagnostic_positioning_then_native_exit": false,
+        "events": [],
+        "music_starts": [
+          {
+            "level": 15,
+            "group": 1,
+            "track": 2
+          },
+          {
+            "level": 102,
+            "group": 0,
+            "track": 7
+          }
+        ]
+      },
+      {
+        "label": "current-walkway-skip",
+        "exit_code": 0,
+        "levels": [
+          0,
+          385,
+          35,
+          236,
+          15,
+          4294967295,
+          127
+        ],
+        "seconds": 66.203,
+        "diagnostic_positioning_then_native_exit": false,
+        "events": [
+          [
+            "cutscene-skip-confirm",
+            2170,
+            4222131095965956
+          ],
+          [
+            "cutscene-skip-complete",
+            2170,
+            15,
+            1,
+            102,
+            0,
+            0,
+            1
+          ],
+          [
+            "cutscene-skip-complete",
+            2190,
+            102,
+            0,
+            35,
+            0,
+            0,
+            2
+          ]
+        ],
+        "music_starts": [
+          {
+            "level": 15,
+            "group": 1,
+            "track": 2
+          },
+          {
+            "level": 102,
+            "group": 0,
+            "track": 7
+          }
+        ]
+      },
+      {
+        "label": "current-vela-lodge",
+        "exit_code": 0,
+        "levels": [
+          0,
+          385,
+          236,
+          271,
+          20,
+          4294967295,
+          127
+        ],
+        "seconds": 66.14,
+        "diagnostic_positioning_then_native_exit": false,
+        "events": [
+          [
+            "flight-music-next",
+            1565,
+            20,
+            0,
+            7
+          ],
+          [
+            "flight-music-correction",
+            1578,
+            20,
+            0,
+            23,
+            7
+          ]
+        ],
+        "music_starts": [
+          {
+            "level": 20,
+            "group": 0,
+            "track": 7
+          }
+        ]
+      },
+      {
+        "label": "current-control-after",
+        "exit_code": 0,
+        "levels": [
+          0,
+          385,
+          66,
+          236,
+          342,
+          4294967295,
+          127
+        ],
+        "seconds": 66.234,
+        "diagnostic_positioning_then_native_exit": false,
+        "events": [],
+        "music_starts": [
+          {
+            "level": 342,
+            "group": 1,
+            "track": 7
+          }
+        ]
+      },
+      {
+        "label": "current-walkway-native-exit",
+        "exit_code": 0,
+        "levels": [
+          0,
+          385,
+          35,
+          102,
+          236,
+          15,
+          22,
+          4294967295,
+          127
+        ],
+        "seconds": 114.063,
+        "diagnostic_positioning_then_native_exit": true,
+        "events": [],
+        "music_starts": [
+          {
+            "level": 15,
+            "group": 0,
+            "track": 2
+          },
+          {
+            "level": 15,
+            "group": 0,
+            "track": 7
+          },
+          {
+            "level": 15,
+            "group": 1,
+            "track": 2
+          },
+          {
+            "level": 102,
+            "group": 0,
+            "track": 7
+          }
+        ]
+      }
+    ],
+    "owner_listening_of_rollback": false,
+    "native_ntsc_expectation": "Owner reconfirmed no departure music leaving Walkway on physical N64.",
+    "pal_expectation": "Owner heard departure music in the original PAL ROM in EmuHawk; not a PAL hardware test.",
+    "japanese_music_behavior": "unverified",
+    "released": false,
+    "issue_closed": false
+  }
+}

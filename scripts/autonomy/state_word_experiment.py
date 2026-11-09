@@ -294,9 +294,9 @@ def measure(context, capture):
 def tool_sha():
     paths = [Path(__file__), experiment_plan.SCHEMA_FILE, Path(experiment_plan.__file__),
              Path(__file__).with_name("candidate_feedback.py"),
-             Path(__file__).parents[1] / "compare_phase9_focus_rdram.py",
-             Path(__file__).parents[1] / "compare_phase9_update_hashes.py",
-             Path(__file__).parents[1] / "phase9_oracle_count_ledger.py"]
+             Path(__file__).parents[1] / "diagnostics/compare_phase9_focus_rdram.py",
+             Path(__file__).parents[1] / "diagnostics/compare_phase9_update_hashes.py",
+             Path(__file__).parents[1] / "diagnostics/phase9_oracle_count_ledger.py"]
     return hashlib.sha256(canonical_bytes({path.name: file_sha256(path) for path in paths})).hexdigest()
 
 

@@ -225,10 +225,10 @@ def tool_sha():
     files = [Path(__file__),Path(point_plan.__file__),point_plan.SCHEMA_FILE,Path(point_runtime.__file__),
              Path(point_observation.__file__),Path(point_anchors.__file__),Path(point_prompt.__file__),Path(words.__file__),Path(entry_experiment.__file__),
              Path(__file__).with_name("entry_observation.py"),
-             Path(__file__).parents[1]/"compare_phase9_focus_rdram.py",
-             Path(__file__).parents[1]/"compare_phase9_update_hashes.py",
-             Path(__file__).parents[1]/"compare_phase9_retrace_hashes.py",
-             Path(__file__).parents[1]/"phase9_point_probe.py",Path(__file__).parents[1]/"compare_phase9_point_pacing.py"]
+             Path(__file__).parents[1] / "diagnostics/compare_phase9_focus_rdram.py",
+             Path(__file__).parents[1] / "diagnostics/compare_phase9_update_hashes.py",
+             Path(__file__).parents[1] / "diagnostics/compare_phase9_retrace_hashes.py",
+             Path(__file__).parents[1] / "diagnostics/phase9_point_probe.py",Path(__file__).parents[1] / "diagnostics/compare_phase9_point_pacing.py"]
     return hashlib.sha256(canonical_bytes({**{path.name:file_sha256(path) for path in files},
                                           "word_dependency_closure": words.tool_sha()})).hexdigest()
 

@@ -26,9 +26,86 @@ The four [execution profile axes](../adr/0002-execution-profiles.md) (behavior,
 execution backend, presentation, feature set) govern how optional behavior and
 deterministic testing are separated.
 
+## Native host ownership
+
+[Native modularization](issues/native-runtime-modularization.md) maps the private implementation
+files under `src/boot/native/`. `native_boot.cpp` coordinates startup and the run loop; memory,
+window, audio, overlay loading, saves, task submission and diagnostics have separate owners.
+Shared State preserves its member order and single timing/cache ownership. The candidate
+regional pipeline now reconstructs and generates US, PAL and JP through one program model,
+CPU/RSP pipeline and native source tree. Each executable links one immutable revision
+descriptor and its own generated corpus. Development build admission covers all three exact
+revisions; release support and campaign acceptance remain separate.
+
+Game references live under `include/jfg/game/`. `CodeRef`, `InstructionRef` and `DataRef`
+separate callable entries, observation sites and bounded data. Binding ABI 3 carries each
+instruction site's original word. Original body hashes, operand witnesses, data-content
+checks and semantic callees qualify the generated bindings. Native consumer coverage is
+checked before the expensive corpus build; a missing observer name still fails closed.
+
+`MemoryContext` composes one descriptor and matching bindings. Game-facing `MemoryView`
+requires that context; `GuestMemory` provides raw hardware memory access separately.
+The navigation helper uses named regional globals and instruction guards. Native code
+uses the linked revision, and synthetic tests explicitly supply fixture contexts.
+`ResidentMemory` checks revision, resident owner, extent, alignment and available RAM.
+An overlay reference cannot obtain resident access: named original module IDs resolve
+through the descriptor, while the existing overlay owner controls live access.
+
+`OverlayMemory` resolves a named original module through the selected descriptor,
+then checks its loaded owner and DATA/BSS extent. Actor/player members derive
+from qualified original instruction operands; no default US fixture is used by
+production consumers. `RendererGameLayout` is supplied explicitly per session to
+presentation, rain, camera, shadow and blur integration. Sound recovery and
+native math have equivalent explicit layouts. Test fixtures supply their own
+synthetic layouts so they cannot mask a missing production composition.
+
+ROM asset coordinates have a separate `RomAssetDirectory` / `RomAssetView` owner.
+The original PI initializer supplies qualified table/data operands; the view
+checks revision, boundaries and every section offset before NPC parsing. Guest
+RAM references cannot be substituted for these cartridge coordinates.
+
+The private `native-operations.json` maps semantic operations to exact generated
+entries and sources. Revision/descriptor/bindings identities, original body
+hashes and generated source hashes are validated before native transformations.
+This replaces US generated filenames in collision/cache/shadow/direct-device and
+math-reference selection. The generated manifest requires the map.
+
+The [three-region plan](../planning/regional-runtime-architecture.md) owns migration
+and acceptance gates. The [regional issue](issues/regional-rom-support.md) records
+current build results and the feature acceptance matrix. All three final v28
+candidates pass fresh generation, native builds and bounded 120-Hz-requested
+enhanced Goldwood Play. Fresh original-OS new-slot/reload probes on those
+binaries also reach Goldwood. The committed v30 launcher passes actual
+import/setup/direct Play, clean exit, save isolation and support exports.
+These checks do not establish campaign or released gameplay support.
+
+`record_layouts.hpp` names common packed-array strides only after original
+constructor and consumer arithmetic passes generation guards for each revision.
+Record members use qualified operands. Checked byte writes preserve adjacent
+fields in both supported guest-memory layouts. Presentation retains exact VI
+intervals and clocks, including fractional PAL cadence; viewport, clipping and
+mouse mapping share the same VI scanline-aspect conversion.
+
 ## Generated CPU code and overlays
 
-Recorded inventory for the supported US build:
+The regional pipeline qualifies ELF metadata before constructing the program
+model. A reviewed shared-body recipe verifies every original member extent,
+each member hash and the complete instruction span; it then represents one
+complete body with interior entry aliases. Loaded section bytes remain unchanged.
+This prevents a regional symbol label from truncating executable control flow.
+See [ELF qualification](../../scripts/build/regional/elf_metadata.py) and its
+[tests](../../tests/build/test_regional_elf_metadata.py).
+
+The compiler-input inventory discovers direct-call, branch, constant-register
+transfer and covered-alias entries. It preserves each complete original body
+and closes branch destinations exposed by alternate-entry suffixes before
+invoking the compiler. Section/body ambiguity rejects the input. The
+[entry inventory](../../scripts/build/regional/code_inventory.py) and
+[regression cases](../../tests/build/test_regional_code_inventory.py) cover the
+PAL exception preamble and JP matrix/shared-trigonometry failure classes without
+embedding regional addresses in the shared runtime.
+
+Historical inventory for the previously supported US build (the new regional corpus has its own validated manifest):
 
 - 3,729 executable function symbols (2,899 sized; 824 zero-sized aliases; six
   sizes recovered explicitly). 2,909 required bodies are generated with zero
@@ -44,7 +121,7 @@ mode rejects unmatched or duplicate replacements. The
 [Phase 4 contract](../planning/phase4-acceptance.md) defines the denominators
 and the signed completion evidence.
 
-`GeneratedOverlayRuntime` (tests: `tests/generated_overlay_runtime_tests.cpp`)
+`GeneratedOverlayRuntime` (tests: `tests/runtime/generated_overlay_runtime_tests.cpp`)
 owns the generated overlay table and enforces the loader lifecycle:
 
 1. Validate section metadata, the exact text-plus-data input, a word-aligned
@@ -69,8 +146,12 @@ The native boot path starts at the original entry and reaches stable VI and
 scheduler activity ([Phase 6 contract](../planning/phase6-acceptance.md) and
 [record](../planning/phase6-native-boot-addendum.md)); the cartridge handoff is
 described in the [fix log](boot-gameplay-fix.md#cic-6105-boot-state-health-and-ammunition).
-The current runtime executes the original guest OS with a cache/device clock
-model; these notes define its contracts:
+Normal Play uses the native host-clock policy, including when the video FPS option is
+Original. The separate diagnostic instruction/device-clock path retains original-OS contracts
+but is not qualified as the default simulation clock; workload-dependent device time and
+loading audio remain open. See [the current timing investigation](issues/original-mode-simulation-parity.md)
+and [native audio policy](runtime/native-audio-playback.md). These reference notes describe the
+original-OS model and its bounded qualification:
 
 | Area | Reference |
 |---|---|
@@ -79,6 +160,16 @@ model; these notes define its contracts:
 | Serial-interface completion | [SI timing](../planning/phase9-si-completion-timing.md) |
 | GPU results visible to the guest CPU | [Framebuffer writeback](../planning/phase9-renderer-cpu-writeback.md) |
 | Before/after compiler hooks | [Instruction effects](../planning/phase9-instruction-effect-observation.md) |
+
+The current regional boot verifier selects its backend explicitly. The default
+original-OS mode validates the bundle/corpus/source identity, repeats a bounded
+neutral-input run with fresh private storage, and compares the declared probe
+observations. Its receipt is a boot smoke result, not emulator parity or a
+complete runtime snapshot. The explicit cooperative Phase 6 mode retains the
+historical oracle contract. The producer and parent supervisor share the same
+bounded original-OS result parser, including exact retrace and poll-stop targets.
+See [regional verification](../../scripts/verification/verify_regional_native_boot.py)
+and [probe protocol](../../include/jfg/boot/original_os_probe.hpp).
 
 The September 2026 original-OS comparison matched 1,908 consecutive selected
 actor/camera update states against the corrected reference emulator; consumed
@@ -119,7 +210,8 @@ conflicting CPU write rejects the whole operation, and bytes outside tracked
 framebuffer ranges are refreshed from the CPU snapshot. Original-timing builds
 (the default generation) write back all completed color and depth output;
 otherwise only completed 8-bit intensity buffers are written back
-(`renderer_writeback_probe` in `src/boot/native_boot.cpp`).
+(selection in `src/boot/native_boot.cpp`; task submission/writeback in
+`src/boot/native/live_tasks.cpp`).
 
 Phase 7 accepted the renderer with real boot/title and gameplay tasks, three
 byte-identical readbacks per scene and identical simulation hashes with
@@ -146,15 +238,22 @@ for pacing behavior.
 
 ## Saves and accessories
 
-FlashRAM is the game's primary save device. `FlashRamStore` models the 128 KiB
-surface: 128-byte staged page writes, program completion, page and full erase,
-busy/bounds failures, and raw fixed-size images with atomic replacement and
-transactional rejection of malformed files. Device completion is separate from
-host durability, so a failed file write can be retried. `ControllerAccessoryBus`
-models four ports with generation-bound Controller Pak sessions, Rumble Pak
-switching and a project-owned logical note store (not a raw `.mpk` image).
-The upstream review records an open question about sector-erase size
-(JFG-UP-020 in the [reference review](../upstream/reference-review-2026-10-01.md)).
+FlashRAM is the game's primary save device. The native candidate uses one shared
+`FlashDevice` command owner over `FlashRamStore`: a 128 KiB surface, 128-byte
+program buffer, 16 KiB sector erase and Count-based completion deadlines.
+Programming clears bits; reset discards pending work. Device completion is
+separate from host durability, and file replacement remains transactional.
+The historical reference bus remains confined to its historical evidence path.
+Synthetic device/storage tests and all-three original-OS new-slot/reload checks
+pass. Enhanced candidates also reload same-revision private slots; broader
+campaign persistence and interruption acceptance remain separate. The
+[FlashRAM issue](issues/flashram-device-contract.md) records commands, failures
+and the upstream sector-erase evidence.
+
+`ControllerAccessoryBus` models four ports with generation-bound Controller Pak
+sessions, Rumble Pak switching and a project-owned logical note store. Native
+rumble duration/cooldown uses the shared Count frequency, avoiding a fixed
+60-retrace assumption. Physical regional controller behavior remains unverified.
 
 ## Other references
 
@@ -164,3 +263,18 @@ The upstream review records an open question about sector-erase size
 - [Upstream reference review](../upstream/reference-review-2026-10-01.md) and
   [catalog](../upstream/reference-catalog.json): source observations for overlay,
   save, controller, camera and audio work.
+
+The regional composition and artifact boundary are recorded in
+[ADR 0004](../adr/0004-regional-runtime-composition.md). Implementation status
+and remaining gates stay in the linked regional issue and architecture plan.
+
+The original-OS cache model receives its runlink pointer, original slot map,
+record stride and memory extent from the linked regional descriptor/bindings.
+The fast and slow instruction paths share that address translator. Source
+identity captures every non-cache file in its declared source roots, including
+inline implementation and shader inputs. Both corrections pass component checks;
+the current native build/qualification status remains in the regional issue.
+
+The [current checkpoint](issues/regional-rom-support.md#five-hour-continuation--current-checkpoint)
+records fresh native and enhanced Play results, final product qualification and
+remaining owner checks. Historical build failures remain in the same issue record.

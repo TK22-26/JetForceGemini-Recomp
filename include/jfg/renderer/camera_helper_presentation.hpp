@@ -12,23 +12,22 @@ namespace jfg {
 // that behavior alone nor the actor's position/color identifies a camera.
 class CameraHelperPresentationScope {
 public:
-  CameraHelperPresentationScope(std::span<std::uint8_t> bytes,
+  CameraHelperPresentationScope(const RendererGameLayout& layout,std::span<std::uint8_t> bytes,
                                 std::uint32_t target, std::uint32_t actor) {
-    if (target != 0x8000DB94U) return;
+    if (target != layout.draw_object) return;
     const PresentationGuestView ram(bytes);
-    // Pin the supported US draw gate before using its a3 actor/hidden-bit ABI.
-    if (ram.u32(target) != 0x27BDFFE8U ||
-        ram.u32(target + 0x14U) != 0x84EE0006U ||
-        ram.u32(target + 0x1CU) != 0x31CF0C00U ||
+    // Check the revision-bound draw gate before using its a3 actor/hidden-bit ABI.
+    if (!layout.camera_entry.matches(ram) || !layout.camera_flags.matches(ram) ||
+        !layout.camera_mask.matches(ram) ||
         (actor & 3U) || !ram.valid(actor, 0xA4U) ||
-        ram.u32(actor + 0x48U) != 0x002F001EU ||
-        (ram.u16(actor + 6U) & 0x0C00U)) return;
-    const auto header = ram.u32(actor + 0x40U);
+        ram.u32(actor + layout.actor_type) != 0x002F001EU ||
+        (ram.u16(actor + layout.actor_flags) & 0x0C00U)) return;
+    const auto header = ram.u32(actor + layout.actor_header);
     constexpr char name[] = "AnimCamera";
     if ((header & 3U) || !ram.valid(header, 4U + sizeof(name))) return;
     for (unsigned i = 0; i < sizeof(name); ++i)
       if (ram.u8(header + 4U + i) != static_cast<std::uint8_t>(name[i])) return;
-    hidden_ = bytes.data() + (PresentationGuestView::physical(actor + 6U) ^ 3U);
+    hidden_ = bytes.data() + (PresentationGuestView::physical(actor + layout.actor_flags) ^ 3U);
     original_ = *hidden_;
     *hidden_ |= 4U; // Big-endian flags halfword: 0x0400.
   }

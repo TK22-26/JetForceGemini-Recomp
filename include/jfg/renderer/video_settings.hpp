@@ -1,5 +1,6 @@
 #pragma once
 #include "blur_settings.hpp"
+#include "graphics_api.hpp"
 #include <charconv>
 #include <filesystem>
 #include <fstream>
@@ -15,12 +16,13 @@ struct VideoSettings {
   bool vsync = true;
   BlurMode blur = BlurMode::reduced;
   unsigned fog_percent = 100;
+  GraphicsApi graphics_api = GraphicsApi::automatic;
 };
 inline bool valid_video_settings(const VideoSettings &settings) {
   return (settings.mode == FrameRateMode::original ||
           settings.mode == FrameRateMode::custom ||
           settings.mode == FrameRateMode::unlimited) &&
-         settings.fps >= 60 && settings.fps <= 1000 && valid_blur_mode(settings.blur) && settings.fog_percent <= 100;
+         settings.fps >= 60 && settings.fps <= 1000 && valid_blur_mode(settings.blur) && settings.fog_percent <= 100 && valid_graphics_api(settings.graphics_api);
 }
 inline std::optional<unsigned> parse_video_fps(std::string_view text) {
   if (text.empty())
@@ -84,6 +86,11 @@ parse_video_settings(std::string_view text) {
       else if (value == "reduced") result.blur = BlurMode::reduced;
       else if (value == "original") result.blur = BlurMode::original;
       else return std::nullopt;
+    } else if (key == "graphics_api") {
+      bit = 64;
+      const auto api = parse_graphics_api(value);
+      if (!api) return std::nullopt;
+      result.graphics_api = *api;
     } else if (key == "remove_fog") {
       bit = 32;
       if (value != "0" && value != "1") return std::nullopt;
@@ -99,7 +106,7 @@ parse_video_settings(std::string_view text) {
       return std::nullopt;
     seen |= bit;
   }
-  // Existing v1 files omit blur and migrate to the owner-selected Reduced default.
+  // Existing v1 files retain Reduced blur and Automatic graphics API when omitted.
   return ((seen & 15U) == 15U) ? std::optional<VideoSettings>(result) : std::nullopt;
 }
 inline std::string serialize_video_settings(const VideoSettings &settings) {
@@ -110,7 +117,7 @@ inline std::string serialize_video_settings(const VideoSettings &settings) {
                      settings.blur == BlurMode::original ? "original" : "reduced";
   return std::string("version=1\nmode=") + mode +
          "\nfps=" + std::to_string(settings.fps) +
-         "\nvsync=" + (settings.vsync ? "1\n" : "0\n") + "blur=" + blur + "\nfog_percent=" + std::to_string(settings.fog_percent) + "\n";
+         "\nvsync=" + (settings.vsync ? "1\n" : "0\n") + "blur=" + blur + "\nfog_percent=" + std::to_string(settings.fog_percent) + "\ngraphics_api=" + std::string(graphics_api_name(settings.graphics_api)) + "\n";
 }
 // Missing configuration uses the original rendering mode. Corrupt or unreadable
 // configuration is reported to the caller rather than silently changing modes.

@@ -1,0 +1,182 @@
+{
+  "schema": 1,
+  "date": "2026-10-28",
+  "status": "ordinary-Play cause isolated; Original policy remedy remains open",
+  "source_base_commit": "d98d7fc265169d6df4a83ec45776dfa5394c739a",
+  "working_tree_has_other_unreleased_changes": true,
+  "owner_hardware": {
+    "console": "N64",
+    "cartridge_region": "North America",
+    "memory": "Expansion Pak",
+    "reference": "original N64 image capture"
+  },
+  "reference_tools": {
+    "mupen": "EmuHawk 2.11.1 / Mupen64Plus / Angrylion / cxd4 / 8 MiB",
+    "ares_debugger_revision": "b4ead632f6a983d2e86546a6bba2b7a5c2ccb6c0",
+    "ares_scope": "Separately pinned newer core; private DMEM word-order bridge correction plus qualified read-only observers; not labeled the BizHawk Ares core."
+  },
+  "causal_room125_final600VI_updates": {
+    "native_default": 300,
+    "native_stock_recovery": 300,
+    "native_stock_flight": 300,
+    "native_stock_both": 300,
+    "native_instruction_clock": 192,
+    "mupen8": 180,
+    "ares_interpreter8": 151
+  },
+  "matching_motion_prefixes": {
+    "reference-control": [
+      {
+        "same_initial_states": 232,
+        "ares_VI_span": 890,
+        "compared_VI_span": 798
+      },
+      {
+        "same_initial_states": 225,
+        "ares_VI_span": 869,
+        "compared_VI_span": 782
+      },
+      {
+        "same_initial_states": 218,
+        "ares_VI_span": 848,
+        "compared_VI_span": 761
+      }
+    ],
+    "native-stock-both": [
+      {
+        "same_initial_states": 232,
+        "ares_VI_span": 890,
+        "compared_VI_span": 462
+      },
+      {
+        "same_initial_states": 225,
+        "ares_VI_span": 869,
+        "compared_VI_span": 448
+      },
+      {
+        "same_initial_states": 218,
+        "ares_VI_span": 848,
+        "compared_VI_span": 434
+      }
+    ]
+  },
+  "cpu_cost_same_original_instruction_stream": {
+    "actual_cpu_cycles": 943115734,
+    "shadow_model_cpu_cycles": 939162381,
+    "model_to_actual": 0.9958081995056611
+  },
+  "task_intervention_updates": {
+    "headless125-latched-control": 151,
+    "headless125-latched-audio3": 150,
+    "headless125-latched-gfx3": 152,
+    "headless125-latched-both3": 156
+  },
+  "task_intervention_duration_ratios": {
+    "audio3": {
+      "1": 1.000060001659772,
+      "2": 0.37174969978452765
+    },
+    "gfx3": {
+      "2": 0.9265239455383575,
+      "1": 0.513495042851741
+    },
+    "both3": {
+      "2": 0.34712033565135053,
+      "1": 0.5106927108394476
+    }
+  },
+  "matched_main_nonidle_mean_cycles": {
+    "original_ares": 4772164.35678392,
+    "native_instruction_clock": 4543450.824120603,
+    "scope": "Samples 1..199 of 232 identical initial movement states for one actor; not full-world equivalence."
+  },
+  "observer_checks": {
+    "ares_initial": {
+      "entry.rdram": true,
+      "final.rdram": true,
+      "entry_VI": true,
+      "final_VI": true,
+      "final_image": true
+    },
+    "ares_detail": {
+      "entry.rdram": true,
+      "final.rdram": true,
+      "final.png": true
+    },
+    "native_detail": {
+      "801c2d40": {
+        "common_samples": 552,
+        "equal_guest_state_and_absolute_VI": true,
+        "first_mismatch": null
+      },
+      "801c34a0": {
+        "common_samples": 545,
+        "equal_guest_state_and_absolute_VI": true,
+        "first_mismatch": null
+      },
+      "801c3c00": {
+        "common_samples": 538,
+        "equal_guest_state_and_absolute_VI": true,
+        "first_mismatch": null
+      }
+    }
+  },
+  "focused_checks": [
+    {
+      "name": "host_count_clock",
+      "exit": 0
+    },
+    {
+      "name": "reference_event_commit",
+      "exit": 0
+    },
+    {
+      "name": "original_timing_runtime",
+      "exit": 0
+    },
+    {
+      "name": "original_timing_fast",
+      "exit": 0
+    },
+    {
+      "name": "flying_motion",
+      "exit": 0
+    },
+    {
+      "name": "flying_motion_adapter",
+      "exit": 0
+    },
+    {
+      "name": "function_profile",
+      "exit": 0
+    }
+  ],
+  "source_sha256": {
+    "src/boot/native_boot.cpp": "0ac8efd4d5663074891605f6df0005a0d104c4d16413ef4b475f61c833e270f0",
+    "src/boot/flying_motion.inl": "24832603cf37bbef8fa17dd6c67f8656e46d214cf22d59207062fc1a3d764fc6",
+    "include/jfg/boot/host_count_clock.hpp": "426a9370b4ce189e65c54d5a08ce2dc7c8b1f50bb6db5041b6176084b327c667",
+    "include/jfg/boot/original_timing_cache.h": "16fcc505c1b21dd3b41f7c7f088e2a06537ef50ee002d74e67022686623ab5c0",
+    "tests/runtime/flying_motion_adapter_tests.cpp": "26b30679bedd46f274422b12765fe0ab5fdc6aa7ea9417bdb61f2436539b3d93"
+  },
+  "conclusions": [
+    "Original presentation does not select original simulation timing in ordinary native Play.",
+    "The host clock advances legacy per-call motion more frequently; matching motion math alone does not establish matching elapsed time.",
+    "Removing the flight adapter or recovery override alone does not restore original pacing.",
+    "A fixed three-VI compatibility reference is not exact Original timing.",
+    "RSP task duration alone does not explain the residual instruction-clock cadence gap."
+  ],
+  "limits": [
+    "No new default clock policy or production fix promoted.",
+    "Reference cores disagree; no exact physical-hardware claim.",
+    "Instruction-clock loading audio underruns remain unresolved.",
+    "Function stages are inclusive and can overlap; do not sum nested rows.",
+    "Raw instruction-count distributions differ in treatment of idle fast-forward.",
+    "No GitHub posting, commits, pushes, releases or public-preview replacement.",
+    "Read-only observer checks cover the captured 4 MiB RAM range, final image and selected actor/VI streams; not all intermediate machine states."
+  ],
+  "observer_memory_range": {
+    "start": 0,
+    "bytes": 4194304,
+    "scope": "Captured game-RAM range, not all Expansion Pak memory or entire machine state."
+  }
+}

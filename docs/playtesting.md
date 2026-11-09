@@ -39,6 +39,15 @@ If capture fails or the button is unavailable, attach the ordinary report and
 explain what happened. Games built before 0.4.0-preview.2 need a rebuild to
 add crash stacks, recent progress, build metadata and freeze capture.
 
+## Comparing with an original console or emulator
+
+Name the exact route or cutscene and whether it played normally or was skipped. Record the ROM
+region/revision, console or emulator/core, and relevant display/controller settings when known.
+A PAL emulator observation and an NTSC N64 observation are different evidence sources; leave
+unknown details unknown. Describe what you saw or heard separately from a suspected cause.
+The [original-game catalog](original-game/README.md) keeps hardware-confirmed bugs and regional
+differences distinct. Do not attach ROMs or personal saves to a public report.
+
 ## What the support ZIP contains
 
 | File | Useful evidence |
@@ -51,6 +60,9 @@ add crash stacks, recent progress, build metadata and freeze capture.
 | `crash.log` | Fault code and best-effort fault-thread stack: module names, PE identities and relative instruction offsets |
 | `hang.log` | On-demand thread stacks from the running native child; capture has a 12-second timeout |
 | `breadcrumbs.log` | Up to 60 recent one-second samples of frame, retrace and controller-poll progress |
+| mouse.log | Mouse delivery counts and effective input settings; no pointer coordinates or key history |
+| presentation.log | Backend, composition result, and bounded window visibility/size/parent flags; no titles or handles |
+| README.txt | Instructions for reviewing and reporting the selected session |
 
 Each file is limited to 64 KiB and filtered again on export. Empty files mean
 the evidence was unavailable. Capture can be incomplete after stack corruption,

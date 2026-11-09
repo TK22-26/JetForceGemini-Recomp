@@ -35,7 +35,7 @@ correctness fix today.
 3. Explain the problem, the change, and how you verified it. Add regression
    coverage for behavior changes where practical, using fixtures without game data.
 4. Follow [development setup](docs/development/setup.md) for relevant checks.
-   Run `python scripts/check_repository_hygiene.py --history` before pushing.
+   Run `python scripts/validation/check_repository_hygiene.py --history` before pushing.
    Documentation changes should include link and whitespace checks and follow
    the [documentation layout](docs/README.md#where-documents-belong); runtime
    changes need the applicable builds and tests.

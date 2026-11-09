@@ -34,7 +34,6 @@ The next private preview selects existing mode 5 at Play startup. It copies only
 
 Combined private Motion Clarity Review prepared on 2026-10-18. Runtime SHA-256: 8c81e21948e0af3a269b875dc3147d7f80c46d2a9f1f9e6b98bc955ed3ab80b8. Build and focused navigation, semantic-presentation and 371 PC-input checks pass. Latest owner save/settings copied to an isolated profile, originals unchanged. Muted 120 FPS/VSync with buffered FPS, controls, blur-copy and glass-match evidence. This is not live verification or a release; the owner performs gameplay/visual review.
 
-
 ### Further evidence in the original owner capture
 The submit records retain display-list lengths. Exactly 1,925 tasks have
 623 commands, matching the native sixty-strip full-screen blur builder.
@@ -44,7 +43,6 @@ Their output addresses alternate between the native feedback buffers. This is
 strong evidence of active native blur in the reported fight, although the full
 command fingerprint was not captured. The new audit records that fingerprint's
 recognition and successful source copies directly.
-
 
 ### Owner A/B result, 2026-10-18
 Owner: "yep, that removed it." The owner is still playing to check the other
@@ -61,7 +59,6 @@ A pure spatial softening treatment may preserve some softness without trails,
 but would be a deliberate style approximation, not exact original rendering.
 No new runtime settings or changes have been applied to the running review.
 
-
 ### Owner-approved direction
 Owner favors Off / Reduced / Original and requests a high-FPS warning for
 Original. Required default: Reduced, explicitly confirmed by the owner. Its strength still needs owner visual review.
@@ -71,7 +68,6 @@ Try Reduced or Off if it feels uncomfortable."
 Use an inline note rather than an interrupting popup. This setting/warning is
 a recorded requirement, not yet implemented or shipped.
 
-
 Finalized first Motion Clarity capture confirms 639 fully recognized native blur
 passes and 2,543 successful source copies. One audited pass fell back as unpaired/
 wrong-target; it was not silently counted as a successful copy. All 31,425 audit
@@ -80,7 +76,6 @@ blur passes and no glass identity events, independently separating glass shaking
 from native full-screen blur. Owner confirms the bypass removes the boss smear.
 Reduced is explicitly owner-required as the eventual default; option implementation
 and strength calibration remain pending. Existing preview still uses Off.
-
 
 ### Implementation handoff for the approved control
 The three modes must be wired through VideoSettings parsing/serialization, the
@@ -99,7 +94,6 @@ fades and reset history on scene/resource changes. Verify Off/Reduced/Original
 mapping and existing-file migration in component checks; owner performs visual
 comfort/fidelity comparisons at native rate and 120+ FPS. No numerical Reduced
 strength or production runtime behavior has been implemented yet.
-
 
 ### Implemented candidate: persisted Off / Reduced / Original
 The three-mode setting is now implemented end to end. Existing version-1
@@ -140,7 +134,7 @@ Owner reports that blur visually looks good in Blur Options Review. Reduced is a
 The documented change is included in tag v1.3.0 (launcher/source
 02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
 665596482a7395593e85dbe73f1bd4b016d183d9). See the
-[combined release qualification](../releases-1.3.0-qualification.md) for owner
+[combined release qualification](../../releases/qualification-1.3.0.md) for owner
 acceptance, source CI, package and publication evidence. Earlier failed attempts
 and the scene/device/seed limits above remain part of this record; inclusion
 does not turn an unverified broader report into a confirmed resolution.

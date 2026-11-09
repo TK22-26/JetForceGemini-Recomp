@@ -18,7 +18,6 @@ large evidence stay on D:. Preserve the same investigation/root/guard counters.
 No remedy, test pass or delivered resolution is yet claimed. Related:
 [RENDER-004](actor-jitter-edge-culling.md).
 
-
 Source observation: the supported US billboard particle draw pass calls
 camDoSprite with a 0x78-byte particle slot, not an actor-table object. Its caller
 returns to 0x8005D59C. The previous actor identity lookup therefore rejects it.
@@ -29,7 +28,6 @@ and billboard interpolation; no nearest-gem association or simulation writes.
 Bounded anchors expire after six VIs, asset changes hold endpoints, and level
 changes clear all ownership. Other particle draw types remain outside this fix.
 
-
 Initial lifetime-only captures at scene 5001 (new sparkle) and scene 5025
 (overlap) are pixel-identical to the old preview despite additional validated
 particle owners. They do not prove a visible correction. The old match key also
@@ -39,7 +37,6 @@ asset, camera, vertex count and triangle connectivity; local geometry is no
 longer their identity. Unknown geometry, new lifetimes, discontinuities and
 topology changes retain conservative endpoint behavior. Local quad/texture
 animation is still authored-rate; this correction targets world-anchor motion.
-
 
 ## Final candidate validation
 
@@ -58,7 +55,6 @@ at its authored rate. Spawn/death, camera cuts, other particle types and full-ga
 coverage remain limited. Owner live verification of the reported desynchronizing
 sparkles is still required; this is not a released resolution. Evidence:
 [combat and particle qualification](../../../evidence/combat-particles.json).
-
 
 ## Delivery held for performance verification
 

@@ -557,7 +557,7 @@ def validate_comparison_packet(packet: dict[str, Any], repo: Path) -> None:
 
 def comparison_pins(packet: dict[str, Any], repo: Path) -> dict[str, str]:
     return {"source_commit": packet["source_commit"],
-            "tool_sha256": file_sha256(repo / "scripts" / "compare_phase9_retrace_hashes.py"),
+            "tool_sha256": file_sha256(repo / "scripts/diagnostics/compare_phase9_retrace_hashes.py"),
             **{key + "_sha256": file_sha256(Path(packet["pin_files"][key]))
                for key in PIN_FILES}}
 
@@ -728,23 +728,22 @@ def bounded_command(argv: list[str], cwd: Path, stdout: Path, stderr: Path,
 
     if guard_record is not None:
         _write_json_atomic(guard_record, {
-            "schema": 1, "state": "starting", "owner_pid": os.getpid(),
+            "schema": 2, "state": "starting", "owner_pid": os.getpid(),
         })
     with stdout.open("wb") as out, stderr.open("wb") as err, \
             (stdin_path.open("rb") if stdin_path else open(os.devnull, "rb")) as source, \
             WorkerJob(memory_limit_bytes=memory_limit_bytes, cpu_seconds=cpu_seconds) as guard:
         environment = no_api_key_env()
         environment.update(environment_overrides or {})
-        process = subprocess.Popen(argv, cwd=str(cwd), stdout=out, stderr=err,
+        process = guard.launch(argv, cwd=str(cwd), stdout=out, stderr=err,
                                    stdin=source, env=environment,
                                    start_new_session=(os.name != "nt"))
         assigned = False
         try:
-            guard.assign(process)
             assigned = True
             if guard_record is not None:
                 _write_json_atomic(guard_record, {
-                    "schema": 1, "state": "guarded", "owner_pid": os.getpid(),
+                    "schema": 2, "state": "guarded", "owner_pid": os.getpid(),
                     "child_pid": process.pid,
                 })
             next_heartbeat = time.monotonic() + 1
@@ -776,7 +775,7 @@ def bounded_command(argv: list[str], cwd: Path, stdout: Path, stderr: Path,
             _terminate_tree(process)
             if guard_record is not None:
                 _write_json_atomic(guard_record, {
-                    "schema": 1, "state": "finished" if assigned else "uncertain",
+                    "schema": 2, "state": "finished" if assigned else "uncertain",
                     "owner_pid": os.getpid(), "child_pid": process.pid,
                 })
         if stdout.stat().st_size + stderr.stat().st_size > max_output_bytes:
@@ -863,7 +862,7 @@ def expired_attempt_contained(attempt_dir: Path) -> bool:
             record = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return False
-        if (record.get("schema") != 1 or
+        if (record.get("schema") != 2 or
                 record.get("state") not in ("guarded", "finished") or
                 not owner_process_dead(record.get("owner_pid"))):
             return False

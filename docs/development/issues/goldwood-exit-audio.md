@@ -6,7 +6,7 @@
 - Scope: Windows native Play, ship departure/travel and Goldwood exit, high-refresh presentation.
 - Related: [walking audio](walking-audio-interruptions.md),
   [capture coverage](frame-diagnostics.md),
-  [native audio policy](../native-audio-playback.md).
+  [native audio policy](../runtime/native-audio-playback.md).
 
 ## Symptoms and reproduction
 
@@ -56,7 +56,7 @@ capped detailed gameplay trace. No runtime change has been made for this capture
 
 ## Candidate remedy and remaining verification
 
-The renderer patch in [rt64_call_matching.cmake](../../../cmake/rt64_call_matching.cmake)
+The renderer patch in [rt64_call_matching.cmake](../../../cmake/renderer/rt64_call_matching.cmake)
 filters draw calls that cannot contribute a transform, tile or look-at match.
 It removes a quadratic no-op search without changing game timing, audio buffer
 policy, AI or original bridge physics. The pinned upstream file is untouched;
@@ -72,7 +72,6 @@ audio interruptions. That acceptance remains pending.
 Full-session health coverage must outlive detailed diagnostic caps. A muted
 short test cannot certify a later audible cutscene. Preserve failed or partial
 evidence and distinguish instrumentation overhead from runtime behavior.
-
 
 ## Owner v1.2.0 result (2026-10-17 UTC)
 
@@ -93,7 +92,6 @@ Private evidence: `goldwood-exit-1.3-20261017/first-capture-review/report.json`.
 This records the initial owner result; the candidate below is newer. Final owner
 visual acceptance remains pending.
 
-
 ### Renderer wait localization and first fixture limit
 
 The new capture's late VI 61200-61800 window has median graphics submission
@@ -113,7 +111,6 @@ Its clean 120/30 result does not reproduce or clear the reported cutscene.
 Retain `departure-release-120` as an informative fixture failure; correct the
 input boundary before comparing renderer candidates.
 
-
 ### Short ship-cutscene reproduction
 
 Splicing the owner's recorded second menu selection after the title entry
@@ -129,7 +126,6 @@ shadowed its PDB search-path variable. Its complete runtime/profiler trace is
 retained, but it provides no external samples. A successor corrects only that
 private helper and keeps both attempts. Evidence: `ship-release-120`,
 `ship-profile-120`, `ship-profile-sampled-120` and `ship-profile-review.json`.
-
 
 ### Cause and candidate: no-op cross-frame draw matching
 
@@ -154,7 +150,6 @@ coverage first fails on the original implementation and passes with the patch.
 The first test compile found signed/unsigned bitfield comparisons under warnings
 as errors; explicit boolean casts corrected the test without weakening warnings.
 The implementation subsequently passed the qualifications below.
-
 
 ### Automated candidate qualification (2026-10-17 UTC)
 
@@ -206,7 +201,6 @@ frame-log drops: 0. It does not reach the owner recording's final observed level
 Neither replay substitutes for the requested fresh owner full pass. Keep these
 limits with the performance numbers; duration alone is not route coverage.
 
-
 ### Source qualification scope
 
 The first full-object hygiene scan in the shared working repository rejected
@@ -216,7 +210,6 @@ this preview branch's ancestry. They are preserved, with no allowlist exception
 or history rewrite. Current-source checks and an isolated single-branch clone
 with no shared object store qualify the exact candidate history before packaging.
 The original failed scan remains in private evidence as `preview-source-policy.log`.
-
 
 ### Local 1.3 beta delivery
 
@@ -235,7 +228,6 @@ profiling remain disabled. Local delivery is not stable publication or owner
 visual/listening acceptance. Private receipt: `preview-delivery.json` in the
 same investigation evidence directory.
 
-
 ### Owner beta.1 acceptance and follow-up (2026-10-17)
 
 The owner completed the new full pass and confirms that the ship departure to
@@ -253,7 +245,7 @@ The completed beta.1 capture is retained in private evidence under
 The documented change is included in tag v1.3.0 (launcher/source
 02be6fa9a4c50f4056f778c5148ca8ac70b0e92b; clean runtime
 665596482a7395593e85dbe73f1bd4b016d183d9). See the
-[combined release qualification](../releases-1.3.0-qualification.md) for owner
+[combined release qualification](../../releases/qualification-1.3.0.md) for owner
 acceptance, source CI, package and publication evidence. Earlier failed attempts
 and the scene/device/seed limits above remain part of this record; inclusion
 does not turn an unverified broader report into a confirmed resolution.

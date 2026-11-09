@@ -1,0 +1,283 @@
+{
+  "schema_version": 1,
+  "issue": 41,
+  "status": "Native immutable-ROM SDK path verified locally in all regions; owner accepts USA opening skip on Proton, unreleased",
+  "cause": "Opening skip traverses nine required scene loads. Thousands of small immutable-ROM reads pay emulated PI manager, register/interrupt and guest-thread handoff overhead although ROM bytes already reside in host memory.",
+  "profile": {
+    "rom_reads": 8060,
+    "inclusive_wall_costs_overlap": true,
+    "rom_byte_count": 4913256
+  },
+  "proton_same_binary_abba": {
+    "rom-api-v1-control-a": {
+      "milliseconds": 5301,
+      "native_rom_api": false,
+      "completion_count": 9
+    },
+    "rom-api-v1-active-a": {
+      "milliseconds": 1925,
+      "native_rom_api": true,
+      "completion_count": 9
+    },
+    "rom-api-v1-active-b": {
+      "milliseconds": 1961,
+      "native_rom_api": true,
+      "completion_count": 9
+    },
+    "rom-api-v1-control-b": {
+      "milliseconds": 5457,
+      "native_rom_api": false,
+      "completion_count": 9
+    }
+  },
+  "final_default_checks": {
+    "final-opening-us-control": {
+      "milliseconds": 3078,
+      "milestones": [
+        "cutscene=request_level=322_group=0_next=0_next_group=0_n=0_ms=0",
+        "cutscene=complete_level=322_group=0_next=324_next_group=0_n=1_ms=16",
+        "cutscene=complete_level=324_group=0_next=323_next_group=0_n=2_ms=375",
+        "cutscene=complete_level=323_group=0_next=325_next_group=0_n=3_ms=672",
+        "cutscene=complete_level=325_group=0_next=323_next_group=1_n=4_ms=1078",
+        "cutscene=complete_level=323_group=1_next=326_next_group=0_n=5_ms=1438",
+        "cutscene=complete_level=326_group=0_next=323_next_group=2_n=6_ms=1657",
+        "cutscene=complete_level=323_group=2_next=327_next_group=0_n=7_ms=2000",
+        "cutscene=complete_level=327_group=0_next=323_next_group=3_n=8_ms=2344",
+        "cutscene=complete_level=323_group=3_next=0_next_group=0_n=9_ms=2672",
+        "cutscene=settled_level=127_group=0_next=323_next_group=3_n=9_ms=3078"
+      ],
+      "exit_code": 0
+    },
+    "final-opening-us-default": {
+      "milliseconds": 1594,
+      "milestones": [
+        "cutscene=request_level=322_group=0_next=0_next_group=0_n=0_ms=0",
+        "cutscene=complete_level=322_group=0_next=324_next_group=0_n=1_ms=0",
+        "cutscene=complete_level=324_group=0_next=323_next_group=0_n=2_ms=188",
+        "cutscene=complete_level=323_group=0_next=325_next_group=0_n=3_ms=328",
+        "cutscene=complete_level=325_group=0_next=323_next_group=1_n=4_ms=516",
+        "cutscene=complete_level=323_group=1_next=326_next_group=0_n=5_ms=688",
+        "cutscene=complete_level=326_group=0_next=323_next_group=2_n=6_ms=844",
+        "cutscene=complete_level=323_group=2_next=327_next_group=0_n=7_ms=1000",
+        "cutscene=complete_level=327_group=0_next=323_next_group=3_n=8_ms=1172",
+        "cutscene=complete_level=323_group=3_next=0_next_group=0_n=9_ms=1328",
+        "cutscene=settled_level=127_group=0_next=323_next_group=3_n=9_ms=1594"
+      ],
+      "exit_code": 0
+    },
+    "final-opening-pal-default": {
+      "milliseconds": 1734,
+      "milestones": [
+        "cutscene=request_level=322_group=0_next=0_next_group=0_n=0_ms=0",
+        "cutscene=complete_level=322_group=0_next=324_next_group=0_n=1_ms=16",
+        "cutscene=complete_level=324_group=0_next=323_next_group=0_n=2_ms=156",
+        "cutscene=complete_level=323_group=0_next=325_next_group=0_n=3_ms=328",
+        "cutscene=complete_level=325_group=0_next=323_next_group=1_n=4_ms=531",
+        "cutscene=complete_level=323_group=1_next=326_next_group=0_n=5_ms=703",
+        "cutscene=complete_level=326_group=0_next=323_next_group=2_n=6_ms=875",
+        "cutscene=complete_level=323_group=2_next=327_next_group=0_n=7_ms=1062",
+        "cutscene=complete_level=327_group=0_next=323_next_group=3_n=8_ms=1266",
+        "cutscene=complete_level=323_group=3_next=0_next_group=0_n=9_ms=1422",
+        "cutscene=settled_level=127_group=0_next=323_next_group=3_n=9_ms=1734"
+      ],
+      "exit_code": 0
+    },
+    "final-opening-jpn-default": {
+      "milliseconds": 1625,
+      "milestones": [
+        "cutscene=request_level=322_group=0_next=0_next_group=0_n=0_ms=0",
+        "cutscene=complete_level=322_group=0_next=324_next_group=0_n=1_ms=0",
+        "cutscene=complete_level=324_group=0_next=323_next_group=0_n=2_ms=172",
+        "cutscene=complete_level=323_group=0_next=325_next_group=0_n=3_ms=328",
+        "cutscene=complete_level=325_group=0_next=323_next_group=1_n=4_ms=515",
+        "cutscene=complete_level=323_group=1_next=326_next_group=0_n=5_ms=687",
+        "cutscene=complete_level=326_group=0_next=323_next_group=2_n=6_ms=843",
+        "cutscene=complete_level=323_group=2_next=327_next_group=0_n=7_ms=1031",
+        "cutscene=complete_level=327_group=0_next=323_next_group=3_n=8_ms=1218",
+        "cutscene=complete_level=323_group=3_next=0_next_group=0_n=9_ms=1359",
+        "cutscene=settled_level=127_group=0_next=323_next_group=3_n=9_ms=1625"
+      ],
+      "exit_code": 0
+    },
+    "proton-rom-api-final-default-a": {
+      "milliseconds": 1998,
+      "milestones": [
+        "cutscene=request_level=322_group=0_next=0_next_group=0_n=0_ms=0",
+        "cutscene=complete_level=322_group=0_next=324_next_group=0_n=1_ms=11",
+        "cutscene=complete_level=324_group=0_next=323_next_group=0_n=2_ms=243",
+        "cutscene=complete_level=323_group=0_next=325_next_group=0_n=3_ms=480",
+        "cutscene=complete_level=325_group=0_next=323_next_group=1_n=4_ms=728",
+        "cutscene=complete_level=323_group=1_next=326_next_group=0_n=5_ms=914",
+        "cutscene=complete_level=326_group=0_next=323_next_group=2_n=6_ms=1071",
+        "cutscene=complete_level=323_group=2_next=327_next_group=0_n=7_ms=1294",
+        "cutscene=complete_level=327_group=0_next=323_next_group=3_n=8_ms=1514",
+        "cutscene=complete_level=323_group=3_next=0_next_group=0_n=9_ms=1704",
+        "cutscene=settled_level=127_group=0_next=323_next_group=3_n=9_ms=1998"
+      ],
+      "exit_code": 0
+    },
+    "proton-rom-api-final-default-c": {
+      "milliseconds": 2044,
+      "milestones": [
+        "cutscene=request_level=322_group=0_next=0_next_group=0_n=0_ms=0",
+        "cutscene=complete_level=322_group=0_next=324_next_group=0_n=1_ms=22",
+        "cutscene=complete_level=324_group=0_next=323_next_group=0_n=2_ms=258",
+        "cutscene=complete_level=323_group=0_next=325_next_group=0_n=3_ms=503",
+        "cutscene=complete_level=325_group=0_next=323_next_group=1_n=4_ms=752",
+        "cutscene=complete_level=323_group=1_next=326_next_group=0_n=5_ms=925",
+        "cutscene=complete_level=326_group=0_next=323_next_group=2_n=6_ms=1088",
+        "cutscene=complete_level=323_group=2_next=327_next_group=0_n=7_ms=1290",
+        "cutscene=complete_level=327_group=0_next=323_next_group=3_n=8_ms=1529",
+        "cutscene=complete_level=323_group=3_next=0_next_group=0_n=9_ms=1719",
+        "cutscene=settled_level=127_group=0_next=323_next_group=3_n=9_ms=2044"
+      ],
+      "exit_code": 0
+    }
+  },
+  "scope": "Local GE-Proton11-11/software Vulkan and Windows. Same nine scene transitions to character selection. No owner RTX4070 performance or campaign-wide acceptance claim.",
+  "policy": "Checked idle immutable-ROM osPiStartDma completion with actual OSIoMesg pointer; original fallback for busy/queued/unsupported transfers and save devices. Instruction/recorded timing keeps original PI/OS execution.",
+  "regions": {
+    "us": {
+      "runtime_sha256": "fd8cfcb976a468d9184cfbea9338c138ca9f9632036611c99208950ba3abcda3",
+      "identity": {
+        "schema_version": 2,
+        "kind": "jfg-native-program-identity",
+        "revision_id": "jfg-us-r0",
+        "rom_sha1": "493ced9008dbe932d6e91179b68e8630cf23a023",
+        "rom_size": 33554432,
+        "descriptor_abi": 1,
+        "binding_abi": 3,
+        "program_model_sha256": "35a215fba8a41f24b85e61d3ddcf0268f97d51231d6838c54590cdbab8151e92",
+        "generation_input_sha256": "d5a2a875cd936c26701e1dae02f3c68825f015614f31e60b701e11485fc0dc41",
+        "initial_tv_mode": 1,
+        "qualification": "candidate",
+        "build_identity": "MSVC-19.40.33811.0-Release-NativeTimingPreview-NativePlayOptimized",
+        "build": {
+          "source_sha256": "683db6c0992dfacc0a3408bce2f33eccd32722dd38ab5bc6438c279b883a101d",
+          "generated_sources_sha256": "5642970963d5c669cdd2b32cf3441ce3f565a030013a1b87def9d7ab3bc14c0e",
+          "descriptor_sha256": "dee470a3db6b968186d28889d66acccc80d7a5884baadb138f6fa66390c47883",
+          "bindings_sha256": "842fefc45dd6f5b8c6a348a3c136bba1e2d2ba6e760d03f5a7162279e9a6c11f",
+          "generator_sha256": "93f67bb52c079cc289e47c017c8f55fb1a16ba88cc62749a17f407abad000990",
+          "audio_sha256": "5f34780c81c9685087b391c0a69054450ceb1fbb83ab585f8de169e1655a6d91",
+          "dependencies_sha256": "6d189e4214087791c67ddbd4a6bbfe0a9711db5f4700dd635a32409052eae563",
+          "configuration_sha256": "3233cb41ca023904214bf89c2ad0dbb70197858af843e0199b0f88c31ac401bb",
+          "build_sha256": "fb65feb7a53ab068c2fe153985e1da83eb73682036e24ced48b5fae3ed239f6b"
+        }
+      }
+    },
+    "pal": {
+      "runtime_sha256": "1cb5692e7b17b627d227b830c0562a059a92275277ebc062c33e93d9de95df95",
+      "identity": {
+        "schema_version": 2,
+        "kind": "jfg-native-program-identity",
+        "revision_id": "jfg-pal-r0",
+        "rom_sha1": "50651c4e0c46332f7f0b45870263f0a8b9a49602",
+        "rom_size": 33554432,
+        "descriptor_abi": 1,
+        "binding_abi": 3,
+        "program_model_sha256": "5bc99cdef9e795c1df5ad921cbbae91fd1627d11602fcb3ab9bae5c07bf0f250",
+        "generation_input_sha256": "ea88ac10d79ae49fbc24e182f4a3bebb0c5325a1cf2b86fc2981ac97307bf7ec",
+        "initial_tv_mode": 0,
+        "qualification": "candidate",
+        "build_identity": "MSVC-19.40.33811.0-Release-NativeTimingPreview-NativePlayOptimized",
+        "build": {
+          "source_sha256": "683db6c0992dfacc0a3408bce2f33eccd32722dd38ab5bc6438c279b883a101d",
+          "generated_sources_sha256": "bb15ae4fd58b0e29382687c3951ee67dbbaffd819aa20ce4b6bb91f952bd4b58",
+          "descriptor_sha256": "a547562578a9b8a2f70bbc7f4f1a7b00a245cd59edd19453014c409fa72b51b9",
+          "bindings_sha256": "9967c4e511320e0a53c1e18a21bda816ee7cb32211b7dddaa9c04c887d815ffd",
+          "generator_sha256": "93f67bb52c079cc289e47c017c8f55fb1a16ba88cc62749a17f407abad000990",
+          "audio_sha256": "5f34780c81c9685087b391c0a69054450ceb1fbb83ab585f8de169e1655a6d91",
+          "dependencies_sha256": "8572958fd3ed7b7176bc7c010d21aa95fca7c7522bad785f9397d1e14541d3d4",
+          "configuration_sha256": "4282257a8a2fd557e46cd86d30e0a0e139713361aefe91a25c64394b77a98bb4",
+          "build_sha256": "a662b01816d7c1dda6ab87888253ed528670432d72857fc4bf90683012055b88"
+        }
+      }
+    },
+    "jpn": {
+      "runtime_sha256": "3e776b848e1169918edb36b43d7d46765fa188bd76e666a1a699496d3e16e166",
+      "identity": {
+        "schema_version": 2,
+        "kind": "jfg-native-program-identity",
+        "revision_id": "star-twins-jp-r0",
+        "rom_sha1": "15099233760b36e7afad7da36b9464da1512c4b1",
+        "rom_size": 33554432,
+        "descriptor_abi": 1,
+        "binding_abi": 3,
+        "program_model_sha256": "685429ff694a56c9a1bb2d29259dd005f2fc8536e995750404a8201311508d3e",
+        "generation_input_sha256": "a1385aa5039f9e0ce52f233339830c5432a75f2d9852cf000ea14b149bb19285",
+        "initial_tv_mode": 1,
+        "qualification": "candidate",
+        "build_identity": "MSVC-19.40.33811.0-Release-NativeTimingPreview-NativePlayOptimized",
+        "build": {
+          "source_sha256": "683db6c0992dfacc0a3408bce2f33eccd32722dd38ab5bc6438c279b883a101d",
+          "generated_sources_sha256": "ff11c1558c5d47c9170377d08cc8cc21dab17ab58d9d857060e071302fbadcf4",
+          "descriptor_sha256": "8f88d85a69e3f91e00bae4b42eb9ad0e67cbf1285e7e5b4f7f9b0bbf6fb8d40a",
+          "bindings_sha256": "a1a1e91aef8c5b0c23f6f1fbee214c67e1b4a39f544a52bace641ffbff771aae",
+          "generator_sha256": "93f67bb52c079cc289e47c017c8f55fb1a16ba88cc62749a17f407abad000990",
+          "audio_sha256": "5f34780c81c9685087b391c0a69054450ceb1fbb83ab585f8de169e1655a6d91",
+          "dependencies_sha256": "242fc5e2f50c61c36e9b5bcec6a8090638646703ff5977d6de7ab584b5262751",
+          "configuration_sha256": "1a84dde522382a4358ed81cf6acce9d3be44f64f6ce49d36e28aa8f799480c1f",
+          "build_sha256": "9da26ce4ab884ce9609c7c8abac83dec555bfab77f64e10d4ce7d95f9233ed2d"
+        }
+      }
+    }
+  },
+  "source_files": {
+    "include/jfg/boot/native_rom_dma.hpp": "8df8169458a0955bb35ec34aedc7969623596f81b31dd0eba811e217de80aaad",
+    "src/boot/native_boot.cpp": "5cbcba985bc4155934b3566da0b462102fa812e5753a5325e16e8a3041366165",
+    "src/boot/native/guest_execution.cpp": "9e1786f4aa3691a20cb26656d15e1725ec379a3ca62b125b55e41001b2611c84",
+    "config/roms/core-bindings.json": "ccab95ab5328ea446019ff50db99b7acb9b82d480f02fd8e9bc60101f6bde756"
+  },
+  "commit": null,
+  "released": false,
+  "compatibility": {
+    "instruction_timed_checkpoint_retraces": 200,
+    "instruction_timed_regions": [
+      "us",
+      "pal",
+      "jpn"
+    ],
+    "recorded_clock_boundary_vi": 200,
+    "recorded_clock_end_vi": 600,
+    "recorded_requested_vs_disabled_equal": true,
+    "scope": "Bounded observations, RAM and save correspondence; not complete campaign or hardware timing parity."
+  },
+  "private_save_load_checks": {
+    "us": {
+      "exit_code": 0,
+      "front_mode": 16,
+      "unsupported_accesses": 0,
+      "audio_underruns": 1,
+      "audio_overruns": 0,
+      "save_bytes": 131072,
+      "source_preserved": true,
+      "frame_sha256": "74fbd48ba04e3519fd4dbed9ba6ddd3c285ffd1867b75964aeeeb1c8af4eb0b7"
+    },
+    "pal": {
+      "exit_code": 0,
+      "front_mode": 16,
+      "unsupported_accesses": 0,
+      "audio_underruns": 0,
+      "audio_overruns": 0,
+      "save_bytes": 131072,
+      "source_preserved": true,
+      "frame_sha256": "c553467df89d57d56e7f792867b4bd3fcbd95f81e0b1c44e5d5e5c6c75a8f04d"
+    },
+    "jpn": {
+      "exit_code": 0,
+      "front_mode": 16,
+      "unsupported_accesses": 0,
+      "audio_underruns": 0,
+      "audio_overruns": 0,
+      "save_bytes": 131072,
+      "source_preserved": true,
+      "frame_sha256": "457e3e6f0e63cdee7cca4be12bf6d2af7e84008880edb6153db915ae16ba55b1"
+    }
+  },
+  "audio_scope": "All automated sessions muted using private settings; counters are observations, not an audible verdict or authorization for further underrun remediation.",
+  "owner_acceptance": {
+    "recorded_utc": "2026-11-07",
+    "scope": "Opening skip works on owner Bazzite/RTX4070; USA capture measures 1828 ms across all nine scenes.",
+    "wider_region_manual_coverage_confirmed": false
+  }
+}

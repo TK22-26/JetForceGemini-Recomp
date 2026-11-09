@@ -5,6 +5,11 @@ struct recomp_context;
 
 namespace jfg::boot {
 using NativeCollisionFunction = void(std::uint8_t*, recomp_context*);
+// Composed by the runtime from its immutable regional descriptor. The caller
+// holds the active synthetic overlay for the duration of this operation.
+struct NativeCollisionLayout {
+  std::uint32_t section,linked_address,edge_pointer_offset,extent;
+};
 struct NativeCollisionCounters {
   std::uint64_t native_nodes=0, native_edges=0, fallbacks=0,
       expired=0, invalid=0, max_nanoseconds=0;
@@ -20,7 +25,7 @@ void native_collision_reset_max() noexcept;
 // elapsed clocks/events before its next generated instruction when true.
 // Smaller limits support qualification; larger arguments are capped here.
 bool native_collision_execute(NativeCollisionFunction* reference,
-    std::uint8_t* ram, recomp_context* cpu,
+    std::uint8_t* ram, recomp_context* cpu, NativeCollisionLayout layout,
     unsigned max_nodes=32U, unsigned max_edges=128U);
 #else
 inline constexpr bool native_collision_available() { return false; }
@@ -28,7 +33,7 @@ inline bool native_collision_in_fallback() noexcept { return false; }
 inline NativeCollisionCounters native_collision_counters() noexcept { return {}; }
 inline void native_collision_reset_max() noexcept {}
 inline bool native_collision_execute(NativeCollisionFunction* reference,
-    std::uint8_t* ram, recomp_context* cpu, unsigned=32U, unsigned=128U) {
+    std::uint8_t* ram, recomp_context* cpu, NativeCollisionLayout layout, unsigned=32U, unsigned=128U) {
   reference(ram,cpu);
   return false;
 }

@@ -73,7 +73,7 @@ def oracle_build(repo, binding):
         support.append(source)
     for name in ('oracle_instruction_effects.c', 'oracle_instruction_effects.h'):
         source = core / 'src/r4300' / name
-        if source not in support or file_sha256(source) != file_sha256(repo / 'scripts' / name):
+        if source not in support or file_sha256(source) != file_sha256(repo / 'scripts/diagnostics' / name):
             raise ValueError('oracle effect observer differs from qualified reader producer')
     command = report.get('command', [])
     if (len(command) < 2 or Path(command[0]).name.lower() != 'msbuild.exe' or

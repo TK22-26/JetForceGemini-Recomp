@@ -25,8 +25,10 @@ Activate it with `tools\venv\Scripts\Activate.ps1` in PowerShell or
 
 ```sh
 python -m pip install --require-hashes -r requirements-dev.lock.txt
-python scripts/validate_project.py
-python -m unittest discover -s tests -p "test_*.py" -v
+python scripts/validation/validate_project.py
+
+python -m unittest discover -s tests -t . -p "test_*.py" -v
+
 ```
 
 ## Windows builds
@@ -35,8 +37,8 @@ The build command locates CMake and Visual Studio automatically. It uses a
 short, separate output directory for each checkout, including deep source paths:
 
 ```powershell
-python scripts/build_windows.py --config Debug --test
-python scripts/build_windows.py --config Release --test
+python scripts/build/build_windows.py --config Debug --test
+python scripts/build/build_windows.py --config Release --test
 ```
 
 Output lives in `%LOCALAPPDATA%\JFG\b\<checkout-id>\c`; the command prints
@@ -62,12 +64,12 @@ before submitting behavior changes. For documentation, inspect local links,
 commands, and `git diff --check`. Run the repository hygiene check before pushing:
 
 ```sh
-python scripts/check_repository_hygiene.py --history
+python scripts/validation/check_repository_hygiene.py --history
 ```
 
 [CI](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml)
 records the exact checks used for public pull requests. See
-[test quarantine](test-quarantine.md) for the documented Linux test exclusion.
+[test quarantine](../maintenance/test-quarantine.md) for the documented Linux test exclusion.
 
 ## RT64 shader dependencies
 

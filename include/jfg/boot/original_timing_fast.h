@@ -45,6 +45,10 @@ typedef struct { unsigned tag,valid,dirty; } JfgTimingCacheLine;
 // fast path access the same storage; no guest clocks or observations are cached.
 typedef struct JfgOriginalTimingFast {
  uint8_t* rdram;
+ // Immutable revision-qualified runlink layout, composed by the native host.
+ // Slot numbers are original module identities, never source-section indices.
+ uint32_t timing_rdram_size,timing_table_pointer,timing_slot_count,timing_record_size;
+ const uint8_t* timing_valid_slots;
  uint64_t cpu_count,observed_guest_instructions;
  uint64_t execution_fast_revision,execution_fast_deadline,execution_fast_hits;
  uint64_t diagnostic_cpu_half_tick;
@@ -70,16 +74,32 @@ void jfg_phase9_execution_probe_predecoded(unsigned,unsigned,unsigned,void*);
 #ifdef __cplusplus
 }
 #endif
-static JFG_CLOCK_INLINE unsigned jfg_clock_address(JfgOriginalTimingFast* s,unsigned a) {
- unsigned section,slot,table,base;
+// Both cache paths use this translation. Resident/hardware addresses pass
+// through; an unavailable guest allocation is counted, never replaced by a US
+// table or by a generated source-section ordinal.
+static JFG_CLOCK_INLINE unsigned jfg_clock_translate(const JfgOriginalTimingFast* s,
+    const uint8_t* ram,unsigned a,uint64_t* counters) {
+ unsigned slot,table,base,offset;uint64_t record;
  if(a>=0x10000000U || a<0x100000U)return a;
- section=a>>20;slot=(section<158U && section!=21U && section!=56U)?section:0U;
- if(!slot||!s->rdram){++s->cache_counters[11];return a;}
- memcpy(&table,s->rdram+0xfeaa0U,4);
- if(table<0x80000000U||table>=0x80400000U-157U*32U){++s->cache_counters[11];return a;}
- memcpy(&base,s->rdram+(table&0x1fffffffU)+slot*32U,4);
- if(base<0x80000000U||base>=0x80400000U){++s->cache_counters[11];return a;}
- return base+(a&0xfffffU);
+ slot=a>>20;offset=a&0xfffffU;
+ if(!s || !ram || !s->timing_valid_slots || slot>=s->timing_slot_count ||
+    !s->timing_valid_slots[slot] || s->timing_rdram_size<4U ||
+    s->timing_table_pointer>s->timing_rdram_size-4U ||
+    (s->timing_table_pointer&3U)!=0U || s->timing_record_size<4U ||
+    (s->timing_record_size&3U)!=0U)goto unresolved;
+ memcpy(&table,ram+s->timing_table_pointer,4);
+ if(table<0x80000000U || (table&3U)!=0U)goto unresolved;
+ record=(uint64_t)(table-0x80000000U)+(uint64_t)slot*s->timing_record_size;
+ if(record>s->timing_rdram_size-4U)goto unresolved;
+ memcpy(&base,ram+(size_t)record,4);
+ if(base<0x80000000U || (uint64_t)(base-0x80000000U)+offset>=s->timing_rdram_size)goto unresolved;
+ return base+offset;
+ unresolved:
+ if(counters)++counters[11];
+ return a;
+}
+static JFG_CLOCK_INLINE unsigned jfg_clock_address(JfgOriginalTimingFast* s,unsigned a) {
+ return jfg_clock_translate(s,s?s->rdram:NULL,a,s?s->cache_counters:NULL);
 }
 static JFG_CLOCK_INLINE unsigned jfg_clock_fetch(JfgOriginalTimingFast* s,unsigned pc) {
  unsigned a=jfg_clock_address(s,pc)&0x1fffffffU,tag=a&~0xfffU;

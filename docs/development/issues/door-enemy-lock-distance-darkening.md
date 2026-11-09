@@ -52,7 +52,6 @@ The synthetic three-model state/texture regression passes. Runtime build and own
 
 Door indicator still blacks out in runtime 669acb5f0cf377a40bd4f57cf7fd907a32890ee9141c01e1f2b7727426c845b2. Component checks did not establish live resolution. Current owner screenshot for the dark indicator: private owner screenshot codex-clipboard-cAYxUe.png. No autonomous visual verification authorized. Source/evidence investigation continues under the owner-approved bounded continuation, preserving all counters.
 
-
 ### Follow-up candidate: retain the base marker while drawing
 Offline retained room-42 assets show two-model indicators whose secondary
 model has no animated texture array. The first LOD-state synchronization therefore
@@ -72,7 +71,6 @@ capture distinguishes distance-model selection from texture/depth/lighting cause
 
 Combined private Motion Clarity Review prepared on 2026-10-18. Runtime SHA-256: 8c81e21948e0af3a269b875dc3147d7f80c46d2a9f1f9e6b98bc955ed3ab80b8. Build and focused navigation, semantic-presentation and 371 PC-input checks pass. Latest owner save/settings copied to an isolated profile, originals unchanged. Muted 120 FPS/VSync with buffered FPS, controls, blur-copy and glass-match evidence. This is not live verification or a release; the owner performs gameplay/visual review.
 
-
 ### Owner rejects detailed-model candidate, 2026-10-18
 The owner reports the marker is still black in Motion Clarity Review runtime
 8c81e21948e0af3a269b875dc3147d7f80c46d2a9f1f9e6b98bc955ed3ab80b8.
@@ -80,7 +78,6 @@ The supplied screenshot again shows the dark center at distance. The candidate
 does not establish a fix. Review focused door-indicator-draw records from this
 closed capture before attributing the failure to LOD, texture state or depth.
 Private evidence image: door-marker-motion-review.png.
-
 
 The closed owner capture shows every observed door draw requested LOD 0 with a
 zero distance threshold; no state-sync corrections occurred. The base model was
@@ -91,7 +88,6 @@ translucent display-list addresses, selected texture frame, animation flags,
 actor brightness and per-camera render mode. These distinguish fading/material
 state from the now-excluded distance-model switch.
 
-
 The owner-accepted glass run also retained 712 door-indicator material records.
 Texture flags and render mode stayed constant in those observations; animation
 state and brightness vary by actor/state. This is diagnostic evidence, not proof
@@ -99,7 +95,6 @@ of the dark-indicator cause. Preserve per-actor correlation before changing
 materials: aggregate locked/unlocked indicators must not be mistaken for a
 distance effect. The ineffective LOD/forced-state mutations remain removed.
 Dark door indicator remains open.
-
 
 ### Corrected field interpretation
 The captured actor+0x28 word is normalized animation progress, not brightness.
@@ -171,7 +166,6 @@ Keep that investigation OPEN; the final release decision must distinguish the
 workaround from a proper transparent-path repair. Investigate draw/depth/material
 behavior rather than silently claiming the root cause is solved.
 
-
 A further private CPU material packet is prepared in source, not yet in the
 owner's running Door Indicator Review. It captures both native model display
 lists and associated asset/animation bytes, plus emitted outer draw commands,
@@ -182,11 +176,9 @@ from unrelated retained switch assets. It does not change draw behavior.
 
 Native parity limitation: Original FPS in this recomp still uses RT64. No owner EmuHawk/N64 same-camera-distance comparison has yet established whether the native transparent switch mesh also blacks out. That comparison remains pending; neither the current workaround nor the Original-FPS reproduction proves a renderer deviation from hardware.
 
-
 ### Owner comparison status ? 2026-10-18 late review
 
 The owner has not yet checked this door at the same distance in EmuHawk or on original hardware. Original-FPS mode in the recomp still uses the recomp renderer; it cannot establish original-game fade parity. The green-at-distance result verifies the scoped opaque workaround only. The native material/depth cause and intended original fade remain open.
-
 
 ### Proper material repair continuation - 2026-10-18 22:04 Eastern
 

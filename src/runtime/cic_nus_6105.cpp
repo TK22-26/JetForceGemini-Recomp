@@ -73,7 +73,7 @@ bool process_cic_nus_6105_challenge(
         std::uint8_t magnitude =
             static_cast<std::uint8_t>(response & 0x07U);
         if (modifier)
-            magnitude = static_cast<std::uint8_t>((~magnitude) & 0x07U);
+            magnitude = static_cast<std::uint8_t>((~static_cast<unsigned>(magnitude)) & 0x07U);
         if (magnitude % 3U != 1U)
             modifier = !modifier;
         if (alternate && (response == 0x01U || response == 0x09U))

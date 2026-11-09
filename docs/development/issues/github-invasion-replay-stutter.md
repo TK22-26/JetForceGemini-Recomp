@@ -91,14 +91,12 @@ Record frame-rate mode and VSync together: an Unlimited selection can still
 use a finite presentation schedule. Similar scenes entered through different
 game states need independent coverage.
 
-
 The first same-PC comparison uses the verified released executable and current
 private candidate, both Unlimited/VSync and muted, with the retained new-game
 opening route. This is related-scene evidence, not exact tribal-entry coverage.
 Results, all half-thousand-VI windows and largest presentation gaps are retained
 in `github-issue19/new-game-comparison.json`. No reported fix is inferred from
 the harness completing. The owner preview and public issue remain unchanged.
-
 
 ## First same-PC result (2026-10-18 UTC)
 
@@ -143,7 +141,6 @@ It stops at the first ready gameplay choice or its bounded VI limit. The
 observer is not a performance qualification. Retained evidence:
 issue19-guide-reinteraction, github-issue19/guide-reinteraction.json.
 
-
 Route correction: the bounded reinteraction fixture only repeats Magnus
 at the landing bridge (level 92); it cannot establish the invasion replay.
 The walkthrough identifies King Jeff inside the later hut as the NPC who
@@ -160,7 +157,6 @@ It stops at the first ready gameplay choice or its bounded VI limit. The
 observer is not a performance qualification. Retained evidence:
 issue19-king-jeff-route, github-issue19/king-jeff-route.json.
 
-
 ### Owner route capture prepared (2026-10-18 UTC)
 
 The extended 22000-VI automated route did not reach King Jeff's ready choice;
@@ -176,7 +172,6 @@ The standard launcher does not enable private native fast-path flags. This is
 an input/state fixture for subsequent matched comparisons, not the configuration
 that passed the earlier SSD timing windows or a newly released fix. Exact tribal
 entry and owner capture remain pending. No GitHub reply or closure was sent.
-
 
 The owner completed the SSD King Jeff capture and reported it looked completely
 fine. All streams and final RAM are preserved with hashes in completed-evidence.json.

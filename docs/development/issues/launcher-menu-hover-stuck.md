@@ -38,7 +38,7 @@ the UI clears hover normally. Capture, button, keyboard and focus policy remain
 on their existing paths. Live tool windows use the same per-surface tracking.
 
 Sources: launcher/ui/native_ui.cpp, launcher/ui/native_ui.hpp,
-src/app/frontend_win32.cpp, launcher/ui/live_tool_window.cpp.
+launcher/native/frontend_win32.cpp, launcher/ui/live_tool_window.cpp.
 
 ## Validation and remaining limits
 

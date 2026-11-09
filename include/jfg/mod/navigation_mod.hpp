@@ -1,7 +1,9 @@
 #pragma once
 
-// Optional host-side tooling for the supported US ROM. No game assets are
-// embedded.
+// Host-side game tooling. Every memory view has an explicit revision context.
+// Remaining structure and instruction guards require separate qualification.
+#include "jfg/game/memory_view.hpp"
+#include "jfg/game/record_layouts.hpp"
 #include "jfg/mod/npc_rewards.hpp"
 #include "jfg/mod/navigation_pilot.hpp"
 #include "jfg/mod/navigation_confirmation.hpp"
@@ -23,55 +25,7 @@
 #include <vector>
 
 namespace jfg::mod {
-class Memory {
-  std::span<std::uint8_t> bytes_;
-  bool swapped_;
-
-public:
-  explicit Memory(std::span<std::uint8_t> bytes, bool native_words = true)
-      : bytes_(bytes), swapped_(native_words) {
-    if (native_words && bytes.size() % 4U != 0U)
-      throw std::runtime_error("native mod memory must contain complete words");
-  }
-  bool valid(std::uint32_t a, std::uint64_t n) const noexcept {
-    const auto segment = a & 0xE0000000U;
-    const auto offset = a & 0x1FFFFFFFU;
-    return (segment == 0x80000000U || segment == 0xA0000000U) &&
-           offset <= bytes_.size() && n <= bytes_.size() - offset;
-  }
-  void require(std::uint32_t a, std::uint64_t n) const {
-    if (!valid(a, n))
-      throw std::runtime_error("invalid mod memory range");
-  }
-  std::uint8_t u8(std::uint32_t a) const {
-    require(a, 1);
-    return bytes_[(a & 0x1FFFFFFFU) ^ (swapped_ ? 3U : 0U)];
-  }
-  std::uint16_t u16(std::uint32_t a) const {
-    require(a, 2);
-    return static_cast<std::uint16_t>((u8(a) << 8U) | u8(a + 1U));
-  }
-  std::int16_t s16(std::uint32_t a) const {
-    return std::bit_cast<std::int16_t>(u16(a));
-  }
-  std::uint32_t u32(std::uint32_t a) const {
-    require(a, 4);
-    return (static_cast<std::uint32_t>(u16(a)) << 16U) | u16(a + 2U);
-  }
-  float f32(std::uint32_t a) const {
-    const auto value = std::bit_cast<float>(u32(a));
-    if (!std::isfinite(value))
-      throw std::runtime_error("nonfinite mod coordinate");
-    return value;
-  }
-  void put16(std::uint32_t a, std::uint16_t v) {
-    require(a, 2);
-    bytes_[(a & 0x1FFFFFFFU) ^ (swapped_ ? 3U : 0U)] =
-        static_cast<std::uint8_t>(v >> 8U);
-    bytes_[((a + 1U) & 0x1FFFFFFFU) ^ (swapped_ ? 3U : 0U)] =
-        static_cast<std::uint8_t>(v);
-  }
-};
+using Memory = jfg::game::MemoryView;
 
 struct Vec3 {
   float x{}, y{}, z{};
@@ -94,14 +48,14 @@ inline PlayerMotion player_motion(const Memory &m,std::uint32_t actor) noexcept 
   PlayerMotion result;
   try {
     if(!m.valid(actor,0x6CU) || (actor&3U) ||
-       m.u32(0x80036234U)!=0x24190006U || m.u32(0x80036248U)!=0xA2190568U ||
-       m.u32(0x80036944U)!=0x2408000CU || m.u32(0x8003696CU)!=0xA2280568U ||
-       m.u32(0x80011580U)!=0xA086003BU)return result;
-    const auto control=m.u32(actor+0x68U);
+       !m.instruction_matches("guard.hang.state") || !m.instruction_matches("guard.hang.store_state") ||
+       !m.instruction_matches("guard.grab.state") || !m.instruction_matches("guard.grab.store_state") ||
+       !m.instruction_matches("guard.animation.store_id"))return result;
+    const auto control=m.u32(actor+m.member_offset("layout.actor.control"));
     if((control&3U)||!m.valid(control,0x569U))return result;
-    result.state=m.u8(control+0x568U);
-    result.animation=m.u8(actor+0x3BU);
-    result.animation_frame=m.f32(actor+0x28U);
+    result.state=m.u8(control+m.member_offset("layout.playerControl.movement"));
+    result.animation=m.u8(actor+m.member_offset("layout.actor.animation"));
+    result.animation_frame=m.f32(actor+m.member_offset("layout.actor.animationFrame"));
     result.known=true;
   }catch(const std::runtime_error &){}
   return result;
@@ -141,14 +95,14 @@ struct EnemyState {
 inline EnemyState enemy_state(const Memory &m, const Actor &actor) noexcept {
   try {
     if (actor.behavior != 24U || !m.valid(actor.address, 0x6CU)) return {};
-    const auto control = m.u32(actor.address + 0x68U);
-    const auto properties = m.u32(actor.address + 0x4CU);
+    const auto control = m.u32(actor.address + m.member_offset("layout.actor.control"));
+    const auto properties = m.u32(actor.address + m.member_offset("layout.actor.properties"));
     if (!m.valid(control, 0x28U) || !m.valid(properties, 8U)) return {};
-    const auto squad = m.u32(control + 0x24U);
-    if (!m.valid(squad, 0x6CU) || m.u16(squad + 0x48U) != 23U) return {};
-    const auto data = m.u32(squad + 0x68U);
+    const auto squad = m.u32(control + m.member_offset("layout.squadControl.squad"));
+    if (!m.valid(squad, 0x6CU) || m.u16(squad + m.member_offset("layout.actor.type")) != 23U) return {};
+    const auto data = m.u32(squad + m.member_offset("layout.actor.control"));
     if (!m.valid(data, 0x2EU)) return {};
-    return {true, !tribal(m.u16(data + 0x2CU)), m.s16(properties + 6U)};
+    return {true, !tribal(m.u16(data + m.member_offset("layout.squadRecord.type"))), m.s16(properties + m.member_offset("layout.properties.health"))};
   } catch (const std::runtime_error &) { return {}; }
 }
 inline void write_enemy_state(std::ostream &out, const EnemyState &state) {
@@ -176,7 +130,7 @@ struct Mesh {
 };
 
 inline std::vector<Actor> actors(const Memory &m) {
-  const auto table = m.u32(0x800F2CA4U), count = m.u32(0x800F2CA8U);
+  const auto table = m.global_u32("globals.objectList"), count = m.global_u32("globals.objectCount");
   if (count > 1024U)
     throw std::runtime_error("invalid mod actor count");
   if (count == 0U)
@@ -188,7 +142,7 @@ inline std::vector<Actor> actors(const Memory &m) {
     if (!m.valid(a, 0xA4U))
       continue;
     try {
-      result.push_back({a, m.u16(a + 0x48U), position(m, a)});
+      result.push_back({a, m.u16(a + m.member_offset("layout.actor.type")), position(m, a)});
     } catch (const std::runtime_error
                  &) { /* Incomplete objects are not actionable. */
     }
@@ -197,7 +151,7 @@ inline std::vector<Actor> actors(const Memory &m) {
 }
 
 // Registered model bounds are broad-phase boxes, not exact collision polygons.
-// Offsets and accessor pin also used by scripts/phase95_collision.py.
+// Offsets and accessor pin also used by scripts/exploration/phase95_collision.py.
 struct CollisionModel {
   std::uint32_t address{};
   Vec3 lower{}, upper{};
@@ -212,7 +166,7 @@ struct CollisionInventory {
 inline std::string actor_name(const Memory &m, std::uint32_t actor) {
   std::string name;
   try {
-    const auto header = m.u32(actor + 0x40U);
+    const auto header = m.u32(actor + m.member_offset("layout.actor.header"));
     m.require(header, 0x14U);
     for (unsigned i = 0; i < 16; ++i) {
       const auto c = m.u8(header + 4U + i);
@@ -229,25 +183,28 @@ inline std::string actor_name(const Memory &m, std::uint32_t actor) {
 // Other model types retain conservative bounds until separately qualified.
 inline Mesh bridge_surface(const Memory &m, std::uint32_t actor, std::uint32_t state) {
   Mesh result;
-  const auto behavior=m.u16(actor+0x48U);
+  const auto behavior=m.u16(actor+m.member_offset("layout.actor.type"));
   if (behavior!=55U && behavior!=98U) return result;
   m.require(state,0x134U);
-  const auto matrix_index=m.u8(state+0x12BU), model_index=m.u8(state+0x133U);
+  const auto matrix_index=m.u8(state+m.member_offset("layout.bridgeState.matrixIndex")), model_index=m.u8(state+m.member_offset("layout.bridgeState.modelIndex"));
   if(matrix_index>1U||model_index>31U)throw std::runtime_error("bridge buffer index");
-  const auto table=m.u32(actor+0x6CU);
+  const auto table=m.u32(actor+m.member_offset("layout.actor.models"));
   m.require(table,std::uint64_t(model_index+1U)*4U);
   const auto instance=m.u32(table+model_index*4U);m.require(instance,0x98U);
-  const auto model=m.u32(instance);m.require(model,0x64U);
-  const auto nv=m.u16(model+0x12U),nf=m.u16(model+0x14U),nb=m.u16(model+0x16U);
-  if(nv<3U||nv>8192U||nf<1U||nf>8192U||nb<1U||nb>1024U)throw std::runtime_error("bridge mesh counts");
-  const auto vertices=m.u32(instance+4U),faces=m.u32(model+0x20U),batches=m.u32(model+0x24U);
-  const auto collision=m.u32(instance+12U)?m.u32(instance+12U):m.u32(model+0x60U);
+  const auto model=m.u32(instance+m.member_offset("layout.instance.model"));m.require(model,0x64U);
+  const auto nv=m.u16(model+m.member_offset("layout.model.vertexCount")),nb=m.u16(model+m.member_offset("layout.model.batchCount"));
+  if(nv<3U||nv>8192U||nb<1U||nb>1024U)throw std::runtime_error("bridge mesh counts");
+  const auto vertices=m.u32(instance+m.member_offset("layout.instance.vertices")),faces=m.u32(model+m.member_offset("layout.model.faces")),batches=m.u32(model+m.member_offset("layout.model.batches"));
+  const auto collision=m.u32(instance+m.member_offset("layout.instance.collision"))?m.u32(instance+m.member_offset("layout.instance.collision")):m.u32(model+m.member_offset("layout.model.collision"));
+  m.require(batches,std::uint64_t(nb+1U)*16U);
+  const auto nf=m.u16(batches+nb*16U+8U);
+  if(!nf||nf>8192U)throw std::runtime_error("bridge face sentinel");
   m.require(vertices,std::uint64_t(nv)*10U);m.require(faces,std::uint64_t(nf)*16U);
   m.require(batches,std::uint64_t(nb+1U)*16U);m.require(collision,16U);
   const auto facets=m.u32(collision),planes=m.u32(collision+12U);
   m.require(facets,std::uint64_t(nf)*14U);
   std::array<float,16> matrix{};
-  for(unsigned i=0;i<16U;++i)matrix[i]=m.f32(state+0x80U+matrix_index*64U+i*4U);
+  for(unsigned i=0;i<16U;++i)matrix[i]=m.f32(state+jfg::game::records::bridge_matrix_offset+matrix_index*jfg::game::records::bridge_matrix_stride+i*4U);
   const auto transform=[&](Vec3 p,bool point) {
     return Vec3{p.x*matrix[0]+p.y*matrix[4]+p.z*matrix[8]+(point?matrix[12]:0),
                 p.x*matrix[1]+p.y*matrix[5]+p.z*matrix[9]+(point?matrix[13]:0),
@@ -290,14 +247,12 @@ inline CollisionInventory collision_models(const Memory &m,
                                            const std::vector<Actor> &list) {
   CollisionInventory result;
   try {
-    constexpr std::array<std::uint32_t, 7> accessor = {
-        0x3C0E8010, 0x8DCE47E0, 0x3C028010, 0xAC8E0000,
-        0x8C4247E4, 0x03E00008, 0};
-    for (unsigned i = 0; i < accessor.size(); ++i)
-      if (m.u32(0x8007E484U + i * 4U) != accessor[i]) {
+    for (const auto name : {"guard.collision.accessor_0", "guard.collision.accessor_1", "guard.collision.accessor_2", "guard.collision.accessor_3", "guard.collision.accessor_4", "guard.collision.accessor_5", "guard.collision.accessor_6"}) {
+      if (!m.instruction_matches(name)) {
         result.reason = "unsupported collision accessor"; return result;
       }
-    const auto count = m.u32(0x801047E0U), table = m.u32(0x801047E4U);
+    }
+    const auto count = m.global_u32("globals.objectAssetCount"), table = m.global_u32("globals.objectAssetTable");
     if (count > 1024U) throw std::runtime_error("collision count");
     if (count) {
       if (table & 3U) throw std::runtime_error("collision table alignment");
@@ -313,12 +268,12 @@ inline CollisionInventory collision_models(const Memory &m,
       for (const auto &prior : result.models)
         if ((prior.address & 0x1FFFFFFFU) == (actor & 0x1FFFFFFFU))
           throw std::runtime_error("duplicate collision actor");
-      const auto state = m.u32(actor + 0x5CU), properties = m.u32(actor + 0x4CU);
+      const auto state = m.u32(actor + m.member_offset("layout.actor.state")), properties = m.u32(actor + m.member_offset("layout.actor.properties"));
       if ((state | properties) & 3U) throw std::runtime_error("collision alignment");
       m.require(state, 0x118U); m.require(properties, 12U);
       CollisionModel model{actor, {}, {}, (m.u16(properties + 10U) & 1U) != 0, {}};
-      model.lower = {m.f32(state + 0x100U), m.f32(state + 0x104U), m.f32(state + 0x108U)};
-      model.upper = {m.f32(state + 0x10CU), m.f32(state + 0x110U), m.f32(state + 0x114U)};
+      model.lower = {m.f32(state + m.member_offset("layout.bridgeState.lowerX")), m.f32(state + m.member_offset("layout.bridgeState.lowerY")), m.f32(state + m.member_offset("layout.bridgeState.lowerZ"))};
+      model.upper = {m.f32(state + m.member_offset("layout.bridgeState.upperX")), m.f32(state + m.member_offset("layout.bridgeState.upperY")), m.f32(state + m.member_offset("layout.bridgeState.upperZ"))};
       const auto valid = [](float low, float high) {
         return low <= high && std::abs(low) <= 1000000 && std::abs(high) <= 1000000;
       };
@@ -357,21 +312,22 @@ inline std::vector<Exit> exits(const Memory &m,
   for (const auto &a : list) {
     if (a.behavior != 8U)
       continue;
-    const auto control = m.u32(a.address + 0x68U),
-               definition = m.u32(a.address + 0x3CU);
+    const auto control = m.u32(a.address + m.member_offset("layout.actor.control")),
+               definition = m.u32(a.address + m.member_offset("layout.actor.objectData"));
     if (!m.valid(control, 0x18U) || !m.valid(definition, 0x1CU))
       continue;
     try {
       result.push_back(
           {a.address,
            a.position,
-           {m.f32(control), m.f32(control + 4), m.f32(control + 8)},
-           m.f32(control + 12),
-           m.u32(control + 0x10U),
-           static_cast<std::uint16_t>(m.u8(definition + 0xAU) |
-                                      (m.u8(definition + 0xBU) << 8U)),
-           m.s16(control + 0x14U),
-           m.s16(control + 0x16U)});
+           {m.f32(control + m.member_offset("layout.exitControl.normalX")), m.f32(control + m.member_offset("layout.exitControl.normalY")), m.f32(control + m.member_offset("layout.exitControl.normalZ"))},
+           m.f32(control + m.member_offset("layout.exitControl.planeD")),
+           m.u32(control + m.member_offset("layout.exitControl.radius")),
+           static_cast<std::uint16_t>(m.u8(definition+m.member_offset("layout.exitDefinition.levelLow")) |
+             (m.u8(definition+m.member_offset("layout.exitDefinition.levelHigh"))==0xffU ? 0U :
+              static_cast<unsigned>(m.u8(definition+m.member_offset("layout.exitDefinition.levelHigh")))<<8U)),
+           m.s16(control + m.member_offset("layout.exitControl.condition")),
+           m.s16(control + m.member_offset("layout.exitControl.directional"))});
     } catch (const std::runtime_error &) {
     }
   }
@@ -443,28 +399,28 @@ inline std::vector<NpcMarker> npc_markers(const Memory &m,
       continue;
     try {
       m.require(a.address, 0xA4U);
-      const auto control = m.u32(a.address + 0x68U);
-      const auto properties = m.u32(a.address + 0x4CU);
+      const auto control = m.u32(a.address + m.member_offset("layout.actor.control"));
+      const auto properties = m.u32(a.address + m.member_offset("layout.actor.properties"));
       if (!m.valid(properties, 8U))
         continue;
-      NpcMarker npc{a.address,  a.position, m.u16(a.address + 0x4AU),
+      NpcMarker npc{a.address,  a.position, m.u16(a.address + m.member_offset("layout.actor.objectId")),
                     a.behavior, -1,         "npc",
                     "NPC"};
       if (a.behavior == 90U) {
         // Shared dialogue controller (mrhints), not scenery name matching.
-        if (!m.valid(control, 0x38U) || m.s16(properties + 6U) == 0)
+        if (!m.valid(control, 0x38U) || m.s16(properties + m.member_offset("layout.properties.health")) == 0)
           continue;
         npc.label = npc_label(npc.object_id);
       } else {
-        if (!m.valid(control, 0x28U) || m.s16(properties + 6U) <= 0)
+        if (!m.valid(control, 0x28U) || m.s16(properties + m.member_offset("layout.properties.health")) <= 0)
           continue;
-        const auto squad = m.u32(control + 0x24U);
-        if (!m.valid(squad, 0xA4U) || m.u16(squad + 0x48U) != 23U)
+        const auto squad = m.u32(control + m.member_offset("layout.squadControl.squad"));
+        if (!m.valid(squad, 0xA4U) || m.u16(squad + m.member_offset("layout.actor.type")) != 23U)
           continue;
-        const auto data = m.u32(squad + 0x68U);
+        const auto data = m.u32(squad + m.member_offset("layout.actor.control"));
         if (!m.valid(data, 0x2EU))
           continue;
-        const auto type = m.u16(data + 0x2CU);
+        const auto type = m.u16(data + m.member_offset("layout.squadRecord.type"));
         if (!tribal(type))
           continue;
         npc.squad_type = type;
@@ -523,13 +479,13 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
   for (const auto &a : list) {
     try {
       ItemMarker item{a.address, a.position, "", "", -1, false};
-      const auto object = m.u16(a.address + 0x4AU);
+      const auto object = m.u16(a.address + m.member_offset("layout.actor.objectId"));
       if (a.behavior == 98U) {
-        const auto control = m.u32(a.address + 0x68U);
+        const auto control = m.u32(a.address + m.member_offset("layout.actor.control"));
         if (!m.valid(control, 6U))
           continue;
-        item.content_code = m.u8(control + 5U);
-        item.opened = m.u8(control + 4U) == 5U;
+        item.content_code = m.u8(control + m.member_offset("layout.chestControl.content"));
+        item.opened = m.u8(control + m.member_offset("layout.chestControl.state")) == 5U;
         // Chest reward switch, including duplicate entries, verified against
         // the supported ROM's jump table. -1 denotes a special collectable
         // decoded separately from weapon reward indices.
@@ -569,16 +525,16 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
         for (unsigned n = 0; n < 15U; ++n)
           weapon_object =
               weapon_object ||
-              (object != 0U && object == m.u16(0x800A0CB0U + n * 2U));
+              (object != 0U && object == m.global_u16("globals.weaponPowerupObjects",n*2U));
         if (weapon_object) {
-          const auto index = m.u16(a.address + 0x88U);
+          const auto index = m.u16(a.address + jfg::game::records::pickup_weapon_index_offset);
           if (index >= 15U)
             continue;
           item.kind = "weapon";
           item.label = weapon_name(index);
           item.content_code = index;
         } else {
-          const auto header = m.u32(a.address + 0x40U);
+          const auto header = m.u32(a.address + m.member_offset("layout.actor.header"));
           if (!m.valid(header, 20U))
             continue;
           std::string name;
@@ -615,7 +571,7 @@ inline std::vector<ItemMarker> item_markers(const Memory &m,
   return result;
 }
 
-// Read-only progression facts for the supported US single-player layout.
+// Read-only progression facts for the qualified single-player save layout.
 // Unknown requirements/completion remain explicit; these are not route edges.
 struct Inventory {
   bool known = false, red_key = false, magnus_spoken = false;
@@ -623,17 +579,17 @@ struct Inventory {
 };
 inline Inventory inventory(const Memory &m, std::uint32_t player) noexcept {
   try {
-    if (!m.valid(player, 0xA4U) || m.u8(0x800A4FC4U) != 0U)
+    if (!m.valid(player, 0xA4U) || m.global_u8("globals.multiPlayerGame") != 0U)
       return {};
-    const auto control = m.u32(player + 0x68U), game = m.u32(0x800FD7D4U);
+    const auto control = m.u32(player + m.member_offset("layout.actor.control")), game = m.global_u32("globals.selectedPlayer");
     if (!m.valid(control, 2U) || !m.valid(game, 0x334U))
       return {};
-    const unsigned character = m.u8(control + 1U) & 3U;
+    const unsigned character = m.u8(control + m.member_offset("layout.playerControl.characterFlags")) & 3U;
     if (character == 3U)
       return {};
-    const auto saved = game + 0x15CU + character * 0x76U;
-    return {true, (m.u8(saved + 0x66U) & 0x40U) != 0U,
-            (m.u8(game + 8U) & 8U) != 0U, character, m.u16(saved + 0xAU)};
+    const auto saved = game + jfg::game::records::character_array_offset + character * jfg::game::records::character_stride;
+    return {true, (m.u8(saved + m.member_offset("layout.saveCharacter.items")) & 0x40U) != 0U,
+            (m.u8(game + m.member_offset("layout.saveGame.storyFlags")) & 8U) != 0U, character, m.u16(saved + m.member_offset("layout.saveCharacter.weapons"))};
   } catch (const std::runtime_error &) {
     return {};
   }
@@ -644,20 +600,20 @@ inline NpcFacts npc_facts(const Memory &m, const Inventory &inv,
   try {
     if (!inv.known)
       return f;
-    const auto game = m.u32(0x800FD7D4U);
+    const auto game = m.global_u32("globals.selectedPlayer");
     m.require(game, 0x334U);
     f.character = inv.character;
     f.weapons = inv.weapons;
     for (unsigned c = 0; c < 3; ++c)
       for (unsigned i = 0; i < 4; ++i)
-        f.items[c][i] = m.u8(game + 0x15CU + c * 0x76U + 0x66U + i);
+        f.items[c][i] = m.u8(game + jfg::game::records::character_array_offset + c * jfg::game::records::character_stride + m.member_offset("layout.saveCharacter.items") + i);
     for (unsigned i = 0; i < f.flags.size(); ++i)
-      f.flags[i] = m.u8(game + 0x30U + i);
-    f.currency = m.s16(game + 0x15CU + inv.character * 0x76U + 0x12U);
+      f.flags[i] = m.u8(game + m.member_offset("layout.saveGame.flags") + i);
+    f.currency = m.s16(game + jfg::game::records::character_array_offset + inv.character * jfg::game::records::character_stride + m.member_offset("layout.saveCharacter.tokens"));
     if (m.valid(player, 0xA4U)) {
-      const auto control = m.u32(player + 0x68U);
+      const auto control = m.u32(player + m.member_offset("layout.actor.control"));
       if (m.valid(control, 0x18AU))
-        f.race = m.u8(control + 0x189U);
+        f.race = m.u8(control + m.member_offset("layout.playerControl.race"));
     }
     f.known = true;
   } catch (const std::runtime_error &) {
@@ -669,11 +625,11 @@ inline void write_inventory_tracker(std::ostream &out,const Memory &m,std::uint3
   const auto inv=inventory(m,player);
   out<<"{\"known\":"<<(inv.known?"true":"false")<<",\"current\":"<<(inv.known?int(inv.character):-1)<<",\"characters\":[";
   if(inv.known) {
-    const auto game=m.u32(0x800FD7D4U);const auto facts=npc_facts(m,inv,player);
+    const auto game=m.global_u32("globals.selectedPlayer");const auto facts=npc_facts(m,inv,player);
     for(unsigned c=0;c<3;++c) {
       if(c)out<<',';
-      const auto saved=game+0x15CU+c*0x76U;
-      out<<"{\"id\":"<<c<<",\"weapons\":"<<m.u16(saved+0xAU)<<",\"items\":[";
+      const auto saved=game+jfg::game::records::character_array_offset+c*jfg::game::records::character_stride;
+      out<<"{\"id\":"<<c<<",\"weapons\":"<<m.u16(saved+m.member_offset("layout.saveCharacter.weapons"))<<",\"items\":[";
       for(unsigned i=0;i<28;++i){if(i)out<<',';out<<((facts.items[c][i>>3]&(0x80U>>(i&7)))?"true":"false");}
       out<<"]}";
     }
@@ -692,19 +648,19 @@ inline ChestAccess chest_access(const Memory &m,std::uint32_t actor) {
   // Observe the game's cached activation region. ObjectChest refreshes these
   // fields for the current character when A is pressed; never infer access
   // from the decorative model centre or skip its facing/height requirements.
-  if(!m.valid(actor,0x6CU)||m.u16(actor+0x48U)!=98U||
-      m.u32(0x8003B6C8U)!=0x27BDFFE8U)return {};
-  const auto data=m.u32(actor+0x68U);
+  if(!m.valid(actor,0x6CU)||m.u16(actor+m.member_offset("layout.actor.type"))!=98U||
+      !m.instruction_matches("guard.chest.entry"))return {};
+  const auto data=m.u32(actor+m.member_offset("layout.actor.control"));
   if(!m.valid(data,0x24U))return {};
   try {
     const auto p=position(m,actor);
-    const float dx=m.f32(data+0x10U),dy=m.f32(data+0x14U),dz=m.f32(data+0x18U);
-    const float radius=m.f32(data+0x1CU),height=m.f32(data+0x20U);
+    const float dx=m.f32(data+m.member_offset("layout.chestControl.offsetX")),dy=m.f32(data+m.member_offset("layout.chestControl.offsetY")),dz=m.f32(data+m.member_offset("layout.chestControl.offsetZ"));
+    const float radius=m.f32(data+m.member_offset("layout.chestControl.radius")),height=m.f32(data+m.member_offset("layout.chestControl.height"));
     if(!std::isfinite(dx)||!std::isfinite(dy)||!std::isfinite(dz)||!std::isfinite(radius)||!std::isfinite(height)||
         std::abs(dx)>1000||std::abs(dy)>1000||std::abs(dz)>1000||
         radius<1||radius>256||height<0||height>256)return {};
     return {true,{p.x+dx,p.y+dy,p.z+dz},radius,height,
-      static_cast<std::int16_t>(static_cast<std::uint16_t>(m.s16(actor))+0x8000U)};
+      static_cast<std::int16_t>(static_cast<std::uint16_t>(m.s16(actor+m.member_offset("layout.actor.yaw")))+0x8000U)};
   }catch(const std::runtime_error &){return {};}
 }
 struct Interaction {
@@ -726,14 +682,14 @@ struct Interaction {
       target_max_health = -1, reset_ticks = -1;
 };
 
-// US doorControl/exitControl observations; read the user's live state, never
+// Qualified doorControl/exitControl observations; read live state, never
 // embed the ROM's condition table or alter its locks.
 inline void door_access(Interaction &node,const Memory &m,std::uint32_t control,
                         const Inventory &inv,const NpcFacts &facts,std::uint32_t player) {
-  if(!m.valid(control,0x4CU)||m.u32(0x80025A08U)!=0x27BDFF48U)return;
-  node.raw_state=m.u16(control+0x3EU);node.raw_condition=m.u8(control+0x43U);
-  node.door_id=m.u8(control+0x44U);node.approach_radius=m.u16(control+0x40U);
-  node.pending_openers=m.u8(control+0x4AU);
+  if(!m.valid(control,0x4CU)||!m.instruction_matches("guard.door.entry"))return;
+  node.raw_state=m.u16(control+m.member_offset("layout.doorControl.state"));node.raw_condition=m.u8(control+m.member_offset("layout.doorControl.condition"));
+  node.door_id=m.u8(control+m.member_offset("layout.doorControl.id"));node.approach_radius=m.u16(control+m.member_offset("layout.doorControl.radius"));
+  node.pending_openers=m.u8(control+m.member_offset("layout.doorControl.pendingOpeners"));
   const bool locked=(node.raw_state&8)!=0;
   node.requirement_known=true;node.access_known=true;node.access_allowed=!locked;
   if(node.raw_condition>=2) {
@@ -750,7 +706,7 @@ inline void door_access(Interaction &node,const Memory &m,std::uint32_t control,
     node.label="Target-controlled door";node.requirement="Activate linked shooting targets";
     node.status=locked?"target_required":"target_lock_cleared";
   } else {
-    node.label=m.u8(control+0x42U)==5?"Proximity curtain":"Proximity door";
+    node.label=m.u8(control+m.member_offset("layout.doorControl.kind"))==5?"Proximity curtain":"Proximity door";
     node.requirement=locked?"External opener; source not identified":"Approach the door";
     node.status=locked?"opener_required":(node.raw_state&2)?((node.raw_state&4)?"opening":"closing"):
       (node.raw_state&1)?"open":"opens_on_approach";
@@ -758,7 +714,7 @@ inline void door_access(Interaction &node,const Memory &m,std::uint32_t control,
   }
   // Character exclusions and additional progression predicates remain separate
   // from the door's animation and latch.
-  const unsigned restrictions=m.u8(control+0x4BU);
+  const unsigned restrictions=m.u8(control+m.member_offset("layout.doorControl.restrictions"));
   Fact allowed=Fact::met;
   if(restrictions&7) {
     node.requirement+="; character restriction";
@@ -770,27 +726,27 @@ inline void door_access(Interaction &node,const Memory &m,std::uint32_t control,
   }
   if(restrictions&0x80) {
     node.requirement+="; player capability";
-    auto pc=m.valid(player,0x6CU)?m.u32(player+0x68U):0U;
-    allowed=both(allowed,m.valid(pc,0x510U)?fact(m.u32(pc+0x50CU)!=0):Fact::unknown);
+    auto pc=m.valid(player,0x6CU)?m.u32(player+m.member_offset("layout.actor.control")):0U;
+    allowed=both(allowed,m.valid(pc,0x510U)?fact(m.u32(pc + m.member_offset("layout.playerControl.doorCapability"))!=0):Fact::unknown);
   }
   if(restrictions&0x38) {allowed=both(allowed,Fact::unknown);node.requirement_known=false;}
   if(allowed==Fact::missing){node.status="character_or_progress_required";node.access_known=true;node.access_allowed=false;}
   else if(allowed==Fact::unknown){node.status="restriction_unverified";node.access_known=false;node.access_allowed=false;}
 }
 inline Fact exit_condition(const Memory &m,const Exit &exit,const NpcFacts &facts,std::uint32_t player) {
-  if(m.u32(0x8002561CU)!=0x27BDFF70U)return Fact::unknown;
+  if(!m.instruction_matches("guard.exit.entry"))return Fact::unknown;
   if(exit.condition<0||exit.condition>=25)return Fact::met;
   Fact met=Fact::met;
   for(unsigned i=0;i<2;++i) {
-    const auto at=0x800A1120U+unsigned(exit.condition)*4U+i*2U;
+    const auto at=m.global_address("globals.exitConditions",unsigned(exit.condition)*4U+i*2U,2U);
     const auto id=m.u8(at),expected=m.u8(at+1);
     if(id==255)continue;
     if(expected>1)return Fact::unknown;
     auto value=facts.flag(id);met=both(met,expected?value:negate(value));
   }
   if(exit.condition==3||exit.condition==4) {
-    auto pc=m.valid(player,0x6CU)?m.u32(player+0x68U):0U;
-    met=both(met,m.valid(pc,2U)?fact(((m.u8(pc+1)&4)!=0)==(exit.condition==4)):Fact::unknown);
+    auto pc=m.valid(player,0x6CU)?m.u32(player+m.member_offset("layout.actor.control")):0U;
+    met=both(met,m.valid(pc,2U)?fact(((m.u8(pc+m.member_offset("layout.playerControl.characterFlags"))&4)!=0)==(exit.condition==4)):Fact::unknown);
   }
   if(exit.condition==5)met=both(met,facts.race<0?Fact::unknown:fact(facts.race==1));
   return met;
@@ -810,19 +766,19 @@ interactions(const Memory &m, const std::vector<Actor> &list,
     node.label = npc.label;
     node.action = npc.behavior == 90U ? "talk" : "rescue";
     if (npc.behavior == 90U) {
-      const auto control = m.u32(npc.address + 0x68U);
-      node.raw_state = m.u8(control);
-      node.talk_radius=m.f32(control+0x18U);
-      node.talk_lower=m.f32(control+0x20U);node.talk_upper=m.f32(control+0x1CU);
+      const auto control = m.u32(npc.address + m.member_offset("layout.actor.control"));
+      node.raw_state = m.u8(control+m.member_offset("layout.npcControl.state"));
+      node.talk_radius=m.f32(control+m.member_offset("layout.npcControl.radius"));
+      node.talk_lower=m.f32(control+m.member_offset("layout.npcControl.lower"));node.talk_upper=m.f32(control+m.member_offset("layout.npcControl.upper"));
       if(node.talk_radius<8||node.talk_radius>500||node.talk_lower>node.talk_upper||
          node.talk_lower< -1000||node.talk_upper>1000)node.talk_radius=0;
-      node.dialogue = m.u8(control + 0x31U);
-      node.encounter = m.u8(control + 0x32U);
+      node.dialogue = m.u8(control + m.member_offset("layout.npcControl.dialogue"));
+      node.encounter = m.u8(control + m.member_offset("layout.npcControl.encounter"));
       auto facts = npc_facts(m, inv, player);
-      facts.first_conversation = m.u8(control + 1U) != 0U ? 1 : 0;
+      facts.first_conversation = m.u8(control + m.member_offset("layout.npcControl.firstConversation")) != 0U ? 1 : 0;
       if (facts.known) {
-        const auto game = m.u32(0x800FD7D4U);
-        node.spoken = (m.u8(game + 8U + (unsigned(node.encounter) >> 3U)) &
+        const auto game = m.global_u32("globals.selectedPlayer");
+        node.spoken = (m.u8(game + m.member_offset("layout.saveGame.storyFlags") + (unsigned(node.encounter) >> 3U)) &
                        (0x80U >> (unsigned(node.encounter) & 7U))) != 0U
                           ? 1
                           : 0;
@@ -874,7 +830,7 @@ interactions(const Memory &m, const std::vector<Actor> &list,
     node.position = item.position;
     node.kind = item.kind;
     node.label = item.label;
-    const auto behavior = m.u16(item.address + 0x48U);
+    const auto behavior = m.u16(item.address + m.member_offset("layout.actor.type"));
     node.action = behavior == 98U ? "open_chest" : "collect";
     node.reward = item.label;
     if (behavior == 98U) {
@@ -885,7 +841,7 @@ interactions(const Memory &m, const std::vector<Actor> &list,
       if (item.content_code >= 0 &&
           item.content_code < static_cast<int>(weapons.size()))
         node.reward_weapon = weapons[static_cast<unsigned>(item.content_code)];
-      node.raw_state = m.u8(m.u32(item.address + 0x68U) + 4U);
+      node.raw_state = m.u8(m.u32(item.address + m.member_offset("layout.actor.control")) + m.member_offset("layout.chestControl.state"));
       node.status = item.opened ? "opened" : "unopened";
       if (node.reward_weapon >= 0)
         node.reward = weapon_name(static_cast<unsigned>(node.reward_weapon));
@@ -908,7 +864,7 @@ interactions(const Memory &m, const std::vector<Actor> &list,
     if (actor.behavior != 111U && actor.behavior != 67U && actor.behavior != 7U)
       continue;
     try {
-      const auto control = m.u32(actor.address + 0x68U);
+      const auto control = m.u32(actor.address + m.member_offset("layout.actor.control"));
       if (!m.valid(control, 0x10U))
         continue;
       Interaction node;
@@ -921,25 +877,25 @@ interactions(const Memory &m, const std::vector<Actor> &list,
         // targetswitchControl: +8 is door ID, +A the activation latch.
         // +0 is a recovery timer, not a hit counter. No weapon restriction
         // inferred.
-        node.raw_state = m.u8(control + 0xAU);
-        node.raw_condition = m.s16(control + 4U);
-        node.door_id = m.u8(control + 8U);
+        node.raw_state = m.u8(control + m.member_offset("layout.targetControl.active"));
+        node.raw_condition = m.s16(control + m.member_offset("layout.targetControl.condition"));
+        node.door_id = m.u8(control + m.member_offset("layout.targetControl.doorId"));
         node.label += " (door " + std::to_string(node.door_id) + ")";
         node.status = node.raw_state != 0 ? "activated" : "needs_shooting";
         node.requirement =
             "Repeated shots; weapon and timing constraints unverified";
         node.reward =
             "Activates linked door group " + std::to_string(node.door_id);
-        node.reset_ticks = m.s16(control);
-        node.target_max_health = m.u16(control + 6U);
-        const auto props = m.u32(actor.address + 0x4CU);
+        node.reset_ticks = m.s16(control+m.member_offset("layout.targetControl.cooldown"));
+        node.target_max_health = m.u16(control + m.member_offset("layout.targetControl.maxHealth"));
+        const auto props = m.u32(actor.address + m.member_offset("layout.actor.properties"));
         if (m.valid(props, 8U))
-          node.target_health = m.s16(props + 6U);
+          node.target_health = m.s16(props + m.member_offset("layout.properties.health"));
         for (const auto &other : list) {
           if (other.behavior != 7U)
             continue;
-          const auto dc = m.u32(other.address + 0x68U);
-          if (m.valid(dc, 0x4BU) && m.u8(dc + 0x44U) == node.door_id) {
+          const auto dc = m.u32(other.address + m.member_offset("layout.actor.control"));
+          if (m.valid(dc, 0x4BU) && m.u8(dc + m.member_offset("layout.doorControl.id")) == node.door_id) {
             node.linked_actor = other.address;
             break;
           }
@@ -950,10 +906,10 @@ interactions(const Memory &m, const std::vector<Actor> &list,
         node.kind = "gate";
         node.label = "Door";
         node.action = "pass_door";
-        node.door_id = m.u8(control + 0x44U);
+        node.door_id = m.u8(control + m.member_offset("layout.doorControl.id"));
         node.label += " " + std::to_string(node.door_id);
-        node.raw_state = m.u16(control + 0x3EU);
-        node.raw_condition = m.u8(control + 0x43U);
+        node.raw_state = m.u16(control + m.member_offset("layout.doorControl.state"));
+        node.raw_condition = m.u8(control + m.member_offset("layout.doorControl.condition"));
         door_access(node,m,control,inv,npc_facts(m,inv,player),player);
       } else {
         node.kind = "gate";
@@ -965,7 +921,7 @@ interactions(const Memory &m, const std::vector<Actor> &list,
         for (const auto &other : list)
           if (other.address == linked && other.behavior == 7U)
             { node.linked_actor = linked;
-              door_access(node,m,m.u32(linked+0x68U),inv,npc_facts(m,inv,player),player);
+              door_access(node,m,m.u32(linked+m.member_offset("layout.actor.control")),inv,npc_facts(m,inv,player),player);
               node.label="Indicator: "+node.label;
             }
       }
@@ -1103,40 +1059,40 @@ inline void write_progression(std::ostream &out, const Memory &m,
 
 inline Mesh decode_mesh(const Memory &m, std::uint32_t track) {
   m.require(track, 0x20U);
-  const auto blocks = m.u32(track + 4U);
-  const auto count = m.u16(track + 0x1AU);
+  const auto blocks = m.u32(track+m.member_offset("layout.track.blocks"));
+  const auto count = m.u16(track+m.member_offset("layout.track.blockCount"));
   if (count == 0U || count > 512U)
     throw std::runtime_error("invalid mod mesh block count");
-  m.require(blocks, static_cast<std::uint64_t>(count) * 0x48U);
+  m.require(blocks, static_cast<std::uint64_t>(count) *jfg::game::records::track_block_stride);
   Mesh result;
   result.blocks = count;
   for (std::uint32_t b = 0; b < count; ++b) {
-    const auto block = blocks + b * 0x48U;
-    const auto vertices = m.u32(block), faces = m.u32(block + 4U),
-               batches = m.u32(block + 0xCU);
-    const auto planes = m.u32(block + 0x1CU),
-               plane_indices = m.u32(block + 0x18U);
-    const auto nv = m.u16(block + 0x24U), nf = m.u16(block + 0x26U),
-               nb = m.u16(block + 0x28U);
+    const auto block = blocks + b *jfg::game::records::track_block_stride;
+    const auto vertices = m.u32(block+m.member_offset("layout.trackBlock.vertices")), faces = m.u32(block+m.member_offset("layout.trackBlock.faces")),
+               batches = m.u32(block+m.member_offset("layout.trackBlock.batches"));
+    const auto planes = m.u32(block+m.member_offset("layout.trackBlock.planes")),
+               plane_indices = m.u32(block+m.member_offset("layout.trackBlock.planeIndices"));
+    const auto nv = m.u16(block+m.member_offset("layout.trackBlock.vertexCount")), nf = m.u16(block+m.member_offset("layout.trackBlock.faceCount")),
+               nb = m.u16(block+m.member_offset("layout.trackBlock.batchCount"));
     if (nv > 16384U || nf > 16384U || nb > 4096U ||
         result.vertices.size() + nv > 131072U ||
         result.triangles.size() + nf > 262144U)
       throw std::runtime_error("mod mesh too large");
     if (nv == 0U || nf == 0U)
       continue;
-    m.require(vertices, static_cast<std::uint64_t>(nv) * 10U);
-    m.require(faces, static_cast<std::uint64_t>(nf) * 16U);
-    m.require(batches, static_cast<std::uint64_t>(nb + 1U) * 16U);
-    m.require(plane_indices, static_cast<std::uint64_t>(nf) * 8U);
+    m.require(vertices, static_cast<std::uint64_t>(nv) * jfg::game::records::track_vertex_stride);
+    m.require(faces, static_cast<std::uint64_t>(nf) * jfg::game::records::track_face_stride);
+    m.require(batches, static_cast<std::uint64_t>(nb + 1U) * jfg::game::records::track_batch_stride);
+    m.require(plane_indices, static_cast<std::uint64_t>(nf) * jfg::game::records::track_plane_index_stride);
     const auto base = static_cast<std::uint32_t>(result.vertices.size());
     for (std::uint32_t i = 0; i < nv; ++i) {
-      const auto v = vertices + i * 10U;
+      const auto v = vertices + i * jfg::game::records::track_vertex_stride;
       result.vertices.push_back({static_cast<float>(m.s16(v)),
                                  static_cast<float>(m.s16(v + 2)),
                                  static_cast<float>(m.s16(v + 4))});
     }
     for (std::uint32_t batch = 0; batch < nb; ++batch) {
-      const auto at = batches + batch * 16U;
+      const auto at = batches + batch * jfg::game::records::track_batch_stride;
       const auto vertex_base = m.u16(at + 6U), first = m.u16(at + 8U),
                  end = m.u16(at + 24U);
       if (first > end || end > nf)
@@ -1147,13 +1103,13 @@ inline Mesh decode_mesh(const Memory &m, std::uint32_t track) {
         tri.block = b;
         for (std::uint32_t j = 0; j < 3U; ++j) {
           const auto index = static_cast<std::uint32_t>(vertex_base) +
-                             m.u8(faces + i * 16U + 1U + j);
+                             m.u8(faces + i * jfg::game::records::track_face_stride + 1U + j);
           if (index >= nv)
             throw std::runtime_error("invalid mod triangle index");
           tri.vertices[j] = base + index;
         }
         const auto plane_offset =
-            static_cast<std::uint32_t>(m.u16(plane_indices + i * 8U)) * 16U;
+            static_cast<std::uint32_t>(m.u16(plane_indices + i * jfg::game::records::track_plane_index_stride)) * jfg::game::records::track_plane_stride;
         m.require(planes, static_cast<std::uint64_t>(plane_offset) + 16U);
         const auto plane = planes + plane_offset;
         m.require(plane, 16U);
@@ -1216,66 +1172,65 @@ inline void write_mesh(std::ostream &out, const Mesh &mesh, std::uint32_t level,
 // pinned by camGetListPtr and controlPlayer's store at 0x80032ACC.
 struct ControlCamera { bool known{}; std::int16_t yaw{}; Vec3 position{}; };
 inline ControlCamera control_camera(const Memory &m) {
-  if (!m.valid(0x800F6DC0U,4) || m.u32(0x80041E0CU)!=0x3C028010U ||
-      m.u32(0x80041E10U)!=0x03E00008U || m.u32(0x80041E14U)!=0x2442A4D0U ||
-      m.u32(0x80032ACCU)!=0xAC226DC0U) return {};
-  auto address=m.u32(0x800F6DC0U);
-  if(address<0x800FA4D0U || address>=0x800FA600U ||
-     (address-0x800FA4D0U)%0x4CU!=0 || !m.valid(address,0x4CU)) return {};
+  if (!m.global_valid("globals.controlledCamera") || !m.instruction_matches("guard.camera.list_hi") ||
+      !m.instruction_matches("guard.camera.list_return") || !m.instruction_matches("guard.camera.list_lo") ||
+      !m.instruction_matches("guard.player.store_camera")) return {};
+  auto address=m.global_u32("globals.controlledCamera");
+  if(!m.global_contains("globals.cameraActors",address,0x4cU,0x4cU))return {};
   try {return {true,m.s16(address),position(m,address)};}
   catch(const std::runtime_error &) {return {};}
 }
 
 // Static-camera overrides are a separate path from animcamera and cutcamera.
 inline bool static_camera_active(const Memory &m) {
-  if (!m.valid(0x800FB084U,4) || m.u32(0x8004271CU)!=0x3C028010U ||
-      m.u32(0x80042720U)!=0x8C42B084U || m.u32(0x80042724U)!=0x03E00008U ||
-      m.u32(0x80042728U)!=0U) return false;
-  auto pointer=m.u32(0x800FB084U);
+  if (!m.global_valid("globals.staticCamera") || !m.instruction_matches("guard.camera.static_hi") ||
+      !m.instruction_matches("guard.camera.static_load") || !m.instruction_matches("guard.camera.static_return") ||
+      !m.instruction_matches("guard.camera.static_delay")) return false;
+  auto pointer=m.global_u32("globals.staticCamera");
   return (pointer&3U)==0U && m.valid(pointer,0x18U);
 }
 inline bool scripted_camera_active(const Memory &m, std::uint32_t player=0) {
-  if(m.u32(0x801045B8U)!=0U || static_camera_active(m)) return true;
+  if(m.global_u32("globals.cutsceneCameraActive")!=0U || static_camera_active(m)) return true;
   // controlPlayer's camera dispatcher reads +0x5C0 before the static-camera
   // fallback. The observed door shot binds a live cutcamera actor (behavior 100).
-  if(!m.valid(player,0x6CU) || m.u32(0x8002B484U)!=0x8E0505C0U ||
-     m.u32(0x8002B48CU)!=0x10A0000EU) return false;
-  auto control=m.u32(player+0x68U);
+  if(!m.valid(player,0x6CU) || !m.instruction_matches("guard.camera.load_scripted") ||
+     !m.instruction_matches("guard.camera.branch_scripted")) return false;
+  auto control=m.u32(player+m.member_offset("layout.actor.control"));
   if(!m.valid(control,0x5C4U)) return false;
-  auto camera=m.u32(control+0x5C0U);
-  return (camera&3U)==0U && m.valid(camera,0x4AU) && m.u16(camera+0x48U)==100U;
+  auto camera=m.u32(control+m.member_offset("layout.playerControl.scriptedMovement"));
+  return (camera&3U)==0U && m.valid(camera,0x4AU) && m.u16(camera+m.member_offset("layout.actor.type"))==100U;
 }
 
 // Normal single-player gameplay, without scripted camera or input control.
 inline bool gameplay_active(const Memory &m, std::uint32_t player) {
   if (!m.valid(player, 0xA4U))
     return false;
-  const auto control = m.u32(player + 0x68U);
-  if (!m.valid(control, 0x5C4U) || m.u32(control + 0x5C0U) != 0U)
+  const auto control = m.u32(player + m.member_offset("layout.actor.control"));
+  if (!m.valid(control, 0x5C4U) || m.u32(control + m.member_offset("layout.playerControl.scriptedMovement")) != 0U)
     return false;
-  return m.u8(0x800A4FC4U) == 0U && m.u32(0x800FD7C4U) == 0U &&
-         m.u32(0x801045B8U) == 0U && m.u32(0x800F6DBCU) == 0U;
+  return m.global_u8("globals.multiPlayerGame") == 0U && m.global_u32("globals.gameMode") == 0U &&
+         m.global_u32("globals.cutsceneCameraActive") == 0U && m.global_u32("globals.controllerDisabled") == 0U;
 }
 
 // The guest can compact connected controller slots into logical players.
 // Mirror joyGetAbsX/Y's logical-to-physical lookup before selecting a profile.
 inline unsigned pc_input_port(const Memory& m,unsigned player) {
   if(player>=4U)return 4U;
-  const auto port=m.u8(0x800FB100U+player);
+  const auto port=m.global_u8("globals.playerPorts",player);
   return port<4U?port:4U;
 }
 // Resolve the native player list by the control port, not update order. The
 // last controlPlayer call can belong to any split-screen player or a bot.
 inline std::uint32_t pc_player_for_port(const Memory& m,unsigned port) {
-  if(port>=4U || m.u32(0x8000E468U)!=0x8DCE2D10U ||
-     m.u32(0x8000E474U)!=0x8C422D0CU)return 0;
-  const auto list=m.u32(0x800F2D0CU),count=m.u32(0x800F2D10U);
+  if(port>=4U || !m.instruction_matches("guard.player_list.count") ||
+     !m.instruction_matches("guard.player_list.pointer"))return 0;
+  const auto list=m.global_u32("globals.playerList"),count=m.global_u32("globals.playerCount");
   if(!count || count>4U || (list&3U) || !m.valid(list,count*4U))return 0;
   std::uint32_t found=0;
   for(unsigned i=0;i<count;++i) {
     const auto actor=m.u32(list+i*4U);
     if((actor&3U) || !m.valid(actor,0xA4U))continue;
-    const auto control=m.u32(actor+0x68U);
+    const auto control=m.u32(actor+m.member_offset("layout.actor.control"));
     if((control&3U) || !m.valid(control,0x5F0U) || pc_input_port(m,m.u8(control))!=port)continue;
     if(found)return 0; // Ambiguous ownership must not borrow another view.
     found=actor;
@@ -1285,35 +1240,35 @@ inline std::uint32_t pc_player_for_port(const Memory& m,unsigned port) {
 // Navigation mods retain their single-player gate. Controls additionally
 // accept a qualified native multiplayer character with its own port.
 inline bool pc_session_active(const Memory& m,std::uint32_t player) {
-  if(!m.u8(0x800A4FC4U))return gameplay_active(m,player);
+  if(!m.global_u8("globals.multiPlayerGame"))return gameplay_active(m,player);
   if(!m.valid(player,0xA4U))return false;
-  const auto control=m.u32(player+0x68U);
-  return m.valid(control,0x5F0U) && !m.u32(control+0x5C0U) &&
+  const auto control=m.u32(player+m.member_offset("layout.actor.control"));
+  return m.valid(control,0x5F0U) && !m.u32(control+m.member_offset("layout.playerControl.scriptedMovement")) &&
     pc_player_for_port(m,pc_input_port(m,m.u8(control)))==player &&
-    !m.u32(0x800FD7C4U) && !m.u32(0x801045B8U) && !m.u32(0x800F6DBCU);
+    !m.global_u32("globals.gameMode") && !m.global_u32("globals.cutsceneCameraActive") && !m.global_u32("globals.controllerDisabled");
 }
 // mainGetPlayer's inventory selection differs in competitive multiplayer.
 // Use the native logical player for its 0xA0-byte record, regardless of the
 // connected controller slot or the character's single-player save inventory.
 inline std::uint32_t pc_player_inventory(const Memory& m,std::uint32_t control) {
-  if(!m.valid(control,0x5F0U) || m.u32(0x80047C20U)!=0x91CE4FC4U ||
-     m.u32(0x80047C80U)!=0x8D29D7D4U)return 0;
+  if(!m.valid(control,0x5F0U) || !m.instruction_matches("guard.character.load_mode") ||
+     !m.instruction_matches("guard.character.load_player"))return 0;
   const unsigned player=m.u8(control),character=m.u8(control+1U)&3U;
   std::uint32_t inventory=0;
-  const unsigned players=m.u8(0x800A4FD0U);
-  if(m.u8(0x800A4FC4U) && players>=2U) {
+  const unsigned players=m.global_u8("globals.numberOfPlayers");
+  if(m.global_u8("globals.multiPlayerGame") && players>=2U) {
     if(players>4U || player>=players)return 0;
-    inventory=0x800FED50U+0x16U+player*0xA0U;
+    inventory=m.global_address("globals.multiplayerRecords",0x16U+player*0xA0U,jfg::game::records::character_stride,2U);
   } else {
-    const auto game=m.u32(0x800FD7D4U);
+    const auto game=m.global_u32("globals.selectedPlayer");
     if(character>=3U || !m.valid(game,0x538U))return 0;
-    inventory=game+0x15CU+character*0x76U;
+    inventory=game+jfg::game::records::character_array_offset+character*jfg::game::records::character_stride;
   }
-  return m.valid(inventory,0x76U)?inventory:0;
+  return m.valid(inventory,jfg::game::records::character_stride)?inventory:0;
 }
 inline unsigned pc_player_weapon(const Memory& m,std::uint32_t control) {
   const auto inventory=pc_player_inventory(m,control);
-  return inventory?m.u8(inventory+0x70U):255U;
+  return inventory?m.u8(inventory + m.member_offset("layout.saveCharacter.selectedWeapon")):255U;
 }
 struct PcFloydContext {
   std::uint32_t actor=0,control=0,owner=0;
@@ -1324,36 +1279,61 @@ struct PcFloydContext {
 // sidekickControl routes joined co-op to port 1 and active missions to the
 // owner's port. Mode 3 is the mission's input-locked transition, not gameplay.
 inline PcFloydContext pc_floyd_context(const Memory& m) {
-  if(m.u32(0x8002F7A0U)!=0x0C010D44U || m.u32(0x8002F7A4U)!=0x24040001U ||
-     m.u32(0x8002F85CU)!=0x0C00DC94U || m.u8(0x800A4FC4U) ||
-     m.u32(0x800FD7C4U) || m.u8(0x800FD7BDU))return {};
-  const auto actor=m.u32(0x800F2D14U);
+  if(!m.instruction_matches("guard.sidekick.join_call") || !m.instruction_matches("guard.sidekick.join_port") ||
+     !m.instruction_matches("guard.sidekick.input_call") || m.global_u8("globals.multiPlayerGame") ||
+     m.global_u32("globals.gameMode") || m.global_u8("globals.pauseActive"))return {};
+  const auto actor=m.global_u32("globals.sidekickActor");
   if((actor&3U) || !m.valid(actor,0xA4U))return {};
-  const auto control=m.u32(actor+0x68U);
+  const auto control=m.u32(actor+m.member_offset("layout.actor.control"));
   if((control&3U) || !m.valid(control,0xA0U))return {};
-  const auto owner=m.u32(control+0x24U);
+  const auto owner=m.u32(control+m.member_offset("layout.sidekickControl.owner"));
   if((owner&3U) || !m.valid(owner,0xA4U))return {};
-  const auto owner_control=m.u32(owner+0x68U);
+  const auto owner_control=m.u32(owner+m.member_offset("layout.actor.control"));
   if((owner_control&3U) || !m.valid(owner_control,0x5F0U) ||
      scripted_camera_active(m,owner))return {};
-  const auto mode=m.u8(owner_control+0x10DU);
+  const auto mode=m.u8(owner_control+m.member_offset("layout.playerControl.sidekickMode"));
   const bool mission=mode==1U;
   if(mode && !mission)return {};
-  if(!mission && (!m.u8(0x800A4FC8U) || !(m.u8(control+0x94U)&0x80U)))return {};
-  const unsigned port=pc_input_port(m,(m.u8(control+0x94U)&0x80U)?1U:m.u8(owner_control));
+  if(!mission && (!m.global_u8("globals.cooperativeGame") || !(m.u8(control+m.member_offset("layout.sidekickControl.flags"))&0x80U)))return {};
+  const unsigned port=pc_input_port(m,(m.u8(control+m.member_offset("layout.sidekickControl.flags"))&0x80U)?1U:m.u8(owner_control+m.member_offset("layout.playerControl.port")));
   if(port>=4U)return {};
   return {actor,control,owner,port,mission};
+}
+
+// Same racing selector as controlPlayer / hovershipControl. A stale
+// multiGameType outside multiplayer must not turn ordinary play into racing.
+inline bool pc_race_session(const Memory& m) {
+  return m.global_u8("globals.racingInGame")!=0 ||
+    (m.global_u8("globals.multiPlayerGame")!=0 && m.global_u8("globals.multiGameType")==4U);
+}
+inline bool pc_race_gameplay_active(const Memory& m,std::uint32_t actor,unsigned port) {
+  if(!pc_race_session(m) || pc_player_for_port(m,port)!=actor || !actor ||
+     m.global_u8("globals.pauseActive") || m.global_u32("globals.gameMode") ||
+     m.global_u32("globals.cutsceneCameraActive") || m.global_u32("globals.controllerDisabled"))return false;
+  // Arcade races keep a static overview camera during normal vehicle control.
+  // Reject actual cinematic/scripted input ownership, not that fixed race view.
+  const auto c=m.u32(actor+m.member_offset("layout.actor.control"));
+  return m.valid(c,0x5F0U) && !m.u32(c+m.member_offset("layout.playerControl.scriptedMovement"));
+}
+struct FloydPauseLayout {
+  std::uint32_t extent,active,state;
+  OverlayInstructionGuard entry,button;
+};
+template<class OverlayMemory>
+inline bool pc_floyd_pause_screen(const OverlayMemory& m,std::uint32_t base,const FloydPauseLayout& layout) {
+  return m.valid(base,layout.extent) && layout.entry.matches(m,base) && layout.button.matches(m,base) &&
+    m.u16(base+layout.active)!=0 && m.u8(base+layout.state)==2U;
 }
 
 // PC view ownership must honor the character's own input locks before its
 // update publishes 0x800F6DBC. Pickups/dialogue and scripted actor control can
 // leave the general gameplay/camera flags clear at the outer player boundary.
 inline bool pc_gameplay_active(const Memory &m, std::uint32_t player) {
-  if(!pc_session_active(m,player) || scripted_camera_active(m,player))return false;
-  const auto control=m.u32(player+0x68U);
-  if(!m.valid(control,0x5F0U) || m.u32(control+0xFCU)!=0U)return false;
+  if(pc_race_session(m) || !pc_session_active(m,player) || scripted_camera_active(m,player))return false;
+  const auto control=m.u32(player+m.member_offset("layout.actor.control"));
+  if(!m.valid(control,0x5F0U) || m.u32(control+m.member_offset("layout.playerControl.boss"))!=0U)return false;
   // Shared by Vela, Juno and Lupus before their native read-input call.
-  for(auto offset:{0x56BU,0x577U,0x1F9U,0x1FAU,0x186U,0x198U,0x5EEU,0x10DU,0x19FU})
+  for(auto offset:{m.member_offset("layout.playerControl.animationTimer"),m.member_offset("layout.playerControl.secondaryAnimationTimer"),m.member_offset("layout.playerControl.actionLock"),m.member_offset("layout.playerControl.damageLock"),m.member_offset("layout.playerControl.dialogueLock"),m.member_offset("layout.playerControl.transitionLock"),m.member_offset("layout.playerControl.missionLock"),m.member_offset("layout.playerControl.sidekickMode"),m.member_offset("layout.playerControl.scriptLock")})
     if(m.u8(control+offset)!=0U)return false;
   return true;
 }
@@ -1361,10 +1341,10 @@ inline bool pc_gameplay_active(const Memory &m, std::uint32_t player) {
 // Native ledge attachment/climb handlers own body heading and movement.
 // Keep only the Modern view; never admit these states into modern locomotion.
 inline bool pc_ledge_view_active(const Memory& m,std::uint32_t player) {
-  if(!pc_gameplay_active(m,player) || m.u8(0x800FD7BDU))return false;
-  const auto control=m.u32(player+0x68U);
-  if((m.u8(control+1U)&3U)>1U)return false;
-  const auto movement=m.u8(control+0x568U);
+  if(!pc_gameplay_active(m,player) || m.global_u8("globals.pauseActive"))return false;
+  const auto control=m.u32(player+m.member_offset("layout.actor.control"));
+  if((m.u8(control+m.member_offset("layout.playerControl.characterFlags"))&3U)>1U)return false;
+  const auto movement=m.u8(control+m.member_offset("layout.playerControl.movement"));
   return movement==6U || movement==7U || movement==8U || movement==12U;
 }
 
@@ -1374,18 +1354,18 @@ inline bool pc_ledge_view_active(const Memory& m,std::uint32_t player) {
 // native read-input call. Do not admit dialogue, damage or scripted cameras.
 inline bool pc_landing_view_active(const Memory& m,std::uint32_t player,bool finishing=false) {
   if(!m.valid(player,0xA4U))return false;
-  const auto control=m.u32(player+0x68U);
-  if(!m.valid(control,0x5F0U) || m.u32(control+0xFCU) ||
-     m.u32(control+0x5C0U) || m.u8(control+0x568U)!=0U)return false;
-  const auto character=m.u8(control+1U)&3U;
-  const auto timer=m.u8(control+0x56BU),clip=m.u8(player+0x3BU);
-  const bool settling=finishing && timer==0U && m.u32(0x800F6DBCU)!=0U;
+  const auto control=m.u32(player+m.member_offset("layout.actor.control"));
+  if(!m.valid(control,0x5F0U) || m.u32(control+m.member_offset("layout.playerControl.boss")) ||
+     m.u32(control+m.member_offset("layout.playerControl.scriptedMovement")) || m.u8(control+m.member_offset("layout.playerControl.movement"))!=0U)return false;
+  const auto character=m.u8(control+m.member_offset("layout.playerControl.characterFlags"))&3U;
+  const auto timer=m.u8(control+m.member_offset("layout.playerControl.animationTimer")),clip=m.u8(player+m.member_offset("layout.actor.animation"));
+  const bool settling=finishing && timer==0U && m.global_u32("globals.controllerDisabled")!=0U;
   if(character>1U || (!settling && clip!=(character==0U?0x1AU:0x19U)) ||
-     (timer==0U && m.u32(0x800F6DBCU)==0U))return false;
-  if((m.u8(0x800A4FC4U) && pc_player_for_port(m,pc_input_port(m,m.u8(control)))!=player) ||
-     m.u32(0x800FD7C4U) || m.u8(0x800FD7BDU) ||
+     (timer==0U && m.global_u32("globals.controllerDisabled")==0U))return false;
+  if((m.global_u8("globals.multiPlayerGame") && pc_player_for_port(m,pc_input_port(m,m.u8(control+m.member_offset("layout.playerControl.port"))))!=player) ||
+     m.global_u32("globals.gameMode") || m.global_u8("globals.pauseActive") ||
      scripted_camera_active(m,player))return false;
-  for(auto offset:{0x577U,0x1F9U,0x1FAU,0x186U,0x198U,0x5EEU,0x10DU,0x19FU})
+  for(auto offset:{m.member_offset("layout.playerControl.secondaryAnimationTimer"),m.member_offset("layout.playerControl.actionLock"),m.member_offset("layout.playerControl.damageLock"),m.member_offset("layout.playerControl.dialogueLock"),m.member_offset("layout.playerControl.transitionLock"),m.member_offset("layout.playerControl.missionLock"),m.member_offset("layout.playerControl.sidekickMode"),m.member_offset("layout.playerControl.scriptLock")})
     if(m.u8(control+offset))return false;
   return true;
 }
@@ -1395,24 +1375,31 @@ inline bool pc_landing_view_active(const Memory& m,std::uint32_t player,bool fin
 // Keep ordinary camera/locomotion ownership separate from playable actions.
 inline bool pc_boss_gameplay_active(const Memory &m, std::uint32_t player) {
   if(!gameplay_active(m,player) || scripted_camera_active(m,player))return false;
-  const auto control=m.u32(player+0x68U);
+  const auto control=m.u32(player+m.member_offset("layout.actor.control"));
   if(!m.valid(control,0x5F0U) || (m.u8(control+1U)&3U)>=3U)return false;
-  const auto boss=m.u32(control+0xFCU);
+  const auto boss=m.u32(control+m.member_offset("layout.playerControl.boss"));
   if((boss&3U)!=0U || !m.valid(boss,0x40U))return false;
   // Pin the resident dispatcher, including its argument loads and delay
   // slots. Overlay load/unload relocates the JAL destinations, so their raw
   // ROM targets are not stable live-memory signatures.
-  if(m.u32(0x80032FD8U)!=0x8E0D00FCU || m.u32(0x80032FE0U)!=0x11A0001EU)
+  if(!m.instruction_matches("guard.boss.load_owner") || !m.instruction_matches("guard.boss.branch_owner"))
     return false;
-  for(auto call:{0x8003301CU,0x80033034U,0x8003304CU}) {
-    if(m.u32(call-8U)!=0x8FA40090U || m.u32(call-4U)!=0x8FA50094U ||
-       (m.u32(call)&0xFC000000U)!=0x0C000000U || m.u32(call+4U)!=0U)
-      return false;
-  }
-  const auto movement=m.u8(control+0x568U);
+  if(!m.instruction_matches("guard.boss.dispatch_0_actor") ||
+     !m.instruction_matches("guard.boss.dispatch_0_state") ||
+     !m.instruction_matches("guard.boss.dispatch_0_call",0xfc000000U) ||
+     !m.instruction_matches("guard.boss.dispatch_0_delay") ||
+     !m.instruction_matches("guard.boss.dispatch_1_actor") ||
+     !m.instruction_matches("guard.boss.dispatch_1_state") ||
+     !m.instruction_matches("guard.boss.dispatch_1_call",0xfc000000U) ||
+     !m.instruction_matches("guard.boss.dispatch_1_delay") ||
+     !m.instruction_matches("guard.boss.dispatch_2_actor") ||
+     !m.instruction_matches("guard.boss.dispatch_2_state") ||
+     !m.instruction_matches("guard.boss.dispatch_2_call",0xfc000000U) ||
+     !m.instruction_matches("guard.boss.dispatch_2_delay"))return false;
+  const auto movement=m.u8(control+m.member_offset("layout.playerControl.movement"));
   // 0x20 is active combat, 0x23 is its jump; 0x2A is the boss death handler.
   if(movement!=0x20U && movement!=0x23U)return false;
-  for(auto offset:{0x56BU,0x577U,0x1F9U,0x1FAU,0x186U,0x198U,0x5EEU,0x10DU,0x19FU,0x18EU})
+  for(auto offset:{m.member_offset("layout.playerControl.animationTimer"),m.member_offset("layout.playerControl.secondaryAnimationTimer"),m.member_offset("layout.playerControl.actionLock"),m.member_offset("layout.playerControl.damageLock"),m.member_offset("layout.playerControl.dialogueLock"),m.member_offset("layout.playerControl.transitionLock"),m.member_offset("layout.playerControl.missionLock"),m.member_offset("layout.playerControl.sidekickMode"),m.member_offset("layout.playerControl.scriptLock"),m.member_offset("layout.playerControl.aimInhibited")})
     if(m.u8(control+offset)!=0U)return false;
   return true;
 }
@@ -1423,7 +1410,7 @@ inline bool pc_actions_active(const Memory &m, std::uint32_t player) {
 inline bool transition_confirmation(const Memory &m) {
   // Supported US ROM: mainChangeLevel sets this prompt flag and pause mode;
   // its update routine consumes A/Start before beginning the level load.
-  return m.u8(0x800A329CU) == 1U && m.u8(0x800FD7BDU) == 1U;
+  return m.global_u8("globals.transitionPrompt") == 1U && m.global_u8("globals.pauseActive") == 1U;
 }
 
 class NavigationMod {
@@ -1441,7 +1428,7 @@ public:
     if (!observing()) return false;
     try {
       if (!gameplay_active(m, actor) || !m.valid(actor, 0xA4U)) return false;
-      const auto control = m.u32(actor + 0x68U), properties = m.u32(actor + 0x4CU);
+      const auto control = m.u32(actor + m.member_offset("layout.actor.control")), properties = m.u32(actor + m.member_offset("layout.actor.properties"));
       if (!m.valid(control, 0x5CAU) || !m.valid(properties, 8U) ||
           (m.u8(control + 1U) & 3U) > 2U) return false;
       player = actor;
@@ -1487,27 +1474,27 @@ public:
       if (!observing() || !warp_exits || player!=actor ||
           generation!=selected.generation || selected.stamp<0 ||
           now<selected.stamp || now-selected.stamp>5000 ||
-          m.u32(0x800FB114U)!=selected.level || !gameplay_active(m,actor) ||
-          scripted_camera_active(m,actor) || m.u8(0x800FD7BDU)!=0U ||
-          !m.valid(actor,0x6CU) || m.u32(actor+0x68U)!=selected.control ||
+          m.global_u32("globals.currentLevel")!=selected.level || !gameplay_active(m,actor) ||
+          scripted_camera_active(m,actor) || m.global_u8("globals.pauseActive")!=0U ||
+          !m.valid(actor,0x6CU) || m.u32(actor+m.member_offset("layout.actor.control"))!=selected.control ||
           !m.valid(selected.control,0x198U) ||
-          !m.valid(m.u32(actor+0x4CU),8U) ||
-          m.s16(m.u32(actor+0x4CU)+6U)<0x100 ||
-          m.u32(0x80032B94U)!=0x8E0200F4U ||
-          m.u32(0x80032DACU)!=0xAE0000F4U) return false;
+          !m.valid(m.u32(actor+m.member_offset("layout.actor.properties")),8U) ||
+          m.s16(m.u32(actor+m.member_offset("layout.actor.properties"))+6U)<0x100 ||
+          !m.instruction_matches("guard.player.load_exit") ||
+          !m.instruction_matches("guard.player.clear_exit")) return false;
       bool present=false;
       for(const auto &entry:list)if(entry.address==actor)present=true;
       if(!present)return false;
       for(const auto &exit:exits(m,list)) {
         if(exit.address!=selected.exit)continue;
         if(exit.destination!=selected.destination ||
-            m.u32(exit.address+0x68U)!=selected.exit_control ||
-            m.u32(exit.address+0x3CU)!=selected.exit_data)return false;
-        replaced=m.u32(selected.control+0xF4U);
-        m.put16(selected.control+0xF4U,static_cast<std::uint16_t>(selected.exit>>16U));
-        m.put16(selected.control+0xF6U,static_cast<std::uint16_t>(selected.exit));
-        m.put16(selected.control+0x196U,
-            static_cast<std::uint16_t>(0x8800U|m.u8(selected.control+0x197U)));
+            m.u32(exit.address+m.member_offset("layout.actor.control"))!=selected.exit_control ||
+            m.u32(exit.address+m.member_offset("layout.actor.objectData"))!=selected.exit_data)return false;
+        replaced=m.u32(selected.control+m.member_offset("layout.playerControl.exitContact"));
+        m.put16(selected.control+m.member_offset("layout.playerControl.exitContact"),static_cast<std::uint16_t>(selected.exit>>16U));
+        m.put16(selected.control+m.member_offset("layout.playerControl.exitContact")+2U,static_cast<std::uint16_t>(selected.exit));
+        m.put16(selected.control+m.member_offset("layout.playerControl.exitState"),
+            static_cast<std::uint16_t>(0x8800U|m.u8(selected.control+m.member_offset("layout.playerControl.exitState")+1U)));
         return true;
       }
     } catch(const std::runtime_error &) { ++invalid; }
@@ -1525,20 +1512,20 @@ public:
     if (!observing() || !warp_exits || stamp < 0 || stamp > now || now-stamp > 5000 ||
         gen != generation || player == 0U) return false;
     try {
-      if (level != m.u32(0x800FB114U) || !gameplay_active(m, player) ||
+      if (level != m.global_u32("globals.currentLevel") || !gameplay_active(m, player) ||
           scripted_camera_active(m, player)) return false;
       // Queue the same contact as exitControl, then let controlPlayer perform
       // the normal transition (spawn selection, region prompts and game flags).
       // An exit actor's origin lies ON its directional plane; position alone
       // does not satisfy the guest's strict negative-side contact test.
-      const auto control=m.u32(player+0x68U), properties=m.u32(player+0x4CU);
-      if(m.u8(0x800FD7BDU)!=0U || !m.valid(control,0x198U) ||
-         !m.valid(properties,8U) || m.s16(properties+6U)<0x100 ||
-         m.u32(control+0xF4U)!=0U ||
-         m.u32(0x800257F4U)!=0xACF000F4U ||
-         m.u32(0x800257F8U)!=0xA0EC0196U ||
-         m.u32(0x80032B94U)!=0x8E0200F4U ||
-         m.u32(0x80032DACU)!=0xAE0000F4U)return false;
+      const auto control=m.u32(player+m.member_offset("layout.actor.control")), properties=m.u32(player+m.member_offset("layout.actor.properties"));
+      if(m.global_u8("globals.pauseActive")!=0U || !m.valid(control,0x198U) ||
+         !m.valid(properties,8U) || m.s16(properties+m.member_offset("layout.properties.health"))<0x100 ||
+         m.u32(control+m.member_offset("layout.playerControl.exitContact"))!=0U ||
+         !m.instruction_matches("guard.exit.store_target") ||
+         !m.instruction_matches("guard.exit.store_state") ||
+         !m.instruction_matches("guard.player.load_exit") ||
+         !m.instruction_matches("guard.player.clear_exit"))return false;
       bool present = false;
       for (const auto &actor : list) if (actor.address == player) present = true;
       if (!present) return false;
@@ -1558,12 +1545,12 @@ public:
           m.put16(player+12U+i*4U, static_cast<std::uint16_t>(bits>>16U));
           m.put16(player+14U+i*4U, static_cast<std::uint16_t>(bits));
         }
-        m.put16(control+0xF4U,static_cast<std::uint16_t>(address>>16U));
-        m.put16(control+0xF6U,static_cast<std::uint16_t>(address));
+        m.put16(control+m.member_offset("layout.playerControl.exitContact"),static_cast<std::uint16_t>(address>>16U));
+        m.put16(control+m.member_offset("layout.playerControl.exitContact")+2U,static_cast<std::uint16_t>(address));
         // The original writes a single signed byte (-120); preserve +0x197.
-        m.put16(control+0x196U,static_cast<std::uint16_t>(0x8800U|m.u8(control+0x197U)));
+        m.put16(control+m.member_offset("layout.playerControl.exitState"),static_cast<std::uint16_t>(0x8800U|m.u8(control+m.member_offset("layout.playerControl.exitState")+1U)));
         exit_warp_selection_=ExitWarpSelection{player,control,address,
-            m.u32(address+0x68U),m.u32(address+0x3CU),level,
+            m.u32(address+m.member_offset("layout.actor.control")),m.u32(address+m.member_offset("layout.actor.objectData")),level,
             static_cast<std::uint16_t>(exit.destination),generation,stamp};
         return true;
       }
@@ -1583,27 +1570,26 @@ public:
     if(!observing() || gen!=generation || stamp<0 || now<stamp || now-stamp>5000 ||
        !player)return false;
     try {
-      if(level!=m.u32(0x800FB114U) || !gameplay_active(m,player) ||
-         scripted_camera_active(m,player) || m.u8(0x800FD7BDU)!=0U)return false;
+      if(level!=m.global_u32("globals.currentLevel") || !gameplay_active(m,player) ||
+         scripted_camera_active(m,player) || m.global_u8("globals.pauseActive")!=0U)return false;
       bool present=false;for(const auto& actor:list)if(actor.address==player)present=true;
       if(!present)return false;
       const auto inv=inventory(m,player);
-      const auto properties=m.u32(player+0x4CU);
-      if(!inv.known || !m.valid(properties,8U) || m.s16(properties+6U)<0x100)return false;
-      const auto saved=m.u32(0x800FD7D4U)+0x15CU+inv.character*0x76U;
-      m.require(saved,0x76U);
+      const auto properties=m.u32(player+m.member_offset("layout.actor.properties"));
+      if(!inv.known || !m.valid(properties,8U) || m.s16(properties+m.member_offset("layout.properties.health"))<0x100)return false;
+      const auto saved=m.global_u32("globals.selectedPlayer")+jfg::game::records::character_array_offset+inv.character*jfg::game::records::character_stride;
+      m.require(saved,jfg::game::records::character_stride);
       std::array<std::uint16_t,15> ammo{};
       // Native new-game initialization supplies capacities even before pickup.
       // Validate the entire grant before writing, preserve collected upgrades.
       for(unsigned i=0;i<ammo.size();++i) {
-        ammo[i]=m.u16(saved+0x34U+i*2U);
+        ammo[i]=m.u16(saved + m.member_offset("layout.saveCharacter.ammoCapacity")+i*2U);
         if(!ammo[i] || ammo[i]>0x7FFFU)return false;
       }
       const auto mask=static_cast<std::uint16_t>(inv.weapons|0x7FFFU);
-      m.put16(saved+0xAU,mask);
-      for(unsigned i=0;i<ammo.size();++i)m.put16(saved+0x14U+i*2U,ammo[i]);
-      m.put16(saved+0x6EU,static_cast<std::uint16_t>((m.u8(saved+0x6EU)<<8U)|
-          std::popcount(mask)));
+      m.put16(saved+m.member_offset("layout.saveCharacter.weapons"),mask);
+      for(unsigned i=0;i<ammo.size();++i)m.put16(saved + m.member_offset("layout.saveCharacter.ammo")+i*2U,ammo[i]);
+      m.put8(saved+m.member_offset("layout.saveCharacter.weaponCount"),static_cast<std::uint8_t>(std::popcount(mask)));
       ++weapon_grants;
       weapons_applied=true;
       return true;
@@ -1622,14 +1608,14 @@ public:
     if(!observing() || gen!=generation || stamp<0 || now<stamp || now-stamp>5000 ||
        !player)return false;
     try {
-      if(level!=m.u32(0x800FB114U) || !gameplay_active(m,player) ||
-         scripted_camera_active(m,player) || m.u8(0x800FD7BDU)!=0U)return false;
+      if(level!=m.global_u32("globals.currentLevel") || !gameplay_active(m,player) ||
+         scripted_camera_active(m,player) || m.global_u8("globals.pauseActive")!=0U)return false;
       bool present=false;for(const auto& actor:list)if(actor.address==player)present=true;
       if(!present || !inventory(m,player).known)return false;
-      const auto properties=m.u32(player+0x4CU),game=m.u32(0x800FD7D4U);
-      if(!m.valid(properties,8U) || m.s16(properties+6U)<0x100 ||
+      const auto properties=m.u32(player+m.member_offset("layout.actor.properties")),game=m.global_u32("globals.selectedPlayer");
+      if(!m.valid(properties,8U) || m.s16(properties+m.member_offset("layout.properties.health"))<0x100 ||
          !m.valid(game,0x334U))return false;
-      m.put16(game+0x30U,static_cast<std::uint16_t>(m.u16(game+0x30U)|0x0800U));
+      m.put16(game + m.member_offset("layout.saveGame.flags"),static_cast<std::uint16_t>(m.u16(game + m.member_offset("layout.saveGame.flags"))|0x0800U));
       ++floyd_grants;
       return true;
     } catch(const std::runtime_error&) {++invalid;return false;}
@@ -1659,8 +1645,8 @@ public:
     if (!enabled || !juno_double_run) return bits;
     try {
       if ((actor & 3U) || (control & 3U) || !gameplay_active(m, actor) ||
-          static_camera_active(m) || m.u32(actor + 0x68U) != control ||
-          (m.u8(control + 1U) & 3U) != 1U || m.u8(control + 0x568U) != 0U)
+          static_camera_active(m) || m.u32(actor + m.member_offset("layout.actor.control")) != control ||
+          (m.u8(control + 1U) & 3U) != 1U || m.u8(control + m.member_offset("layout.playerControl.movement")) != 0U)
         return bits;
       const float speed = std::bit_cast<float>(bits);
       // The original input is a nonnegative stick magnitude times run scale.
@@ -1678,25 +1664,25 @@ public:
     try {
       if (!gameplay_active(m, actor) || !m.valid(actor, 0xA4U))
         return false;
-      const auto control = m.u32(actor + 0x68U),
-                 properties = m.u32(actor + 0x4CU);
+      const auto control = m.u32(actor + m.member_offset("layout.actor.control")),
+                 properties = m.u32(actor + m.member_offset("layout.actor.properties"));
       m.require(control, 0x5CAU);
       m.require(properties, 8U);
       const auto character =
           static_cast<std::uint32_t>(m.u8(control + 1U) & 3U);
-      const auto game = m.u32(0x800FD7D4U);
+      const auto game = m.global_u32("globals.selectedPlayer");
       m.require(game, 0x334U);
-      const auto saved = game + 0x15CU + character * 0x76U;
+      const auto saved = game + jfg::game::records::character_array_offset + character * jfg::game::records::character_stride;
       const auto maximum = health_capacity(m.s16(saved + 2U));
       if (maximum == 0U)
         return false;
-      if (m.u16(properties + 6U) != maximum)
+      if (m.u16(properties + m.member_offset("layout.properties.health")) != maximum)
         ++health_restores;
-      m.put16(properties + 6U, maximum);
+      m.put16(properties + m.member_offset("layout.properties.health"), maximum);
       m.put16(saved, maximum);
       // Keep the game's invulnerability timer alive without creating a shield
       // object.
-      m.put16(control + 0x5C8U, 60U);
+      m.put16(control + m.member_offset("layout.playerControl.ledgeTimer"), 60U);
       player = actor;
       return true;
     } catch (const std::runtime_error &) {
@@ -1711,26 +1697,26 @@ public:
       if (!gameplay_active(m, player) || !m.valid(actor, 0xA4U))
         return false;
       // Only the normal squad-member behavior; animated cutscene actors differ.
-      if (m.u16(actor + 0x48U) != 24U)
+      if (m.u16(actor + m.member_offset("layout.actor.type")) != 24U)
         return false;
-      const auto control = m.u32(actor + 0x68U),
-                 properties = m.u32(actor + 0x4CU);
+      const auto control = m.u32(actor + m.member_offset("layout.actor.control")),
+                 properties = m.u32(actor + m.member_offset("layout.actor.properties"));
       if (!m.valid(control, 0xA8U) || !m.valid(properties, 12U))
         return false;
-      const auto squad = m.u32(control + 0x24U);
-      if (!m.valid(squad, 0xA4U) || m.u16(squad + 0x48U) != 23U)
+      const auto squad = m.u32(control + m.member_offset("layout.squadControl.squad"));
+      if (!m.valid(squad, 0xA4U) || m.u16(squad + m.member_offset("layout.actor.type")) != 23U)
         return false;
-      const auto data = m.u32(squad + 0x68U);
+      const auto data = m.u32(squad + m.member_offset("layout.actor.control"));
       if (!m.valid(data, 0x34U))
         return false;
-      const auto type = m.u16(data + 0x2CU);
-      if (tribal(type) || m.s16(properties + 6U) <= 0)
+      const auto type = m.u16(data + m.member_offset("layout.squadRecord.type"));
+      if (tribal(type) || m.s16(properties + m.member_offset("layout.properties.health")) <= 0)
         return false;
       // Leave the object in the game so its original death logic updates squad
       // gates.
-      m.put16(properties + 6U, 0U);
+      m.put16(properties + m.member_offset("layout.properties.health"), 0U);
       if (cleared == 0U) {
-        first_clear_level = m.u32(0x800FB114U);
+        first_clear_level = m.global_u32("globals.currentLevel");
         first_clear_update = updates;
       }
       ++cleared;
@@ -1778,7 +1764,7 @@ public:
         out << "{\"address\":" << player << ",\"position\":";
         json_vec(out, a.position);
         out << ",\"yaw\":" << m.s16(player)
-            << ",\"health\":" << m.s16(m.u32(player + 0x4CU) + 6U) << ",\"motion\":";
+            << ",\"health\":" << m.s16(m.u32(player + m.member_offset("layout.actor.properties")) + 6U) << ",\"motion\":";
         write_player_motion(out,player_motion(m,player));out<<'}';
         found = true;
         break;
@@ -1792,11 +1778,11 @@ public:
         << ",\"camera_yaw\":" << camera.yaw << ",\"camera_position\":";
     json_vec(out,camera.position);
     out << ",\"static_camera\":" << (static_camera_active(m)?"true":"false")
-        << ",\"game_mode\":" << m.u32(0x800FD7C4U)
-        << ",\"animation_camera\":" << m.u32(0x801045B8U)
-        << ",\"joy_disabled\":" << m.u32(0x800F6DBCU);
-    const auto control=m.valid(player,0x6CU)?m.u32(player+0x68U):0U;
-    out << ",\"player_script\":" << (m.valid(control,0x5C4U)?m.u32(control+0x5C0U):0U) << '}';
+        << ",\"game_mode\":" << m.global_u32("globals.gameMode")
+        << ",\"animation_camera\":" << m.global_u32("globals.cutsceneCameraActive")
+        << ",\"joy_disabled\":" << m.global_u32("globals.controllerDisabled");
+    const auto control=m.valid(player,0x6CU)?m.u32(player+m.member_offset("layout.actor.control")):0U;
+    out << ",\"player_script\":" << (m.valid(control,0x5C4U)?m.u32(control+m.member_offset("layout.playerControl.scriptedMovement")):0U) << '}';
     out << ",\"exits\":[";
     bool first = true;
     for (const auto &e : exits(m, list)) {

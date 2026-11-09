@@ -17,7 +17,6 @@ The implementation and qualification below supersede the initial pending state. 
 
 Transferable lesson: co-op reticle input and mission flight steering share an input source but consume it at different times; a later reticle override cannot control the earlier flight update. Validate both modes independently through the native consumer.
 
-
 2026-10-21 candidate checkpoint: source and isolated runtime are implemented.
 Four focused suites and the serial Release build pass. Original native flight
 plus exact-source adapter tests pass 302 cases / 3,790 checks. Evidence is in
@@ -97,7 +96,6 @@ Owner closed the launcher; preview5 was delivered with all package/profile check
 
 Owner says mouse flight feels pretty good and requests A/D strafing alongside it. This is positive flight-feel feedback, not explicit acceptance of shooting or mission completion. Preview5 intentionally discarded A/D; original A/D was aircraft yaw, not sideways flight. Owner-requested sideways movement is now a candidate: keep X as semantic strafe intent, add heading-relative lateral thrust before the original flight velocity/collision pipeline, cap combined thrust at native full magnitude, and leave mouse heading/W/S behavior intact. Verification and preview6 delivery pending. Same enabled production guard/investigation/counters; existing deadline22:37:40UTC.
 
-
 ## Preview6: A/D lateral flight added
 
 Move Left/Right (default A/D) now remain in the Modern M/K mission X channel.
@@ -144,11 +142,9 @@ strafing, release/reverse A/D, and check nearby wall contact and S braking.
 Live feel, actual shots and mission completion remain pending. No automatic
 launch/Play, commit, push or release.
 
-
 Preview7 retains mouse steering and A/D strafing and adds a [controller-only flight inversion preference](modern-floyd-controller-flight-inversion.md). Mouse flight is unaffected. Owner A/D feel, actual shots and mission completion remain pending.
 
 Owner acceptance update (2026-10-21): owner replied “approved” to the delivered preview7 controls. Record preview approval; prior pending statements above describe earlier checkpoints. No individual wall-contact, firing or mission-completion result was supplied. See [controller flight acceptance](modern-floyd-controller-flight-inversion.md).
-
 
 ## Final owner disposition for v1.4.0 (2026-10-21)
 

@@ -4,11 +4,18 @@ Version 1.2.0 includes opt-in high-refresh rendering and native RmlUi Video
 Settings. Gameplay timing remains independent of presentation. Tested semantic
 ownership, audio and performance corrections are included; owner playtesting
 reports stable gameplay and resolved reported shuriken/crouch defects. Unlimited,
-all-route no-dip performance, shadow cadence and the reported exit-cutscene audio
+all-route no-dip performance and the reported exit-cutscene audio
 interruption remain subject to the [current limits](../known-issues.md).
 
 The chronological entries below preserve the evidence and intermediate failures;
 earlier statements that a candidate was not released describe that stage.
+
+Current develop also offers **Shadows: Original / Enhanced** in Video Settings.
+Enhanced provides detailed, smoothly animated character shadows and applies to
+the running game when saved. The owner reaffirmed on November 8 that
+[#46 is solved](../development/issues/github-character-shadow-jitter.md) with
+this updated/modern shadow option. Original remains available; this addition is
+accepted locally and not yet in a tagged release.
 
 ## Try it
 
@@ -55,7 +62,7 @@ preferences (initially Custom 60 / VSync on). Close the currently running launch
 allows one instance per Windows session. Progress in the copied preview profile
 stays there. This preview is not an installed update or a published release.
 
-For standalone diagnostics, the [preview helper](../../scripts/play_high_refresh.ps1)
+For standalone diagnostics, the [preview helper](../../scripts/diagnostics/play_high_refresh.ps1)
 copies saves and selected configuration into a new directory per invocation:
 
 ```powershell
@@ -251,7 +258,6 @@ between Original and Custom. Lighting code is unchanged; the intermittent
 return-direction delay and Original-mode joint report remain open in
 [RENDER-002](../development/issues/character-seams-lighting.md).
 
-
 ### 2026-10-12 character follow-up
 
 The reported thin thigh gaps remain open. Original and Custom 360/VSync preserve
@@ -262,7 +268,6 @@ does not imply fully interpolated skin animation. This bounded result does not
 establish raster coverage parity or resolve the owner's exact pose. No new
 character fix or package was delivered; see the [issue's dense follow-up](../development/issues/character-seams-lighting.md#dense-thigh-follow-up-2026-10-12)
 and [aggregate evidence](../../evidence/high-refresh-character-seams-investigation.json).
-
 
 ### FPS counter and slowdown logs
 
@@ -290,7 +295,6 @@ alone does not qualify it. Current desktop VSync is tested at detected 60 Hz.
 Owner confirmation of the reported stutter is pending, as are broader scenes,
 complete actor interpolation and the separate joints/lighting reports.
 
-
 ### Native scene timing preview (2026-10-12)
 
 The private runtime enables JFG_EXPERIMENTAL_NATIVE_PLAY_TIMING=ON. The measured
@@ -307,7 +311,6 @@ three, so audio quality/loading continuity still need owner verification. Heavy
 screenshot diagnostics can stall the GPU; use lightweight F8 logs for performance
 reports. See [PERF-002](../development/issues/frame-diagnostics.md).
 
-
 Delivered locally as `high-refresh-native-timing-preview-20261012`, through the
 existing **JFG - High Refresh Preview** desktop shortcut and unchanged profile.
 Close an older launcher before reopening the shortcut. The committed runtime
@@ -319,13 +322,11 @@ runtime hash, exact checks and remaining limitations are in
 [qualification](../../evidence/native-scene-timing.json). Owner testing remains
 pending; use F8 lightweight logging when reporting issues.
 
-
 Owner follow-up: steady 120/30 still feels jittery, especially during simultaneous
 movement and camera rotation. Stable counters do not qualify complete visual
 interpolation. Explicit actor/joint/camera identities and synchronized visual
 sampling are the requested next target; [RENDER-003](../development/issues/steady-fps-jitter.md)
 tracks the report and verification.
-
 
 ### Semantic character and camera interpolation preview (2026-10-13 UTC)
 
@@ -345,13 +346,11 @@ in both old/new runtimes (~27.5 scenes/s over that window). A 360 target average
 ~350 output FPS with an outlier. Physical display smoothness, full animation/
 effects coverage and owner acceptance remain open; counters alone are insufficient.
 
-
 Delivered through the existing **JFG - High Refresh Preview** desktop shortcut as
 `high-refresh-semantic-20261013` on D:, with the existing profile/save unchanged.
 Close an older launcher before reopening it. The implementation commit, runtime
 identity, final checks and unresolved limits are in the linked qualification.
 Owner live confirmation is pending; this is a local preview, not a release.
-
 
 ### Capped presentation pacing correction (2026-10-13 UTC)
 
@@ -368,7 +367,6 @@ replays, pause/resume and exact reference-state comparison are recorded in
 [pacing qualification](../../evidence/presentation-pacing.json). Physical display
 and owner visual confirmation remain pending; original simulation/input timing
 and broader high-load limitations are unchanged.
-
 
 The pacing correction is now delivered through **JFG - High Refresh Preview**
 as `high-refresh-pacing-20261013` on D:, preserving the existing profile and save.
@@ -401,7 +399,6 @@ Implementation `c9189c1d1d2e356f53a9801c283a527620f71b9b`; all 14 package files
 and isolated launcher initialization verify. Close an older game/launcher before
 reopening the shortcut. Owner live acceptance remains pending; no public release.
 
-
 ### Combat recovery and pickup-particle candidate (2026-10-13 UTC)
 
 Native play can leave the historical 20-Hz hold on its next measured fast frame;
@@ -416,7 +413,6 @@ and owner particle verification remains pending. Texture/local-quad animation
 keeps its authored cadence. See [qualification](../../evidence/combat-particles.json),
 [PERF-001](../development/issues/goldwood-combat-slowdown.md) and
 [RENDER-005](../development/issues/pickup-particle-desync.md). No public release.
-
 
 ## Delivery held for performance verification
 
@@ -664,7 +660,6 @@ limit. This is reproducibility/observer validation, not a crash remedy or an
 FPS guarantee. See [the native issue](../development/issues/native-play-access-violation.md).
 The installed desktop preview is unchanged.
 
-
 The 2026-10-14 camera supplement now binds missing scenery-history anchors to
 verified camera lifetimes and admits small common lens-scale changes. Two long
 recorded routes gain matches with no lost/changed existing anchors; the full
@@ -673,7 +668,6 @@ source candidate only. [RENDER-006](../development/issues/tutorial-late-object-j
 records the limits; native stability, combat drops, shadow cadence, Unlimited
 pacing and owner-visible full-route acceptance remain open. Desktop delivery is
 withheld under NATIVE-001.
-
 
 A checked native overlay-identity index now avoids repeated scalar scans while
 comparing every validated inventory byte on every lookup and rebuilding from an
@@ -687,7 +681,6 @@ and the private harness rate-label correction. A shadow scratch-buffer overflow
 is now strongly indicated by the failed RAM and original source layout; its
 precise executed writer and excessive input cause remain under investigation.
 The source checkpoint does not update the desktop preview or resolve NATIVE-001.
-
 
 ### 2026-10-15 overlay lifetime qualification
 
@@ -704,7 +697,6 @@ cause, failed checks, qualification and limits. Combat source-rate drops, shadow
 cadence, Unlimited pacing and owner-visible full-route review remain open. This
 source checkpoint does not update the desktop preview or constitute a release.
 
-
 The local high-refresh desktop links were updated after package/hash and bundled
 runtime protocol qualification. The installed package includes 06718f7f (fresh
 overlay lifetime) and 38847126 (cheaper optional trace formatting), preserving
@@ -712,7 +704,6 @@ existing profiles, arguments and saves. Previous links/package remain available
 for rollback. This supersedes the preceding source-only checkpoint; combat
 source-rate consistency, shadow cadence, Unlimited pacing and owner-visible
 late-room acceptance remain open. No public release is made.
-
 
 The shape-history lookup now uses two contiguous tables with full-key equality
 and duplicate rejection. Alternating-order measurements on identical meshes
@@ -723,56 +714,64 @@ not establish stable 30-Hz combat or close the remaining visual reports. See
 [PERF-001](../development/issues/goldwood-combat-slowdown.md) and
 [qualification](../../evidence/high-refresh-shape-history.json).
 
-
 The local high-refresh preview/capture links now select the qualified history
 storage package, including the prior overlay-lifetime and trace-format fixes.
 Saves, settings and shortcut arguments are unchanged; prior links/packages are
 retained. The current delivery receipt is in high-refresh-shape-history.json.
 Physical-display and full-route acceptance remain open.
 
-
 The optional presentation-trace analyzer now records bounded freeze/jump context
 and accepts the explicit native VI clock frequency for phase-spacing checks.
 See [RENDER-003](../development/issues/steady-fps-jitter.md). Private clock/queue
 experiments are separate from the installed, qualified history-storage preview.
 
-
 The local preview and capture shortcuts now select the compact-timing package, including the qualified native MI-mask bridge and parallel history preparation. Matched recorded-combat comparisons reduce median update work by about 3.7 ms (13%); native 20-FPS updates remain. Full Original and recorded-combat state checks, optional update-cycle logging correspondence and muted native 120/360 robustness checks pass. The launcher, shortcut arguments and profiles are preserved. See [qualification](../../evidence/high-refresh-compact-timing.json) and [PERF-001](../development/issues/goldwood-combat-slowdown.md); this is not a public release or completion of combat/visual acceptance.
 
-
-The local preview now includes bounded resident angle/difference/sine/cosine implementations and the opt-in function/graphics profiler. Controlled recorded comparisons show about 1.1-1.5 ms lower median combat update work from this additional component; the final integrated confirmation also improves. The 400,000-case reference fixture, exact recorded/Original checks and muted native 120/360 captures pass. Occasional 20-FPS game updates remain. Detailed profiling is off during ordinary play and can itself slow the game. Both desktop links select the new package with existing profiles and arguments. See [compatibility](../development/native-resident-math.md), [capture controls](../development/function-profiling.md), and [delivery](../../evidence/high-refresh-resident-math.json).
-
+The local preview now includes bounded resident angle/difference/sine/cosine implementations and the opt-in function/graphics profiler. Controlled recorded comparisons show about 1.1-1.5 ms lower median combat update work from this additional component; the final integrated confirmation also improves. The 400,000-case reference fixture, exact recorded/Original checks and muted native 120/360 captures pass. Occasional 20-FPS game updates remain. Detailed profiling is off during ordinary play and can itself slow the game. Both desktop links select the new package with existing profiles and arguments. See [compatibility](../development/runtime/native-resident-math.md), [capture controls](../development/runtime/function-profiling.md), and [delivery](../../evidence/high-refresh-resident-math.json).
 
 The latest local preview adds bounded native collision traversal and expanded profiling. Repeated combat tests show reduced CPU work, but bounded runs cannot establish all-level no-dip or visual acceptance. Every missed update remains visible in the new cadence report, including level/death transitions; present-return stalls are reported separately. Both desktop shortcuts select the qualified package and retain their profiles. Detailed function profiling remains off for normal play. See the current native-collision qualification and PERF-001/PERF-002 records.
-[Native collision and current evidence](../development/native-collision.md).
+[Native collision and current evidence](../development/runtime/native-collision.md).
 
+The 2026-10-16 native audio/bridge candidate passes bounded muted playback and rendering checks. Native playback follows sample demand and immediately delivers completed PCM; the bridge now interpolates its bending vertices. Owner listening/visual acceptance remains pending, as do broader object/shadow coverage and the no-20-FPS goal. [Implementation, compatibility and qualification](../development/runtime/native-audio-playback.md).
 
-The 2026-10-16 native audio/bridge candidate passes bounded muted playback and rendering checks. Native playback follows sample demand and immediately delivers completed PCM; the bridge now interpolates its bending vertices. Owner listening/visual acceptance remains pending, as do broader object/shadow coverage and the no-20-FPS goal. [Implementation, compatibility and qualification](../development/native-audio-playback.md).
+Both High Refresh Preview and Jitter Capture now select the local audio/bridge package with existing profiles and arguments. Owner listening and visual review remain pending. [Current implementation and evidence](../development/runtime/native-audio-playback.md).
 
+The native ROM loading improvement is qualified for local packaging: the tested 120/360 combat windows hold two-VI game updates with zero audio errors, and Original/recorded-clock comparisons pass. Later renderer/cold-load gaps and owner audio/bridge acceptance remain open. The isolated control underrun coincided with a roughly 160 ms game/presentation stall. [Measurements and scope](../development/runtime/native-rom-loading.md).
 
-Both High Refresh Preview and Jitter Capture now select the local audio/bridge package with existing profiles and arguments. Owner listening and visual review remain pending. [Current implementation and evidence](../development/native-audio-playback.md).
-
-
-The native ROM loading improvement is qualified for local packaging: the tested 120/360 combat windows hold two-VI game updates with zero audio errors, and Original/recorded-clock comparisons pass. Later renderer/cold-load gaps and owner audio/bridge acceptance remain open. The isolated control underrun coincided with a roughly 160 ms game/presentation stall. [Measurements and scope](../development/native-rom-loading.md).
-
-
-Both desktop shortcuts now select the qualified native-ROM loading package, including audio/bridge remedies. Profiles and launcher arguments are preserved. Later hitches and owner listening/visual acceptance remain open. [Current local preview](../development/native-rom-loading.md).
-
+Both desktop shortcuts now select the qualified native-ROM loading package, including audio/bridge remedies. Profiles and launcher arguments are preserved. Later hitches and owner listening/visual acceptance remain open. [Current local preview](../development/runtime/native-rom-loading.md).
 
 A renderer draw-call cache defect is corrected and passes bounded qualification: the repeated late renderer hitch is absent in the unprofiled candidate replay. Restart/load gaps, exact owner-route coverage and listening/visual acceptance remain open. [Cause and qualification](../development/issues/renderer-cache-key-instability.md).
 
-
-Both desktop links now select the qualified draw-call key correction, including audio, bridge and native-ROM improvements. Profiles remain unchanged. [Current local preview](../development/renderer-draw-call-keys.md).
-
+Both desktop links now select the qualified draw-call key correction, including audio, bridge and native-ROM improvements. Profiles remain unchanged. [Current local preview](../development/runtime/renderer-draw-call-keys.md).
 
 ### CPU reticle and capture correction (2026-10-16)
 
 The local preview now retains CPU-drawn framebuffer edits on high-refresh output. The shuriken original-drawer fixture passes 120/360 FPS, VSync, movement and Aim-release checks, while disabling the remedy reproduces missing strokes. Sustained actual shuriken gameplay still needs owner verification. Route logging now retains compact game-update/final-audio counters without periodic GPU screenshots; those screenshots caused measured 20-FPS update intervals in the controlled capture comparison. Unlimited stress and the owner exit-cutscene report remain open. [Qualification and delivery](../../evidence/high-refresh-reticle.json), [reticle issue](../development/issues/shuriken-reticle-flicker.md), [capture issue](../development/issues/frame-diagnostics.md).
 
-
 ### Shuriken and crouch followup (2026-10-16)
 
 The high-refresh candidate now preserves CPU reticle masks before the presentation queue can discard an older VI, including both submission-time and VI-time imports. Real-weapon checks cover sustained recorded aiming and 120/360 output phases. The custom shuriken matrix builder now supplies explicit actor ownership for resting/rolling projectile interpolation. Modern crouch aiming also receives the same pitch convention as standing, without changing the saved inversion preference. Bounded checks pass; [qualification and remaining live limits](../../evidence/high-refresh-shuriken-followup.json).
 
-
 The shuriken/crouch followup above is delivered locally with source `95efb8f97b47717921aa4c29ab17245771c3ff22` through High Refresh Preview and Jitter Capture. The owner reports no noticeable slowdowns and the reported shuriken/crouch issues resolved in live play; see [qualification and delivery](../../evidence/high-refresh-shuriken-followup.json).
+
+### Regional presentation acceptance (2026-11-03)
+
+The owner confirms the [name-entry keyboard animation](../development/issues/name-entry-key-animation-cadence.md)
+and [Vela rescue blur correction](../development/issues/vela-rescue-cutscene-stutter-resolution.md)
+fixed in the v31 PAL/controller retest. Existing three-region automated evidence
+remains distinct from that PAL appearance acceptance. The v32 Aim-return handoff
+retains these fixes; neither local package is a published release.
+
+
+### Night vision and damage-tint review (2026-11-08)
+
+The current regional previews retain the exact-material GPU framebuffer reuse
+remedy for native night vision and red damage tint. A fresh renderer regression
+passes, including exclusions that preserve CPU-owned masks and unrelated textures.
+USA/PAL/JP test saves now enter the Lupus night-vision pad room with the required
+goggles. The owner subsequently manually tested and approved the fix on USA, PAL
+and JP on November 8. The earlier pending visual-review status is superseded.
+Historical resolution/120 Hz phase evidence is not claimed as a fresh replay;
+this local acceptance is not a published release.
+See [GH-051](../development/issues/github-nightvision-damage-presentation.md) and
+the [regional test-fixture correction](../development/issues/renderer-texture-fixture-layout.md).
