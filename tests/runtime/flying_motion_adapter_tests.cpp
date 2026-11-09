@@ -38,11 +38,13 @@ consteval unsigned game_member(std::string_view name) {
   throw "Missing fixture member";
 }
 consteval unsigned game_module(OriginalModule m) {
-  if(m!=OriginalModule::collision)throw "Unknown fixture module";return 5;
+  if(m!=OriginalModule::collision)throw "Unknown fixture module";
+  return 5;
 }
 consteval unsigned game_overlay_extent(OriginalModule) {return 0x1B000;}
 consteval unsigned game_code(std::string_view n) {
-  if(n=="game.objMoveXYZ")return 0x80001020;throw "Unknown fixture resident operation";
+  if(n=="game.objMoveXYZ")return 0x80001020;
+  throw "Unknown fixture resident operation";
 }
 consteval unsigned game_overlay_token(std::string_view n) {
   if(n=="overlay.collision.update_animation")return 0x70000000;

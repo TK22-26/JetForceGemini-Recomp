@@ -7,7 +7,8 @@ if(NOT JFG_CONTROLLER_SDL_ROOT)
  else()
   include(FetchContent)
   FetchContent_Declare(jfg_controller_sdl
-   URL "https://github.com/libsdl-org/SDL/releases/download/release-2.26.3/SDL2-devel-2.26.3-VC.zip"
+   URL "https://www.libsdl.org/release/SDL2-devel-2.26.3-VC.zip"
+       "https://github.com/libsdl-org/SDL/releases/download/release-2.26.3/SDL2-devel-2.26.3-VC.zip"
    URL_HASH SHA256=3b561bfcd7676d42f2b84ebde12d7433d176035ed28335c4fb9e554ef2764ec5)
   FetchContent_GetProperties(jfg_controller_sdl)
   if(NOT jfg_controller_sdl_POPULATED)

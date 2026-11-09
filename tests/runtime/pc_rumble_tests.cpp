@@ -15,8 +15,8 @@ void check(bool ok,const char* name){++checks;if(!ok){std::cerr<<name<<'\n';std:
 int main() {
   using Kind=jfg::PcRumbleRequest;
   jfg::PcRumbleEffect effect;
-  const auto request=[](jfg::PcRumbleEffect& effect,Kind kind,int intensity,float seconds,std::uint64_t tick) {
-    effect.request(kind,intensity,seconds,tick,60);
+  const auto request=[](jfg::PcRumbleEffect& requested_effect,Kind kind,int intensity,float seconds,std::uint64_t tick) {
+    requested_effect.request(kind,intensity,seconds,tick,60);
   };
   for(const std::uint64_t frequency:{50ULL,60ULL,46875000ULL}) {
     jfg::PcRumbleEffect clocked;

@@ -27,3 +27,21 @@ Private evidence: `release15-merge-20261109/before-catalog.log`, `before-dma.log
 Lesson: a passing Windows runtime build does not qualify generated constant
 expressions for GCC sanitizer builds. Keep compile-time catalog use covered for
 every region and preserve strict warning checks in test targets.
+
+## Complete build follow-up
+
+The next CI pass reached a shadowed lambda parameter in the rumble fixture.
+A complete local strict GCC build additionally found an implicit unsigned-to-float
+conversion and misleading fixture indentation in the existing flight tests.
+The candidate renames the fixture parameter, makes the existing numeric conversion
+explicit, and separates statements. Flight behavior and the owner's #48 deferral
+are unchanged. These are compiler portability corrections, not new gameplay fixes.
+
+The SDL GitHub asset returned HTTP 504 in both CI attempts. The official SDL
+release origin supplies the identical 2.26.3 VC archive: its SHA-256 matches the
+existing dependency pin. CMake now tries that origin, retaining GitHub as fallback
+and keeping hash verification. No dependency version or workflow gate changes.
+The complete local strict GCC build, CTest suite (with the existing CI trap-probe
+quarantine), and a fresh Windows CMake SDK fetch pass. Full remote CI remains
+pending. Private receipts: `linux-build-fixed.log`, `linux-ctest.log`,
+`sdl-origin.json` and `sdl-cmake-fetch.log`.

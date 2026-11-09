@@ -17,7 +17,7 @@ inline constexpr ReferenceCadence reference_for(std::string_view revision) noexc
 }
 // Presentation frequency never participates in this clock.
 inline float ticks(unsigned elapsed_vis, ReferenceCadence reference) noexcept {
-  return reference.vis ? static_cast<float>(elapsed_vis) / reference.vis : 0.0f;
+  return reference.vis ? static_cast<float>(elapsed_vis) / static_cast<float>(reference.vis) : 0.0f;
 }
 inline bool supported(unsigned movement, unsigned death) noexcept {
   return movement == 5U && death == 1U;
