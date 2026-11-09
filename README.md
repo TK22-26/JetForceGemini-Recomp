@@ -2,9 +2,14 @@
 
 [![Build status](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TK22-26/JetForceGemini-Recomp/actions/workflows/ci.yml)
 
-A native PC recompilation of Jet Force Gemini for Windows x64. **v1.4.0 includes a prebuilt game:**
-extract the ZIP, import your supported North American ROM once, and click **Play**. No developer tools
-or first-run compilation are required.
+A native PC recompilation of Jet Force Gemini for Windows x64. **Version 1.5.0 supports all three
+original ROM versions: USA, PAL (Europe), and Japan (Star Twins), including the original in-game
+language options provided by each ROM.** Import your ROM, select its cartridge in the launcher,
+and click **Play**. The selected ROM is remembered between sessions.
+
+Prebuilt packages require no developer tools or first-run compilation. The currently published
+v1.4.0 package supports the US ROM; use a 1.5.0 build for PAL and Japanese support.
+See [1.5.0 qualification and publication status](docs/releases/qualification-1.5.0.md).
 
 [Get started](docs/getting-started.md) | [Documentation](docs/README.md) | [Project status](docs/status.md) |
 [Changelog](CHANGELOG.md) | [Known issues](docs/known-issues.md) | [Report a problem](docs/playtesting.md)
@@ -15,7 +20,7 @@ Written with the help of **AI: Codex GPT 6 Astra**, with human direction, review
 
 1. Download the **Windows x64 ZIP** from the [latest stable release](https://github.com/TK22-26/JetForceGemini-Recomp/releases/latest).
 2. Extract the entire ZIP and open `JFG-Launcher.exe`.
-3. Use **Select ROM...** to import your supported US big-endian `.z64` ROM, then click **Play**.
+3. In a 1.5.0 build, import your supported USA, PAL or Japanese ROM, select its cartridge, then click **Play**. The older v1.4.0 package accepts the US ROM only.
 
 The launcher verifies the ROM and keeps a private local copy; the original file is no longer needed
 after import. Existing profile saves remain available. Keep the imported copy: it supplies game assets.
@@ -35,6 +40,7 @@ never uploaded. Original game content remains the property of its respective own
 
 | Feature | Details |
 |---|---|
+| ROM regions and languages | USA, PAL (Europe) and Japan (Star Twins), with the original language options in each ROM; import multiple regions and choose which to play |
 | Playable campaign | Start-to-finish campaign run, original local multiplayer and optional content; native rendering, audio, saving and loading |
 | Modern controls | Optional mouse/keyboard and dual-stick controls for P1-P4, action bindings, separate camera/aim/scope tuning, original mapping alongside |
 | Cutscene skipping | During supported cinematics press A, B or Start to show the prompt, then hold A for one second; unsupported scripts retain playback |
@@ -43,8 +49,9 @@ never uploaded. Original game content remains the property of its respective own
 | Optional Mods actions | Exit warps, health/enemy settings, weapon grants and Floyd unlock, with native eligibility and acknowledgement where applicable |
 | Launcher services | Settings, portable storage, local support ZIPs and optional stable-release update checks |
 
-v1.4.0 adds Modern multiplayer/Floyd controls and reviewed camera, aiming, rain, reticle, cutscene,
-fog and launcher corrections. See the [release qualification](docs/releases/qualification-1.4.0.md).
+v1.5.0 adds shared regional ROM support, cartridge selection, persistent region choice, graphics API
+selection and the reviewed controls, camera, rendering and Proton corrections.
+See the [1.5.0 source qualification](docs/releases/qualification-1.5.0.md) for validation and publication status.
 Changes on `develop` can be unreleased candidates; their individual verification status is recorded in
 [known issues](docs/known-issues.md).
 
@@ -76,7 +83,7 @@ encounter or platform correct.
 
 The [original N64 catalog](docs/original-game/README.md) records physical-hardware bugs separately
 from emulator observations and regional differences. Published v1.4.0 packages support the pinned
-US ROM. The `develop` architecture admits local builds of the exact US, PAL and Japanese revisions;
+US ROM. Version 1.5.0 supports the exact USA, PAL and Japanese revisions through one shared architecture;
 [regional qualification](docs/development/issues/regional-rom-support.md) records the verified
 builds, remaining gameplay checks and release status.
 
