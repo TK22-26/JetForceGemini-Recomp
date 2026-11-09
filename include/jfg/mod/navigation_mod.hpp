@@ -1309,7 +1309,9 @@ inline bool pc_race_session(const Memory& m) {
 inline bool pc_race_gameplay_active(const Memory& m,std::uint32_t actor,unsigned port) {
   if(!pc_race_session(m) || pc_player_for_port(m,port)!=actor || !actor ||
      m.global_u8("globals.pauseActive") || m.global_u32("globals.gameMode") ||
-     m.global_u32("globals.cutsceneCameraActive") || scripted_camera_active(m,actor))return false;
+     m.global_u32("globals.cutsceneCameraActive") || m.global_u32("globals.controllerDisabled"))return false;
+  // Arcade races keep a static overview camera during normal vehicle control.
+  // Reject actual cinematic/scripted input ownership, not that fixed race view.
   const auto c=m.u32(actor+m.member_offset("layout.actor.control"));
   return m.valid(c,0x5F0U) && !m.u32(c+m.member_offset("layout.playerControl.scriptedMovement"));
 }

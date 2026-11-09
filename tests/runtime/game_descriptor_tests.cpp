@@ -24,6 +24,13 @@ int main() {
     check(original_module_section(d,static_cast<OriginalModule>(1))==2U,"original module ID resolves independently of generated ordinal");
     check(original_module_section(d,static_cast<OriginalModule>(2))==3U,"overlapping linked addresses do not merge module owners");
     check(!original_module_section(d,OriginalModule::hint_text),"missing original module cannot fall back to an ordinal");
+    // Racing occupies original runlink slot 31, not generated section 30.
+    // Include slot 30 as a decoy and reorder sections to catch both mistakes.
+    auto racing_sections=sections;racing_sections[2].overlay_slot=30;racing_sections[3].overlay_slot=31;
+    auto racing=d;racing.sections=racing_sections;
+    check(original_module_section(racing,OriginalModule::racing)==3U,"racing selects original module 31 rather than adjacent module 30");
+    std::swap(racing_sections[2],racing_sections[3]);
+    check(original_module_section(racing,OriginalModule::racing)==2U,"racing follows original ownership after generated section reordering");
     auto duplicate_sections=sections;duplicate_sections[3].overlay_slot=1;
     auto ambiguous=d;ambiguous.sections=duplicate_sections;
     check(!original_module_section(ambiguous,static_cast<OriginalModule>(1)),"ambiguous original module cannot select an image");

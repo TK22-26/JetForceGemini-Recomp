@@ -418,3 +418,14 @@ on Bazzite and reports it fully working. This complements the earlier positive
 Bazzite UI feedback and accepted opening-skip improvement. It does not substitute
 for the Steam Deck reporter check or individually verified checklist coverage.
 See the [mouse acceptance record](proton-mouse-confinement.md#owner-acceptance-2026-11-08).
+
+## November 9 comparison with #58
+
+The current renderer API candidate re-runs Windows composition/fallback and
+actual isolated GE-Proton menu checks. Game visibility, popup presentation and
+menu pixels continue to pass. The earlier blackout was caused by hiding the
+hosted viewport during fallback capture, corrected by the owned-popup path; it
+does not establish a D3D12/Vulkan game-renderer failure. [#58's follow-up](github-black-screen-audio.md)
+adds separate requested/selected API, setup and presentation-result evidence and
+a standalone comparison. No new Bazzite or Steam Deck hardware approval is
+inferred. Private evidence: `renderer-api-20261109/proton-results.json`.

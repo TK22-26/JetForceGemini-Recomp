@@ -85,11 +85,11 @@ the original game controls its cinematic bars. Esc opens or closes the Game menu
 fullscreen the menu bar stays hidden until Esc or F10. Settings dialogs pause
 the game at a frame boundary and resume it when closed; menu dropdowns do not
 pause. **Video > Video settings...** opens a separate RmlUi window with window
-mode/size, **Pause when inactive**, VSync and Original/Custom/Unlimited rendering.
+mode/size, **Pause when inactive**, Graphics API, VSync and Original/Custom/Unlimited rendering.
 Custom offers a 60-1000 FPS slider and exact number; Unlimited removes the cap
 with VSync off. Apply saves and closes, while Cancel discards edits.
 Rendering changes apply on the next game launch; stop and start the game to
-apply FPS/VSync changes. No launcher or Windows restart is needed. The restart
+apply Graphics API/FPS/VSync changes. No launcher or Windows restart is needed. The restart
 chip is hidden when no game is running. Display changes apply when saved.
 High-refresh modes are
 [experimental](../features/high-refresh-rendering.md); Original is the default.
@@ -367,3 +367,26 @@ Support reports retain the verified catalog revision and program build/model/
 generation hashes from the active session lease. The sanitizer accepts only
 catalog IDs and fixed-size hashes; ROM paths, bytes and save contents remain
 excluded. [Support identity evidence](issues/regional-support-identity.md).
+
+## Graphics API and standalone diagnosis (local candidate)
+
+In **Video > Video settings > Rendering**, select **Auto**, **Direct3D 12** or
+**Vulkan** and Apply. Stop and start the game to use the saved choice. Auto is
+the default for existing profiles and retains renderer compatibility selection.
+If an explicit API cannot start, select Auto or the other API and retain the
+failed session in **Help > Support report**. This setting controls the game
+renderer, independently of the launcher's composition backend.
+
+The renderer API test preview includes `Test-Standalone.ps1`. Close the game,
+then run `powershell -NoProfile -ExecutionPolicy Bypass -File
+"<preview>/Test-Standalone.ps1" -Region usa` (or `pal` / `jp`). Omitting Region
+uses the current selection. It uses the preview's same profile, video settings
+and verified regional executable, with a standalone game window and support
+logs. Close that game before returning to the launcher. Ordinary `--play`
+shortcuts still use the hosted window. The script is a diagnostic preview
+helper, not a new public launcher flag or a save-conversion operation.
+
+For a meaningful comparison, keep ROM/save, Graphics API and window mode the
+same and export both sessions. Success standalone implicates the hosted-window
+interaction; it does not alone prove a launcher-only defect. See [#58's evidence
+and limitations](issues/github-black-screen-audio.md).

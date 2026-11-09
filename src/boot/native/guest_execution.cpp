@@ -1313,6 +1313,38 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       return 1;
     }
   }
+  // Ground Aim has a separate native point request and line-of-sight query.
+  // Extend that request inside its qualified owner, before the native query
+  // and interpolation. Its collision result and release pose stay authoritative.
+  if(target==game_code("game.trackNearestIntersection") && state.pc_aim_distance_actor!=0 &&
+     static_cast<std::uint32_t>(context->r4)==state.pc_aim_distance_actor) {
+    NativeGameMemory ram({rdram,kRdramSize});
+    const auto stack=static_cast<std::uint32_t>(context->r29);
+    const auto focus=static_cast<std::uint32_t>(context->r5),point=static_cast<std::uint32_t>(context->r6);
+    const auto end=state.pc_aim_distance_stack;
+    // All pointers must belong to the active caller frame, not a nested scene
+    // query. Regional linked bindings select both functions independently.
+    if(stack<end && end-stack<=0x200U && focus>=stack+0x20U && point>=stack+0x20U &&
+       focus<=end-12U && point<=end-12U && focus!=point && ram.valid(focus,12U) && ram.valid(point,12U) &&
+       ram.instruction_matches("guard.game.trackNearestIntersection.entry0") &&
+       ram.instruction_matches("guard.game.trackNearestIntersection.entry4")) {
+      const auto actor=state.pc_aim_distance_actor,control=ram.u32(actor+game_member("layout.actor.control"));
+      const auto port=jfg::mod::pc_input_port(ram,ram.u8(control));
+      if(port<4U && modern_shoulder_current(state,port,actor) && state.pc_shoulders[port].aiming) {
+        const jfg::PcOrbitPoint from{ram.f32(focus),ram.f32(focus+4U),ram.f32(focus+8U)};
+        const jfg::PcOrbitPoint native{ram.f32(point),ram.f32(point+4U),ram.f32(point+8U)};
+        const auto wanted=jfg::pc_combat_camera_request(from,native,
+          state.modern_controls[port].combat_transparency,jfg::mod::pc_player_weapon(ram,control)==7U);
+        hle::GuestMemory memory({rdram,kRdramSize},hle::GuestMemory::Layout::native_word_big_endian);
+        (void)memory.write_u32(point,std::bit_cast<std::uint32_t>(wanted.x));
+        (void)memory.write_u32(point+4U,std::bit_cast<std::uint32_t>(wanted.y));
+        (void)memory.write_u32(point+8U,std::bit_cast<std::uint32_t>(wanted.z));
+        state.gameplay_trace.event("pc-combat-camera-request",{state.vi_retraces,actor,
+          std::bit_cast<std::uint32_t>(std::hypot(native.x-from.x,native.y-from.y,native.z-from.z)),
+          std::bit_cast<std::uint32_t>(std::hypot(wanted.x-from.x,wanted.y-from.y,wanted.z-from.z))});
+      }
+    }
+  }
   // The normal camera has computed its desired point, but has not yet run
   // scenery constraints. Feed the orbit into that existing solver, never over
   // its final position. Qualify both the owning routine and this call site.
@@ -2491,6 +2523,23 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
       [[maybe_unused]] const auto mod_actor_argument=static_cast<std::uint32_t>(context->r4);
       const auto sound_event_argument = static_cast<std::uint32_t>(context->r5);
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+      const auto prior_aim_actor=state.pc_aim_distance_actor,prior_aim_stack=state.pc_aim_distance_stack;
+      if(target==game_code("game.controlUpdateCameraMovement") && state.modern_controls_active) {
+        NativeGameMemory aim_ram({rdram,kRdramSize});
+        if(aim_ram.valid(mod_actor_argument,0xA4U) && aim_ram.valid(sound_event_argument,0x5D0U) &&
+           aim_ram.u32(mod_actor_argument+game_member("layout.actor.control"))==sound_event_argument) {
+          const auto port=jfg::mod::pc_input_port(aim_ram,aim_ram.u8(sound_event_argument));
+          const auto movement=aim_ram.u8(sound_event_argument+game_member("layout.playerControl.movement"));
+          if(port<4U && !state.modern_controls[port].combat_transparency &&
+             (movement==10U || movement==11U) && modern_shoulder_current(state,port,mod_actor_argument) &&
+             state.pc_shoulders[port].aiming && !jfg::mod::scripted_camera_active(aim_ram,mod_actor_argument)) {
+            state.pc_aim_distance_actor=mod_actor_argument;
+            state.pc_aim_distance_stack=static_cast<std::uint32_t>(context->r29);
+          }
+        }
+      }
+#endif
+#if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
       if (state.navigation_mod.enabled && target == game_overlay_token("overlay.juno.movement_handler")) {
         NativeGameMemory memory({rdram, kRdramSize});
         const auto original = static_cast<std::uint32_t>(context->r6);
@@ -2995,6 +3044,7 @@ int dispatch(void *opaque, std::int32_t address, std::uint8_t *rdram,
           generated(rdram, context);
 
 #if defined(_WIN32) && defined(JFG_PHASE8_LIVE_RUNTIME)
+        state.pc_aim_distance_actor=prior_aim_actor;state.pc_aim_distance_stack=prior_aim_stack;
         if (measure_vi_sync) {
           NativeGameMemory sync_ram({rdram,kRdramSize});
           state.gameplay_trace.event("vi-sync-return", {state.vi_retraces,state.cpu_count,

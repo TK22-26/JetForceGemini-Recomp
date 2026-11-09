@@ -665,10 +665,11 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
   state.presentation_identity_enabled = video_settings &&
       video_settings->mode != jfg::FrameRateMode::original;
   if (!video_settings) {
+    jfg::support_event("renderer_setup=invalid-config");
     (void)_dup2(saved_stdout, _fileno(stdout));
     _close(null_stdout);
     _close(saved_stdout);
-    std::fprintf(stderr, "Invalid video settings: FPS must be 0, 60-1000 or unlimited; VSync must be 0 or 1. Check JFG_VIDEO_CONFIG.\n");
+    std::fprintf(stderr, "Invalid video settings. Check frame rate, VSync and graphics API in JFG_VIDEO_CONFIG.\n");
     return false;
   }
   jfg::configure_native_blur(video_settings->blur);
@@ -683,7 +684,7 @@ bool initialize_live_renderer(State &state, LiveRt64Window &window) {
        // RT64 already completes its RAM readback before DP completion.
        jfg::Rt64MemoryLayout::host_word_swapped, true, true,
        video_settings->mode == jfg::FrameRateMode::custom ? video_settings->fps : 0U,
-       video_settings->mode == jfg::FrameRateMode::unlimited, video_settings->vsync,kRendererGameLayout},
+       video_settings->mode == jfg::FrameRateMode::unlimited, video_settings->vsync,kRendererGameLayout,video_settings->graphics_api},
       error);
   std::fflush(stdout);
   (void)_dup2(saved_stdout, _fileno(stdout));

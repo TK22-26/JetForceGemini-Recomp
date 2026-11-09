@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.5.0
+
+Source prepared for the 1.5.0 merge. Publication and downloadable package
+availability are tracked separately in the [qualification record](docs/releases/qualification-1.5.0.md).
+
+- Add USA, PAL and Japanese ROM tiles, persistent region selection and regional
+  command-line startup. Stack launcher notifications independently.
+- Smooth Modern Aim release, correct regional backward-walking poses, interpolate
+  save-name keyboard buttons and reduce the excessive PAL/Japanese rescue blur.
+- Add Auto, Direct3D 12 and Vulkan in Video Settings > Rendering, with bounded
+  requested/selected API and presentation-result diagnostics in support exports.
+  This improves investigation of #58; its reported black screen is not yet resolved.
 
 - Split native startup from private guest memory, host audio/window input, overlays,
   saves, task submission, diagnostics and guest execution modules. Preserve single
@@ -41,7 +52,8 @@
   and falling movement by elapsed game time, using a three-VI reference measured
   across two original-ROM encounters. Keep output FPS independent, preserve
   native velocity units and leave existing elapsed-time AI/animation clocks
-  unchanged. Finite native replay checks pass; owner visual review is pending.
+  unchanged. Finite native replay checks pass. The owner deferred #48 for this
+  version; it is not claimed resolved.
   Follow-up found variable pacing in a matched loaded encounter, so this does
   not satisfy exact Original FPS timing. Controlled tests isolate the native
   host-clock policy, which also applies to Original output; removing the flight
@@ -58,16 +70,16 @@
   game bytes remain unchanged. Formatter execution and final native replays pass.
   [Cause and recovery](docs/development/issues/sdk-printf-field-metadata.md).
 
-- Local review candidates for the remaining issue batch: restore Floyd objective
-  cycling and Jeff's Arcade trap controls in Modern mode; add optional free
-  movement and combat transparency settings; correct Proton fallback menu
-  visibility and hosted mouse delivery. Defaults preserve existing behavior.
-- Shorten qualified cutscene-skip fade waits while retaining native scene
-  completion, loading and video-readiness checks. Three-part flight timing
-  improves in normal Play; final owner review is pending.
-- Preserve high-resolution screen sampling for native night vision and damage
-  tint while keeping CPU shadow-mask ownership. Captured-frame GPU comparison,
-  four-phase motion and ownership checks pass; owner route review is pending.
+- Restore Floyd objective cycling and Jeff's Arcade trap controls in Modern mode.
+  Arcade trap controls passed owner testing in USA, PAL and Japan.
+- Add optional free movement, free-camera and combat transparency controls.
+  The owner accepted these options and the adjusted nontransparent Aim distance;
+  native scenery collision and scoped-weapon behavior remain authoritative.
+- Correct Proton menu visibility, opening-cutscene skip delay and mouse capture.
+  The owner accepted the Bazzite x64 PC fixes; this does not establish Steam Deck
+  acceptance or resolve every cutscene timing limitation.
+- Preserve high-resolution sampling for night vision and damage tint while keeping
+  CPU shadow-mask ownership. Owner route testing passed in all three regions.
 - Remove transparent icon borders in widescreen menus and smooth the authored
   title vignette without replacing game assets. Decoder/GPU and actual menu
   captures pass; owner batch review is pending.
@@ -158,23 +170,24 @@
   is removed from current source, with scoped normal/skip and exit-chain replay checks.
   Older preview packages still contain the superseded insertion.
   The owner subsequently confirms music in PAL EmuHawk, establishing a regional
-  difference for this route. PAL/Japanese native integration remains open;
-  the two Vela routes remain
-  unverified. Existing candidate tests prove the insertion, not its correctness
-  relative to hardware. #45 remains open; no release is claimed.
+  difference for this route. The two Vela routes remain unverified. #45 is
+  deferred to a separate native-bug-fixes update; this release preserves the
+  regional Walkway behavior.
   [Comparison record](docs/development/issues/flight-transition-missing-music.md).
 - The #25 reporter confirms their rain, reticle and performance complaints are
   resolved in v1.4.0. The #40 reporter confirms Proton startup now works, but
-  launcher menus remain blank; local Proton reproduction and a fix are still open.
+  launcher menus were blank. The owner subsequently accepted the menu and
+  mouse-capture fixes on a Bazzite x64 PC; original Steam Deck verification
+  remains separate.
   [Ally X retest](docs/development/issues/github-ally-x-rendering.md),
   [Proton follow-up](docs/development/issues/github-steam-deck-proton-startup.md).
 - A Goldwood drone was observed below the floor near a broken hut. Saved actor
   state supports a native position/collision displacement, but the collision
   sequence and any difference from the original game remain unproved. No collision
   patch is included. [Evidence](docs/development/issues/drone-buried-after-hut-collision.md).
-- Suspected muzzle-flash jitter, character shadows (#46),
-  and the separate camera-fade activation report (#52)
-  are not claimed resolved by these rendering fixes. See the
+- Suspected muzzle-flash jitter and reporter-specific graphics failures remain
+  open. Character shadows (#46) and the adjusted Modern Aim distance (#52)
+  carry their recorded owner acceptance. See the
   [issue index](docs/development/issues/README.md) and [known issues](docs/known-issues.md).
 
 ## 1.4.0 - 2026-10-22

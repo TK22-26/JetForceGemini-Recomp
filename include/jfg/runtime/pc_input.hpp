@@ -594,6 +594,19 @@ inline int pc_camera_player_alpha(PcOrbitPoint body,PcOrbitPoint camera,int gues
 // Fixed modern ground boom: native follow distance includes actor/camera lag.
 // Feeding that lag back into a direct camera produces periodic forward steps.
 inline constexpr float kPcShoulderDistance=200.0F;
+inline constexpr float kPcCombatAimDistance=180.0F;
+// Extend the authored Aim request before native scenery collision and easing.
+// Combat transparency Off keeps a third-person view; sniper optics retain
+// their native close-up. Never move an already collision-resolved camera out.
+inline PcOrbitPoint pc_combat_camera_request(PcOrbitPoint focus,PcOrbitPoint wanted,
+                                             bool combat_transparency,bool scoped) {
+  if(combat_transparency || scoped)return wanted;
+  const float x=wanted.x-focus.x,y=wanted.y-focus.y,z=wanted.z-focus.z;
+  const float distance=std::hypot(x,y,z);
+  if(!std::isfinite(distance) || distance<0.001F || distance>=kPcCombatAimDistance)return wanted;
+  const float scale=kPcCombatAimDistance/distance;
+  return {focus.x+x*scale,focus.y+y*scale,focus.z+z*scale};
+}
 inline PcOrbitPoint pc_orbit_point(int yaw,int pitch,float radius) {
   constexpr float radians=6.283185307179586F/65536.0F;
   const float y=static_cast<float>(yaw)*radians,p=static_cast<float>(pitch)*radians;

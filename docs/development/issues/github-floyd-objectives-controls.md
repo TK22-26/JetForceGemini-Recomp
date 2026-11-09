@@ -1,8 +1,22 @@
 # GH-049: [Playtest] With Modern Controls can't view objectives during Floyd Challanges
 
-Status: local candidate; component and actual native handler verified; owner batch review pending.
+Status: fixed in develop; owner confirmed 2026-11-08; component and actual native handler verified; unreleased.
 
 Source: [[Playtest] With Modern Controls can't view objectives during Floyd Challanges](https://github.com/TK22-26/JetForceGemini-Recomp/issues/49). Evidence snapshot retained privately in D:/JFG-private/remaining-gh-issues-20261027/github-issues.json.
+
+## Current resolution and owner acceptance
+
+On November 8 the owner explicitly confirmed **#49 is fixed**. Modern controls
+now recognize Floyd's paused-objective screen and route the configured Fire
+action to native Z there, allowing the objective pages to cycle. The corrected
+sampling gate also honors remapped Fire bindings; ordinary menus retain their
+existing suppression behavior.
+
+This accepts the fix and removes #49 from the current manual-test queue. The
+confirmation does not specify region, platform or individual bindings, so no
+additional device/region coverage is inferred. Earlier component/native checks
+and intermediate failures below retain their recorded scope. Release delivery
+and any GitHub issue disposition are separate from this acceptance.
 
 ## Reported symptoms and reproduction
 

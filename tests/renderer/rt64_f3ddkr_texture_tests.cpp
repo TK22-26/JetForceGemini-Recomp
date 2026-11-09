@@ -254,7 +254,7 @@ void player_coverage_case(bool interpolate, std::uint32_t width, bool owner_matc
     state.ext.emulatorConfig = &emulator;
     auto &workload = application.workloadQueue->workloads[0];
     workload.addFramebufferPair(0x10000, 0, 2, width, 0x20000);
-    jfg::Rt64F3ddkr renderer(application, interpolate);
+    jfg::Rt64F3ddkr renderer(application, interpolate, jfg::test::renderer_layout);
     renderer.install();
     auto identities=std::make_shared<jfg::PresentationSceneIdentity>();
     identities->models.push_back({1U,0x80005000U,0x6000U,0x7000U,{0x1000U,0},0x2000U,3U,1U});
@@ -344,7 +344,7 @@ void menu_icon_alpha_case(bool flip,bool qualifying) {
     state.ext.userConfig=&application.userConfig;
     auto &workload = application.workloadQueue->workloads[0];
     workload.addFramebufferPair(0x10000, 0, 2, width, 0x20000);
-    jfg::Rt64F3ddkr renderer(application, interpolate);
+    jfg::Rt64F3ddkr renderer(application, interpolate, jfg::test::renderer_layout);
     renderer.install();
     renderer.begin(guest);
     const auto command = [&](std::uint32_t w0, std::uint32_t w1) {
@@ -403,7 +403,7 @@ void shadow_vertex_reuse_case(bool flat_mask = false) {
     state.ext.emulatorConfig = &emulator;
     auto &workload = application.workloadQueue->workloads[0];
     workload.addFramebufferPair(0x10000, 0, 2, width, 0x20000);
-    jfg::Rt64F3ddkr renderer(application, interpolate);
+    jfg::Rt64F3ddkr renderer(application, interpolate, jfg::test::renderer_layout);
     renderer.install();
     renderer.begin(guest);
     const auto command = [&](std::uint32_t w0, std::uint32_t w1) {
@@ -492,7 +492,7 @@ void reflection_culling_case(bool interpolate, std::uint32_t width) {
     state.ext.emulatorConfig = &emulator;
     auto &workload = application.workloadQueue->workloads[0];
     workload.addFramebufferPair(0x10000, 0, 2, width, 0x20000);
-    jfg::Rt64F3ddkr renderer(application, interpolate);
+    jfg::Rt64F3ddkr renderer(application, interpolate, jfg::test::renderer_layout);
     renderer.install();
     renderer.begin(guest);
     const auto command = [&](std::uint32_t w0, std::uint32_t w1) {
@@ -569,7 +569,7 @@ void visibility_case(bool interpolate, std::uint32_t width) {
     state.ext.emulatorConfig = &emulator;
     auto &workload = application.workloadQueue->workloads[0];
     workload.addFramebufferPair(0x10000, 0, 2, width, 0x20000);
-    jfg::Rt64F3ddkr renderer(application, interpolate);
+    jfg::Rt64F3ddkr renderer(application, interpolate, jfg::test::renderer_layout);
     renderer.install();
     renderer.begin(guest);
     const auto command = [&](std::uint32_t w0, std::uint32_t w1) {
@@ -675,7 +675,9 @@ void level_solid_core_draw_case() {
     auto& state=*app.state;state.ext.workloadQueue=app.workloadQueue.get();
     state.ext.interpreter=app.interpreter.get();state.ext.emulatorConfig=&emulator;
     auto& work=app.workloadQueue->workloads[0];work.addFramebufferPair(0x10000,0,2,320,0x20000);
-    jfg::Rt64F3ddkr renderer(app);renderer.install();renderer.begin(guest);
+    // These synthetic guest addresses use the fixture's qualified USA layout.
+    // An absent layout intentionally disables guest-dependent production policies.
+    jfg::Rt64F3ddkr renderer(app, false, jfg::test::renderer_layout);renderer.install();renderer.begin(guest);
     const auto command=[&](unsigned x,unsigned y){
         RT64::DisplayList dl{};dl.w0=x;dl.w1=y;auto* cursor=&dl;
         app.interpreter->hleGBI->map[x>>24](&state,&cursor);
@@ -823,7 +825,7 @@ int main() {
         rdram.data(), &mi_interrupt, &interrupt);
     application.interpreter = std::make_unique<RT64::Interpreter>();
     application.interpreter->setup(application.state.get());
-    jfg::Rt64F3ddkr renderer(application);
+    jfg::Rt64F3ddkr renderer(application, false, jfg::test::renderer_layout);
     renderer.install();
     renderer.begin(guest);
     const auto command = [&](const std::uint32_t w0, const std::uint32_t w1) {

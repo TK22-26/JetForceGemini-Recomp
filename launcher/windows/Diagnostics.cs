@@ -84,6 +84,17 @@ namespace JfgLauncher
             string helper = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(runtime), "jfg-support-capture.exe");
             return matched && File.Exists(helper) && manifest.Contains("build_capture_sha256=" + Hash(helper) + "\n");
         }
+        // Stable user-facing guidance derived only from allowlisted setup status.
+        // Presentation retries during resize are not startup failures.
+        internal string RendererFailureMessage()
+        {
+            string report = SanitizeFile(NativePath);
+            Match setup = Regex.Match(report, @"(?:\A|\n)renderer_setup=(invalid-config|libraries-missing|invalid-api|api-unavailable|device-unavailable|override-required|hook-unavailable|exception)(?:\n|\z)");
+            if (!setup.Success) return null;
+            string api = report.Contains("renderer_requested=vulkan\n") ? "Vulkan" :
+                         report.Contains("renderer_requested=d3d12\n") ? "Direct3D 12" : "The game renderer";
+            return api + " could not start. Open Video Settings > Rendering and try Auto or the other Graphics API. Details are in Help > Support report.";
+        }
         internal void PresentationDetails(string profile)
         {
             try {

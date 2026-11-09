@@ -192,6 +192,8 @@ if(JFG_ENABLE_RT64)
             "${jfg_rt64_plume_patched_sources}")
     endif()
 
+    include(cmake/renderer/rt64_presentation_diagnostics.cmake)
+
     add_library(jfg_rt64_renderer STATIC
         src/renderer/rt64_f3ddkr.cpp
         src/renderer/floating_environment.cpp

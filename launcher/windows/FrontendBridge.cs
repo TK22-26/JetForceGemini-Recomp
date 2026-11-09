@@ -439,7 +439,7 @@ internal static class FrontendBridge
                     while (!process.HasExited)
                     {
                         if (DateTime.UtcNow >= presentationDue) {
-                            support.Session.PresentationDetails(root);
+                            if (owner != IntPtr.Zero) support.Session.PresentationDetails(root);
                             presentationDue = DateTime.UtcNow.AddSeconds(5);
                         }
                         if (File.Exists(captureRequest))
@@ -454,11 +454,11 @@ internal static class FrontendBridge
                         }
                         await Task.Delay(200);
                     }
-                    support.Session.PresentationDetails(root);
+                    if (owner != IntPtr.Zero) support.Session.PresentationDetails(root);
                     await Task.WhenAll(stdout, stderr);
                     support.Session.Exit(process.ExitCode);
                     State(process.ExitCode == 0 ? "Game stopped. Your saves are ready for next time."
-                                                : "Game exited unexpectedly. Open Help > Support report.");
+                                                : support.Session.RendererFailureMessage() ?? "Game exited unexpectedly. Open Help > Support report.");
                     return process.ExitCode;
                 }
             }

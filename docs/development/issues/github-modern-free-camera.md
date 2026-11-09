@@ -1,6 +1,6 @@
 # GH-055: [proposal] Question for camera control
 
-Status: local candidate; configuration/UI/native movement and Aim checks passed; owner batch review pending.
+Status: Owner confirms already tested and approved as an optional Advanced control setting; regional/device coverage unspecified; unreleased.
 
 Source: [[proposal] Question for camera control](https://github.com/TK22-26/JetForceGemini-Recomp/issues/55). Evidence snapshot retained privately in D:/JFG-private/remaining-gh-issues-20261027/github-issues.json.
 
@@ -8,15 +8,15 @@ Source: [[proposal] Question for camera control](https://github.com/TK22-26/JetF
 
 ### Problem or goal
 
-Hi, this may not be a proposal per se but i dont know where else to ask. Iâ€™m enjoying Modern Controls mostly for the updated aiming that lets me invert the Yâ€‘axis properly.
+Hi, this may not be a proposal per se but i dont know where else to ask. IÃ¢â‚¬â„¢m enjoying Modern Controls mostly for the updated aiming that lets me invert the YÃ¢â‚¬â€˜axis properly.
 
-One thing Iâ€™m struggling with is the camera behavior. When I rotate the camera, my character always turns with it, so I canâ€™t freely look around the character. Iâ€™m hoping for a more modern thirdâ€‘person camera where the camera can rotate independently, or alternatively, keeping the Modern aiming but using the original gameâ€™s camera behavior during normal movement.
+One thing IÃ¢â‚¬â„¢m struggling with is the camera behavior. When I rotate the camera, my character always turns with it, so I canÃ¢â‚¬â„¢t freely look around the character. IÃ¢â‚¬â„¢m hoping for a more modern thirdÃ¢â‚¬â€˜person camera where the camera can rotate independently, or alternatively, keeping the Modern aiming but using the original gameÃ¢â‚¬â„¢s camera behavior during normal movement.
 
-Is this currently possible in Recomp and I just havenâ€™t found the option yet?
+Is this currently possible in Recomp and I just havenÃ¢â‚¬â„¢t found the option yet?
 
 ### Proposed change
 
-Thirdâ€‘person camera where the camera can rotate independently, or alternatively, keeping the Modern aiming but using the original gameâ€™s camera behavior during normal movement.
+ThirdÃ¢â‚¬â€˜person camera where the camera can rotate independently, or alternatively, keeping the Modern aiming but using the original gameÃ¢â‚¬â„¢s camera behavior during normal movement.
 
 ### How could we verify it?
 
@@ -39,3 +39,11 @@ Modern controls now offer Free movement by default and a bindable Movement toggl
 Component/configuration tests, the 1,015-check native UI suite, and normal Play comparisons passed. With the same input timeline, each mode produced 530 ordinary movement updates and 180 Aim updates. Strafe body/view remained aligned; free movement differed in 485 ordinary updates and returned to alignment for all 180 Aim updates. Both runs exited cleanly. This verifies native behavior and transitions, not broad campaign compatibility or the owner's final visual approval.
 
 Private evidence: remaining-gh-issues-20261027/movement-aim-024-analysis.json and the underlying gameplay/replay traces. The first UI test exposed an identifier collision with existing directional-key controls; the new setting now has its own nonoverlapping identifier.
+
+## November 8 owner acceptance
+
+The owner confirms that #53 and #55 were already tested and approved as optional
+Advanced control options. Record this existing acceptance; do not ask for repeat
+manual sign-off. The confirmation does not enumerate ROM regions or input devices.
+Earlier pending-review statements are historical. No release or GitHub closure
+is implied.

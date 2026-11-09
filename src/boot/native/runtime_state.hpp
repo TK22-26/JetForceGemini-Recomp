@@ -790,6 +790,7 @@ struct State : JfgOriginalTimingFast {
   bool pc_camera_resolved_valid=false;
   jfg::PcOrbitPoint pc_camera_resolved{};
   std::uint32_t pc_camera_actor=0,pc_camera_control=0,pc_camera_stack=0;
+  std::uint32_t pc_aim_distance_actor=0,pc_aim_distance_stack=0;
   jfg::PcLookDelta pc_camera_look{};
   std::uint64_t pc_aim_calls = 0, pc_direct_aim_calls = 0;
   std::array<jfg::PcLookDelta,4> pc_aim{};

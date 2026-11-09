@@ -1,6 +1,6 @@
 # GH-057: Menu icons show grey boxes in widescreen; title vignette edge is stepped instead of smooth
 
-Status: local icon and vignette candidates; GPU and actual menu captures verified; owner batch review pending.
+Status: Current local fixes reverified with renderer checks and USA widescreen captures; owner visual acceptance pending; unreleased.
 
 Source: [Menu icons show grey boxes in widescreen; title vignette edge is stepped instead of smooth](https://github.com/TK22-26/JetForceGemini-Recomp/issues/57). Evidence snapshot retained privately in D:/JFG-private/remaining-gh-issues-20261027/github-issues.json.
 
@@ -48,9 +48,9 @@ Local owner-authorized batch: verify reported alpha defect and smooth vignette w
 
 ## October 27 validation update
 
-The reporter's icon diagnosis is confirmed by the decoder and a GPU fixture: transparent border texels no longer cover the background, while opaque interior texels still draw. The correction is narrowed to 44×44 RGBA16 icons, their exact one-cycle mode and combiner; previous blend/mode state is restored. The initial GPU fixture lacked white primitive/environment colors and rendered no visible icon; that fixture was corrected before qualification. Source attribution remains the reporter's issue and community branch.
+The reporter's icon diagnosis is confirmed by the decoder and a GPU fixture: transparent border texels no longer cover the background, while opaque interior texels still draw. The correction is narrowed to 44Ãƒâ€”44 RGBA16 icons, their exact one-cycle mode and combiner; previous blend/mode state is restored. The initial GPU fixture lacked white primitive/environment colors and rendered no visible icon; that fixture was corrected before qualification. Source attribution remains the reporter's issue and community branch.
 
-The authored title vignette is reconstructed in the shader using a small nine-sample floating-point mask filter at upscaled resolution. Only its exact I4 material and 80×60 tile are eligible; high-resolution replacements and native resolution are excluded, and the underlying scene is not filtered. A real runtime trace confirms this material/tile, and paired native menu captures show the smoother edge. The initial exit-RDRAM replay did not retain prior renderer matrices and was discarded for visual comparison; actual frame captures are the evidence. Private evidence: icons-gpu-024, menu-frame-040 and menu-frame-baseline-040. Both shader backends compile. Final owner batch review remains pending.
+The authored title vignette is reconstructed in the shader using a small nine-sample floating-point mask filter at upscaled resolution. Only its exact I4 material and 80Ãƒâ€”60 tile are eligible; high-resolution replacements and native resolution are excluded, and the underlying scene is not filtered. A real runtime trace confirms this material/tile, and paired native menu captures show the smoother edge. The initial exit-RDRAM replay did not retain prior renderer matrices and was discarded for visual comparison; actual frame captures are the evidence. Private evidence: icons-gpu-024, menu-frame-040 and menu-frame-baseline-040. Both shader backends compile. Final owner batch review remains pending.
 
 ## Original-ROM comparison, October 27
 
@@ -67,3 +67,41 @@ checkpoint-d2, scope.json; paired native menu-frame-040 and baseline from the
 earlier batch. This is an original-ROM emulator comparison, not new hardware
 testing or a pixel-exact comparison of different render resolutions/animation
 phases. Owner review of the assembled candidate remains pending.
+
+## November 8 current-build review
+
+The owner authorized fresh verification of #57 and review of #58. Live GitHub
+body/comments were captured privately; #57 has one screenshot comment, while
+#58 has no comments or attached failing-session support ZIP. Current validation
+results and their limits will be added below. Private evidence: `issue57-58-review-20261108/`.
+
+### Fresh verification result
+
+The current renderer texture fixture was rebuilt against the same renderer
+libraries used by the delivered regional build and passes. It checks normal and
+flipped qualifying icon rectangles, a nonqualifying tile, the owned nonzero alpha
+threshold, command advancement and restoration of previous blend/mode state.
+The current decoder and vignette-patch hashes match the delivered native build's
+input receipt. The generated shaders in the USA, PAL and JP build caches contain
+the exact material, upscale-only and high-resolution-replacement exclusions.
+
+Actual muted USA sessions using the current Issue52 Camera Test package captured
+the START screen and the PLAY/MULTI/OPTIONS menu in widescreen (320x180 display
+canvas). Visual inspection finds no opaque grey outer icon boxes and a smooth
+vignette transition. The authored blue icon frames remain. These are real native
+frames, not reconstructed exit-memory replays. Two navigation captures landed
+on the animated title and save-selection screens; retained as navigation evidence,
+not substituted for the main-menu capture. All four sessions exited normally.
+
+Private evidence: `issue57-58-review-20261108/renderer-regression/result.json`,
+`current-source-pins.json`, `current-menu-us/final.png`,
+`current-main-menu-us/final.png`, and the corresponding input, identity and run
+records. Earlier October 27 evidence remains historical; its original private
+directory was unavailable during this review and was not represented as freshly
+reopened. Fresh visual capture covers USA, not PAL/JP or the reporter's GPU.
+
+Owner check: use the current launcher, enable widescreen in the original in-game
+options, then inspect START and PLAY/MULTI/OPTIONS at an enlarged window size.
+Confirm no grey outer square and no hard vignette steps, unwanted halo or scene
+blur; compare with widescreen off. No owner acceptance or release is inferred
+from these automated checks.

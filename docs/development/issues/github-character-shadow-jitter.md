@@ -1,11 +1,24 @@
 # GH-046: Character shadows jitter at high frame rates
 
-- Status: owner-approved local Enhanced Shadows v26; unreleased.
+- Status: solved in develop; owner-approved Enhanced Shadows option, reaffirmed 2026-11-08; unreleased.
 - Severity: moderate visual smoothness issue.
 - Report: [GitHub #46](https://github.com/TK22-26/JetForceGemini-Recomp/issues/46).
 - Intake: 2026-10-24.
 - Affected report: v1.4.0, Windows10, GTX1080, Xbox controller; high frame rate,
   exact target not specified.
+
+## Current resolution
+
+On November 8 the owner reaffirmed that **#46 is solved** and that an option for
+updated/modern shadows was added. The setting is **Shadows: Enhanced** in Video
+Settings. It provides detailed, smoothly animated character shadows using the
+displayed actor pose and receiver geometry; **Original** remains selectable.
+
+This preserves the October 27 v26 visual acceptance and recorded validation.
+No further owner sign-off is required for this issue in the current review.
+The work is in develop; publication in a tagged release and any GitHub issue
+disposition are separate. The earlier investigation and PR #56 review below
+remain historical evidence, not outstanding work needed to solve #46.
 
 ## Symptoms and reproduction
 

@@ -1,11 +1,21 @@
 # GH-048: [Playtest] In high framerates flying enemies move faster
 
-Status: open. Controlled runs isolate ordinary Play's host-clock update cadence
+Status: deferred for the current planned version by owner instruction on
+2026-11-08; unresolved, not accepted as fixed. No further #48 work or manual
+sign-off is required for this version. Existing candidate code and evidence
+are retained; this documentation decision does not implement or remove code.
+
+Controlled runs isolate ordinary Play's host-clock update cadence
 as the cause of faster legacy per-call flight motion, including Original FPS.
 The local elapsed-VI candidate passes finite checks but does not reproduce the
 original variable load cadence. Exact Original policy and hardware timing
 remain unresolved; no final fix or release qualification is claimed. See the
 [Original timing investigation](original-mode-simulation-parity.md).
+
+The owner explicitly requested "48 - skip for this version". Remove #48 from
+the current manual-test queue and revisit its remaining engineering/reference
+qualification in future work, without selecting a future release date or
+changing the recorded Original-timing requirement. No GitHub closure is implied.
 
 Source: [[Playtest] In high framerates flying enemies move faster](https://github.com/TK22-26/JetForceGemini-Recomp/issues/48). Evidence snapshot retained privately in D:/JFG-private/remaining-gh-issues-20261027/github-issues.json.
 

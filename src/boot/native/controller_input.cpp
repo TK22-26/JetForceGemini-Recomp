@@ -630,9 +630,11 @@ void sample_controller_ports(State &state,bool discover_sdl) {
       const bool boss=jfg::mod::pc_boss_gameplay_active(pc_memory,actor);
       const bool racing=state.active_overlay_sections.contains(game_module(OriginalModule::racing)) &&
         jfg::mod::pc_race_gameplay_active(pc_memory,actor,static_cast<unsigned>(p));
-      const bool menu=game_view(pc_memory).u8(game_data_ref("globals.pauseActive"))!=0 ||
-        !(flying || boss || racing || jfg::mod::pc_gameplay_active(pc_memory,actor)) ||
-        jfg::mod::scripted_camera_active(pc_memory,actor);
+      // A qualified race retains its native static camera while accepting
+      // vehicle actions. Ordinary static-camera scenes still use menu mapping.
+      const bool menu=!racing && (game_view(pc_memory).u8(game_data_ref("globals.pauseActive"))!=0 ||
+        !(flying || boss || jfg::mod::pc_gameplay_active(pc_memory,actor)) ||
+        jfg::mod::scripted_camera_active(pc_memory,actor));
       state.modern_aim_latch[p].apply(input,config.aim_toggle,
         !menu && !state.pc_input_blocked && state.pc_device_ready[p]);
       sample=racing && !menu ? jfg::map_modern_race_actions(input) : flying && !menu ? jfg::map_modern_floyd_actions(input,floyd.mission,device==-3,config.pad_floyd_flight_invert_y) :
@@ -994,9 +996,11 @@ void sample_live_controller(State &state) noexcept {
   for(std::size_t p=0;p<4;++p) {
     const auto actor=jfg::mod::pc_player_for_port(pc_memory,static_cast<unsigned>(p));
     const bool landing=modern_landing_view_current(state,actor);
+    const bool racing=state.active_overlay_sections.contains(game_module(OriginalModule::racing)) &&
+      jfg::mod::pc_race_gameplay_active(pc_memory,actor,static_cast<unsigned>(p));
     const bool available=modern_controls_selected(state,p) && game_view(pc_memory).u8(game_data_ref("globals.pauseActive"))==0 &&
-      !jfg::mod::scripted_camera_active(pc_memory,actor);
-    actions[p]=available && (jfg::mod::pc_actions_active(pc_memory,actor) || landing || (floyd && floyd.port==p));
+      (racing || !jfg::mod::scripted_camera_active(pc_memory,actor));
+    actions[p]=available && (racing || jfg::mod::pc_actions_active(pc_memory,actor) || landing || (floyd && floyd.port==p));
     free_view[p]=available && (jfg::mod::pc_gameplay_active(pc_memory,actor) || landing);
     want_mouse|=actions[p] && state.pc_devices[p]==-3 && active_pc_input(state,p).mouse_aim &&
       state.controller_ports.samples[p].connected;

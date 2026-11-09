@@ -29,6 +29,29 @@ The separate bad-angle camera-cut interpolation was a recomp defect, not this na
 See the [complete investigation, failures, source and validation](../development/issues/tawfret-chief-camera-and-square.md)
 and [published qualification](../releases/qualification-1.4.0.md).
 
+### N64-003: Missing flight-transition music on NTSC (#45)
+
+- **Symptom:** flight music is absent when leaving Walkway in the original NTSC game.
+- **Hardware evidence:** on October 31 the owner explicitly rechecked this departure
+  on physical NTSC N64 hardware and confirmed the absence. Console/display details
+  and a separate check of each reported Vela departure were not recorded.
+- **Classification:** on November 8 the owner classified issue #45 as a native
+  NTSC bug to correct in a future update. This supersedes the earlier decision
+  to catalog the observation only as a regional difference.
+- **Regional comparison:** the owner heard music on the same departure in the
+  original PAL ROM using EmuHawk. This is not a PAL hardware test; Japanese music
+  behavior remains unverified.
+- **Cause:** the underlying regional code/asset cause is unconfirmed.
+- **Recomp decision: deferred correction.** Address #45 with a different approach
+  in a separate general native-bug-fixes update. Implementation details and release
+  timing are not selected. The earlier Walkway override remains removed; no new
+  runtime change or fix acceptance follows from this documentation decision.
+- **Remaining scope:** assess the two Vela routes individually when planning and
+  validating that future update; do not infer that all three routes were checked.
+
+See the [issue history](../development/issues/flight-transition-missing-music.md)
+and [regional observations](regional-differences.md).
+
 ## Owner-reported native bugs
 
 ### N64-002: Texture wash over the Goldwood starting bridge (NTSC)

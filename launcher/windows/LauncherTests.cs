@@ -815,6 +815,19 @@ namespace JfgLauncher
                 Check(SupportSession.SanitizeFile(mousePath) == mouseEvidence, "bounded mouse diagnostics rejected or private/malformed data accepted");
                 File.WriteAllText(Path.Combine(directory, "frontend-presentation.log"),
                     "backend=window\ncomposition_hresult=0x80004001\nbackend=PRIVATE-PATH-CANARY\n");
+                const string rendererEvidence = "renderer_requested=vulkan\nrenderer_selected=vulkan\nrenderer_host=launcher\nrenderer_setup=ready\nrenderer_result=vulkan/acquire/0x00000000\nrenderer_result=vulkan/present/0xfffffc14\nrenderer_result=d3d12/present/0x887a0005\nrenderer_result=d3d12/resize/0x00000000\nrenderer_result=vulkan/resize/limit\n";
+                const string rejectedRenderer = "renderer_selected=PRIVATE-PATH-CANARY\nrenderer_requested=Vulkan\nrenderer_result=vulkan/present/-1000\nrenderer_result=vulkan/present/0x123456789\nrenderer_result=d3d12/present/0x887A0005\nrenderer_setup=ready/PRIVATE-PATH-CANARY\nrenderer_host=PRIVATE-PATH-CANARY\n";
+                string rendererPath=Path.Combine(directory,"renderer-test.log");
+                File.WriteAllText(rendererPath,rendererEvidence+rejectedRenderer);
+                Check(SupportSession.SanitizeFile(rendererPath)==rendererEvidence,"renderer grammar lost valid evidence or accepted malformed/private values");
+                File.AppendAllText(support.NativePath,rendererEvidence+rejectedRenderer);
+                Check(support.RendererFailureMessage()==null,"resize/presentation status must not claim startup failed");
+                { var failing=new SupportSession(Path.Combine(directory,"renderer-failure"),"launch");
+                    File.WriteAllText(failing.NativePath,"renderer_requested=vulkan\nrenderer_setup=api-unavailable\n");
+                    Check(failing.RendererFailureMessage().StartsWith("Vulkan could not start.",StringComparison.Ordinal),"explicit API startup failure lacks recovery guidance");
+                    File.WriteAllText(failing.NativePath,"renderer_requested=d3d12\nrenderer_setup=override-required\n");
+                    Check(failing.RendererFailureMessage().StartsWith("Direct3D 12 could not start.",StringComparison.Ordinal),"driver override lacks explicit-choice guidance");
+                }
                 const string windowState = "frontend_window=1/1/1/1280/720/1/1280/720/1/0/0/0\n";
                 File.WriteAllText(Path.Combine(directory, "frontend-window.log"),
                     windowState + "frontend_window=PRIVATE-PATH-CANARY\nfrontend_window=1/1/1/100000/720/1/1280/720/1/0/0/0\n");
@@ -845,10 +858,11 @@ namespace JfgLauncher
                     Check(!combined.Contains("CANARY") && !combined.Contains(directory), "private contents leaked into support report");
                     Check(combined.Contains("exit=0x00000011") && combined.Contains("native_exit=0xc0000005") && combined.Contains("failure=runlink/guest-overlay-load"), "crash evidence lost");
                     Check(combined.Contains("mod=navigation-enabled"), "mod context lost from support report");
+                    Check(combined.Contains(rendererEvidence), "game graphics API or presentation result evidence lost during ZIP export");
                     Check(combined.Contains(presentationEvidence), "presentation evidence lost during export");
                     Check(combined.Contains(mouseEvidence), "effective mouse settings or delivery counters lost during export");
                     using (StreamReader reader = new StreamReader(zip.GetEntry("native.log").Open())) {
-                        Check(reader.ReadToEnd() == "native=running\nfailure=runlink/guest-overlay-load\nnative_exception=0xc0000005\n" + audioEvidence,
+                        Check(reader.ReadToEnd() == "native=running\nfailure=runlink/guest-overlay-load\nnative_exception=0xc0000005\n" + audioEvidence + rendererEvidence,
                             "audio recovery success/failure lost or malformed/private records admitted by final ZIP export");
                     }
 

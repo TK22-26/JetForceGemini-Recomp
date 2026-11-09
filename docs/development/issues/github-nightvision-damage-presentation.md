@@ -1,6 +1,6 @@
 # GH-051: [Playtest] Lupus' Nightvision in Mizar's Palace is pixelated
 
-Status: local resolution and temporal candidate verified; owner route review pending.
+Status: fixed locally; owner manually tested and approved USA, PAL and JP on November 8, 2026; unreleased.
 
 Source: [[Playtest] Lupus' Nightvision in Mizar's Palace is pixelated](https://github.com/TK22-26/JetForceGemini-Recomp/issues/51). Evidence snapshot retained privately in D:/JFG-private/remaining-gh-issues-20261027/github-issues.json.
 
@@ -86,3 +86,129 @@ close cleanly. Actual output screenshots show the upscaled scene with the
 original effect; this is not a pixel-equality test of different resolutions.
 Evidence: native-lupus-120-026 and native-nightvision-028.json. Owner route review remains
 pending and no released resolution is claimed.
+
+## November 8 review and regional save preparation
+
+The owner requested review of the existing fix and three regional saves for
+manual testing, with a three-hour bounded continuation. GitHub #51 remains open
+and has no comments beyond its original 1.4.0 report. No prior owner approval of
+this specific night-vision/damage-tint issue was found; Vela rescue blur approval
+is a separate effect. The existing exact-material GPU framebuffer remedy and
+renderer regression remain in source. The completed checks and delivery below retain regional manual acceptance as
+pending. Original saves and #50 acceptance are preserved.
+
+### Current package and regression result
+
+All three current program bundles pass identity verification. Their recorded
+build input hashes for `include/jfg/renderer/native_screen_effect.hpp` and
+`cmake/renderer/rt64_native_screen_effect.cmake` match the current source exactly.
+The GPU framebuffer exception is therefore an existing remedy in the delivered
+preview, not a newly added effect workaround. No runtime change or new game
+binary was needed for this review.
+
+A fresh compile of the renderer texture regression against the current preview
+libraries passes the screen-effect case. The larger executable initially failed
+later on a solid-core depth expectation: its synthetic guest fixtures omitted
+their qualified regional layout. Passing the existing fixture layout restores
+the full texture-test pass; see the [fixture correction](renderer-texture-fixture-layout.md).
+The unchanged screen-effect case also passes independently. This fresh check
+validates eligibility and exclusions; the October 27 resolution and four-phase
+120 Hz captures remain historical evidence, not newly repeated GPU captures.
+
+### Three-region manual test setup
+
+Separate USA, PAL and Japanese profiles now start slot 1 as Lupus at room 316,
+Dog NVision Pad In, with goggles item 22. Each starts from its own previously
+verified regional save, preserves the remaining slots and normal regional
+namespace, and changes copied checkpoint/inventory/story prerequisites only.
+Normal saves and the accepted #50 profiles remain unchanged. The archived
+normally activated Lupus fixture supplied the shared logical story flags.
+
+Muted launches through the current launcher and native runtime verified all
+three: gameplay active in room 316, character 2, goggles present and the actual
+NightVisionPad actor present. Copied controller settings were restored after menu
+entry. These checks establish the starting point, not regional appearance or
+feel acceptance. Desktop shortcuts reset only their separate test saves on each
+launch and keep the owner's copied manual audio preferences.
+
+Walk to the pad in the middle of the room and press Interact (copied Modern
+bindings: controller X / keyboard E). Move and turn with night vision active;
+check that the underlying scene retains the chosen resolution and smooth output.
+Then take damage in an enemy area and check the red tint too. Original green
+coloring/reticle and red coloring remain intentional. Owner USA/PAL/JP review is
+pending; no GitHub closure, commit, push or release was performed.
+
+### Informative setup failures and evidence retention
+
+The minimal copied save entered Lupus's room-66 introduction instead of the pad.
+Adding flag 23 alone did not solve that; it is not recorded as the cause/remedy.
+Restoring the shared story context from the previously successful fixture allowed
+normal checkpoint loading. Individual story gates were not independently isolated.
+This is private save preparation, not a campaign progression patch.
+
+The first cleanup helper followed native processes only and missed the launcher's
+intermediate setup worker, leaving a test session open. That interfered with a
+later launch; complete process-tree cleanup corrected the qualification helper.
+The first PAL map lookup searched the USA profile root, while PAL correctly wrote
+its state under its revision namespace. Reading that existing capture confirmed
+the successful PAL entry; no extra PAL replay was needed. Failed attempts remain
+preserved rather than relabeled as passes.
+
+The October 28 storage cleanup archived the old saves under content hashes. The
+native and original-ROM fixture Flash files were recovered through their archive
+manifests and match SHA-256
+`8030ea589ff3b74688b55af95e27d3564e5ffedd0d317ad8bd575a2d0b5bbfad`.
+Earlier evidence paths above describe their historical locations; they are not
+claims that the original working directories still exist.
+
+Current private receipts: `issue51-review-saves-20261108/`, especially
+`github-issue-51.json`, `current-package-identities.json`, `recovered-index.json`,
+`renderer-regression/qualified-result.json`, `preparation.json` and
+`regional-entry-final-results.json`. ROMs, generated game sources and saves remain
+private. Compatibility lesson: qualify the actual character, inventory, pad and
+regional namespace; a valid checksum or a room number alone does not prove a
+usable manual-test starting point.
+
+
+### Owner before/after comparison request (November 8)
+
+The owner reports that the current view looks good but requests an earlier build
+to establish the comparison. This is not yet final visual acceptance. The
+preserved v1.4.0 signoff package is the reported affected release and predates the
+October 27 screen-effect remedy. Its manifest file hashes and clean runtime
+identity `521f66620e734671a06a07f118e874076f02a133` were verified; that source lacks
+the later exact-material framebuffer exception.
+
+A separate USA before-fix shortcut uses the identical prepared Lupus pad save,
+120 FPS, matching video settings and copied compatible controls. The v1.4.0 parser
+rejects today's version-8 control schema, so the comparison profile uses only its
+supported historical fields with the current values. A small executable using
+the actual historical parser verifies that Modern controls and X/E Interact load.
+Original and current saves/profiles remain unchanged. v1.4.0 has USA support only
+and other older behavior; this is a release-to-current comparison, not a build
+with only one change toggled. No automated game launch interrupted the owner's
+running session. Compare scene sharpness and motion under the green and red
+effects at the same window size; manual acceptance remains pending.
+
+Private receipt: `issue51-v140-comparison-20261108/comparison.json`. The same
+investigation, remaining attempts and original three-hour approval deadline are
+preserved; no allowance or counter was reset.
+
+
+## Owner acceptance — November 8, 2026
+
+The owner confirmed "fix approved - verified by me" and then clarified:
+"all regions are tested but yes they all pass". Record GH-051 as manually
+verified and approved for USA, PAL and Japanese gameplay. This supersedes the
+earlier pending-review entries and the initially inferred USA-only scope.
+
+The existing screen-effect remedy remains unchanged. The current all-region
+test profiles, historical v1.4.0 USA comparison, fresh renderer regression and
+regional pad-entry receipts remain the supporting evidence. The owner has now
+provided the previously missing visual acceptance; further owner sign-off on
+these three regional checks is not requested. No new game session, build or
+runtime change was performed while recording this confirmation.
+
+This is local acceptance of #51, not a new release or GitHub issue closure.
+The separate renderer test-fixture correction remains uncommitted. Private
+acceptance receipt: `issue51-owner-acceptance-20261108/acceptance.json`.

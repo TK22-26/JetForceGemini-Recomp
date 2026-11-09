@@ -8,9 +8,11 @@
 | PAL / original ROM in EmuHawk | Music is present | Owner confirmed the PAL session after loading Juno in Walkway; not a PAL hardware test |
 | Japanese version | Unknown | Not checked |
 
-Recorded 2026-10-31. The owner corrected an earlier mistaken request to restore this music in the
-US build. The evidence confirms a regional behavior difference for the reviewed departure; the
-underlying code/asset cause remains unknown. Do not list the NTSC absence as a confirmed native bug.
+Recorded 2026-10-31. The owner corrected an earlier mistaken request to restore this music as US
+fidelity. On 2026-11-08 the owner classified #45 as a native NTSC bug and deferred a different
+correction to a separate general native-bug-fixes update. The hardware evidence remains scoped
+to the reviewed Walkway departure; the underlying code/asset cause remains unknown.
+See [N64-003](bugs.md#n64-003-missing-flight-transition-music-on-ntsc-45).
 
 The US Walkway music override was removed from source on November 1. Scoped native normal/skip
 replays restore original selection with no Walkway override events; fresh owner listening is not
@@ -18,6 +20,6 @@ claimed. Older preview packages still contain the insertion. Sekhmet and the Gol
 remain unverified individually.
 
 [Music investigation](../development/issues/flight-transition-missing-music.md) retains the correction
-and earlier attempts. [PAL/JP metadata preparation](../development/issues/regional-rom-support.md)
-now reconstructs both ROMs and their overlays exactly. Playable regional support remains open;
-the recomp currently accepts only its supported US ROM profile. Private ROMs, copied saves and emulator state are not repository assets.
+and earlier attempts. [Regional runtime support](../development/issues/regional-rom-support.md)
+now covers USA, PAL and JP; supporting a region does not establish its untested music behavior.
+Private ROMs, copied saves and emulator state are not repository assets.

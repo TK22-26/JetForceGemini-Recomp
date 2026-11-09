@@ -1,9 +1,21 @@
 # GH-047: Floor reflection cadence and missing reflected geometry
 
-- Status: owner-approved local reflected geometry and motion corrections; unreleased.
+- Status: fixed in develop; owner acceptance reaffirmed 2026-11-08; unreleased.
 - Report: [GitHub #47](https://github.com/TK22-26/JetForceGemini-Recomp/issues/47).
-- Owner follow-up: 2026-10-25, after development commit d98d7fc.
+- Owner follow-up: 2026-10-25, after development commit d98d7fc; reaffirmed fixed 2026-11-08.
 - Severity: visible rendering defect; no gameplay failure reported.
+
+## Current resolution
+
+On November 8 the owner confirmed **#47 is fixed**. Correct mirrored face culling
+restores the reflected geometry, and separate reflected skeletal animation history
+provides smooth motion without corrupting ordinary actor history. This reaffirms
+the October 25 acceptance and retained automated verification.
+
+No further owner sign-off is required for #47 in the current review. Release
+delivery and any GitHub issue disposition remain separate from the completed fix.
+No additional route, character or regional testing is inferred from this update.
+The historical PR #59 comparison below does not reopen the accepted correction.
 
 ## Symptoms and reproduction
 

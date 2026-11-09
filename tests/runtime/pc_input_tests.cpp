@@ -819,6 +819,17 @@ int main() {
   check(!jfg::pc_normal_camera_owns_look(true,10),"ground aim transition retains camera ownership");
   check(!jfg::pc_normal_camera_owns_look(true,11),"ground aiming retains camera ownership");
   check(!jfg::pc_normal_camera_owns_look(true,5),"other special states are not implicitly enabled");
+  {
+    const jfg::PcOrbitPoint focus{100,40,300},close{100,40,332};
+    const auto distant=jfg::pc_combat_camera_request(focus,close,false,false);
+    check(distant.x==100 && distant.y==40 && distant.z==480,"combat Off extends native Aim request before collision");
+    check(jfg::pc_camera_player_alpha({100,0,300},distant,255)==255,"clear Aim no longer settles inside the player's fade range");
+    check(jfg::pc_combat_camera_request(focus,close,true,false).z==332,"combat On preserves native aiming distance");
+    check(jfg::pc_combat_camera_request(focus,close,false,true).z==332,"sniper optics preserve their native request");
+    check(jfg::pc_combat_camera_request(focus,{100,40,600},false,false).z==600,"long authored requests are preserved");
+    check(jfg::pc_combat_camera_request(focus,focus,false,false).z==300,"degenerate requests are not projected arbitrarily");
+    check(jfg::pc_camera_player_alpha({100,0,300},close,255)<255,"collision-forced close-up still keeps its safety fade");
+  }
   check(jfg::pc_camera_player_alpha({0,0,0},{0,35,0},255)==24,"camera inside player retains a faint silhouette");
   check(jfg::pc_camera_player_alpha({0,0,0},{80,35,0},255)==255,"camera outside fade range stays opaque");
   check(jfg::pc_camera_player_alpha({0,0,0},{0,140,0},255)==255,"overhead camera outside body stays opaque");

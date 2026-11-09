@@ -65,6 +65,26 @@ static void modern_player_context_tests() {
     put8(0x800A4FD8U,4);check(!pc_race_session(m)); // Stale multiplayer type.
     put8(0x800A4FB4U,1);check(pc_race_gameplay_active(m,owner,0));
     check(!pc_gameplay_active(m,owner)); // Racing never owns the Modern camera.
+    // The arcade has a fixed overview camera throughout a playable race.
+    // Camera ownership does not imply that vehicle controls are a menu.
+    for(const auto& guard:jfg::test::memory_instructions)
+      if(guard.name.starts_with("guard.camera.static_"))put32(guard.reference.offset,guard.original_word);
+    put32(0x800FB084U,0x80170000U);
+    check(static_camera_active(m) && scripted_camera_active(m,owner));
+    for(unsigned port=0;port<4;++port) {
+      const auto vehicle=pc_player_for_port(m,port);
+      check(vehicle && pc_race_gameplay_active(m,vehicle,port));
+      check(!pc_gameplay_active(m,vehicle)); // Keep the native race camera.
+    }
+    put32(0x801045B8U,1);check(!pc_race_gameplay_active(m,owner,0));put32(0x801045B8U,0);
+    put32(0x800FD7C4U,1);check(!pc_race_gameplay_active(m,owner,0));put32(0x800FD7C4U,0);
+    put32(0x800F6DBCU,1);check(!pc_race_gameplay_active(m,owner,0));put32(0x800F6DBCU,0);
+    put32(oc+0x5C0U,0x80171000U);check(!pc_race_gameplay_active(m,owner,0));put32(oc+0x5C0U,0);
+    put8(0x800A4FB4U,0);check(!pc_race_gameplay_active(m,owner,0));
+    check(!pc_gameplay_active(m,owner)); // Ordinary static-camera scenes still block camera controls.
+    put8(0x800A4FC4U,1);check(pc_race_gameplay_active(m,owner,0));put8(0x800A4FC4U,0);
+    put8(0x800A4FB4U,1);put32(0x800FB084U,0);
+
     check(!pc_race_gameplay_active(m,owner,1));
     put8(0x800FD7BDU,1);check(!pc_race_gameplay_active(m,owner,0));put8(0x800FD7BDU,0);
     put8(0x800A4FB4U,0);put8(0x800A4FC4U,1);check(pc_race_gameplay_active(m,owner,0));

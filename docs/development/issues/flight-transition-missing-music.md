@@ -1,12 +1,18 @@
 # AUDIO-FLIGHT-045: Music absent during some flight transitions
 
-- Severity: regional audio-fidelity report; Walkway omission reconfirmed as original NTSC behavior.
-- Status: unsupported NTSC Walkway music override removed from source and rebuilt; scoped native replay checks pass. Final source qualification is recorded below. PAL music is owner-confirmed in EmuHawk; both Vela departures remain individually unverified. #45 remains open, with no release or remote issue change.
-- Reported/updated: 2026-10-24 UTC intake; corrected hardware expectation 2026-10-31; rollback and runtime refactor 2026-11-01.
+- Severity: native NTSC music omission; Walkway behavior confirmed on original hardware.
+- Status: owner classifies #45 as a native NTSC bug; correction deferred to a separate general native-bug-fixes update using a different approach. No new remedy is implemented or accepted. The Walkway override remains removed; the two Vela candidates remain individually unverified. No remote issue change or release.
+- Reported/updated: 2026-10-24 UTC intake; corrected hardware expectation 2026-10-31; rollback and runtime refactor 2026-11-01; future-update disposition 2026-11-08.
 - Original affected report: v1.4.0; Windows 10, GTX 1080, Xbox controller, 60 FPS.
 - Report: [GitHub #45](https://github.com/TK22-26/JetForceGemini-Recomp/issues/45).
 
 ## Current finding and remedy
+
+On November 8 the owner explicitly classified #45 as a **native NTSC issue** and
+deferred its correction to a **separate general native-bug-fixes update**, using
+a different approach. The implementation and release date are not yet selected.
+This is a documented future correction, not a current manual-test blocker or a
+completed fix. See the [native bug catalog](../../original-game/bugs.md#n64-003-missing-flight-transition-music-on-ntsc-45).
 
 The owner corrected the earlier request to add music after rechecking **leaving Walkway on physical
 NTSC N64 hardware**: this departure has no flight music in the original. The earlier cutscene was
@@ -22,8 +28,9 @@ not itself fresh owner listening or a claim that every sound in either scene is 
 
 The two Vela overrides are retained as separate candidates. The Walkway hardware correction neither
 accepts nor disproves them, and their original-game expectations still need individual verification.
-Keep #45 open for that scoped route/regional assessment. Earlier tests below prove that the old
-candidate inserted music; they cannot prove that NTSC should contain it.
+Those route/regional checks belong to the future native-bug-fixes work. The new disposition does
+not imply that every reported route was individually checked on hardware. Earlier tests below
+prove that the old candidate inserted music; they do not establish the intended future remedy.
 
 The October 31 Audio Settings review package still contains the historical three-override runtime.
 This source follow-up does not silently replace an already-open or older preview. Its accepted

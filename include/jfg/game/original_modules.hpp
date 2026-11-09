@@ -8,7 +8,7 @@ enum class OriginalModule : std::uint32_t {
   collision=3, shadows=4, starfield=5, instruments=6, hint_text=7,
   vela_control=15, juno_control=16, lupus_control=17,
   pause_root=18, pause_manager=19, floyd_missions=22, day_night=23,
-  vela_magic=29, racing=30, mr_hints=32, settings=37, mantis_lighting=39,
+  vela_magic=29, racing=31, mr_hints=32, settings=37, mantis_lighting=39,
   save_keyboard=42, credits=59, title=63, region_id=117, reflections=137
 };
 

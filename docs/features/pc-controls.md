@@ -71,7 +71,7 @@ use directional input for unsupported pages. Explicit remaps remain supported.
 **Advanced > Free movement by default** lets movement turn the character while the mouse/right
 stick controls the camera independently; aim temporarily restores Modern aiming. **Toggle movement**
 is assignable and starts unbound. **Combat transparency** can disable ordinary aim/combat fade while
-retaining camera-proximity fading. These per-player preferences are shared across Modern device types;
+retaining camera-proximity fading. The November 8 build uses a 180-unit minimum for ordinary ground Aim when this is Off (the owner requested 10% closer than the initial 200-unit candidate), before native collision and easing; sniper optics retain their original framing. The owner approved the closer-camera build; regional/device coverage was not specified. These per-player preferences are shared across Modern device types;
 profile schema 8 migrates schemas 1-7 without discarding bindings.
 
 The local batch also maps configured Fire to Floyd objective pages while paused and adds arcade
@@ -80,6 +80,17 @@ status: [free movement](../development/issues/github-modern-free-movement.md),
 [transparency](../development/issues/github-combat-player-transparency.md),
 [Floyd objectives](../development/issues/github-floyd-objectives-controls.md), and
 [arcade traps](../development/issues/github-arcade-trap-controls.md). They are not v1.4.0 release claims.
+
+**Arcade traps (#50) are manually tested and owner-approved on USA, PAL and JP**
+as of November 8. Correcting the original race module ID and fixed-camera gates
+lets qualified races accept native vehicle actions while retaining their overview
+camera. Use configured Fire (RT with default Modern controller bindings) to
+deploy a held trap. The change remains local and unreleased.
+
+The owner confirmed **Floyd objectives (#49) fixed** on November 8. Use the
+configured Fire action while paused in a Floyd challenge to cycle objective
+pages. This owner acceptance is recorded separately from the automated remapping
+checks; the confirmation did not specify additional regions or input bindings.
 
 ## Compatibility and evidence
 
@@ -110,3 +121,8 @@ confirms the current build is fully working on Bazzite on November 8. The precis
 cause remains unconfirmed; API acceptance alone is not proof of physical confinement.
 This acceptance is local and unreleased; separate regional/Steam Deck coverage is
 not inferred.
+
+The owner confirms #53 (bindable Movement toggle) and #55 (Free movement by
+default) were already tested and approved as optional Advanced controls. Their
+acceptance is separate from the later Aim-release and #52 camera changes; the
+confirmation does not specify regional/device coverage.

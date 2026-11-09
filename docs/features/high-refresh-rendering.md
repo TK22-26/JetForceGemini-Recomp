@@ -4,11 +4,18 @@ Version 1.2.0 includes opt-in high-refresh rendering and native RmlUi Video
 Settings. Gameplay timing remains independent of presentation. Tested semantic
 ownership, audio and performance corrections are included; owner playtesting
 reports stable gameplay and resolved reported shuriken/crouch defects. Unlimited,
-all-route no-dip performance, shadow cadence and the reported exit-cutscene audio
+all-route no-dip performance and the reported exit-cutscene audio
 interruption remain subject to the [current limits](../known-issues.md).
 
 The chronological entries below preserve the evidence and intermediate failures;
 earlier statements that a candidate was not released describe that stage.
+
+Current develop also offers **Shadows: Original / Enhanced** in Video Settings.
+Enhanced provides detailed, smoothly animated character shadows and applies to
+the running game when saved. The owner reaffirmed on November 8 that
+[#46 is solved](../development/issues/github-character-shadow-jitter.md) with
+this updated/modern shadow option. Original remains available; this addition is
+accepted locally and not yet in a tagged release.
 
 ## Try it
 
@@ -754,3 +761,17 @@ and [Vela rescue blur correction](../development/issues/vela-rescue-cutscene-stu
 fixed in the v31 PAL/controller retest. Existing three-region automated evidence
 remains distinct from that PAL appearance acceptance. The v32 Aim-return handoff
 retains these fixes; neither local package is a published release.
+
+
+### Night vision and damage-tint review (2026-11-08)
+
+The current regional previews retain the exact-material GPU framebuffer reuse
+remedy for native night vision and red damage tint. A fresh renderer regression
+passes, including exclusions that preserve CPU-owned masks and unrelated textures.
+USA/PAL/JP test saves now enter the Lupus night-vision pad room with the required
+goggles. The owner subsequently manually tested and approved the fix on USA, PAL
+and JP on November 8. The earlier pending visual-review status is superseded.
+Historical resolution/120 Hz phase evidence is not claimed as a fresh replay;
+this local acceptance is not a published release.
+See [GH-051](../development/issues/github-nightvision-damage-presentation.md) and
+the [regional test-fixture correction](../development/issues/renderer-texture-fixture-layout.md).

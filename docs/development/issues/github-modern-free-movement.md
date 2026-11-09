@@ -1,6 +1,6 @@
 # GH-053: [Proposal] With Modern Controls a toggle for free movement (like with Classic) with a button press
 
-Status: local candidate; configuration/UI/native movement and Aim checks passed; owner batch review pending.
+Status: Owner confirms already tested and approved as an optional Advanced control action; regional/device coverage unspecified; unreleased.
 
 Source: [[Proposal] With Modern Controls a toggle for free movement (like with Classic) with a button press](https://github.com/TK22-26/JetForceGemini-Recomp/issues/53). Evidence snapshot retained privately in D:/JFG-private/remaining-gh-issues-20261027/github-issues.json.
 
@@ -35,3 +35,11 @@ Modern controls now offer Free movement by default and a bindable Movement toggl
 Component/configuration tests, the 1,015-check native UI suite, and normal Play comparisons passed. With the same input timeline, each mode produced 530 ordinary movement updates and 180 Aim updates. Strafe body/view remained aligned; free movement differed in 485 ordinary updates and returned to alignment for all 180 Aim updates. Both runs exited cleanly. This verifies native behavior and transitions, not broad campaign compatibility or the owner's final visual approval.
 
 Private evidence: remaining-gh-issues-20261027/movement-aim-024-analysis.json and the underlying gameplay/replay traces. The first UI test exposed an identifier collision with existing directional-key controls; the new setting now has its own nonoverlapping identifier.
+
+## November 8 owner acceptance
+
+The owner confirms that #53 and #55 were already tested and approved as optional
+Advanced control options. Record this existing acceptance; do not ask for repeat
+manual sign-off. The confirmation does not enumerate ROM regions or input devices.
+Earlier pending-review statements are historical. No release or GitHub closure
+is implied.

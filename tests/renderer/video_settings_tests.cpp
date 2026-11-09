@@ -1,6 +1,7 @@
 #include "jfg/renderer/frame_diagnostics_state.hpp"
 #include "jfg/renderer/presentation_policy.hpp"
 #include "jfg/renderer/video_settings.hpp"
+#include "jfg/renderer/renderer_diagnostics.hpp"
 #include <iostream>
 #include "jfg/renderer/actor_lod_settings.hpp"
 #include "jfg/renderer/shadow_settings.hpp"
@@ -12,6 +13,17 @@ int main() {
     if (!ok)
       ++failures;
   };
+  jfg::RendererResultHistory resultHistory;
+  check(resultHistory.observe(0, 0) == jfg::RendererLogDecision::record);
+  for (unsigned i=0; i<10000; ++i) check(resultHistory.observe(0, 0) == jfg::RendererLogDecision::unchanged);
+  check(resultHistory.observe(0, 0x887a0005U) == jfg::RendererLogDecision::record);
+  check(resultHistory.observe(0, 0) == jfg::RendererLogDecision::record);
+  for (unsigned i=3; i<jfg::RendererResultHistory::maximum_changes; ++i)
+    check(resultHistory.observe(0, i) == jfg::RendererLogDecision::record);
+  check(resultHistory.observe(0, 0xffffffffU) == jfg::RendererLogDecision::limit);
+  check(resultHistory.observe(0, 0) == jfg::RendererLogDecision::unchanged);
+  check(resultHistory.observe(3, 0xfffffc14U) == jfg::RendererLogDecision::record);
+  check(resultHistory.observe(6, 0) == jfg::RendererLogDecision::unchanged);
   check(jfg::load_shadow_quality({})==jfg::ShadowQuality::original);
   check(jfg::parse_shadow_quality("version=1\nshadow_quality=enhanced\n")==jfg::ShadowQuality::enhanced);
   check(jfg::parse_shadow_quality(jfg::serialize_shadow_quality(jfg::ShadowQuality::enhanced))==jfg::ShadowQuality::enhanced);
@@ -56,6 +68,18 @@ int main() {
   check(original && original->blur == jfg::BlurMode::reduced);
   const std::string legacy = "version=1\nmode=custom\nfps=120\nvsync=1\n";
   auto migrated = jfg::parse_video_settings(legacy);
+  check(migrated && migrated->graphics_api == jfg::GraphicsApi::automatic);
+  for (auto api : {jfg::GraphicsApi::automatic, jfg::GraphicsApi::d3d12, jfg::GraphicsApi::vulkan}) {
+    jfg::VideoSettings choice{}; choice.graphics_api = api;
+    const auto roundtrip = jfg::parse_video_settings(jfg::serialize_video_settings(choice));
+    check(roundtrip && roundtrip->graphics_api == api);
+    check(jfg::parse_video_settings(legacy + "graphics_api=" + std::string(jfg::graphics_api_name(api)) + "\r\n")->graphics_api == api);
+  }
+  for (const char* bad : {"", "D3D12", "metal", "3", "vulkan ", "../vulkan"})
+    check(!jfg::parse_video_settings(legacy + "graphics_api=" + bad + "\n"));
+  check(!jfg::parse_video_settings(legacy + "graphics_api=auto\ngraphics_api=vulkan\n"));
+  auto invalidApi = jfg::VideoSettings{}; invalidApi.graphics_api = static_cast<jfg::GraphicsApi>(3);
+  check(!jfg::valid_video_settings(invalidApi));
   check(migrated && migrated->blur == jfg::BlurMode::reduced);
   for (auto blur : {jfg::BlurMode::off, jfg::BlurMode::reduced, jfg::BlurMode::original}) {
     jfg::VideoSettings choice{jfg::FrameRateMode::custom, 120, true, blur};

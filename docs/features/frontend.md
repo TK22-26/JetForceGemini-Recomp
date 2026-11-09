@@ -36,6 +36,13 @@ the live map and navigation are in [their own page](navigation-mod.md).
   Video Settings is an owned native Windows window rendered with RmlUi, with window controls,
   VSync and experimental Original/Custom/Unlimited rendering. Rendering changes
   apply on the next game launch. Expanded aspect and AA overrides remain absent.
+  Rendering also offers a persisted Auto / Direct3D 12 / Vulkan combo box,
+  styled like Window size. Auto
+  retains RT64 selection (normally D3D12 on native Windows, Vulkan under Wine).
+  Apply changes the next game launch; the launcher compositor remains independent.
+  Support reports distinguish requested/selected game API, setup outcome and
+  bounded presentation result changes from frontend composition.
+  See [#58's diagnostic scope](../development/issues/github-black-screen-audio.md).
 - **Live tools.** Map and inventory open separate native RmlUi windows with the
   launcher's renderer, fonts and per-monitor DPI handling. `NativeLiveTools.cs`
   adapts the existing validated map/inventory models and navigation planner;
