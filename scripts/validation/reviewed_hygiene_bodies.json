@@ -909,6 +909,16 @@
         "binary"
       ],
       "reason": "Owner-requested official GitHub white Invertocat project-link icon, derived from retained SVG in GitHub brand toolkit; transparent native UI texture, no game assets"
+    },
+    {
+      "git_blob": "313f5227b175bdcda3568b3dc4bed06458ea6329",
+      "sha256": "51f8f945c60a787ad45cd5d9542e089a52795b1f3f2ec94da909b1c86065c834",
+      "bytes": 45785,
+      "path": "docs/images/startup-screen.png",
+      "exceptions": [
+        "binary"
+      ],
+      "reason": "Owner-requested current native launcher screenshot with all three ROM tiles; synthetic profile labels, no ROM bytes, extracted game assets or personal data."
     }
   ]
 }

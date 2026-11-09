@@ -7,8 +7,8 @@ original ROM versions: USA, PAL (Europe), and Japan (Star Twins), including the 
 language options provided by each ROM.** Import your ROM, select its cartridge in the launcher,
 and click **Play**. The selected ROM is remembered between sessions.
 
-Prebuilt packages require no developer tools or first-run compilation. The currently published
-v1.4.0 package supports the US ROM; use a 1.5.0 build for PAL and Japanese support.
+The 1.5.0 package includes one launcher and all three regional runtimes. No developer tools
+or first-run compilation are required. Keep the complete extracted package together.
 See [1.5.0 qualification and publication status](docs/releases/qualification-1.5.0.md).
 
 [Get started](docs/getting-started.md) | [Documentation](docs/README.md) | [Project status](docs/status.md) |
@@ -20,13 +20,13 @@ Written with the help of **AI: Codex GPT 6 Astra**, with human direction, review
 
 1. Download the **Windows x64 ZIP** from the [latest stable release](https://github.com/TK22-26/JetForceGemini-Recomp/releases/latest).
 2. Extract the entire ZIP and open `JFG-Launcher.exe`.
-3. In a 1.5.0 build, import your supported USA, PAL or Japanese ROM, select its cartridge, then click **Play**. The older v1.4.0 package accepts the US ROM only.
+3. Import your supported USA, PAL or Japanese ROM, select its cartridge, then click **Play**.
 
 The launcher verifies the ROM and keeps a private local copy; the original file is no longer needed
 after import. Existing profile saves remain available. Keep the imported copy: it supplies game assets.
 See [requirements, updates and portable storage](docs/getting-started.md).
 
-![Launcher startup screen](docs/images/startup-screen.png)
+![Launcher with USA, PAL and Japanese ROM selection](docs/images/startup-screen.png)
 
 The installation approach is inspired by the **Zelda64Recomp team** and its
 [plug-and-play distribution model](https://github.com/Zelda64Recomp/Zelda64Recomp#plug-and-play).
