@@ -179,9 +179,9 @@ public:
             velocity*f.elapsed : f.distance[i];
         displacement[i]=std::bit_cast<std::uint32_t>(distance);
       }
-      context.r5=static_cast<std::int32_t>(displacement[0]);
-      context.r6=static_cast<std::int32_t>(displacement[1]);
-      context.r7=static_cast<std::int32_t>(displacement[2]);
+      context.r5=static_cast<std::uint64_t>(static_cast<std::int32_t>(displacement[0]));
+      context.r6=static_cast<std::uint64_t>(static_cast<std::int32_t>(displacement[1]));
+      context.r7=static_cast<std::uint64_t>(static_cast<std::int32_t>(displacement[2]));
     }
   }
   ~FlyingMotionScope() {

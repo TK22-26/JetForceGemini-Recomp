@@ -645,7 +645,7 @@ public:
     if(count>=3U && count<=8U && polygon<256U)shadow_clips_[polygon]=clip;
   }
   std::size_t shadow_record_count(std::uint32_t actor) const {
-    return std::count_if(shadows_.begin(),shadows_.end(),[&](const auto& r){return r.second.identity.actor==actor;});
+    return static_cast<std::size_t>(std::count_if(shadows_.begin(),shadows_.end(),[&](const auto& r){return r.second.identity.actor==actor;}));
   }
   void shadow(std::span<const std::uint8_t> data,std::uint32_t descriptor,
       std::uint32_t control,std::uint32_t light,std::uint32_t first,

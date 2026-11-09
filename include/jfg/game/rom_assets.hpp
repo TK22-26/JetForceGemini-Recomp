@@ -11,7 +11,7 @@ constexpr std::uint32_t rom_address_operand(std::uint32_t high,std::uint32_t low
   if(high>>26U!=15U || ((high>>21U)&31U)!=0U || ((high>>16U)&31U)==0U ||
      low>>26U!=9U || ((low>>21U)&31U)!=((high>>16U)&31U))
     throw "Invalid original ROM-address operand";
-  return ((high&0xFFFFU)<<16U)+static_cast<std::int16_t>(low&0xFFFFU);
+  return ((high&0xFFFFU)<<16U)+static_cast<std::uint32_t>(static_cast<std::int16_t>(low&0xFFFFU));
 }
 class RomAssetView {
   std::span<const std::uint8_t> rom_;

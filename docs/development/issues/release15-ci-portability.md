@@ -1,6 +1,7 @@
 # 1.5.0 CI compile portability
 
-Status: reproduced and corrected in focused GCC checks; full PR CI pending.
+Status: source corrections verified by complete local compiler/test runs.
+Final integration checks are tracked on [PR #60](https://github.com/TK22-26/JetForceGemini-Recomp/pull/60).
 Severity: release-blocking source build failure, not an observed gameplay defect.
 
 PR #60 at source `37f09fb` exposed two failures in the first required CI run:
@@ -45,3 +46,24 @@ The complete local strict GCC build, CTest suite (with the existing CI trap-prob
 quarantine), and a fresh Windows CMake SDK fetch pass. Full remote CI remains
 pending. Private receipts: `linux-build-fixed.log`, `linux-ctest.log`,
 `sdl-origin.json` and `sdl-cmake-fetch.log`.
+
+The subsequent sanitizer build exposed one more narrowing warning in the synthetic
+resident-memory fixture: two bytes are combined as an `int` and returned as a
+16-bit word. The fixture now makes that bounded conversion explicit. The complete
+local ASan/UBSan build and enabled CTest suite pass; no production memory behavior
+changes. Evidence: `asan-build.log` and `asan-ctest.log` in the same private record.
+
+The CI GCC Debug and Release builds then passed all 121 enabled tests each.
+Clang's separate warning lane found implicit signedness conversions in ROM-address
+operand composition and exit-level decoding. Explicit unsigned conversions retain
+the existing modulo-32-bit signed-immediate behavior and byte-shift result.
+The ROM-assets test already checks a negative immediate. The installed local Clang 21 also reports conversions in the CIC nibble mask,
+shadow-count result and signed guest-register arguments. These conversions are
+now explicit, preserving the nibble mask, nonnegative count and MIPS sign extension.
+No warning policy or gameplay behavior changes. The initial local Clang configure
+used a distribution without Clang; its failure is preserved. A subsequent build
+folder under temporary Linux storage disappeared between calls, so final checks
+use persistent private build directories. Complete Clang 21 Release and GCC
+ASan/UBSan builds and enabled test suites pass. CI uses Clang 18 independently.
+Evidence: `clang-persistent-build.log`, `clang-persistent-ctest.log`,
+`asan-persistent-build.log` and `asan-persistent-ctest.log`.

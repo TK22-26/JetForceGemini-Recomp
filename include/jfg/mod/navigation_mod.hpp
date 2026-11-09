@@ -325,7 +325,7 @@ inline std::vector<Exit> exits(const Memory &m,
            m.u32(control + m.member_offset("layout.exitControl.radius")),
            static_cast<std::uint16_t>(m.u8(definition+m.member_offset("layout.exitDefinition.levelLow")) |
              (m.u8(definition+m.member_offset("layout.exitDefinition.levelHigh"))==0xffU ? 0U :
-              m.u8(definition+m.member_offset("layout.exitDefinition.levelHigh"))<<8U)),
+              static_cast<unsigned>(m.u8(definition+m.member_offset("layout.exitDefinition.levelHigh")))<<8U)),
            m.s16(control + m.member_offset("layout.exitControl.condition")),
            m.s16(control + m.member_offset("layout.exitControl.directional"))});
     } catch (const std::runtime_error &) {

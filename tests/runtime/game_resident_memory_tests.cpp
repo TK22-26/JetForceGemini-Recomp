@@ -6,7 +6,7 @@ struct Memory {
   std::uint32_t base;std::array<std::uint8_t,64> bytes{};
   bool valid(std::uint32_t address,std::uint32_t size) const {return address>=base && address-base<=bytes.size() && size<=bytes.size()-(address-base);}
   std::uint8_t u8(std::uint32_t address) const {return bytes.at(address-base);}
-  std::uint16_t u16(std::uint32_t address) const {return (u8(address)<<8)|u8(address+1);}
+  std::uint16_t u16(std::uint32_t address) const {return static_cast<std::uint16_t>((u8(address)<<8)|u8(address+1));}
   std::uint32_t u32(std::uint32_t address) const {return (std::uint32_t{u16(address)}<<16)|u16(address+2);}
 };
 int main() {
